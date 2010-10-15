@@ -16,6 +16,9 @@ TEST_F(NinjaTest, Basic) {
   state_.AddInOut(edge, Edge::IN, "in1");
   state_.AddInOut(edge, Edge::IN, "in2");
   state_.AddInOut(edge, Edge::OUT, "out");
+
+  EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
+
   EXPECT_FALSE(state_.GetNode("in1")->dirty());
   EXPECT_FALSE(state_.GetNode("in2")->dirty());
   EXPECT_FALSE(state_.GetNode("out")->dirty());

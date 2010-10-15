@@ -42,6 +42,7 @@ struct Edge {
   Edge() : rule_(NULL) {}
 
   void MarkDirty(Node* node);
+  string EvaluateCommand();  // XXX move to env, take env ptr
 
   Rule* rule_;
   enum InOut { IN, OUT };
@@ -68,6 +69,10 @@ void Edge::MarkDirty(Node* node) {
     return;
   for (i = outputs_.begin(); i != outputs_.end(); ++i)
     (*i)->MarkDirty();
+}
+
+string Edge::EvaluateCommand() {
+  return rule_->command_;
 }
 
 struct StatCache {
