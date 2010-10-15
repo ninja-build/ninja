@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <map>
+#include <queue>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -131,4 +133,51 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
     assert(node->in_edge_ == NULL);
     node->in_edge_ = edge;
   }
+}
+
+struct Plan {
+  Plan(State* state) : state_(state) {}
+
+  void AddTarget(const string& path);
+  bool AddTarget(Node* node);
+
+  Edge* FindWork();
+
+  State* state_;
+  set<Node*> want_;
+  queue<Edge*> ready_;
+};
+
+void Plan::AddTarget(const string& path) {
+  AddTarget(state_->GetNode(path));
+}
+bool Plan::AddTarget(Node* node) {
+  if (!node->dirty())
+    return false;
+  Edge* edge = node->in_edge_;
+  if (!edge) {
+    // TODO: if file doesn't exist we should die here.
+    return false;
+  }
+
+  want_.insert(node);
+
+  bool awaiting_inputs = false;
+  for (vector<Node*>::iterator i = edge->inputs_.begin(); i != edge->inputs_.end(); ++i) {
+    if (AddTarget(*i))
+      awaiting_inputs = true;
+  }
+
+  if (!awaiting_inputs)
+    ready_.push(edge);
+
+  return true;
+}
+
+Edge* Plan::FindWork() {
+  if (ready_.empty())
+    return NULL;
+  Edge* edge = ready_.front();
+  ready_.pop();
+  return edge;
 }

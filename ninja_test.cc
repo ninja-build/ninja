@@ -24,5 +24,9 @@ TEST_F(NinjaTest, Basic) {
   EXPECT_TRUE(state_.GetNode("in1")->dirty());
   EXPECT_FALSE(state_.GetNode("in2")->dirty());
   EXPECT_TRUE(state_.GetNode("out")->dirty());
-}
 
+  Plan plan(&state_);
+  plan.AddTarget("out");
+  ASSERT_TRUE(plan.FindWork());
+  ASSERT_FALSE(plan.FindWork());
+}
