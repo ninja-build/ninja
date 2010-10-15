@@ -33,3 +33,23 @@ TEST_F(NinjaTest, Basic) {
   ASSERT_TRUE(plan.FindWork());
   ASSERT_FALSE(plan.FindWork());
 }
+
+struct TestEnv : public EvalString::Env {
+  virtual string Evaluate(const string& var) {
+    return vars[var];
+  }
+  map<string, string> vars;
+};
+TEST(EvalString, PlainText) {
+  EvalString str;
+  str.Parse("plain text");
+  ASSERT_EQ("plain text", str.Evaluate(NULL));
+}
+TEST(EvalString, OneVariable) {
+  EvalString str;
+  ASSERT_TRUE(str.Parse("hi $var"));
+  TestEnv env;
+  EXPECT_EQ("hi ", str.Evaluate(&env));
+  env.vars["$var"] = "there";
+  EXPECT_EQ("hi there", str.Evaluate(&env));
+}
