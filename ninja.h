@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <assert.h>
+
 using namespace std;
 
 struct Node;
@@ -23,7 +25,8 @@ struct Node {
 
   FileStat* file_;
   bool dirty_;
-  vector<Edge*> edges_;
+  Edge* in_edge_;
+  vector<Edge*> out_edges_;
 };
 
 struct Rule {
@@ -53,7 +56,7 @@ void Node::MarkDirty() {
   if (dirty_)
     return;  // We already know.
   dirty_ = true;
-  for (vector<Edge*>::iterator i = edges_.begin(); i != edges_.end(); ++i)
+  for (vector<Edge*>::iterator i = out_edges_.begin(); i != out_edges_.end(); ++i)
     (*i)->MarkDirty(this);
 }
 
@@ -120,9 +123,12 @@ Node* State::GetNode(const string& path) {
 
 void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
   Node* node = GetNode(path);
-  if (inout == Edge::IN)
+  if (inout == Edge::IN) {
     edge->inputs_.push_back(node);
-  else
+    node->out_edges_.push_back(edge);
+  } else {
     edge->outputs_.push_back(node);
-  node->edges_.push_back(edge);
+    assert(node->in_edge_ == NULL);
+    node->in_edge_ = edge;
+  }
 }
