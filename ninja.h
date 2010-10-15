@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -6,14 +7,20 @@ using namespace std;
 
 struct Node;
 struct FileStat {
-  FileStat(const string& path) : path_(path), node_(NULL) {}
+  FileStat(const string& path) : path_(path), mtime_(0), node_(NULL) {}
+  void Touch(int mtime);
   string path_;
+  int mtime_;
   Node* node_;
 };
 
 struct Edge;
 struct Node {
   Node(FileStat* file) : file_(file), dirty_(false) {}
+
+  bool dirty() const { return dirty_; }
+  void MarkDirty();
+
   FileStat* file_;
   bool dirty_;
   vector<Edge*> edges_;
@@ -27,19 +34,58 @@ struct Rule {
 };
 
 struct Edge {
+  Edge() : rule_(NULL) {}
+
+  void MarkDirty(Node* node);
+
   Rule* rule_;
   enum InOut { IN, OUT };
   vector<Node*> inputs_;
   vector<Node*> outputs_;
 };
 
+void FileStat::Touch(int mtime) {
+  if (node_)
+    node_->MarkDirty();
+}
+
+void Node::MarkDirty() {
+  if (dirty_)
+    return;  // We already know.
+  dirty_ = true;
+  for (vector<Edge*>::iterator i = edges_.begin(); i != edges_.end(); ++i)
+    (*i)->MarkDirty(this);
+}
+
+void Edge::MarkDirty(Node* node) {
+  vector<Node*>::iterator i = find(inputs_.begin(), inputs_.end(), node);
+  if (i == inputs_.end())
+    return;
+  for (i = outputs_.begin(); i != outputs_.end(); ++i)
+    (*i)->MarkDirty();
+}
+
 struct StatCache {
-  map<string, FileStat*> paths_;
+  typedef map<string, FileStat*> Paths;
+  Paths paths_;
+  FileStat* GetFile(const string& path);
 };
+
+FileStat* StatCache::GetFile(const string& path) {
+  Paths::iterator i = paths_.find(path);
+  if (i != paths_.end())
+    return i->second;
+  FileStat* file = new FileStat(path);
+  paths_[path] = file;
+  return file;
+}
+
 struct State {
   StatCache stat_cache_;
   map<string, Rule*> rules_;
   vector<Edge*> edges_;
+
+  StatCache* stat_cache() { return &stat_cache_; }
 
   Rule* AddRule(const string& name, const string& command);
   Edge* AddEdge(Rule* rule);
@@ -66,9 +112,10 @@ Edge* State::AddEdge(Rule* rule) {
 }
 
 Node* State::GetNode(const string& path) {
-  FileStat* file = new FileStat(path);
-  stat_cache_.paths_[path] = file;
-  return new Node(file);
+  FileStat* file = stat_cache_.GetFile(path);
+  if (!file->node_)
+    file->node_ = new Node(file);
+  return file->node_;
 }
 
 void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
@@ -77,4 +124,5 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
     edge->inputs_.push_back(node);
   else
     edge->outputs_.push_back(node);
+  node->edges_.push_back(edge);
 }

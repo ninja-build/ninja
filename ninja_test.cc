@@ -16,5 +16,13 @@ TEST_F(NinjaTest, Basic) {
   state_.AddInOut(edge, Edge::IN, "in1");
   state_.AddInOut(edge, Edge::IN, "in2");
   state_.AddInOut(edge, Edge::OUT, "out");
+  EXPECT_FALSE(state_.GetNode("in1")->dirty());
+  EXPECT_FALSE(state_.GetNode("in2")->dirty());
+  EXPECT_FALSE(state_.GetNode("out")->dirty());
+
+  state_.stat_cache()->GetFile("in1")->Touch(1);
+  EXPECT_TRUE(state_.GetNode("in1")->dirty());
+  EXPECT_FALSE(state_.GetNode("in2")->dirty());
+  EXPECT_TRUE(state_.GetNode("out")->dirty());
 }
 
