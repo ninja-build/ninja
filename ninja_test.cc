@@ -30,7 +30,9 @@ TEST_F(NinjaTest, Basic) {
 
   Plan plan(&state_);
   plan.AddTarget("out");
-  ASSERT_TRUE(plan.FindWork());
+  edge = plan.FindWork();
+  ASSERT_TRUE(edge);
+  EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
   ASSERT_FALSE(plan.FindWork());
 }
 
