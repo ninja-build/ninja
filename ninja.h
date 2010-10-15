@@ -86,9 +86,11 @@ string EvalString::Evaluate(Env* env) {
 
 struct Rule {
   Rule(const string& name, const string& command) :
-    name_(name), command_(command) {}
+    name_(name) {
+    assert(command_.Parse(command));  // XXX
+  }
   string name_;
-  string command_;
+  EvalString command_;
 };
 
 struct Edge {
@@ -124,8 +126,28 @@ void Edge::MarkDirty(Node* node) {
     (*i)->MarkDirty();
 }
 
+struct EdgeEnv : public EvalString::Env {
+  EdgeEnv(Edge* edge) : edge_(edge) {}
+  virtual string Evaluate(const string& var) {
+    string result;
+    if (var == "@in") {
+      for (vector<Node*>::iterator i = edge_->inputs_.begin();
+           i != edge_->inputs_.end(); ++i) {
+        if (!result.empty())
+          result.push_back(' ');
+        result.append((*i)->file_->path_);
+      }
+    } else if (var == "$out") {
+      result = edge_->outputs_[0]->file_->path_;
+    }
+    return result;
+  }
+  Edge* edge_;
+};
+
 string Edge::EvaluateCommand() {
-  return rule_->command_;
+  EdgeEnv env(this);
+  return rule_->command_.Evaluate(&env);
 }
 
 struct StatCache {
