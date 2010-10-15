@@ -18,7 +18,7 @@ struct FileStat {
 
 struct Edge;
 struct Node {
-  Node(FileStat* file) : file_(file), dirty_(false) {}
+  Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
 
   bool dirty() const { return dirty_; }
   void MarkDirty();
