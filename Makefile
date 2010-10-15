@@ -1,6 +1,6 @@
 CXXFLAGS := -Wall -g
 
-all: ninja ninja_test
+all_i_currently_care_about: ninja_test
 ninja: ninja.cc ninja.h | Makefile
 
 ninja_test: LDFLAGS = -lgtest -lgtest_main
