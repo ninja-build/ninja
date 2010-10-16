@@ -278,6 +278,7 @@ struct ManifestParser {
   bool Error(const string& message, string* err);
 
   bool ParseRule(string* err);
+  bool ParseEdge(string* err);
 
   bool SkipWhitespace(bool newline=false);
   bool Newline(string* err);
@@ -322,6 +323,9 @@ bool ManifestParser::Parse(const string& input, string* err) {
     if (token_ == "rule") {
       if (!ParseRule(err))
         return false;
+    } else if (token_ == "build") {
+      if (!ParseEdge(err))
+        return false;
     } else {
       return Error("unknown token: " + token_, err);
     }
@@ -361,6 +365,39 @@ bool ManifestParser::ParseRule(string* err) {
   return true;
 }
 
+bool ManifestParser::ParseEdge(string* err) {
+  vector<string> ins, outs;
+  string rule;
+  SkipWhitespace();
+  for (;;) {
+    if (!NextToken())
+      return Error("expected output file list", err);
+    if (token_ == ":")
+      break;
+    ins.push_back(token_);
+  }
+  if (!NextToken())
+    return Error("expected build command name", err);
+  rule = token_;
+  for (;;) {
+    if (!NextToken())
+      break;
+    outs.push_back(token_);
+  }
+  if (!Newline(err))
+    return false;
+
+  Edge* edge = state_->AddEdge(rule);
+  if (!edge)
+    return Error("unknown build rule name name", err);
+  for (vector<string>::iterator i = ins.begin(); i != ins.end(); ++i)
+    state_->AddInOut(edge, Edge::IN, *i);
+  for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)
+    state_->AddInOut(edge, Edge::OUT, *i);
+
+  return true;
+}
+
 bool ManifestParser::SkipWhitespace(bool newline) {
   bool skipped = false;
   while (cur_ < end_) {
@@ -386,17 +423,28 @@ bool ManifestParser::Newline(string* err) {
   }
 }
 
+static bool IsIdentChar(char c) {
+  return
+    ('a' <= c && c <= 'z') ||
+    ('0' <= c && c <= '9');
+}
+
 bool ManifestParser::NextToken() {
   SkipWhitespace();
   token_.clear();
-  while (cur_ < end_) {
-    if ('a' <= *cur_ && *cur_ <= 'z') {
+  if (cur_ >= end_)
+    return false;
+
+  if (IsIdentChar(*cur_)) {
+    while (cur_ < end_ && IsIdentChar(*cur_)) {
       token_.push_back(*cur_);
-    } else {
-      break;
+      ++col_; ++cur_;
     }
+  } else if (*cur_ == ':') {
+    token_ = ":";
     ++col_; ++cur_;
   }
+
   return !token_.empty();
 }
 

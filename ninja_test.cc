@@ -71,9 +71,12 @@ TEST(Parser, Rules) {
   string err;
   EXPECT_TRUE(parser.Parse(
       "rule cat\n"
-      "command cat @in > $out\n\n"
+      "command cat @in > $out\n"
+      "\n"
       "rule date\n"
-      "command date > $out\n\n",
+      "command date > $out\n"
+      "\n"
+      "build result: cat in1 in2\n",
       &err));
   EXPECT_EQ("", err);
 
