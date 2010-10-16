@@ -335,8 +335,9 @@ bool ManifestParser::Parse(const string& input, string* err) {
 }
 
 bool ManifestParser::Error(const string& message, string* err) {
-  // XXX include line/col
-  *err = message;
+  char buf[1024];
+  sprintf(buf, "line %d, col %d: %s", line_ + 1, col_ + 1, message.c_str());
+  err->assign(buf);
   return false;
 }
 
@@ -378,7 +379,7 @@ bool ManifestParser::SkipWhitespace(bool newline) {
 
 bool ManifestParser::Newline(string* err) {
   if (cur_ < end_ && *cur_ == '\n') {
-    ++cur_; ++col_;
+    ++cur_; ++line_; col_ = 0;
     return true;
   } else {
     return Error("expected newline", err);
