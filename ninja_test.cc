@@ -71,7 +71,7 @@ TEST(Parser, Rule) {
   string err;
   EXPECT_TRUE(parser.Parse(
       "rule cat\n"
-      "command cat @in > $out\n",
+      "command cat @in > $out\n\n",
       &err));
   EXPECT_EQ("", err);
 

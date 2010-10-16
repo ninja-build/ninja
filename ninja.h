@@ -327,6 +327,8 @@ bool ManifestParser::Parse(const string& input, string* err) {
     }
   }
 
+  SkipWhitespace(true);
+
   if (cur_ < end_)
     return Error("expected eof", err);
 
