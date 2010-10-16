@@ -70,13 +70,13 @@ TEST(Parser, Rules) {
   ManifestParser parser(&state);
   string err;
   EXPECT_TRUE(parser.Parse(
-      "rule cat\n"
-      "command cat @in > $out\n"
-      "\n"
-      "rule date\n"
-      "command date > $out\n"
-      "\n"
-      "build result: cat in1 in2\n",
+"rule cat\n"
+"command cat @in > $out\n"
+"\n"
+"rule date\n"
+"command date > $out\n"
+"\n"
+"build result: cat in_1.cc in-2.O\n",
       &err));
   EXPECT_EQ("", err);
 

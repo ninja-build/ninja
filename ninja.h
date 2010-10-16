@@ -340,7 +340,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
 
 bool ManifestParser::Error(const string& message, string* err) {
   char buf[1024];
-  sprintf(buf, "line %d, col %d: %s", line_ + 1, col_ + 1, message.c_str());
+  sprintf(buf, "line %d, col %d: %s", line_ + 1, col_, message.c_str());
   err->assign(buf);
   return false;
 }
@@ -419,14 +419,19 @@ bool ManifestParser::Newline(string* err) {
     ++cur_; ++line_; col_ = 0;
     return true;
   } else {
-    return Error("expected newline", err);
+    if (cur_ >= end_)
+      return Error("expected newline, got eof", err);
+    else
+      return Error(string("expected newline, got '") + *cur_ + string("'"), err);
   }
 }
 
 static bool IsIdentChar(char c) {
   return
     ('a' <= c && c <= 'z') ||
-    ('0' <= c && c <= '9');
+    ('+' <= c && c <= '9') ||  // +,-./ and numbers
+    ('A' <= c && c <= 'Z') ||
+    (c == '_');
 }
 
 bool ManifestParser::NextToken() {
