@@ -50,8 +50,33 @@ TEST(EvalString, PlainText) {
 TEST(EvalString, OneVariable) {
   EvalString str;
   ASSERT_TRUE(str.Parse("hi $var"));
+  EXPECT_EQ("hi $var", str.unparsed());
   TestEnv env;
   EXPECT_EQ("hi ", str.Evaluate(&env));
   env.vars["$var"] = "there";
   EXPECT_EQ("hi there", str.Evaluate(&env));
+}
+
+TEST(Parser, Empty) {
+  State state;
+  ManifestParser parser(&state);
+  string err;
+  EXPECT_TRUE(parser.Parse("", &err));
+  EXPECT_EQ("", err);
+}
+
+TEST(Parser, Rule) {
+  State state;
+  ManifestParser parser(&state);
+  string err;
+  EXPECT_TRUE(parser.Parse(
+      "rule cat\n"
+      "command cat @in > $out\n",
+      &err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1, state.rules_.size());
+  Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("cat", rule->name_);
+  EXPECT_EQ("cat @in > $out", rule->command_.unparsed());
 }

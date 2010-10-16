@@ -38,13 +38,17 @@ struct EvalString {
   bool Parse(const string& input);
   string Evaluate(Env* env);
 
-  string orig_;
+  const string& unparsed() const { return unparsed_; }
+
+  string unparsed_;
   enum TokenType { RAW, SPECIAL };
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
 };
 
 bool EvalString::Parse(const string& input) {
+  unparsed_ = input;
+
   string::size_type start, end;
   start = 0;
   do {
@@ -260,4 +264,144 @@ Edge* Plan::FindWork() {
   Edge* edge = ready_.front();
   ready_.pop();
   return edge;
+}
+
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+struct ManifestParser {
+  ManifestParser(State* state) : state_(state), line_(0), col_(0) {}
+  bool Load(const string& filename, string* err);
+  bool Parse(const string& input, string* err);
+
+  bool Error(const string& message, string* err);
+
+  bool ParseRule(string* err);
+
+  bool SkipWhitespace(bool newline=false);
+  bool Newline(string* err);
+  bool NextToken();
+  bool ReadToNewline(string* text, string* err);
+
+  State* state_;
+  const char* cur_;
+  const char* end_;
+  int line_, col_;
+  string token_;
+};
+
+bool ManifestParser::Load(const string& filename, string* err) {
+  FILE* f = fopen(filename.c_str(), "r");
+  if (!f) {
+    err->assign(strerror(errno));
+    return false;
+  }
+
+  string text;
+  char buf[64 << 10];
+  size_t len;
+  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+    text.append(buf, len);
+  }
+  if (ferror(f)) {
+    err->assign(strerror(errno));
+    fclose(f);
+    return false;
+  }
+  fclose(f);
+
+  return Parse(text, err);
+}
+
+bool ManifestParser::Parse(const string& input, string* err) {
+  cur_ = input.data(); end_ = cur_ + input.size();
+  line_ = col_ = 0;
+
+  while (NextToken()) {
+    if (token_ == "rule") {
+      if (!ParseRule(err))
+        return false;
+    } else {
+      return Error("unknown token: " + token_, err);
+    }
+  }
+
+  if (cur_ < end_)
+    return Error("expected eof", err);
+
+  return true;
+}
+
+bool ManifestParser::Error(const string& message, string* err) {
+  // XXX include line/col
+  *err = message;
+  return false;
+}
+
+bool ManifestParser::ParseRule(string* err) {
+  SkipWhitespace();
+  if (!NextToken())
+    return Error("expected rule name", err);
+  if (!Newline(err))
+    return false;
+  string name = token_;
+
+  if (!NextToken() || token_ != "command")
+    return Error("expected command", err);
+  string command;
+  SkipWhitespace();
+  if (!ReadToNewline(&command, err))
+    return false;
+
+  state_->AddRule(name, command);
+
+  return true;
+}
+
+bool ManifestParser::SkipWhitespace(bool newline) {
+  bool skipped = false;
+  while (cur_ < end_) {
+    if (*cur_ == ' ') {
+      ++col_;
+    } else if (newline && *cur_ == '\n') {
+      col_ = 0; ++line_;
+    } else {
+      break;
+    }
+    skipped = true;
+    ++cur_;
+  }
+  return skipped;
+}
+
+bool ManifestParser::Newline(string* err) {
+  if (cur_ < end_ && *cur_ == '\n') {
+    ++cur_; ++col_;
+    return true;
+  } else {
+    return Error("expected newline", err);
+  }
+}
+
+bool ManifestParser::NextToken() {
+  SkipWhitespace();
+  token_.clear();
+  while (cur_ < end_) {
+    if ('a' <= *cur_ && *cur_ <= 'z') {
+      token_.push_back(*cur_);
+    } else {
+      break;
+    }
+    ++col_; ++cur_;
+  }
+  return !token_.empty();
+}
+
+bool ManifestParser::ReadToNewline(string* text, string* err) {
+  while (cur_ < end_ && *cur_ != '\n') {
+    text->push_back(*cur_);
+    ++cur_; ++col_;
+  }
+  return Newline(err);
 }
