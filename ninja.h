@@ -325,9 +325,8 @@ bool ManifestParser::Parse(const string& input, string* err) {
     } else {
       return Error("unknown token: " + token_, err);
     }
+    SkipWhitespace(true);
   }
-
-  SkipWhitespace(true);
 
   if (cur_ < end_)
     return Error("expected eof", err);

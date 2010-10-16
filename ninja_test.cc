@@ -65,17 +65,19 @@ TEST(Parser, Empty) {
   EXPECT_EQ("", err);
 }
 
-TEST(Parser, Rule) {
+TEST(Parser, Rules) {
   State state;
   ManifestParser parser(&state);
   string err;
   EXPECT_TRUE(parser.Parse(
       "rule cat\n"
-      "command cat @in > $out\n\n",
+      "command cat @in > $out\n\n"
+      "rule date\n"
+      "command date > $out\n\n",
       &err));
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1, state.rules_.size());
+  ASSERT_EQ(2, state.rules_.size());
   Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name_);
   EXPECT_EQ("cat @in > $out", rule->command_.unparsed());
