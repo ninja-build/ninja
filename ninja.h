@@ -220,7 +220,7 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
 }
 
 struct Plan {
-  Plan(State* state) : state_(state) {}
+  explicit Plan(State* state) : state_(state) {}
 
   void AddTarget(const string& path);
   bool AddTarget(Node* node);
@@ -230,6 +230,10 @@ struct Plan {
   State* state_;
   set<Node*> want_;
   queue<Edge*> ready_;
+
+private:
+  Plan();
+  Plan(const Plan&);
 };
 
 void Plan::AddTarget(const string& path) {
@@ -267,3 +271,33 @@ Edge* Plan::FindWork() {
 }
 
 #include "manifest_parser.h"
+
+struct Shell {
+  virtual ~Shell() {}
+  virtual bool RunCommand(const string& command) = 0;
+};
+
+struct Builder {
+  Builder(State* state) : plan_(state) {}
+  virtual ~Builder() {}
+
+  void AddTarget(const string& name) {
+    plan_.AddTarget(name);
+  }
+  bool Build(Shell* shell, string* err);
+
+  Plan plan_;
+};
+
+bool Builder::Build(Shell* shell, string* err) {
+  while (Edge* edge = plan_.FindWork()) {
+    string command = edge->EvaluateCommand();
+    if (!shell->RunCommand(command)) {
+      err->assign("command '" + command + "' failed.");
+      return false;
+    }
+    // XXX tell plan about the files we've updated, so we have more
+    // work to do
+  }
+  return true;
+}

@@ -98,15 +98,15 @@ bool ManifestParser::ParseRule(string* err) {
 }
 
 bool ManifestParser::ParseEdge(string* err) {
-  vector<string> ins, outs;
   string rule;
+  vector<string> ins, outs;
   SkipWhitespace();
   for (;;) {
     if (!NextToken())
       return Error("expected output file list", err);
     if (token_ == ":")
       break;
-    ins.push_back(token_);
+    outs.push_back(token_);
   }
   if (!NextToken())
     return Error("expected build command name", err);
@@ -114,7 +114,7 @@ bool ManifestParser::ParseEdge(string* err) {
   for (;;) {
     if (!NextToken())
       break;
-    outs.push_back(token_);
+    ins.push_back(token_);
   }
   if (!Newline(err))
     return false;

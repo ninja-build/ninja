@@ -78,3 +78,46 @@ TEST(EvalString, OneVariable) {
   env.vars["$var"] = "there";
   EXPECT_EQ("hi there", str.Evaluate(&env));
 }
+
+#include <gmock/gmock.h>
+using ::testing::Return;
+using ::testing::_;
+
+struct MockShell : public Shell {
+  MOCK_METHOD1(RunCommand, bool(const string& command));
+};
+
+TEST(Build, OneStep) {
+  State state;
+  ManifestParser parser(&state);
+  string err;
+  ASSERT_TRUE(parser.Parse(
+"rule cat\n"
+"command cat @in > $out\n"
+"\n"
+"build lib: cat in1 in2\n"
+"build bin: cat main lib\n",
+      &err));
+  ASSERT_EQ("", err);
+
+  {
+    MockShell shell;
+    Builder builder(&state);
+    builder.AddTarget("bin");
+    EXPECT_CALL(shell, RunCommand(_))
+      .Times(0);
+    EXPECT_TRUE(builder.Build(&shell, &err));
+    EXPECT_EQ("", err);
+  }
+
+  {
+    MockShell shell;
+    Builder builder(&state);
+    state.stat_cache()->GetFile("in1")->Touch(1);
+    builder.AddTarget("bin");
+    EXPECT_CALL(shell, RunCommand("cat in1 in2 > lib"))
+      .WillOnce(Return(true));
+    EXPECT_TRUE(builder.Build(&shell, &err));
+    EXPECT_EQ("", err);
+  }
+}
