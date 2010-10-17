@@ -81,16 +81,18 @@ TEST(EvalString, OneVariable) {
 
 struct BuildTest : public testing::Test,
                    public Shell {
-  BuildTest() {
+  BuildTest() : builder_(&state_), now_(1) {
     LoadManifest();
   }
 
   void LoadManifest();
+  void Touch(const string& path);
 
   // shell override
   virtual bool RunCommand(Edge* edge);
 
   State state_;
+  Builder builder_;
   int now_;
   vector<string> commands_ran_;
 };
@@ -109,6 +111,10 @@ void BuildTest::LoadManifest() {
   ASSERT_EQ("", err);
 }
 
+void BuildTest::Touch(const string& path) {
+  state_.stat_cache()->GetFile(path)->Touch(1);
+}
+
 bool BuildTest::RunCommand(Edge* edge) {
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule_->name_ == "cat") {
@@ -125,22 +131,33 @@ bool BuildTest::RunCommand(Edge* edge) {
 }
 
 TEST_F(BuildTest, NoWork) {
-  Builder builder(&state_);
-  builder.AddTarget("bin");
+  builder_.AddTarget("bin");
   string err;
-  EXPECT_TRUE(builder.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ(0, commands_ran_.size());
 }
 
 TEST_F(BuildTest, OneStep) {
-  // Given a dirtytarget with one ready input,
+  // Given a dirty target with one ready input,
   // we should rebuild the target.
-  state_.stat_cache()->GetFile("cat1")->Touch(1);
-  Builder builder(&state_);
-  builder.AddTarget("cat1");
+  Touch("cat1");
+  builder_.AddTarget("cat1");
   string err;
-  EXPECT_TRUE(builder.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1, commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
+}
+
+TEST_F(BuildTest, OneStep2) {
+  // Given a target with one dirty input,
+  // we should rebuild the target.
+  Touch("in1");
+  builder_.AddTarget("cat1");
+  string err;
+  EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1, commands_ran_.size());
