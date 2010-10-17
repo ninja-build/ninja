@@ -106,7 +106,7 @@ void BuildTest::LoadManifest() {
 "\n"
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
-"build bin: cat main lib\n",
+"build cat12: cat cat1 cat2\n",
       &err));
   ASSERT_EQ("", err);
 }
@@ -163,3 +163,16 @@ TEST_F(BuildTest, OneStep2) {
   ASSERT_EQ(1, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
 }
+
+/*
+TEST_F(BuildTest, TwoStep) {
+  Touch("cat12");
+  builder_.AddTarget("cat12");
+  string err;
+  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1, commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
+}
+*/
