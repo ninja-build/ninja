@@ -79,8 +79,9 @@ TEST(EvalString, OneVariable) {
   EXPECT_EQ("hi there", str.Evaluate(&env));
 }
 
-struct TestState : public State, public Shell {
-  TestState() {
+struct BuildTest : public testing::Test,
+                   public Shell {
+  BuildTest() {
     LoadManifest();
   }
 
@@ -89,12 +90,13 @@ struct TestState : public State, public Shell {
   // shell override
   virtual bool RunCommand(Edge* edge);
 
+  State state_;
   int now_;
   vector<string> commands_ran_;
 };
 
-void TestState::LoadManifest() {
-  ManifestParser parser(this);
+void BuildTest::LoadManifest() {
+  ManifestParser parser(&state_);
   string err;
   ASSERT_TRUE(parser.Parse(
 "rule cat\n"
@@ -107,7 +109,7 @@ void TestState::LoadManifest() {
   ASSERT_EQ("", err);
 }
 
-bool TestState::RunCommand(Edge* edge) {
+bool BuildTest::RunCommand(Edge* edge) {
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule_->name_ == "cat") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -122,27 +124,25 @@ bool TestState::RunCommand(Edge* edge) {
   return false;
 }
 
-TEST(Build, NoWork) {
-  TestState state;
-  Builder builder(&state);
+TEST_F(BuildTest, NoWork) {
+  Builder builder(&state_);
   builder.AddTarget("bin");
   string err;
-  EXPECT_TRUE(builder.Build(&state, &err));
+  EXPECT_TRUE(builder.Build(this, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ(0, state.commands_ran_.size());
+  EXPECT_EQ(0, commands_ran_.size());
 }
 
-TEST(Build, OneStep) {
+TEST_F(BuildTest, OneStep) {
   // Given a dirtytarget with one ready input,
   // we should rebuild the target.
-  TestState state;
-  state.stat_cache()->GetFile("cat1")->Touch(1);
-  Builder builder(&state);
+  state_.stat_cache()->GetFile("cat1")->Touch(1);
+  Builder builder(&state_);
   builder.AddTarget("cat1");
   string err;
-  EXPECT_TRUE(builder.Build(&state, &err));
+  EXPECT_TRUE(builder.Build(this, &err));
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1, state.commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", state.commands_ran_[0]);
+  ASSERT_EQ(1, commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
 }
