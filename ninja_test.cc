@@ -79,45 +79,70 @@ TEST(EvalString, OneVariable) {
   EXPECT_EQ("hi there", str.Evaluate(&env));
 }
 
-#include <gmock/gmock.h>
-using ::testing::Return;
-using ::testing::_;
+struct TestState : public State, public Shell {
+  TestState() {
+    LoadManifest();
+  }
 
-struct MockShell : public Shell {
-  MOCK_METHOD1(RunCommand, bool(const string& command));
+  void LoadManifest();
+
+  // shell override
+  virtual bool RunCommand(Edge* edge);
+
+  int now_;
+  vector<string> commands_ran_;
 };
 
-TEST(Build, OneStep) {
-  State state;
-  ManifestParser parser(&state);
+void TestState::LoadManifest() {
+  ManifestParser parser(this);
   string err;
   ASSERT_TRUE(parser.Parse(
 "rule cat\n"
 "command cat @in > $out\n"
 "\n"
-"build lib: cat in1 in2\n"
+"build cat1: cat in1\n"
+"build cat2: cat in1 in2\n"
 "build bin: cat main lib\n",
       &err));
   ASSERT_EQ("", err);
+}
 
-  {
-    MockShell shell;
-    Builder builder(&state);
-    builder.AddTarget("bin");
-    EXPECT_CALL(shell, RunCommand(_))
-      .Times(0);
-    EXPECT_TRUE(builder.Build(&shell, &err));
-    EXPECT_EQ("", err);
+bool TestState::RunCommand(Edge* edge) {
+  commands_ran_.push_back(edge->EvaluateCommand());
+  if (edge->rule_->name_ == "cat") {
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      (*out)->file_->Touch(now_);
+    }
+    return true;
+  } else {
+    printf("unkown command\n");
   }
 
-  {
-    MockShell shell;
-    Builder builder(&state);
-    state.stat_cache()->GetFile("in1")->Touch(1);
-    builder.AddTarget("bin");
-    EXPECT_CALL(shell, RunCommand("cat in1 in2 > lib"))
-      .WillOnce(Return(true));
-    EXPECT_TRUE(builder.Build(&shell, &err));
-    EXPECT_EQ("", err);
-  }
+  return false;
+}
+
+TEST(Build, NoWork) {
+  TestState state;
+  Builder builder(&state);
+  builder.AddTarget("bin");
+  string err;
+  EXPECT_TRUE(builder.Build(&state, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(0, state.commands_ran_.size());
+}
+
+TEST(Build, OneStep) {
+  // Given a dirtytarget with one ready input,
+  // we should rebuild the target.
+  TestState state;
+  state.stat_cache()->GetFile("cat1")->Touch(1);
+  Builder builder(&state);
+  builder.AddTarget("cat1");
+  string err;
+  EXPECT_TRUE(builder.Build(&state, &err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1, state.commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", state.commands_ran_[0]);
 }

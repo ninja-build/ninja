@@ -274,7 +274,7 @@ Edge* Plan::FindWork() {
 
 struct Shell {
   virtual ~Shell() {}
-  virtual bool RunCommand(const string& command) = 0;
+  virtual bool RunCommand(Edge* edge) = 0;
 };
 
 struct Builder {
@@ -292,7 +292,7 @@ struct Builder {
 bool Builder::Build(Shell* shell, string* err) {
   while (Edge* edge = plan_.FindWork()) {
     string command = edge->EvaluateCommand();
-    if (!shell->RunCommand(command)) {
+    if (!shell->RunCommand(edge)) {
       err->assign("command '" + command + "' failed.");
       return false;
     }
