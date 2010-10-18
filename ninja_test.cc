@@ -46,7 +46,7 @@ TEST(State, Basic) {
   EXPECT_FALSE(state.GetNode("out")->dirty());
 
   state.stat_cache()->GetFile("in1")->Touch(1);
-  EXPECT_TRUE(state.GetNode("in1")->dirty());
+  EXPECT_FALSE(state.GetNode("in1")->dirty());
   EXPECT_FALSE(state.GetNode("in2")->dirty());
   EXPECT_TRUE(state.GetNode("out")->dirty());
 
@@ -134,7 +134,7 @@ TEST_F(BuildTest, NoWork) {
   builder_.AddTarget("bin");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
-  EXPECT_EQ("", err);
+  EXPECT_EQ("no work to do", err);
   EXPECT_EQ(0, commands_ran_.size());
 }
 

@@ -117,7 +117,9 @@ void FileStat::Touch(int mtime) {
 void Node::MarkDirty() {
   if (dirty_)
     return;  // We already know.
-  dirty_ = true;
+
+  if (in_edge_)  // No input edges means never dirty.
+    dirty_ = true;
   for (vector<Edge*>::iterator i = out_edges_.begin(); i != out_edges_.end(); ++i)
     (*i)->MarkDirty(this);
 }
@@ -243,10 +245,7 @@ bool Plan::AddTarget(Node* node) {
   if (!node->dirty())
     return false;
   Edge* edge = node->in_edge_;
-  if (!edge) {
-    // TODO: if file doesn't exist we should die here.
-    return false;
-  }
+  assert(edge);  // Only nodes with in-edges can be dirty.
 
   want_.insert(node);
 
@@ -290,7 +289,18 @@ struct Builder {
 };
 
 bool Builder::Build(Shell* shell, string* err) {
-  while (Edge* edge = plan_.FindWork()) {
+  if (plan_.want_.empty()) {
+    *err = "no work to do";
+    return true;
+  }
+
+  Edge* edge = plan_.FindWork();
+  if (!edge) {
+    *err = "unable to find work";
+    return false;
+  }
+
+  do {
     string command = edge->EvaluateCommand();
     if (!shell->RunCommand(edge)) {
       err->assign("command '" + command + "' failed.");
@@ -298,6 +308,6 @@ bool Builder::Build(Shell* shell, string* err) {
     }
     // XXX tell plan about the files we've updated, so we have more
     // work to do
-  }
+  } while ((edge = plan_.FindWork()) != NULL);
   return true;
 }
