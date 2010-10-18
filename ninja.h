@@ -13,6 +13,8 @@ struct Node;
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(0), node_(NULL) {}
   void Touch(int mtime);
+  void Stat();
+
   string path_;
   int mtime_;
   Node* node_;
@@ -114,6 +116,23 @@ void FileStat::Touch(int mtime) {
     node_->MarkDirty();
 }
 
+#include <errno.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <string.h>
+
+void FileStat::Stat() {
+  struct stat st;
+  if (stat(path_.c_str(), &st) < 0) {
+    if (errno == ENOENT) {
+      mtime_ = 0;
+    } else {
+      fprintf(stderr, "stat(%s): %s\n", path_.c_str(), strerror(errno));
+    }
+  }
+  mtime_ = st.st_mtime;
+}
+
 void Node::MarkDirty() {
   if (dirty_)
     return;  // We already know.
@@ -161,6 +180,7 @@ struct StatCache {
   Paths paths_;
   FileStat* GetFile(const string& path);
   void Dump();
+  void Reload();
 };
 
 FileStat* StatCache::GetFile(const string& path) {
@@ -178,6 +198,12 @@ void StatCache::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     printf("%s %s\n", i->second->path_.c_str(),
            i->second->node_->dirty_ ? "dirty" : "clean");
+  }
+}
+
+void StatCache::Reload() {
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    i->second->Stat();
   }
 }
 
