@@ -13,10 +13,11 @@ struct Node;
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(0), node_(NULL) {}
   void Touch(int mtime);
-  void Stat();
+  // Return true if the mtime changed.
+  bool Stat();
 
   string path_;
-  int mtime_;
+  time_t mtime_;
   Node* node_;
 };
 
@@ -103,6 +104,7 @@ struct Edge {
   Edge() : rule_(NULL) {}
 
   void MarkDirty(Node* node);
+  void RecomputeDirty();
   string EvaluateCommand();  // XXX move to env, take env ptr
 
   Rule* rule_;
@@ -121,16 +123,22 @@ void FileStat::Touch(int mtime) {
 #include <stdio.h>
 #include <string.h>
 
-void FileStat::Stat() {
+bool FileStat::Stat() {
   struct stat st;
   if (stat(path_.c_str(), &st) < 0) {
     if (errno == ENOENT) {
-      mtime_ = 0;
+      st.st_mtime = 0;
     } else {
       fprintf(stderr, "stat(%s): %s\n", path_.c_str(), strerror(errno));
+      return false;
     }
   }
+
+  if (st.st_mtime == mtime_)
+    return false;
+
   mtime_ = st.st_mtime;
+  return true;
 }
 
 void Node::MarkDirty() {
@@ -141,6 +149,20 @@ void Node::MarkDirty() {
     dirty_ = true;
   for (vector<Edge*>::iterator i = out_edges_.begin(); i != out_edges_.end(); ++i)
     (*i)->MarkDirty(this);
+}
+
+void Edge::RecomputeDirty() {
+  time_t min_mtime = -1;
+  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
+    min_mtime = min(min_mtime, (*i)->file_->mtime_);
+  }
+
+  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
+    if ((*i)->file_->mtime_ > min_mtime) {
+      MarkDirty(*i);
+      break;
+    }
+  }
 }
 
 void Edge::MarkDirty(Node* node) {
@@ -202,8 +224,21 @@ void StatCache::Dump() {
 }
 
 void StatCache::Reload() {
+  set<Edge*> leaf_edges;
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     i->second->Stat();
+    Node* node = i->second->node_;
+    node->dirty_ = false;
+    if (!node->in_edge_) {
+      for (vector<Edge*>::iterator j = node->out_edges_.begin();
+           j != node->out_edges_.end(); ++j) {
+        leaf_edges.insert(*j);
+      }
+    }
+  }
+
+  for (set<Edge*>::iterator i = leaf_edges.begin(); i != leaf_edges.end(); ++i) {
+    (*i)->RecomputeDirty();
   }
 }
 
