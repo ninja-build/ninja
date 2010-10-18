@@ -165,14 +165,25 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
+  // Touching in1 requires rebuilding both intermediate files
+  // and the final file.
   Touch("in1");
   builder_.AddTarget("cat12");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
-
   ASSERT_EQ(3, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[1]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
+
+  // Touching in2 requires rebuilding one intermediate file
+  // and the final file.
+  Touch("in2");
+  builder_.AddTarget("cat12");
+  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(5, commands_ran_.size());
+  EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
+  EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
 }
