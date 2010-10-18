@@ -164,15 +164,15 @@ TEST_F(BuildTest, OneStep2) {
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
 }
 
-/*
 TEST_F(BuildTest, TwoStep) {
-  Touch("cat12");
+  Touch("in1");
   builder_.AddTarget("cat12");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(3, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
+  EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[1]);
+  EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 }
-*/

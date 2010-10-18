@@ -160,6 +160,7 @@ struct StatCache {
   typedef map<string, FileStat*> Paths;
   Paths paths_;
   FileStat* GetFile(const string& path);
+  void Dump();
 };
 
 FileStat* StatCache::GetFile(const string& path) {
@@ -169,6 +170,15 @@ FileStat* StatCache::GetFile(const string& path) {
   FileStat* file = new FileStat(path);
   paths_[path] = file;
   return file;
+}
+
+#include <stdio.h>
+
+void StatCache::Dump() {
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    printf("%s %s\n", i->second->path_.c_str(),
+           i->second->node_->dirty_ ? "dirty" : "clean");
+  }
 }
 
 struct State {
@@ -228,6 +238,8 @@ struct Plan {
   bool AddTarget(Node* node);
 
   Edge* FindWork();
+  void EdgeFinished(Edge* edge);
+  void NodeFinished(Node* node);
 
   State* state_;
   set<Node*> want_;
@@ -250,7 +262,8 @@ bool Plan::AddTarget(Node* node) {
   want_.insert(node);
 
   bool awaiting_inputs = false;
-  for (vector<Node*>::iterator i = edge->inputs_.begin(); i != edge->inputs_.end(); ++i) {
+  for (vector<Node*>::iterator i = edge->inputs_.begin();
+       i != edge->inputs_.end(); ++i) {
     if (AddTarget(*i))
       awaiting_inputs = true;
   }
@@ -268,6 +281,46 @@ Edge* Plan::FindWork() {
   ready_.pop();
   return edge;
 }
+
+void Plan::EdgeFinished(Edge* edge) {
+  // Check off any nodes we were waiting for with this edge.
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    set<Node*>::iterator j = want_.find(*i);
+    if (j != want_.end()) {
+      NodeFinished(*j);
+      want_.erase(j);
+    }
+  }
+}
+
+void Plan::NodeFinished(Node* node) {
+  // See if we we want any edges from this node.
+  for (vector<Edge*>::iterator i = node->out_edges_.begin();
+       i != node->out_edges_.end(); ++i) {
+    // See if we want any outputs from this edge.
+    for (vector<Node*>::iterator j = (*i)->outputs_.begin();
+         j != (*i)->outputs_.end(); ++j) {
+      if (want_.find(*j) != want_.end()) {
+        // See if the edge is ready.
+        // XXX just track dirty counts.
+        // XXX may double-enqueue edge.
+        bool ready = true;
+        for (vector<Node*>::iterator k = (*i)->inputs_.begin();
+             k != (*i)->inputs_.end(); ++k) {
+          if ((*k)->dirty()) {
+            ready = false;
+            break;
+          }
+        }
+        if (ready)
+          ready_.push(*i);
+        break;
+      }
+    }
+  }
+}
+
 
 #include "manifest_parser.h"
 
@@ -306,8 +359,19 @@ bool Builder::Build(Shell* shell, string* err) {
       err->assign("command '" + command + "' failed.");
       return false;
     }
-    // XXX tell plan about the files we've updated, so we have more
-    // work to do
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      // XXX check that the output actually changed
+      // XXX just notify node and have it propagate?
+      (*i)->dirty_ = false;
+    }
+    plan_.EdgeFinished(edge);
   } while ((edge = plan_.FindWork()) != NULL);
+
+  if (!plan_.want_.empty()) {
+    *err = "ran out of work";
+    return false;
+  }
+
   return true;
 }
