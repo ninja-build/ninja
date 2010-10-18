@@ -8,5 +8,19 @@ int main(int argc, char** argv) {
     fprintf(stderr, "error loading: %s\n", err.c_str());
     return 1;
   }
+
+  if (argc < 2) {
+    fprintf(stderr, "usage: %s target\n", argv[0]);
+    return 1;
+  }
+
+  Shell shell;
+  Builder builder(&state);
+  builder.AddTarget(argv[1]);
+  if (!builder.Build(&shell, &err)) {
+    printf("%s\n", err.c_str());
+    return 1;
+  }
+
   return 0;
 }

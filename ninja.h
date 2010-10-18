@@ -326,8 +326,24 @@ void Plan::NodeFinished(Node* node) {
 
 struct Shell {
   virtual ~Shell() {}
-  virtual bool RunCommand(Edge* edge) = 0;
+  virtual bool RunCommand(Edge* edge);
 };
+
+bool Shell::RunCommand(Edge* edge) {
+  string err;
+  string command = edge->EvaluateCommand();
+  printf("  %s\n", command.c_str());
+  int ret = system(command.c_str());
+  if (WIFEXITED(ret)) {
+    int exit = WEXITSTATUS(ret);
+    if (exit == 0)
+      return true;
+    err = "nonzero exit status";
+  } else {
+    err = "something else went wrong";
+  }
+  return false;
+}
 
 struct Builder {
   Builder(State* state) : plan_(state) {}
