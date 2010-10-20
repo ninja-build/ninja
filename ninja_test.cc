@@ -50,6 +50,8 @@ TEST(Parser, Variables) {
 }
 
 TEST(Parser, Errors) {
+  State state;
+
   {
     ManifestParser parser(NULL);
     string err;
@@ -62,6 +64,20 @@ TEST(Parser, Errors) {
     string err;
     EXPECT_FALSE(parser.Parse("let x 3", &err));
     EXPECT_EQ("line 1, col 7: expected '=', got '3'", err);
+  }
+
+  {
+    ManifestParser parser(NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("let x = 3", &err));
+    EXPECT_EQ("line 1, col 10: expected newline, got eof", err);
+  }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("let x = 3\nlet y 2", &err));
+    EXPECT_EQ("line 2, col 7: expected '=', got '2'", err);
   }
 }
 
