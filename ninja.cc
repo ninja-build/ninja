@@ -14,13 +14,16 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  state.stat_cache()->Reload();
+  state.stat_cache()->Dump();
+
   Shell shell;
   Builder builder(&state);
   builder.AddTarget(argv[1]);
-  if (!builder.Build(&shell, &err)) {
+  bool success = builder.Build(&shell, &err);
+  if (!err.empty()) {
     printf("%s\n", err.c_str());
-    return 1;
   }
 
-  return 0;
+  return success ? 1 : 0;
 }

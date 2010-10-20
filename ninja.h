@@ -13,7 +13,7 @@ struct Node;
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(0), node_(NULL) {}
   void Touch(int mtime);
-  // Return true if the mtime changed.
+  // Return true if the file exists (mtime_ got a value).
   bool Stat();
 
   string path_;
@@ -128,14 +128,12 @@ bool FileStat::Stat() {
   if (stat(path_.c_str(), &st) < 0) {
     if (errno == ENOENT) {
       st.st_mtime = 0;
+      return false;
     } else {
       fprintf(stderr, "stat(%s): %s\n", path_.c_str(), strerror(errno));
       return false;
     }
   }
-
-  if (st.st_mtime == mtime_)
-    return false;
 
   mtime_ = st.st_mtime;
   return true;
@@ -152,7 +150,9 @@ void Node::MarkDirty() {
 }
 
 void Edge::RecomputeDirty() {
-  time_t min_mtime = -1;
+  assert(!outputs_.empty());
+
+  time_t min_mtime = outputs_[0]->file_->mtime_;
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
     min_mtime = min(min_mtime, (*i)->file_->mtime_);
   }
@@ -226,9 +226,9 @@ void StatCache::Dump() {
 void StatCache::Reload() {
   set<Edge*> leaf_edges;
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    i->second->Stat();
+    bool exists = i->second->Stat();
     Node* node = i->second->node_;
-    node->dirty_ = false;
+    node->dirty_ = !exists;
     if (!node->in_edge_) {
       for (vector<Edge*>::iterator j = node->out_edges_.begin();
            j != node->out_edges_.end(); ++j) {
