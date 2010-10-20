@@ -156,7 +156,12 @@ void BuildTest::LoadManifest() {
 "\n"
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
-"build cat12: cat cat1 cat2\n",
+"build cat12: cat cat1 cat2\n"
+"\n"
+"build c2: cat c1\n"
+"build c3: cat c2\n"
+"build c4: cat c3\n"
+"build c5: cat c4\n",
       &err));
   ASSERT_EQ("", err);
 }
@@ -236,4 +241,12 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ(5, commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
+}
+
+TEST_F(BuildTest, Chain) {
+  string err;
+  builder_.AddTarget("c5");
+  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(5, commands_ran_.size());
 }

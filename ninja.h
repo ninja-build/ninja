@@ -13,12 +13,16 @@ using namespace std;
 
 struct Node;
 struct FileStat {
-  FileStat(const string& path) : path_(path), mtime_(0), node_(NULL) {}
+  FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
   void Touch(int mtime);
   // Return true if the file exists (mtime_ got a value).
   bool Stat();
 
   string path_;
+  // Possible values of mtime_:
+  //   -1: file hasn't been examined
+  //   0:  we looked, and file doesn't exist
+  //   >0: actual file's mtime
   time_t mtime_;
   Node* node_;
 };
