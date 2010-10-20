@@ -49,6 +49,22 @@ TEST(Parser, Variables) {
   EXPECT_EQ("ld -pthread -o a b c", edge->EvaluateCommand());
 }
 
+TEST(Parser, Errors) {
+  {
+    ManifestParser parser(NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("foobar", &err));
+    EXPECT_EQ("line 1, col 1: unknown token: foobar", err);
+  }
+
+  {
+    ManifestParser parser(NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("let x 3", &err));
+    EXPECT_EQ("line 1, col 7: expected '=', got '3'", err);
+  }
+}
+
 TEST(State, Basic) {
   State state;
   Rule* rule = state.AddRule("cat", "cat @in > $out");
