@@ -31,6 +31,24 @@ TEST(Parser, Rules) {
   EXPECT_EQ("cat @in > $out", rule->command_.unparsed());
 }
 
+TEST(Parser, Variables) {
+  State state;
+  ManifestParser parser(&state);
+  string err;
+  EXPECT_TRUE(parser.Parse(
+"rule link\n"
+"command ld $extra -o $out @in\n"
+"\n"
+"let extra = -pthread\n"
+"build a: link b c\n",
+      &err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1, state.edges_.size());
+  Edge* edge = state.edges_[0];
+  EXPECT_EQ("ld -pthread -o a b c", edge->EvaluateCommand());
+}
+
 TEST(State, Basic) {
   State state;
   Rule* rule = state.AddRule("cat", "cat @in > $out");

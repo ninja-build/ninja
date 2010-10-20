@@ -101,7 +101,7 @@ struct Rule {
 };
 
 struct Edge {
-  Edge() : rule_(NULL) {}
+  Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
   void RecomputeDirty();
@@ -111,6 +111,7 @@ struct Edge {
   enum InOut { IN, OUT };
   vector<Node*> inputs_;
   vector<Node*> outputs_;
+  EvalString::Env* env_;
 };
 
 void FileStat::Touch(int mtime) {
@@ -186,6 +187,8 @@ struct EdgeEnv : public EvalString::Env {
       }
     } else if (var == "$out") {
       result = edge_->outputs_[0]->file_->path_;
+    } else if (edge_->env_) {
+      return edge_->env_->Evaluate(var);
     }
     return result;
   }
@@ -242,19 +245,33 @@ void StatCache::Reload() {
   }
 }
 
-struct State {
+struct State : public EvalString::Env {
   StatCache stat_cache_;
   map<string, Rule*> rules_;
   vector<Edge*> edges_;
+  map<string, string> env_;
 
   StatCache* stat_cache() { return &stat_cache_; }
+
+  // EvalString::Env impl
+  virtual string Evaluate(const string& var);
 
   Rule* AddRule(const string& name, const string& command);
   Edge* AddEdge(Rule* rule);
   Edge* AddEdge(const string& rule_name);
   Node* GetNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
+  void AddBinding(const string& key, const string& val);
 };
+
+string State::Evaluate(const string& var) {
+  if (var.size() > 1 && var[0] == '$') {
+    map<string, string>::iterator i = env_.find(var.substr(1));
+    if (i != env_.end())
+      return i->second;
+  }
+  return "";
+}
 
 Rule* State::AddRule(const string& name, const string& command) {
   Rule* rule = new Rule(name, command);
@@ -269,6 +286,7 @@ Edge* State::AddEdge(const string& rule_name) {
 Edge* State::AddEdge(Rule* rule) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
+  edge->env_ = this;
   edges_.push_back(edge);
   return edge;
 }
@@ -290,6 +308,10 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
     assert(node->in_edge_ == NULL);
     node->in_edge_ = edge;
   }
+}
+
+void State::AddBinding(const string& key, const string& val) {
+  env_[key] = val;
 }
 
 struct Plan {

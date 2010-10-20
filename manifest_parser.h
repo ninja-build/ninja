@@ -10,6 +10,7 @@ struct ManifestParser {
   bool Error(const string& message, string* err);
 
   bool ParseRule(string* err);
+  bool ParseLet(string* err);
   bool ParseEdge(string* err);
 
   bool SkipWhitespace(bool newline=false);
@@ -55,6 +56,9 @@ bool ManifestParser::Parse(const string& input, string* err) {
     if (token_ == "rule") {
       if (!ParseRule(err))
         return false;
+    } else if (token_ == "let") {
+      if (!ParseLet(err))
+        return false;
     } else if (token_ == "build") {
       if (!ParseEdge(err))
         return false;
@@ -93,6 +97,28 @@ bool ManifestParser::ParseRule(string* err) {
     return false;
 
   state_->AddRule(name, command);
+
+  return true;
+}
+
+bool ManifestParser::ParseLet(string* err) {
+  SkipWhitespace();
+  if (!NextToken())
+    return Error("expected variable name", err);
+  string name = token_;
+
+  SkipWhitespace();
+
+  if (!NextToken() || token_ != "=")
+    return Error("expected =", err);
+
+  SkipWhitespace();
+
+  string value;
+  if (!ReadToNewline(&value, err))
+    return false;
+
+  state_->AddBinding(name, value);
 
   return true;
 }
@@ -177,8 +203,8 @@ bool ManifestParser::NextToken() {
       token_.push_back(*cur_);
       ++col_; ++cur_;
     }
-  } else if (*cur_ == ':') {
-    token_ = ":";
+  } else if (*cur_ == ':' || *cur_ == '=') {
+    token_ = *cur_;
     ++col_; ++cur_;
   }
 
