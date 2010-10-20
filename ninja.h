@@ -11,12 +11,36 @@ using namespace std;
 
 #include "eval_env.h"
 
+struct StatHelper {
+  virtual int Stat(const string& path);
+};
+
+#include <errno.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <string.h>
+
+int StatHelper::Stat(const string& path) {
+  struct stat st;
+  if (stat(path.c_str(), &st) < 0) {
+    if (errno == ENOENT) {
+      return 0;
+    } else {
+      fprintf(stderr, "stat(%s): %s\n", path.c_str(), strerror(errno));
+      return -1;
+    }
+  }
+
+  return st.st_mtime;
+  return true;
+}
+
 struct Node;
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
   void Touch(int mtime);
   // Return true if the file exists (mtime_ got a value).
-  bool Stat();
+  bool Stat(StatHelper* stat_helper);
 
   string path_;
   // Possible values of mtime_:
@@ -68,25 +92,9 @@ void FileStat::Touch(int mtime) {
     node_->MarkDirty();
 }
 
-#include <errno.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <string.h>
-
-bool FileStat::Stat() {
-  struct stat st;
-  if (stat(path_.c_str(), &st) < 0) {
-    if (errno == ENOENT) {
-      st.st_mtime = 0;
-      return false;
-    } else {
-      fprintf(stderr, "stat(%s): %s\n", path_.c_str(), strerror(errno));
-      return false;
-    }
-  }
-
-  mtime_ = st.st_mtime;
-  return true;
+bool FileStat::Stat(StatHelper* stat_helper) {
+  mtime_ = stat_helper->Stat(path_);
+  return mtime_ > 0;
 }
 
 void Node::MarkDirty() {
@@ -176,9 +184,10 @@ void StatCache::Dump() {
 }
 
 void StatCache::Reload() {
+  StatHelper stat_helper;
   set<Edge*> leaf_edges;
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    bool exists = i->second->Stat();
+    bool exists = i->second->Stat(&stat_helper);
     Node* node = i->second->node_;
     node->dirty_ = !exists;
     if (!node->in_edge_) {
