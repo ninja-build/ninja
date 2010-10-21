@@ -129,34 +129,33 @@ TEST(EvalString, OneVariable) {
   EXPECT_EQ("hi there", str.Evaluate(&env));
 }
 
-struct BuildTest : public testing::Test,
-                   public Shell {
-  BuildTest() : builder_(&state_), now_(1) {
-    LoadManifest();
-  }
-
-  void LoadManifest();
-  void Dirty(const string& path);
-
-  // shell override
-  virtual bool RunCommand(Edge* edge);
-
-  State state_;
-  Builder builder_;
-  int now_;
-  vector<string> commands_ran_;
-};
-
-void BuildTest::LoadManifest() {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+struct StateTestWithBuiltinRules : public testing::Test {
+  StateTestWithBuiltinRules() {
+    AssertParse(&state_,
 "rule cat\n"
 "command cat @in > $out\n"
 "\n"
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
-"build cat12: cat cat1 cat2\n"
-));
-}
+"build cat12: cat cat1 cat2\n");
+  }
+  State state_;
+};
+
+struct BuildTest : public StateTestWithBuiltinRules,
+                   public Shell {
+  BuildTest() : builder_(&state_), now_(1) {
+  }
+
+  void Dirty(const string& path);
+
+  // shell override
+  virtual bool RunCommand(Edge* edge);
+
+  Builder builder_;
+  int now_;
+  vector<string> commands_ran_;
+};
 
 void BuildTest::Dirty(const string& path) {
   state_.stat_cache()->GetFile(path)->node_->MarkDirty();
@@ -259,4 +258,8 @@ TEST_F(BuildTest, Chain) {
   builder_.AddTarget("c5");
   EXPECT_TRUE(builder_.Build(this, &err));
   ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
+}
+
+typedef StateTestWithBuiltinRules StatTest;
+TEST_F(StatTest, Simple) {
 }
