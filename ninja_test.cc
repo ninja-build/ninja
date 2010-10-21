@@ -144,8 +144,10 @@ struct StateTestWithBuiltinRules : public testing::Test {
 };
 
 struct BuildTest : public StateTestWithBuiltinRules,
-                   public Shell {
+                   public Shell,
+                   public StatHelper {
   BuildTest() : builder_(&state_), now_(1) {
+    builder_.stat_helper_ = this;
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
@@ -156,6 +158,11 @@ struct BuildTest : public StateTestWithBuiltinRules,
 
   // shell override
   virtual bool RunCommand(Edge* edge);
+
+  // StatHelper
+  virtual int Stat(const string& path) {
+    return 0;  // Not found.
+  }
 
   Builder builder_;
   int now_;

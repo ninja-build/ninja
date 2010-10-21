@@ -281,7 +281,7 @@ void State::AddBinding(const string& key, const string& val) {
 struct Plan {
   explicit Plan(State* state) : state_(state) {}
 
-  void AddTarget(const string& path);
+  Node* AddTarget(const string& path);
   bool AddTarget(Node* node);
 
   Edge* FindWork();
@@ -297,8 +297,10 @@ private:
   Plan(const Plan&);
 };
 
-void Plan::AddTarget(const string& path) {
-  AddTarget(state_->GetNode(path));
+Node* Plan::AddTarget(const string& path) {
+  Node* node = state_->GetNode(path);
+  AddTarget(node);
+  return node;
 }
 bool Plan::AddTarget(Node* node) {
   if (!node->dirty())
@@ -394,15 +396,19 @@ bool Shell::RunCommand(Edge* edge) {
 }
 
 struct Builder {
-  Builder(State* state) : plan_(state) {}
+  Builder(State* state) : plan_(state), stat_helper_(&default_stat_helper_) {}
   virtual ~Builder() {}
 
-  void AddTarget(const string& name) {
-    plan_.AddTarget(name);
+  Node* AddTarget(const string& name) {
+    Node* node = plan_.AddTarget(name);
+    node->file_->StatIfNecessary(stat_helper_);
+    return node;
   }
   bool Build(Shell* shell, string* err);
 
   Plan plan_;
+  StatHelper default_stat_helper_;
+  StatHelper* stat_helper_;
 };
 
 bool Builder::Build(Shell* shell, string* err) {

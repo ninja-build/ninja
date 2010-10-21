@@ -14,12 +14,11 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  state.stat_cache()->Reload();
-  state.stat_cache()->Dump();
-
   Shell shell;
   Builder builder(&state);
-  builder.AddTarget(argv[1]);
+  Node* node = builder.AddTarget(argv[1]);
+  node->in_edge_->RecomputeDirty(builder.stat_helper_);
+
   bool success = builder.Build(&shell, &err);
   if (!err.empty()) {
     printf("%s\n", err.c_str());
