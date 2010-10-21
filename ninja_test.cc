@@ -133,18 +133,23 @@ struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules() {
     AssertParse(&state_,
 "rule cat\n"
-"command cat @in > $out\n"
-"\n"
-"build cat1: cat in1\n"
-"build cat2: cat in1 in2\n"
-"build cat12: cat cat1 cat2\n");
+"command cat @in > $out\n");
   }
+
+  Node* GetNode(const string& path) {
+    return state_.stat_cache()->GetFile(path)->node_;
+  }
+
   State state_;
 };
 
 struct BuildTest : public StateTestWithBuiltinRules,
                    public Shell {
   BuildTest() : builder_(&state_), now_(1) {
+    AssertParse(&state_,
+"build cat1: cat in1\n"
+"build cat2: cat in1 in2\n"
+"build cat12: cat cat1 cat2\n");
   }
 
   void Dirty(const string& path);
@@ -158,7 +163,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
 };
 
 void BuildTest::Dirty(const string& path) {
-  state_.stat_cache()->GetFile(path)->node_->MarkDirty();
+  GetNode(path)->MarkDirty();
 }
 
 bool BuildTest::RunCommand(Edge* edge) {
@@ -260,6 +265,32 @@ TEST_F(BuildTest, Chain) {
   ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
 }
 
-typedef StateTestWithBuiltinRules StatTest;
+struct StatTest : public StateTestWithBuiltinRules,
+                  public StatHelper {
+  virtual int Stat(const string& path);
+
+  map<string, time_t> mtimes_;
+  vector<string> stats_;
+};
+
+int StatTest::Stat(const string& path) {
+  stats_.push_back(path);
+  map<string, time_t>::iterator i = mtimes_.find(path);
+  if (i == mtimes_.end())
+    return 0;  // File not found.
+  return i->second;
+}
+
 TEST_F(StatTest, Simple) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in\n"));
+
+  Node* out = GetNode("out");
+  out->file_->Stat(this);
+  ASSERT_EQ(1, stats_.size());
+  Edge* edge = out->in_edge_;
+  edge->RecomputeDirty(this);
+  ASSERT_EQ(2, stats_.size());
+  ASSERT_EQ("out", stats_[0]);
+  ASSERT_EQ("in",  stats_[1]);
 }

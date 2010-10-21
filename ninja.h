@@ -56,7 +56,7 @@ struct FileStat {
   }
 
   bool status_known() const {
-    return mtime_ == -1;
+    return mtime_ != -1;
   }
 
   string path_;
