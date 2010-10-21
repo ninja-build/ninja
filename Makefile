@@ -1,7 +1,11 @@
 CC=$(CXX)
 CXXFLAGS := -Wall -g
 
-all_i_currently_care_about: ninja_test
+all_i_currently_care_about: tags ninja_test
+
+.PHONY:
+tags:
+	etags *.cc *.h
 
 ninja_test: LDFLAGS = -lgtest -lgtest_main -lpthread
 ninja_test: ninja_test.o
