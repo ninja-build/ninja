@@ -294,3 +294,38 @@ TEST_F(StatTest, Simple) {
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
 }
+
+TEST_F(StatTest, TwoStep) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n"));
+
+  Node* out = GetNode("out");
+  out->file_->Stat(this);
+  ASSERT_EQ(1, stats_.size());
+  Edge* edge = out->in_edge_;
+  edge->RecomputeDirty(this);
+  ASSERT_EQ(3, stats_.size());
+  ASSERT_EQ("out", stats_[0]);
+  ASSERT_TRUE(GetNode("out")->dirty_);
+  ASSERT_EQ("mid",  stats_[1]);
+  ASSERT_TRUE(GetNode("mid")->dirty_);
+  ASSERT_EQ("in",  stats_[2]);
+}
+
+TEST_F(StatTest, Tree) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat mid1 mid2\n"
+"build mid1: cat in11 in12\n"
+"build mid2: cat in21 in22\n"));
+
+  Node* out = GetNode("out");
+  out->file_->Stat(this);
+  ASSERT_EQ(1, stats_.size());
+  Edge* edge = out->in_edge_;
+  edge->RecomputeDirty(this);
+  ASSERT_EQ(1 + 6, stats_.size());
+  ASSERT_EQ("mid1", stats_[1]);
+  ASSERT_TRUE(GetNode("mid1")->dirty_);
+  ASSERT_EQ("in11", stats_[2]);
+}
