@@ -136,7 +136,7 @@ struct BuildTest : public testing::Test,
   }
 
   void LoadManifest();
-  void Touch(const string& path);
+  void Dirty(const string& path);
 
   // shell override
   virtual bool RunCommand(Edge* edge);
@@ -166,8 +166,8 @@ void BuildTest::LoadManifest() {
   ASSERT_EQ("", err);
 }
 
-void BuildTest::Touch(const string& path) {
-  state_.stat_cache()->GetFile(path)->Touch(1);
+void BuildTest::Dirty(const string& path) {
+  state_.stat_cache()->GetFile(path)->node_->MarkDirty();
 }
 
 bool BuildTest::RunCommand(Edge* edge) {
@@ -196,7 +196,7 @@ TEST_F(BuildTest, NoWork) {
 TEST_F(BuildTest, OneStep) {
   // Given a dirty target with one ready input,
   // we should rebuild the target.
-  Touch("cat1");
+  Dirty("cat1");
   builder_.AddTarget("cat1");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
@@ -209,7 +209,7 @@ TEST_F(BuildTest, OneStep) {
 TEST_F(BuildTest, OneStep2) {
   // Given a target with one dirty input,
   // we should rebuild the target.
-  Touch("in1");
+  Dirty("in1");
   builder_.AddTarget("cat1");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
@@ -220,9 +220,9 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
-  // Touching in1 requires rebuilding both intermediate files
+  // Dirtying in1 requires rebuilding both intermediate files
   // and the final file.
-  Touch("in1");
+  Dirty("in1");
   builder_.AddTarget("cat12");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
@@ -232,9 +232,9 @@ TEST_F(BuildTest, TwoStep) {
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[1]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
-  // Touching in2 requires rebuilding one intermediate file
+  // Dirtying in2 requires rebuilding one intermediate file
   // and the final file.
-  Touch("in2");
+  Dirty("in2");
   builder_.AddTarget("cat12");
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
@@ -244,9 +244,21 @@ TEST_F(BuildTest, TwoStep) {
 }
 
 TEST_F(BuildTest, Chain) {
+  Dirty("c1");  // Will recursively dirty all the way to c5.
   string err;
   builder_.AddTarget("c5");
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(5, commands_ran_.size());
+  ASSERT_EQ(4, commands_ran_.size());
+
+  commands_ran_.clear();
+  builder_.AddTarget("c5");
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ(0, commands_ran_.size());
+
+  Dirty("c4");  // Will recursively dirty all the way to c5.
+  commands_ran_.clear();
+  builder_.AddTarget("c5");
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
 }
