@@ -343,9 +343,9 @@ TEST_F(StatTest, Middle) {
 "build out: cat mid\n"
 "build mid: cat in\n"));
 
-  mtimes_["out"] = 1;
-  // mid remains missing.
   mtimes_["in"] = 1;
+  mtimes_["mid"] = 0;  // missing
+  mtimes_["out"] = 1;
 
   Node* out = GetNode("out");
   out->file_->Stat(this);

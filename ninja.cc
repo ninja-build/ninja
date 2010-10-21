@@ -14,7 +14,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  state.stat_cache()->Dump();
   Shell shell;
   Builder builder(&state);
   builder.AddTarget(argv[1]);

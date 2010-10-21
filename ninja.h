@@ -126,7 +126,7 @@ void Node::MarkDirty() {
 }
 
 void Edge::RecomputeDirty(StatHelper* stat_helper) {
-  bool missing_input = false;
+  bool dirty = false;
 
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
@@ -134,8 +134,8 @@ void Edge::RecomputeDirty(StatHelper* stat_helper) {
       if (Edge* edge = (*i)->in_edge_)
         edge->RecomputeDirty(stat_helper);
     }
-    if (!(*i)->file_->exists())
-      missing_input = true;
+    if ((*i)->dirty_)
+      dirty = true;
     else if ((*i)->file_->mtime_ > most_recent_input)
       most_recent_input = (*i)->file_->mtime_;
   }
@@ -143,7 +143,7 @@ void Edge::RecomputeDirty(StatHelper* stat_helper) {
   assert(!outputs_.empty());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
     assert((*i)->file_->status_known());
-    if (missing_input || (*i)->file_->mtime_ < most_recent_input) {
+    if (dirty || (*i)->file_->mtime_ < most_recent_input) {
       (*i)->dirty_ = true;
     }
   }
