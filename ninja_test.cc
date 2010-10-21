@@ -2,28 +2,32 @@
 
 #include <gtest/gtest.h>
 
+namespace {
+
+void AssertParse(State* state, const char* input) {
+  ManifestParser parser(state);
+  string err;
+  ASSERT_TRUE(parser.Parse(input, &err));
+  ASSERT_EQ("", err);
+}
+
+}
+
 TEST(Parser, Empty) {
   State state;
-  ManifestParser parser(&state);
-  string err;
-  EXPECT_TRUE(parser.Parse("", &err));
-  EXPECT_EQ("", err);
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, ""));
 }
 
 TEST(Parser, Rules) {
   State state;
-  ManifestParser parser(&state);
-  string err;
-  EXPECT_TRUE(parser.Parse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule cat\n"
 "command cat @in > $out\n"
 "\n"
 "rule date\n"
 "command date > $out\n"
 "\n"
-"build result: cat in_1.cc in-2.O\n",
-      &err));
-  EXPECT_EQ("", err);
+"build result: cat in_1.cc in-2.O\n"));
 
   ASSERT_EQ(2, state.rules_.size());
   Rule* rule = state.rules_.begin()->second;
@@ -33,16 +37,12 @@ TEST(Parser, Rules) {
 
 TEST(Parser, Variables) {
   State state;
-  ManifestParser parser(&state);
-  string err;
-  EXPECT_TRUE(parser.Parse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule link\n"
 "command ld $extra -o $out @in\n"
 "\n"
 "let extra = -pthread\n"
-"build a: link b c\n",
-      &err));
-  EXPECT_EQ("", err);
+"build a: link b c\n"));
 
   ASSERT_EQ(1, state.edges_.size());
   Edge* edge = state.edges_[0];
@@ -148,22 +148,14 @@ struct BuildTest : public testing::Test,
 };
 
 void BuildTest::LoadManifest() {
-  ManifestParser parser(&state_);
-  string err;
-  ASSERT_TRUE(parser.Parse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cat\n"
 "command cat @in > $out\n"
 "\n"
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
 "build cat12: cat cat1 cat2\n"
-"\n"
-"build c2: cat c1\n"
-"build c3: cat c2\n"
-"build c4: cat c3\n"
-"build c5: cat c4\n",
-      &err));
-  ASSERT_EQ("", err);
+));
 }
 
 void BuildTest::Dirty(const string& path) {
@@ -244,6 +236,12 @@ TEST_F(BuildTest, TwoStep) {
 }
 
 TEST_F(BuildTest, Chain) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build c2: cat c1\n"
+"build c3: cat c2\n"
+"build c4: cat c3\n"
+"build c5: cat c4\n"));
+
   Dirty("c1");  // Will recursively dirty all the way to c5.
   string err;
   builder_.AddTarget("c5");
