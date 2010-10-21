@@ -42,6 +42,23 @@ struct FileStat {
   // Return true if the file exists (mtime_ got a value).
   bool Stat(StatHelper* stat_helper);
 
+  // Return true if we needed to stat.
+  bool StatIfNecessary(StatHelper* stat_helper) {
+    if (status_known())
+      return false;
+    Stat(stat_helper);
+    return true;
+  }
+
+  bool exists() const {
+    assert(status_known());
+    return mtime_ != 0;
+  }
+
+  bool status_known() const {
+    return mtime_ == -1;
+  }
+
   string path_;
   // Possible values of mtime_:
   //   -1: file hasn't been examined
@@ -77,7 +94,7 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
-  void RecomputeDirty();
+  void RecomputeDirty(StatHelper* stat_helper);
   string EvaluateCommand();  // XXX move to env, take env ptr
 
   Rule* rule_;
@@ -88,6 +105,7 @@ struct Edge {
 };
 
 void FileStat::Touch(int mtime) {
+  mtime_ = mtime;
   if (node_)
     node_->MarkDirty();
 }
@@ -107,18 +125,26 @@ void Node::MarkDirty() {
     (*i)->MarkDirty(this);
 }
 
-void Edge::RecomputeDirty() {
-  assert(!outputs_.empty());
+void Edge::RecomputeDirty(StatHelper* stat_helper) {
+  bool missing_input = false;
 
-  time_t min_mtime = outputs_[0]->file_->mtime_;
-  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    min_mtime = min(min_mtime, (*i)->file_->mtime_);
+  time_t most_recent_input = 1;
+  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
+    if ((*i)->file_->StatIfNecessary(stat_helper)) {
+      if (Edge* edge = (*i)->in_edge_)
+        edge->RecomputeDirty(stat_helper);
+    }
+    if (!(*i)->file_->exists())
+      missing_input = true;
+    else if ((*i)->file_->mtime_ > most_recent_input)
+      most_recent_input = (*i)->file_->mtime_;
   }
 
-  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->file_->mtime_ > min_mtime) {
-      MarkDirty(*i);
-      break;
+  assert(!outputs_.empty());
+  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
+    assert((*i)->file_->status_known());
+    if (missing_input || (*i)->file_->mtime_ < most_recent_input) {
+      (*i)->dirty_ = true;
     }
   }
 }
@@ -180,26 +206,6 @@ void StatCache::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     printf("%s %s\n", i->second->path_.c_str(),
            i->second->node_->dirty_ ? "dirty" : "clean");
-  }
-}
-
-void StatCache::Reload() {
-  StatHelper stat_helper;
-  set<Edge*> leaf_edges;
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    bool exists = i->second->Stat(&stat_helper);
-    Node* node = i->second->node_;
-    node->dirty_ = !exists;
-    if (!node->in_edge_) {
-      for (vector<Edge*>::iterator j = node->out_edges_.begin();
-           j != node->out_edges_.end(); ++j) {
-        leaf_edges.insert(*j);
-      }
-    }
-  }
-
-  for (set<Edge*>::iterator i = leaf_edges.begin(); i != leaf_edges.end(); ++i) {
-    (*i)->RecomputeDirty();
   }
 }
 
@@ -297,6 +303,7 @@ void Plan::AddTarget(const string& path) {
 bool Plan::AddTarget(Node* node) {
   if (!node->dirty())
     return false;
+
   Edge* edge = node->in_edge_;
   assert(edge);  // Only nodes with in-edges can be dirty.
 
