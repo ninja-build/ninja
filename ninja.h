@@ -204,8 +204,12 @@ FileStat* StatCache::GetFile(const string& path) {
 
 void StatCache::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    printf("%s %s\n", i->second->path_.c_str(),
-           i->second->node_->dirty_ ? "dirty" : "clean");
+    FileStat* file = i->second;
+    printf("%s %s\n",
+           file->path_.c_str(),
+           file->status_known()
+           ? (file->node_->dirty_ ? "dirty" : "clean")
+           : "unknown");
   }
 }
 

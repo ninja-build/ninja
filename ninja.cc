@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
   Builder builder(&state);
   Node* node = builder.AddTarget(argv[1]);
   node->in_edge_->RecomputeDirty(builder.stat_helper_);
+  state.stat_cache()->Dump();
 
   bool success = builder.Build(&shell, &err);
   if (!err.empty()) {
