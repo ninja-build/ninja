@@ -404,8 +404,11 @@ struct Builder {
   virtual ~Builder() {}
 
   Node* AddTarget(const string& name) {
-    Node* node = plan_.AddTarget(name);
+    Node* node = plan_.state_->GetNode(name);
     node->file_->StatIfNecessary(stat_helper_);
+    if (node->in_edge_)
+      node->in_edge_->RecomputeDirty(stat_helper_);
+    plan_.AddTarget(node);
     return node;
   }
   bool Build(Shell* shell, string* err);

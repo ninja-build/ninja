@@ -336,3 +336,23 @@ TEST_F(StatTest, Tree) {
   ASSERT_TRUE(GetNode("mid1")->dirty_);
   ASSERT_EQ("in11", stats_[2]);
 }
+
+
+TEST_F(StatTest, Middle) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n"));
+
+  mtimes_["out"] = 1;
+  // mid remains missing.
+  mtimes_["in"] = 1;
+
+  Node* out = GetNode("out");
+  out->file_->Stat(this);
+  ASSERT_EQ(1, stats_.size());
+  Edge* edge = out->in_edge_;
+  edge->RecomputeDirty(this);
+  ASSERT_FALSE(GetNode("in")->dirty_);
+  ASSERT_TRUE(GetNode("mid")->dirty_);
+  ASSERT_TRUE(GetNode("out")->dirty_);
+}

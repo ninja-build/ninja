@@ -14,10 +14,10 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  state.stat_cache()->Dump();
   Shell shell;
   Builder builder(&state);
-  Node* node = builder.AddTarget(argv[1]);
-  node->in_edge_->RecomputeDirty(builder.stat_helper_);
+  builder.AddTarget(argv[1]);
   state.stat_cache()->Dump();
 
   bool success = builder.Build(&shell, &err);
