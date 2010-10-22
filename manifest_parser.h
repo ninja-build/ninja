@@ -111,10 +111,11 @@ bool Parser::PeekToken() {
   if (!token_.empty())
     return true;
 
+  err_start_ = cur_;
+
   if (cur_ >= end_)
     return false;
 
-  err_start_ = cur_;
   if (IsIdentChar(*cur_)) {
     while (cur_ < end_ && IsIdentChar(*cur_)) {
       token_.push_back(*cur_);
@@ -179,14 +180,12 @@ bool ManifestParser::Parse(const string& input, string* err) {
     if (parser_.token() == "rule") {
       if (!ParseRule(err))
         return false;
-    } else if (parser_.token() == "let") {
-      if (!ParseLet(err))
-        return false;
     } else if (parser_.token() == "build") {
       if (!ParseEdge(err))
         return false;
     } else {
-      return parser_.Error("unknown token: " + parser_.token(), err);
+      if (!ParseLet(err))
+        return false;
     }
     parser_.SkipWhitespace(true);
   }
@@ -218,9 +217,6 @@ bool ManifestParser::ParseRule(string* err) {
 }
 
 bool ManifestParser::ParseLet(string* err) {
-  if (!parser_.Token("let", err))
-    return false;
-
   string name;
   if (!parser_.ReadToken(&name))
     return parser_.Error("expected variable name", err);

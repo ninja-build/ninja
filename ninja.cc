@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
   ManifestParser parser(&state);
   string err;
   if (!parser.Load(input_file, &err)) {
-    fprintf(stderr, "error loading: %s\n", err.c_str());
+    fprintf(stderr, "error loading '%s': %s\n", input_file, err.c_str());
     return 1;
   }
   Shell shell;
