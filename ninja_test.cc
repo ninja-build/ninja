@@ -56,8 +56,8 @@ TEST(Parser, Continuation) {
 "command foo bar \\\n"
 "    baz\n"
 "\n"
-"extra = \\\n"
-"xyz\n"));
+"build a: link c \\\n"
+" d e f\n"));
 
   ASSERT_EQ(1, state.rules_.size());
   Rule* rule = state.rules_.begin()->second;

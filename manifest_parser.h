@@ -49,6 +49,11 @@ void Parser::SkipWhitespace(bool newline) {
       ++cur_;
     } else if (newline && *cur_ == '\n') {
       Newline(NULL);
+    } else if (*cur_ == '\\' && cur_ + 1 < end_ && cur_[1] == '\n') {
+      ++cur_;
+      string token = token_;  // XXX hack around newline clearing token.
+      Newline(NULL);
+      token_ = token;
     } else {
       break;
     }
