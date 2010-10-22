@@ -29,7 +29,8 @@ bool EvalString::Parse(const string& input) {
       parsed_.push_back(make_pair(input.substr(start, end - start), RAW));
     start = end;
     for (end = start + 1; end < input.size(); ++end) {
-      if (!('a' <= input[end] && input[end] <= 'z'))
+      char c = input[end];
+      if (!(('a' <= c && c <= 'z') || c == '_'))
         break;
     }
     if (end == start + 1) {

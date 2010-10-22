@@ -39,14 +39,15 @@ TEST(Parser, Variables) {
   State state;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule link\n"
-"command ld $extra -o $out @in\n"
+"command ld $extra $with_under -o $out @in\n"
 "\n"
 "extra = -pthread\n"
+"with_under = -under\n"
 "build a: link b c\n"));
 
   ASSERT_EQ(1, state.edges_.size());
   Edge* edge = state.edges_[0];
-  EXPECT_EQ("ld -pthread -o a b c", edge->EvaluateCommand());
+  EXPECT_EQ("ld -pthread -under -o a b c", edge->EvaluateCommand());
 }
 
 TEST(Parser, Continuation) {
