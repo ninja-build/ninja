@@ -49,6 +49,22 @@ TEST(Parser, Variables) {
   EXPECT_EQ("ld -pthread -o a b c", edge->EvaluateCommand());
 }
 
+TEST(Parser, Continuation) {
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+"rule link\n"
+"command foo bar \\\n"
+"    baz\n"
+"\n"
+"extra = \\\n"
+"xyz\n"));
+
+  ASSERT_EQ(1, state.rules_.size());
+  Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("link", rule->name_);
+  EXPECT_EQ("foo bar baz", rule->command_.unparsed());
+}
+
 TEST(Parser, Errors) {
   State state;
 

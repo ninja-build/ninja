@@ -101,8 +101,20 @@ bool Parser::ReadToken(string* out) {
 bool Parser::ReadToNewline(string* text, string* err) {
   token_.clear();
   while (cur_ < end_ && *cur_ != '\n') {
-    text->push_back(*cur_);
-    ++cur_;
+    if (*cur_ == '\\') {
+      ++cur_;
+      if (cur_ >= end_)
+        return Error("unexpected eof", err);
+      if (!Newline(err))
+        return false;
+      SkipWhitespace();
+      // Collapse whitespace, but make sure we get at least one space.
+      if (text->size() > 0 && text->at(text->size() - 1) != ' ')
+        text->push_back(' ');
+    } else {
+      text->push_back(*cur_);
+      ++cur_;
+    }
   }
   return Newline(err);
 }
