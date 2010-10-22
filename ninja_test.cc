@@ -95,6 +95,13 @@ TEST(Parser, Errors) {
     EXPECT_FALSE(parser.Parse("x = 3\ny 2", &err));
     EXPECT_EQ("line 2, col 3: expected '=', got '2'", err);
   }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
+    EXPECT_EQ("line 1, col 10: unknown build rule 'y'", err);
+  }
 }
 
 TEST(State, Basic) {

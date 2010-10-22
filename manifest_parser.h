@@ -265,9 +265,13 @@ bool ManifestParser::ParseEdge(string* err) {
     outs.push_back(out);
   }
 
-  string rule;
-  if (!parser_.ReadToken(&rule))
+  string rule_name;
+  if (!parser_.ReadToken(&rule_name))
     return parser_.Error("expected build command name", err);
+
+  Rule* rule = state_->LookupRule(rule_name);
+  if (!rule)
+    return parser_.Error("unknown build rule '" + rule_name + "'", err);
 
   for (;;) {
     string in;
@@ -280,8 +284,6 @@ bool ManifestParser::ParseEdge(string* err) {
     return false;
 
   Edge* edge = state_->AddEdge(rule);
-  if (!edge)
-    return parser_.Error("unknown build rule name name", err);
   for (vector<string>::iterator i = ins.begin(); i != ins.end(); ++i)
     state_->AddInOut(edge, Edge::IN, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)

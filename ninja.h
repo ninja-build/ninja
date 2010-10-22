@@ -225,8 +225,8 @@ struct State : public EvalString::Env {
   virtual string Evaluate(const string& var);
 
   Rule* AddRule(const string& name, const string& command);
+  Rule* LookupRule(const string& rule_name);
   Edge* AddEdge(Rule* rule);
-  Edge* AddEdge(const string& rule_name);
   Node* GetNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
   void AddBinding(const string& key, const string& val);
@@ -241,14 +241,18 @@ string State::Evaluate(const string& var) {
   return "";
 }
 
+
+Rule* State::LookupRule(const string& rule_name) {
+  map<string, Rule*>::iterator i = rules_.find(rule_name);
+  if (i == rules_.end())
+    return NULL;
+  return i->second;
+}
+
 Rule* State::AddRule(const string& name, const string& command) {
   Rule* rule = new Rule(name, command);
   rules_[name] = rule;
   return rule;
-}
-
-Edge* State::AddEdge(const string& rule_name) {
-  return AddEdge(rules_[rule_name]);
 }
 
 Edge* State::AddEdge(Rule* rule) {
