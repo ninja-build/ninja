@@ -46,8 +46,12 @@ int main(int argc, char** argv) {
   }
   Shell shell;
   Builder builder(&state);
-  for (int i = optind; i < argc; ++i)
-    builder.AddTarget(argv[i]);
+  for (int i = optind; i < argc; ++i) {
+    if (!builder.AddTarget(argv[i], &err)) {
+      fprintf(stderr, "%s\n", err.c_str());
+      return 1;
+    }
+  }
   state.stat_cache()->Dump();
 
   bool success = builder.Build(&shell, &err);
