@@ -120,16 +120,9 @@ TEST(State, Basic) {
   EXPECT_FALSE(state.GetNode("out")->dirty());
 
   state.stat_cache()->GetFile("in1")->Touch(1);
-  EXPECT_FALSE(state.GetNode("in1")->dirty());
+  EXPECT_TRUE(state.GetNode("in1")->dirty());
   EXPECT_FALSE(state.GetNode("in2")->dirty());
   EXPECT_TRUE(state.GetNode("out")->dirty());
-
-  Plan plan(&state);
-  plan.AddTarget("out");
-  edge = plan.FindWork();
-  ASSERT_TRUE(edge);
-  EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
-  ASSERT_FALSE(plan.FindWork());
 }
 
 struct TestEnv : public EvalString::Env {
@@ -178,14 +171,17 @@ struct BuildTest : public StateTestWithBuiltinRules,
 "build cat12: cat cat1 cat2\n");
   }
 
+  // Mark a path dirty.
   void Dirty(const string& path);
+  // Mark dependents of a path dirty.
+  void Touch(const string& path);
 
   // shell override
   virtual bool RunCommand(Edge* edge);
 
   // StatHelper
   virtual int Stat(const string& path) {
-    return 0;  // Not found.
+    return now_;
   }
 
   Builder builder_;
@@ -195,6 +191,10 @@ struct BuildTest : public StateTestWithBuiltinRules,
 
 void BuildTest::Dirty(const string& path) {
   GetNode(path)->MarkDirty();
+}
+
+void BuildTest::Touch(const string& path) {
+  GetNode(path)->MarkDependentsDirty();
 }
 
 bool BuildTest::RunCommand(Edge* edge) {
@@ -213,7 +213,6 @@ bool BuildTest::RunCommand(Edge* edge) {
 }
 
 TEST_F(BuildTest, NoWork) {
-  builder_.AddTarget("bin");
   string err;
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("no work to do", err);
@@ -224,8 +223,8 @@ TEST_F(BuildTest, OneStep) {
   // Given a dirty target with one ready input,
   // we should rebuild the target.
   Dirty("cat1");
-  builder_.AddTarget("cat1");
   string err;
+  ASSERT_TRUE(builder_.AddTarget("cat1", &err));
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
 
@@ -236,9 +235,10 @@ TEST_F(BuildTest, OneStep) {
 TEST_F(BuildTest, OneStep2) {
   // Given a target with one dirty input,
   // we should rebuild the target.
-  Dirty("in1");
-  builder_.AddTarget("cat1");
+  Dirty("cat1");
   string err;
+  EXPECT_TRUE(builder_.AddTarget("cat1", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
 
@@ -247,11 +247,12 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
-  // Dirtying in1 requires rebuilding both intermediate files
+  // Modifying in1 requires rebuilding both intermediate files
   // and the final file.
-  Dirty("in1");
-  builder_.AddTarget("cat12");
+  Touch("in1");
   string err;
+  EXPECT_TRUE(builder_.AddTarget("cat12", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(3, commands_ran_.size());
@@ -259,10 +260,10 @@ TEST_F(BuildTest, TwoStep) {
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[1]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
-  // Dirtying in2 requires rebuilding one intermediate file
+  // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
-  Dirty("in2");
-  builder_.AddTarget("cat12");
+  Touch("in2");
+  ASSERT_TRUE(builder_.AddTarget("cat12", &err));
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(5, commands_ran_.size());
@@ -277,23 +278,35 @@ TEST_F(BuildTest, Chain) {
 "build c4: cat c3\n"
 "build c5: cat c4\n"));
 
-  Dirty("c1");  // Will recursively dirty all the way to c5.
+  Touch("c1");  // Will recursively dirty all the way to c5.
   string err;
-  builder_.AddTarget("c5");
+  EXPECT_TRUE(builder_.AddTarget("c5", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(4, commands_ran_.size());
 
+  err.clear();
   commands_ran_.clear();
-  builder_.AddTarget("c5");
+  EXPECT_FALSE(builder_.AddTarget("c5", &err));
+  ASSERT_EQ("target is clean; nothing to do", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   ASSERT_EQ(0, commands_ran_.size());
 
-  Dirty("c4");  // Will recursively dirty all the way to c5.
+  Touch("c3");  // Will recursively dirty through to c5.
+  err.clear();
   commands_ran_.clear();
-  builder_.AddTarget("c5");
+  EXPECT_TRUE(builder_.AddTarget("c5", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
+}
+
+TEST_F(BuildTest, MissingInput) {
+  string err;
+  Dirty("in1");
+  EXPECT_FALSE(builder_.AddTarget("cat1", &err));
+  EXPECT_EQ("'in1' missing and no known rule to make it", err);
 }
 
 struct StatTest : public StateTestWithBuiltinRules,
@@ -360,7 +373,6 @@ TEST_F(StatTest, Tree) {
   ASSERT_TRUE(GetNode("mid1")->dirty_);
   ASSERT_EQ("in11", stats_[2]);
 }
-
 
 TEST_F(StatTest, Middle) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

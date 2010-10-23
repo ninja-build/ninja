@@ -74,6 +74,7 @@ struct Node {
 
   bool dirty() const { return dirty_; }
   void MarkDirty();
+  void MarkDependentsDirty();
 
   FileStat* file_;
   bool dirty_;
@@ -119,8 +120,11 @@ void Node::MarkDirty() {
   if (dirty_)
     return;  // We already know.
 
-  if (in_edge_)  // No input edges means never dirty.
-    dirty_ = true;
+  dirty_ = true;
+  MarkDependentsDirty();
+}
+
+void Node::MarkDependentsDirty() {
   for (vector<Edge*>::iterator i = out_edges_.begin(); i != out_edges_.end(); ++i)
     (*i)->MarkDirty(this);
 }
@@ -289,8 +293,8 @@ void State::AddBinding(const string& key, const string& val) {
 struct Plan {
   explicit Plan(State* state) : state_(state) {}
 
-  Node* AddTarget(const string& path);
-  bool AddTarget(Node* node);
+  Node* AddTarget(const string& path, string* err);
+  bool AddTarget(Node* node, string* err);
 
   Edge* FindWork();
   void EdgeFinished(Edge* edge);
@@ -305,25 +309,34 @@ private:
   Plan(const Plan&);
 };
 
-Node* Plan::AddTarget(const string& path) {
+Node* Plan::AddTarget(const string& path, string* err) {
   Node* node = state_->GetNode(path);
-  AddTarget(node);
+  AddTarget(node, err);
   return node;
 }
-bool Plan::AddTarget(Node* node) {
+bool Plan::AddTarget(Node* node, string* err) {
+  Edge* edge = node->in_edge_;
+  if (!edge) {  // Leaf node.
+    if (node->dirty_) {
+      *err = "'" + node->file_->path_ + "' missing and no known rule to make it";
+      return false;
+    }
+    return false;
+  }
+
+  assert(edge);
   if (!node->dirty())
     return false;
-
-  Edge* edge = node->in_edge_;
-  assert(edge);  // Only nodes with in-edges can be dirty.
 
   want_.insert(node);
 
   bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (AddTarget(*i))
+    if (AddTarget(*i, err))
       awaiting_inputs = true;
+    else if (err && !err->empty())
+      return false;
   }
 
   if (!awaiting_inputs)
@@ -407,12 +420,17 @@ struct Builder {
   Builder(State* state) : plan_(state), stat_helper_(&default_stat_helper_) {}
   virtual ~Builder() {}
 
-  Node* AddTarget(const string& name) {
+  Node* AddTarget(const string& name, string* err) {
     Node* node = plan_.state_->GetNode(name);
     node->file_->StatIfNecessary(stat_helper_);
     if (node->in_edge_)
       node->in_edge_->RecomputeDirty(stat_helper_);
-    plan_.AddTarget(node);
+    if (!node->dirty_) {
+      *err = "target is clean; nothing to do";
+      return NULL;
+    }
+    if (!plan_.AddTarget(node, err))
+      return NULL;
     return node;
   }
   bool Build(Shell* shell, string* err);
