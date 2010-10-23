@@ -303,10 +303,18 @@ TEST_F(BuildTest, Chain) {
 }
 
 TEST_F(BuildTest, MissingInput) {
+  // Input is referenced by build file, but no rule for it.
   string err;
   Dirty("in1");
   EXPECT_FALSE(builder_.AddTarget("cat1", &err));
   EXPECT_EQ("'in1' missing and no known rule to make it", err);
+}
+
+TEST_F(BuildTest, MissingTarget) {
+  // Target is not referenced by build file.
+  string err;
+  EXPECT_FALSE(builder_.AddTarget("meow", &err));
+  EXPECT_EQ("unknown target: 'meow'", err);
 }
 
 struct StatTest : public StateTestWithBuiltinRules,

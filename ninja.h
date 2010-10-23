@@ -232,6 +232,7 @@ struct State : public EvalString::Env {
   Rule* LookupRule(const string& rule_name);
   Edge* AddEdge(Rule* rule);
   Node* GetNode(const string& path);
+  Node* LookupNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
   void AddBinding(const string& key, const string& val);
 };
@@ -265,6 +266,13 @@ Edge* State::AddEdge(Rule* rule) {
   edge->env_ = this;
   edges_.push_back(edge);
   return edge;
+}
+
+Node* State::LookupNode(const string& path) {
+  FileStat* file = stat_cache_.GetFile(path);
+  if (!file->node_)
+    return NULL;
+  return file->node_;
 }
 
 Node* State::GetNode(const string& path) {
@@ -421,7 +429,11 @@ struct Builder {
   virtual ~Builder() {}
 
   Node* AddTarget(const string& name, string* err) {
-    Node* node = plan_.state_->GetNode(name);
+    Node* node = plan_.state_->LookupNode(name);
+    if (!node) {
+      *err = "unknown target: '" + name + "'";
+      return NULL;
+    }
     node->file_->StatIfNecessary(stat_helper_);
     if (node->in_edge_)
       node->in_edge_->RecomputeDirty(stat_helper_);
