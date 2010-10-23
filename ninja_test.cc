@@ -190,7 +190,13 @@ struct BuildTest : public StateTestWithBuiltinRules,
 };
 
 void BuildTest::Dirty(const string& path) {
-  GetNode(path)->MarkDirty();
+  Node* node = GetNode(path);
+  node->MarkDirty();
+
+  // If it's an input file, mark that we've already stat()ed it and
+  // it's missing.
+  if (!node->in_edge_)
+    node->file_->mtime_ = 0;
 }
 
 void BuildTest::Touch(const string& path) {

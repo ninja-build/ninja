@@ -137,6 +137,8 @@ void Edge::RecomputeDirty(StatHelper* stat_helper) {
     if ((*i)->file_->StatIfNecessary(stat_helper)) {
       if (Edge* edge = (*i)->in_edge_)
         edge->RecomputeDirty(stat_helper);
+      else
+        (*i)->dirty_ = !(*i)->file_->exists();
     }
     if ((*i)->dirty_)
       dirty = true;
