@@ -1,0 +1,12 @@
+save command lines
+parse c header deps
+
+
+longer-term ideas:
+
+- bootstrap -- output a shell script that builds everything serially
+
+- use lemon/ragel for parsing
+
+- buffer stderr from commands, only print failing commands/output
+  store historical timing info, allowing etas on builds
