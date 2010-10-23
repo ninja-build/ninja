@@ -1,3 +1,4 @@
 ninja
 ninja_test
 TAGS
+*.o
