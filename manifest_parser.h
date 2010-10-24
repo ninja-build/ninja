@@ -5,6 +5,7 @@
 struct Token {
   enum Type {
     NONE,
+    UNKNOWN,
     IDENT,
     RULE,
     BUILD,
@@ -21,6 +22,7 @@ struct Token {
   string AsString() const {
     switch (type_) {
       case IDENT:   return "'" + extra_ + "'";
+      case UNKNOWN: return "unknown '" + extra_ + "'";
       case RULE:    return "'rule'";
       case BUILD:   return "'build'";
       case NEWLINE: return "newline";
@@ -209,8 +211,10 @@ Token::Type Parser::PeekToken() {
   SkipWhitespace();
 
   if (token_.type_ == Token::NONE) {
-    assert(false); // XXX
+    token_.type_ = Token::UNKNOWN;
+    token_.extra_ = *cur_;
   }
+
   return token_.type_;
 }
 
@@ -300,8 +304,10 @@ bool ManifestParser::ParseRule(string* err) {
   if (!parser_.ExpectToken(Token::RULE, err))
     return false;
   string name;
-  if (!parser_.ReadIdent(&name))
-    return parser_.Error("expected rule name", err);
+  if (!parser_.ReadIdent(&name)) {
+    return parser_.Error("expected rule name, got " + parser_.token().AsString(),
+                         err);
+  }
   if (!parser_.Newline(err))
     return false;
 

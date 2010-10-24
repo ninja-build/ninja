@@ -128,6 +128,14 @@ TEST(Parser, Errors) {
                               &err));
     EXPECT_EQ("line 3, col 1: expected 'command =' line", err);
   }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule %foo\n",
+                              &err));
+    EXPECT_EQ("line 1, col 6: expected rule name, got unknown '%'", err);
+  }
 }
 
 TEST(Parser, BuildDir) {
