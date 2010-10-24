@@ -2,30 +2,67 @@
 #include <stdio.h>
 #include <string.h>
 
+struct Token {
+  enum Type {
+    NONE,
+    IDENT,
+    RULE,
+    COMMAND,
+    BUILD,
+    NEWLINE,
+    EQUALS,
+    COLON,
+    TEOF
+  };
+  explicit Token(Type type) : type_(type) {}
+
+  void Clear() { type_ = NONE; extra_.clear(); }
+  string AsString() const {
+    switch (type_) {
+      case IDENT:   return "'" + extra_ + "'";
+      case RULE:    return "'rule'";
+      case COMMAND: return "'command'";
+      case BUILD:   return "'build'";
+      case NEWLINE: return "newline";
+      case EQUALS:  return "'='";
+      case COLON:   return "':'";
+      case TEOF:    return "eof";
+      case NONE:
+      default:
+        assert(false);
+        return "";
+    }
+  }
+
+  Type type_;
+  const char* pos_;
+  string extra_;
+};
+
 struct Parser {
-  Parser() : line_number_(1) {}
+  Parser() : token_(Token::NONE), line_number_(1) {}
 
   void Start(const char* start, const char* end);
   bool Error(const string& message, string* err);
 
-  const string& token() const { return token_; }
+  const Token& token() const { return token_; }
   bool eof() const { return cur_ >= end_; }
 
   void SkipWhitespace(bool newline=false);
   bool Newline(string* err);
-  bool Token(const string& expected, string* err);
-  bool ReadToken(string* out);
+  bool ExpectToken(Token::Type expected, string* err);
+  bool ReadIdent(string* out);
   bool ReadToNewline(string* text, string* err);
 
-  bool PeekToken();
-  void AdvanceToken();
+  Token::Type PeekToken();
+  void ConsumeToken();
 
-  const char* cur_line_;
   const char* cur_;
   const char* end_;
+
+  const char* cur_line_;
+  Token token_;
   int line_number_;
-  string token_;
-  const char* err_start_;
 };
 
 void Parser::Start(const char* start, const char* end) {
@@ -37,7 +74,7 @@ bool Parser::Error(const string& message, string* err) {
   char buf[1024];
   sprintf(buf, "line %d, col %d: %s",
           line_number_,
-          (int)(err_start_ - cur_line_) + 1,
+          (int)(token_.pos_ - cur_line_) + 1,
           message.c_str());
   err->assign(buf);
   return false;
@@ -51,7 +88,8 @@ void Parser::SkipWhitespace(bool newline) {
       Newline(NULL);
     } else if (*cur_ == '\\' && cur_ + 1 < end_ && cur_[1] == '\n') {
       ++cur_;
-      string token = token_;  // XXX hack around newline clearing token.
+      Token token = token_;  // XXX hack around newline clearing token.
+      token_.Clear();
       Newline(NULL);
       token_ = token;
     } else {
@@ -61,22 +99,13 @@ void Parser::SkipWhitespace(bool newline) {
 }
 
 bool Parser::Newline(string* err) {
-  err_start_ = cur_;
-  if (cur_ < end_ && *cur_ == '\n') {
-    ++cur_;
-    cur_line_ = cur_;
-    ++line_number_;
-    token_.clear();
-    return true;
-  }
+  PeekToken();
+  if (!ExpectToken(Token::NEWLINE, err))
+    return false;
 
-  if (err) {
-    if (cur_ >= end_)
-      return Error("expected newline, got eof", err);
-    else
-      return Error(string("expected newline, got '") + *cur_ + string("'"), err);
-  }
-  return false;
+  cur_line_ = cur_;
+  ++line_number_;
+  return true;
 }
 
 static bool IsIdentChar(char c) {
@@ -87,24 +116,27 @@ static bool IsIdentChar(char c) {
     (c == '_') || (c == '@');
 }
 
-bool Parser::Token(const string& expected, string* err) {
+bool Parser::ExpectToken(Token::Type expected, string* err) {
   PeekToken();
-  if (token_ != expected)
-    return Error("expected '" + expected + "', got '" + token_ + "'", err);
-  AdvanceToken();
+  if (token_.type_ != expected) {
+    return Error("expected " + Token(expected).AsString() + ", "
+                 "got " + token_.AsString(), err);
+  }
+  ConsumeToken();
   return true;
 }
 
-bool Parser::ReadToken(string* out) {
-  if (!PeekToken())
+bool Parser::ReadIdent(string* out) {
+  PeekToken();
+  if (token_.type_ != Token::IDENT)
     return false;
-  out->assign(token_);
-  AdvanceToken();
+  out->assign(token_.extra_);
+  ConsumeToken();
   return true;
 }
 
 bool Parser::ReadToNewline(string* text, string* err) {
-  token_.clear();
+  // XXX token_.clear();
   while (cur_ < end_ && *cur_ != '\n') {
     if (*cur_ == '\\') {
       ++cur_;
@@ -124,32 +156,51 @@ bool Parser::ReadToNewline(string* text, string* err) {
   return Newline(err);
 }
 
-bool Parser::PeekToken() {
-  if (!token_.empty())
-    return true;
+Token::Type Parser::PeekToken() {
+  if (token_.type_ != Token::NONE)
+    return token_.type_;
 
-  err_start_ = cur_;
+  token_.pos_ = cur_;
 
-  if (cur_ >= end_)
-    return false;
+  if (cur_ >= end_) {
+    token_.type_ = Token::TEOF;
+    return token_.type_;
+  }
 
   if (IsIdentChar(*cur_)) {
     while (cur_ < end_ && IsIdentChar(*cur_)) {
-      token_.push_back(*cur_);
+      token_.extra_.push_back(*cur_);
       ++cur_;
     }
-  } else if (*cur_ == ':' || *cur_ == '=') {
-    token_ = *cur_;
+    if (token_.extra_ == "rule")
+      token_.type_ = Token::RULE;
+    else if (token_.extra_ == "command")
+      token_.type_ = Token::COMMAND;
+    else if (token_.extra_ == "build")
+      token_.type_ = Token::BUILD;
+    else
+      token_.type_ = Token::IDENT;
+  } else if (*cur_ == ':') {
+    token_.type_ = Token::COLON;
+    ++cur_;
+  } else if (*cur_ == '=') {
+    token_.type_ = Token::EQUALS;
+    ++cur_;
+  } else if (*cur_ == '\n') {
+    token_.type_ = Token::NEWLINE;
     ++cur_;
   }
 
   SkipWhitespace();
 
-  return !token_.empty();
+  if (token_.type_ == Token::NONE) {
+    assert(false); // XXX
+  }
+  return token_.type_;
 }
 
-void Parser::AdvanceToken() {
-  token_.clear();
+void Parser::ConsumeToken() {
+  token_.Clear();
 }
 
 struct ManifestParser {
@@ -196,36 +247,41 @@ bool ManifestParser::Parse(const string& input, string* err) {
 
   parser_.SkipWhitespace(true);
 
-  while (parser_.PeekToken()) {
-    if (parser_.token() == "rule") {
-      if (!ParseRule(err))
-        return false;
-    } else if (parser_.token() == "build") {
-      if (!ParseEdge(err))
-        return false;
-    } else {
-      if (!ParseLet(err))
-        return false;
+  while (parser_.token().type_ != Token::TEOF) {
+    switch (parser_.PeekToken()) {
+      case Token::RULE:
+        if (!ParseRule(err))
+          return false;
+        break;
+      case Token::BUILD:
+        if (!ParseEdge(err))
+          return false;
+        break;
+      case Token::IDENT:
+        if (!ParseLet(err))
+          return false;
+        break;
+      case Token::TEOF:
+        continue;
+      default:
+        return parser_.Error("unhandled " + parser_.token().AsString(), err);
     }
     parser_.SkipWhitespace(true);
   }
-
-  if (!parser_.eof())
-    return parser_.Error("expected eof", err);
 
   return true;
 }
 
 bool ManifestParser::ParseRule(string* err) {
-  if (!parser_.Token("rule", err))
+  if (!parser_.ExpectToken(Token::RULE, err))
     return false;
   string name;
-  if (!parser_.ReadToken(&name))
+  if (!parser_.ReadIdent(&name))
     return parser_.Error("expected rule name", err);
   if (!parser_.Newline(err))
     return false;
 
-  if (!parser_.Token("command", err))
+  if (!parser_.ExpectToken(Token::COMMAND, err))
     return false;
   string command;
   if (!parser_.ReadToNewline(&command, err))
@@ -238,10 +294,10 @@ bool ManifestParser::ParseRule(string* err) {
 
 bool ManifestParser::ParseLet(string* err) {
   string name;
-  if (!parser_.ReadToken(&name))
+  if (!parser_.ReadIdent(&name))
     return parser_.Error("expected variable name", err);
 
-  if (!parser_.Token("=", err))
+  if (!parser_.ExpectToken(Token::EQUALS, err))
     return false;
 
   string value;
@@ -261,20 +317,24 @@ bool ManifestParser::ParseLet(string* err) {
 bool ManifestParser::ParseEdge(string* err) {
   vector<string> ins, outs;
 
-  if (!parser_.Token("build", err))
+  if (!parser_.ExpectToken(Token::BUILD, err))
     return false;
 
   for (;;) {
-    string out;
-    if (!parser_.ReadToken(&out))
-      return parser_.Error("expected output file list", err);
-    if (out == ":")
+    if (parser_.PeekToken() == Token::COLON) {
+      parser_.ConsumeToken();
       break;
+    }
+
+    string out;
+    if (!parser_.ReadIdent(&out))
+      return parser_.Error("expected output file list", err);
     outs.push_back(ExpandFile(out));
   }
+  // XXX check outs not empty
 
   string rule_name;
-  if (!parser_.ReadToken(&rule_name))
+  if (!parser_.ReadIdent(&rule_name))
     return parser_.Error("expected build command name", err);
 
   Rule* rule = state_->LookupRule(rule_name);
@@ -283,7 +343,7 @@ bool ManifestParser::ParseEdge(string* err) {
 
   for (;;) {
     string in;
-    if (!parser_.ReadToken(&in))
+    if (!parser_.ReadIdent(&in))
       break;
     ins.push_back(ExpandFile(in));
   }

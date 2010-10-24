@@ -73,7 +73,7 @@ TEST(Parser, Errors) {
     ManifestParser parser(NULL);
     string err;
     EXPECT_FALSE(parser.Parse("foobar", &err));
-    EXPECT_EQ("line 1, col 7: expected '=', got ''", err);
+    EXPECT_EQ("line 1, col 7: expected '=', got eof", err);
   }
 
   {
@@ -102,6 +102,21 @@ TEST(Parser, Errors) {
     string err;
     EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
     EXPECT_EQ("line 1, col 10: unknown build rule 'y'", err);
+  }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("build x:: y z\n", &err));
+    EXPECT_EQ("line 1, col 9: expected build command name", err);
+  }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cat\ncommand cat ok\nbuild x: cat \\\n :\n",
+                              &err));
+    EXPECT_EQ("line 4, col 1: expected newline, got ':'", err);
   }
 }
 
