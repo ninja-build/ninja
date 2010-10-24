@@ -336,6 +336,8 @@ bool ManifestParser::ParseRule(string* err) {
 
       if (key == "command") {
         rule->ParseCommand(val);
+      } else if (key == "depfile") {
+        rule->depfile_.Parse(val);
       }
     }
     parser_.ConsumeToken();
@@ -384,6 +386,13 @@ bool ManifestParser::ParseEdge(string* err) {
   Rule* rule = state_->LookupRule(rule_name);
   if (!rule)
     return parser_.Error("unknown build rule '" + rule_name + "'", err);
+
+  if (!rule->depfile_.empty()) {
+    if (outs.size() > 1) {
+      return parser_.Error("dependency files only work with single-output "
+                           "rules", err);
+    }
+  }
 
   for (;;) {
     string in;

@@ -128,6 +128,7 @@ struct Rule {
   }
   string name_;
   EvalString command_;
+  EvalString depfile_;
 };
 
 struct Edge {

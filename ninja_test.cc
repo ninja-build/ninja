@@ -148,6 +148,17 @@ TEST(Parser, Errors) {
                               &err));
     EXPECT_EQ("line 1, col 6: expected rule name, got unknown '%'", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
+                              "build a.o b.o: cc c.cc\n",
+                              &err));
+    EXPECT_EQ("line 4, col 16: dependency files only work with "
+              "single-output rules", err);
+  }
 }
 
 TEST(Parser, BuildDir) {
