@@ -173,6 +173,14 @@ TEST(Parser, BuildDir) {
   ASSERT_TRUE(state.LookupNode("out/a.o"));
 }
 
+TEST(MakefileParser, Basic) {
+  MakefileParser parser;
+  string err;
+  EXPECT_TRUE(parser.Parse(
+"build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
+      &err));
+  ASSERT_EQ("", err);
+}
 
 TEST(State, Basic) {
   State state;

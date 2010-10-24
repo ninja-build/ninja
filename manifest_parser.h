@@ -230,6 +230,34 @@ void Tokenizer::ConsumeToken() {
   token_.Clear();
 }
 
+struct MakefileParser {
+  bool Parse(const string& input, string* err);
+
+  Tokenizer tokenizer_;
+  string out_;
+  vector<string> ins_;
+};
+
+bool MakefileParser::Parse(const string& input, string* err) {
+  tokenizer_.Start(input.data(), input.data() + input.size());
+
+  if (!tokenizer_.ReadIdent(&out_))
+    return tokenizer_.Error("expected output filename", err);
+  if (!tokenizer_.ExpectToken(Token::COLON, err))
+    return false;
+  while (tokenizer_.PeekToken() == Token::IDENT) {
+    string in;
+    tokenizer_.ReadIdent(&in);
+    ins_.push_back(in);
+  }
+  if (!tokenizer_.ExpectToken(Token::NEWLINE, err))
+    return false;
+  if (!tokenizer_.ExpectToken(Token::TEOF, err))
+    return false;
+
+  return true;
+}
+
 struct ManifestParser {
   ManifestParser(State* state) : state_(state) {}
   bool Load(const string& filename, string* err);
