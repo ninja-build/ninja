@@ -319,7 +319,13 @@ bool ManifestParser::ParseRule(string* err) {
   if (!parser_.Newline(err))
     return false;
 
-  string command;
+  if (state_->LookupRule(name) != NULL) {
+    *err = "duplicate rule '" + name + "'";
+    return false;
+  }
+
+  Rule* rule = new Rule(name);  // XXX scoped_ptr
+
   if (parser_.PeekToken() == Token::INDENT) {
     parser_.ConsumeToken();
 
@@ -328,16 +334,17 @@ bool ManifestParser::ParseRule(string* err) {
       if (!ParseLet(&key, &val, err))
         return false;
 
-      if (key == "command")
-        command = val;
+      if (key == "command") {
+        rule->ParseCommand(val);
+      }
     }
     parser_.ConsumeToken();
   }
 
-  if (command.empty())
+  if (rule->command_.unparsed().empty())
     return parser_.Error("expected 'command =' line", err);
 
-  state_->AddRule(name, command);
+  state_->AddRule(rule);
   return true;
 }
 

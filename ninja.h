@@ -121,8 +121,9 @@ struct Node {
 };
 
 struct Rule {
-  Rule(const string& name, const string& command) :
-    name_(name) {
+  Rule(const string& name) : name_(name) { }
+
+  void ParseCommand(const string& command) {
     assert(command_.Parse(command));  // XXX
   }
   string name_;
@@ -268,7 +269,7 @@ struct State : public EvalString::Env {
   // EvalString::Env impl
   virtual string Evaluate(const string& var);
 
-  Rule* AddRule(const string& name, const string& command);
+  void AddRule(Rule* rule);
   Rule* LookupRule(const string& rule_name);
   Edge* AddEdge(Rule* rule);
   Node* GetNode(const string& path);
@@ -294,10 +295,9 @@ Rule* State::LookupRule(const string& rule_name) {
   return i->second;
 }
 
-Rule* State::AddRule(const string& name, const string& command) {
-  Rule* rule = new Rule(name, command);
-  rules_[name] = rule;
-  return rule;
+void State::AddRule(Rule* rule) {
+  assert(LookupRule(rule->name_) == NULL);
+  rules_[rule->name_] = rule;
 }
 
 Edge* State::AddEdge(Rule* rule) {

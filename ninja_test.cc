@@ -75,8 +75,6 @@ TEST(Parser, Comment) {
 }
 
 TEST(Parser, Errors) {
-  State state;
-
   {
     ManifestParser parser(NULL);
     string err;
@@ -99,6 +97,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("x = 3\ny 2", &err));
@@ -106,6 +105,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
@@ -113,6 +113,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("build x:: y z\n", &err));
@@ -120,6 +121,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n  command = cat ok\n"
@@ -129,6 +131,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n"
@@ -138,6 +141,7 @@ TEST(Parser, Errors) {
   }
 
   {
+    State state;
     ManifestParser parser(&state);
     string err;
     EXPECT_FALSE(parser.Parse("rule %foo\n",
@@ -161,7 +165,9 @@ TEST(Parser, BuildDir) {
 
 TEST(State, Basic) {
   State state;
-  Rule* rule = state.AddRule("cat", "cat @in > $out");
+  Rule* rule = new Rule("cat");
+  rule->ParseCommand("cat @in > $out");
+  state.AddRule(rule);
   Edge* edge = state.AddEdge(rule);
   state.AddInOut(edge, Edge::IN, "in1");
   state.AddInOut(edge, Edge::IN, "in2");
