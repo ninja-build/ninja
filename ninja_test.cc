@@ -22,10 +22,10 @@ TEST(Parser, Rules) {
   State state;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule cat\n"
-"  command cat @in > $out\n"
+"  command = cat @in > $out\n"
 "\n"
 "rule date\n"
-"  command date > $out\n"
+"  command = date > $out\n"
 "\n"
 "build result: cat in_1.cc in-2.O\n"));
 
@@ -39,7 +39,7 @@ TEST(Parser, Variables) {
   State state;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule link\n"
-"  command ld $extra $with_under -o $out @in\n"
+"  command = ld $extra $with_under -o $out @in\n"
 "\n"
 "extra = -pthread\n"
 "with_under = -under\n"
@@ -54,7 +54,7 @@ TEST(Parser, Continuation) {
   State state;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "rule link\n"
-"  command foo bar \\\n"
+"  command = foo bar \\\n"
 "    baz\n"
 "\n"
 "build a: link c \\\n"
@@ -114,7 +114,7 @@ TEST(Parser, Errors) {
   {
     ManifestParser parser(&state);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n  command cat ok\n"
+    EXPECT_FALSE(parser.Parse("rule cat\n  command = cat ok\n"
                               "build x: cat \\\n :\n",
                               &err));
     EXPECT_EQ("line 4, col 2: expected newline, got ':'", err);
@@ -126,7 +126,7 @@ TEST(Parser, BuildDir) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
 "builddir = out\n"
 "rule cat\n"
-"  command cat @in > $out\n"
+"  command = cat @in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
   state.stat_cache()->Dump();
@@ -179,7 +179,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules() {
     AssertParse(&state_,
 "rule cat\n"
-"  command cat @in > $out\n");
+"  command = cat @in > $out\n");
   }
 
   Node* GetNode(const string& path) {

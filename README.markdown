@@ -43,10 +43,13 @@ project, while `rule` statements describe how to generate the files
 within a given edge of the graph.
 
 ### Rules
-Here's an example of a simple rule for compiling C code.
+
+Rules begin with the `rule` keyword and a name for the rule, followed
+by an indented set of `key = val` lines.  Here's an example of a
+simple rule for compiling C code.
 
     rule cc
-    command gcc -c $in -o $out
+      command = gcc -c $in -o $out
 
 This declares a new rule named `cc`, along with the command to run.
 `Variables` begin with a `$` and are described more fully later, but
@@ -75,7 +78,7 @@ build files readable (debuggable), Ninja supports declaring bindings
 Can be used in a rule like this:
 
     rule cc
-    command gcc $cflags -c $in -o $out
+      command = gcc $cflags -c $in -o $out
 
 Variables might better be called "bindings", in that a given variable
 cannot be changed, only shadowed.  Within a larger Ninja project,

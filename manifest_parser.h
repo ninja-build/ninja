@@ -7,7 +7,6 @@ struct Token {
     NONE,
     IDENT,
     RULE,
-    COMMAND,
     BUILD,
     NEWLINE,
     EQUALS,
@@ -23,7 +22,6 @@ struct Token {
     switch (type_) {
       case IDENT:   return "'" + extra_ + "'";
       case RULE:    return "'rule'";
-      case COMMAND: return "'command'";
       case BUILD:   return "'build'";
       case NEWLINE: return "newline";
       case EQUALS:  return "'='";
@@ -190,8 +188,6 @@ Token::Type Parser::PeekToken() {
     }
     if (token_.extra_ == "rule")
       token_.type_ = Token::RULE;
-    else if (token_.extra_ == "command")
-      token_.type_ = Token::COMMAND;
     else if (token_.extra_ == "build")
       token_.type_ = Token::BUILD;
     else
@@ -228,7 +224,7 @@ struct ManifestParser {
   bool Parse(const string& input, string* err);
 
   bool ParseRule(string* err);
-  bool ParseLet(string* err);
+  bool ParseLet(string* key, string* val, string* err);
   bool ParseEdge(string* err);
 
   string ExpandFile(const string& file);
@@ -276,10 +272,19 @@ bool ManifestParser::Parse(const string& input, string* err) {
         if (!ParseEdge(err))
           return false;
         break;
-      case Token::IDENT:
-        if (!ParseLet(err))
+      case Token::IDENT: {
+        string name, value;
+        if (!ParseLet(&name, &value, err))
           return false;
+
+        state_->AddBinding(name, value);
+        if (name == "builddir") {
+          builddir_ = value;
+          if (!builddir_.empty() && builddir_[builddir_.size() - 1] != '/')
+            builddir_.push_back('/');
+        }
         break;
+      }
       case Token::TEOF:
         continue;
       default:
@@ -304,39 +309,33 @@ bool ManifestParser::ParseRule(string* err) {
   if (parser_.PeekToken() == Token::INDENT) {
     parser_.ConsumeToken();
 
-    if (!parser_.ExpectToken(Token::COMMAND, err))
-      return false;
-    if (!parser_.ReadToNewline(&command, err))
-      return false;
+    while (parser_.PeekToken() != Token::OUTDENT) {
+      string key, val;
+      if (!ParseLet(&key, &val, err))
+        return false;
 
-    if (!parser_.ExpectToken(Token::OUTDENT, err))
-      return false;
+      if (key != "command") {
+        *err = "expected 'command'";
+        return false;
+      }
+      command = val;
+    }
+    parser_.ConsumeToken();
   }
 
-  state_->AddRule(name, command);
+  if (!command.empty())
+    state_->AddRule(name, command);
 
   return true;
 }
 
-bool ManifestParser::ParseLet(string* err) {
-  string name;
-  if (!parser_.ReadIdent(&name))
+bool ManifestParser::ParseLet(string* name, string* value, string* err) {
+  if (!parser_.ReadIdent(name))
     return parser_.Error("expected variable name", err);
-
   if (!parser_.ExpectToken(Token::EQUALS, err))
     return false;
-
-  string value;
-  if (!parser_.ReadToNewline(&value, err))
+  if (!parser_.ReadToNewline(value, err))
     return false;
-
-  state_->AddBinding(name, value);
-  if (name == "builddir") {
-    builddir_ = value;
-    if (!builddir_.empty() && builddir_[builddir_.size() - 1] != '/')
-      builddir_.push_back('/');
-  }
-
   return true;
 }
 
