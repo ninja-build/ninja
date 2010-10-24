@@ -196,10 +196,15 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual int Stat(const string& path) {
     return now_;
   }
+  virtual bool MakeDir(const string& path) {
+    directories_made_.push_back(path);
+    return true;  // success
+  }
 
   Builder builder_;
   int now_;
   vector<string> commands_ran_;
+  vector<string> directories_made_;
 };
 
 void BuildTest::Dirty(const string& path) {
@@ -334,6 +339,22 @@ TEST_F(BuildTest, MissingTarget) {
   string err;
   EXPECT_FALSE(builder_.AddTarget("meow", &err));
   EXPECT_EQ("unknown target: 'meow'", err);
+}
+
+TEST_F(BuildTest, MakeDirs) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build subdir/dir2/file: cat in1\n"));
+
+  Touch("in1");
+  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
+  EXPECT_EQ("", err);
+  now_ = 0;  // Make all stat()s return file not found.
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2, directories_made_.size());
+  EXPECT_EQ("subdir", directories_made_[0]);
+  EXPECT_EQ("subdir/dir2", directories_made_[1]);
 }
 
 struct StatTest : public StateTestWithBuiltinRules,

@@ -12,7 +12,13 @@ using namespace std;
 #include "eval_env.h"
 
 struct DiskInterface {
+  // stat() a file, returning the mtime, or 0 if missing and -1 on other errors.
   virtual int Stat(const string& path);
+  // Create a directory, returning false on failure.
+  virtual bool MakeDir(const string& path);
+
+  // Create all the parent directories for path; like mkdir -p `basename path`.
+  bool MakeDirs(const string& path);
 };
 
 #include <errno.h>
@@ -32,6 +38,38 @@ int DiskInterface::Stat(const string& path) {
   }
 
   return st.st_mtime;
+  return true;
+}
+
+string DirName(const string& path) {
+  string::size_type slash_pos = path.rfind('/');
+  if (slash_pos == string::npos)
+    return "";  // Nothing to do.
+  return path.substr(0, slash_pos);
+}
+
+bool DiskInterface::MakeDirs(const string& path) {
+  string dir = DirName(path);
+  if (dir.empty())
+    return true;  // Reached root; assume it's there.
+  int mtime = Stat(dir);
+  if (mtime < 0)
+    return false;  // Error.
+  if (mtime > 0)
+    return true;  // Exists already; we're done.
+
+  // Directory doesn't exist.  Try creating its parent first.
+  bool success = MakeDirs(dir);
+  if (!success)
+    return false;
+  return MakeDir(dir);
+}
+
+bool DiskInterface::MakeDir(const string& path) {
+  if (mkdir(path.c_str(), 0777) < 0) {
+    fprintf(stderr, "mkdir(%s): %s\n", path.c_str(), strerror(errno));
+    return false;
+  }
   return true;
 }
 
@@ -468,6 +506,13 @@ bool Builder::Build(Shell* shell, string* err) {
   }
 
   do {
+    // Create directories necessary for outputs.
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      if (!disk_interface_->MakeDirs((*i)->file_->path_))
+        return false;
+    }
+
     string command = edge->EvaluateCommand();
     if (!shell->RunCommand(edge)) {
       err->assign("command '" + command + "' failed.");
