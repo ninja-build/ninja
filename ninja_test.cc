@@ -105,6 +105,19 @@ TEST(Parser, Errors) {
   }
 }
 
+TEST(Parser, BuildDir) {
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+"builddir = out\n"
+"rule cat\n"
+"command cat @in > $out\n"
+"build @bin: cat @a.o\n"
+"build @a.o: cat a.cc\n"));
+  state.stat_cache()->Dump();
+  ASSERT_TRUE(state.LookupNode("out/a.o"));
+}
+
+
 TEST(State, Basic) {
   State state;
   Rule* rule = state.AddRule("cat", "cat @in > $out");

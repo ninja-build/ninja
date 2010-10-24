@@ -84,7 +84,7 @@ static bool IsIdentChar(char c) {
     ('a' <= c && c <= 'z') ||
     ('+' <= c && c <= '9') ||  // +,-./ and numbers
     ('A' <= c && c <= 'Z') ||
-    (c == '_');
+    (c == '_') || (c == '@');
 }
 
 bool Parser::Token(const string& expected, string* err) {
@@ -161,8 +161,11 @@ struct ManifestParser {
   bool ParseLet(string* err);
   bool ParseEdge(string* err);
 
+  string ExpandFile(const string& file);
+
   State* state_;
   Parser parser_;
+  string builddir_;
 };
 
 bool ManifestParser::Load(const string& filename, string* err) {
@@ -246,6 +249,11 @@ bool ManifestParser::ParseLet(string* err) {
     return false;
 
   state_->AddBinding(name, value);
+  if (name == "builddir") {
+    builddir_ = value;
+    if (!builddir_.empty() && builddir_[builddir_.size() - 1] != '/')
+      builddir_.push_back('/');
+  }
 
   return true;
 }
@@ -262,7 +270,7 @@ bool ManifestParser::ParseEdge(string* err) {
       return parser_.Error("expected output file list", err);
     if (out == ":")
       break;
-    outs.push_back(out);
+    outs.push_back(ExpandFile(out));
   }
 
   string rule_name;
@@ -277,7 +285,7 @@ bool ManifestParser::ParseEdge(string* err) {
     string in;
     if (!parser_.ReadToken(&in))
       break;
-    ins.push_back(in);
+    ins.push_back(ExpandFile(in));
   }
 
   if (!parser_.Newline(err))
@@ -290,5 +298,11 @@ bool ManifestParser::ParseEdge(string* err) {
     state_->AddInOut(edge, Edge::OUT, *i);
 
   return true;
+}
+
+string ManifestParser::ExpandFile(const string& file) {
+  if (!file.empty() && file[0] == '@')
+    return builddir_ + file.substr(1);
+  return file;
 }
 
