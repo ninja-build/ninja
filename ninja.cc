@@ -52,7 +52,6 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
-  state.stat_cache()->Dump();
 
   bool success = builder.Build(&shell, &err);
   if (!err.empty()) {
