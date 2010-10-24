@@ -43,8 +43,8 @@ struct Token {
   string extra_;
 };
 
-struct Parser {
-  Parser()
+struct Tokenizer {
+  Tokenizer()
       : token_(Token::NONE), line_number_(1),
         last_indent_(0), cur_indent_(-1) {}
 
@@ -71,12 +71,12 @@ struct Parser {
   int last_indent_, cur_indent_;
 };
 
-void Parser::Start(const char* start, const char* end) {
+void Tokenizer::Start(const char* start, const char* end) {
   cur_line_ = cur_ = start;
   end_ = end;
 }
 
-bool Parser::Error(const string& message, string* err) {
+bool Tokenizer::Error(const string& message, string* err) {
   char buf[1024];
   sprintf(buf, "line %d, col %d: %s",
           line_number_,
@@ -86,7 +86,7 @@ bool Parser::Error(const string& message, string* err) {
   return false;
 }
 
-void Parser::SkipWhitespace(bool newline) {
+void Tokenizer::SkipWhitespace(bool newline) {
   while (cur_ < end_) {
     if (*cur_ == ' ') {
       ++cur_;
@@ -110,7 +110,7 @@ void Parser::SkipWhitespace(bool newline) {
   }
 }
 
-bool Parser::Newline(string* err) {
+bool Tokenizer::Newline(string* err) {
   if (!ExpectToken(Token::NEWLINE, err))
     return false;
 
@@ -125,7 +125,7 @@ static bool IsIdentChar(char c) {
     (c == '_') || (c == '@');
 }
 
-bool Parser::ExpectToken(Token::Type expected, string* err) {
+bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
   PeekToken();
   if (token_.type_ != expected) {
     return Error("expected " + Token(expected).AsString() + ", "
@@ -135,7 +135,7 @@ bool Parser::ExpectToken(Token::Type expected, string* err) {
   return true;
 }
 
-bool Parser::ReadIdent(string* out) {
+bool Tokenizer::ReadIdent(string* out) {
   PeekToken();
   if (token_.type_ != Token::IDENT)
     return false;
@@ -144,7 +144,7 @@ bool Parser::ReadIdent(string* out) {
   return true;
 }
 
-bool Parser::ReadToNewline(string* text, string* err) {
+bool Tokenizer::ReadToNewline(string* text, string* err) {
   // XXX token_.clear();
   while (cur_ < end_ && *cur_ != '\n') {
     if (*cur_ == '\\') {
@@ -168,7 +168,7 @@ bool Parser::ReadToNewline(string* text, string* err) {
   return Newline(err);
 }
 
-Token::Type Parser::PeekToken() {
+Token::Type Tokenizer::PeekToken() {
   if (token_.type_ != Token::NONE)
     return token_.type_;
 
@@ -226,7 +226,7 @@ Token::Type Parser::PeekToken() {
   return token_.type_;
 }
 
-void Parser::ConsumeToken() {
+void Tokenizer::ConsumeToken() {
   token_.Clear();
 }
 
@@ -242,7 +242,7 @@ struct ManifestParser {
   string ExpandFile(const string& file);
 
   State* state_;
-  Parser parser_;
+  Tokenizer tokenizer_;
   string builddir_;
 };
 
@@ -270,12 +270,12 @@ bool ManifestParser::Load(const string& filename, string* err) {
 }
 
 bool ManifestParser::Parse(const string& input, string* err) {
-  parser_.Start(input.data(), input.data() + input.size());
+  tokenizer_.Start(input.data(), input.data() + input.size());
 
-  parser_.SkipWhitespace(true);
+  tokenizer_.SkipWhitespace(true);
 
-  while (parser_.token().type_ != Token::TEOF) {
-    switch (parser_.PeekToken()) {
+  while (tokenizer_.token().type_ != Token::TEOF) {
+    switch (tokenizer_.PeekToken()) {
       case Token::RULE:
         if (!ParseRule(err))
           return false;
@@ -300,23 +300,23 @@ bool ManifestParser::Parse(const string& input, string* err) {
       case Token::TEOF:
         continue;
       default:
-        return parser_.Error("unhandled " + parser_.token().AsString(), err);
+        return tokenizer_.Error("unhandled " + tokenizer_.token().AsString(), err);
     }
-    parser_.SkipWhitespace(true);
+    tokenizer_.SkipWhitespace(true);
   }
 
   return true;
 }
 
 bool ManifestParser::ParseRule(string* err) {
-  if (!parser_.ExpectToken(Token::RULE, err))
+  if (!tokenizer_.ExpectToken(Token::RULE, err))
     return false;
   string name;
-  if (!parser_.ReadIdent(&name)) {
-    return parser_.Error("expected rule name, got " + parser_.token().AsString(),
+  if (!tokenizer_.ReadIdent(&name)) {
+    return tokenizer_.Error("expected rule name, got " + tokenizer_.token().AsString(),
                          err);
   }
-  if (!parser_.Newline(err))
+  if (!tokenizer_.Newline(err))
     return false;
 
   if (state_->LookupRule(name) != NULL) {
@@ -326,10 +326,10 @@ bool ManifestParser::ParseRule(string* err) {
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 
-  if (parser_.PeekToken() == Token::INDENT) {
-    parser_.ConsumeToken();
+  if (tokenizer_.PeekToken() == Token::INDENT) {
+    tokenizer_.ConsumeToken();
 
-    while (parser_.PeekToken() != Token::OUTDENT) {
+    while (tokenizer_.PeekToken() != Token::OUTDENT) {
       string key, val;
       if (!ParseLet(&key, &val, err))
         return false;
@@ -340,22 +340,22 @@ bool ManifestParser::ParseRule(string* err) {
         rule->depfile_.Parse(val);
       }
     }
-    parser_.ConsumeToken();
+    tokenizer_.ConsumeToken();
   }
 
   if (rule->command_.unparsed().empty())
-    return parser_.Error("expected 'command =' line", err);
+    return tokenizer_.Error("expected 'command =' line", err);
 
   state_->AddRule(rule);
   return true;
 }
 
 bool ManifestParser::ParseLet(string* name, string* value, string* err) {
-  if (!parser_.ReadIdent(name))
-    return parser_.Error("expected variable name", err);
-  if (!parser_.ExpectToken(Token::EQUALS, err))
+  if (!tokenizer_.ReadIdent(name))
+    return tokenizer_.Error("expected variable name", err);
+  if (!tokenizer_.ExpectToken(Token::EQUALS, err))
     return false;
-  if (!parser_.ReadToNewline(value, err))
+  if (!tokenizer_.ReadToNewline(value, err))
     return false;
   return true;
 }
@@ -363,45 +363,45 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
 bool ManifestParser::ParseEdge(string* err) {
   vector<string> ins, outs;
 
-  if (!parser_.ExpectToken(Token::BUILD, err))
+  if (!tokenizer_.ExpectToken(Token::BUILD, err))
     return false;
 
   for (;;) {
-    if (parser_.PeekToken() == Token::COLON) {
-      parser_.ConsumeToken();
+    if (tokenizer_.PeekToken() == Token::COLON) {
+      tokenizer_.ConsumeToken();
       break;
     }
 
     string out;
-    if (!parser_.ReadIdent(&out))
-      return parser_.Error("expected output file list", err);
+    if (!tokenizer_.ReadIdent(&out))
+      return tokenizer_.Error("expected output file list", err);
     outs.push_back(ExpandFile(out));
   }
   // XXX check outs not empty
 
   string rule_name;
-  if (!parser_.ReadIdent(&rule_name))
-    return parser_.Error("expected build command name", err);
+  if (!tokenizer_.ReadIdent(&rule_name))
+    return tokenizer_.Error("expected build command name", err);
 
   Rule* rule = state_->LookupRule(rule_name);
   if (!rule)
-    return parser_.Error("unknown build rule '" + rule_name + "'", err);
+    return tokenizer_.Error("unknown build rule '" + rule_name + "'", err);
 
   if (!rule->depfile_.empty()) {
     if (outs.size() > 1) {
-      return parser_.Error("dependency files only work with single-output "
+      return tokenizer_.Error("dependency files only work with single-output "
                            "rules", err);
     }
   }
 
   for (;;) {
     string in;
-    if (!parser_.ReadIdent(&in))
+    if (!tokenizer_.ReadIdent(&in))
       break;
     ins.push_back(ExpandFile(in));
   }
 
-  if (!parser_.Newline(err))
+  if (!tokenizer_.Newline(err))
     return false;
 
   Edge* edge = state_->AddEdge(rule);
