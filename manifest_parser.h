@@ -12,6 +12,8 @@ struct Token {
     NEWLINE,
     EQUALS,
     COLON,
+    INDENT,
+    OUTDENT,
     TEOF
   };
   explicit Token(Type type) : type_(type) {}
@@ -27,6 +29,8 @@ struct Token {
       case EQUALS:  return "'='";
       case COLON:   return "':'";
       case TEOF:    return "eof";
+      case INDENT:  return "indenting in";
+      case OUTDENT: return "indenting out";
       case NONE:
       default:
         assert(false);
@@ -40,13 +44,14 @@ struct Token {
 };
 
 struct Parser {
-  Parser() : token_(Token::NONE), line_number_(1) {}
+  Parser()
+      : token_(Token::NONE), line_number_(1),
+        last_indent_(0), cur_indent_(-1) {}
 
   void Start(const char* start, const char* end);
   bool Error(const string& message, string* err);
 
   const Token& token() const { return token_; }
-  bool eof() const { return cur_ >= end_; }
 
   void SkipWhitespace(bool newline=false);
   bool Newline(string* err);
@@ -63,6 +68,7 @@ struct Parser {
   const char* cur_line_;
   Token token_;
   int line_number_;
+  int last_indent_, cur_indent_;
 };
 
 void Parser::Start(const char* start, const char* end) {
@@ -87,11 +93,9 @@ void Parser::SkipWhitespace(bool newline) {
     } else if (newline && *cur_ == '\n') {
       Newline(NULL);
     } else if (*cur_ == '\\' && cur_ + 1 < end_ && cur_[1] == '\n') {
-      ++cur_;
-      Token token = token_;  // XXX hack around newline clearing token.
-      token_.Clear();
-      Newline(NULL);
-      token_ = token;
+      ++cur_; ++cur_;
+      cur_line_ = cur_;
+      ++line_number_;
     } else {
       break;
     }
@@ -99,12 +103,9 @@ void Parser::SkipWhitespace(bool newline) {
 }
 
 bool Parser::Newline(string* err) {
-  PeekToken();
   if (!ExpectToken(Token::NEWLINE, err))
     return false;
 
-  cur_line_ = cur_;
-  ++line_number_;
   return true;
 }
 
@@ -142,8 +143,11 @@ bool Parser::ReadToNewline(string* text, string* err) {
       ++cur_;
       if (cur_ >= end_)
         return Error("unexpected eof", err);
-      if (!Newline(err))
-        return false;
+      if (*cur_ != '\n')
+        return Error("expected newline after backslash", err);
+      ++cur_;
+      cur_line_ = cur_;
+      ++line_number_;
       SkipWhitespace();
       // Collapse whitespace, but make sure we get at least one space.
       if (text->size() > 0 && text->at(text->size() - 1) != ' ')
@@ -161,6 +165,18 @@ Token::Type Parser::PeekToken() {
     return token_.type_;
 
   token_.pos_ = cur_;
+  if (cur_indent_ == -1) {
+    cur_indent_ = cur_ - cur_line_;
+    if (cur_indent_ != last_indent_) {
+      if (cur_indent_ > last_indent_) {
+        token_.type_ = Token::INDENT;
+      } else if (cur_indent_ < last_indent_) {
+        token_.type_ = Token::OUTDENT;
+      }
+      last_indent_ = cur_indent_;
+      return token_.type_;
+    }
+  }
 
   if (cur_ >= end_) {
     token_.type_ = Token::TEOF;
@@ -189,6 +205,9 @@ Token::Type Parser::PeekToken() {
   } else if (*cur_ == '\n') {
     token_.type_ = Token::NEWLINE;
     ++cur_;
+    cur_line_ = cur_;
+    cur_indent_ = -1;
+    ++line_number_;
   }
 
   SkipWhitespace();
@@ -281,11 +300,18 @@ bool ManifestParser::ParseRule(string* err) {
   if (!parser_.Newline(err))
     return false;
 
-  if (!parser_.ExpectToken(Token::COMMAND, err))
-    return false;
   string command;
-  if (!parser_.ReadToNewline(&command, err))
-    return false;
+  if (parser_.PeekToken() == Token::INDENT) {
+    parser_.ConsumeToken();
+
+    if (!parser_.ExpectToken(Token::COMMAND, err))
+      return false;
+    if (!parser_.ReadToNewline(&command, err))
+      return false;
+
+    if (!parser_.ExpectToken(Token::OUTDENT, err))
+      return false;
+  }
 
   state_->AddRule(name, command);
 
