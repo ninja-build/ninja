@@ -1,6 +1,6 @@
 save command lines
 parse c header deps
-
+parallization
 
 longer-term ideas:
 
@@ -9,4 +9,7 @@ longer-term ideas:
 - use lemon/ragel for parsing
 
 - buffer stderr from commands, only print failing commands/output
-  store historical timing info, allowing etas on builds
+
+- progress bar rather than printing commands in series
+
+- store historical timing info, allowing etas on builds
