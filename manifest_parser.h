@@ -96,6 +96,14 @@ void Parser::SkipWhitespace(bool newline) {
       ++cur_; ++cur_;
       cur_line_ = cur_;
       ++line_number_;
+    } else if (*cur_ == '#' && cur_ == cur_line_) {
+      while (cur_ < end_ && *cur_ != '\n')
+        ++cur_;
+      if (cur_ < end_ && *cur_ == '\n') {
+        ++cur_;
+        cur_line_ = cur_;
+        ++line_number_;
+      }
     } else {
       break;
     }

@@ -66,6 +66,14 @@ TEST(Parser, Continuation) {
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());
 }
 
+TEST(Parser, Comment) {
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+"# this is a comment\n"
+"foo = not # a comment\n"));
+  EXPECT_EQ("not # a comment", state.env_["foo"]);
+}
+
 TEST(Parser, Errors) {
   State state;
 
