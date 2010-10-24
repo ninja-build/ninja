@@ -119,6 +119,15 @@ TEST(Parser, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 2: expected newline, got ':'", err);
   }
+
+  {
+    ManifestParser parser(&state);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cat\n"
+                              "  foo = bar\n",
+                              &err));
+    EXPECT_EQ("line 3, col 1: expected 'command =' line", err);
+  }
 }
 
 TEST(Parser, BuildDir) {

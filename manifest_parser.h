@@ -314,18 +314,16 @@ bool ManifestParser::ParseRule(string* err) {
       if (!ParseLet(&key, &val, err))
         return false;
 
-      if (key != "command") {
-        *err = "expected 'command'";
-        return false;
-      }
-      command = val;
+      if (key == "command")
+        command = val;
     }
     parser_.ConsumeToken();
   }
 
-  if (!command.empty())
-    state_->AddRule(name, command);
+  if (command.empty())
+    return parser_.Error("expected 'command =' line", err);
 
+  state_->AddRule(name, command);
   return true;
 }
 
