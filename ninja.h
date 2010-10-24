@@ -11,7 +11,7 @@ using namespace std;
 
 #include "eval_env.h"
 
-struct StatHelper {
+struct DiskInterface {
   virtual int Stat(const string& path);
 };
 
@@ -20,7 +20,7 @@ struct StatHelper {
 #include <stdio.h>
 #include <string.h>
 
-int StatHelper::Stat(const string& path) {
+int DiskInterface::Stat(const string& path) {
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT) {
@@ -40,13 +40,13 @@ struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
   void Touch(int mtime);
   // Return true if the file exists (mtime_ got a value).
-  bool Stat(StatHelper* stat_helper);
+  bool Stat(DiskInterface* disk_interface);
 
   // Return true if we needed to stat.
-  bool StatIfNecessary(StatHelper* stat_helper) {
+  bool StatIfNecessary(DiskInterface* disk_interface) {
     if (status_known())
       return false;
-    Stat(stat_helper);
+    Stat(disk_interface);
     return true;
   }
 
@@ -95,7 +95,7 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
-  void RecomputeDirty(StatHelper* stat_helper);
+  void RecomputeDirty(DiskInterface* disk_interface);
   string EvaluateCommand();  // XXX move to env, take env ptr
 
   Rule* rule_;
@@ -111,8 +111,8 @@ void FileStat::Touch(int mtime) {
     node_->MarkDirty();
 }
 
-bool FileStat::Stat(StatHelper* stat_helper) {
-  mtime_ = stat_helper->Stat(path_);
+bool FileStat::Stat(DiskInterface* disk_interface) {
+  mtime_ = disk_interface->Stat(path_);
   return mtime_ > 0;
 }
 
@@ -129,14 +129,14 @@ void Node::MarkDependentsDirty() {
     (*i)->MarkDirty(this);
 }
 
-void Edge::RecomputeDirty(StatHelper* stat_helper) {
+void Edge::RecomputeDirty(DiskInterface* disk_interface) {
   bool dirty = false;
 
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->file_->StatIfNecessary(stat_helper)) {
+    if ((*i)->file_->StatIfNecessary(disk_interface)) {
       if (Edge* edge = (*i)->in_edge_)
-        edge->RecomputeDirty(stat_helper);
+        edge->RecomputeDirty(disk_interface);
       else
         (*i)->dirty_ = !(*i)->file_->exists();
     }
@@ -427,7 +427,8 @@ bool Shell::RunCommand(Edge* edge) {
 }
 
 struct Builder {
-  Builder(State* state) : plan_(state), stat_helper_(&default_stat_helper_) {}
+  Builder(State* state)
+      : plan_(state), disk_interface_(&default_disk_interface_) {}
   virtual ~Builder() {}
 
   Node* AddTarget(const string& name, string* err) {
@@ -436,9 +437,9 @@ struct Builder {
       *err = "unknown target: '" + name + "'";
       return NULL;
     }
-    node->file_->StatIfNecessary(stat_helper_);
+    node->file_->StatIfNecessary(disk_interface_);
     if (node->in_edge_)
-      node->in_edge_->RecomputeDirty(stat_helper_);
+      node->in_edge_->RecomputeDirty(disk_interface_);
     if (!node->dirty_) {
       *err = "target is clean; nothing to do";
       return NULL;
@@ -450,8 +451,8 @@ struct Builder {
   bool Build(Shell* shell, string* err);
 
   Plan plan_;
-  StatHelper default_stat_helper_;
-  StatHelper* stat_helper_;
+  DiskInterface default_disk_interface_;
+  DiskInterface* disk_interface_;
 };
 
 bool Builder::Build(Shell* shell, string* err) {

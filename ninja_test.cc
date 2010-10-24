@@ -175,9 +175,9 @@ struct StateTestWithBuiltinRules : public testing::Test {
 
 struct BuildTest : public StateTestWithBuiltinRules,
                    public Shell,
-                   public StatHelper {
+                   public DiskInterface {
   BuildTest() : builder_(&state_), now_(1) {
-    builder_.stat_helper_ = this;
+    builder_.disk_interface_ = this;
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
@@ -192,7 +192,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // shell override
   virtual bool RunCommand(Edge* edge);
 
-  // StatHelper
+  // DiskInterface
   virtual int Stat(const string& path) {
     return now_;
   }
@@ -337,7 +337,8 @@ TEST_F(BuildTest, MissingTarget) {
 }
 
 struct StatTest : public StateTestWithBuiltinRules,
-                  public StatHelper {
+                  public DiskInterface {
+  // DiskInterface implementation.
   virtual int Stat(const string& path);
 
   map<string, time_t> mtimes_;
