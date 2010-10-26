@@ -16,6 +16,8 @@ struct DiskInterface {
   virtual int Stat(const string& path);
   // Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path);
+  // Read a file to a string.  Fill in |err| on error.
+  virtual string ReadFile(const string& path, string* err);
 
   // Create all the parent directories for path; like mkdir -p `basename path`.
   bool MakeDirs(const string& path);
@@ -25,6 +27,27 @@ struct DiskInterface {
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
+
+string ReadFile(const string& path, string* err) {
+  FILE* f = fopen(path.c_str(), "r");
+  if (!f) {
+    err->assign(strerror(errno));
+    return false;
+  }
+
+  string text;
+  char buf[64 << 10];
+  size_t len;
+  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+    text.append(buf, len);
+  }
+  if (ferror(f)) {
+    err->assign(strerror(errno));
+    text = "";
+  }
+  fclose(f);
+  return text;
+}
 
 int DiskInterface::Stat(const string& path) {
   struct stat st;
@@ -63,6 +86,10 @@ bool DiskInterface::MakeDirs(const string& path) {
   if (!success)
     return false;
   return MakeDir(dir);
+}
+
+string DiskInterface::ReadFile(const string& path, string* err) {
+  return ::ReadFile(path, err);
 }
 
 bool DiskInterface::MakeDir(const string& path) {
@@ -136,7 +163,7 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
-  void RecomputeDirty(DiskInterface* disk_interface);
+  void RecomputeDirty(State* state, DiskInterface* disk_interface);
   string EvaluateCommand();  // XXX move to env, take env ptr
   bool LoadDepFile(State* state, string* err);
 
@@ -171,14 +198,14 @@ void Node::MarkDependentsDirty() {
     (*i)->MarkDirty(this);
 }
 
-void Edge::RecomputeDirty(DiskInterface* disk_interface) {
+void Edge::RecomputeDirty(State* state, DiskInterface* disk_interface) {
   bool dirty = false;
 
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->file_->StatIfNecessary(disk_interface)) {
       if (Edge* edge = (*i)->in_edge_)
-        edge->RecomputeDirty(disk_interface);
+        edge->RecomputeDirty(state, disk_interface);
       else
         (*i)->dirty_ = !(*i)->file_->exists();
     }
@@ -514,7 +541,7 @@ bool Shell::RunCommand(Edge* edge) {
 
 struct Builder {
   Builder(State* state)
-      : plan_(state), disk_interface_(&default_disk_interface_) {}
+      : state_(state), plan_(state), disk_interface_(&default_disk_interface_) {}
   virtual ~Builder() {}
 
   Node* AddTarget(const string& name, string* err) {
@@ -525,7 +552,7 @@ struct Builder {
     }
     node->file_->StatIfNecessary(disk_interface_);
     if (node->in_edge_)
-      node->in_edge_->RecomputeDirty(disk_interface_);
+      node->in_edge_->RecomputeDirty(state_, disk_interface_);
     if (!node->dirty_) {
       *err = "target is clean; nothing to do";
       return NULL;
@@ -536,6 +563,7 @@ struct Builder {
   }
   bool Build(Shell* shell, string* err);
 
+  State* state_;
   Plan plan_;
   DiskInterface default_disk_interface_;
   DiskInterface* disk_interface_;

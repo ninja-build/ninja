@@ -448,7 +448,7 @@ TEST_F(StatTest, Simple) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(this);
+  edge->RecomputeDirty(NULL, this);
   ASSERT_EQ(2, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
@@ -463,7 +463,7 @@ TEST_F(StatTest, TwoStep) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(this);
+  edge->RecomputeDirty(NULL, this);
   ASSERT_EQ(3, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty_);
@@ -482,7 +482,7 @@ TEST_F(StatTest, Tree) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(this);
+  edge->RecomputeDirty(NULL, this);
   ASSERT_EQ(1 + 6, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty_);
@@ -502,7 +502,7 @@ TEST_F(StatTest, Middle) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(this);
+  edge->RecomputeDirty(NULL, this);
   ASSERT_FALSE(GetNode("in")->dirty_);
   ASSERT_TRUE(GetNode("mid")->dirty_);
   ASSERT_TRUE(GetNode("out")->dirty_);
