@@ -131,12 +131,14 @@ struct Rule {
   EvalString depfile_;
 };
 
+class State;
 struct Edge {
   Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
   void RecomputeDirty(DiskInterface* disk_interface);
   string EvaluateCommand();  // XXX move to env, take env ptr
+  bool LoadDepFile(State* state, string* err);
 
   Rule* rule_;
   enum InOut { IN, OUT };
@@ -278,6 +280,53 @@ struct State : public EvalString::Env {
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
   void AddBinding(const string& key, const string& val);
 };
+
+#include "manifest_parser.h"
+
+bool Edge::LoadDepFile(State* state, string* err) {
+  if (rule_->depfile_.empty())
+    return false;
+
+  EdgeEnv env(this);
+  string path = rule_->depfile_.Evaluate(&env);
+
+  string content = ReadFile(path, err);
+  if (!err->empty())
+    return false;
+
+  MakefileParser makefile;
+  if (!makefile.Parse(content, err))
+    return false;
+
+  // Check that this depfile matches our output.
+  if (outputs_.size() != 1) {
+    *err = "expected only one output";
+    return false;
+  }
+  if (outputs_[0]->file_->path_ != makefile.out_) {
+    *err = "expected makefile to mention '" + outputs_[0]->file_->path_ + "', "
+           "got '" + makefile.out_ + "'";
+    return false;
+  }
+
+  // Add all its in-edges.
+  for (vector<string>::iterator i = makefile.ins_.begin();
+       i != makefile.ins_.end(); ++i) {
+    Node* node = state->GetNode(*i);
+    for (vector<Node*>::iterator j = inputs_.begin(); j != inputs_.end(); ++j) {
+      if (*j == node) {
+        node = NULL;
+        break;
+      }
+    }
+    if (node) {
+      inputs_.push_back(node);
+      node->out_edges_.push_back(this);
+    }
+  }
+
+  return true;
+}
 
 string State::Evaluate(const string& var) {
   if (var.size() > 1 && var[0] == '$') {
@@ -441,8 +490,6 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
-
-#include "manifest_parser.h"
 
 struct Shell {
   virtual ~Shell() {}
