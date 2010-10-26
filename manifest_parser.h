@@ -2,6 +2,27 @@
 #include <stdio.h>
 #include <string.h>
 
+string ReadFile(const string& path, string* err) {
+  FILE* f = fopen(path.c_str(), "r");
+  if (!f) {
+    err->assign(strerror(errno));
+    return false;
+  }
+
+  string text;
+  char buf[64 << 10];
+  size_t len;
+  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+    text.append(buf, len);
+  }
+  if (ferror(f)) {
+    err->assign(strerror(errno));
+    text = "";
+  }
+  fclose(f);
+  return text;
+}
+
 struct Token {
   enum Type {
     NONE,
@@ -275,26 +296,10 @@ struct ManifestParser {
 };
 
 bool ManifestParser::Load(const string& filename, string* err) {
-  FILE* f = fopen(filename.c_str(), "r");
-  if (!f) {
-    err->assign(strerror(errno));
+  string input = ReadFile(filename, err);
+  if (!err->empty())
     return false;
-  }
-
-  string text;
-  char buf[64 << 10];
-  size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
-    text.append(buf, len);
-  }
-  if (ferror(f)) {
-    err->assign(strerror(errno));
-    fclose(f);
-    return false;
-  }
-  fclose(f);
-
-  return Parse(text, err);
+  return Parse(input, err);
 }
 
 bool ManifestParser::Parse(const string& input, string* err) {
