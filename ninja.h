@@ -165,7 +165,7 @@ struct Edge {
   void MarkDirty(Node* node);
   void RecomputeDirty(State* state, DiskInterface* disk_interface);
   string EvaluateCommand();  // XXX move to env, take env ptr
-  bool LoadDepFile(State* state, string* err);
+  bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   Rule* rule_;
   enum InOut { IN, OUT };
@@ -200,6 +200,12 @@ void Node::MarkDependentsDirty() {
 
 void Edge::RecomputeDirty(State* state, DiskInterface* disk_interface) {
   bool dirty = false;
+
+  if (!rule_->depfile_.empty()) {
+    string err;
+    // XXX handle errors
+    assert(LoadDepFile(state, disk_interface, &err));
+  }
 
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
@@ -310,16 +316,15 @@ struct State : public EvalString::Env {
 
 #include "manifest_parser.h"
 
-bool Edge::LoadDepFile(State* state, string* err) {
-  if (rule_->depfile_.empty())
-    return false;
-
+bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err) {
   EdgeEnv env(this);
   string path = rule_->depfile_.Evaluate(&env);
 
-  string content = ReadFile(path, err);
+  string content = disk_interface->ReadFile(path, err);
   if (!err->empty())
     return false;
+  if (content.empty())
+    return true;
 
   MakefileParser makefile;
   if (!makefile.Parse(content, err))

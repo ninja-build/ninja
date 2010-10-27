@@ -266,11 +266,20 @@ struct BuildTest : public StateTestWithBuiltinRules,
     directories_made_.push_back(path);
     return true;  // success
   }
+  virtual string ReadFile(const string& path, string* err) {
+    files_read_.push_back(path);
+    map<string, string>::iterator i = file_contents_.find(path);
+    if (i != file_contents_.end())
+      return i->second;
+    return "";
+  }
 
   Builder builder_;
   int now_;
+  map<string, string> file_contents_;
   vector<string> commands_ran_;
   vector<string> directories_made_;
+  vector<string> files_read_;
 };
 
 void BuildTest::Dirty(const string& path) {
@@ -284,7 +293,9 @@ void BuildTest::Dirty(const string& path) {
 }
 
 void BuildTest::Touch(const string& path) {
-  GetNode(path)->MarkDependentsDirty();
+  Node* node = GetNode(path);
+  assert(node);
+  node->MarkDependentsDirty();
 }
 
 bool BuildTest::RunCommand(Edge* edge) {
@@ -421,6 +432,36 @@ TEST_F(BuildTest, MakeDirs) {
   ASSERT_EQ(2, directories_made_.size());
   EXPECT_EQ("subdir", directories_made_[0]);
   EXPECT_EQ("subdir/dir2", directories_made_[1]);
+}
+
+TEST_F(BuildTest, DepFileMissing) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"build foo.o: cc foo.c\n"));
+  Touch("foo.c");
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1, files_read_.size());
+  EXPECT_EQ("foo.o.d", files_read_[0]);
+}
+
+TEST_F(BuildTest, DepFileOK) {
+  string err;
+  int orig_edges = state_.edges_.size();
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"build foo.o: cc foo.c\n"));
+  Touch("foo.c");
+  file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1, files_read_.size());
+  EXPECT_EQ("foo.o.d", files_read_[0]);
+
+  // Expect our edge to now have three inputs: foo.c and two headers.
+  ASSERT_EQ(orig_edges + 1, state_.edges_.size());
+  ASSERT_EQ(3, state_.edges_.back()->inputs_.size());
 }
 
 struct StatTest : public StateTestWithBuiltinRules,
