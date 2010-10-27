@@ -163,7 +163,7 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL) {}
 
   void MarkDirty(Node* node);
-  void RecomputeDirty(State* state, DiskInterface* disk_interface);
+  bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
   string EvaluateCommand();  // XXX move to env, take env ptr
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
@@ -198,22 +198,23 @@ void Node::MarkDependentsDirty() {
     (*i)->MarkDirty(this);
 }
 
-void Edge::RecomputeDirty(State* state, DiskInterface* disk_interface) {
+bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* err) {
   bool dirty = false;
 
   if (!rule_->depfile_.empty()) {
-    string err;
-    // XXX handle errors
-    assert(LoadDepFile(state, disk_interface, &err));
+    if (!LoadDepFile(state, disk_interface, err))
+      return false;
   }
 
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->file_->StatIfNecessary(disk_interface)) {
-      if (Edge* edge = (*i)->in_edge_)
-        edge->RecomputeDirty(state, disk_interface);
-      else
+      if (Edge* edge = (*i)->in_edge_) {
+        if (!edge->RecomputeDirty(state, disk_interface, err))
+          return false;
+      } else {
         (*i)->dirty_ = !(*i)->file_->exists();
+      }
     }
     if ((*i)->dirty_)
       dirty = true;
@@ -228,6 +229,7 @@ void Edge::RecomputeDirty(State* state, DiskInterface* disk_interface) {
       (*i)->dirty_ = true;
     }
   }
+  return true;
 }
 
 void Edge::MarkDirty(Node* node) {
@@ -556,8 +558,10 @@ struct Builder {
       return NULL;
     }
     node->file_->StatIfNecessary(disk_interface_);
-    if (node->in_edge_)
-      node->in_edge_->RecomputeDirty(state_, disk_interface_);
+    if (node->in_edge_) {
+      if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
+        return false;
+    }
     if (!node->dirty_) {
       *err = "target is clean; nothing to do";
       return NULL;

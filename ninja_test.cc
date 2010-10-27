@@ -464,6 +464,17 @@ TEST_F(BuildTest, DepFileOK) {
   ASSERT_EQ(3, state_.edges_.back()->inputs_.size());
 }
 
+TEST_F(BuildTest, DepFileParseError) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"build foo.o: cc foo.c\n"));
+  Touch("foo.c");
+  file_contents_["foo.o.d"] = "foo.o blah.h bar.h\n";
+  EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
+  EXPECT_EQ("line 1, col 7: expected ':', got 'blah.h'", err);
+}
+
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
@@ -489,7 +500,7 @@ TEST_F(StatTest, Simple) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(NULL, this);
+  edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_EQ(2, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
@@ -504,7 +515,7 @@ TEST_F(StatTest, TwoStep) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(NULL, this);
+  edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_EQ(3, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty_);
@@ -523,7 +534,7 @@ TEST_F(StatTest, Tree) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(NULL, this);
+  edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_EQ(1 + 6, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty_);
@@ -543,7 +554,7 @@ TEST_F(StatTest, Middle) {
   out->file_->Stat(this);
   ASSERT_EQ(1, stats_.size());
   Edge* edge = out->in_edge_;
-  edge->RecomputeDirty(NULL, this);
+  edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_FALSE(GetNode("in")->dirty_);
   ASSERT_TRUE(GetNode("mid")->dirty_);
   ASSERT_TRUE(GetNode("out")->dirty_);
