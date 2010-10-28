@@ -160,18 +160,20 @@ struct Rule {
 
 class State;
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL) {}
+  Edge() : rule_(NULL), env_(NULL), implicit_deps_(0) {}
 
   void MarkDirty(Node* node);
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
   string EvaluateCommand();  // XXX move to env, take env ptr
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
-  Rule* rule_;
   enum InOut { IN, OUT };
+
+  Rule* rule_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   EvalString::Env* env_;
+  int implicit_deps_;  // Count on the end of the inputs list.
 };
 
 void FileStat::Touch(int mtime) {
@@ -245,8 +247,9 @@ struct EdgeEnv : public EvalString::Env {
   virtual string Evaluate(const string& var) {
     string result;
     if (var == "@in") {
+      int explicit_deps = edge_->inputs_.size() - edge_->implicit_deps_;
       for (vector<Node*>::iterator i = edge_->inputs_.begin();
-           i != edge_->inputs_.end(); ++i) {
+           i != edge_->inputs_.end() && explicit_deps; ++i, --explicit_deps) {
         if (!result.empty())
           result.push_back(' ');
         result.append((*i)->file_->path_);
@@ -356,6 +359,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
     if (node) {
       inputs_.push_back(node);
       node->out_edges_.push_back(this);
+      ++implicit_deps_;
     }
   }
 

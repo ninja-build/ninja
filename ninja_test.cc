@@ -461,7 +461,11 @@ TEST_F(BuildTest, DepFileOK) {
 
   // Expect our edge to now have three inputs: foo.c and two headers.
   ASSERT_EQ(orig_edges + 1, state_.edges_.size());
-  ASSERT_EQ(3, state_.edges_.back()->inputs_.size());
+  Edge* edge = state_.edges_.back();
+  ASSERT_EQ(3, edge->inputs_.size());
+
+  // Expect the command line we generate to only use the original input.
+  ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
 }
 
 TEST_F(BuildTest, DepFileParseError) {
