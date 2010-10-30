@@ -379,8 +379,11 @@ bool ManifestParser::ParseSubNinja(string* err) {
   if (!file_reader_->ReadFile(path, &contents, err))
     return false;
 
-  *err = "parse it";
-  return false;
+  ManifestParser subparser(state_, file_reader_);
+  if (!subparser.Parse(contents, err))
+    return false;
+
+  return true;
 }
 
 string ManifestParser::ExpandFile(const string& file) {

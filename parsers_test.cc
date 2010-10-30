@@ -14,6 +14,7 @@ struct ParserTest : public testing::Test,
   }
 
   virtual bool ReadFile(const string& path, string* content, string* err) {
+    files_read_.push_back(path);
     map<string, string>::iterator i = files_.find(path);
     if (i == files_.end()) {
       *err = "file not found";
@@ -25,6 +26,7 @@ struct ParserTest : public testing::Test,
 
   State state;
   map<string, string> files_;
+  vector<string> files_read_;
 };
 
 TEST_F(ParserTest, Empty) {
@@ -184,6 +186,8 @@ TEST_F(ParserTest, SubNinja) {
   files_["test.ninja"] = "";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "subninja test.ninja\n"));
+  ASSERT_EQ(1, files_read_.size());
+  EXPECT_EQ("test.ninja", files_read_[0]);
 }
 
 TEST(MakefileParser, Basic) {
