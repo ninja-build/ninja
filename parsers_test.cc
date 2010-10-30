@@ -167,7 +167,6 @@ TEST(Parser, BuildDir) {
 "  command = cat @in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
-  state.stat_cache()->Dump();
   ASSERT_TRUE(state.LookupNode("out/a.o"));
 }
 
