@@ -4,21 +4,24 @@
 
 #include "ninja.h"
 
-static void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state);
-  string err;
-  ASSERT_TRUE(parser.Parse(input, &err)) << err;
-  ASSERT_EQ("", err);
+struct ParserTest : public testing::Test,
+                    public DiskInterface {
+  void AssertParse(const char* input) {
+    ManifestParser parser(&state);
+    string err;
+    ASSERT_TRUE(parser.Parse(input, &err)) << err;
+    ASSERT_EQ("", err);
+  }
+
+  State state;
+};
+
+TEST_F(ParserTest, Empty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(""));
 }
 
-TEST(Parser, Empty) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, ""));
-}
-
-TEST(Parser, Rules) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+TEST_F(ParserTest, Rules) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
 "  command = cat @in > $out\n"
 "\n"
@@ -33,9 +36,8 @@ TEST(Parser, Rules) {
   EXPECT_EQ("cat @in > $out", rule->command_.unparsed());
 }
 
-TEST(Parser, Variables) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+TEST_F(ParserTest, Variables) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
 "  command = ld $extra $with_under -o $out @in\n"
 "\n"
@@ -48,9 +50,8 @@ TEST(Parser, Variables) {
   EXPECT_EQ("ld -pthread -under -o a b c", edge->EvaluateCommand());
 }
 
-TEST(Parser, Continuation) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+TEST_F(ParserTest, Continuation) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
 "  command = foo bar \\\n"
 "    baz\n"
@@ -64,15 +65,14 @@ TEST(Parser, Continuation) {
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());
 }
 
-TEST(Parser, Comment) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+TEST_F(ParserTest, Comment) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
 "# this is a comment\n"
 "foo = not # a comment\n"));
   EXPECT_EQ("not # a comment", state.env_["foo"]);
 }
 
-TEST(Parser, Errors) {
+TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL);
     string err;
@@ -159,9 +159,8 @@ TEST(Parser, Errors) {
   }
 }
 
-TEST(Parser, BuildDir) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+TEST_F(ParserTest, BuildDir) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = out\n"
 "rule cat\n"
 "  command = cat @in > $out\n"
