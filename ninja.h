@@ -31,8 +31,9 @@ struct DiskInterface {
 string ReadFile(const string& path, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
-    err->assign(strerror(errno));
-    return false;
+    if (errno != ENOENT)
+      err->assign(strerror(errno));
+    return "";
   }
 
   string text;

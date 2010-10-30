@@ -563,3 +563,52 @@ TEST_F(StatTest, Middle) {
   ASSERT_TRUE(GetNode("mid")->dirty_);
   ASSERT_TRUE(GetNode("out")->dirty_);
 }
+
+class DiskInterfaceTest : public testing::Test {
+public:
+  virtual void SetUp() {
+    char buf[4 << 10];
+    ASSERT_TRUE(getcwd(buf, sizeof(buf)));
+    start_dir_ = buf;
+
+    char name_template[] = "DiskInterfaceTest-XXXXXX";
+    char* name = mkdtemp(name_template);
+    temp_dir_name_ = name;
+    ASSERT_TRUE(name);
+    ASSERT_EQ(0, chdir(name));
+  }
+  virtual void TearDown() {
+    ASSERT_EQ(0, chdir(start_dir_.c_str()));
+    ASSERT_EQ(0, system(("rm -rf " + temp_dir_name_).c_str()));
+  }
+
+  string start_dir_;
+  string temp_dir_name_;
+  DiskInterface disk_;
+};
+
+TEST_F(DiskInterfaceTest, Stat) {
+  EXPECT_EQ(0, disk_.Stat("nosuchfile"));
+
+  string too_long_name(512, 'x');
+  EXPECT_EQ(-1, disk_.Stat(too_long_name));
+
+  ASSERT_EQ(0, system("touch file"));
+  EXPECT_GT(disk_.Stat("file"), 1);
+}
+
+TEST_F(DiskInterfaceTest, ReadFile) {
+  string err;
+  EXPECT_EQ("", disk_.ReadFile("foobar", &err));
+  EXPECT_EQ("", err);
+
+  const char* kTestFile = "testfile";
+  FILE* f = fopen(kTestFile, "wb");
+  ASSERT_TRUE(f);
+  const char* kTestContent = "test content\nok";
+  fprintf(f, "%s", kTestContent);
+  ASSERT_EQ(0, fclose(f));
+
+  EXPECT_EQ(kTestContent, disk_.ReadFile(kTestFile, &err));
+  EXPECT_EQ("", err);
+}
