@@ -208,14 +208,11 @@ bool MakefileParser::Parse(const string& input, string* err) {
   return true;
 }
 
-// XXX refactor.
-extern string ReadFile(const string& path, string* err);
-
 bool ManifestParser::Load(const string& filename, string* err) {
-  string input = ReadFile(filename, err);
-  if (!err->empty())
+  string contents;
+  if (!file_reader_->ReadFile(filename, &contents, err))
     return false;
-  return Parse(input, err);
+  return Parse(contents, err);
 }
 
 bool ManifestParser::Parse(const string& input, string* err) {

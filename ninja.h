@@ -11,6 +11,8 @@ using namespace std;
 
 #include "eval_env.h"
 
+int ReadFile(const string& path, string* contents, string* err);
+
 struct DiskInterface {
   // stat() a file, returning the mtime, or 0 if missing and -1 on other errors.
   virtual int Stat(const string& path) = 0;

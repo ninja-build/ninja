@@ -8,26 +8,26 @@
 #include <stdio.h>
 #include <string.h>
 
-string ReadFile(const string& path, string* err) {
+int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
-    if (errno != ENOENT)
-      err->assign(strerror(errno));
-    return "";
+    err->assign(strerror(errno));
+    return -errno;
   }
 
-  string text;
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
-    text.append(buf, len);
+    contents->append(buf, len);
   }
   if (ferror(f)) {
-    err->assign(strerror(errno));
-    text = "";
+    err->assign(strerror(errno));  // XXX errno?
+    contents->clear();
+    fclose(f);
+    return -errno;
   }
   fclose(f);
-  return text;
+  return 0;
 }
 
 int RealDiskInterface::Stat(const string& path) {
@@ -70,7 +70,13 @@ bool DiskInterface::MakeDirs(const string& path) {
 }
 
 string RealDiskInterface::ReadFile(const string& path, string* err) {
-  return ::ReadFile(path, err);
+  string contents;
+  int ret = ::ReadFile(path, &contents, err);
+  if (ret == -ENOENT) {
+    // Swallow ENOENT.
+    err->clear();
+  }
+  return contents;
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {

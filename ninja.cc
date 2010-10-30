@@ -19,6 +19,12 @@ void usage() {
           );
 }
 
+struct RealFileReader : public ManifestParser::FileReader {
+  bool ReadFile(const string& path, string* content, string* err) {
+    return ::ReadFile(path, content, err) == 0;
+  }
+};
+
 int main(int argc, char** argv) {
   const char* input_file = "build.ninja";
 
@@ -41,7 +47,8 @@ int main(int argc, char** argv) {
   }
 
   State state;
-  ManifestParser parser(&state);
+  RealFileReader file_reader;
+  ManifestParser parser(&state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
     fprintf(stderr, "error loading '%s': %s\n", input_file, err.c_str());
