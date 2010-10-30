@@ -1,15 +1,13 @@
 CC=$(CXX)
 CXXFLAGS := -Wall -g
 
-all_i_currently_care_about: tags ninja_test
+all_i_currently_care_about: ninja_test
 
-.PHONY:
-tags:
-	etags *.cc *.h
+OBJS=parsers.o ninja_jumble.o
 
 ninja_test: LDFLAGS = -lgtest -lgtest_main -lpthread
-ninja_test: ninja_test.o
+ninja_test: ninja_test.o $(OBJS)
 ninja_test.o: ninja_test.cc ninja.h eval_env.h manifest_parser.h
 
-ninja: ninja.o
-ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h
+ninja: ninja.o $(OBJS)
+ninja.o: ninja.cc

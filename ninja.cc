@@ -1,6 +1,9 @@
 #include "ninja.h"
 
 #include <getopt.h>
+#include <stdio.h>
+
+#include "parsers.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },

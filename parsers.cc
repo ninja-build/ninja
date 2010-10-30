@@ -1,75 +1,30 @@
+#include "parsers.h"
+
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-struct Token {
-  enum Type {
-    NONE,
-    UNKNOWN,
-    IDENT,
-    RULE,
-    BUILD,
-    NEWLINE,
-    EQUALS,
-    COLON,
-    INDENT,
-    OUTDENT,
-    TEOF
-  };
-  explicit Token(Type type) : type_(type) {}
+#include "ninja.h"
 
-  void Clear() { type_ = NONE; extra_.clear(); }
-  string AsString() const {
-    switch (type_) {
-      case IDENT:   return "'" + extra_ + "'";
-      case UNKNOWN: return "unknown '" + extra_ + "'";
-      case RULE:    return "'rule'";
-      case BUILD:   return "'build'";
-      case NEWLINE: return "newline";
-      case EQUALS:  return "'='";
-      case COLON:   return "':'";
-      case TEOF:    return "eof";
-      case INDENT:  return "indenting in";
-      case OUTDENT: return "indenting out";
-      case NONE:
-      default:
-        assert(false);
-        return "";
-    }
+string Token::AsString() const {
+  switch (type_) {
+  case IDENT:   return "'" + extra_ + "'";
+  case UNKNOWN: return "unknown '" + extra_ + "'";
+  case RULE:    return "'rule'";
+  case BUILD:   return "'build'";
+  case NEWLINE: return "newline";
+  case EQUALS:  return "'='";
+  case COLON:   return "':'";
+  case TEOF:    return "eof";
+  case INDENT:  return "indenting in";
+  case OUTDENT: return "indenting out";
+  case NONE:
+  default:
+    assert(false);
+    return "";
   }
-
-  Type type_;
-  const char* pos_;
-  string extra_;
-};
-
-struct Tokenizer {
-  Tokenizer()
-      : token_(Token::NONE), line_number_(1),
-        last_indent_(0), cur_indent_(-1) {}
-
-  void Start(const char* start, const char* end);
-  bool Error(const string& message, string* err);
-
-  const Token& token() const { return token_; }
-
-  void SkipWhitespace(bool newline=false);
-  bool Newline(string* err);
-  bool ExpectToken(Token::Type expected, string* err);
-  bool ReadIdent(string* out);
-  bool ReadToNewline(string* text, string* err);
-
-  Token::Type PeekToken();
-  void ConsumeToken();
-
-  const char* cur_;
-  const char* end_;
-
-  const char* cur_line_;
-  Token token_;
-  int line_number_;
-  int last_indent_, cur_indent_;
-};
+}
 
 void Tokenizer::Start(const char* start, const char* end) {
   cur_line_ = cur_ = start;
@@ -230,14 +185,6 @@ void Tokenizer::ConsumeToken() {
   token_.Clear();
 }
 
-struct MakefileParser {
-  bool Parse(const string& input, string* err);
-
-  Tokenizer tokenizer_;
-  string out_;
-  vector<string> ins_;
-};
-
 bool MakefileParser::Parse(const string& input, string* err) {
   tokenizer_.Start(input.data(), input.data() + input.size());
 
@@ -258,21 +205,8 @@ bool MakefileParser::Parse(const string& input, string* err) {
   return true;
 }
 
-struct ManifestParser {
-  ManifestParser(State* state) : state_(state) {}
-  bool Load(const string& filename, string* err);
-  bool Parse(const string& input, string* err);
-
-  bool ParseRule(string* err);
-  bool ParseLet(string* key, string* val, string* err);
-  bool ParseEdge(string* err);
-
-  string ExpandFile(const string& file);
-
-  State* state_;
-  Tokenizer tokenizer_;
-  string builddir_;
-};
+// XXX refactor.
+extern string ReadFile(const string& path, string* err);
 
 bool ManifestParser::Load(const string& filename, string* err) {
   string input = ReadFile(filename, err);
