@@ -13,6 +13,19 @@ struct ParserTest : public testing::Test,
     ASSERT_EQ("", err);
   }
 
+  virtual int Stat(const string& path) {
+    assert(false);
+    return -1;
+  }
+  virtual bool MakeDir(const string& path) {
+    assert(false);
+    return false;
+  }
+  virtual string ReadFile(const string& path, string* err) {
+    assert(false);
+    return "";
+  }
+
   State state;
 };
 

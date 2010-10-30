@@ -13,16 +13,21 @@ using namespace std;
 
 struct DiskInterface {
   // stat() a file, returning the mtime, or 0 if missing and -1 on other errors.
-  virtual int Stat(const string& path);
+  virtual int Stat(const string& path) = 0;
   // Create a directory, returning false on failure.
-  virtual bool MakeDir(const string& path);
+  virtual bool MakeDir(const string& path) = 0;
   // Read a file to a string.  Fill in |err| on error.
-  virtual string ReadFile(const string& path, string* err);
+  virtual string ReadFile(const string& path, string* err) = 0;
 
   // Create all the parent directories for path; like mkdir -p `basename path`.
   bool MakeDirs(const string& path);
 };
 
+struct RealDiskInterface : public DiskInterface {
+  virtual int Stat(const string& path);
+  virtual bool MakeDir(const string& path);
+  virtual string ReadFile(const string& path, string* err);
+};
 
 struct Node;
 struct FileStat {
@@ -180,6 +185,6 @@ struct Builder {
 
   State* state_;
   Plan plan_;
-  DiskInterface default_disk_interface_;
+  RealDiskInterface default_disk_interface_;
   DiskInterface* disk_interface_;
 };

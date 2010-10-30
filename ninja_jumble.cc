@@ -30,7 +30,7 @@ string ReadFile(const string& path, string* err) {
   return text;
 }
 
-int DiskInterface::Stat(const string& path) {
+int RealDiskInterface::Stat(const string& path) {
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT) {
@@ -69,11 +69,11 @@ bool DiskInterface::MakeDirs(const string& path) {
   return MakeDir(dir);
 }
 
-string DiskInterface::ReadFile(const string& path, string* err) {
+string RealDiskInterface::ReadFile(const string& path, string* err) {
   return ::ReadFile(path, err);
 }
 
-bool DiskInterface::MakeDir(const string& path) {
+bool RealDiskInterface::MakeDir(const string& path) {
   if (mkdir(path.c_str(), 0777) < 0) {
     fprintf(stderr, "mkdir(%s): %s\n", path.c_str(), strerror(errno));
     return false;

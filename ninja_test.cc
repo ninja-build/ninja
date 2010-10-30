@@ -312,6 +312,14 @@ struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
   virtual int Stat(const string& path);
+  virtual bool MakeDir(const string& path) {
+    assert(false);
+    return false;
+  }
+  virtual string ReadFile(const string& path, string* err) {
+    assert(false);
+    return "";
+  }
 
   map<string, time_t> mtimes_;
   vector<string> stats_;
@@ -413,7 +421,7 @@ public:
 
   string start_dir_;
   string temp_dir_name_;
-  DiskInterface disk_;
+  RealDiskInterface disk_;
 };
 
 TEST_F(DiskInterfaceTest, Stat) {
