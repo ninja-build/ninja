@@ -61,5 +61,5 @@ int main(int argc, char** argv) {
     printf("%s\n", err.c_str());
   }
 
-  return success ? 1 : 0;
+  return success ? 0 : 1;
 }
