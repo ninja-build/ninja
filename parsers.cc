@@ -9,16 +9,17 @@
 
 string Token::AsString() const {
   switch (type_) {
-  case IDENT:   return "'" + extra_ + "'";
-  case UNKNOWN: return "unknown '" + extra_ + "'";
-  case RULE:    return "'rule'";
-  case BUILD:   return "'build'";
-  case NEWLINE: return "newline";
-  case EQUALS:  return "'='";
-  case COLON:   return "':'";
-  case TEOF:    return "eof";
-  case INDENT:  return "indenting in";
-  case OUTDENT: return "indenting out";
+  case IDENT:    return "'" + extra_ + "'";
+  case UNKNOWN:  return "unknown '" + extra_ + "'";
+  case RULE:     return "'rule'";
+  case BUILD:    return "'build'";
+  case SUBNINJA: return "'subninja'";
+  case NEWLINE:  return "newline";
+  case EQUALS:   return "'='";
+  case COLON:    return "':'";
+  case TEOF:     return "eof";
+  case INDENT:   return "indenting in";
+  case OUTDENT:  return "indenting out";
   case NONE:
   default:
     assert(false);
@@ -155,6 +156,8 @@ Token::Type Tokenizer::PeekToken() {
       token_.type_ = Token::RULE;
     else if (token_.extra_ == "build")
       token_.type_ = Token::BUILD;
+    else if (token_.extra_ == "subninja")
+      token_.type_ = Token::SUBNINJA;
     else
       token_.type_ = Token::IDENT;
   } else if (*cur_ == ':') {
@@ -228,6 +231,10 @@ bool ManifestParser::Parse(const string& input, string* err) {
         break;
       case Token::BUILD:
         if (!ParseEdge(err))
+          return false;
+        break;
+      case Token::SUBNINJA:
+        if (!ParseSubNinja(err))
           return false;
         break;
       case Token::IDENT: {
@@ -357,6 +364,19 @@ bool ManifestParser::ParseEdge(string* err) {
     state_->AddInOut(edge, Edge::OUT, *i);
 
   return true;
+}
+
+bool ManifestParser::ParseSubNinja(string* err) {
+  if (!tokenizer_.ExpectToken(Token::SUBNINJA, err))
+    return false;
+  string path;
+  if (!tokenizer_.ReadIdent(&path))
+    return tokenizer_.Error("expected subninja path", err);
+  if (!tokenizer_.Newline(err))
+    return false;
+
+  *err = "implement loading subninja";
+  return false;
 }
 
 string ManifestParser::ExpandFile(const string& file) {

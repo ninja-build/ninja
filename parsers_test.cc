@@ -22,11 +22,14 @@ struct ParserTest : public testing::Test,
     return false;
   }
   virtual string ReadFile(const string& path, string* err) {
-    assert(false);
-    return "";
+    map<string, string>::iterator i = files_.find(path);
+    if (i == files_.end())
+      return "";
+    return i->second;
   }
 
   State state;
+  map<string, string> files_;
 };
 
 TEST_F(ParserTest, Empty) {
@@ -180,6 +183,11 @@ TEST_F(ParserTest, BuildDir) {
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
   ASSERT_TRUE(state.LookupNode("out/a.o"));
+}
+
+TEST_F(ParserTest, SubNinja) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"subninja test.ninja\n"));
 }
 
 TEST(MakefileParser, Basic) {

@@ -13,6 +13,7 @@ struct Token {
     IDENT,
     RULE,
     BUILD,
+    SUBNINJA,
     NEWLINE,
     EQUALS,
     COLON,
@@ -76,6 +77,7 @@ struct ManifestParser {
   bool ParseRule(string* err);
   bool ParseLet(string* key, string* val, string* err);
   bool ParseEdge(string* err);
+  bool ParseSubNinja(string* err);
 
   string ExpandFile(const string& file);
 
