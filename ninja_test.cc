@@ -5,7 +5,7 @@
 #include "parsers.h"
 
 static void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state);
+  ManifestParser parser(state, NULL);
   string err;
   ASSERT_TRUE(parser.Parse(input, &err)) << err;
   ASSERT_EQ("", err);

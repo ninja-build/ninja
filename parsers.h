@@ -68,9 +68,11 @@ struct MakefileParser {
 };
 
 struct State;
+struct DiskInterface;
 
 struct ManifestParser {
-  ManifestParser(State* state) : state_(state) {}
+  ManifestParser(State* state, DiskInterface* disk_interface)
+      : state_(state), disk_interface_(disk_interface) {}
   bool Load(const string& filename, string* err);
   bool Parse(const string& input, string* err);
 
@@ -82,6 +84,7 @@ struct ManifestParser {
   string ExpandFile(const string& file);
 
   State* state_;
+  DiskInterface* disk_interface_;
   Tokenizer tokenizer_;
   string builddir_;
 };

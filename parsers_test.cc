@@ -7,7 +7,7 @@
 struct ParserTest : public testing::Test,
                     public DiskInterface {
   void AssertParse(const char* input) {
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, this);
     string err;
     ASSERT_TRUE(parser.Parse(input, &err)) << err;
     ASSERT_EQ("", err);
@@ -90,21 +90,21 @@ TEST_F(ParserTest, Comment) {
 
 TEST_F(ParserTest, Errors) {
   {
-    ManifestParser parser(NULL);
+    ManifestParser parser(NULL, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("foobar", &err));
     EXPECT_EQ("line 1, col 7: expected '=', got eof", err);
   }
 
   {
-    ManifestParser parser(NULL);
+    ManifestParser parser(NULL, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("x 3", &err));
     EXPECT_EQ("line 1, col 3: expected '=', got '3'", err);
   }
 
   {
-    ManifestParser parser(NULL);
+    ManifestParser parser(NULL, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("x = 3", &err));
     EXPECT_EQ("line 1, col 6: expected newline, got eof", err);
@@ -112,7 +112,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("x = 3\ny 2", &err));
     EXPECT_EQ("line 2, col 3: expected '=', got '2'", err);
@@ -120,7 +120,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
     EXPECT_EQ("line 1, col 10: unknown build rule 'y'", err);
@@ -128,7 +128,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("build x:: y z\n", &err));
     EXPECT_EQ("line 1, col 9: expected build command name", err);
@@ -136,7 +136,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n  command = cat ok\n"
                               "build x: cat \\\n :\n",
@@ -146,7 +146,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n"
                               "  foo = bar\n",
@@ -156,7 +156,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("rule %foo\n",
                               &err));
@@ -165,7 +165,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State state;
-    ManifestParser parser(&state);
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
                               "build a.o b.o: cc c.cc\n",
