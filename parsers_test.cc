@@ -5,7 +5,7 @@
 #include "ninja.h"
 
 struct ParserTest : public testing::Test,
-                    public DiskInterface {
+                    public ManifestParser::FileReader {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, this);
     string err;
@@ -13,19 +13,14 @@ struct ParserTest : public testing::Test,
     ASSERT_EQ("", err);
   }
 
-  virtual int Stat(const string& path) {
-    assert(false);
-    return -1;
-  }
-  virtual bool MakeDir(const string& path) {
-    assert(false);
-    return false;
-  }
-  virtual string ReadFile(const string& path, string* err) {
+  virtual bool ReadFile(const string& path, string* content, string* err) {
     map<string, string>::iterator i = files_.find(path);
-    if (i == files_.end())
-      return "";
-    return i->second;
+    if (i == files_.end()) {
+      *err = "file not found";
+      return false;
+    }
+    *content = i->second;
+    return true;
   }
 
   State state;
@@ -186,6 +181,7 @@ TEST_F(ParserTest, BuildDir) {
 }
 
 TEST_F(ParserTest, SubNinja) {
+  files_["test.ninja"] = "";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "subninja test.ninja\n"));
 }

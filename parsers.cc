@@ -375,7 +375,11 @@ bool ManifestParser::ParseSubNinja(string* err) {
   if (!tokenizer_.Newline(err))
     return false;
 
-  *err = "implement loading subninja";
+  string contents;
+  if (!file_reader_->ReadFile(path, &contents, err))
+    return false;
+
+  *err = "parse it";
   return false;
 }
 
