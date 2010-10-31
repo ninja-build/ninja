@@ -164,25 +164,7 @@ struct Builder {
       : state_(state), plan_(state), disk_interface_(&default_disk_interface_) {}
   virtual ~Builder() {}
 
-  Node* AddTarget(const string& name, string* err) {
-    Node* node = plan_.state_->LookupNode(name);
-    if (!node) {
-      *err = "unknown target: '" + name + "'";
-      return NULL;
-    }
-    node->file_->StatIfNecessary(disk_interface_);
-    if (node->in_edge_) {
-      if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
-        return false;
-    }
-    if (!node->dirty_) {
-      *err = "target is clean; nothing to do";
-      return NULL;
-    }
-    if (!plan_.AddTarget(node, err))
-      return NULL;
-    return node;
-  }
+  Node* AddTarget(const string& name, string* err);
   bool Build(Shell* shell, string* err);
 
   State* state_;

@@ -409,6 +409,25 @@ bool Shell::RunCommand(Edge* edge) {
 }
 
 
+Node* Builder::AddTarget(const string& name, string* err) {
+  Node* node = plan_.state_->LookupNode(name);
+  if (!node) {
+    *err = "unknown target: '" + name + "'";
+    return NULL;
+  }
+  node->file_->StatIfNecessary(disk_interface_);
+  if (node->in_edge_) {
+    if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
+      return false;
+  }
+  if (!node->dirty_)
+    return NULL;  // Intentionally no error.
+
+  if (!plan_.AddTarget(node, err))
+    return NULL;
+  return node;
+}
+
 bool Builder::Build(Shell* shell, string* err) {
   if (plan_.want_.empty()) {
     *err = "no work to do";
@@ -493,4 +512,3 @@ string EvalString::Evaluate(Env* env) {
   }
   return result;
 }
-

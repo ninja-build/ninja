@@ -58,8 +58,13 @@ int main(int argc, char** argv) {
   Builder builder(&state);
   for (int i = optind; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
-      fprintf(stderr, "%s\n", err.c_str());
-      return 1;
+      if (!err.empty()) {
+        fprintf(stderr, "%s\n", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
     }
   }
 

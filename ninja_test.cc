@@ -219,7 +219,7 @@ TEST_F(BuildTest, Chain) {
   err.clear();
   commands_ran_.clear();
   EXPECT_FALSE(builder_.AddTarget("c5", &err));
-  ASSERT_EQ("target is clean; nothing to do", err);
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(this, &err));
   ASSERT_EQ(0, commands_ran_.size());
 
