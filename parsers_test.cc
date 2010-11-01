@@ -36,7 +36,7 @@ TEST_F(ParserTest, Empty) {
 TEST_F(ParserTest, Rules) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
-"  command = cat @in > $out\n"
+"  command = cat $in > $out\n"
 "\n"
 "rule date\n"
 "  command = date > $out\n"
@@ -46,13 +46,13 @@ TEST_F(ParserTest, Rules) {
   ASSERT_EQ(2, state.rules_.size());
   Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name_);
-  EXPECT_EQ("cat @in > $out", rule->command_.unparsed());
+  EXPECT_EQ("cat $in > $out", rule->command_.unparsed());
 }
 
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
-"  command = ld $extra $with_under -o $out @in\n"
+"  command = ld $extra $with_under -o $out $in\n"
 "\n"
 "extra = -pthread\n"
 "with_under = -under\n"
@@ -176,7 +176,7 @@ TEST_F(ParserTest, BuildDir) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = out\n"
 "rule cat\n"
-"  command = cat @in > $out\n"
+"  command = cat $in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
   ASSERT_TRUE(state.LookupNode("out/a.o"));

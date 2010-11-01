@@ -156,7 +156,7 @@ struct EdgeEnv : public EvalString::Env {
   EdgeEnv(Edge* edge) : edge_(edge) {}
   virtual string Evaluate(const string& var) {
     string result;
-    if (var == "@in") {
+    if (var == "in") {
       int explicit_deps = edge_->inputs_.size() - edge_->implicit_deps_;
       for (vector<Node*>::iterator i = edge_->inputs_.begin();
            i != edge_->inputs_.end() && explicit_deps; ++i, --explicit_deps) {
@@ -164,7 +164,7 @@ struct EdgeEnv : public EvalString::Env {
           result.push_back(' ');
         result.append((*i)->file_->path_);
       }
-    } else if (var == "$out") {
+    } else if (var == "out") {
       result = edge_->outputs_[0]->file_->path_;
     } else if (edge_->env_) {
       return edge_->env_->Evaluate(var);
@@ -250,12 +250,10 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
 }
 
 string State::Evaluate(const string& var) {
-  if (var.size() > 1 && var[0] == '$') {
-    map<string, string>::iterator i = env_.find(var.substr(1));
-    if (i != env_.end())
-      return i->second;
-  }
-  return "";
+  map<string, string>::iterator i = env_.find(var);
+  if (i == env_.end())
+    return "";
+  return i->second;
 }
 
 
@@ -476,14 +474,14 @@ bool EvalString::Parse(const string& input, string* err) {
   string::size_type start, end;
   start = 0;
   do {
-    end = input.find_first_of("@$", start);
+    end = input.find('$', start);
     if (end == string::npos) {
       end = input.size();
       break;
     }
     if (end > start)
       parsed_.push_back(make_pair(input.substr(start, end - start), RAW));
-    start = end;
+    start = end + 1;
     for (end = start + 1; end < input.size(); ++end) {
       char c = input[end];
       if (!(('a' <= c && c <= 'z') || c == '_'))

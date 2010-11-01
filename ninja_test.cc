@@ -15,7 +15,7 @@ TEST(State, Basic) {
   State state;
   Rule* rule = new Rule("cat");
   string err;
-  EXPECT_TRUE(rule->ParseCommand("cat @in > $out", &err));
+  EXPECT_TRUE(rule->ParseCommand("cat $in > $out", &err));
   ASSERT_EQ("", err);
   state.AddRule(rule);
   Edge* edge = state.AddEdge(rule);
@@ -56,7 +56,7 @@ TEST(EvalString, OneVariable) {
   EXPECT_EQ("hi $var", str.unparsed());
   TestEnv env;
   EXPECT_EQ("hi ", str.Evaluate(&env));
-  env.vars["$var"] = "there";
+  env.vars["var"] = "there";
   EXPECT_EQ("hi there", str.Evaluate(&env));
 }
 TEST(EvalString, Error) {
@@ -70,7 +70,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules() {
     AssertParse(&state_,
 "rule cat\n"
-"  command = cat @in > $out\n");
+"  command = cat $in > $out\n");
   }
 
   Node* GetNode(const string& path) {
@@ -278,7 +278,7 @@ TEST_F(BuildTest, MakeDirs) {
 TEST_F(BuildTest, DepFileMissing) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   Touch("foo.c");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -291,7 +291,7 @@ TEST_F(BuildTest, DepFileOK) {
   string err;
   int orig_edges = state_.edges_.size();
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   Touch("foo.c");
   file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
@@ -312,7 +312,7 @@ TEST_F(BuildTest, DepFileOK) {
 TEST_F(BuildTest, DepFileParseError) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule cc\n  command = cc @in\n  depfile = $out.d\n"
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   Touch("foo.c");
   file_contents_["foo.o.d"] = "foo.o blah.h bar.h\n";
