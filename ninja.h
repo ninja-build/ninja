@@ -81,8 +81,8 @@ struct Node {
 struct Rule {
   Rule(const string& name) : name_(name) { }
 
-  void ParseCommand(const string& command) {
-    assert(command_.Parse(command));  // XXX
+  bool ParseCommand(const string& command, string* err) {
+    return command_.Parse(command, err);
   }
   string name_;
   EvalString command_;

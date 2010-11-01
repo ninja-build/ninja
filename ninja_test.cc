@@ -14,7 +14,9 @@ static void AssertParse(State* state, const char* input) {
 TEST(State, Basic) {
   State state;
   Rule* rule = new Rule("cat");
-  rule->ParseCommand("cat @in > $out");
+  string err;
+  EXPECT_TRUE(rule->ParseCommand("cat @in > $out", &err));
+  ASSERT_EQ("", err);
   state.AddRule(rule);
   Edge* edge = state.AddEdge(rule);
   state.AddInOut(edge, Edge::IN, "in1");
@@ -41,17 +43,27 @@ struct TestEnv : public EvalString::Env {
 };
 TEST(EvalString, PlainText) {
   EvalString str;
-  str.Parse("plain text");
-  ASSERT_EQ("plain text", str.Evaluate(NULL));
+  string err;
+  EXPECT_TRUE(str.Parse("plain text", &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("plain text", str.Evaluate(NULL));
 }
 TEST(EvalString, OneVariable) {
   EvalString str;
-  ASSERT_TRUE(str.Parse("hi $var"));
+  string err;
+  EXPECT_TRUE(str.Parse("hi $var", &err));
+  EXPECT_EQ("", err);
   EXPECT_EQ("hi $var", str.unparsed());
   TestEnv env;
   EXPECT_EQ("hi ", str.Evaluate(&env));
   env.vars["$var"] = "there";
   EXPECT_EQ("hi there", str.Evaluate(&env));
+}
+TEST(EvalString, Error) {
+  EvalString str;
+  string err;
+  EXPECT_FALSE(str.Parse("bad $", &err));
+  EXPECT_EQ("expected variable after $", err);
 }
 
 struct StateTestWithBuiltinRules : public testing::Test {

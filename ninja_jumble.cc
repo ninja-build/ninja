@@ -470,7 +470,7 @@ bool Builder::Build(Shell* shell, string* err) {
   return true;
 }
 
-bool EvalString::Parse(const string& input) {
+bool EvalString::Parse(const string& input, string* err) {
   unparsed_ = input;
 
   string::size_type start, end;
@@ -490,7 +490,7 @@ bool EvalString::Parse(const string& input) {
         break;
     }
     if (end == start + 1) {
-      // XXX report bad parse here
+      *err = "expected variable after $";
       return false;
     }
     parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));

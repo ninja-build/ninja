@@ -3,7 +3,7 @@ struct EvalString {
   struct Env {
     virtual string Evaluate(const string& var) = 0;
   };
-  bool Parse(const string& input);
+  bool Parse(const string& input, string* err);
   string Evaluate(Env* env);
 
   const string& unparsed() const { return unparsed_; }

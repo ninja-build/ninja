@@ -284,10 +284,13 @@ bool ManifestParser::ParseRule(string* err) {
       if (!ParseLet(&key, &val, err))
         return false;
 
+      string parse_err;
       if (key == "command") {
-        rule->ParseCommand(val);
+        if (!rule->ParseCommand(val, &parse_err))
+          return tokenizer_.Error(parse_err, err);
       } else if (key == "depfile") {
-        rule->depfile_.Parse(val);
+        if (!rule->depfile_.Parse(val, &parse_err))
+          return tokenizer_.Error(parse_err, err);
       }
     }
     tokenizer_.ConsumeToken();
@@ -377,8 +380,9 @@ bool ManifestParser::ParseSubNinja(string* err) {
     return false;
 
   ManifestParser subparser(state_, file_reader_);
-  if (!subparser.Parse(contents, err))
-    return false;
+  string sub_err;
+  if (!subparser.Parse(contents, &sub_err))
+    return tokenizer_.Error("in '" + path + "': " + sub_err, err);
 
   return true;
 }
