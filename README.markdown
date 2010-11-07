@@ -32,7 +32,18 @@ Some explicit non-goals:
   you should provide customization in the system that generates your
   `.ninja` files, like how autoconf provides `./configure`.
 
-## Overview
+## Getting Started
+The included `bootstrap.sh` should hopefully produce a working `ninja`
+binary.
+
+Current usage is just
+
+    ninja target
+
+where `target` is a known output described by `build.ninja` in the
+current directory.
+
+## Creating .ninja files
 
 A build file (default name: `build.ninja`) provides a list of *rules*
 along with a list of *build* statements saying how to build files

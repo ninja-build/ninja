@@ -2,10 +2,6 @@ support parsing subfiles
 save command lines
 parallization
 
-bootstrap: write a shell script that is just does
-  gcc -o ninja $(ls *.cc)
-  ./ninja ninja
-
 
 longer-term ideas:
 
