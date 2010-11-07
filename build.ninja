@@ -1,0 +1,41 @@
+# This file is used to build ninja itself, but it also serves as a
+# documented example.
+
+# The special variable "builddir" can be referenced later via the short
+# name "@".  The mnemonic comes from executables having an "@" prefix
+# in ls -F output.
+builddir = build
+
+# Most other variables, like cflags, aren't magic at all; it's up to
+# the rules to make use of them.
+cflags = -g -Wall
+
+# Here we declare a "rule" named "cxx", which knows how to compile
+# C++ code.  The variables indented below the rule are scoped to the
+# rule itself.  The "command" and "depfile" variables in rule scope
+# are special; see the documentation.
+rule cxx
+  depfile = $out.d
+  command = g++ -MMD -MF $out.d $cflags -c $in -o $out
+
+rule ar
+  command = ar crsT $out $in
+
+rule link
+  command = g++ $ldflags -o $out $in
+
+# These build rules build the ".o" files from the ".cc" files,
+# build "ninja.a" by linking the builddir's "ninja.o",
+# and build that "ninja.o" by compiling "ninja.cc".
+build @parsers.o: cxx parsers.cc
+build @ninja_jumble.o: cxx ninja_jumble.cc
+build @ninja.a: ar @parsers.o @ninja_jumble.o
+
+build @ninja.o: cxx ninja.cc
+build ninja: link @ninja.o @ninja.a
+
+build @ninja_test.o: cxx ninja_test.cc
+build @parsers_test.o: cxx parsers_test.cc
+build ninja_test: link @ninja_test.o @parsers_test.o @ninja.a
+ldflags = -lgtest -lgtest_main -lpthread
+
