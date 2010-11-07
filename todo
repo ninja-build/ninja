@@ -2,9 +2,12 @@ support parsing subfiles
 save command lines
 parallization
 
-longer-term ideas:
+bootstrap: write a shell script that is just does
+  gcc -o ninja $(ls *.cc)
+  ./ninja ninja
 
-- bootstrap -- output a shell script that builds everything serially
+
+longer-term ideas:
 
 - use lemon/ragel for parsing
 
