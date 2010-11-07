@@ -174,11 +174,13 @@ TEST_F(ParserTest, Errors) {
 
 TEST_F(ParserTest, BuildDir) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
+"default_test = @foo\n"
 "builddir = out\n"
 "rule cat\n"
 "  command = cat @otherfile $in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
+  EXPECT_EQ("foo", state.env_["default_test"]);
   ASSERT_TRUE(state.LookupNode("out/a.o"));
   Rule* rule = state.LookupRule("cat");
   ASSERT_TRUE(rule);
