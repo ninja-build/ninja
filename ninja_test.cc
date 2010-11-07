@@ -506,3 +506,7 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   EXPECT_EQ(kTestContent, disk_.ReadFile(kTestFile, &err));
   EXPECT_EQ("", err);
 }
+
+TEST_F(DiskInterfaceTest, MakeDirs) {
+  EXPECT_TRUE(disk_.MakeDirs("path/with/double//slash/"));
+}

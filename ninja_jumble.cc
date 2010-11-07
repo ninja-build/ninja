@@ -49,6 +49,8 @@ string DirName(const string& path) {
   string::size_type slash_pos = path.rfind('/');
   if (slash_pos == string::npos)
     return "";  // Nothing to do.
+  while (slash_pos > 0 && path[slash_pos - 1] == '/')
+    --slash_pos;
   return path.substr(0, slash_pos);
 }
 
