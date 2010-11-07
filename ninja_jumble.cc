@@ -133,9 +133,11 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
     // Otherwise consider mtime, but only if it's not an order-only dep.
     if ((*i)->dirty_) {
       dirty = true;
-    } else if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_ &&
-             (*i)->file_->mtime_ > most_recent_input) {
-      most_recent_input = (*i)->file_->mtime_;
+    } else {
+      if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_)
+        continue;  // Changed order-only deps don't cause us to become dirty.
+      if ((*i)->file_->mtime_ > most_recent_input)
+        most_recent_input = (*i)->file_->mtime_;
     }
   }
 
