@@ -1,0 +1,369 @@
+Index: test/lib/TestGyp.py
+===================================================================
+--- test/lib/TestGyp.py	(revision 851)
++++ test/lib/TestGyp.py	(working copy)
+@@ -391,6 +391,43 @@
+     return self.workpath(*result)
+ 
+ 
++class TestGypNinja(TestGypBase):
++  """
++  Subclass for testing the GYP Ninja generator.
++  """
++  format = 'ninja'
++  build_tool_list = ['/home/evanm/projects/ninja/ninja']
++  ALL = 'all'
++  DEFAULT = 'all'
++
++  def build(self, gyp_file, target=None, **kw):
++    arguments = kw.get('arguments', [])[:]
++    if target is None:
++      target = 'all'
++    arguments.append(target)
++    kw['arguments'] = arguments
++    return self.run(program=self.build_tool, **kw)
++
++  def run_built_executable(self, name, *args, **kw):
++    # Enclosing the name in a list avoids prepending the original dir.
++    program = [self.built_file_path(name, type=self.EXECUTABLE, **kw)]
++    return self.run(program=program, *args, **kw)
++
++  def built_file_path(self, name, type=None, **kw):
++    result = []
++    chdir = kw.get('chdir')
++    if chdir:
++      result.append(chdir)
++    #configuration = self.configuration_dirname()
++    #result.extend(['out', configuration])
++    result.append(self.built_file_basename(name, type, **kw))
++    return self.workpath(*result)
++
++  def up_to_date(self, gyp_file, target=None, **kw):
++    kw['stdout'] = "no work to do\n"
++    return self.build(gyp_file, target, **kw)
++
++
+ class TestGypMSVS(TestGypBase):
+   """
+   Subclass for testing the GYP Visual Studio generator.
+@@ -667,6 +704,7 @@
+   TestGypGypd,
+   TestGypMake,
+   TestGypMSVS,
++  TestGypNinja,
+   TestGypSCons,
+   TestGypXcode,
+ ]
+Index: pylib/gyp/generator/ninja.py
+===================================================================
+--- pylib/gyp/generator/ninja.py	(revision 0)
++++ pylib/gyp/generator/ninja.py	(revision 0)
+@@ -0,0 +1,308 @@
++#!/usr/bin/python
++
++# Copyright (c) 2010 Google Inc. All rights reserved.
++# Use of this source code is governed by a BSD-style license that can be
++# found in the LICENSE file.
++
++import gyp
++import gyp.common
++import os.path
++import subprocess
++import sys
++
++generator_default_variables = {
++  'EXECUTABLE_PREFIX': '',
++  'EXECUTABLE_SUFFIX': '',
++  'OS': 'linux',
++  'STATIC_LIB_PREFIX': 'lib',
++  'SHARED_LIB_PREFIX': 'lib',
++  'STATIC_LIB_SUFFIX': '.a',
++  'SHARED_LIB_SUFFIX': '.so',
++  'INTERMEDIATE_DIR': '@geni',
++  'SHARED_INTERMEDIATE_DIR': '@gen',
++  'PRODUCT_DIR': '@',
++  'SHARED_LIB_DIR': '$(builddir)/lib.$(TOOLSET)',
++  'LIB_DIR': '$(obj).$(TOOLSET)',
++  'RULE_INPUT_ROOT': '%(INPUT_ROOT)s',  # This gets expanded by Python.
++  'RULE_INPUT_PATH': '$(abspath $<)',
++  'RULE_INPUT_EXT': '$(suffix $<)',
++  'RULE_INPUT_NAME': '$(notdir $<)',
++
++  # This appears unused --- ?
++  'CONFIGURATION_NAME': '$(BUILDTYPE)',
++}
++
++NINJA_BASE = """\
++# gyp wants builddir to be a relative path to a directory;
++# "." suffices for now.
++builddir = .
++
++cc = gcc
++cxx = g++
++
++rule cc
++  description = CC $out
++  command = $cc $cflags $cflags_cc $defines $includes -c @in -o $out
++
++rule cxx
++  description = CXX $out
++  command = $cxx $cflags $cflags_cxx $defines $includes -c @in -o $out
++
++rule alink
++  description = AR $out
++  command = rm -f $out && ar rcs $out @in
++
++rule solink
++  description = LINK $out
++  command = false
++
++rule link
++  description = LINK $out
++  command = g++ $ldflags -o $out \\
++            -Wl,--start-group @in -Wl,--end-group $libs
++
++rule stamp
++  description = STAMP $out
++  command = touch $out
++
++rule phony
++  description = PHONY $out
++  command = touch $out
++
++"""
++
++class NinjaWriter:
++  def __init__(self, linkable_outputs, order_only_outputs, base_dir, path):
++    self.linkable_outputs = linkable_outputs
++    self.order_only_outputs = order_only_outputs
++    self.base_dir = base_dir
++    self.path = path
++    self.file = open(path, 'w')
++    self.variables = {}  # XXX take in global values.
++
++  def WriteSpec(self, spec, config):
++    if spec['type'] == 'settings':
++      return
++
++    # Compute predepends for all rules.
++    prebuild_deps = []
++    # self.prebuild_stamp is the filename that all our files depend upon,
++    # if any.
++    self.prebuild_stamp = None
++    if 'dependencies' in spec:
++      for d in spec['dependencies']:
++        dep = self.linkable_outputs.get(d)
++        if dep:
++          prebuild_deps.append(dep)
++        dep = self.order_only_outputs.get(d)
++        if dep:
++          prebuild_deps.append(dep)
++    if prebuild_deps:
++      self.prebuild_stamp = spec['target_name'] + '.predepends.stamp'
++      self.WriteEdge([self.prebuild_stamp], 'stamp', prebuild_deps,
++                     use_prebuild_stamp=False)
++      self.WriteLn()
++
++    target_deps = []
++    if 'actions' in spec:
++      target_deps.extend(self.WriteActions(spec['actions']))
++
++    link_deps = []
++    sources = spec.get('sources', [])
++    if sources:
++      target_deps += self.WriteSources(config, sources, link_deps)
++
++    return self.WriteTarget(spec, config, target_deps)
++
++  def WriteActions(self, actions):
++    outputs = []
++    for action in actions:
++      # First write out a rule for the action.
++      name = action['action_name']
++      command = gyp.common.EncodePOSIXShellList(action['action'])
++      self.WriteRule(name=name, command=command)
++
++      # Then write out an edge using the rule.
++      self.WriteEdge(action['outputs'], name, action['inputs'])
++      outputs.extend(action['outputs'])
++    return outputs
++
++  def WriteSources(self, config, sources, extra_link_deps):
++    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])])
++    def FixInclude(path):
++      path = os.path.normpath(os.path.join(self.base_dir, path))
++      return path
++    self.WriteVariableList('includes', ['-I' + FixInclude(i) for i in config.get('include_dirs', [])])
++    self.WriteVariableList('cflags', config.get('cflags'))
++    self.WriteVariableList('cflags_cc', config.get('cflags_c'))
++    self.WriteVariableList('cflags_cxx', config.get('cflags_cc'))
++    self.WriteLn()
++    for source in sources:
++      filename, ext = os.path.splitext(source)
++      ext = ext[1:]
++      if ext in ('cc', 'cpp', 'cxx'):
++        command = 'cxx'
++      elif ext in ('c', 's', 'S'):
++        command = 'cc'
++      else:
++        # if ext in ('h', 'hxx'):
++        # elif ext in ('re', 'gperf', 'grd', ):
++        continue
++      output = filename + '.o'
++      self.WriteEdge([output], command, [source])
++      extra_link_deps.append(output)
++    self.WriteLn()
++
++  def WriteTarget(self, spec, config, link_deps):
++    self.WriteVariableList('ldflags', config.get('ldflags'))
++    self.WriteVariableList('libs', spec.get('libraries'))
++
++    target = self.ComputeTarget(spec)
++    if 'dependencies' in spec:
++      for dep in spec['dependencies']:
++        dep = self.linkable_outputs.get(dep)
++        if dep:
++          link_deps.append(dep)
++    command_map = {
++      'executable':      'link',
++      'static_library':  'alink',
++      'loadable_module': 'solink',
++      'shared_library':  'solink',
++      'none':            'stamp',
++    }
++    command = command_map[spec['type']]
++    self.WriteEdge([target], command, link_deps)
++    return os.path.join(self.base_dir, target)
++
++  def ComputeTarget(self, spec):
++    target = spec['target_name']
++
++    # Snip out an extra 'lib' if appropriate.
++    if '_library' in spec['type'] and target[:3] == 'lib':
++      target = target[3:]
++
++    if spec['type'] == 'static_library':
++      return 'lib%s.a' % target
++    elif spec['type'] in ('loadable_module', 'shared_library'):
++      return 'lib%s.so' % target
++    elif spec['type'] == 'none':
++      return '%s.stamp' % target
++    elif spec['type'] == 'settings':
++      return None
++    elif spec['type'] == 'executable':
++      return spec.get('product_name', target)
++    else:
++      raise 'Unhandled output type', spec['type']
++
++  def WriteRule(self, name, command):
++    self.WriteLn('rule %s' % name)
++    self.WriteLn('  command = %s' % command)
++    self.WriteLn()
++
++  def WriteEdge(self, outputs, command, inputs,
++                order_only_inputs=[],
++                use_prebuild_stamp=True):
++    extra_inputs = order_only_inputs[:]
++    if use_prebuild_stamp and self.prebuild_stamp:
++      extra_inputs.append(self.prebuild_stamp)
++    if extra_inputs:
++      extra_inputs = ['|'] + extra_inputs
++    self.WriteList('build ' + ' '.join(outputs) + ': ' + command,
++                   inputs + extra_inputs)
++
++  def WriteVariableList(self, var, values):
++    if self.variables.get(var, []) == values:
++      return
++    self.variables[var] = values
++    self.WriteList(var + ' =', values)
++
++  def WriteList(self, decl, values):
++    self.Write(decl)
++    if not values:
++      self.WriteLn()
++      return
++
++    col = len(decl) + 3
++    for value in values:
++      if col != 0 and col + len(value) >= 78:
++        self.WriteLn(' \\')
++        self.Write(' ' * 4)
++        col = 4
++      else:
++        self.Write(' ')
++        col += 1
++      self.Write(value)
++      col += len(value)
++    self.WriteLn()
++
++  def Write(self, *args):
++    self.file.write(' '.join(args))
++
++  def WriteLn(self, *args):
++    self.file.write(' '.join(args) + '\n')
++
++
++def tput(str):
++  return subprocess.Popen(['tput',str], stdout=subprocess.PIPE).communicate()[0]
++tput_clear = tput('el1')
++import time
++def OverPrint(*args):
++  sys.stdout.write(tput_clear + '\r' + ' '.join(args))
++  #sys.stdout.write(' '.join(args) + '\n')
++  sys.stdout.flush()
++  #time.sleep(0.01)  # XXX
++
++def GenerateOutput(target_list, target_dicts, data, params):
++  options = params['options']
++  generator_flags = params.get('generator_flags', {})
++  builddir_name = generator_flags.get('output_dir', 'ninja')
++
++  src_root = options.depth
++  config_name = 'Default'
++  master_ninja = open(os.path.join(src_root, 'build.ninja'), 'w')
++  master_ninja.write(NINJA_BASE)
++
++  all_targets = set()
++  for build_file in params['build_files']:
++    for target in gyp.common.AllTargets(target_list, target_dicts, build_file):
++      all_targets.add(target)
++  all_outputs = set()
++
++  subninjas = set()
++  linkable_outputs = {}
++  order_only_outputs = {}
++  for qualified_target in target_list:
++    # qualified_target is like: third_party/icu/icu.gyp:icui18n#target
++    OverPrint(qualified_target)
++    build_file, target, _ = gyp.common.ParseQualifiedTarget(qualified_target)
++
++    build_file = gyp.common.RelativePath(build_file, src_root)
++    base_path = os.path.dirname(build_file)
++    ninja_path = os.path.join(base_path, target + '.ninja')
++    output_file = os.path.join(src_root, ninja_path)
++    spec = target_dicts[qualified_target]
++    if config_name not in spec['configurations']:
++      config_name = spec['default_configuration']
++    config = spec['configurations'][config_name]
++
++    writer = NinjaWriter(linkable_outputs, order_only_outputs,
++                         base_path, output_file)
++    subninjas.add(ninja_path)
++
++    output = writer.WriteSpec(spec, config)
++    if 'library' in spec['type']:
++      linkable_outputs[qualified_target] = output
++    else:
++      order_only_outputs[qualified_target] = output
++
++    if qualified_target in all_targets:
++      all_outputs.add(output)
++
++  for ninja in subninjas:
++    print >>master_ninja, 'subninja', ninja
++
++  if all_outputs:
++    print >>master_ninja, 'build all: phony ' + ' '.join(all_outputs)
++
++  master_ninja.close()
++  OverPrint('done.\n')
