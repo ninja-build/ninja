@@ -176,10 +176,13 @@ TEST_F(ParserTest, BuildDir) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = out\n"
 "rule cat\n"
-"  command = cat $in > $out\n"
+"  command = cat @otherfile $in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
   ASSERT_TRUE(state.LookupNode("out/a.o"));
+  Rule* rule = state.LookupRule("cat");
+  ASSERT_TRUE(rule);
+  EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
 }
 
 TEST_F(ParserTest, SubNinja) {

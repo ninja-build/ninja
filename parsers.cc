@@ -308,8 +308,19 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
     return tokenizer_.Error("expected variable name", err);
   if (!tokenizer_.ExpectToken(Token::EQUALS, err))
     return false;
+
+  // XXX should we tokenize here?  it means we'll need to understand
+  // command syntax, though...
   if (!tokenizer_.ReadToNewline(value, err))
     return false;
+
+  // Do @ -> builddir substitution.
+  size_t ofs;
+  while ((ofs = value->find('@')) != string::npos) {
+    value->replace(ofs, 1, builddir_);
+    ofs += builddir_.size();
+  }
+
   return true;
 }
 
