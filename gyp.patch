@@ -2,7 +2,7 @@ Index: test/lib/TestGyp.py
 ===================================================================
 --- test/lib/TestGyp.py	(revision 851)
 +++ test/lib/TestGyp.py	(working copy)
-@@ -391,6 +391,43 @@
+@@ -391,6 +391,44 @@
      return self.workpath(*result)
  
  
@@ -33,8 +33,9 @@ Index: test/lib/TestGyp.py
 +    chdir = kw.get('chdir')
 +    if chdir:
 +      result.append(chdir)
++    result.append('ninja')
 +    #configuration = self.configuration_dirname()
-+    #result.extend(['out', configuration])
++    # result.append, configuration])
 +    result.append(self.built_file_basename(name, type, **kw))
 +    return self.workpath(*result)
 +
@@ -46,7 +47,7 @@ Index: test/lib/TestGyp.py
  class TestGypMSVS(TestGypBase):
    """
    Subclass for testing the GYP Visual Studio generator.
-@@ -667,6 +704,7 @@
+@@ -667,6 +705,7 @@
    TestGypGypd,
    TestGypMake,
    TestGypMSVS,
@@ -58,7 +59,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,308 @@
+@@ -0,0 +1,337 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -94,9 +95,9 @@ Index: pylib/gyp/generator/ninja.py
 +}
 +
 +NINJA_BASE = """\
-+# gyp wants builddir to be a relative path to a directory;
-+# "." suffices for now.
-+builddir = .
++# Rules run in subdirectories but expect to be able to reach out to
++# builddir, so use an absolute path.
++builddir = %(cwd)s/ninja/
 +
 +cc = gcc
 +cxx = g++
@@ -130,7 +131,9 @@ Index: pylib/gyp/generator/ninja.py
 +  description = PHONY $out
 +  command = touch $out
 +
-+"""
++""" % {
++  'cwd': os.getcwd(),
++}
 +
 +class NinjaWriter:
 +  def __init__(self, linkable_outputs, order_only_outputs, base_dir, path):
@@ -140,6 +143,13 @@ Index: pylib/gyp/generator/ninja.py
 +    self.path = path
 +    self.file = open(path, 'w')
 +    self.variables = {}  # XXX take in global values.
++
++  def FullPath(self, path):
++    """Convert a per-gypfile path (i.e. relative to gyp file directory) into
++    a project-qualified path."""
++    if path.startswith('@'):
++      return path
++    return os.path.normpath(os.path.join(self.base_dir, path))
 +
 +  def WriteSpec(self, spec, config):
 +    if spec['type'] == 'settings':
@@ -176,17 +186,23 @@ Index: pylib/gyp/generator/ninja.py
 +    return self.WriteTarget(spec, config, target_deps)
 +
 +  def WriteActions(self, actions):
-+    outputs = []
++    all_outputs = []
 +    for action in actions:
 +      # First write out a rule for the action.
 +      name = action['action_name']
 +      command = gyp.common.EncodePOSIXShellList(action['action'])
++      print self.path, "::", self.base_dir
++      if self.base_dir:
++        command = 'cd %s; %s' % (self.base_dir, command)
 +      self.WriteRule(name=name, command=command)
 +
++      inputs = map(self.FullPath, action['inputs'])
++      outputs = map(self.FullPath, action['outputs'])
++
 +      # Then write out an edge using the rule.
-+      self.WriteEdge(action['outputs'], name, action['inputs'])
-+      outputs.extend(action['outputs'])
-+    return outputs
++      self.WriteEdge(outputs, name, inputs)
++      all_outputs.extend(outputs)
++    return all_outputs
 +
 +  def WriteSources(self, config, sources, extra_link_deps):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])])
@@ -218,7 +234,7 @@ Index: pylib/gyp/generator/ninja.py
 +    self.WriteVariableList('ldflags', config.get('ldflags'))
 +    self.WriteVariableList('libs', spec.get('libraries'))
 +
-+    target = self.ComputeTarget(spec)
++    output = self.ComputeOutput(spec)
 +    if 'dependencies' in spec:
 +      for dep in spec['dependencies']:
 +        dep = self.linkable_outputs.get(dep)
@@ -232,10 +248,10 @@ Index: pylib/gyp/generator/ninja.py
 +      'none':            'stamp',
 +    }
 +    command = command_map[spec['type']]
-+    self.WriteEdge([target], command, link_deps)
-+    return os.path.join(self.base_dir, target)
++    self.WriteEdge([output], command, link_deps)
++    return output
 +
-+  def ComputeTarget(self, spec):
++  def ComputeOutputFileName(self, spec):
 +    target = spec['target_name']
 +
 +    # Snip out an extra 'lib' if appropriate.
@@ -243,9 +259,9 @@ Index: pylib/gyp/generator/ninja.py
 +      target = target[3:]
 +
 +    if spec['type'] == 'static_library':
-+      return 'lib%s.a' % target
++      return '%s.a' % target
 +    elif spec['type'] in ('loadable_module', 'shared_library'):
-+      return 'lib%s.so' % target
++      return '%s.so' % target
 +    elif spec['type'] == 'none':
 +      return '%s.stamp' % target
 +    elif spec['type'] == 'settings':
@@ -254,6 +270,20 @@ Index: pylib/gyp/generator/ninja.py
 +      return spec.get('product_name', target)
 +    else:
 +      raise 'Unhandled output type', spec['type']
++
++  def ComputeOutput(self, spec):
++    filename = self.ComputeOutputFileName(spec)
++
++    # XXX what are all these extra variables?
++    path = spec.get('product_dir', '')
++    assert 'product_prefix' not in spec
++    assert 'product_name' not in spec
++    assert 'product_extension' not in spec
++    #target_prefix = spec.get('product_prefix', target_prefix)
++    #target = spec.get('product_name', target)
++    #product_ext = spec.get('product_extension')
++
++    return '@' + os.path.join(path, filename)
 +
 +  def WriteRule(self, name, command):
 +    self.WriteLn('rule %s' % name)
