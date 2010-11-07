@@ -91,7 +91,7 @@ struct Rule {
 
 class State;
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), implicit_deps_(0) {}
+  Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
 
   void MarkDirty(Node* node);
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
@@ -104,7 +104,20 @@ struct Edge {
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   EvalString::Env* env_;
-  int implicit_deps_;  // Count on the end of the inputs list.
+
+  // XXX There are three types of inputs.
+  // 1) explicit deps, which show up as $in on the command line;
+  // 2) implicit deps, which the target depends on implicitly (e.g. C headers),
+  //                   and changes in them cause the target to rebuild;
+  // 3) order-only deps, which are needed before the target builds but which
+  //                     don't cause the target to rebuild.
+  // Currently we stuff all of these into inputs_ and keep counts of #2 and #3
+  // when we need to compute subsets.  This is suboptimal; should think of a
+  // better representation.  (Could make each pointer into a pair of a pointer
+  // and a type of input, or if memory matters could use the low bits of the
+  // pointer...)
+  int implicit_deps_;
+  int order_only_deps_;
 };
 
 struct StatCache {
