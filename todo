@@ -1,6 +1,13 @@
 save command lines
 parallization
 
+short-term ideas:
+- magic $in/$out variables shouldn't be magic, they're just a shortcut
+  for specifying commands like
+    rule frob
+      command = frob $manual_inputs
+    build foo: frob
+      manual_inputs = a b c
 
 longer-term ideas:
 
