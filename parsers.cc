@@ -17,6 +17,7 @@ string Token::AsString() const {
   case NEWLINE:  return "newline";
   case EQUALS:   return "'='";
   case COLON:    return "':'";
+  case PIPE:     return "'|'";
   case TEOF:     return "eof";
   case INDENT:   return "indenting in";
   case OUTDENT:  return "indenting out";
@@ -165,6 +166,9 @@ Token::Type Tokenizer::PeekToken() {
     ++cur_;
   } else if (*cur_ == '=') {
     token_.type_ = Token::EQUALS;
+    ++cur_;
+  } else if (*cur_ == '|') {
+    token_.type_ = Token::PIPE;
     ++cur_;
   } else if (*cur_ == '\n') {
     token_.type_ = Token::NEWLINE;
@@ -365,6 +369,19 @@ bool ManifestParser::ParseEdge(string* err) {
     ins.push_back(ExpandFile(in));
   }
 
+  // Add all order-only deps, counting how many as we go.
+  int order_only = 0;
+  if (tokenizer_.PeekToken() == Token::PIPE) {
+    tokenizer_.ConsumeToken();
+    for (;;) {
+      string in;
+      if (!tokenizer_.ReadIdent(&in))
+        break;
+      ins.push_back(ExpandFile(in));
+      ++order_only;
+    }
+  }
+
   if (!tokenizer_.Newline(err))
     return false;
 
@@ -373,6 +390,7 @@ bool ManifestParser::ParseEdge(string* err) {
     state_->AddInOut(edge, Edge::IN, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)
     state_->AddInOut(edge, Edge::OUT, *i);
+  edge->order_only_deps_ = order_only;
 
   return true;
 }

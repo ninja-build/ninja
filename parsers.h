@@ -17,6 +17,7 @@ struct Token {
     NEWLINE,
     EQUALS,
     COLON,
+    PIPE,
     INDENT,
     OUTDENT,
     TEOF

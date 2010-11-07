@@ -199,6 +199,12 @@ TEST_F(ParserTest, SubNinja) {
   EXPECT_EQ("some_dir/inner", state.env_["inner"]);
 }
 
+TEST_F(ParserTest, OrderOnly) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build foo: cat bar | baz\n"));
+}
+
 TEST(MakefileParser, Basic) {
   MakefileParser parser;
   string err;
