@@ -391,6 +391,8 @@ bool ManifestParser::ParseSubNinja(string* err) {
     return false;
 
   ManifestParser subparser(state_, file_reader_);
+  // Simulate variable inheritance of builddir.
+  subparser.builddir_ = builddir_;
   string sub_err;
   if (!subparser.Parse(contents, &sub_err))
     return tokenizer_.Error("in '" + path + "': " + sub_err, err);

@@ -188,11 +188,15 @@ TEST_F(ParserTest, BuildDir) {
 }
 
 TEST_F(ParserTest, SubNinja) {
-  files_["test.ninja"] = "";
+  files_["test.ninja"] = "inner = @inner\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
+"builddir = some_dir/\n"
+"outer = @outer\n"
 "subninja test.ninja\n"));
   ASSERT_EQ(1, files_read_.size());
   EXPECT_EQ("test.ninja", files_read_[0]);
+  EXPECT_EQ("some_dir/outer", state.env_["outer"]);
+  EXPECT_EQ("some_dir/inner", state.env_["inner"]);
 }
 
 TEST(MakefileParser, Basic) {
