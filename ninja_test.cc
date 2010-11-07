@@ -141,7 +141,7 @@ void BuildTest::Touch(const string& path) {
 
 bool BuildTest::RunCommand(Edge* edge) {
   commands_ran_.push_back(edge->EvaluateCommand());
-  if (edge->rule_->name_ == "cat") {
+  if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       (*out)->file_->Touch(now_);
@@ -318,6 +318,51 @@ TEST_F(BuildTest, DepFileParseError) {
   file_contents_["foo.o.d"] = "foo.o blah.h bar.h\n";
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("line 1, col 7: expected ':', got 'blah.h'", err);
+}
+
+TEST_F(BuildTest, OrderOnlyDeps) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
+"build foo.o: cc foo.c | otherfile\n"));
+  Touch("foo.c");
+  file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+
+  Edge* edge = state_.edges_.back();
+  // One explicit, two implicit, one order only.
+  ASSERT_EQ(4, edge->inputs_.size());
+  EXPECT_EQ(2, edge->implicit_deps_);
+  EXPECT_EQ(1, edge->order_only_deps_);
+  // Verify the inputs are in the order we expect
+  // (explicit then implicit then orderonly).
+  EXPECT_EQ("foo.c", edge->inputs_[0]->file_->path_);
+  EXPECT_EQ("blah.h", edge->inputs_[1]->file_->path_);
+  EXPECT_EQ("bar.h", edge->inputs_[2]->file_->path_);
+  EXPECT_EQ("otherfile", edge->inputs_[3]->file_->path_);
+
+  // Expect the command line we generate to only use the original input.
+  ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
+
+  // explicit dep dirty, expect a rebuild.
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1, commands_ran_.size());
+
+  // implicit dep dirty, expect a rebuild.
+  commands_ran_.clear();
+  Touch("blah.h");
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1, commands_ran_.size());
+
+  // order only dep dirty, no rebuild.
+  commands_ran_.clear();
+  Touch("otherfile");
+  // We should fail to even add the depenency on foo.o, because
+  // there's nothing to do.
+  EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
 }
 
 struct StatTest : public StateTestWithBuiltinRules,

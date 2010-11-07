@@ -128,10 +128,15 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
         (*i)->dirty_ = !(*i)->file_->exists();
       }
     }
-    if ((*i)->dirty_)
+
+    // If an input is dirty (or missing), we're dirty.
+    // Otherwise consider mtime, but only if it's not an order-only dep.
+    if ((*i)->dirty_) {
       dirty = true;
-    else if ((*i)->file_->mtime_ > most_recent_input)
+    } else if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_ &&
+             (*i)->file_->mtime_ > most_recent_input) {
       most_recent_input = (*i)->file_->mtime_;
+    }
   }
 
   assert(!outputs_.empty());
@@ -148,6 +153,8 @@ void Edge::MarkDirty(Node* node) {
   vector<Node*>::iterator i = find(inputs_.begin(), inputs_.end(), node);
   if (i == inputs_.end())
     return;
+  if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_)
+    return;  // Order-only deps don't cause us to become dirty.
   for (i = outputs_.begin(); i != outputs_.end(); ++i)
     (*i)->MarkDirty();
 }
@@ -157,7 +164,8 @@ struct EdgeEnv : public EvalString::Env {
   virtual string Evaluate(const string& var) {
     string result;
     if (var == "in") {
-      int explicit_deps = edge_->inputs_.size() - edge_->implicit_deps_;
+      int explicit_deps = edge_->inputs_.size() - edge_->implicit_deps_ -
+          edge_->order_only_deps_;
       for (vector<Node*>::iterator i = edge_->inputs_.begin();
            i != edge_->inputs_.end() && explicit_deps; ++i, --explicit_deps) {
         if (!result.empty())
@@ -240,7 +248,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
       }
     }
     if (node) {
-      inputs_.push_back(node);
+      inputs_.insert(inputs_.end() - order_only_deps_, node);
       node->out_edges_.push_back(this);
       ++implicit_deps_;
     }
