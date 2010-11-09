@@ -26,7 +26,9 @@ void GraphViz::AddTarget(Node* node) {
 
   if (edge->inputs_.size() == 1 && edge->outputs_.size() == 1) {
     // Can draw simply.
-    printf("\"%p\" -> \"%p\" [label=\"%s\"]\n",
+    // Note extra space before label text -- this is cosmetic and feels
+    // like a graphviz bug.
+    printf("\"%p\" -> \"%p\" [label=\" %s\"]\n",
            edge->inputs_[0], edge->outputs_[0], edge->rule_->name_.c_str());
   } else {
     printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
