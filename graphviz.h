@@ -29,7 +29,7 @@ void GraphViz::AddTarget(Node* node) {
     printf("\"%p\" -> \"%p\" [label=\"%s\"]\n",
            edge->inputs_[0], edge->outputs_[0], edge->rule_->name_.c_str());
   } else {
-    printf("\"%p\" [label=\"%s\", shape=plaintext]\n",
+    printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
            edge, edge->rule_->name_.c_str());
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
@@ -37,7 +37,7 @@ void GraphViz::AddTarget(Node* node) {
     }
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
-      printf("\"%p\" -> \"%p\"\n", (*in), edge);
+      printf("\"%p\" -> \"%p\" [arrowhead=none]\n", (*in), edge);
     }
   }
 
