@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <stdio.h>
 
+#include "graphviz.h"
 #include "parsers.h"
 
 option options[] = {
@@ -15,6 +16,7 @@ void usage() {
 "usage: ninja [options] target\n"
 "\n"
 "options:\n"
+"  -g       output graphviz dot file for targets and exit\n"
 "  -i FILE  specify input build file [default=build.ninja]\n"
           );
 }
@@ -29,8 +31,12 @@ int main(int argc, char** argv) {
   const char* input_file = "build.ninja";
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "hi:", options, NULL)) != -1) {
+  bool graph = false;
+  while ((opt = getopt_long(argc, argv, "ghi:", options, NULL)) != -1) {
     switch (opt) {
+      case 'g':
+        graph = true;
+        break;
       case 'i':
         input_file = optarg;
         break;
@@ -45,6 +51,8 @@ int main(int argc, char** argv) {
     usage();
     return 1;
   }
+  argv += optind;
+  argc -= optind;
 
   State state;
   RealFileReader file_reader;
@@ -54,9 +62,19 @@ int main(int argc, char** argv) {
     fprintf(stderr, "error loading '%s': %s\n", input_file, err.c_str());
     return 1;
   }
+
+  if (graph) {
+    GraphViz graph;
+    graph.Start();
+    for (int i = 0; i < argc; ++i)
+      graph.AddTarget(state.GetNode(argv[i]));
+    graph.Finish();
+    return 0;
+  }
+
   Shell shell;
   Builder builder(&state);
-  for (int i = optind; i < argc; ++i) {
+  for (int i = 0; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
       if (!err.empty()) {
         fprintf(stderr, "%s\n", err.c_str());
