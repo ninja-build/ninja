@@ -317,7 +317,10 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
     node->out_edges_.push_back(edge);
   } else {
     edge->outputs_.push_back(node);
-    assert(node->in_edge_ == NULL);
+    if (node->in_edge_) {
+      fprintf(stderr, "multiple rules generate %s\n", path.c_str());
+      assert(node->in_edge_ == NULL);
+    }
     node->in_edge_ = edge;
   }
 }
