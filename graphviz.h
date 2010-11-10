@@ -39,7 +39,10 @@ void GraphViz::AddTarget(Node* node) {
     }
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
-      printf("\"%p\" -> \"%p\" [arrowhead=none]\n", (*in), edge);
+      const char* order_only = "";
+      if (edge->is_order_only(in - edge->inputs_.begin()))
+        order_only = " style=dotted";
+      printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", (*in), edge, order_only);
     }
   }
 
