@@ -151,22 +151,18 @@ struct State : public EvalString::Env {
 };
 
 struct Plan {
-  explicit Plan(State* state) : state_(state) {}
-
-  Node* AddTarget(const string& path, string* err);
   bool AddTarget(Node* node, string* err);
 
   Edge* FindWork();
   void EdgeFinished(Edge* edge);
-  void NodeFinished(Node* node);
 
-  State* state_;
-  set<Node*> want_;
-  queue<Edge*> ready_;
+  bool more_to_do() const { return !want_.empty(); }
 
 private:
-  Plan();
-  Plan(const Plan&);
+  void NodeFinished(Node* node);
+
+  set<Node*> want_;
+  queue<Edge*> ready_;
 };
 
 
@@ -177,7 +173,7 @@ struct Shell {
 
 struct Builder {
   Builder(State* state)
-      : state_(state), plan_(state), disk_interface_(&default_disk_interface_) {}
+      : state_(state), disk_interface_(&default_disk_interface_) {}
   virtual ~Builder() {}
 
   Node* AddTarget(const string& name, string* err);

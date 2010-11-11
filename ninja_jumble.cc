@@ -329,11 +329,6 @@ void State::AddBinding(const string& key, const string& val) {
   env_[key] = val;
 }
 
-Node* Plan::AddTarget(const string& path, string* err) {
-  Node* node = state_->GetNode(path);
-  AddTarget(node, err);
-  return node;
-}
 bool Plan::AddTarget(Node* node, string* err) {
   Edge* edge = node->in_edge_;
   if (!edge) {  // Leaf node.
@@ -430,7 +425,7 @@ bool Shell::RunCommand(Edge* edge) {
 
 
 Node* Builder::AddTarget(const string& name, string* err) {
-  Node* node = plan_.state_->LookupNode(name);
+  Node* node = state_->LookupNode(name);
   if (!node) {
     *err = "unknown target: '" + name + "'";
     return NULL;
@@ -449,7 +444,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::Build(Shell* shell, string* err) {
-  if (plan_.want_.empty()) {
+  if (!plan_.more_to_do()) {
     *err = "no work to do";
     return true;
   }
@@ -482,7 +477,7 @@ bool Builder::Build(Shell* shell, string* err) {
     plan_.EdgeFinished(edge);
   } while ((edge = plan_.FindWork()) != NULL);
 
-  if (!plan_.want_.empty()) {
+  if (plan_.more_to_do()) {
     *err = "ran out of work";
     return false;
   }
