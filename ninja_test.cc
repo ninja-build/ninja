@@ -80,6 +80,45 @@ struct StateTestWithBuiltinRules : public testing::Test {
   State state_;
 };
 
+// Though Plan doesn't use State, it's useful to have one around
+// to create Nodes and Edges.
+struct PlanTest : public StateTestWithBuiltinRules {
+  Plan plan_;
+};
+
+TEST_F(PlanTest, Basic) {
+  AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n");
+  GetNode("in")->MarkDependentsDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in",  edge->inputs_[0]->file_->path_);
+  ASSERT_EQ("mid", edge->outputs_[0]->file_->path_);
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  GetNode("mid")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("mid", edge->inputs_[0]->file_->path_);
+  ASSERT_EQ("out", edge->outputs_[0]->file_->path_);
+
+  GetNode("out")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  ASSERT_FALSE(plan_.more_to_do());
+  edge = plan_.FindWork();
+  ASSERT_EQ(NULL, edge);
+}
+
 struct BuildTest : public StateTestWithBuiltinRules,
                    public Shell,
                    public DiskInterface {
