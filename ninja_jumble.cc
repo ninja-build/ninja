@@ -269,8 +269,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
 }
 
 void Edge::Dump() {
+  printf("[ ");
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    printf("[ %s ", (*i)->file_->path_.c_str());
+    printf("%s ", (*i)->file_->path_.c_str());
   }
   printf("--%s-> ", rule_->name_.c_str());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
@@ -352,9 +353,9 @@ bool Plan::AddTarget(Node* node, string* err) {
 
   assert(edge);
   if (!node->dirty())
-    return false;
-
-  want_.insert(node);
+    return false;  // Don't need to do anything.
+  if (want_.find(edge) != want_.end())
+    return true;  // We've already enqueued it.
 
   bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
@@ -365,8 +366,9 @@ bool Plan::AddTarget(Node* node, string* err) {
       return false;
   }
 
+  want_.insert(edge);
   if (!awaiting_inputs)
-    ready_.push(edge);
+    ready_.insert(edge);
 
   return true;
 }
@@ -374,20 +376,19 @@ bool Plan::AddTarget(Node* node, string* err) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  Edge* edge = ready_.front();
-  ready_.pop();
+  set<Edge*>::iterator i = ready_.begin();
+  Edge* edge = *i;
+  ready_.erase(i);
   return edge;
 }
 
 void Plan::EdgeFinished(Edge* edge) {
+  want_.erase(edge);
+
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
-    set<Node*>::iterator j = want_.find(*i);
-    if (j != want_.end()) {
-      NodeFinished(*j);
-      want_.erase(j);
-    }
+    NodeFinished(*i);
   }
 }
 
@@ -395,25 +396,19 @@ void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
   for (vector<Edge*>::iterator i = node->out_edges_.begin();
        i != node->out_edges_.end(); ++i) {
-    // See if we want any outputs from this edge.
-    for (vector<Node*>::iterator j = (*i)->outputs_.begin();
-         j != (*i)->outputs_.end(); ++j) {
-      if (want_.find(*j) != want_.end()) {
-        // See if the edge is ready.
-        // XXX just track dirty counts.
-        // XXX may double-enqueue edge.
-        bool ready = true;
-        for (vector<Node*>::iterator k = (*i)->inputs_.begin();
-             k != (*i)->inputs_.end(); ++k) {
-          if ((*k)->dirty()) {
-            ready = false;
-            break;
-          }
+    if (want_.find(*i) != want_.end()) {
+      // See if the edge is now ready.
+      bool ready = true;
+      for (vector<Node*>::iterator j = (*i)->inputs_.begin();
+           j != (*i)->inputs_.end(); ++j) {
+        if ((*j)->dirty()) {
+          ready = false;
+          break;
         }
-        if (ready)
-          ready_.push(*i);
-        break;
       }
+      if (ready)
+        ready_.insert(*i);
+      break;
     }
   }
 }

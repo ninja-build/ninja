@@ -132,10 +132,15 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
+  GetNode("mid1")->dirty_ = false;
+  GetNode("mid2")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid1 mid2
+  GetNode("in")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
 }
@@ -155,20 +160,25 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  edge->Dump();
+  GetNode("a1")->dirty_ = false;
+  GetNode("a2")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1
-  edge->Dump();
+  GetNode("b1")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a2
-  edge->Dump();
+  GetNode("b2")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
-  edge->Dump();
+  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
+
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
 }

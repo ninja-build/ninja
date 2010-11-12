@@ -163,8 +163,8 @@ struct Plan {
 private:
   void NodeFinished(Node* node);
 
-  set<Node*> want_;
-  queue<Edge*> ready_;
+  set<Edge*> want_;
+  set<Edge*> ready_;
 };
 
 
