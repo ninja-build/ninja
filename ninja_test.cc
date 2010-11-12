@@ -119,6 +119,60 @@ TEST_F(PlanTest, Basic) {
   ASSERT_EQ(NULL, edge);
 }
 
+TEST_F(PlanTest, DoubleOutputDirect) {
+  AssertParse(&state_,
+"build out: cat mid1 mid2\n"
+"build mid1 mid2: cat in\n");
+  GetNode("in")->MarkDependentsDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge;
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat in
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat mid1 mid2
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_FALSE(edge);  // done
+}
+
+TEST_F(PlanTest, DoubleOutputIndirect) {
+  AssertParse(&state_,
+"build out: cat b1 b2\n"
+"build b1: cat a1\n"
+"build b2: cat a2\n"
+"build a1 a2: cat in\n");
+  GetNode("in")->MarkDependentsDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge;
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat in
+  edge->Dump();
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat a1
+  edge->Dump();
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat a2
+  edge->Dump();
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat b1 b2
+  edge->Dump();
+  plan_.EdgeFinished(edge);
+  edge = plan_.FindWork();
+  ASSERT_FALSE(edge);  // done
+}
+
 struct BuildTest : public StateTestWithBuiltinRules,
                    public Shell,
                    public DiskInterface {

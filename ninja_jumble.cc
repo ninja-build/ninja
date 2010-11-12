@@ -268,6 +268,17 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
   return true;
 }
 
+void Edge::Dump() {
+  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
+    printf("[ %s ", (*i)->file_->path_.c_str());
+  }
+  printf("--%s-> ", rule_->name_.c_str());
+  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
+    printf("%s ", (*i)->file_->path_.c_str());
+  }
+  printf("]\n");
+}
+
 string State::Evaluate(const string& var) {
   map<string, string>::iterator i = env_.find(var);
   if (i == env_.end())

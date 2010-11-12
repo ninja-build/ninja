@@ -98,6 +98,8 @@ struct Edge {
   string EvaluateCommand();  // XXX move to env, take env ptr
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
+  void Dump();
+
   enum InOut { IN, OUT };
 
   Rule* rule_;
