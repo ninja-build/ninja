@@ -413,6 +413,14 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
+void Plan::Dump() {
+  printf("pending: %d\n", want_.size());
+  for (set<Edge*>::iterator i = want_.begin(); i != want_.end(); ++i) {
+    (*i)->Dump();
+  }
+  printf("ready: %d\n", ready_.size());
+}
+
 bool Shell::RunCommand(Edge* edge) {
   string err;
   string command = edge->EvaluateCommand();
@@ -485,6 +493,7 @@ bool Builder::Build(Shell* shell, string* err) {
 
   if (plan_.more_to_do()) {
     *err = "ran out of work";
+    plan_.Dump();
     return false;
   }
 

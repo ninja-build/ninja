@@ -160,6 +160,8 @@ struct Plan {
 
   bool more_to_do() const { return !want_.empty(); }
 
+  void Dump();
+
 private:
   void NodeFinished(Node* node);
 
