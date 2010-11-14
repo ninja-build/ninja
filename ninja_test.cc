@@ -119,6 +119,7 @@ TEST_F(PlanTest, Basic) {
   ASSERT_EQ(NULL, edge);
 }
 
+// Test that two outputs from one rule can be handled as inputs to the next.
 TEST_F(PlanTest, DoubleOutputDirect) {
   AssertParse(&state_,
 "build out: cat mid1 mid2\n"
@@ -145,6 +146,7 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   ASSERT_FALSE(edge);  // done
 }
 
+// Test that two outputs from one rule can eventually be routed to another.
 TEST_F(PlanTest, DoubleOutputIndirect) {
   AssertParse(&state_,
 "build out: cat b1 b2\n"
@@ -176,6 +178,44 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
+  GetNode("out")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_FALSE(edge);  // done
+}
+
+// Test that two edges from one output can both execute.
+TEST_F(PlanTest, DoubleDependent) {
+  AssertParse(&state_,
+"build out: cat a1 a2\n"
+"build a1: cat mid\n"
+"build a2: cat mid\n"
+"build mid: cat in\n");
+  GetNode("in")->MarkDependentsDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge;
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat in
+  GetNode("mid")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat mid
+  GetNode("a1")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat mid
+  GetNode("a2")->dirty_ = false;
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);  // cat a1 a2
   GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 

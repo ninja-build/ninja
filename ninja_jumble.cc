@@ -408,7 +408,6 @@ void Plan::NodeFinished(Node* node) {
       }
       if (ready)
         ready_.insert(*i);
-      break;
     }
   }
 }
