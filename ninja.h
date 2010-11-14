@@ -102,7 +102,7 @@ struct Edge {
 
   enum InOut { IN, OUT };
 
-  Rule* rule_;
+  const Rule* rule_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   EvalString::Env* env_;
@@ -143,9 +143,9 @@ struct State : public EvalString::Env {
   // EvalString::Env impl
   virtual string Evaluate(const string& var);
 
-  void AddRule(Rule* rule);
-  Rule* LookupRule(const string& rule_name);
-  Edge* AddEdge(Rule* rule);
+  void AddRule(const Rule* rule);
+  const Rule* LookupRule(const string& rule_name);
+  Edge* AddEdge(const Rule* rule);
   Node* GetNode(const string& path);
   Node* LookupNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);

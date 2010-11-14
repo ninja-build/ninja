@@ -354,7 +354,7 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!tokenizer_.ReadIdent(&rule_name))
     return tokenizer_.Error("expected build command name", err);
 
-  Rule* rule = state_->LookupRule(rule_name);
+  const Rule* rule = state_->LookupRule(rule_name);
   if (!rule)
     return tokenizer_.Error("unknown build rule '" + rule_name + "'", err);
 

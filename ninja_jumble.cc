@@ -286,20 +286,19 @@ string State::Evaluate(const string& var) {
   return i->second;
 }
 
-
-Rule* State::LookupRule(const string& rule_name) {
-  map<string, Rule*>::iterator i = rules_.find(rule_name);
+const Rule* State::LookupRule(const string& rule_name) {
+  map<string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i == rules_.end())
     return NULL;
   return i->second;
 }
 
-void State::AddRule(Rule* rule) {
+void State::AddRule(const Rule* rule) {
   assert(LookupRule(rule->name_) == NULL);
   rules_[rule->name_] = rule;
 }
 
-Edge* State::AddEdge(Rule* rule) {
+Edge* State::AddEdge(const Rule* rule) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
   edge->env_ = this;
@@ -530,9 +529,9 @@ bool EvalString::Parse(const string& input, string* err) {
   return true;
 }
 
-string EvalString::Evaluate(Env* env) {
+string EvalString::Evaluate(Env* env) const {
   string result;
-  for (TokenList::iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
+  for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
       result.append(i->first);
     else

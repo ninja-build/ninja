@@ -44,7 +44,7 @@ TEST_F(ParserTest, Rules) {
 "build result: cat in_1.cc in-2.O\n"));
 
   ASSERT_EQ(2, state.rules_.size());
-  Rule* rule = state.rules_.begin()->second;
+  const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name_);
   EXPECT_EQ("cat $in > $out", rule->command_.unparsed());
 }
@@ -73,7 +73,7 @@ TEST_F(ParserTest, Continuation) {
 " d e f\n"));
 
   ASSERT_EQ(1, state.rules_.size());
-  Rule* rule = state.rules_.begin()->second;
+  const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("link", rule->name_);
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());
 }
@@ -182,7 +182,7 @@ TEST_F(ParserTest, BuildDir) {
 "build @a.o: cat a.cc\n"));
   EXPECT_EQ("foo", state.env_["default_test"]);
   ASSERT_TRUE(state.LookupNode("out/a.o"));
-  Rule* rule = state.LookupRule("cat");
+  const Rule* rule = state.LookupRule("cat");
   ASSERT_TRUE(rule);
   EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
 }
