@@ -145,15 +145,14 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
 
   assert(!outputs_.empty());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    if (!(*i)->file_->status_known()) {
-      // XXX if we follow an input back to an edge with multiple outputs,
-      // then we won't know the status of the other outputs.
-      fprintf(stderr, "XXX output status status of %s unknown\n",
-              (*i)->file_->path_.c_str());
-      //assert(false);
-      continue;
-    }
-    if (dirty || (*i)->file_->mtime_ < most_recent_input) {
+    // We may have other outputs, that our input-recursive traversal hasn't hit
+    // yet (or never will).  Stat them if we haven't already.
+    (*i)->file_->StatIfNecessary(disk_interface);
+
+    // Output is dirty if we're missing an input, we're missing the output,
+    // or if it's older than the msot recent input mtime.
+    if (dirty || !(*i)->file_->exists() ||
+        (*i)->file_->mtime_ < most_recent_input) {
       (*i)->dirty_ = true;
     }
   }
