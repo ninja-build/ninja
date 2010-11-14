@@ -94,6 +94,20 @@ TEST_F(ParserTest, Comment) {
   EXPECT_EQ("not # a comment", state.bindings_.LookupVariable("foo"));
 }
 
+TEST_F(ParserTest, CanonicalizeFile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out: cat in/1 in//2\n"
+"build in/1: cat\n"
+"build in/2: cat\n"));
+
+  EXPECT_TRUE(state.LookupNode("in/1"));
+  EXPECT_TRUE(state.LookupNode("in/2"));
+  EXPECT_FALSE(state.LookupNode("in//1"));
+  EXPECT_FALSE(state.LookupNode("in//2"));
+}
+
 TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL, NULL);

@@ -341,6 +341,19 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
   return true;
 }
 
+static string CanonicalizePath(const string& path) {
+  string out;
+  for (size_t i = 0; i < path.size(); ++i) {
+    char in = path[i];
+    if (in == '/' &&
+        (!out.empty() && *out.rbegin() == '/')) {
+      continue;
+    }
+    out.push_back(in);
+  }
+  return out;
+}
+
 bool ManifestParser::ParseEdge(string* err) {
   vector<string> ins, outs;
 
@@ -435,8 +448,9 @@ bool ManifestParser::ParseSubNinja(string* err) {
 }
 
 string ManifestParser::ExpandFile(const string& file) {
+  string out = file;
   if (!file.empty() && file[0] == '@')
-    return builddir_ + file.substr(1);
-  return file;
+    out = builddir_ + file.substr(1);
+  return CanonicalizePath(out);
 }
 
