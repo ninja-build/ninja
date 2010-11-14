@@ -336,8 +336,8 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
   } else {
     edge->outputs_.push_back(node);
     if (node->in_edge_) {
-      fprintf(stderr, "WARNING: multiple rules generate %s\n", path.c_str());
-      fprintf(stderr, "WARNING: build will not be correct; continuing anyway\n");
+      fprintf(stderr, "WARNING: multiple rules generate %s. "
+              "build will not be correct; continuing anyway\n", path.c_str());
     }
     node->in_edge_ = edge;
   }
