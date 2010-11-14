@@ -508,6 +508,24 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
 }
 
+TEST_F(BuildTest, Phony) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat bar.cc\n"
+"build all: phony out\n"));
+  Touch("bar.cc");
+
+  EXPECT_TRUE(builder_.AddTarget("all", &err));
+
+  // Only one command to run, because phony runs no command.
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1, commands_ran_.size());
+
+  EXPECT_TRUE(builder_.Build(this, &err));
+  ASSERT_NE("", err);
+}
+
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.

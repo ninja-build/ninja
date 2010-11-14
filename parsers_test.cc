@@ -43,7 +43,7 @@ TEST_F(ParserTest, Rules) {
 "\n"
 "build result: cat in_1.cc in-2.O\n"));
 
-  ASSERT_EQ(2, state.rules_.size());
+  ASSERT_EQ(3, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name_);
   EXPECT_EQ("cat $in > $out", rule->command_.unparsed());
@@ -72,7 +72,7 @@ TEST_F(ParserTest, Continuation) {
 "build a: link c \\\n"
 " d e f\n"));
 
-  ASSERT_EQ(1, state.rules_.size());
+  ASSERT_EQ(2, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("link", rule->name_);
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());

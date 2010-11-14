@@ -133,10 +133,7 @@ struct StatCache {
   void Reload();
 };
 struct State : public EvalString::Env {
-  StatCache stat_cache_;
-  map<string, Rule*> rules_;
-  vector<Edge*> edges_;
-  map<string, string> env_;
+  State();
 
   StatCache* stat_cache() { return &stat_cache_; }
 
@@ -150,6 +147,11 @@ struct State : public EvalString::Env {
   Node* LookupNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
   void AddBinding(const string& key, const string& val);
+
+  StatCache stat_cache_;
+  map<string, const Rule*> rules_;
+  vector<Edge*> edges_;
+  map<string, string> env_;
 };
 
 struct Plan {

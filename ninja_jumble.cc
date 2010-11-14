@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+static const Rule kPhonyRule("phony");
+
 int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
@@ -160,6 +162,9 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
 }
 
 void Edge::MarkDirty(Node* node) {
+  if (rule_ == &kPhonyRule)
+    return;
+
   vector<Node*>::iterator i = find(inputs_.begin(), inputs_.end(), node);
   if (i == inputs_.end())
     return;
@@ -277,6 +282,10 @@ void Edge::Dump() {
     printf("%s ", (*i)->file_->path_.c_str());
   }
   printf("]\n");
+}
+
+State::State() {
+  AddRule(&kPhonyRule);
 }
 
 string State::Evaluate(const string& var) {
@@ -474,16 +483,18 @@ bool Builder::Build(Shell* shell, string* err) {
         return false;
     }
 
-    string command = edge->EvaluateCommand();
-    if (!shell->RunCommand(edge)) {
-      err->assign("command '" + command + "' failed.");
-      return false;
-    }
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      // XXX check that the output actually changed
-      // XXX just notify node and have it propagate?
-      (*i)->dirty_ = false;
+    if (edge->rule_ != &kPhonyRule) {
+      string command = edge->EvaluateCommand();
+      if (!shell->RunCommand(edge)) {
+        err->assign("command '" + command + "' failed.");
+        return false;
+      }
+      for (vector<Node*>::iterator i = edge->outputs_.begin();
+           i != edge->outputs_.end(); ++i) {
+        // XXX check that the output actually changed
+        // XXX just notify node and have it propagate?
+        (*i)->dirty_ = false;
+      }
     }
     plan_.EdgeFinished(edge);
   } while ((edge = plan_.FindWork()) != NULL);
