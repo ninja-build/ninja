@@ -128,6 +128,9 @@ subdirectory.
     builddir = out
     build @intermediate_file: combine @generated_file source_file
 
+XXX I hacked in a special $root only understood in builddir -- fix the
+semantics here, is this path relative or absolute?
+
 ### Evaluation and scoping
 
 XXX talk about where variables live, nested scopes etc
