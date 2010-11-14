@@ -89,7 +89,7 @@ struct Rule {
   EvalString depfile_;
 };
 
-class State;
+struct State;
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
 

@@ -446,7 +446,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
   node->file_->StatIfNecessary(disk_interface_);
   if (node->in_edge_) {
     if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
-      return false;
+      return NULL;
   }
   if (!node->dirty_)
     return NULL;  // Intentionally no error.
