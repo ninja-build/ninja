@@ -413,11 +413,11 @@ void Plan::NodeFinished(Node* node) {
 }
 
 void Plan::Dump() {
-  printf("pending: %d\n", want_.size());
+  printf("pending: %d\n", (int)want_.size());
   for (set<Edge*>::iterator i = want_.begin(); i != want_.end(); ++i) {
     (*i)->Dump();
   }
-  printf("ready: %d\n", ready_.size());
+  printf("ready: %d\n", (int)ready_.size());
 }
 
 bool Shell::RunCommand(Edge* edge) {
