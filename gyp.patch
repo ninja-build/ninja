@@ -2,7 +2,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,370 @@
+@@ -0,0 +1,367 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -177,10 +177,7 @@ Index: pylib/gyp/generator/ninja.py
 +  def WriteSources(self, config, sources, predepends):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])],
 +                           quoter=MaybeQuoteShellArgument)
-+    def FixInclude(path):
-+      path = os.path.normpath(os.path.join(self.base_dir, path))
-+      return path
-+    self.WriteVariableList('includes', ['-I' + FixInclude(i) for i in config.get('include_dirs', [])])
++    self.WriteVariableList('includes', ['-I' + self.FullPath(i) for i in config.get('include_dirs', [])])
 +    self.WriteVariableList('cflags', config.get('cflags'))
 +    self.WriteVariableList('cflags_cc', config.get('cflags_c'))
 +    self.WriteVariableList('cflags_cxx', config.get('cflags_cc'))
