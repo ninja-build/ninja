@@ -134,13 +134,18 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       }
     }
 
-    // If an input is dirty (or missing), we're dirty.
-    // Otherwise consider mtime, but only if it's not an order-only dep.
+    if (is_order_only(i - inputs_.begin())) {
+      // Order-only deps only make us dirty if they're missing.
+      if (!(*i)->file_->exists())
+        dirty = true;
+      continue;
+    }
+
+    // If a regular input is dirty (or missing), we're dirty.
+    // Otherwise consider mtime.
     if ((*i)->dirty_) {
       dirty = true;
     } else {
-      if (is_order_only(i - inputs_.begin()))
-        continue;  // Changed order-only deps don't cause us to become dirty.
       if ((*i)->file_->mtime_ > most_recent_input)
         most_recent_input = (*i)->file_->mtime_;
     }
