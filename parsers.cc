@@ -246,6 +246,9 @@ bool ManifestParser::Parse(const string& input, string* err) {
         state_->AddBinding(name, value);
         if (name == "builddir") {
           builddir_ = value;
+          if (builddir_.substr(0, 5) == "$root") {
+            builddir_ = root_ + builddir_.substr(5);
+          }
           if (!builddir_.empty() && builddir_[builddir_.size() - 1] != '/')
             builddir_.push_back('/');
         }

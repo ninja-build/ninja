@@ -187,6 +187,19 @@ TEST_F(ParserTest, BuildDir) {
   EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
 }
 
+TEST_F(ParserTest, BuildDirRoot) {
+  ManifestParser parser(&state, this);
+  parser.set_root("/root_test");
+  string err;
+  ASSERT_TRUE(parser.Parse(
+"builddir = $root/out\n"
+"rule cat\n"
+"  command = cat @otherfile $in > $out\n"
+"build @a.o: cat a.cc\n", &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(state.LookupNode("/root_test/out/a.o"));
+}
+
 TEST_F(ParserTest, SubNinja) {
   files_["test.ninja"] = "inner = @inner\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(

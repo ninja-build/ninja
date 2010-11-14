@@ -77,6 +77,8 @@ struct ManifestParser {
 
   ManifestParser(State* state, FileReader* file_reader)
       : state_(state), file_reader_(file_reader) {}
+  void set_root(const string& root) { root_ = root; }
+
   bool Load(const string& filename, string* err);
   bool Parse(const string& input, string* err);
 
@@ -91,6 +93,7 @@ struct ManifestParser {
   FileReader* file_reader_;
   Tokenizer tokenizer_;
   string builddir_;
+  string root_;  // Absolute path to root ninja file.
 };
 
 #endif  // NINJA_PARSERS_H_
