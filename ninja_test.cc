@@ -35,8 +35,8 @@ TEST(State, Basic) {
   EXPECT_TRUE(state.GetNode("out")->dirty());
 }
 
-struct TestEnv : public EvalString::Env {
-  virtual string Evaluate(const string& var) {
+struct TestEnv : public Env {
+  virtual string LookupVariable(const string& var) {
     return vars[var];
   }
   map<string, string> vars;

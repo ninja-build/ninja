@@ -174,9 +174,9 @@ void Edge::MarkDirty(Node* node) {
     (*i)->MarkDirty();
 }
 
-struct EdgeEnv : public EvalString::Env {
+struct EdgeEnv : public Env {
   EdgeEnv(Edge* edge) : edge_(edge) {}
-  virtual string Evaluate(const string& var) {
+  virtual string LookupVariable(const string& var) {
     string result;
     if (var == "in") {
       int explicit_deps = edge_->inputs_.size() - edge_->implicit_deps_ -
@@ -190,7 +190,7 @@ struct EdgeEnv : public EvalString::Env {
     } else if (var == "out") {
       result = edge_->outputs_[0]->file_->path_;
     } else if (edge_->env_) {
-      return edge_->env_->Evaluate(var);
+      return edge_->env_->LookupVariable(var);
     }
     return result;
   }
@@ -288,13 +288,6 @@ State::State() {
   AddRule(&kPhonyRule);
 }
 
-string State::Evaluate(const string& var) {
-  map<string, string>::iterator i = env_.find(var);
-  if (i == env_.end())
-    return "";
-  return i->second;
-}
-
 const Rule* State::LookupRule(const string& rule_name) {
   map<string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i == rules_.end())
@@ -310,7 +303,7 @@ void State::AddRule(const Rule* rule) {
 Edge* State::AddEdge(const Rule* rule) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
-  edge->env_ = this;
+  edge->env_ = &bindings_;
   edges_.push_back(edge);
   return edge;
 }
@@ -342,10 +335,6 @@ void State::AddInOut(Edge* edge, Edge::InOut inout, const string& path) {
     }
     node->in_edge_ = edge;
   }
-}
-
-void State::AddBinding(const string& key, const string& val) {
-  env_[key] = val;
 }
 
 bool Plan::AddTarget(Node* node, string* err) {
@@ -546,7 +535,7 @@ string EvalString::Evaluate(Env* env) const {
     if (i->second == RAW)
       result.append(i->first);
     else
-      result.append(env->Evaluate(i->first));
+      result.append(env->LookupVariable(i->first));
   }
   return result;
 }

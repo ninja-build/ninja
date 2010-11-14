@@ -105,7 +105,7 @@ struct Edge {
   const Rule* rule_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
-  EvalString::Env* env_;
+  Env* env_;
 
   // XXX There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;
@@ -132,13 +132,10 @@ struct StatCache {
   void Dump();
   void Reload();
 };
-struct State : public EvalString::Env {
+struct State {
   State();
 
   StatCache* stat_cache() { return &stat_cache_; }
-
-  // EvalString::Env impl
-  virtual string Evaluate(const string& var);
 
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const string& rule_name);
@@ -146,12 +143,11 @@ struct State : public EvalString::Env {
   Node* GetNode(const string& path);
   Node* LookupNode(const string& path);
   void AddInOut(Edge* edge, Edge::InOut inout, const string& path);
-  void AddBinding(const string& key, const string& val);
 
   StatCache stat_cache_;
   map<string, const Rule*> rules_;
   vector<Edge*> edges_;
-  map<string, string> env_;
+  BindingEnv bindings_;
 };
 
 struct Plan {

@@ -212,6 +212,10 @@ bool MakefileParser::Parse(const string& input, string* err) {
   return true;
 }
 
+ManifestParser::ManifestParser(State* state, FileReader* file_reader)
+  : state_(state), file_reader_(file_reader) {
+  env_ = &state->bindings_;
+}
 bool ManifestParser::Load(const string& filename, string* err) {
   string contents;
   if (!file_reader_->ReadFile(filename, &contents, err))
@@ -243,7 +247,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
         if (!ParseLet(&name, &value, err))
           return false;
 
-        state_->AddBinding(name, value);
+        env_->AddBinding(name, value);
         if (name == "builddir") {
           builddir_ = value;
           if (builddir_.substr(0, 5) == "$root") {
@@ -389,6 +393,7 @@ bool ManifestParser::ParseEdge(string* err) {
     return false;
 
   Edge* edge = state_->AddEdge(rule);
+  edge->env_ = env_;
   for (vector<string>::iterator i = ins.begin(); i != ins.end(); ++i)
     state_->AddInOut(edge, Edge::IN, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)
@@ -414,6 +419,8 @@ bool ManifestParser::ParseSubNinja(string* err) {
   ManifestParser subparser(state_, file_reader_);
   // Simulate variable inheritance of builddir.
   subparser.builddir_ = builddir_;
+  subparser.env_ = new BindingEnv;
+  subparser.env_->parent_ = env_;
   string sub_err;
   if (!subparser.Parse(contents, &sub_err))
     return tokenizer_.Error("in '" + path + "': " + sub_err, err);

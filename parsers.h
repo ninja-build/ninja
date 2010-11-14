@@ -6,6 +6,8 @@
 
 using namespace std;
 
+struct BindingEnv;
+
 struct Token {
   enum Type {
     NONE,
@@ -75,8 +77,7 @@ struct ManifestParser {
     virtual bool ReadFile(const string& path, string* content, string* err) = 0;
   };
 
-  ManifestParser(State* state, FileReader* file_reader)
-      : state_(state), file_reader_(file_reader) {}
+  ManifestParser(State* state, FileReader* file_reader);
   void set_root(const string& root) { root_ = root; }
 
   bool Load(const string& filename, string* err);
@@ -90,6 +91,7 @@ struct ManifestParser {
   string ExpandFile(const string& file);
 
   State* state_;
+  BindingEnv* env_;
   FileReader* file_reader_;
   Tokenizer tokenizer_;
   string builddir_;

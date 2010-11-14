@@ -82,7 +82,7 @@ TEST_F(ParserTest, Comment) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "# this is a comment\n"
 "foo = not # a comment\n"));
-  EXPECT_EQ("not # a comment", state.env_["foo"]);
+  EXPECT_EQ("not # a comment", state.bindings_.LookupVariable("foo"));
 }
 
 TEST_F(ParserTest, Errors) {
@@ -180,7 +180,7 @@ TEST_F(ParserTest, BuildDir) {
 "  command = cat @otherfile $in > $out\n"
 "build @bin: cat @a.o\n"
 "build @a.o: cat a.cc\n"));
-  EXPECT_EQ("foo", state.env_["default_test"]);
+  EXPECT_EQ("foo", state.bindings_.LookupVariable("default_test"));
   ASSERT_TRUE(state.LookupNode("out/a.o"));
   const Rule* rule = state.LookupRule("cat");
   ASSERT_TRUE(rule);
@@ -201,15 +201,28 @@ TEST_F(ParserTest, BuildDirRoot) {
 }
 
 TEST_F(ParserTest, SubNinja) {
-  files_["test.ninja"] = "inner = @inner\n";
+  files_["test.ninja"] =
+    "var = inner\n"
+    "build @inner: varref\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = some_dir/\n"
-"outer = @outer\n"
-"subninja test.ninja\n"));
+"rule varref\n"
+"  command = varref $var\n"
+"var = outer\n"
+"build @outer: varref\n"
+"subninja test.ninja\n"
+"build @outer2: varref\n"));
   ASSERT_EQ(1, files_read_.size());
+
   EXPECT_EQ("test.ninja", files_read_[0]);
-  EXPECT_EQ("some_dir/outer", state.env_["outer"]);
-  EXPECT_EQ("some_dir/inner", state.env_["inner"]);
+  EXPECT_TRUE(state.LookupNode("some_dir/outer"));
+  // Verify our builddir setting is inherited.
+  EXPECT_TRUE(state.LookupNode("some_dir/inner"));
+
+  ASSERT_EQ(3, state.edges_.size());
+  EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
+  EXPECT_EQ("varref outer", state.edges_[2]->EvaluateCommand());
 }
 
 TEST_F(ParserTest, OrderOnly) {
