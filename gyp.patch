@@ -59,7 +59,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,358 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -104,15 +104,15 @@ Index: pylib/gyp/generator/ninja.py
 +
 +rule cc
 +  description = CC $out
-+  command = $cc $cflags $cflags_cc $defines $includes -c @in -o $out
++  command = $cc $cflags $cflags_cc $defines $includes -c $in -o $out
 +
 +rule cxx
 +  description = CXX $out
-+  command = $cxx $cflags $cflags_cxx $defines $includes -c @in -o $out
++  command = $cxx $cflags $cflags_cxx $defines $includes -c $in -o $out
 +
 +rule alink
 +  description = AR $out
-+  command = rm -f $out && ar rcs $out @in
++  command = rm -f $out && ar rcs $out $in
 +
 +rule solink
 +  description = LINK $out
@@ -121,7 +121,7 @@ Index: pylib/gyp/generator/ninja.py
 +rule link
 +  description = LINK $out
 +  command = g++ $ldflags -o $out \\
-+            -Wl,--start-group @in -Wl,--end-group $libs
++            -Wl,--start-group $in -Wl,--end-group $libs
 +
 +rule stamp
 +  description = STAMP $out
@@ -151,9 +151,18 @@ Index: pylib/gyp/generator/ninja.py
 +      return path
 +    return os.path.normpath(os.path.join(self.base_dir, path))
 +
++  def OutputPath(self, path):
++    """Convert a root-relative path into the same path in the build output dir."""
++    if path.startswith('@'):
++      return path
++    return '@' + path
++
 +  def WriteSpec(self, spec, config):
 +    if spec['type'] == 'settings':
 +      return
++
++    # local_name is name to qualify xxx
++    local_name = spec['target_name']  # XXX remove bad chars
 +
 +    # Compute predepends for all rules.
 +    prebuild_deps = []
@@ -174,37 +183,46 @@ Index: pylib/gyp/generator/ninja.py
 +                     use_prebuild_stamp=False)
 +      self.WriteLn()
 +
-+    target_deps = []
++    sources_predepends = []
++    extra_sources = []
 +    if 'actions' in spec:
-+      target_deps.extend(self.WriteActions(spec['actions']))
++      sources_predepends.append(
++        self.WriteActions(local_name, spec['actions'], extra_sources))
 +
 +    link_deps = []
-+    sources = spec.get('sources', [])
++    sources = spec.get('sources', []) + extra_sources
 +    if sources:
-+      target_deps += self.WriteSources(config, sources, link_deps)
++      link_deps = self.WriteSources(config, sources, sources_predepends)
 +
-+    return self.WriteTarget(spec, config, target_deps)
++    return self.WriteTarget(spec, config, link_deps or sources_predepends)
 +
-+  def WriteActions(self, actions):
++  def WriteActions(self, local_name, actions, extra_sources):
 +    all_outputs = []
 +    for action in actions:
 +      # First write out a rule for the action.
 +      name = action['action_name']
 +      command = gyp.common.EncodePOSIXShellList(action['action'])
-+      print self.path, "::", self.base_dir
 +      if self.base_dir:
 +        command = 'cd %s; %s' % (self.base_dir, command)
 +      self.WriteRule(name=name, command=command)
 +
-+      inputs = map(self.FullPath, action['inputs'])
-+      outputs = map(self.FullPath, action['outputs'])
++      inputs = [self.FullPath(i) for i in action['inputs']]
++      if int(action.get('process_outputs_as_sources', False)):
++        extra_sources += action['outputs']
++      outputs = [self.FullPath(o) for o in action['outputs']]
 +
 +      # Then write out an edge using the rule.
 +      self.WriteEdge(outputs, name, inputs)
-+      all_outputs.extend(outputs)
-+    return all_outputs
++      all_outputs += outputs
 +
-+  def WriteSources(self, config, sources, extra_link_deps):
++      self.WriteLn()
++
++    # Write out a stamp file for all the actions.
++    stamp = self.OutputPath(self.FullPath(local_name + '.actions.stamp'))
++    self.WriteEdge([stamp], 'stamp', all_outputs)
++    return stamp
++
++  def WriteSources(self, config, sources, predepends):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])])
 +    def FixInclude(path):
 +      path = os.path.normpath(os.path.join(self.base_dir, path))
@@ -214,8 +232,9 @@ Index: pylib/gyp/generator/ninja.py
 +    self.WriteVariableList('cflags_cc', config.get('cflags_c'))
 +    self.WriteVariableList('cflags_cxx', config.get('cflags_cc'))
 +    self.WriteLn()
++    outputs = []
 +    for source in sources:
-+      filename, ext = os.path.splitext(source)
++      filename, ext = os.path.splitext(os.path.basename(source))
 +      ext = ext[1:]
 +      if ext in ('cc', 'cpp', 'cxx'):
 +        command = 'cxx'
@@ -225,12 +244,15 @@ Index: pylib/gyp/generator/ninja.py
 +        # if ext in ('h', 'hxx'):
 +        # elif ext in ('re', 'gperf', 'grd', ):
 +        continue
-+      output = filename + '.o'
-+      self.WriteEdge([output], command, [source])
-+      extra_link_deps.append(output)
++      input = self.FullPath(source)
++      output = self.OutputPath(self.FullPath(filename + '.o'))
++      self.WriteEdge([output], command, [input], predepends)
++      outputs.append(output)
 +    self.WriteLn()
++    return outputs
 +
 +  def WriteTarget(self, spec, config, link_deps):
++    # XXX only write these for rules that will use them
 +    self.WriteVariableList('ldflags', config.get('ldflags'))
 +    self.WriteVariableList('libs', spec.get('libraries'))
 +
@@ -288,7 +310,6 @@ Index: pylib/gyp/generator/ninja.py
 +  def WriteRule(self, name, command):
 +    self.WriteLn('rule %s' % name)
 +    self.WriteLn('  command = %s' % command)
-+    self.WriteLn()
 +
 +  def WriteEdge(self, outputs, command, inputs,
 +                order_only_inputs=[],
@@ -338,8 +359,8 @@ Index: pylib/gyp/generator/ninja.py
 +tput_clear = tput('el1')
 +import time
 +def OverPrint(*args):
-+  sys.stdout.write(tput_clear + '\r' + ' '.join(args))
-+  #sys.stdout.write(' '.join(args) + '\n')
++  #sys.stdout.write(tput_clear + '\r' + ' '.join(args))
++  sys.stdout.write(' '.join(args) + '\n')
 +  sys.stdout.flush()
 +  #time.sleep(0.01)  # XXX
 +
@@ -364,7 +385,7 @@ Index: pylib/gyp/generator/ninja.py
 +  order_only_outputs = {}
 +  for qualified_target in target_list:
 +    # qualified_target is like: third_party/icu/icu.gyp:icui18n#target
-+    OverPrint(qualified_target)
++    #OverPrint(qualified_target)
 +    build_file, target, _ = gyp.common.ParseQualifiedTarget(qualified_target)
 +
 +    build_file = gyp.common.RelativePath(build_file, src_root)
