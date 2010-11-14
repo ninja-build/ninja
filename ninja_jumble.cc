@@ -114,7 +114,8 @@ void Node::MarkDependentsDirty() {
     (*i)->MarkDirty(this);
 }
 
-bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* err) {
+bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
+                          string* err) {
   bool dirty = false;
 
   if (!rule_->depfile_.empty()) {
@@ -138,7 +139,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
     if ((*i)->dirty_) {
       dirty = true;
     } else {
-      if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_)
+      if (is_order_only(i - inputs_.begin()))
         continue;  // Changed order-only deps don't cause us to become dirty.
       if ((*i)->file_->mtime_ > most_recent_input)
         most_recent_input = (*i)->file_->mtime_;
@@ -151,8 +152,8 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface, string* e
     // yet (or never will).  Stat them if we haven't already.
     (*i)->file_->StatIfNecessary(disk_interface);
 
-    // Output is dirty if we're missing an input, we're missing the output,
-    // or if it's older than the msot recent input mtime.
+    // Output is dirty if we're dirty, we're missing the output,
+    // or if it's older than the mostt recent input mtime.
     if (dirty || !(*i)->file_->exists() ||
         (*i)->file_->mtime_ < most_recent_input) {
       (*i)->dirty_ = true;
@@ -341,8 +342,8 @@ bool Plan::AddTarget(Node* node, string* err) {
   Edge* edge = node->in_edge_;
   if (!edge) {  // Leaf node.
     if (node->dirty_) {
-      *err = "'" + node->file_->path_ + "' missing and no known rule to make it";
-      return false;
+      *err = "'" + node->file_->path_ + "' missing "
+             "and no known rule to make it";
     }
     return false;
   }
