@@ -1,6 +1,7 @@
 #include "ninja.h"
 
 #include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
 
 #include "graphviz.h"
@@ -54,9 +55,16 @@ int main(int argc, char** argv) {
   argv += optind;
   argc -= optind;
 
+  char cwd[PATH_MAX];
+  if (!getcwd(cwd, sizeof(cwd))) {
+    perror("getcwd");
+    return 1;
+  }
+
   State state;
   RealFileReader file_reader;
   ManifestParser parser(&state, &file_reader);
+  parser.set_root(cwd);
   string err;
   if (!parser.Load(input_file, &err)) {
     fprintf(stderr, "error loading '%s': %s\n", input_file, err.c_str());
