@@ -108,8 +108,14 @@ bool Tokenizer::ReadToNewline(string* text, string* err) {
       ++cur_;
       if (cur_ >= end_)
         return Error("unexpected eof", err);
-      if (*cur_ != '\n')
-        return Error("expected newline after backslash", err);
+      if (*cur_ != '\n') {
+        // XXX we just let other backslashes through verbatim now.
+        // This may not be wise.
+        text->push_back('\\');
+        text->push_back(*cur_);
+        ++cur_;
+        continue;
+      }
       ++cur_;
       cur_line_ = cur_;
       ++line_number_;

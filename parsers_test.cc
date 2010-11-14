@@ -78,6 +78,15 @@ TEST_F(ParserTest, Continuation) {
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());
 }
 
+TEST_F(ParserTest, Backslash) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"foo = bar\\baz\n"
+"foo2 = bar\\ baz\n"
+));
+  EXPECT_EQ("bar\\baz", state.bindings_.LookupVariable("foo"));
+  EXPECT_EQ("bar\\ baz", state.bindings_.LookupVariable("foo2"));
+}
+
 TEST_F(ParserTest, Comment) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "# this is a comment\n"
