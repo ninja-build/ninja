@@ -65,6 +65,16 @@ TEST(EvalString, Error) {
   EXPECT_FALSE(str.Parse("bad $", &err));
   EXPECT_EQ("expected variable after $", err);
 }
+TEST(EvalString, Curlies) {
+  EvalString str;
+  string err;
+  EXPECT_TRUE(str.Parse("foo ${var}baz", &err));
+  EXPECT_EQ("", err);
+  TestEnv env;
+  EXPECT_EQ("foo baz", str.Evaluate(&env));
+  env.vars["var"] = "barbar";
+  EXPECT_EQ("foo barbarbaz", str.Evaluate(&env));
+}
 
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules() {

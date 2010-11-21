@@ -517,16 +517,30 @@ bool EvalString::Parse(const string& input, string* err) {
     if (end > start)
       parsed_.push_back(make_pair(input.substr(start, end - start), RAW));
     start = end + 1;
-    for (end = start + 1; end < input.size(); ++end) {
-      char c = input[end];
-      if (!(('a' <= c && c <= 'z') || c == '_'))
-        break;
+    if (start < input.size() && input[start] == '{') {
+      ++start;
+      for (end = start + 1; end < input.size(); ++end) {
+        if (input[end] == '}')
+          break;
+      }
+      if (end >= input.size()) {
+        *err = "expected closing curly after ${";
+        return false;
+      }
+      parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
+      ++end;
+    } else {
+      for (end = start + 1; end < input.size(); ++end) {
+        char c = input[end];
+        if (!(('a' <= c && c <= 'z') || c == '_'))
+          break;
+      }
+      if (end == start + 1) {
+        *err = "expected variable after $";
+        return false;
+      }
+      parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
     }
-    if (end == start + 1) {
-      *err = "expected variable after $";
-      return false;
-    }
-    parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
     start = end;
   } while (end < input.size());
   if (end > start)
