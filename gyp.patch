@@ -2,7 +2,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,394 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -28,10 +28,10 @@ Index: pylib/gyp/generator/ninja.py
 +  'PRODUCT_DIR': '@',
 +  'SHARED_LIB_DIR': '$(builddir)/lib.$(TOOLSET)',
 +  'LIB_DIR': '$(obj).$(TOOLSET)',
-+  'RULE_INPUT_ROOT': '%(INPUT_ROOT)s',  # This gets expanded by Python.
-+  'RULE_INPUT_PATH': '$(abspath $<)',
-+  'RULE_INPUT_EXT': '$(suffix $<)',
-+  'RULE_INPUT_NAME': '$(notdir $<)',
++  'RULE_INPUT_ROOT': '%(basename)s',
++  'RULE_INPUT_PATH': '$in',
++  'RULE_INPUT_EXT': 'XXXNINJAXXX',
++  'RULE_INPUT_NAME': 'XXXNINJAXXX',
 +
 +  # This appears unused --- ?
 +  'CONFIGURATION_NAME': '$(BUILDTYPE)',
@@ -135,6 +135,9 @@ Index: pylib/gyp/generator/ninja.py
 +      sources_predepends.append(
 +        self.WriteActions(local_name, spec['actions'], extra_sources))
 +
++    if 'rules' in spec:
++      self.WriteRules(local_name, spec['rules'], extra_sources)
++
 +    link_deps = []
 +    sources = spec.get('sources', []) + extra_sources
 +    if sources:
@@ -173,6 +176,30 @@ Index: pylib/gyp/generator/ninja.py
 +    stamp = self.OutputPath(self.FullPath(local_name + '.actions.stamp'))
 +    self.WriteEdge([stamp], 'stamp', all_outputs)
 +    return stamp
++
++  def WriteRules(self, local_name, rules, extra_sources):
++    all_outputs = []
++    for rule in rules:
++      # First write out a rule for the action.
++      # XXX we shouldn't need to qualify names; we do it because currently
++      # the rule namespace is global, but it really should be scoped to the
++      # subninja.
++      name = local_name + '.' + rule['rule_name'].replace(' ', '_')
++      action = rule['action']
++      command = gyp.common.EncodePOSIXShellList(rule['action'])
++      if self.base_dir:
++        command = 'cd %s; %s' % (self.base_dir, command)
++      self.WriteRule(name=name, command=command)
++      self.WriteLn('# %s' % repr(rule))
++      print repr(rule)
++
++      # For each source file, write an edge that generates all the outputs.
++      outputs = rule['outputs']
++      for source in rule.get('rule_sources', []):
++        self.WriteEdge(outputs, name, [source])
++      self.WriteLn()
++
++    return None
 +
 +  def WriteSources(self, config, sources, predepends):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])],
