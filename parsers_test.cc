@@ -168,10 +168,9 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n"
-                              "  foo = bar\n",
+    EXPECT_FALSE(parser.Parse("rule cat\n",
                               &err));
-    EXPECT_EQ("line 3, col 1: expected 'command =' line", err);
+    EXPECT_EQ("line 2, col 1: expected 'command =' line", err);
   }
 
   {
@@ -192,6 +191,15 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 16: dependency files only work with "
               "single-output rules", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
+                              &err));
+    EXPECT_EQ("line 4, col 0: unexpected variable 'othervar'", err);
   }
 }
 

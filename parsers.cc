@@ -308,6 +308,10 @@ bool ManifestParser::ParseRule(string* err) {
       } else if (key == "depfile") {
         if (!rule->depfile_.Parse(val, &parse_err))
           return tokenizer_.Error(parse_err, err);
+      } else {
+        // Die on other keyvals for now; revisit if we want to add a
+        // scope here.
+        return tokenizer_.Error("unexpected variable '" + key + "'", err);
       }
     }
     tokenizer_.ConsumeToken();
