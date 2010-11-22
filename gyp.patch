@@ -2,7 +2,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,394 @@
+@@ -0,0 +1,434 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -28,9 +28,9 @@ Index: pylib/gyp/generator/ninja.py
 +  'PRODUCT_DIR': '@',
 +  'SHARED_LIB_DIR': '$(builddir)/lib.$(TOOLSET)',
 +  'LIB_DIR': '$(obj).$(TOOLSET)',
-+  'RULE_INPUT_ROOT': '%(basename)s',
-+  'RULE_INPUT_PATH': '$in',
-+  'RULE_INPUT_EXT': 'XXXNINJAXXX',
++  'RULE_INPUT_ROOT': '$root',
++  'RULE_INPUT_PATH': '$source',
++  'RULE_INPUT_EXT': '$ext',
 +  'RULE_INPUT_NAME': 'XXXNINJAXXX',
 +
 +  # This appears unused --- ?
@@ -136,7 +136,8 @@ Index: pylib/gyp/generator/ninja.py
 +        self.WriteActions(local_name, spec['actions'], extra_sources))
 +
 +    if 'rules' in spec:
-+      self.WriteRules(local_name, spec['rules'], extra_sources)
++      sources_predepends.append(
++        self.WriteRules(local_name, spec['rules'], extra_sources))
 +
 +    link_deps = []
 +    sources = spec.get('sources', []) + extra_sources
@@ -184,22 +185,57 @@ Index: pylib/gyp/generator/ninja.py
 +      # XXX we shouldn't need to qualify names; we do it because currently
 +      # the rule namespace is global, but it really should be scoped to the
 +      # subninja.
++      self.WriteLn('# rule: ' + repr(rule))
 +      name = local_name + '.' + rule['rule_name'].replace(' ', '_')
 +      action = rule['action']
-+      command = gyp.common.EncodePOSIXShellList(rule['action'])
++      command = gyp.common.EncodePOSIXShellList(action)
 +      if self.base_dir:
 +        command = 'cd %s; %s' % (self.base_dir, command)
 +      self.WriteRule(name=name, command=command)
-+      self.WriteLn('# %s' % repr(rule))
-+      print repr(rule)
-+
-+      # For each source file, write an edge that generates all the outputs.
-+      outputs = rule['outputs']
-+      for source in rule.get('rule_sources', []):
-+        self.WriteEdge(outputs, name, [source])
 +      self.WriteLn()
 +
-+    return None
++      # TODO: if the command references the outputs directly, we should
++      # simplify it to just use $out.
++
++      # Compute which edge-scoped variables all build rules will need
++      # to provide.
++      special_locals = ('source', 'root', 'ext')
++      needed_variables = set()
++      for argument in action:
++        for var in special_locals:
++          if '$' + var in argument:
++            needed_variables.add(var)
++
++      # For each source file, write an edge that generates all the outputs.
++      for source in rule.get('rule_sources', []):
++        outputs = []
++        for output in rule['outputs']:
++          basename = os.path.basename(source)
++          root = os.path.splitext(basename)[0]
++          outputs.append(output.replace('$root', root))
++        extra_bindings = []
++        for var in needed_variables:
++          if var == 'root':
++            extra_bindings.append(('root', root))
++          elif var == 'source':
++            extra_bindings.append(('source', source))
++          else:
++            assert var == None  # XXX Not yet implemented.
++        # XXX need to add extra dependencies on rule inputs
++        # (e.g. if generator program changes, we need to rerun)
++        self.WriteEdge(outputs, name, [self.FullPath(source)],
++                       extra_bindings=extra_bindings)
++
++        if int(rule.get('process_outputs_as_sources', False)):
++          extra_sources += outputs
++
++        all_outputs.extend(outputs)
++
++    # Write out a stamp file for all the actions.
++    stamp = self.OutputPath(self.FullPath(local_name + '.rules.stamp'))
++    self.WriteEdge([stamp], 'stamp', all_outputs)
++    self.WriteLn()
++    return stamp
 +
 +  def WriteSources(self, config, sources, predepends):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])],
@@ -291,7 +327,8 @@ Index: pylib/gyp/generator/ninja.py
 +
 +  def WriteEdge(self, outputs, command, inputs,
 +                order_only_inputs=[],
-+                use_prebuild_stamp=True):
++                use_prebuild_stamp=True,
++                extra_bindings=[]):
 +    extra_inputs = order_only_inputs[:]
 +    if use_prebuild_stamp and self.prebuild_stamp:
 +      extra_inputs.append(self.prebuild_stamp)
@@ -299,6 +336,9 @@ Index: pylib/gyp/generator/ninja.py
 +      extra_inputs = ['|'] + extra_inputs
 +    self.WriteList('build ' + ' '.join(outputs) + ': ' + command,
 +                   inputs + extra_inputs)
++    if extra_bindings:
++      for key, val in extra_bindings:
++        self.WriteLn('  %s = %s' % (key, val))
 +
 +  def WriteVariableList(self, var, values, quoter=lambda x: x):
 +    if self.variables.get(var, []) == values:
