@@ -83,6 +83,19 @@ by a list of input files.  Such a declaration says that all of the
 output files should be generated from the input files when the inputs
 change.
 
+A build statement may be followed by an indented set of key = value
+pairs, much like a rule.  These bindings will shadow any outer
+bindings when evaluating the variables in the command.  For example:
+
+    cflags = -Wall -Werror
+    rule cc
+      command = gcc $cflags -c $in -o $out
+    # Normal build lines get the outer $cflags.
+    build foo.o: cc foo.c
+    # But if needed you can shadow them.
+    build special.o: cc.special.c
+      cflags = -Wall
+
 ### Variables
 Despite the non-goal of being convenient to write by hand, to keep
 build files readable (debuggable), Ninja supports declaring bindings

@@ -415,8 +415,27 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!tokenizer_.Newline(err))
     return false;
 
+  // Default to using outer env.
+  BindingEnv* env = env_;
+
+  // But use a nested env if there are variables in scope.
+  if (tokenizer_.PeekToken() == Token::INDENT) {
+    tokenizer_.ConsumeToken();
+
+    // XXX scoped_ptr to handle error case.
+    env = new BindingEnv;
+    env->parent_ = env_;
+    while (tokenizer_.PeekToken() != Token::OUTDENT) {
+      string key, val;
+      if (!ParseLet(&key, &val, err))
+        return false;
+      env->AddBinding(key, val);
+    }
+    tokenizer_.ConsumeToken();
+  }
+
   Edge* edge = state_->AddEdge(rule);
-  edge->env_ = env_;
+  edge->env_ = env;
   for (vector<string>::iterator i = ins.begin(); i != ins.end(); ++i)
     state_->AddInOut(edge, Edge::IN, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)

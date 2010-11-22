@@ -63,6 +63,21 @@ TEST_F(ParserTest, Variables) {
   EXPECT_EQ("ld -pthread -under -o a b c", edge->EvaluateCommand());
 }
 
+TEST_F(ParserTest, VariableScope) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"foo = bar\n"
+"rule cmd\n"
+"  command = cmd $foo $in $out\n"
+"\n"
+"build inner: cmd a\n"
+"  foo = baz\n"
+"build outer: cmd b\n"));
+
+  ASSERT_EQ(2, state.edges_.size());
+  EXPECT_EQ("cmd baz a inner", state.edges_[0]->EvaluateCommand());
+  EXPECT_EQ("cmd bar b outer", state.edges_[1]->EvaluateCommand());
+}
+
 TEST_F(ParserTest, Continuation) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
