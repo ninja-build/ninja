@@ -90,10 +90,12 @@ build files readable (debuggable), Ninja supports declaring bindings
 
     cflags = -g
 
-Can be used in a rule like this:
+Can be used on the right side of an equals sign like this:
 
     rule cc
       command = gcc $cflags -c $in -o $out
+
+Variables can also be referenced using curly braces like `${in}`.
 
 Variables might better be called "bindings", in that a given variable
 cannot be changed, only shadowed.  Within a larger Ninja project,
