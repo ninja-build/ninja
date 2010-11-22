@@ -86,6 +86,7 @@ struct Rule {
   }
   string name_;
   EvalString command_;
+  EvalString description_;
   EvalString depfile_;
 };
 
