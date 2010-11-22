@@ -71,7 +71,9 @@ TEST_F(ParserTest, VariableScope) {
 "\n"
 "build inner: cmd a\n"
 "  foo = baz\n"
-"build outer: cmd b\n"));
+"build outer: cmd b\n"
+"\n"  // Extra newline after build line tickles a regression.
+));
 
   ASSERT_EQ(2, state.edges_.size());
   EXPECT_EQ("cmd baz a inner", state.edges_[0]->EvaluateCommand());

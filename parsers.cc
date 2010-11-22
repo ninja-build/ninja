@@ -44,6 +44,9 @@ bool Tokenizer::Error(const string& message, string* err) {
 }
 
 void Tokenizer::SkipWhitespace(bool newline) {
+  if (token_.type_ == Token::NEWLINE && newline)
+    Newline(NULL);
+
   while (cur_ < end_) {
     if (*cur_ == ' ') {
       ++cur_;
