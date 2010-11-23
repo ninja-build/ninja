@@ -29,9 +29,10 @@ rule link
 # These build rules build the ".o" files from the ".cc" files,
 # build "ninja.a" by linking the builddir's "ninja.o",
 # and build that "ninja.o" by compiling "ninja.cc".
+build @build.o: cxx build.cc
 build @parsers.o: cxx parsers.cc
 build @ninja_jumble.o: cxx ninja_jumble.cc
-build @ninja.a: ar @parsers.o @ninja_jumble.o
+build @ninja.a: ar @build.o @parsers.o @ninja_jumble.o
 
 build @ninja.o: cxx ninja.cc
 build ninja: link @ninja.o @ninja.a

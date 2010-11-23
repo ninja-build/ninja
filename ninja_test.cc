@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "build.h"
 #include "parsers.h"
 
 static void AssertParse(State* state, const char* input) {

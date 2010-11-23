@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <stdio.h>
 
+#include "build.h"
 #include "graphviz.h"
 #include "parsers.h"
 

@@ -149,41 +149,6 @@ struct State {
   map<string, const Rule*> rules_;
   vector<Edge*> edges_;
   BindingEnv bindings_;
-};
 
-struct Plan {
-  bool AddTarget(Node* node, string* err);
-
-  Edge* FindWork();
-  void EdgeFinished(Edge* edge);
-
-  bool more_to_do() const { return !want_.empty(); }
-
-  void Dump();
-
-private:
-  void NodeFinished(Node* node);
-
-  set<Edge*> want_;
-  set<Edge*> ready_;
-};
-
-
-struct Shell {
-  virtual ~Shell() {}
-  virtual bool RunCommand(Edge* edge);
-};
-
-struct Builder {
-  Builder(State* state)
-      : state_(state), disk_interface_(&default_disk_interface_) {}
-  virtual ~Builder() {}
-
-  Node* AddTarget(const string& name, string* err);
-  bool Build(Shell* shell, string* err);
-
-  State* state_;
-  Plan plan_;
-  RealDiskInterface default_disk_interface_;
-  DiskInterface* disk_interface_;
+  static const Rule kPhonyRule;
 };
