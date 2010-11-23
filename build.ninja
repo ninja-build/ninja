@@ -40,7 +40,7 @@ build ninja: link @ninja.o @ninja.a
 build @ninja_test.o: cxx ninja_test.cc
 build @parsers_test.o: cxx parsers_test.cc
 build ninja_test: link @ninja_test.o @parsers_test.o @ninja.a
-ldflags = -lgtest -lgtest_main -lpthread
+  ldflags = -lgtest -lgtest_main -lpthread
 
 
 # Generate a graph of the dependency tree (including the
