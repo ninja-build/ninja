@@ -14,4 +14,20 @@ TEST(Subprocess, Ls) {
   EXPECT_TRUE(ls.Finish(&err));
   ASSERT_EQ("", err);
   EXPECT_NE("", ls.stdout_.buf_);
+  EXPECT_EQ("", ls.stderr_.buf_);
+}
+
+TEST(Subprocess, BadCommand) {
+  Subprocess subproc;
+  string err;
+  EXPECT_TRUE(subproc.Start("ninja_no_such_command", &err));
+  ASSERT_EQ("", err);
+
+  // Pretend we discovered that stderr was ready for writing.
+  subproc.OnFDReady(subproc.stderr_.fd_);
+
+  EXPECT_FALSE(subproc.Finish(&err));
+  EXPECT_NE("", err);
+  EXPECT_EQ("", subproc.stdout_.buf_);
+  EXPECT_NE("", subproc.stderr_.buf_);
 }
