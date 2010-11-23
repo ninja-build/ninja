@@ -37,9 +37,10 @@ build @ninja.a: ar @build.o @parsers.o @ninja_jumble.o
 build @ninja.o: cxx ninja.cc
 build ninja: link @ninja.o @ninja.a
 
+build @build_test.o: cxx build_test.cc
 build @ninja_test.o: cxx ninja_test.cc
 build @parsers_test.o: cxx parsers_test.cc
-build ninja_test: link @ninja_test.o @parsers_test.o @ninja.a
+build ninja_test: link @build_test.o @ninja_test.o @parsers_test.o @ninja.a
   ldflags = -lgtest -lgtest_main -lpthread
 
 

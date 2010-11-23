@@ -1,6 +1,9 @@
 #include "build.h"
 
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/wait.h>
 
 #include "ninja.h"
 
@@ -81,6 +84,85 @@ void Plan::Dump() {
     (*i)->Dump();
   }
   printf("ready: %d\n", (int)ready_.size());
+}
+
+Subprocess::Stream::Stream() : fd_(-1) {}
+Subprocess::Stream::~Stream() {
+  if (fd_ >= 0)
+    close(fd_);
+}
+
+Subprocess::Subprocess() : pid_(-1) {}
+Subprocess::~Subprocess() {
+}
+
+bool Subprocess::Start(const string& command, string* err) {
+  int stdout_pipe[2];
+  if (pipe(stdout_pipe) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+  stdout_.fd_ = stdout_pipe[0];
+
+  int stderr_pipe[2];
+  if (pipe(stderr_pipe) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+  stderr_.fd_ = stderr_pipe[0];
+
+  pid_ = fork();
+  if (pid_ < 0) {
+    *err = strerror(errno);
+    return false;
+  } else if (pid_ == 0) {
+    if (close(0) < 0 ||
+        dup2(stdout_pipe[1], 1) < 0 ||
+        dup2(stderr_pipe[1], 2) < 0 ||
+        close(stdout_pipe[0]) < 0 ||
+        close(stdout_pipe[1]) < 0 ||
+        close(stderr_pipe[0]) < 0 ||
+        // Leave stderr_pipe[1] alone so we can write to it on error.
+        execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL) < 0) {
+      char* err = strerror(errno);
+      write(stderr_pipe[1], err, strlen(err));
+    }
+    _exit(1);
+  }
+
+  close(stdout_pipe[1]);
+  close(stderr_pipe[1]);
+  return true;
+}
+
+void Subprocess::OnFDReady(int fd) {
+  char buf[4 << 10];
+  ssize_t len = read(fd, buf, sizeof(buf));
+  Stream* stream = fd == stdout_.fd_ ? &stdout_ : &stderr_;
+  if (len > 0) {
+    stream->buf_.append(buf, len);
+  } else {
+    close(stream->fd_);
+    stream->fd_ = -1;
+  }
+}
+
+bool Subprocess::Finish(string* err) {
+  int status;
+  if (waitpid(pid_, &status, 0) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (WIFEXITED(status)) {
+    int exit = WEXITSTATUS(status);
+    if (exit == 0)
+      return true;
+    *err = "nonzero exit status";
+  } else {
+    *err = "XXX something else went wrong";
+  }
+  return false;
 }
 
 bool Shell::RunCommand(Edge* edge) {

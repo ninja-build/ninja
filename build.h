@@ -36,6 +36,22 @@ private:
   set<Edge*> ready_;
 };
 
+struct Subprocess {
+  Subprocess();
+  ~Subprocess();
+  bool Start(const string& command, string* err);
+  void OnFDReady(int fd);
+  bool Finish(string* err);
+
+  struct Stream {
+    Stream();
+    ~Stream();
+    int fd_;
+    string buf_;
+  };
+  Stream stdout_, stderr_;
+  pid_t pid_;
+};
 
 struct Shell {
   virtual ~Shell() {}
