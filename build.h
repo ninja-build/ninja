@@ -32,7 +32,6 @@ struct Shell {
 
 struct Builder {
   Builder(State* state);
-  virtual ~Builder() {}
 
   Node* AddTarget(const string& name, string* err);
   bool Build(Shell* shell, string* err);
