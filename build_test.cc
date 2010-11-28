@@ -31,3 +31,18 @@ TEST(Subprocess, BadCommand) {
   EXPECT_EQ("", subproc.stdout_.buf_);
   EXPECT_NE("", subproc.stderr_.buf_);
 }
+
+TEST(SubprocessSet, Single) {
+  SubprocessSet subprocs;
+  Subprocess* ls = new Subprocess;
+  string err;
+  EXPECT_TRUE(ls->Start("ls /", &err));
+  ASSERT_EQ("", err);
+  subprocs.Add(ls);
+
+  while (!ls->done()) {
+    subprocs.DoWork(&err);
+    ASSERT_EQ("", err);
+  }
+  ASSERT_NE("", ls->stdout_.buf_);
+}

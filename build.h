@@ -1,5 +1,6 @@
 #include <set>
 #include <string>
+#include <vector>
 using namespace std;
 
 struct Edge;
@@ -43,6 +44,10 @@ struct Subprocess {
   void OnFDReady(int fd);
   bool Finish(string* err);
 
+  bool done() const {
+    return stdout_.fd_ == -1 && stderr_.fd_ == -1;
+  }
+
   struct Stream {
     Stream();
     ~Stream();
@@ -51,6 +56,15 @@ struct Subprocess {
   };
   Stream stdout_, stderr_;
   pid_t pid_;
+  string err_;
+};
+
+struct SubprocessSet {
+  void Add(Subprocess* subprocess);
+  void DoWork(string* err);
+  int max_running_;
+  vector<Subprocess*> running_;
+  vector<Subprocess*> done_;
 };
 
 struct Shell {

@@ -1,6 +1,7 @@
 #include "build.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -163,6 +164,54 @@ bool Subprocess::Finish(string* err) {
     *err = "XXX something else went wrong";
   }
   return false;
+}
+
+void SubprocessSet::Add(Subprocess* subprocess) {
+  running_.push_back(subprocess);
+}
+
+void SubprocessSet::DoWork(string* err) {
+  struct pollfd* fds = new pollfd[running_.size() * 2];
+
+  map<int, Subprocess*> fd_to_subprocess;
+  int fds_count = 0;
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i) {
+    int fd = (*i)->stdout_.fd_;
+    if (fd >= 0) {
+      fd_to_subprocess[fd] = *i;
+      fds[fds_count].fd = fd;
+      fds[fds_count].events = POLLIN;
+      fds[fds_count].revents = 0;
+      ++fds_count;
+    }
+    fd = (*i)->stderr_.fd_;
+    if (fd >= 0) {
+      fd_to_subprocess[fd] = *i;
+      fds[fds_count].fd = fd;
+      fds[fds_count].events = POLLIN;
+      fds[fds_count].revents = 0;
+      ++fds_count;
+    }
+  }
+
+  int ret = poll(fds, fds_count, -1);
+  if (ret == -1) {
+    if (errno != EINTR)
+      perror("poll");
+    return;
+  }
+
+  for (int i = 0; i < fds_count; ++i) {
+    if (fds[i].revents) {
+      Subprocess* subproc = fd_to_subprocess[fds[i].fd];
+      if (fds[i].revents) {
+        subproc->OnFDReady(fds[i].fd);
+        if (subproc->done())
+          subproc->Finish(err);
+      }
+    }
+  }
 }
 
 bool Shell::RunCommand(Edge* edge) {
