@@ -267,14 +267,14 @@ bool Builder::Build(Shell* shell, string* err) {
   }
 
   do {
-    // Create directories necessary for outputs.
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      if (!disk_interface_->MakeDirs((*i)->file_->path_))
-        return false;
-    }
-
     if (edge->rule_ != &State::kPhonyRule) {
+      // Create directories necessary for outputs.
+      for (vector<Node*>::iterator i = edge->outputs_.begin();
+           i != edge->outputs_.end(); ++i) {
+        if (!disk_interface_->MakeDirs((*i)->file_->path_))
+          return false;
+      }
+
       string command = edge->EvaluateCommand();
       if (!shell->RunCommand(edge)) {
         err->assign("command '" + command + "' failed.");
