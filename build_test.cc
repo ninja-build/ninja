@@ -46,3 +46,39 @@ TEST(SubprocessSet, Single) {
   }
   ASSERT_NE("", ls->stdout_.buf_);
 }
+
+TEST(SubprocessSet, Multi) {
+  SubprocessSet subprocs;
+  Subprocess* processes[3];
+  const char* kCommands[3] = {
+    "ls /",
+    "whoami",
+    "pwd",
+  };
+
+  string err;
+  for (int i = 0; i < 3; ++i) {
+    processes[i] = new Subprocess;
+    EXPECT_TRUE(processes[i]->Start(kCommands[i], &err));
+    ASSERT_EQ("", err);
+    subprocs.Add(processes[i]);
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_FALSE(processes[i]->done());
+    ASSERT_EQ("", processes[i]->stdout_.buf_);
+    ASSERT_EQ("", processes[i]->stderr_.buf_);
+  }
+
+  while (!processes[0]->done() || !processes[1]->done() ||
+         !processes[2]->done()) {
+    subprocs.DoWork(&err);
+    ASSERT_EQ("", err);
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_NE("", processes[i]->stdout_.buf_);
+    ASSERT_EQ("", processes[i]->stderr_.buf_);
+    delete processes[i];
+  }
+}
