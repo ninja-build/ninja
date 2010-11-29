@@ -216,7 +216,14 @@ void SubprocessSet::DoWork(string* err) {
   }
 }
 
-bool Shell::RunCommand(Edge* edge) {
+struct RealCommandRunner : public CommandRunner {
+  virtual ~RealCommandRunner() {}
+  virtual bool StartCommand(Edge* edge);
+  virtual void WaitForCommands(string* err);
+  virtual Edge* NextFinishedCommand();
+};
+
+bool RealCommandRunner::StartCommand(Edge* edge) {
   string err;
   string command = edge->EvaluateCommand();
   printf("  %s\n", command.c_str());
@@ -231,10 +238,16 @@ bool Shell::RunCommand(Edge* edge) {
   }
   return false;
 }
+void RealCommandRunner::WaitForCommands(string* err) {
+}
+Edge* RealCommandRunner::NextFinishedCommand() {
+  return NULL;
+}
 
 Builder::Builder(State* state)
     : state_(state) {
   disk_interface_ = new RealDiskInterface;
+  command_runner_ = new RealCommandRunner;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -256,7 +269,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
   return node;
 }
 
-bool Builder::Build(Shell* shell, string* err) {
+bool Builder::Build(string* err) {
   if (!plan_.more_to_do()) {
     *err = "no work to do";
     return true;
@@ -278,7 +291,7 @@ bool Builder::Build(Shell* shell, string* err) {
       }
 
       string command = edge->EvaluateCommand();
-      if (!shell->RunCommand(edge)) {
+      if (!command_runner_->StartCommand(edge)) {
         err->assign("command '" + command + "' failed.");
         return false;
       }

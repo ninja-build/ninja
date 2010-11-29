@@ -81,7 +81,6 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  Shell shell;
   Builder builder(&state);
   for (int i = 0; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
@@ -95,7 +94,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  bool success = builder.Build(&shell, &err);
+  bool success = builder.Build(&err);
   if (!err.empty()) {
     printf("%s\n", err.c_str());
   }

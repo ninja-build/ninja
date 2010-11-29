@@ -231,10 +231,11 @@ TEST(SubprocessSet, Multi) {
 }
 
 struct BuildTest : public StateTestWithBuiltinRules,
-                   public Shell,
+                   public CommandRunner,
                    public DiskInterface {
   BuildTest() : builder_(&state_), now_(1) {
     builder_.disk_interface_ = this;
+    builder_.command_runner_ = this;
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
@@ -246,8 +247,10 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // Mark dependents of a path dirty.
   void Touch(const string& path);
 
-  // shell override
-  virtual bool RunCommand(Edge* edge);
+  // CommandRunner override
+  virtual bool StartCommand(Edge* edge);
+  virtual void WaitForCommands(string* err);
+  virtual Edge* NextFinishedCommand();
 
   // DiskInterface
   virtual int Stat(const string& path) {
@@ -289,7 +292,7 @@ void BuildTest::Touch(const string& path) {
   node->MarkDependentsDirty();
 }
 
-bool BuildTest::RunCommand(Edge* edge) {
+bool BuildTest::StartCommand(Edge* edge) {
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -304,9 +307,16 @@ bool BuildTest::RunCommand(Edge* edge) {
   return false;
 }
 
+void BuildTest::WaitForCommands(string* err) {
+}
+
+Edge* BuildTest::NextFinishedCommand() {
+  return NULL;
+}
+
 TEST_F(BuildTest, NoWork) {
   string err;
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("no work to do", err);
   EXPECT_EQ(0, commands_ran_.size());
 }
@@ -317,7 +327,7 @@ TEST_F(BuildTest, OneStep) {
   Dirty("cat1");
   string err;
   ASSERT_TRUE(builder_.AddTarget("cat1", &err));
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1, commands_ran_.size());
@@ -331,7 +341,7 @@ TEST_F(BuildTest, OneStep2) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1, commands_ran_.size());
@@ -345,7 +355,7 @@ TEST_F(BuildTest, TwoStep) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
   ASSERT_EQ(3, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
@@ -356,7 +366,7 @@ TEST_F(BuildTest, TwoStep) {
   // and the final file.
   Touch("in2");
   ASSERT_TRUE(builder_.AddTarget("cat12", &err));
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
   ASSERT_EQ(5, commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
@@ -374,7 +384,7 @@ TEST_F(BuildTest, Chain) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
   ASSERT_EQ(4, commands_ran_.size());
 
@@ -382,7 +392,7 @@ TEST_F(BuildTest, Chain) {
   commands_ran_.clear();
   EXPECT_FALSE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(0, commands_ran_.size());
 
   Touch("c3");  // Will recursively dirty through to c5.
@@ -390,7 +400,7 @@ TEST_F(BuildTest, Chain) {
   commands_ran_.clear();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
 }
 
@@ -418,7 +428,7 @@ TEST_F(BuildTest, MakeDirs) {
   EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
   EXPECT_EQ("", err);
   now_ = 0;  // Make all stat()s return file not found.
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2, directories_made_.size());
   EXPECT_EQ("subdir", directories_made_[0]);
@@ -495,7 +505,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
 
   // explicit dep dirty, expect a rebuild.
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1, commands_ran_.size());
 
@@ -503,7 +513,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   commands_ran_.clear();
   Touch("blah.h");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1, commands_ran_.size());
 
@@ -525,11 +535,11 @@ TEST_F(BuildTest, Phony) {
   EXPECT_TRUE(builder_.AddTarget("all", &err));
 
   // Only one command to run, because phony runs no command.
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1, commands_ran_.size());
 
-  EXPECT_TRUE(builder_.Build(this, &err));
+  EXPECT_TRUE(builder_.Build(&err));
   ASSERT_NE("", err);
 }
 

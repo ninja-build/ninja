@@ -72,20 +72,23 @@ struct SubprocessSet {
   queue<Subprocess*> finished_;
 };
 
-struct Shell {
-  virtual ~Shell() {}
-  virtual bool RunCommand(Edge* edge);
+struct CommandRunner {
+  virtual ~CommandRunner() {}
+  virtual bool StartCommand(Edge* edge) = 0;
+  virtual void WaitForCommands(string* err) = 0;
+  virtual Edge* NextFinishedCommand() = 0;
 };
 
 struct Builder {
   Builder(State* state);
 
   Node* AddTarget(const string& name, string* err);
-  bool Build(Shell* shell, string* err);
+  bool Build(string* err);
 
   State* state_;
   Plan plan_;
   DiskInterface* disk_interface_;
+  CommandRunner* command_runner_;
 };
 
 #endif  // NINJA_BUILD_H_
