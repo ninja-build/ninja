@@ -233,7 +233,7 @@ TEST(SubprocessSet, Multi) {
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner,
                    public DiskInterface {
-  BuildTest() : builder_(&state_), now_(1) {
+  BuildTest() : builder_(&state_), now_(1), last_command_(NULL) {
     builder_.disk_interface_ = this;
     builder_.command_runner_ = this;
     AssertParse(&state_,
@@ -274,6 +274,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   vector<string> commands_ran_;
   vector<string> directories_made_;
   vector<string> files_read_;
+  Edge* last_command_;
 };
 
 void BuildTest::Dirty(const string& path) {
@@ -293,12 +294,14 @@ void BuildTest::Touch(const string& path) {
 }
 
 bool BuildTest::StartCommand(Edge* edge) {
+  assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       (*out)->file_->Touch(now_);
     }
+    last_command_ = edge;
     return true;
   } else {
     printf("unkown command\n");
@@ -311,6 +314,10 @@ void BuildTest::WaitForCommands(string* err) {
 }
 
 Edge* BuildTest::NextFinishedCommand() {
+  if (Edge* edge = last_command_) {
+    last_command_ = NULL;
+    return edge;
+  }
   return NULL;
 }
 

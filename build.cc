@@ -221,6 +221,8 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool StartCommand(Edge* edge);
   virtual void WaitForCommands(string* err);
   virtual Edge* NextFinishedCommand();
+
+  queue<Edge*> finished_;
 };
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -228,6 +230,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
   printf("  %s\n", command.c_str());
   int ret = system(command.c_str());
+  finished_.push(edge);
   if (WIFEXITED(ret)) {
     int exit = WEXITSTATUS(ret);
     if (exit == 0)
@@ -241,7 +244,11 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 void RealCommandRunner::WaitForCommands(string* err) {
 }
 Edge* RealCommandRunner::NextFinishedCommand() {
-  return NULL;
+  if (finished_.empty())
+    return NULL;
+  Edge* edge = finished_.front();
+  finished_.pop();
+  return edge;
 }
 
 Builder::Builder(State* state)
@@ -282,25 +289,34 @@ bool Builder::Build(string* err) {
   }
 
   do {
-    if (edge->rule_ != &State::kPhonyRule) {
-      // Create directories necessary for outputs.
-      for (vector<Node*>::iterator i = edge->outputs_.begin();
-           i != edge->outputs_.end(); ++i) {
-        if (!disk_interface_->MakeDirs((*i)->file_->path_))
-          return false;
-      }
+    if (edge->rule_ == &State::kPhonyRule) {
+      plan_.EdgeFinished(edge);
+      continue;
+    }
 
-      string command = edge->EvaluateCommand();
-      if (!command_runner_->StartCommand(edge)) {
-        err->assign("command '" + command + "' failed.");
+    // Create directories necessary for outputs.
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      if (!disk_interface_->MakeDirs((*i)->file_->path_))
         return false;
-      }
-      for (vector<Node*>::iterator i = edge->outputs_.begin();
-           i != edge->outputs_.end(); ++i) {
-        // XXX check that the output actually changed
-        // XXX just notify node and have it propagate?
-        (*i)->dirty_ = false;
-      }
+    }
+
+    string command = edge->EvaluateCommand();
+    if (!command_runner_->StartCommand(edge)) {
+      err->assign("command '" + command + "' failed.");
+      return false;
+    }
+
+    edge = NULL;
+    while (!(edge = command_runner_->NextFinishedCommand())) {
+      command_runner_->WaitForCommands(err);
+    }
+
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      // XXX check that the output actually changed
+      // XXX just notify node and have it propagate?
+      (*i)->dirty_ = false;
     }
     plan_.EdgeFinished(edge);
   } while ((edge = plan_.FindWork()) != NULL);
