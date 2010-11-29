@@ -53,8 +53,8 @@ Getting started
 ---------------
 
 The included `bootstrap.sh` should hopefully produce a working `ninja`
-binary.  You can then have ninja build itself with the proper build
-settings by running `./ninja ninja`.
+binary, by first blindly compiling all non-test files together then
+re-building ninja using itself.
 
 Usage is currently just
 

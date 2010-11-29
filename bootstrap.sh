@@ -4,7 +4,8 @@ set -e
 
 srcs=$(ls *.cc | grep -v test)
 echo "Building stage 1..."
-g++ -o ninja $srcs
+g++ -o ninja.bootstrap $srcs
 echo "Building final result..."
-./ninja ninja
+./ninja.bootstrap ninja
+rm ninja.bootstrap
 echo "Done!"
