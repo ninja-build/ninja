@@ -1,4 +1,7 @@
-ninja
-ninja_test
 TAGS
 *.o
+/build
+/ninja
+/ninja_test
+/graph.png
+/README.html
