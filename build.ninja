@@ -31,8 +31,9 @@ rule link
 # and build that "ninja.o" by compiling "ninja.cc".
 build @build.o: cxx build.cc
 build @parsers.o: cxx parsers.cc
+build @subprocess.o: cxx subprocess.cc
 build @ninja_jumble.o: cxx ninja_jumble.cc
-build @ninja.a: ar @build.o @parsers.o @ninja_jumble.o
+build @ninja.a: ar @build.o @parsers.o @subprocess.o @ninja_jumble.o
 
 build @ninja.o: cxx ninja.cc
 build ninja: link @ninja.o @ninja.a
@@ -40,7 +41,9 @@ build ninja: link @ninja.o @ninja.a
 build @build_test.o: cxx build_test.cc
 build @ninja_test.o: cxx ninja_test.cc
 build @parsers_test.o: cxx parsers_test.cc
-build ninja_test: link @build_test.o @ninja_test.o @parsers_test.o @ninja.a
+build @subprocess_test.o: cxx subprocess_test.cc
+build ninja_test: link @build_test.o @ninja_test.o @parsers_test.o \
+      @subprocess_test.o @ninja.a
   ldflags = -lgtest -lgtest_main -lpthread
 
 
