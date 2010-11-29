@@ -41,6 +41,9 @@ private:
   set<Edge*> ready_;
 };
 
+// CommandRunner is an interface that wraps running the build
+// subcommands.  This allows tests to abstract out running commands.
+// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool StartCommand(Edge* edge) = 0;
