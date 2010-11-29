@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "ninja.h"
+#include "subprocess.h"
 
 bool Plan::AddTarget(Node* node, string* err) {
   Edge* edge = node->in_edge_;
@@ -89,32 +90,47 @@ struct RealCommandRunner : public CommandRunner {
   virtual void WaitForCommands(string* err);
   virtual Edge* NextFinishedCommand();
 
-  queue<Edge*> finished_;
+  SubprocessSet subprocs_;
+  map<Subprocess*, Edge*> subproc_to_edge_;
 };
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string err;
   string command = edge->EvaluateCommand();
   printf("  %s\n", command.c_str());
-  int ret = system(command.c_str());
-  finished_.push(edge);
-  if (WIFEXITED(ret)) {
-    int exit = WEXITSTATUS(ret);
-    if (exit == 0)
-      return true;
-    err = "nonzero exit status";
-  } else {
-    err = "something else went wrong";
-  }
-  return false;
+  Subprocess* subproc = new Subprocess;
+  subproc_to_edge_.insert(make_pair(subproc, edge));
+  if (!subproc->Start(command, &err))
+    return false;
+
+  subprocs_.Add(subproc);
+  return true;
 }
+
 void RealCommandRunner::WaitForCommands(string* err) {
+  while (subprocs_.finished_.empty()) {
+    subprocs_.DoWork(err);  // XXX handle err
+  }
 }
+
 Edge* RealCommandRunner::NextFinishedCommand() {
-  if (finished_.empty())
+  Subprocess* subproc = subprocs_.NextFinished();
+  if (!subproc)
     return NULL;
-  Edge* edge = finished_.front();
-  finished_.pop();
+
+  if (!subproc->stdout_.buf_.empty()) {
+    printf("%d> %s\n", subproc->pid_, subproc->stdout_.buf_.c_str());
+  }
+  if (!subproc->stderr_.buf_.empty()) {
+    printf("E%d> %s\n", subproc->pid_, subproc->stderr_.buf_.c_str());
+  }
+
+  map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
+  Edge* edge = i->second;
+  subproc_to_edge_.erase(i);
+
+  delete subproc;
+  // XXX extract exit code, etc.
   return edge;
 }
 

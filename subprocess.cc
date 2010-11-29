@@ -146,3 +146,10 @@ void SubprocessSet::DoWork(string* err) {
   }
 }
 
+Subprocess* SubprocessSet::NextFinished() {
+  if (finished_.empty())
+    return NULL;
+  Subprocess* subproc = finished_.front();
+  finished_.pop();
+  return subproc;
+}

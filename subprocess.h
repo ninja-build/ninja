@@ -35,8 +35,8 @@ struct Subprocess {
 struct SubprocessSet {
   void Add(Subprocess* subprocess);
   void DoWork(string* err);
+  Subprocess* NextFinished();
 
-  int max_running_;
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 };
