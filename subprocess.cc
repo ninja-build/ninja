@@ -64,6 +64,8 @@ void Subprocess::OnFDReady(int fd) {
   if (len > 0) {
     stream->buf_.append(buf, len);
   } else {
+    if (len < 0)
+      err_ = strerror(errno);
     close(stream->fd_);
     stream->fd_ = -1;
   }
