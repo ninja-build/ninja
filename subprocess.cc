@@ -1,6 +1,8 @@
 #include "subprocess.h"
 
+#include <algorithm>
 #include <map>
+#include <assert.h>
 #include <errno.h>
 #include <poll.h>
 #include <unistd.h>
@@ -72,11 +74,14 @@ void Subprocess::OnFDReady(int fd) {
 }
 
 bool Subprocess::Finish(string* err) {
+  assert(pid_ != -1);
+
   int status;
   if (waitpid(pid_, &status, 0) < 0) {
     *err = strerror(errno);
     return false;
   }
+  pid_ = -1;
 
   if (WIFEXITED(status)) {
     int exit = WEXITSTATUS(status);
@@ -133,6 +138,8 @@ void SubprocessSet::DoWork(string* err) {
         if (subproc->done()) {
           subproc->Finish(err);
           finished_.push(subproc);
+          std::remove(running_.begin(), running_.end(), subproc);
+          running_.resize(running_.size() - 1);
         }
       }
     }

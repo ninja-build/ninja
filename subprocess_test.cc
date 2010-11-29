@@ -66,6 +66,7 @@ TEST(SubprocessSet, Multi) {
     subprocs.Add(processes[i]);
   }
 
+  ASSERT_EQ(3, subprocs.running_.size());
   for (int i = 0; i < 3; ++i) {
     ASSERT_FALSE(processes[i]->done());
     ASSERT_EQ("", processes[i]->stdout_.buf_);
@@ -74,10 +75,12 @@ TEST(SubprocessSet, Multi) {
 
   while (!processes[0]->done() || !processes[1]->done() ||
          !processes[2]->done()) {
+    ASSERT_GT(subprocs.running_.size(), 0);
     subprocs.DoWork(&err);
     ASSERT_EQ("", err);
   }
 
+  ASSERT_EQ(0, subprocs.running_.size());
   ASSERT_EQ(3, subprocs.finished_.size());
 
   for (int i = 0; i < 3; ++i) {
