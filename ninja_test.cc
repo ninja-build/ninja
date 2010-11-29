@@ -4,12 +4,23 @@
 
 #include "build.h"
 #include "parsers.h"
+#include "test.h"
 
 static void AssertParse(State* state, const char* input) {
   ManifestParser parser(state, NULL);
   string err;
   ASSERT_TRUE(parser.Parse(input, &err)) << err;
   ASSERT_EQ("", err);
+}
+
+StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
+  AssertParse(&state_,
+"rule cat\n"
+"  command = cat $in > $out\n");
+}
+
+Node* StateTestWithBuiltinRules::GetNode(const string& path) {
+  return state_.stat_cache()->GetFile(path)->node_;
 }
 
 TEST(State, Basic) {
@@ -76,20 +87,6 @@ TEST(EvalString, Curlies) {
   env.vars["var"] = "barbar";
   EXPECT_EQ("foo barbarbaz", str.Evaluate(&env));
 }
-
-struct StateTestWithBuiltinRules : public testing::Test {
-  StateTestWithBuiltinRules() {
-    AssertParse(&state_,
-"rule cat\n"
-"  command = cat $in > $out\n");
-  }
-
-  Node* GetNode(const string& path) {
-    return state_.stat_cache()->GetFile(path)->node_;
-  }
-
-  State state_;
-};
 
 // Though Plan doesn't use State, it's useful to have one around
 // to create Nodes and Edges.
