@@ -58,6 +58,12 @@ rule gengraph
 build @graph.dot: gendot ninja build.ninja
 build graph.png: gengraph @graph.dot
 
+rule asciidoc
+  command = asciidoc -a toc $in
+
+build README.html: asciidoc README.asciidoc
+build doc: phony | README.html
+
 # Use the built-in phony rule and an order-only dependency
 # to make building "all" build all targets.
-build all: phony | ninja ninja_test graph.png
+build all: phony | ninja ninja_test graph.png doc
