@@ -156,16 +156,13 @@ bool Builder::Build(string* err) {
   }
 
   do {
-    if (edge->rule_ == &State::kPhonyRule) {
-      plan_.EdgeFinished(edge);
-      continue;
-    }
+    if (edge->rule_ != &State::kPhonyRule) {
+      if (!StartEdge(edge, err))
+        return false;
 
-    if (!StartEdge(edge, err))
-      return false;
-
-    while (!(edge = command_runner_->NextFinishedCommand())) {
-      command_runner_->WaitForCommands(err);
+      while (!(edge = command_runner_->NextFinishedCommand())) {
+        command_runner_->WaitForCommands(err);
+      }
     }
 
     for (vector<Node*>::iterator i = edge->outputs_.begin();
