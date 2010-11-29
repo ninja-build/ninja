@@ -1,3 +1,5 @@
+#ifndef NINJA_EVAL_ENV_H_
+#define NINJA_EVAL_ENV_H_
 
 // A scope for variable lookups.
 struct Env {
@@ -37,3 +39,5 @@ struct EvalString {
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
 };
+
+#endif  // NINJA_EVAL_ENV_H_

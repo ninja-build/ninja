@@ -1,3 +1,6 @@
+#ifndef NINJA_NINJA_H_
+#define NINJA_NINJA_H_
+
 #include <algorithm>
 #include <map>
 #include <queue>
@@ -152,3 +155,5 @@ struct State {
 
   static const Rule kPhonyRule;
 };
+
+#endif  // NINJA_NINJA_H_

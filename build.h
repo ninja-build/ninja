@@ -1,3 +1,6 @@
+#ifndef NINJA_BUILD_H_
+#define NINJA_BUILD_H_
+
 #include <set>
 #include <string>
 #include <vector>
@@ -82,3 +85,5 @@ struct Builder {
   Plan plan_;
   DiskInterface* disk_interface_;
 };
+
+#endif  // NINJA_BUILD_H_

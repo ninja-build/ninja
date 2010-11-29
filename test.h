@@ -1,3 +1,5 @@
+#include "ninja.h"
+
 #include <gtest/gtest.h>
 
 struct StateTestWithBuiltinRules : public testing::Test {
@@ -6,3 +8,5 @@ struct StateTestWithBuiltinRules : public testing::Test {
 
   State state_;
 };
+
+void AssertParse(State* state, const char* input);
