@@ -3,6 +3,7 @@
 
 #include <set>
 #include <string>
+#include <queue>
 #include <vector>
 using namespace std;
 
@@ -65,9 +66,10 @@ struct Subprocess {
 struct SubprocessSet {
   void Add(Subprocess* subprocess);
   void DoWork(string* err);
+
   int max_running_;
   vector<Subprocess*> running_;
-  vector<Subprocess*> done_;
+  queue<Subprocess*> finished_;
 };
 
 struct Shell {

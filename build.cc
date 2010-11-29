@@ -207,8 +207,10 @@ void SubprocessSet::DoWork(string* err) {
       Subprocess* subproc = fd_to_subprocess[fds[i].fd];
       if (fds[i].revents) {
         subproc->OnFDReady(fds[i].fd);
-        if (subproc->done())
+        if (subproc->done()) {
           subproc->Finish(err);
+          finished_.push(subproc);
+        }
       }
     }
   }

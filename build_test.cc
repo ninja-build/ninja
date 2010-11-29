@@ -188,6 +188,8 @@ TEST(SubprocessSet, Single) {
     ASSERT_EQ("", err);
   }
   ASSERT_NE("", ls->stdout_.buf_);
+
+  ASSERT_EQ(1, subprocs.finished_.size());
 }
 
 TEST(SubprocessSet, Multi) {
@@ -218,6 +220,8 @@ TEST(SubprocessSet, Multi) {
     subprocs.DoWork(&err);
     ASSERT_EQ("", err);
   }
+
+  ASSERT_EQ(3, subprocs.finished_.size());
 
   for (int i = 0; i < 3; ++i) {
     ASSERT_NE("", processes[i]->stdout_.buf_);
