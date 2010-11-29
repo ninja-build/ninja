@@ -85,6 +85,8 @@ struct Builder {
   Node* AddTarget(const string& name, string* err);
   bool Build(string* err);
 
+  bool StartEdge(Edge* edge, string* err);
+
   State* state_;
   Plan plan_;
   DiskInterface* disk_interface_;

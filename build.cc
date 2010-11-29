@@ -294,20 +294,9 @@ bool Builder::Build(string* err) {
       continue;
     }
 
-    // Create directories necessary for outputs.
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      if (!disk_interface_->MakeDirs((*i)->file_->path_))
-        return false;
-    }
-
-    string command = edge->EvaluateCommand();
-    if (!command_runner_->StartCommand(edge)) {
-      err->assign("command '" + command + "' failed.");
+    if (!StartEdge(edge, err))
       return false;
-    }
 
-    edge = NULL;
     while (!(edge = command_runner_->NextFinishedCommand())) {
       command_runner_->WaitForCommands(err);
     }
@@ -324,6 +313,25 @@ bool Builder::Build(string* err) {
   if (plan_.more_to_do()) {
     *err = "ran out of work";
     plan_.Dump();
+    return false;
+  }
+
+  return true;
+}
+
+bool Builder::StartEdge(Edge* edge, string* err) {
+  // Create directories necessary for outputs.
+  // XXX: this will block; do we care?
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    if (!disk_interface_->MakeDirs((*i)->file_->path_))
+      return false;
+  }
+
+  // Compute command and start it.
+  string command = edge->EvaluateCommand();
+  if (!command_runner_->StartCommand(edge)) {
+    err->assign("command '" + command + "' failed.");
     return false;
   }
 
