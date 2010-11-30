@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/wait.h>
 
+#include "util.h"
+
 Subprocess::Stream::Stream() : fd_(-1) {}
 Subprocess::Stream::~Stream() {
   if (fd_ >= 0)
@@ -67,7 +69,7 @@ void Subprocess::OnFDReady(int fd) {
     stream->buf_.append(buf, len);
   } else {
     if (len < 0)
-      err_ = strerror(errno);
+      Fatal("read: %s", strerror(errno));
     close(stream->fd_);
     stream->fd_ = -1;
   }

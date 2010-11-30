@@ -26,7 +26,6 @@ struct Subprocess {
   };
   Stream stdout_, stderr_;
   pid_t pid_;
-  string err_;
 };
 
 // SubprocessSet runs a poll() loop around a set of Subprocesses.
