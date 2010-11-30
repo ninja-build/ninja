@@ -46,6 +46,7 @@ private:
 // RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
+  virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
   virtual void WaitForCommands(string* err) = 0;
   virtual Edge* NextFinishedCommand() = 0;
@@ -58,6 +59,7 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
+  void FinishEdge(Edge* edge);
 
   State* state_;
   Plan plan_;

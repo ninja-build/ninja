@@ -162,7 +162,8 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // Mark dependents of a path dirty.
   void Touch(const string& path);
 
-  // CommandRunner override
+  // CommandRunner impl
+  virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual void WaitForCommands(string* err);
   virtual Edge* NextFinishedCommand();
@@ -206,6 +207,11 @@ void BuildTest::Touch(const string& path) {
   Node* node = GetNode(path);
   assert(node);
   node->MarkDependentsDirty();
+}
+
+bool BuildTest::CanRunMore() {
+  // Only run one at a time.
+  return last_command_ == NULL;
 }
 
 bool BuildTest::StartCommand(Edge* edge) {

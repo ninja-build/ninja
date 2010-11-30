@@ -86,6 +86,7 @@ void Plan::Dump() {
 
 struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
+  virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual void WaitForCommands(string* err);
   virtual Edge* NextFinishedCommand();
@@ -93,6 +94,11 @@ struct RealCommandRunner : public CommandRunner {
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
+
+bool RealCommandRunner::CanRunMore() {
+  const size_t kConcurrency = 3;  // XXX make configurable etc.
+  return subprocs_.running_.size() < kConcurrency;
+}
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string err;
@@ -165,35 +171,25 @@ bool Builder::Build(string* err) {
     return true;
   }
 
-  Edge* edge = plan_.FindWork();
-  if (!edge) {
-    *err = "unable to find work";
-    return false;
-  }
+  while (plan_.more_to_do()) {
+    while (command_runner_->CanRunMore()) {
+      Edge* edge = plan_.FindWork();
+      if (!edge)
+        break;
 
-  do {
-    if (edge->rule_ != &State::kPhonyRule) {
+      if (edge->rule_ == &State::kPhonyRule) {
+        FinishEdge(edge);
+        continue;
+      }
+
       if (!StartEdge(edge, err))
         return false;
-
-      while (!(edge = command_runner_->NextFinishedCommand())) {
-        command_runner_->WaitForCommands(err);
-      }
     }
 
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      // XXX check that the output actually changed
-      // XXX just notify node and have it propagate?
-      (*i)->dirty_ = false;
-    }
-    plan_.EdgeFinished(edge);
-  } while ((edge = plan_.FindWork()) != NULL);
-
-  if (plan_.more_to_do()) {
-    *err = "ran out of work";
-    plan_.Dump();
-    return false;
+    if (Edge* edge = command_runner_->NextFinishedCommand())
+      FinishEdge(edge);
+    else
+      command_runner_->WaitForCommands(err);
   }
 
   return true;
@@ -218,3 +214,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
+void Builder::FinishEdge(Edge* edge) {
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    // XXX check that the output actually changed
+    // XXX just notify node and have it propagate?
+    (*i)->dirty_ = false;
+  }
+  plan_.EdgeFinished(edge);
+}
