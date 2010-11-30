@@ -12,8 +12,7 @@ struct Subprocess {
   ~Subprocess();
   bool Start(const string& command);
   void OnFDReady(int fd);
-  // Returns true on successful process exit;
-  // can also examine status_.
+  // Returns true on successful process exit.
   bool Finish();
 
   bool done() const {
@@ -28,7 +27,6 @@ struct Subprocess {
   };
   Stream stdout_, stderr_;
   pid_t pid_;
-  int status_;
 };
 
 // SubprocessSet runs a poll() loop around a set of Subprocesses.

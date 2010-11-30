@@ -35,6 +35,7 @@ TEST(SubprocessSet, Single) {
   while (!ls->done()) {
     subprocs.DoWork();
   }
+  ASSERT_TRUE(ls->Finish());
   ASSERT_NE("", ls->stdout_.buf_);
 
   ASSERT_EQ(1, subprocs.finished_.size());
@@ -72,6 +73,7 @@ TEST(SubprocessSet, Multi) {
   ASSERT_EQ(3, subprocs.finished_.size());
 
   for (int i = 0; i < 3; ++i) {
+    ASSERT_TRUE(processes[i]->Finish());
     ASSERT_NE("", processes[i]->stdout_.buf_);
     ASSERT_EQ("", processes[i]->stderr_.buf_);
     delete processes[i];

@@ -18,8 +18,11 @@ Subprocess::Stream::~Stream() {
     close(fd_);
 }
 
-Subprocess::Subprocess() : pid_(-1), status_(-1) {}
+Subprocess::Subprocess() : pid_(-1) {}
 Subprocess::~Subprocess() {
+  // Reap child if forgotten.
+  if (pid_ != -1)
+    Finish();
 }
 
 bool Subprocess::Start(const string& command) {
@@ -73,12 +76,13 @@ void Subprocess::OnFDReady(int fd) {
 
 bool Subprocess::Finish() {
   assert(pid_ != -1);
-  if (waitpid(pid_, &status_, 0) < 0)
+  int status;
+  if (waitpid(pid_, &status, 0) < 0)
     Fatal("waitpid(%d): %s", pid_, strerror(errno));
   pid_ = -1;
 
-  if (WIFEXITED(status_)) {
-    int exit = WEXITSTATUS(status_);
+  if (WIFEXITED(status)) {
+    int exit = WEXITSTATUS(status);
     if (exit == 0)
       return true;
   }
@@ -127,7 +131,6 @@ void SubprocessSet::DoWork() {
       if (fds[i].revents) {
         subproc->OnFDReady(fds[i].fd);
         if (subproc->done()) {
-          subproc->Finish();
           finished_.push(subproc);
           std::remove(running_.begin(), running_.end(), subproc);
           running_.resize(running_.size() - 1);

@@ -49,7 +49,7 @@ struct CommandRunner {
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
   virtual void WaitForCommands() = 0;
-  virtual Edge* NextFinishedCommand() = 0;
+  virtual Edge* NextFinishedCommand(bool* success) = 0;
 };
 
 struct Builder {

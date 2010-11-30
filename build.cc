@@ -89,7 +89,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual void WaitForCommands();
-  virtual Edge* NextFinishedCommand();
+  virtual Edge* NextFinishedCommand(bool* success);
 
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
@@ -118,10 +118,12 @@ void RealCommandRunner::WaitForCommands() {
   }
 }
 
-Edge* RealCommandRunner::NextFinishedCommand() {
+Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   Subprocess* subproc = subprocs_.NextFinished();
   if (!subproc)
     return NULL;
+
+  *success = subproc->Finish();
 
   if (!subproc->stdout_.buf_.empty())
     printf("%s\n", subproc->stdout_.buf_.c_str());
@@ -133,7 +135,6 @@ Edge* RealCommandRunner::NextFinishedCommand() {
   subproc_to_edge_.erase(i);
 
   delete subproc;
-  // XXX extract exit code, etc.
   return edge;
 }
 
@@ -183,10 +184,16 @@ bool Builder::Build(string* err) {
         return false;
     }
 
-    if (Edge* edge = command_runner_->NextFinishedCommand())
+    bool success;
+    if (Edge* edge = command_runner_->NextFinishedCommand(&success)) {
+      if (!success) {
+        *err = "subcommand failed";
+        return false;
+      }
       FinishEdge(edge);
-    else
+    } else {
       command_runner_->WaitForCommands();
+    }
   }
 
   return true;

@@ -166,7 +166,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual void WaitForCommands();
-  virtual Edge* NextFinishedCommand();
+  virtual Edge* NextFinishedCommand(bool* success);
 
   // DiskInterface
   virtual int Stat(const string& path) {
@@ -234,8 +234,9 @@ bool BuildTest::StartCommand(Edge* edge) {
 void BuildTest::WaitForCommands() {
 }
 
-Edge* BuildTest::NextFinishedCommand() {
+Edge* BuildTest::NextFinishedCommand(bool* success) {
   if (Edge* edge = last_command_) {
+    *success = true;
     last_command_ = NULL;
     return edge;
   }

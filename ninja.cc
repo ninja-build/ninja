@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
 
   bool success = builder.Build(&err);
   if (!err.empty()) {
-    printf("%s\n", err.c_str());
+    printf("build stopped: %s.\n", err.c_str());
   }
 
   return success ? 0 : 1;
