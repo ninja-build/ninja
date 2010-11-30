@@ -9,9 +9,7 @@ TEST(Subprocess, Ls) {
   // Pretend we discovered that stdout was ready for writing.
   ls.OnFDReady(ls.stdout_.fd_);
 
-  string err;
-  EXPECT_TRUE(ls.Finish(&err));
-  ASSERT_EQ("", err);
+  EXPECT_TRUE(ls.Finish());
   EXPECT_NE("", ls.stdout_.buf_);
   EXPECT_EQ("", ls.stderr_.buf_);
 }
@@ -23,9 +21,7 @@ TEST(Subprocess, BadCommand) {
   // Pretend we discovered that stderr was ready for writing.
   subproc.OnFDReady(subproc.stderr_.fd_);
 
-  string err;
-  EXPECT_FALSE(subproc.Finish(&err));
-  EXPECT_NE("", err);
+  EXPECT_FALSE(subproc.Finish());
   EXPECT_EQ("", subproc.stdout_.buf_);
   EXPECT_NE("", subproc.stderr_.buf_);
 }

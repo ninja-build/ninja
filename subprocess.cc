@@ -18,7 +18,7 @@ Subprocess::Stream::~Stream() {
     close(fd_);
 }
 
-Subprocess::Subprocess() : pid_(-1) {}
+Subprocess::Subprocess() : pid_(-1), status_(-1) {}
 Subprocess::~Subprocess() {
 }
 
@@ -71,23 +71,16 @@ void Subprocess::OnFDReady(int fd) {
   }
 }
 
-bool Subprocess::Finish(string* err) {
+bool Subprocess::Finish() {
   assert(pid_ != -1);
-
-  int status;
-  if (waitpid(pid_, &status, 0) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
+  if (waitpid(pid_, &status_, 0) < 0)
+    Fatal("waitpid(%d): %s", pid_, strerror(errno));
   pid_ = -1;
 
-  if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
+  if (WIFEXITED(status_)) {
+    int exit = WEXITSTATUS(status_);
     if (exit == 0)
       return true;
-    *err = "nonzero exit status";
-  } else {
-    *err = "XXX something else went wrong";
   }
   return false;
 }
@@ -134,7 +127,7 @@ void SubprocessSet::DoWork(string* err) {
       if (fds[i].revents) {
         subproc->OnFDReady(fds[i].fd);
         if (subproc->done()) {
-          subproc->Finish(err);
+          subproc->Finish();
           finished_.push(subproc);
           std::remove(running_.begin(), running_.end(), subproc);
           running_.resize(running_.size() - 1);
