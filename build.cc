@@ -124,12 +124,10 @@ Edge* RealCommandRunner::NextFinishedCommand() {
   if (!subproc)
     return NULL;
 
-  if (!subproc->stdout_.buf_.empty()) {
-    printf("%d> %s\n", subproc->pid_, subproc->stdout_.buf_.c_str());
-  }
-  if (!subproc->stderr_.buf_.empty()) {
-    printf("E%d> %s\n", subproc->pid_, subproc->stderr_.buf_.c_str());
-  }
+  if (!subproc->stdout_.buf_.empty())
+    printf("%s\n", subproc->stdout_.buf_.c_str());
+  if (!subproc->stderr_.buf_.empty())
+    printf("%s\n", subproc->stderr_.buf_.c_str());
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
   Edge* edge = i->second;
