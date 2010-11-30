@@ -22,26 +22,22 @@ Subprocess::Subprocess() : pid_(-1) {}
 Subprocess::~Subprocess() {
 }
 
-bool Subprocess::Start(const string& command, string* err) {
+bool Subprocess::Start(const string& command) {
   int stdout_pipe[2];
-  if (pipe(stdout_pipe) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
+  if (pipe(stdout_pipe) < 0)
+    Fatal("pipe: %s", strerror(errno));
   stdout_.fd_ = stdout_pipe[0];
 
   int stderr_pipe[2];
-  if (pipe(stderr_pipe) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
+  if (pipe(stderr_pipe) < 0)
+    Fatal("pipe: %s", strerror(errno));
   stderr_.fd_ = stderr_pipe[0];
 
   pid_ = fork();
-  if (pid_ < 0) {
-    *err = strerror(errno);
-    return false;
-  } else if (pid_ == 0) {
+  if (pid_ < 0)
+    Fatal("fork: %s", strerror(errno));
+
+  if (pid_ == 0) {
     if (close(0) < 0 ||
         dup2(stdout_pipe[1], 1) < 0 ||
         dup2(stderr_pipe[1], 2) < 0 ||

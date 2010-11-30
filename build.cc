@@ -101,12 +101,11 @@ bool RealCommandRunner::CanRunMore() {
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
-  string err;
   string command = edge->EvaluateCommand();
   printf("  %s\n", command.c_str());
   Subprocess* subproc = new Subprocess;
   subproc_to_edge_.insert(make_pair(subproc, edge));
-  if (!subproc->Start(command, &err))
+  if (!subproc->Start(command))
     return false;
 
   subprocs_.Add(subproc);

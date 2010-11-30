@@ -10,7 +10,7 @@ using namespace std;
 struct Subprocess {
   Subprocess();
   ~Subprocess();
-  bool Start(const string& command, string* err);
+  bool Start(const string& command);
   void OnFDReady(int fd);
   bool Finish(string* err);
 
