@@ -32,10 +32,8 @@ TEST(SubprocessSet, Single) {
   EXPECT_TRUE(ls->Start("ls /"));
   subprocs.Add(ls);
 
-  string err;
   while (!ls->done()) {
-    subprocs.DoWork(&err);
-    ASSERT_EQ("", err);
+    subprocs.DoWork();
   }
   ASSERT_NE("", ls->stdout_.buf_);
 
@@ -64,12 +62,10 @@ TEST(SubprocessSet, Multi) {
     ASSERT_EQ("", processes[i]->stderr_.buf_);
   }
 
-  string err;
   while (!processes[0]->done() || !processes[1]->done() ||
          !processes[2]->done()) {
     ASSERT_GT(subprocs.running_.size(), 0);
-    subprocs.DoWork(&err);
-    ASSERT_EQ("", err);
+    subprocs.DoWork();
   }
 
   ASSERT_EQ(0, subprocs.running_.size());

@@ -48,7 +48,7 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  virtual void WaitForCommands(string* err) = 0;
+  virtual void WaitForCommands() = 0;
   virtual Edge* NextFinishedCommand() = 0;
 };
 

@@ -88,7 +88,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual void WaitForCommands(string* err);
+  virtual void WaitForCommands();
   virtual Edge* NextFinishedCommand();
 
   SubprocessSet subprocs_;
@@ -112,9 +112,9 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-void RealCommandRunner::WaitForCommands(string* err) {
+void RealCommandRunner::WaitForCommands() {
   while (subprocs_.finished_.empty()) {
-    subprocs_.DoWork(err);  // XXX handle err
+    subprocs_.DoWork();
   }
 }
 
@@ -186,7 +186,7 @@ bool Builder::Build(string* err) {
     if (Edge* edge = command_runner_->NextFinishedCommand())
       FinishEdge(edge);
     else
-      command_runner_->WaitForCommands(err);
+      command_runner_->WaitForCommands();
   }
 
   return true;

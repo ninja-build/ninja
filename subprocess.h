@@ -36,7 +36,7 @@ struct Subprocess {
 // is a queue of subprocesses as they finish.
 struct SubprocessSet {
   void Add(Subprocess* subprocess);
-  void DoWork(string* err);
+  void DoWork();
   Subprocess* NextFinished();
 
   vector<Subprocess*> running_;

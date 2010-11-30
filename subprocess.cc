@@ -89,7 +89,7 @@ void SubprocessSet::Add(Subprocess* subprocess) {
   running_.push_back(subprocess);
 }
 
-void SubprocessSet::DoWork(string* err) {
+void SubprocessSet::DoWork() {
   struct pollfd* fds = new pollfd[running_.size() * 2];
 
   map<int, Subprocess*> fd_to_subprocess;
