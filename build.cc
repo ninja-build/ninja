@@ -96,7 +96,7 @@ struct RealCommandRunner : public CommandRunner {
 };
 
 bool RealCommandRunner::CanRunMore() {
-  const size_t kConcurrency = 3;  // XXX make configurable etc.
+  const size_t kConcurrency = 4;  // XXX make configurable etc.
   return subprocs_.running_.size() < kConcurrency;
 }
 
