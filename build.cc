@@ -113,7 +113,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 }
 
 void RealCommandRunner::WaitForCommands() {
-  while (subprocs_.finished_.empty()) {
+  while (subprocs_.finished_.empty() && !subprocs_.running_.empty()) {
     subprocs_.DoWork();
   }
 }
