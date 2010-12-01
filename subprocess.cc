@@ -4,6 +4,7 @@
 #include <map>
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -41,17 +42,36 @@ bool Subprocess::Start(const string& command) {
     Fatal("fork: %s", strerror(errno));
 
   if (pid_ == 0) {
-    if (close(0) < 0 ||
-        dup2(stdout_pipe[1], 1) < 0 ||
-        dup2(stderr_pipe[1], 2) < 0 ||
-        close(stdout_pipe[0]) < 0 ||
-        close(stdout_pipe[1]) < 0 ||
-        close(stderr_pipe[0]) < 0 ||
-        // Leave stderr_pipe[1] alone so we can write to it on error.
-        execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL) < 0) {
-      char* err = strerror(errno);
-      write(stderr_pipe[1], err, strlen(err));
-    }
+    close(stdout_pipe[0]);
+    close(stderr_pipe[0]);
+
+    // Track which fd we use to report errors on.
+    int error_pipe = stderr_pipe[1];
+    do {
+      // Open /dev/null over stdin.
+      int devnull = open("/dev/null", O_WRONLY);
+      if (devnull < 0)
+        break;
+      if (dup2(devnull, 0) < 0)
+        break;
+      close(devnull);
+
+      if (dup2(stdout_pipe[1], 1) < 0 ||
+          dup2(stderr_pipe[1], 2) < 0)
+        break;
+
+      // Now can use stderr for errors.
+      error_pipe = 2;
+      close(stdout_pipe[1]);
+      close(stderr_pipe[1]);
+
+      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL);
+    } while (false);
+
+    // If we get here, something went wrong; the execl should have
+    // replaced us.
+    char* err = strerror(errno);
+    write(error_pipe, err, strlen(err));
     _exit(1);
   }
 
