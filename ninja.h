@@ -100,6 +100,7 @@ struct Edge {
   void MarkDirty(Node* node);
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
   string EvaluateCommand();  // XXX move to env, take env ptr
+  string GetDescription();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump();

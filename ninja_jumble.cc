@@ -206,6 +206,10 @@ string Edge::EvaluateCommand() {
   return rule_->command_.Evaluate(&env);
 }
 
+string Edge::GetDescription() {
+  EdgeEnv env(this);
+  return rule_->description_.Evaluate(&env);
+}
 
 FileStat* StatCache::GetFile(const string& path) {
   Paths::iterator i = paths_.find(path);

@@ -102,7 +102,11 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  printf("  %s\n", command.c_str());
+  string desc = edge->GetDescription();
+  if (!desc.empty())
+    printf("  %s\n", desc.c_str());
+  else
+    printf("  %s\n", command.c_str());
   Subprocess* subproc = new Subprocess;
   subproc_to_edge_.insert(make_pair(subproc, edge));
   if (!subproc->Start(command))
@@ -125,14 +129,16 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
 
   *success = subproc->Finish();
 
+  map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
+  Edge* edge = i->second;
+  subproc_to_edge_.erase(i);
+
+  if (!*success)
+    printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
   if (!subproc->stdout_.buf_.empty())
     printf("%s\n", subproc->stdout_.buf_.c_str());
   if (!subproc->stderr_.buf_.empty())
     printf("%s\n", subproc->stderr_.buf_.c_str());
-
-  map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
-  Edge* edge = i->second;
-  subproc_to_edge_.erase(i);
 
   delete subproc;
   return edge;
