@@ -1,5 +1,5 @@
+handle missing implicit deps
 save command lines
-parallization
 
 short-term ideas:
 - magic $in/$out variables shouldn't be magic, they're just a shortcut
