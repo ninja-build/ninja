@@ -114,38 +114,39 @@ void SubprocessSet::Add(Subprocess* subprocess) {
 }
 
 void SubprocessSet::DoWork() {
-  struct pollfd* fds = new pollfd[running_.size() * 2];
+  vector<pollfd> fds;
 
   map<int, Subprocess*> fd_to_subprocess;
-  int fds_count = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     int fd = (*i)->stdout_.fd_;
     if (fd >= 0) {
       fd_to_subprocess[fd] = *i;
-      fds[fds_count].fd = fd;
-      fds[fds_count].events = POLLIN;
-      fds[fds_count].revents = 0;
-      ++fds_count;
+      fds.resize(fds.size() + 1);
+      pollfd* newfd = &fds.back();
+      newfd->fd = fd;
+      newfd->events = POLLIN;
+      newfd->revents = 0;
     }
     fd = (*i)->stderr_.fd_;
     if (fd >= 0) {
       fd_to_subprocess[fd] = *i;
-      fds[fds_count].fd = fd;
-      fds[fds_count].events = POLLIN;
-      fds[fds_count].revents = 0;
-      ++fds_count;
+      fds.resize(fds.size() + 1);
+      pollfd* newfd = &fds.back();
+      newfd->fd = fd;
+      newfd->events = POLLIN;
+      newfd->revents = 0;
     }
   }
 
-  int ret = poll(fds, fds_count, -1);
+  int ret = poll(fds.data(), fds.size(), -1);
   if (ret == -1) {
     if (errno != EINTR)
       perror("poll");
     return;
   }
 
-  for (int i = 0; i < fds_count; ++i) {
+  for (size_t i = 0; i < fds.size(); ++i) {
     if (fds[i].revents) {
       Subprocess* subproc = fd_to_subprocess[fds[i].fd];
       if (fds[i].revents) {
