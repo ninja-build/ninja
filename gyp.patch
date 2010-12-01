@@ -2,7 +2,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,463 @@
+@@ -0,0 +1,465 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -61,7 +61,9 @@ Index: pylib/gyp/generator/ninja.py
 +
 +rule solink
 +  description = LINK $out
-+  command = false
++  command = g++ -shared $ldflags -o $out \\
++            -Wl,--start-group $in -Wl,--end-group $libs
++# XXX soname -Wl,-soname=$(@F) -Wl,--start-group $in -Wl,--end-group $libs
 +
 +rule link
 +  description = LINK $out
