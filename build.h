@@ -35,6 +35,7 @@ struct Plan {
   void EdgeFinished(Edge* edge);
 
 private:
+  bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
   void NodeFinished(Node* node);
 
   set<Edge*> want_;

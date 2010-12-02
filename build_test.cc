@@ -145,6 +145,18 @@ TEST_F(PlanTest, DoubleDependent) {
   ASSERT_FALSE(edge);  // done
 }
 
+TEST_F(PlanTest, DependencyLoop) {
+  AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n"
+"build in: cat pre\n"
+"build pre: cat out\n");
+  GetNode("pre")->MarkDependentsDirty();
+  string err;
+  EXPECT_FALSE(plan_.AddTarget(GetNode("out"), &err));
+  ASSERT_EQ("out -> mid -> in -> pre -> out", err);
+}
+
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner,
                    public DiskInterface {

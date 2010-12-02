@@ -6,6 +6,11 @@
 #include "subprocess.h"
 
 bool Plan::AddTarget(Node* node, string* err) {
+  vector<Node*> stack;
+  return AddSubTarget(node, &stack, err);
+}
+
+bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   Edge* edge = node->in_edge_;
   if (!edge) {  // Leaf node.
     if (node->dirty_) {
@@ -14,23 +19,44 @@ bool Plan::AddTarget(Node* node, string* err) {
     }
     return false;
   }
-
   assert(edge);
+
+  // Check for a dependency cycle.
+  vector<Node*>::reverse_iterator i =
+      find(stack->rbegin(), stack->rend(), node);
+  if (i != stack->rend()) {
+    // Add this node onto the stack to make it clearer where the loop
+    // is.
+    stack->push_back(node);
+
+    vector<Node*>::iterator i =
+        find(stack->begin(), stack->end(), node);
+    for (; i != stack->end(); ++i) {
+      if (!err->empty())
+        err->append(" -> ");
+      err->append((*i)->file_->path_);
+    }
+    return false;
+  }
+
   if (!node->dirty())
     return false;  // Don't need to do anything.
   if (want_.find(edge) != want_.end())
     return true;  // We've already enqueued it.
+  want_.insert(edge);
 
+  stack->push_back(node);
   bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (AddTarget(*i, err))
+    if (AddSubTarget(*i, stack, err))
       awaiting_inputs = true;
-    else if (err && !err->empty())
+    else if (!err->empty())
       return false;
   }
+  assert(stack->back() == node);
+  stack->pop_back();
 
-  want_.insert(edge);
   if (!awaiting_inputs)
     ready_.insert(edge);
 
