@@ -21,23 +21,8 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   }
   assert(edge);
 
-  // Check for a dependency cycle.
-  vector<Node*>::reverse_iterator i =
-      find(stack->rbegin(), stack->rend(), node);
-  if (i != stack->rend()) {
-    // Add this node onto the stack to make it clearer where the loop
-    // is.
-    stack->push_back(node);
-
-    vector<Node*>::iterator i =
-        find(stack->begin(), stack->end(), node);
-    for (; i != stack->end(); ++i) {
-      if (!err->empty())
-        err->append(" -> ");
-      err->append((*i)->file_->path_);
-    }
+  if (CheckDependencyCycle(node, stack, err))
     return false;
-  }
 
   if (!node->dirty())
     return false;  // Don't need to do anything.
@@ -60,6 +45,26 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (!awaiting_inputs)
     ready_.insert(edge);
 
+  return true;
+}
+
+bool Plan::CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err) {
+  vector<Node*>::reverse_iterator ri =
+      find(stack->rbegin(), stack->rend(), node);
+  if (ri == stack->rend())
+    return false;
+
+  // Add this node onto the stack to make it clearer where the loop
+  // is.
+  stack->push_back(node);
+
+  vector<Node*>::iterator start = find(stack->begin(), stack->end(), node);
+  *err = "dependency cycle: ";
+  for (vector<Node*>::iterator i = start; i != stack->end(); ++i) {
+    if (i != start)
+      err->append(" -> ");
+    err->append((*i)->file_->path_);
+  }
   return true;
 }
 
