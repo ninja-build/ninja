@@ -14,7 +14,10 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   Edge* edge = node->in_edge_;
   if (!edge) {  // Leaf node.
     if (node->dirty_) {
-      *err = "'" + node->file_->path_ + "' missing "
+      string referenced;
+      if (!stack->empty())
+        referenced = ", needed by '" + stack->back()->file_->path_ + "',";
+      *err = "'" + node->file_->path_ + "'" + referenced + " missing "
              "and no known rule to make it";
     }
     return false;

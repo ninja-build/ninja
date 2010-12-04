@@ -350,7 +350,8 @@ TEST_F(BuildTest, MissingInput) {
   string err;
   Dirty("in1");
   EXPECT_FALSE(builder_.AddTarget("cat1", &err));
-  EXPECT_EQ("'in1' missing and no known rule to make it", err);
+  EXPECT_EQ("'in1', needed by 'cat1', missing and no known rule to make it",
+            err);
 }
 
 TEST_F(BuildTest, MissingTarget) {
