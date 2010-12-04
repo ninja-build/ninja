@@ -20,7 +20,7 @@ StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
 }
 
 Node* StateTestWithBuiltinRules::GetNode(const string& path) {
-  return state_.stat_cache()->GetFile(path)->node_;
+  return state_.GetNode(path);
 }
 
 TEST(State, Basic) {

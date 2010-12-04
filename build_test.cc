@@ -396,6 +396,7 @@ TEST_F(BuildTest, DepFileOK) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   Touch("foo.c");
+  Dirty("bar.h");  // Mark bar.h as missing.
   file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
