@@ -135,9 +135,9 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
   string desc = edge->GetDescription();
   if (!desc.empty())
-    printf("  %s\n", desc.c_str());
+    printf("%s\n", desc.c_str());
   else
-    printf("  %s\n", command.c_str());
+    printf("%s\n", command.c_str());
   Subprocess* subproc = new Subprocess;
   subproc_to_edge_.insert(make_pair(subproc, edge));
   if (!subproc->Start(command))
@@ -206,6 +206,9 @@ bool Builder::Build(string* err) {
     return true;
   }
 
+  time_t last_update = time(NULL);
+  int completed = 0;
+  const int total = plan_.edge_count();
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
       Edge* edge = plan_.FindWork();
@@ -228,6 +231,12 @@ bool Builder::Build(string* err) {
         return false;
       }
       FinishEdge(edge);
+      ++completed;
+      if (time(NULL) - last_update > 5) {
+        printf("%.1f%% %d/%d\n", completed * 100 / (float)total,
+               completed, total);
+        last_update = time(NULL);
+      }
     } else {
       command_runner_->WaitForCommands();
     }

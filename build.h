@@ -34,6 +34,9 @@ struct Plan {
   // tests.
   void EdgeFinished(Edge* edge);
 
+  // Number of edges to run.
+  int edge_count() const { return want_.size()  + ready_.size(); }
+
 private:
   bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
   bool CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err);
