@@ -1,5 +1,4 @@
 TAGS
-*.o
 /build
 /ninja
 /ninja_test
