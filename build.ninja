@@ -63,8 +63,8 @@ build graph.png: gengraph @graph.dot
 rule asciidoc
   command = asciidoc -a toc $in
 
-build README.html: asciidoc README.asciidoc
-build doc: phony | README.html
+build manual.html: asciidoc manual.asciidoc
+build doc: phony | manual.html
 
 # Use the built-in phony rule and an order-only dependency
 # to make building "all" build all targets.
