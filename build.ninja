@@ -52,9 +52,8 @@ build ninja_test: link @build_test.o @ninja_test.o @parsers_test.o \
 
 # Generate a graph of the dependency tree (including the
 # graph generation itself in the resulting tree).
-graph_targets = ninja ninja_test graph.png
 rule gendot
-  command = ./ninja -g $graph_targets > $out
+  command = ./ninja -g all > $out
 rule gengraph
   command = dot -Tpng $in > $out
 
