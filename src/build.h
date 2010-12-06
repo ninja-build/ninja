@@ -70,6 +70,7 @@ struct Builder {
   Plan plan_;
   DiskInterface* disk_interface_;
   CommandRunner* command_runner_;
+  struct BuildStatusLog* log_;
 };
 
 #endif  // NINJA_BUILD_H_

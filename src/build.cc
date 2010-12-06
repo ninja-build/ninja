@@ -5,6 +5,41 @@
 #include "ninja.h"
 #include "subprocess.h"
 
+struct BuildStatusLog {
+  BuildStatusLog();
+  virtual void PlanHasTotalEdges(int total);
+  virtual void BuildEdgeStarted(Edge* edge);
+  virtual void BuildEdgeFinished(Edge* edge);
+
+  time_t last_update_;
+  int finished_edges_, total_edges_;
+};
+
+BuildStatusLog::BuildStatusLog()
+  : last_update_(time(NULL)), finished_edges_(0), total_edges_(0) {}
+
+void BuildStatusLog::PlanHasTotalEdges(int total) {
+  total_edges_ = total;
+}
+
+void BuildStatusLog::BuildEdgeStarted(Edge* edge) {
+  string desc = edge->GetDescription();
+  if (!desc.empty())
+    printf("%s\n", desc.c_str());
+  else
+    printf("%s\n", edge->EvaluateCommand().c_str());
+}
+
+void BuildStatusLog::BuildEdgeFinished(Edge* edge) {
+  ++finished_edges_;
+  time_t now = time(NULL);
+  if (now - last_update_ > 5) {
+    printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
+           finished_edges_, total_edges_);
+    last_update_ = now;
+  }
+}
+
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
   return AddSubTarget(node, &stack, err);
@@ -138,11 +173,6 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  string desc = edge->GetDescription();
-  if (!desc.empty())
-    printf("%s\n", desc.c_str());
-  else
-    printf("%s\n", command.c_str());
   Subprocess* subproc = new Subprocess;
   subproc_to_edge_.insert(make_pair(subproc, edge));
   if (!subproc->Start(command))
@@ -184,6 +214,7 @@ Builder::Builder(State* state)
     : state_(state) {
   disk_interface_ = new RealDiskInterface;
   command_runner_ = new RealCommandRunner;
+  log_ = new BuildStatusLog;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -211,9 +242,7 @@ bool Builder::Build(string* err) {
     return true;
   }
 
-  time_t last_update = time(NULL);
-  int completed = 0;
-  const int total = plan_.edge_count();
+  log_->PlanHasTotalEdges(plan_.edge_count());
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
       Edge* edge = plan_.FindWork();
@@ -227,6 +256,7 @@ bool Builder::Build(string* err) {
 
       if (!StartEdge(edge, err))
         return false;
+      log_->BuildEdgeStarted(edge);
     }
 
     bool success;
@@ -236,12 +266,6 @@ bool Builder::Build(string* err) {
         return false;
       }
       FinishEdge(edge);
-      ++completed;
-      if (time(NULL) - last_update > 5) {
-        printf("%.1f%% %d/%d\n", completed * 100 / (float)total,
-               completed, total);
-        last_update = time(NULL);
-      }
     } else {
       command_runner_->WaitForCommands();
     }
@@ -277,4 +301,5 @@ void Builder::FinishEdge(Edge* edge) {
     (*i)->dirty_ = false;
   }
   plan_.EdgeFinished(edge);
+  log_->BuildEdgeFinished(edge);
 }
