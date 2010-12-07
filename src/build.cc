@@ -13,10 +13,12 @@ struct BuildStatusLog {
 
   time_t last_update_;
   int finished_edges_, total_edges_;
+  bool verbose_;
 };
 
 BuildStatusLog::BuildStatusLog()
-  : last_update_(time(NULL)), finished_edges_(0), total_edges_(0) {}
+    : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
+      verbose_(false) {}
 
 void BuildStatusLog::PlanHasTotalEdges(int total) {
   total_edges_ = total;
@@ -24,7 +26,7 @@ void BuildStatusLog::PlanHasTotalEdges(int total) {
 
 void BuildStatusLog::BuildEdgeStarted(Edge* edge) {
   string desc = edge->GetDescription();
-  if (!desc.empty())
+  if (!verbose_ && !desc.empty())
     printf("%s\n", desc.c_str());
   else
     printf("%s\n", edge->EvaluateCommand().c_str());
@@ -215,6 +217,10 @@ Builder::Builder(State* state)
   disk_interface_ = new RealDiskInterface;
   command_runner_ = new RealCommandRunner;
   log_ = new BuildStatusLog;
+}
+
+void Builder::SetVerbose(bool verbose) {
+  log_->verbose_ = verbose;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {

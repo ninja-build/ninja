@@ -20,6 +20,7 @@ void usage() {
 "options:\n"
 "  -g       output graphviz dot file for targets and exit\n"
 "  -i FILE  specify input build file [default=build.ninja]\n"
+"  -v       show all command lines\n"
           );
 }
 
@@ -33,14 +34,17 @@ int main(int argc, char** argv) {
   const char* input_file = "build.ninja";
 
   int opt;
-  bool graph = false;
-  while ((opt = getopt_long(argc, argv, "ghi:", options, NULL)) != -1) {
+  bool graph = false, verbose = false;
+  while ((opt = getopt_long(argc, argv, "ghi:v", options, NULL)) != -1) {
     switch (opt) {
       case 'g':
         graph = true;
         break;
       case 'i':
         input_file = optarg;
+        break;
+      case 'v':
+        verbose = true;
         break;
       case 'h':
       default:
@@ -82,6 +86,7 @@ int main(int argc, char** argv) {
   }
 
   Builder builder(&state);
+  builder.SetVerbose(verbose);
   for (int i = 0; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
       if (!err.empty()) {

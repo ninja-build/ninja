@@ -60,6 +60,8 @@ struct CommandRunner {
 struct Builder {
   Builder(State* state);
 
+  void SetVerbose(bool verbose);
+
   Node* AddTarget(const string& name, string* err);
   bool Build(string* err);
 
