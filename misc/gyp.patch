@@ -86,7 +86,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,497 @@
+@@ -0,0 +1,494 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -115,7 +115,7 @@ Index: pylib/gyp/generator/ninja.py
 +  'RULE_INPUT_ROOT': '$root',
 +  'RULE_INPUT_PATH': '$source',
 +  'RULE_INPUT_EXT': '$ext',
-+  'RULE_INPUT_NAME': 'XXXNINJAXXX',
++  'RULE_INPUT_NAME': '$name',
 +
 +  # This appears unused --- ?
 +  'CONFIGURATION_NAME': '$(BUILDTYPE)',
@@ -124,8 +124,8 @@ Index: pylib/gyp/generator/ninja.py
 +NINJA_BASE = """\
 +builddir = $root/ninja
 +
-+cc = gcc
-+cxx = g++
++cc = ccache gcc
++cxx = ccache g++
 +
 +rule cc
 +  depfile = $out.d
@@ -144,14 +144,14 @@ Index: pylib/gyp/generator/ninja.py
 +  command = rm -f $out && ar rcs $out $in
 +
 +rule solink
-+  description = LINK $out
++  description = SOLINK $out
 +  command = g++ -shared $ldflags -o $out -Wl,-soname=$soname \\
-+            -Wl,--start-group $in -Wl,--end-group $libs
++    -Wl,--whole-archive -Wl,--start-group $in -Wl,--end-group -Wl,--whole-archive $libs
 +
 +rule link
 +  description = LINK $out
 +  command = g++ $ldflags -o $out -Wl,-rpath=@lib \\
-+            -Wl,--start-group $in -Wl,--end-group $libs
++    -Wl,--start-group $in -Wl,--end-group $libs
 +
 +rule stamp
 +  description = STAMP $out
@@ -159,7 +159,7 @@ Index: pylib/gyp/generator/ninja.py
 +
 +rule copy
 +  description = COPY $out
-+  command = ln $in $out
++  command = ln -f $in $out
 +
 +""" % {
 +  'cwd': os.getcwd(),
@@ -173,13 +173,6 @@ Index: pylib/gyp/generator/ninja.py
 +  if '"' in arg or ' ' in arg:
 +    return QuoteShellArgument(arg)
 +  return arg
-+
-+def FixBuildDirPath(path):
-+  """gyp doesn't know about our "@foo" syntax, and prepends paths to it."""
-+  ofs = path.find('@')
-+  if ofs > 0:
-+    return path[ofs:]
-+  return path
 +
 +class NinjaWriter:
 +  def __init__(self, linkable_outputs, order_only_outputs, base_dir, path):
@@ -260,8 +253,11 @@ Index: pylib/gyp/generator/ninja.py
 +      command = gyp.common.EncodePOSIXShellList(action['action'])
 +      if self.base_dir:
 +        command = 'cd %s; %s' % (self.base_dir, command)
-+      self.WriteRule(name=name, command=command,
-+                     description=action.get('message', None))
++      if 'description' in action:
++        description = action['message']
++      else:
++        description = '%s: %s' % (self.name, action['action_name'])
++      self.WriteRule(name=name, command=command, description=description)
 +
 +      inputs = [self.InputPath(i) for i in action['inputs']]
 +      if int(action.get('process_outputs_as_sources', False)):
@@ -305,7 +301,7 @@ Index: pylib/gyp/generator/ninja.py
 +
 +      # Compute which edge-scoped variables all build rules will need
 +      # to provide.
-+      special_locals = ('source', 'root', 'ext')
++      special_locals = ('source', 'root', 'ext', 'name')
 +      needed_variables = set()
 +      for argument in action:
 +        for var in special_locals:
@@ -329,8 +325,10 @@ Index: pylib/gyp/generator/ninja.py
 +            extra_bindings.append(('source', source))
 +          elif var == 'ext':
 +            extra_bindings.append(('ext', ext))
++          elif var == 'name':
++            extra_bindings.append(('name', basename))
 +          else:
-+            assert var == None, var  # XXX Not yet implemented.
++            assert var == None, var
 +        # XXX need to add extra dependencies on rule inputs
 +        # (e.g. if generator program changes, we need to rerun)
 +        self.WriteEdge(outputs, name, [self.InputPath(source)],
@@ -365,8 +363,7 @@ Index: pylib/gyp/generator/ninja.py
 +  def WriteSources(self, config, sources, predepends):
 +    self.WriteVariableList('defines', ['-D' + d for d in config.get('defines', [])],
 +                           quoter=MaybeQuoteShellArgument)
-+    includes = [FixBuildDirPath(self.InputPath(i))
-+                for i in config.get('include_dirs', [])]
++    includes = [self.InputPath(i) for i in config.get('include_dirs', [])]
 +    self.WriteVariableList('includes', ['-I' + i for i in includes])
 +    self.WriteVariableList('cflags', config.get('cflags'))
 +    self.WriteVariableList('cflags_cc', config.get('cflags_c'))
@@ -397,7 +394,8 @@ Index: pylib/gyp/generator/ninja.py
 +    self.WriteVariableList('libs', spec.get('libraries'))
 +
 +    output = self.ComputeOutput(spec)
-+    if 'dependencies' in spec:
++    if (spec['type'] in ('executable', 'loadable_module', 'shared_library') and
++        'dependencies' in spec):
 +      for dep in spec['dependencies']:
 +        dep = self.linkable_outputs.get(dep)
 +        if dep:
@@ -445,26 +443,25 @@ Index: pylib/gyp/generator/ninja.py
 +  def ComputeOutput(self, spec):
 +    filename = self.ComputeOutputFileName(spec)
 +
-+    # Executables and loadable modules go into the output root.
-+    if spec['type'] in ('executable', 'loadable_module'):
-+      path = ''
-+    elif spec['type'] == 'shared_library':
-+      path = 'lib'
-+    else:
-+      # Everything else goes into our per-target dir.
-+      path = self.base_dir
-+
-+    # XXX what are all these extra variables?
-+    path = spec.get('product_dir', path)
 +    assert 'product_prefix' not in spec
 +    if 'product_name' in spec:
-+      print 'XXX ignoring product_name'
++      print 'XXX ignoring product_name', spec['product_name']
 +    assert 'product_extension' not in spec
-+    #target_prefix = spec.get('product_prefix', target_prefix)
-+    #target = spec.get('product_name', target)
-+    #product_ext = spec.get('product_extension')
 +
-+    return '@' + os.path.join(path, filename)
++    if 'product_dir' in spec:
++      path = os.path.join(spec['product_dir'], filename)
++      print 'pdir', path
++      return path
++
++    # Executables and loadable modules go into the output root,
++    # libraries go into shared library dir, and everything else
++    # goes into the normal place.
++    if spec['type'] in ('executable', 'loadable_module'):
++      return os.path.join('@', filename)
++    elif spec['type'] == 'shared_library':
++      return os.path.join('@lib', filename)
++    else:
++      return self.OutputPath(filename)
 +
 +  def WriteRule(self, name, command, description=None):
 +    self.WriteLn('rule %s' % name)
@@ -584,3 +581,24 @@ Index: pylib/gyp/generator/ninja.py
 +
 +  master_ninja.close()
 +  OverPrint('done.\n')
+Index: pylib/gyp/input.py
+===================================================================
+--- pylib/gyp/input.py	(revision 857)
++++ pylib/gyp/input.py	(working copy)
+@@ -1512,7 +1512,7 @@
+           target_dict['dependencies'].append(dependency)
+ 
+ # Initialize this here to speed up MakePathRelative.
+-exception_re = re.compile(r'''["']?[-/$<>]''')
++exception_re = re.compile(r'''["']?[-/$@<>]''')
+ 
+ 
+ def MakePathRelative(to_file, fro_file, item):
+@@ -1524,6 +1524,7 @@
+   #   /   Used when a path is already absolute (shortcut optimization;
+   #       such paths would be returned as absolute anyway)
+   #   $   Used for build environment variables
++  #   @   Used for build environment variables
+   #   -   Used for some build environment flags (such as -lapr-1 in a
+   #       "libraries" section)
+   #   <   Used for our own variable and command expansions (see ExpandVariables)
