@@ -2,7 +2,7 @@
 
 set -e
 
-srcs=$(ls *.cc | grep -v test)
+srcs=$(ls src/*.cc | grep -v test)
 echo "Building stage 1..."
 g++ -o ninja.bootstrap $srcs
 echo "Building final result..."
