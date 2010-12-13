@@ -1,4 +1,6 @@
 save command lines
+"explain" mode that shows why we're building a file
+"one file" mode that builds only outputs of a single file
 
 short-term ideas:
 - magic $in/$out variables shouldn't be magic, they're just a shortcut
@@ -11,8 +13,6 @@ short-term ideas:
 longer-term ideas:
 
 - use lemon/ragel for parsing
-
-- buffer stderr from commands, only print failing commands/output
 
 - progress bar rather than printing commands in series
 
