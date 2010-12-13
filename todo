@@ -1,19 +1,10 @@
 save command lines
+  or use mtimes on build files?
 "explain" mode that shows why we're building a file
 "one file" mode that builds only outputs of a single file
+"dry run" mode that shows command lines but doesn't build
+adjust to system load dynamically
 
-short-term ideas:
-- magic $in/$out variables shouldn't be magic, they're just a shortcut
-  for specifying commands like
-    rule frob
-      command = frob $manual_inputs
-    build foo: frob
-      manual_inputs = a b c
-
-longer-term ideas:
-
-- use lemon/ragel for parsing
-
-- progress bar rather than printing commands in series
-
-- store historical timing info, allowing etas on builds
+progress bar rather than printing commands in series
+store historical timing info, allowing etas on builds
+  how does parallelization fit in?
