@@ -235,20 +235,15 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-Builder::Builder(State* state)
+Builder::Builder(State* state, const BuildConfig& config)
     : state_(state) {
   disk_interface_ = new RealDiskInterface;
-  command_runner_ = new RealCommandRunner;
-  log_ = new BuildStatusLog;
-}
-
-void Builder::SetVerbose(bool verbose) {
-  log_->verbose_ = verbose;
-}
-
-void Builder::SetDryRun(bool on) {
-  if (on)
+  if (config.dry_run)
     command_runner_ = new DryRunCommandRunner;
+  else
+    command_runner_ = new RealCommandRunner;
+  log_ = new BuildStatusLog;
+  log_->verbose_ = config.verbose;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {

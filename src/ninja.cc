@@ -32,10 +32,11 @@ struct RealFileReader : public ManifestParser::FileReader {
 };
 
 int main(int argc, char** argv) {
+  BuildConfig config;
   const char* input_file = "build.ninja";
+  bool graph = false;
 
   int opt;
-  bool dry_run = false, graph = false, verbose = false;
   while ((opt = getopt_long(argc, argv, "ghi:nv", options, NULL)) != -1) {
     switch (opt) {
       case 'g':
@@ -45,10 +46,10 @@ int main(int argc, char** argv) {
         input_file = optarg;
         break;
       case 'n':
-        dry_run = true;
+        config.dry_run = true;
         break;
       case 'v':
-        verbose = true;
+        config.verbose = true;
         break;
       case 'h':
       default:
@@ -89,9 +90,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  Builder builder(&state);
-  builder.SetVerbose(verbose);
-  builder.SetDryRun(dry_run);
+  Builder builder(&state, config);
   for (int i = 0; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
       if (!err.empty()) {

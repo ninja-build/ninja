@@ -160,7 +160,8 @@ TEST_F(PlanTest, DependencyCycle) {
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner,
                    public DiskInterface {
-  BuildTest() : builder_(&state_), now_(1), last_command_(NULL) {
+  BuildTest() : config_(), builder_(&state_, config_), now_(1),
+                last_command_(NULL) {
     builder_.disk_interface_ = this;
     builder_.command_runner_ = this;
     AssertParse(&state_,
@@ -196,6 +197,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
     return "";
   }
 
+  BuildConfig config_;
   Builder builder_;
   int now_;
   map<string, string> file_contents_;

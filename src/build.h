@@ -57,11 +57,15 @@ struct CommandRunner {
   virtual Edge* NextFinishedCommand(bool* success) = 0;
 };
 
-struct Builder {
-  Builder(State* state);
+struct BuildConfig {
+  BuildConfig() : verbose(false), dry_run(false) {}
 
-  void SetVerbose(bool verbose);
-  void SetDryRun(bool on);
+  bool verbose;
+  bool dry_run;
+};
+
+struct Builder {
+  Builder(State* state, const BuildConfig& config);
 
   Node* AddTarget(const string& name, string* err);
   bool Build(string* err);
