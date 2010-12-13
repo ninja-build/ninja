@@ -2,7 +2,6 @@ save command lines
   or use mtimes on build files?
 "explain" mode that shows why we're building a file
 "one file" mode that builds only outputs of a single file
-"dry run" mode that shows command lines but doesn't build
 adjust to system load dynamically
 
 progress bar rather than printing commands in series

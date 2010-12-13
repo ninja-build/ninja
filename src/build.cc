@@ -212,6 +212,29 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   return edge;
 }
 
+struct DryRunCommandRunner : public CommandRunner {
+  virtual ~DryRunCommandRunner() {}
+  virtual bool CanRunMore() {
+    return true;
+  }
+  virtual bool StartCommand(Edge* edge) {
+    finished_.push(edge);
+    return true;
+  }
+  virtual void WaitForCommands() {
+  }
+  virtual Edge* NextFinishedCommand(bool* success) {
+    if (finished_.empty())
+      return NULL;
+    *success = true;
+    Edge* edge = finished_.front();
+    finished_.pop();
+    return edge;
+  }
+
+  queue<Edge*> finished_;
+};
+
 Builder::Builder(State* state)
     : state_(state) {
   disk_interface_ = new RealDiskInterface;
@@ -221,6 +244,11 @@ Builder::Builder(State* state)
 
 void Builder::SetVerbose(bool verbose) {
   log_->verbose_ = verbose;
+}
+
+void Builder::SetDryRun(bool on) {
+  if (on)
+    command_runner_ = new DryRunCommandRunner;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {

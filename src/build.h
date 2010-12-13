@@ -61,6 +61,7 @@ struct Builder {
   Builder(State* state);
 
   void SetVerbose(bool verbose);
+  void SetDryRun(bool on);
 
   Node* AddTarget(const string& name, string* err);
   bool Build(string* err);
