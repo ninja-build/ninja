@@ -160,7 +160,7 @@ TEST_F(PlanTest, DependencyCycle) {
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner,
                    public DiskInterface {
-  BuildTest() : config_(), builder_(&state_, config_), now_(1),
+  BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),
                 last_command_(NULL) {
     builder_.disk_interface_ = this;
     builder_.command_runner_ = this;
@@ -195,6 +195,12 @@ struct BuildTest : public StateTestWithBuiltinRules,
     if (i != file_contents_.end())
       return i->second;
     return "";
+  }
+
+  BuildConfig MakeConfig() {
+    BuildConfig config;
+    config.verbosity = BuildConfig::QUIET;
+    return config;
   }
 
   BuildConfig config_;

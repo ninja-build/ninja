@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
         config.dry_run = true;
         break;
       case 'v':
-        config.verbose = true;
+        config.verbosity = BuildConfig::VERBOSE;
         break;
       case 'h':
       default:

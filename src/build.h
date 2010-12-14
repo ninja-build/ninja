@@ -58,9 +58,14 @@ struct CommandRunner {
 };
 
 struct BuildConfig {
-  BuildConfig() : verbose(false), dry_run(false) {}
+  BuildConfig() : verbosity(NORMAL), dry_run(false) {}
 
-  bool verbose;
+  enum Verbosity {
+    NORMAL,
+    QUIET,  // No output -- used when testing.
+    VERBOSE
+  };
+  Verbosity verbosity;
   bool dry_run;
 };
 

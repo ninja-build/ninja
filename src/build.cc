@@ -13,12 +13,13 @@ struct BuildStatusLog {
 
   time_t last_update_;
   int finished_edges_, total_edges_;
-  bool verbose_;
+
+  BuildConfig::Verbosity verbosity_;
 };
 
 BuildStatusLog::BuildStatusLog()
     : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
-      verbose_(false) {}
+      verbosity_(BuildConfig::NORMAL) {}
 
 void BuildStatusLog::PlanHasTotalEdges(int total) {
   total_edges_ = total;
@@ -26,10 +27,12 @@ void BuildStatusLog::PlanHasTotalEdges(int total) {
 
 void BuildStatusLog::BuildEdgeStarted(Edge* edge) {
   string desc = edge->GetDescription();
-  if (!verbose_ && !desc.empty())
-    printf("%s\n", desc.c_str());
-  else
-    printf("%s\n", edge->EvaluateCommand().c_str());
+  if (verbosity_ != BuildConfig::QUIET) {
+    if (verbosity_ != BuildConfig::VERBOSE && !desc.empty())
+      printf("%s\n", desc.c_str());
+    else
+      printf("%s\n", edge->EvaluateCommand().c_str());
+  }
 }
 
 void BuildStatusLog::BuildEdgeFinished(Edge* edge) {
@@ -243,7 +246,7 @@ Builder::Builder(State* state, const BuildConfig& config)
   else
     command_runner_ = new RealCommandRunner;
   log_ = new BuildStatusLog;
-  log_->verbose_ = config.verbose;
+  log_->verbosity_ = config.verbosity;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
