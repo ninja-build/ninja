@@ -1,5 +1,6 @@
 save command lines
-  or use mtimes on build files?
+collect per-command timing, perhaps saving with command lines
+
 "explain" mode that shows why we're building a file
 "one file" mode that builds only outputs of a single file
 adjust to system load dynamically

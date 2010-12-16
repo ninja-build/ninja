@@ -29,22 +29,26 @@ rule link
 # build "ninja.a" by linking the builddir's "ninja.o",
 # and build that "ninja.o" by compiling "ninja.cc".
 build $builddir/build.o: cxx src/build.cc
+build $builddir/build_log.o: cxx src/build_log.cc
 build $builddir/parsers.o: cxx src/parsers.cc
 build $builddir/subprocess.o: cxx src/subprocess.cc
 build $builddir/util.o: cxx src/util.cc
 build $builddir/ninja_jumble.o: cxx src/ninja_jumble.cc
-build $builddir/ninja.a: ar $builddir/build.o $builddir/parsers.o \
-    $builddir/subprocess.o $builddir/util.o $builddir/ninja_jumble.o
+build $builddir/ninja.a: ar $builddir/build.o $builddir/build_log.o \
+    $builddir/parsers.o $builddir/subprocess.o $builddir/util.o \
+    $builddir/ninja_jumble.o
 
 build $builddir/ninja.o: cxx src/ninja.cc
 build ninja: link $builddir/ninja.o $builddir/ninja.a
 
 build $builddir/build_test.o: cxx src/build_test.cc
+build $builddir/build_log_test.o: cxx src/build_log_test.cc
 build $builddir/ninja_test.o: cxx src/ninja_test.cc
 build $builddir/parsers_test.o: cxx src/parsers_test.cc
 build $builddir/subprocess_test.o: cxx src/subprocess_test.cc
-build ninja_test: link $builddir/build_test.o $builddir/ninja_test.o \
-    $builddir/parsers_test.o $builddir/subprocess_test.o $builddir/ninja.a
+build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
+    $builddir/ninja_test.o $builddir/parsers_test.o \
+    $builddir/subprocess_test.o $builddir/ninja.a
   ldflags = -g -rdynamic -lgtest -lgtest_main -lpthread
 
 
