@@ -132,6 +132,12 @@ build special.o: cc.special.c
   cflags = -Wall
 ----------------
 
+In the scope of a `build` block (including in the evaluation of its associated
+`rule`), the variable `$in` is the list of inputs and the variable `$out` is
+the list of outputs.  If you need anything more complicated than this (for
+example, the basename of the first input), pass that in as an extra variable,
+like how `cflags` is passed above.
+
 
 Variables
 ~~~~~~~~~
@@ -155,7 +161,7 @@ Variables can also be referenced using curly braces like `${in}`.
 Variables might better be called "bindings", in that a given variable
 cannot be changed, only shadowed.  Within a larger Ninja project,
 different _scopes_ allow variable values to be overridden.  XXX finish
-describing me.
+describing scopes.
 
 Ninja file reference
 --------------------
@@ -164,6 +170,7 @@ A file is a series of declarations.  A declaration can be one of:
 1. A rule declaration, which begins with +rule _rulename_+.
 2. A build edge, which looks like +build _outputs_: _rulename_ _inputs_+
 3. Variable declarations, which look like +_variable_ = _value_+.
+4. References to more files, which look like +subninja _path_+.
 
 Comments begin with `#` and extend to the end of the line.
 
@@ -175,8 +182,8 @@ a line is intended more than the previous one, it's considered part of
 its parent's scope; if it is indented less than the previous one, it
 closes the previous scope.
 
-Rule declarations
-~~~~~~~~~~~~~~~~~
+Rule variables
+~~~~~~~~~~~~~~
 
 A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
@@ -197,7 +204,9 @@ rule cc
 ----
 
 `description`:: a short description of the command, used to pretty-print
-  the command as it's running.  _XXX not implemented yet_.
+  the command as it's running.  The `-v` flag controls whether to print
+  the full command or its description; if a command fails, the full command
+  line will always be printed before the command's output.
 
 Special variables
 ~~~~~~~~~~~~~~~~~
