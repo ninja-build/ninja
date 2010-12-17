@@ -1,6 +1,9 @@
 #ifndef NINJA_EVAL_ENV_H_
 #define NINJA_EVAL_ENV_H_
 
+#include <map>
+using namespace std;
+
 // A scope for variable lookups.
 struct Env {
   virtual string LookupVariable(const string& var) = 0;
