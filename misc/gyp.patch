@@ -86,7 +86,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,494 @@
+@@ -0,0 +1,500 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -146,7 +146,7 @@ Index: pylib/gyp/generator/ninja.py
 +rule solink
 +  description = SOLINK $out
 +  command = g++ -shared $ldflags -o $out -Wl,-soname=$soname \\
-+    -Wl,--whole-archive -Wl,--start-group $in -Wl,--end-group -Wl,--whole-archive $libs
++    -Wl,--start-group $in -Wl,--end-group $libs
 +
 +rule link
 +  description = LINK $out
@@ -175,9 +175,9 @@ Index: pylib/gyp/generator/ninja.py
 +  return arg
 +
 +class NinjaWriter:
-+  def __init__(self, linkable_outputs, order_only_outputs, base_dir, path):
-+    self.linkable_outputs = linkable_outputs
-+    self.order_only_outputs = order_only_outputs
++  def __init__(self, target_outputs, target_links, base_dir, path):
++    self.target_outputs = target_outputs
++    self.target_links = target_links
 +    self.base_dir = base_dir
 +    self.path = path
 +    self.file = open(path, 'w')
@@ -200,7 +200,7 @@ Index: pylib/gyp/generator/ninja.py
 +    self.name = spec['target_name']  # XXX remove bad chars
 +
 +    if spec['type'] == 'settings':
-+      return
++      return (None, None)
 +
 +    # Compute predepends for all rules.
 +    prebuild_deps = []
@@ -208,13 +208,8 @@ Index: pylib/gyp/generator/ninja.py
 +    # if any.
 +    self.prebuild_stamp = None
 +    if 'dependencies' in spec:
-+      for d in spec['dependencies']:
-+        dep = self.linkable_outputs.get(d)
-+        if dep:
-+          prebuild_deps.append(dep)
-+        dep = self.order_only_outputs.get(d)
-+        if dep:
-+          prebuild_deps.append(dep)
++      prebuild_deps = filter(None, [self.target_outputs.get(dep)
++                                    for dep in spec['dependencies']])
 +    if prebuild_deps:
 +      self.prebuild_stamp = self.StampPath('predepends')
 +      self.WriteEdge([self.prebuild_stamp], 'stamp', prebuild_deps,
@@ -393,13 +388,15 @@ Index: pylib/gyp/generator/ninja.py
 +    self.WriteVariableList('ldflags', config.get('ldflags'))
 +    self.WriteVariableList('libs', spec.get('libraries'))
 +
++    deps = spec.get('dependencies', [])
++
 +    output = self.ComputeOutput(spec)
-+    if (spec['type'] in ('executable', 'loadable_module', 'shared_library') and
-+        'dependencies' in spec):
-+      for dep in spec['dependencies']:
-+        dep = self.linkable_outputs.get(dep)
-+        if dep:
-+          link_deps.append(dep)
++    if spec['type'] in ('executable', 'loadable_module'):
++      extra_deps = set()
++      for dep in deps:
++        extra_deps.update(self.target_links.get(dep, set()))
++      link_deps.extend(list(extra_deps))
++    print output, 'links', link_deps
 +    command_map = {
 +      'executable':      'link',
 +      'static_library':  'alink',
@@ -418,7 +415,15 @@ Index: pylib/gyp/generator/ninja.py
 +    if spec['type'] == 'executable':
 +      self.WriteEdge([self.ComputeOutputFileName(spec)], 'phony', [output],
 +                     use_prebuild_stamp=False)
-+    return output
++
++    output_link_deps = set()
++    if spec['type'] not in ('executable', 'loadable_module'):
++      if 'library' in spec['type']:
++        output_link_deps.add(output)
++      for dep in deps:
++        output_link_deps.update(self.target_links.get(dep, set()))
++
++    return (output, output_link_deps)
 +
 +  def ComputeOutputFileName(self, spec):
 +    target = spec['target_name']
@@ -544,8 +549,8 @@ Index: pylib/gyp/generator/ninja.py
 +  all_outputs = set()
 +
 +  subninjas = set()
-+  linkable_outputs = {}
-+  order_only_outputs = {}
++  target_outputs = {}
++  target_links = {}
 +  for qualified_target in target_list:
 +    # qualified_target is like: third_party/icu/icu.gyp:icui18n#target
 +    #OverPrint(qualified_target)
@@ -560,18 +565,19 @@ Index: pylib/gyp/generator/ninja.py
 +      config_name = spec['default_configuration']
 +    config = spec['configurations'][config_name]
 +
-+    writer = NinjaWriter(linkable_outputs, order_only_outputs,
-+                         base_path, output_file)
++    writer = NinjaWriter(target_outputs, target_links, base_path, output_file)
 +    subninjas.add(ninja_path)
 +
-+    output = writer.WriteSpec(spec, config)
-+    if 'library' in spec['type']:
-+      linkable_outputs[qualified_target] = output
-+    else:
-+      order_only_outputs[qualified_target] = output
++    output, output_link_deps = writer.WriteSpec(spec, config)
++    if output:
++      print output, '=>', output_link_deps
++      target_outputs[qualified_target] = output
 +
-+    if qualified_target in all_targets:
-+      all_outputs.add(output)
++      if qualified_target in all_targets:
++        all_outputs.add(output)
++
++    if output_link_deps:
++      target_links[qualified_target] = output_link_deps
 +
 +  for ninja in subninjas:
 +    print >>master_ninja, 'subninja', ninja
