@@ -227,12 +227,14 @@ TEST_F(ParserTest, BuildDir) {
 "rule cat\n"
 "  command = cat @otherfile $in > $out\n"
 "build @bin: cat @a.o\n"
-"build @a.o: cat a.cc\n"));
+"build @a.o: cat a.cc\n"
+"multiple_ats = @foo bar@@baz\n"));
   EXPECT_EQ("foo", state.bindings_.LookupVariable("default_test"));
   ASSERT_TRUE(state.LookupNode("out/a.o"));
   const Rule* rule = state.LookupRule("cat");
   ASSERT_TRUE(rule);
   EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
+  EXPECT_EQ("out/foo bar@@baz", state.bindings_.LookupVariable("multiple_ats"));
 }
 
 TEST_F(ParserTest, BuildDirRoot) {

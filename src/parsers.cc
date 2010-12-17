@@ -343,8 +343,14 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
     return false;
 
   // Do @ -> builddir substitution.
-  size_t ofs;
-  while ((ofs = value->find('@')) != string::npos) {
+  // XXX hack: we don't want to eat @ in arguments, so only do the
+  // substitution after a space.
+  size_t ofs = 0;
+  while ((ofs = value->find('@', ofs)) != string::npos) {
+    if (ofs > 0 && (*value)[ofs - 1] != ' ') {
+      ++ofs;
+      continue;
+    }
     value->replace(ofs, 1, builddir_);
     ofs += builddir_.size();
   }
