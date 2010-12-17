@@ -9,8 +9,8 @@
 
 string Token::AsString() const {
   switch (type_) {
-  case IDENT:    return "'" + extra_ + "'";
-  case UNKNOWN:  return "unknown '" + extra_ + "'";
+  case IDENT:    return "'" + string(pos_, end_ - pos_) + "'";
+  case UNKNOWN:  return "unknown '" + string(pos_, end_ - pos_) + "'";
   case RULE:     return "'rule'";
   case BUILD:    return "'build'";
   case SUBNINJA: return "'subninja'";
@@ -99,7 +99,7 @@ bool Tokenizer::ReadIdent(string* out) {
   PeekToken();
   if (token_.type_ != Token::IDENT)
     return false;
-  out->assign(token_.extra_);
+  out->assign(token_.pos_, token_.end_ - token_.pos_);
   ConsumeToken();
   return true;
 }
@@ -159,14 +159,15 @@ Token::Type Tokenizer::PeekToken() {
 
   if (IsIdentChar(*cur_)) {
     while (cur_ < end_ && IsIdentChar(*cur_)) {
-      token_.extra_.push_back(*cur_);
       ++cur_;
     }
-    if (token_.extra_ == "rule")
+    token_.end_ = cur_;
+    int len = token_.end_ - token_.pos_;
+    if (len == 4 && memcmp(token_.pos_, "rule", 4) == 0)
       token_.type_ = Token::RULE;
-    else if (token_.extra_ == "build")
+    else if (len == 5 && memcmp(token_.pos_, "build", 5) == 0)
       token_.type_ = Token::BUILD;
-    else if (token_.extra_ == "subninja")
+    else if (len == 8 && memcmp(token_.pos_, "subninja", 8) == 0)
       token_.type_ = Token::SUBNINJA;
     else
       token_.type_ = Token::IDENT;
@@ -191,7 +192,7 @@ Token::Type Tokenizer::PeekToken() {
 
   if (token_.type_ == Token::NONE) {
     token_.type_ = Token::UNKNOWN;
-    token_.extra_ = *cur_;
+    token_.end_ = cur_ + 1;
   }
 
   return token_.type_;
