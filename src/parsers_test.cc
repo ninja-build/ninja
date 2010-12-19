@@ -125,6 +125,17 @@ TEST_F(ParserTest, CanonicalizeFile) {
   EXPECT_FALSE(state.LookupNode("in//2"));
 }
 
+TEST_F(ParserTest, PathVariables) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"dir = out\n"
+"build $dir/exe: cat src\n"));
+
+  EXPECT_FALSE(state.LookupNode("$dir/exe"));
+  EXPECT_TRUE(state.LookupNode("out/exe"));
+}
+
 TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL, NULL);
@@ -217,6 +228,16 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
                               &err));
     EXPECT_EQ("line 4, col 0: unexpected variable 'othervar'", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n"
+                              "build $: cc bar.cc\n",
+                              &err));
+    EXPECT_EQ("line 4, col 1: expected variable after $", err);
   }
 }
 

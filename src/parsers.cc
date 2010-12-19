@@ -82,7 +82,7 @@ static bool IsIdentChar(char c) {
     ('a' <= c && c <= 'z') ||
     ('+' <= c && c <= '9') ||  // +,-./ and numbers
     ('A' <= c && c <= 'Z') ||
-    (c == '_') || (c == '@');
+    (c == '_') || (c == '@') || (c == '$');
 }
 
 bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
@@ -379,7 +379,7 @@ bool ManifestParser::ParseEdge(string* err) {
     string out;
     if (!tokenizer_.ReadIdent(&out))
       return tokenizer_.Error("expected output file list", err);
-    outs.push_back(ExpandFile(out));
+    outs.push_back(out);
   }
   // XXX check outs not empty
 
@@ -402,7 +402,7 @@ bool ManifestParser::ParseEdge(string* err) {
     string in;
     if (!tokenizer_.ReadIdent(&in))
       break;
-    ins.push_back(ExpandFile(in));
+    ins.push_back(in);
   }
 
   // Add all order-only deps, counting how many as we go.
@@ -413,7 +413,7 @@ bool ManifestParser::ParseEdge(string* err) {
       string in;
       if (!tokenizer_.ReadIdent(&in))
         break;
-      ins.push_back(ExpandFile(in));
+      ins.push_back(in);
       ++order_only;
     }
   }
@@ -438,6 +438,20 @@ bool ManifestParser::ParseEdge(string* err) {
       env->AddBinding(key, val);
     }
     tokenizer_.ConsumeToken();
+  }
+
+  // Evaluate all variables in paths.
+  // XXX: fast path skip the eval parse if there's no $ in the path?
+  vector<string>* paths[2] = { &ins, &outs };
+  for (int p = 0; p < 2; ++p) {
+    for (vector<string>::iterator i = paths[p]->begin();
+         i != paths[p]->end(); ++i) {
+      EvalString eval;
+      string eval_err;
+      if (!eval.Parse(*i, &eval_err))
+        return tokenizer_.Error(eval_err, err);
+      *i = ExpandFile(eval.Evaluate(env));
+    }
   }
 
   Edge* edge = state_->AddEdge(rule);
