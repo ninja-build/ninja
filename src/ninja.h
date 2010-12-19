@@ -2,7 +2,6 @@
 #define NINJA_NINJA_H_
 
 #include <algorithm>
-#include <map>
 #include <queue>
 #include <set>
 #include <string>
@@ -13,6 +12,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "hash_map.h"
 
 int ReadFile(const string& path, string* contents, string* err);
 
@@ -135,7 +135,7 @@ struct Edge {
 };
 
 struct StatCache {
-  typedef map<string, FileStat*> Paths;
+  typedef hash_map<string, FileStat*> Paths;
   Paths paths_;
   FileStat* GetFile(const string& path);
   void Dump();

@@ -26,12 +26,12 @@ struct Token {
   };
   explicit Token(Type type) : type_(type) {}
 
-  void Clear() { type_ = NONE; extra_.clear(); }
+  void Clear() { type_ = NONE; }
   string AsString() const;
 
   Type type_;
   const char* pos_;
-  string extra_;
+  const char* end_;
 };
 
 struct Tokenizer {
