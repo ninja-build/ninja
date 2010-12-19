@@ -51,8 +51,9 @@ TEST_F(ParserTest, Rules) {
 
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
+"l = one-letter-test\n"
 "rule link\n"
-"  command = ld $extra $with_under -o $out $in\n"
+"  command = ld $l $extra $with_under -o $out $in\n"
 "\n"
 "extra = -pthread\n"
 "with_under = -under\n"
@@ -60,7 +61,8 @@ TEST_F(ParserTest, Variables) {
 
   ASSERT_EQ(1, state.edges_.size());
   Edge* edge = state.edges_[0];
-  EXPECT_EQ("ld -pthread -under -o a b c", edge->EvaluateCommand());
+  EXPECT_EQ("ld one-letter-test -pthread -under -o a b c",
+            edge->EvaluateCommand());
 }
 
 TEST_F(ParserTest, VariableScope) {
