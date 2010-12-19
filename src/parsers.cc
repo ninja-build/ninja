@@ -82,7 +82,7 @@ static bool IsIdentChar(char c) {
     ('a' <= c && c <= 'z') ||
     ('+' <= c && c <= '9') ||  // +,-./ and numbers
     ('A' <= c && c <= 'Z') ||
-    (c == '_') || (c == '@') || (c == '$');
+    (c == '_') || (c == '$');
 }
 
 bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
@@ -255,16 +255,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
         string name, value;
         if (!ParseLet(&name, &value, err))
           return false;
-
         env_->AddBinding(name, value);
-        if (name == "builddir") {
-          builddir_ = value;
-          if (builddir_.substr(0, 5) == "$root") {
-            builddir_ = root_ + builddir_.substr(5);
-          }
-          if (!builddir_.empty() && builddir_[builddir_.size() - 1] != '/')
-            builddir_.push_back('/');
-        }
         break;
       }
       case Token::TEOF:
@@ -340,13 +331,6 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
   // command syntax, though...
   if (!tokenizer_.ReadToNewline(value, err))
     return false;
-
-  // Do @ -> builddir substitution.
-  size_t ofs;
-  while ((ofs = value->find('@')) != string::npos) {
-    value->replace(ofs, 1, builddir_);
-    ofs += builddir_.size();
-  }
 
   return true;
 }
@@ -450,7 +434,7 @@ bool ManifestParser::ParseEdge(string* err) {
       string eval_err;
       if (!eval.Parse(*i, &eval_err))
         return tokenizer_.Error(eval_err, err);
-      *i = ExpandFile(eval.Evaluate(env));
+      *i = CanonicalizePath(eval.Evaluate(env));
     }
   }
 
@@ -489,11 +473,3 @@ bool ManifestParser::ParseSubNinja(string* err) {
 
   return true;
 }
-
-string ManifestParser::ExpandFile(const string& file) {
-  string out = file;
-  if (!file.empty() && file[0] == '@')
-    out = builddir_ + file.substr(1);
-  return CanonicalizePath(out);
-}
-

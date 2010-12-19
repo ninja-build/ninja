@@ -241,46 +241,18 @@ TEST_F(ParserTest, Errors) {
   }
 }
 
-TEST_F(ParserTest, BuildDir) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-"default_test = @foo\n"
-"builddir = out\n"
-"rule cat\n"
-"  command = cat @otherfile $in > $out\n"
-"build @bin: cat @a.o\n"
-"build @a.o: cat a.cc\n"));
-  EXPECT_EQ("foo", state.bindings_.LookupVariable("default_test"));
-  ASSERT_TRUE(state.LookupNode("out/a.o"));
-  const Rule* rule = state.LookupRule("cat");
-  ASSERT_TRUE(rule);
-  EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
-}
-
-TEST_F(ParserTest, BuildDirRoot) {
-  ManifestParser parser(&state, this);
-  parser.set_root("/root_test");
-  string err;
-  ASSERT_TRUE(parser.Parse(
-"builddir = $root/out\n"
-"rule cat\n"
-"  command = cat @otherfile $in > $out\n"
-"build @a.o: cat a.cc\n", &err));
-  ASSERT_EQ("", err);
-  ASSERT_TRUE(state.LookupNode("/root_test/out/a.o"));
-}
-
 TEST_F(ParserTest, SubNinja) {
   files_["test.ninja"] =
     "var = inner\n"
-    "build @inner: varref\n";
+    "build $builddir/inner: varref\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = some_dir/\n"
 "rule varref\n"
 "  command = varref $var\n"
 "var = outer\n"
-"build @outer: varref\n"
+"build $builddir/outer: varref\n"
 "subninja test.ninja\n"
-"build @outer2: varref\n"));
+"build $builddir/outer2: varref\n"));
   ASSERT_EQ(1, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);
