@@ -83,7 +83,9 @@ struct ManifestParser {
   bool Parse(const string& input, string* err);
 
   bool ParseRule(string* err);
-  bool ParseLet(string* key, string* val, string* err);
+  // Parse a key=val statement.  If expand is true, evaluate variables
+  // within the value immediately.
+  bool ParseLet(string* key, string* val, bool expand, string* err);
   bool ParseEdge(string* err);
   bool ParseSubNinja(string* err);
 

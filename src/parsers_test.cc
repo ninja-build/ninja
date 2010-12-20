@@ -57,12 +57,15 @@ TEST_F(ParserTest, Variables) {
 "\n"
 "extra = -pthread\n"
 "with_under = -under\n"
-"build a: link b c\n"));
+"build a: link b c\n"
+"nested1 = 1\n"
+"nested2 = $nested1/2\n"));
 
   ASSERT_EQ(1, state.edges_.size());
   Edge* edge = state.edges_[0];
   EXPECT_EQ("ld one-letter-test -pthread -under -o a b c",
             edge->EvaluateCommand());
+  EXPECT_EQ("1/2", state.bindings_.LookupVariable("nested2"));
 }
 
 TEST_F(ParserTest, VariableScope) {

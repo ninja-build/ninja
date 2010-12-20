@@ -254,7 +254,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
         break;
       case Token::IDENT: {
         string name, value;
-        if (!ParseLet(&name, &value, err))
+        if (!ParseLet(&name, &value, true, err))
           return false;
         if (value.substr(0, 9) == "ROOT_HACK") {
           // XXX remove this hack, or make it more principled.
@@ -302,7 +302,7 @@ bool ManifestParser::ParseRule(string* err) {
 
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
       string key, val;
-      if (!ParseLet(&key, &val, err))
+      if (!ParseLet(&key, &val, false, err))
         return false;
 
       string parse_err;
@@ -331,7 +331,8 @@ bool ManifestParser::ParseRule(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseLet(string* name, string* value, string* err) {
+bool ManifestParser::ParseLet(string* name, string* value, bool expand,
+                              string* err) {
   if (!tokenizer_.ReadIdent(name))
     return tokenizer_.Error("expected variable name", err);
   if (!tokenizer_.ExpectToken(Token::EQUALS, err))
@@ -341,6 +342,14 @@ bool ManifestParser::ParseLet(string* name, string* value, string* err) {
   // command syntax, though...
   if (!tokenizer_.ReadToNewline(value, err))
     return false;
+
+  if (expand) {
+    EvalString eval;
+    string eval_err;
+    if (!eval.Parse(*value, &eval_err))
+      return tokenizer_.Error(eval_err, err);
+    *value = eval.Evaluate(env_);
+  }
 
   return true;
 }
@@ -427,7 +436,7 @@ bool ManifestParser::ParseEdge(string* err) {
     env->parent_ = env_;
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
       string key, val;
-      if (!ParseLet(&key, &val, err))
+      if (!ParseLet(&key, &val, false, err))
         return false;
       env->AddBinding(key, val);
     }
