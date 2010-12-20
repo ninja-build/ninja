@@ -51,8 +51,9 @@ TEST_F(ParserTest, Rules) {
 
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
+"l = one-letter-test\n"
 "rule link\n"
-"  command = ld $extra $with_under -o $out $in\n"
+"  command = ld $l $extra $with_under -o $out $in\n"
 "\n"
 "extra = -pthread\n"
 "with_under = -under\n"
@@ -60,7 +61,8 @@ TEST_F(ParserTest, Variables) {
 
   ASSERT_EQ(1, state.edges_.size());
   Edge* edge = state.edges_[0];
-  EXPECT_EQ("ld -pthread -under -o a b c", edge->EvaluateCommand());
+  EXPECT_EQ("ld one-letter-test -pthread -under -o a b c",
+            edge->EvaluateCommand());
 }
 
 TEST_F(ParserTest, VariableScope) {
@@ -123,6 +125,17 @@ TEST_F(ParserTest, CanonicalizeFile) {
   EXPECT_TRUE(state.LookupNode("in/2"));
   EXPECT_FALSE(state.LookupNode("in//1"));
   EXPECT_FALSE(state.LookupNode("in//2"));
+}
+
+TEST_F(ParserTest, PathVariables) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"dir = out\n"
+"build $dir/exe: cat src\n"));
+
+  EXPECT_FALSE(state.LookupNode("$dir/exe"));
+  EXPECT_TRUE(state.LookupNode("out/exe"));
 }
 
 TEST_F(ParserTest, Errors) {
@@ -218,50 +231,30 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 0: unexpected variable 'othervar'", err);
   }
-}
 
-TEST_F(ParserTest, BuildDir) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-"default_test = @foo\n"
-"builddir = out\n"
-"rule cat\n"
-"  command = cat @otherfile $in > $out\n"
-"build @bin: cat @a.o\n"
-"build @a.o: cat a.cc\n"
-"multiple_ats = @foo bar@@baz\n"));
-  EXPECT_EQ("foo", state.bindings_.LookupVariable("default_test"));
-  ASSERT_TRUE(state.LookupNode("out/a.o"));
-  const Rule* rule = state.LookupRule("cat");
-  ASSERT_TRUE(rule);
-  EXPECT_EQ("cat out/otherfile $in > $out", rule->command_.unparsed());
-  EXPECT_EQ("out/foo bar@@baz", state.bindings_.LookupVariable("multiple_ats"));
-}
-
-TEST_F(ParserTest, BuildDirRoot) {
-  ManifestParser parser(&state, this);
-  parser.set_root("/root_test");
-  string err;
-  ASSERT_TRUE(parser.Parse(
-"builddir = $root/out\n"
-"rule cat\n"
-"  command = cat @otherfile $in > $out\n"
-"build @a.o: cat a.cc\n", &err));
-  ASSERT_EQ("", err);
-  ASSERT_TRUE(state.LookupNode("/root_test/out/a.o"));
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n"
+                              "build $: cc bar.cc\n",
+                              &err));
+    EXPECT_EQ("line 4, col 1: expected variable after $", err);
+  }
 }
 
 TEST_F(ParserTest, SubNinja) {
   files_["test.ninja"] =
     "var = inner\n"
-    "build @inner: varref\n";
+    "build $builddir/inner: varref\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = some_dir/\n"
 "rule varref\n"
 "  command = varref $var\n"
 "var = outer\n"
-"build @outer: varref\n"
+"build $builddir/outer: varref\n"
 "subninja test.ninja\n"
-"build @outer2: varref\n"));
+"build $builddir/outer2: varref\n"));
   ASSERT_EQ(1, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);

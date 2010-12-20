@@ -208,30 +208,6 @@ rule cc
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-Special variables
-~~~~~~~~~~~~~~~~~
-`builddir` is a directory for intermediate build output.  (The name
-comes from autoconf.)  It is special in a few ways:
-
-1. It gets a shorter alias: `@`.
-2. It is implicitly a directory and has a `/` appended if needed.
-3. It may be used in the filenames of a `build` line.
-
-You must still be explicit in your rules.  In the following
-example, the files prefixed with `@` will end up in the `out/`
-subdirectory.
-
-----------------
-builddir = out
-build @intermediate_file: combine @generated_file source_file
-
-# Equivalent rule:
-# build out/intermediate_file: combine out/generated_file source_file
-----------------
-
-XXX I hacked in a special `$root` only understood in builddir -- fix
-the semantics here, is this path relative or absolute?
-
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
 XXX talk about where variables live, nested scopes etc

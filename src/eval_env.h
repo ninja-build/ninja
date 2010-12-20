@@ -12,6 +12,7 @@ struct Env {
 // A standard scope, which contains a mapping of variables to values
 // as well as a pointer to a parent scope.
 struct BindingEnv : public Env {
+  BindingEnv() : parent_(NULL) {}
   virtual string LookupVariable(const string& var) {
     map<string, string>::iterator i = bindings_.find(var);
     if (i != bindings_.end())

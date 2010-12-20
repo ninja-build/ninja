@@ -374,12 +374,12 @@ bool EvalString::Parse(const string& input, string* err) {
       parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
       ++end;
     } else {
-      for (end = start + 1; end < input.size(); ++end) {
+      for (end = start; end < input.size(); ++end) {
         char c = input[end];
         if (!(('a' <= c && c <= 'z') || c == '_'))
           break;
       }
-      if (end == start + 1) {
+      if (end == start) {
         *err = "expected variable after $";
         return false;
       }

@@ -1,9 +1,6 @@
 # This file is used to build ninja itself, but it also serves as a
 # documented example.
 
-# The special variable "builddir" can be referenced later via the short
-# name "@".  The mnemonic comes from executables having an "@" prefix
-# in ls -F output.
 builddir = build
 
 # Most other variables, like cflags, aren't magic at all; it's up to
@@ -31,22 +28,23 @@ rule link
 # These build rules build the ".o" files from the ".cc" files,
 # build "ninja.a" by linking the builddir's "ninja.o",
 # and build that "ninja.o" by compiling "ninja.cc".
-build @build.o: cxx src/build.cc
-build @parsers.o: cxx src/parsers.cc
-build @subprocess.o: cxx src/subprocess.cc
-build @util.o: cxx src/util.cc
-build @ninja_jumble.o: cxx src/ninja_jumble.cc
-build @ninja.a: ar @build.o @parsers.o @subprocess.o @util.o @ninja_jumble.o
+build $builddir/build.o: cxx src/build.cc
+build $builddir/parsers.o: cxx src/parsers.cc
+build $builddir/subprocess.o: cxx src/subprocess.cc
+build $builddir/util.o: cxx src/util.cc
+build $builddir/ninja_jumble.o: cxx src/ninja_jumble.cc
+build $builddir/ninja.a: ar $builddir/build.o $builddir/parsers.o \
+    $builddir/subprocess.o $builddir/util.o $builddir/ninja_jumble.o
 
-build @ninja.o: cxx src/ninja.cc
-build ninja: link @ninja.o @ninja.a
+build $builddir/ninja.o: cxx src/ninja.cc
+build ninja: link $builddir/ninja.o $builddir/ninja.a
 
-build @build_test.o: cxx src/build_test.cc
-build @ninja_test.o: cxx src/ninja_test.cc
-build @parsers_test.o: cxx src/parsers_test.cc
-build @subprocess_test.o: cxx src/subprocess_test.cc
-build ninja_test: link @build_test.o @ninja_test.o @parsers_test.o \
-      @subprocess_test.o @ninja.a
+build $builddir/build_test.o: cxx src/build_test.cc
+build $builddir/ninja_test.o: cxx src/ninja_test.cc
+build $builddir/parsers_test.o: cxx src/parsers_test.cc
+build $builddir/subprocess_test.o: cxx src/subprocess_test.cc
+build ninja_test: link $builddir/build_test.o $builddir/ninja_test.o \
+    $builddir/parsers_test.o $builddir/subprocess_test.o $builddir/ninja.a
   ldflags = -g -rdynamic -lgtest -lgtest_main -lpthread
 
 
@@ -57,8 +55,8 @@ rule gendot
 rule gengraph
   command = dot -Tpng $in > $out
 
-build @graph.dot: gendot ninja build.ninja
-build graph.png: gengraph @graph.dot
+build $builddir/graph.dot: gendot ninja build.ninja
+build graph.png: gengraph $builddir/graph.dot
 
 rule asciidoc
   command = asciidoc -a toc $in

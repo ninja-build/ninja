@@ -2,7 +2,7 @@ Index: test/lib/TestGyp.py
 ===================================================================
 --- test/lib/TestGyp.py	(revision 857)
 +++ test/lib/TestGyp.py	(working copy)
-@@ -391,6 +391,44 @@
+@@ -391,6 +391,45 @@
      return self.workpath(*result)
  
  
@@ -40,14 +40,15 @@ Index: test/lib/TestGyp.py
 +    return self.workpath(*result)
 +
 +  def up_to_date(self, gyp_file, target=None, **kw):
-+    kw['stdout'] = "no work to do\n"
++    # XXX due to phony rules, we always think we have work to do.
++    #kw['stdout'] = "no work to do\n"
 +    return self.build(gyp_file, target, **kw)
 +
 +
  class TestGypMSVS(TestGypBase):
    """
    Subclass for testing the GYP Visual Studio generator.
-@@ -670,6 +708,7 @@
+@@ -670,6 +709,7 @@
    TestGypGypd,
    TestGypMake,
    TestGypMSVS,
@@ -86,7 +87,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,500 @@
+@@ -0,0 +1,501 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -107,11 +108,11 @@ Index: pylib/gyp/generator/ninja.py
 +  'SHARED_LIB_PREFIX': 'lib',
 +  'STATIC_LIB_SUFFIX': '.a',
 +  'SHARED_LIB_SUFFIX': '.so',
-+  'INTERMEDIATE_DIR': '@geni',
-+  'SHARED_INTERMEDIATE_DIR': '@gen',
-+  'PRODUCT_DIR': '@',
-+  'SHARED_LIB_DIR': '@lib',
-+  'LIB_DIR': '@',
++  'INTERMEDIATE_DIR': '$b/geni',
++  'SHARED_INTERMEDIATE_DIR': '$b/gen',
++  'PRODUCT_DIR': '$b/',
++  'SHARED_LIB_DIR': '$b/lib',
++  'LIB_DIR': '$b/',
 +  'RULE_INPUT_ROOT': '$root',
 +  'RULE_INPUT_PATH': '$source',
 +  'RULE_INPUT_EXT': '$ext',
@@ -122,7 +123,8 @@ Index: pylib/gyp/generator/ninja.py
 +}
 +
 +NINJA_BASE = """\
-+builddir = $root/ninja
++# Build directory.
++b = ROOT_HACK/ninja
 +
 +cc = ccache gcc
 +cxx = ccache g++
@@ -150,7 +152,7 @@ Index: pylib/gyp/generator/ninja.py
 +
 +rule link
 +  description = LINK $out
-+  command = g++ $ldflags -o $out -Wl,-rpath=@lib \\
++  command = g++ $ldflags -o $out -Wl,-rpath=$b/lib \\
 +    -Wl,--start-group $in -Wl,--end-group $libs
 +
 +rule stamp
@@ -184,17 +186,17 @@ Index: pylib/gyp/generator/ninja.py
 +    self.variables = {}  # XXX take in global values.
 +
 +  def InputPath(self, path):
-+    if path.startswith('@'):
++    if path.startswith('$'):
 +      return path
 +    return os.path.normpath(os.path.join(self.base_dir, path))
 +
 +  def OutputPath(self, path):
-+    if path.startswith('@'):
++    if path.startswith('$'):
 +      return path
-+    return '@' + os.path.normpath(os.path.join('obj', self.name, self.base_dir, path))
++    return os.path.normpath(os.path.join('$b/obj', self.name, self.base_dir, path))
 +
 +  def StampPath(self, name):
-+    return '@' + os.path.join('obj', self.name, name + '.stamp')
++    return os.path.join('$b/obj', self.name, name + '.stamp')
 +
 +  def WriteSpec(self, spec, config):
 +    self.name = spec['target_name']  # XXX remove bad chars
@@ -462,9 +464,9 @@ Index: pylib/gyp/generator/ninja.py
 +    # libraries go into shared library dir, and everything else
 +    # goes into the normal place.
 +    if spec['type'] in ('executable', 'loadable_module'):
-+      return os.path.join('@', filename)
++      return os.path.join('$b/', filename)
 +    elif spec['type'] == 'shared_library':
-+      return os.path.join('@lib', filename)
++      return os.path.join('$b/lib', filename)
 +    else:
 +      return self.OutputPath(filename)
 +
