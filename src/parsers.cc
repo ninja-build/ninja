@@ -436,7 +436,7 @@ bool ManifestParser::ParseEdge(string* err) {
     env->parent_ = env_;
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
       string key, val;
-      if (!ParseLet(&key, &val, false, err))
+      if (!ParseLet(&key, &val, true, err))
         return false;
       env->AddBinding(key, val);
     }

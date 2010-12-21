@@ -376,7 +376,7 @@ bool EvalString::Parse(const string& input, string* err) {
     } else {
       for (end = start; end < input.size(); ++end) {
         char c = input[end];
-        if (!(('a' <= c && c <= 'z') || c == '_'))
+        if (!(('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || c == '_'))
           break;
       }
       if (end == start) {
