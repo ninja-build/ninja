@@ -87,7 +87,7 @@ Index: pylib/gyp/generator/ninja.py
 ===================================================================
 --- pylib/gyp/generator/ninja.py	(revision 0)
 +++ pylib/gyp/generator/ninja.py	(revision 0)
-@@ -0,0 +1,501 @@
+@@ -0,0 +1,500 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -168,8 +168,7 @@ Index: pylib/gyp/generator/ninja.py
 +}
 +
 +def QuoteShellArgument(arg):
-+  assert "'" not in arg
-+  return "'" + arg + "'"
++  return "'" + arg.replace("'", "'" + '"\'"' + "'")  + "'"
 +
 +def MaybeQuoteShellArgument(arg):
 +  if '"' in arg or ' ' in arg:
@@ -589,24 +588,3 @@ Index: pylib/gyp/generator/ninja.py
 +
 +  master_ninja.close()
 +  OverPrint('done.\n')
-Index: pylib/gyp/input.py
-===================================================================
---- pylib/gyp/input.py	(revision 857)
-+++ pylib/gyp/input.py	(working copy)
-@@ -1512,7 +1512,7 @@
-           target_dict['dependencies'].append(dependency)
- 
- # Initialize this here to speed up MakePathRelative.
--exception_re = re.compile(r'''["']?[-/$<>]''')
-+exception_re = re.compile(r'''["']?[-/$@<>]''')
- 
- 
- def MakePathRelative(to_file, fro_file, item):
-@@ -1524,6 +1524,7 @@
-   #   /   Used when a path is already absolute (shortcut optimization;
-   #       such paths would be returned as absolute anyway)
-   #   $   Used for build environment variables
-+  #   @   Used for build environment variables
-   #   -   Used for some build environment flags (such as -lapr-1 in a
-   #       "libraries" section)
-   #   <   Used for our own variable and command expansions (see ExpandVariables)
