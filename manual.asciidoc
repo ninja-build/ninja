@@ -49,6 +49,37 @@ scope; instead you should provide customization in the system that
 generates your `.ninja` files, like how autoconf provides
 `./configure`.
 
+Conceptual overview
+~~~~~~~~~~~~~~~~~~~
+Ninja evaluates a graph of dependencies between files, and runs
+whichever commands are necessary to make your build target up to date.
+If you are familiar with Make, Ninja is very similar.
+
+A build file (default name: `build.ninja`) provides a list of _rules_
+-- short names for longer commands, like how to run the compiler --
+along with a list of _build_ statements saying how to build files
+using the rules -- a given source file and its output.
+
+Conceptually, `build` statements describe the dependency graph of your
+project, while `rule` statements describe how to generate the files
+along a given edge of the graph.
+
+Feature differences from make
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* A rule may point at where extra implicit dependency information
+  lives.  This makes getting header dependencies right for C nearly
+  trivial.
+
+* Rules can provide shorter descriptions of the command being run, so
+  you can print e.g. `CC foo.o` instead of a long command line while
+  running.
+
+* Command output is always buffered.  This means commands running in
+  parallel don't interleave their output, and when a command fails we
+  can put its failure output next to the full command line that
+  produced the failure.
+
 Getting started
 ---------------
 
@@ -65,17 +96,9 @@ ninja target
 where `target` is a known output described by `build.ninja` in the
 current directory.
 
+
 Creating .ninja files
 ~~~~~~~~~~~~~~~~~~~~~
-A build file (default name: `build.ninja`) provides a list of _rules_
-along with a list of _build_ statements saying how to build files
-using the rules.  The only other syntax is a way of declaring
-(immutable) variables.
-
-Conceptually, `build` statements describe the dependency graph of your
-project, while `rule` statements describe how to generate the files
-along a given edge of the graph.
-
 Here's a basic `.ninja` file that demonstrates most of the syntax.
 
 ---------------------------------
@@ -96,7 +119,7 @@ for the rule.  Then follows an indented set of `key = value` lines.
 The basic example above declares a new rule named `cc`, along with the
 command to run.  (In the context of a rule, the `command` key is
 special and defines the command to run.  A full list of special keys
-is provided in the reference.)
+is provided in <<ref_rule,the reference>>.)
 
 Variables begin with a `$` and are described more fully later, but
 here `$in` expands to the list of input files (`foo.c`) and `$out` to
@@ -184,6 +207,7 @@ closes the previous scope.
 
 Rule variables
 ~~~~~~~~~~~~~~
+[[ref_rule]]
 
 A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
@@ -207,6 +231,9 @@ rule cc
   the command as it's running.  The `-v` flag controls whether to print
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
+
+`in`, `out`:: the space-separated list of inputs and outputs to the `build`
+  line referencing this `rule`.
 
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
