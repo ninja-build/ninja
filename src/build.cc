@@ -5,8 +5,8 @@
 #include "ninja.h"
 #include "subprocess.h"
 
-struct BuildStatusLog {
-  BuildStatusLog();
+struct BuildStatus {
+  BuildStatus();
   virtual void PlanHasTotalEdges(int total);
   virtual void BuildEdgeStarted(Edge* edge);
   virtual void BuildEdgeFinished(Edge* edge);
@@ -17,15 +17,15 @@ struct BuildStatusLog {
   BuildConfig::Verbosity verbosity_;
 };
 
-BuildStatusLog::BuildStatusLog()
+BuildStatus::BuildStatus()
     : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
       verbosity_(BuildConfig::NORMAL) {}
 
-void BuildStatusLog::PlanHasTotalEdges(int total) {
+void BuildStatus::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void BuildStatusLog::BuildEdgeStarted(Edge* edge) {
+void BuildStatus::BuildEdgeStarted(Edge* edge) {
   string desc = edge->GetDescription();
   if (verbosity_ != BuildConfig::QUIET) {
     if (verbosity_ != BuildConfig::VERBOSE && !desc.empty())
@@ -35,7 +35,7 @@ void BuildStatusLog::BuildEdgeStarted(Edge* edge) {
   }
 }
 
-void BuildStatusLog::BuildEdgeFinished(Edge* edge) {
+void BuildStatus::BuildEdgeFinished(Edge* edge) {
   ++finished_edges_;
   time_t now = time(NULL);
   if (now - last_update_ > 5) {
@@ -245,8 +245,8 @@ Builder::Builder(State* state, const BuildConfig& config)
     command_runner_ = new DryRunCommandRunner;
   else
     command_runner_ = new RealCommandRunner;
-  log_ = new BuildStatusLog;
-  log_->verbosity_ = config.verbosity;
+  status_ = new BuildStatus;
+  status_->verbosity_ = config.verbosity;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -274,7 +274,7 @@ bool Builder::Build(string* err) {
     return true;
   }
 
-  log_->PlanHasTotalEdges(plan_.edge_count());
+  status_->PlanHasTotalEdges(plan_.edge_count());
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
       Edge* edge = plan_.FindWork();
@@ -288,7 +288,7 @@ bool Builder::Build(string* err) {
 
       if (!StartEdge(edge, err))
         return false;
-      log_->BuildEdgeStarted(edge);
+      status_->BuildEdgeStarted(edge);
     }
 
     bool success;
@@ -333,5 +333,5 @@ void Builder::FinishEdge(Edge* edge) {
     (*i)->dirty_ = false;
   }
   plan_.EdgeFinished(edge);
-  log_->BuildEdgeFinished(edge);
+  status_->BuildEdgeFinished(edge);
 }
