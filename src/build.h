@@ -83,6 +83,7 @@ struct Builder {
   DiskInterface* disk_interface_;
   CommandRunner* command_runner_;
   struct BuildStatus* status_;
+  struct BuildLog* log_;
 };
 
 #endif  // NINJA_BUILD_H_

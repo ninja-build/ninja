@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "build_log.h"
 #include "ninja.h"
 #include "subprocess.h"
 
@@ -247,6 +248,7 @@ Builder::Builder(State* state, const BuildConfig& config)
     command_runner_ = new RealCommandRunner;
   status_ = new BuildStatus;
   status_->verbosity_ = config.verbosity;
+  log_ = new BuildLog;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -274,6 +276,9 @@ bool Builder::Build(string* err) {
     return true;
   }
 
+  if (!log_->OpenForWrite("ninja_log", err))
+    return false;
+
   status_->PlanHasTotalEdges(plan_.edge_count());
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
@@ -288,7 +293,6 @@ bool Builder::Build(string* err) {
 
       if (!StartEdge(edge, err))
         return false;
-      status_->BuildEdgeStarted(edge);
     }
 
     bool success;
@@ -307,6 +311,8 @@ bool Builder::Build(string* err) {
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
+  status_->BuildEdgeStarted(edge);
+
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
   for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -334,4 +340,5 @@ void Builder::FinishEdge(Edge* edge) {
   }
   plan_.EdgeFinished(edge);
   status_->BuildEdgeFinished(edge);
+  log_->RecordCommand(edge, 0);  // XXX get edge timing.
 }
