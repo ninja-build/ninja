@@ -248,7 +248,7 @@ Builder::Builder(State* state, const BuildConfig& config)
     command_runner_ = new RealCommandRunner;
   status_ = new BuildStatus;
   status_->verbosity_ = config.verbosity;
-  log_ = new BuildLog;
+  log_ = config.build_log;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -275,9 +275,6 @@ bool Builder::Build(string* err) {
     *err = "no work to do";
     return true;
   }
-
-  if (!log_->OpenForWrite("ninja_log", err))
-    return false;
 
   status_->PlanHasTotalEdges(plan_.edge_count());
   while (plan_.more_to_do()) {
@@ -340,5 +337,6 @@ void Builder::FinishEdge(Edge* edge) {
   }
   plan_.EdgeFinished(edge);
   status_->BuildEdgeFinished(edge);
-  log_->RecordCommand(edge, 0);  // XXX get edge timing.
+  if (log_)
+    log_->RecordCommand(edge, 0);  // XXX get edge timing.
 }

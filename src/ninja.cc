@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "build.h"
+#include "build_log.h"
 #include "graphviz.h"
 #include "parsers.h"
 
@@ -88,6 +89,11 @@ int main(int argc, char** argv) {
     graph.Finish();
     return 0;
   }
+
+  BuildLog log;
+  if (!log.OpenForWrite("ninja_log", &err))
+    return 1;
+  config.build_log = &log;
 
   Builder builder(&state, config);
   for (int i = 0; i < argc; ++i) {
