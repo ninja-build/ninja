@@ -41,3 +41,19 @@ TEST_F(BuildLogTest, WriteRead) {
   ASSERT_EQ(15, e1->time_ms);
   ASSERT_EQ("out", e1->output);
 }
+
+TEST_F(BuildLogTest, DoubleEntry) {
+  FILE* f = fopen(log_filename_.c_str(), "wb");
+  fprintf(f, "0 out command abc\n");
+  fprintf(f, "0 out command def\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(log_filename_, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_TRUE(e);
+  ASSERT_EQ("command def", e->command);
+}

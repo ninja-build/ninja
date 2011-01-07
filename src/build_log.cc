@@ -76,7 +76,7 @@ bool BuildLog::Load(const string& path, string* err) {
     start = end + 1;
     end = strchr(start, '\n');
     entry->command = string(start, end - start);
-    log_.insert(make_pair(entry->output, entry));
+    log_[entry->output] = entry;
   }
 
   return true;
