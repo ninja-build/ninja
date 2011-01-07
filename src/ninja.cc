@@ -90,9 +90,17 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  const char* kLogPath = "ninja_log";
   BuildLog log;
-  if (!log.OpenForWrite("ninja_log", &err))
+  if (!log.Load(kLogPath, &err)) {
+    fprintf(stderr, "error loading build log: %s\n", err.c_str());
     return 1;
+  }
+
+  if (!log.OpenForWrite(kLogPath, &err)) {
+    fprintf(stderr, "error opening build log: %s\n", err.c_str());
+    return 1;
+  }
   config.build_log = &log;
 
   Builder builder(&state, config);

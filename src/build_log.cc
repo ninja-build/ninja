@@ -52,6 +52,8 @@ void BuildLog::Close() {
 bool BuildLog::Load(const string& path, string* err) {
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
+    if (errno == ENOENT)
+      return true;
     *err = strerror(errno);
     return false;
   }
