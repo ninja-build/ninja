@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const char* kLogPath = "ninja_log";
+  const char* kLogPath = ".ninja_log";
   if (!state.build_log_->Load(kLogPath, &err)) {
     fprintf(stderr, "error loading build log: %s\n", err.c_str());
     return 1;
