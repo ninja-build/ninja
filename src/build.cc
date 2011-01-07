@@ -248,7 +248,7 @@ Builder::Builder(State* state, const BuildConfig& config)
     command_runner_ = new RealCommandRunner;
   status_ = new BuildStatus;
   status_->verbosity_ = config.verbosity;
-  log_ = config.build_log;
+  log_ = state->build_log_;
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {

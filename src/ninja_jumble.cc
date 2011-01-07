@@ -3,6 +3,8 @@
 
 #include "ninja.h"
 
+#include "build_log.h"
+
 #include <errno.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -294,8 +296,9 @@ void Edge::Dump() {
 
 const Rule State::kPhonyRule("phony");
 
-State::State() {
+State::State() : build_log_(NULL) {
   AddRule(&kPhonyRule);
+  build_log_ = new BuildLog;
 }
 
 const Rule* State::LookupRule(const string& rule_name) {

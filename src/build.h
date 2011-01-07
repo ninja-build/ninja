@@ -58,7 +58,7 @@ struct CommandRunner {
 };
 
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), build_log(NULL) {}
+  BuildConfig() : verbosity(NORMAL), dry_run(false) {}
 
   enum Verbosity {
     NORMAL,
@@ -67,7 +67,6 @@ struct BuildConfig {
   };
   Verbosity verbosity;
   bool dry_run;
-  struct BuildLog* build_log;
 };
 
 struct Builder {

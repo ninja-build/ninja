@@ -157,6 +157,7 @@ struct State {
   map<string, const Rule*> rules_;
   vector<Edge*> edges_;
   BindingEnv bindings_;
+  struct BuildLog* build_log_;
 
   static const Rule kPhonyRule;
 };
