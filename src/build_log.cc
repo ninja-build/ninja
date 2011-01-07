@@ -58,7 +58,7 @@ bool BuildLog::Load(const string& path, string* err) {
     return false;
   }
 
-  char buf[4 << 10];
+  char buf[256 << 10];
   while (fgets(buf, sizeof(buf), file)) {
     char* start = buf;
     char* end = strchr(start, ' ');
