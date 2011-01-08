@@ -178,7 +178,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // CommandRunner impl
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual void WaitForCommands();
+  virtual bool WaitForCommands();
   virtual Edge* NextFinishedCommand(bool* success);
 
   // DiskInterface
@@ -251,7 +251,8 @@ bool BuildTest::StartCommand(Edge* edge) {
   return false;
 }
 
-void BuildTest::WaitForCommands() {
+bool BuildTest::WaitForCommands() {
+  return true;
 }
 
 Edge* BuildTest::NextFinishedCommand(bool* success) {

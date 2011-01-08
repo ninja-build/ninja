@@ -53,7 +53,9 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  virtual void WaitForCommands() = 0;
+  // Wait for commands to make progress; return false if there is no
+  // progress to be made.
+  virtual bool WaitForCommands() = 0;
   virtual Edge* NextFinishedCommand(bool* success) = 0;
 };
 

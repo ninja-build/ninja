@@ -165,7 +165,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual void WaitForCommands();
+  virtual bool WaitForCommands();
   virtual Edge* NextFinishedCommand(bool* success);
 
   SubprocessSet subprocs_;
@@ -188,10 +188,14 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-void RealCommandRunner::WaitForCommands() {
-  while (subprocs_.finished_.empty() && !subprocs_.running_.empty()) {
+bool RealCommandRunner::WaitForCommands() {
+  if (subprocs_.running_.empty())
+    return false;
+
+  while (subprocs_.finished_.empty()) {
     subprocs_.DoWork();
   }
+  return true;
 }
 
 Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
@@ -225,7 +229,8 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual void WaitForCommands() {
+  virtual bool WaitForCommands() {
+    return true;
   }
   virtual Edge* NextFinishedCommand(bool* success) {
     if (finished_.empty())
@@ -300,7 +305,10 @@ bool Builder::Build(string* err) {
       }
       FinishEdge(edge);
     } else {
-      command_runner_->WaitForCommands();
+      if (!command_runner_->WaitForCommands()) {
+        *err = "stuck [this is a bug]";
+        return false;
+      }
     }
   }
 
