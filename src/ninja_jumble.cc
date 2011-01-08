@@ -130,7 +130,10 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
         if (!edge->RecomputeDirty(state, disk_interface, err))
           return false;
       } else {
-        (*i)->dirty_ = !(*i)->file_->exists();
+        // This input has no in-edge; it is dirty if it is missing.
+        // But it's ok for implicit deps to be missing.
+        if (!is_implicit(i - inputs_.begin()))
+          (*i)->dirty_ = !(*i)->file_->exists();
       }
     }
 
@@ -160,7 +163,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     (*i)->file_->StatIfNecessary(disk_interface);
 
     // Output is dirty if we're dirty, we're missing the output,
-    // or if it's older than the mostt recent input mtime.
+    // or if it's older than the most recent input mtime.
     if (dirty || !(*i)->file_->exists() ||
         (*i)->file_->mtime_ < most_recent_input) {
       (*i)->dirty_ = true;
