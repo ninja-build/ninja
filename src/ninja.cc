@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (!state.build_log_->OpenForWrite(kLogPath, &err)) {
+  if (!config.dry_run && !state.build_log_->OpenForWrite(kLogPath, &err)) {
     fprintf(stderr, "error opening build log: %s\n", err.c_str());
     return 1;
   }
