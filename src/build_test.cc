@@ -163,7 +163,10 @@ TEST_F(PlanTest, DependencyCycle) {
 "build mid: cat in\n"
 "build in: cat pre\n"
 "build pre: cat out\n");
-  ResetDirty();
+  GetNode("out")->dirty_ = true;
+  GetNode("mid")->dirty_ = true;
+  GetNode("in")->dirty_ = true;
+  GetNode("pre")->dirty_ = true;
 
   string err;
   EXPECT_FALSE(plan_.AddTarget(GetNode("out"), &err));
@@ -328,8 +331,6 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
-  ResetDirty();
-
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
@@ -360,7 +361,6 @@ TEST_F(BuildTest, Chain) {
 "build c4: cat c3\n"
 "build c5: cat c4\n"));
 
-  ResetDirty();
   fs_.Create("c1", now_, "");
 
   string err;
@@ -408,7 +408,6 @@ TEST_F(BuildTest, MakeDirs) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build subdir/dir2/file: cat in1\n"));
 
-  ResetDirty();
   EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
   EXPECT_EQ("", err);
   now_ = 0;  // Make all stat()s return file not found.
@@ -424,7 +423,6 @@ TEST_F(BuildTest, DepFileMissing) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  ResetDirty();
   fs_.Create("foo.c", now_, "");
 
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -439,7 +437,6 @@ TEST_F(BuildTest, DepFileOK) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  ResetDirty();
   fs_.Create("foo.c", now_, "");
   GetNode("bar.h")->dirty_ = true;  // Mark bar.h as missing.
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
@@ -462,7 +459,6 @@ TEST_F(BuildTest, DepFileParseError) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  ResetDirty();
   fs_.Create("foo.c", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o blah.h bar.h\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
@@ -474,7 +470,6 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c | otherfile\n"));
-  ResetDirty();
   fs_.Create("foo.c", now_, "");
   fs_.Create("otherfile", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
@@ -522,7 +517,6 @@ TEST_F(BuildTest, Phony) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
-  ResetDirty();
   fs_.Create("bar.cc", now_, "");
 
   EXPECT_TRUE(builder_.AddTarget("all", &err));

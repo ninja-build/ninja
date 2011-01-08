@@ -23,15 +23,6 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
   return state_.GetNode(path);
 }
 
-void StateTestWithBuiltinRules::ResetDirty() {
-  for (StatCache::Paths::iterator i = state_.stat_cache_.paths_.begin();
-       i != state_.stat_cache_.paths_.end(); ++i) {
-    Node* node = i->second->node_;
-    // Mark node dirty if we have a way to rebuild it.
-    node->dirty_ = node->in_edge_ != NULL;
-  }
-}
-
 TEST(State, Basic) {
   State state;
   Rule* rule = new Rule("cat");
