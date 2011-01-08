@@ -1,6 +1,7 @@
 #include "build.h"
 
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "build_log.h"
 #include "graph.h"
@@ -16,6 +17,9 @@ struct BuildStatus {
   time_t last_update_;
   int finished_edges_, total_edges_;
 
+  typedef map<Edge*, timeval> RunningEdgeMap;
+  RunningEdgeMap running_edges_;
+
   BuildConfig::Verbosity verbosity_;
 };
 
@@ -28,6 +32,13 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
+  timeval now;
+  gettimeofday(&now, NULL);
+  running_edges_.insert(make_pair(edge, now));
+
+  if (edge->rule_ == &State::kPhonyRule)
+    return;
+
   string desc = edge->GetDescription();
   if (verbosity_ != BuildConfig::QUIET) {
     if (verbosity_ != BuildConfig::VERBOSE && !desc.empty())
@@ -38,13 +49,21 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge) {
+  timeval now;
+  gettimeofday(&now, NULL);
   ++finished_edges_;
-  time_t now = time(NULL);
-  if (now - last_update_ > 5) {
+
+  if (now.tv_sec - last_update_ > 5) {
     printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
            finished_edges_, total_edges_);
-    last_update_ = now;
+    last_update_ = now.tv_sec;
   }
+
+  RunningEdgeMap::iterator i = running_edges_.find(edge);
+  timeval delta;
+  timersub(&now, &i->second, &delta);
+  printf("%dms\n", (int)((delta.tv_sec * 1000) + (delta.tv_usec / 1000)));
+  running_edges_.erase(i);
 }
 
 bool Plan::AddTarget(Node* node, string* err) {
@@ -289,13 +308,11 @@ bool Builder::Build(string* err) {
       if (!edge)
         break;
 
-      if (edge->rule_ == &State::kPhonyRule) {
-        FinishEdge(edge);
-        continue;
-      }
-
       if (!StartEdge(edge, err))
         return false;
+
+      if (edge->rule_ == &State::kPhonyRule)
+        FinishEdge(edge);
     }
 
     bool success;
@@ -318,6 +335,9 @@ bool Builder::Build(string* err) {
 
 bool Builder::StartEdge(Edge* edge, string* err) {
   status_->BuildEdgeStarted(edge);
+
+  if (edge->rule_ == &State::kPhonyRule)
+    return true;
 
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
