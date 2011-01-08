@@ -2,9 +2,13 @@
 ;; Just some syntax highlighting for now.
 
 (setq ninja-keywords
-      '(("^\\<rule\\>\\|^\\<build\\>\\|^\\<subninja\\>" . font-lock-keyword-face)
+      '(("^#.*" . font-lock-comment-face)
+        ("^\\<rule\\>\\|^\\<build\\>\\|^\\<subninja\\>" . font-lock-keyword-face)
         ("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
         ))
 (define-derived-mode ninja-mode fundamental-mode "ninja"
-  (setq font-lock-defaults '(ninja-keywords))
+  (setq comment-start "#")
+  ; Pass extra "t" to turn off syntax-based fontification -- we don't want
+  ; quoted strings highlighted.
+  (setq font-lock-defaults '(ninja-keywords t))
   )
