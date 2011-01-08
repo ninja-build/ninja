@@ -12,6 +12,8 @@ struct Edge;
 // 3) maybe we can generate some sort of build overview output
 //    from it
 struct BuildLog {
+  BuildLog();
+
   bool OpenForWrite(const string& path, string* err);
   void RecordCommand(Edge* edge, int time_ms);
   void Close();

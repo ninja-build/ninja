@@ -12,6 +12,8 @@
 // older runs.
 // XXX figure out recompaction strategy
 
+BuildLog::BuildLog() : log_file_(NULL) {}
+
 bool BuildLog::OpenForWrite(const string& path, string* err) {
   log_file_ = fopen(path.c_str(), "ab");
   if (!log_file_) {
@@ -23,6 +25,9 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 }
 
 void BuildLog::RecordCommand(Edge* edge, int time_ms) {
+  if (!log_file_)
+    return;
+
   const string command = edge->EvaluateCommand();
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {

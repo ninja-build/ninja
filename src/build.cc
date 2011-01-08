@@ -337,6 +337,5 @@ void Builder::FinishEdge(Edge* edge) {
   }
   plan_.EdgeFinished(edge);
   status_->BuildEdgeFinished(edge);
-  if (log_)
-    log_->RecordCommand(edge, 0);  // XXX get edge timing.
+  log_->RecordCommand(edge, 0);  // XXX get edge timing.
 }
