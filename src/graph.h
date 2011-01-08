@@ -12,7 +12,7 @@ struct DiskInterface;
 struct Node;
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
-  void Touch(int mtime);
+
   // Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
 
@@ -46,8 +46,6 @@ struct Node {
   Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
 
   bool dirty() const { return dirty_; }
-  void MarkDirty();
-  void MarkDependentsDirty();
 
   FileStat* file_;
   bool dirty_;
@@ -71,7 +69,6 @@ struct State;
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
 
-  void MarkDirty(Node* node);
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
   string EvaluateCommand();  // XXX move to env, take env ptr
   string GetDescription();

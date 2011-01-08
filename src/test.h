@@ -7,6 +7,9 @@ struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();
   Node* GetNode(const string& path);
 
+  // Mark every non-leaf node dirty.
+  void ResetDirty();
+
   State state_;
 };
 

@@ -6,28 +6,9 @@
 #include "ninja.h"
 #include "parsers.h"
 
-void FileStat::Touch(int mtime) {
-  mtime_ = mtime;
-  if (node_)
-    node_->MarkDirty();
-}
-
 bool FileStat::Stat(DiskInterface* disk_interface) {
   mtime_ = disk_interface->Stat(path_);
   return mtime_ > 0;
-}
-
-void Node::MarkDirty() {
-  if (dirty_)
-    return;  // We already know.
-
-  dirty_ = true;
-  MarkDependentsDirty();
-}
-
-void Node::MarkDependentsDirty() {
-  for (vector<Edge*>::iterator i = out_edges_.begin(); i != out_edges_.end(); ++i)
-    (*i)->MarkDirty(this);
 }
 
 bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
@@ -94,19 +75,6 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
   }
   return true;
-}
-
-void Edge::MarkDirty(Node* node) {
-  if (rule_ == &State::kPhonyRule)
-    return;
-
-  vector<Node*>::iterator i = find(inputs_.begin(), inputs_.end(), node);
-  if (i == inputs_.end())
-    return;
-  if (i - inputs_.begin() >= ((int)inputs_.size()) - order_only_deps_)
-    return;  // Order-only deps don't cause us to become dirty.
-  for (i = outputs_.begin(); i != outputs_.end(); ++i)
-    (*i)->MarkDirty();
 }
 
 struct EdgeEnv : public Env {

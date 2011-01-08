@@ -12,7 +12,8 @@ TEST_F(PlanTest, Basic) {
   AssertParse(&state_,
 "build out: cat mid\n"
 "build mid: cat in\n");
-  GetNode("in")->MarkDependentsDirty();
+  GetNode("mid")->dirty_ = true;
+  GetNode("out")->dirty_ = true;
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -46,7 +47,10 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   AssertParse(&state_,
 "build out: cat mid1 mid2\n"
 "build mid1 mid2: cat in\n");
-  GetNode("in")->MarkDependentsDirty();
+  GetNode("mid1")->dirty_ = true;
+  GetNode("mid2")->dirty_ = true;
+  GetNode("out")->dirty_ = true;
+
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -75,7 +79,11 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
 "build b1: cat a1\n"
 "build b2: cat a2\n"
 "build a1 a2: cat in\n");
-  GetNode("in")->MarkDependentsDirty();
+  GetNode("a1")->dirty_ = true;
+  GetNode("a2")->dirty_ = true;
+  GetNode("b1")->dirty_ = true;
+  GetNode("b2")->dirty_ = true;
+  GetNode("out")->dirty_ = true;
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -114,7 +122,11 @@ TEST_F(PlanTest, DoubleDependent) {
 "build a1: cat mid\n"
 "build a2: cat mid\n"
 "build mid: cat in\n");
-  GetNode("in")->MarkDependentsDirty();
+  GetNode("mid")->dirty_ = true;
+  GetNode("a1")->dirty_ = true;
+  GetNode("a2")->dirty_ = true;
+  GetNode("out")->dirty_ = true;
+
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -151,7 +163,8 @@ TEST_F(PlanTest, DependencyCycle) {
 "build mid: cat in\n"
 "build in: cat pre\n"
 "build pre: cat out\n");
-  GetNode("pre")->MarkDependentsDirty();
+  ResetDirty();
+
   string err;
   EXPECT_FALSE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
@@ -172,8 +185,6 @@ struct BuildTest : public StateTestWithBuiltinRules,
 
   // Mark a path dirty.
   void Dirty(const string& path);
-  // Mark dependents of a path dirty.
-  void Touch(const string& path);
 
   // CommandRunner impl
   virtual bool CanRunMore();
@@ -215,18 +226,12 @@ struct BuildTest : public StateTestWithBuiltinRules,
 
 void BuildTest::Dirty(const string& path) {
   Node* node = GetNode(path);
-  node->MarkDirty();
+  node->dirty_ = true;
 
   // If it's an input file, mark that we've already stat()ed it and
   // it's missing.
   if (!node->in_edge_)
     node->file_->mtime_ = 0;
-}
-
-void BuildTest::Touch(const string& path) {
-  Node* node = GetNode(path);
-  assert(node);
-  node->MarkDependentsDirty();
 }
 
 bool BuildTest::CanRunMore() {
@@ -240,7 +245,8 @@ bool BuildTest::StartCommand(Edge* edge) {
   if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      (*out)->file_->Touch(now_);
+      (*out)->file_->mtime_ = now_;
+      (*out)->dirty_ = false;
     }
     last_command_ = edge;
     return true;
@@ -299,9 +305,8 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
-  // Modifying in1 requires rebuilding both intermediate files
-  // and the final file.
-  Touch("in1");
+  ResetDirty();
+
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
@@ -314,10 +319,12 @@ TEST_F(BuildTest, TwoStep) {
 
   // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
-  Touch("in2");
-  ASSERT_TRUE(builder_.AddTarget("cat12", &err));
+  GetNode("cat2")->dirty_ = true;
+  GetNode("cat12")->dirty_ = true;
+  EXPECT_TRUE(builder_.AddTarget("cat12", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ("", err);
+  ASSERT_EQ("", err);
   ASSERT_EQ(5, commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
@@ -330,7 +337,8 @@ TEST_F(BuildTest, Chain) {
 "build c4: cat c3\n"
 "build c5: cat c4\n"));
 
-  Touch("c1");  // Will recursively dirty all the way to c5.
+  ResetDirty();
+
   string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
@@ -345,7 +353,8 @@ TEST_F(BuildTest, Chain) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(0, commands_ran_.size());
 
-  Touch("c3");  // Will recursively dirty through to c5.
+  GetNode("c4")->dirty_ = true;
+  GetNode("c5")->dirty_ = true;
   err.clear();
   commands_ran_.clear();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
@@ -375,7 +384,7 @@ TEST_F(BuildTest, MakeDirs) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build subdir/dir2/file: cat in1\n"));
 
-  Touch("in1");
+  ResetDirty();
   EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
   EXPECT_EQ("", err);
   now_ = 0;  // Make all stat()s return file not found.
@@ -391,7 +400,7 @@ TEST_F(BuildTest, DepFileMissing) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  Touch("foo.c");
+  ResetDirty();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1, files_read_.size());
@@ -404,8 +413,8 @@ TEST_F(BuildTest, DepFileOK) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  Touch("foo.c");
-  Dirty("bar.h");  // Mark bar.h as missing.
+  ResetDirty();
+  GetNode("bar.h")->dirty_ = true;  // Mark bar.h as missing.
   file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
@@ -426,7 +435,7 @@ TEST_F(BuildTest, DepFileParseError) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  Touch("foo.c");
+  ResetDirty();
   file_contents_["foo.o.d"] = "foo.o blah.h bar.h\n";
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("line 1, col 7: expected ':', got 'blah.h'", err);
@@ -437,7 +446,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c | otherfile\n"));
-  Touch("foo.c");
+  ResetDirty();
   file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
 
@@ -463,7 +472,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   // implicit dep dirty, expect a rebuild.
   commands_ran_.clear();
-  Touch("blah.h");
+  GetNode("blah.h")->dirty_ = true;
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -471,7 +480,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   // order only dep dirty, no rebuild.
   commands_ran_.clear();
-  Touch("otherfile");
+  GetNode("otherfile")->dirty_ = true;
   // We should fail to even add the depenency on foo.o, because
   // there's nothing to do.
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
@@ -482,7 +491,7 @@ TEST_F(BuildTest, Phony) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
-  Touch("bar.cc");
+  ResetDirty();
 
   EXPECT_TRUE(builder_.AddTarget("all", &err));
 
