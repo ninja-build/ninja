@@ -32,12 +32,12 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
+  if (edge->rule_ == &State::kPhonyRule)
+    return;
+
   timeval now;
   gettimeofday(&now, NULL);
   running_edges_.insert(make_pair(edge, now));
-
-  if (edge->rule_ == &State::kPhonyRule)
-    return;
 
   string desc = edge->GetDescription();
   if (verbosity_ != BuildConfig::QUIET) {
@@ -49,6 +49,9 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge) {
+  if (edge->rule_ == &State::kPhonyRule)
+    return;
+
   timeval now;
   gettimeofday(&now, NULL);
   ++finished_edges_;
