@@ -7,7 +7,7 @@ builddir = build
 # the rules to make use of them.
 cxx = g++
 #cxx = /home/evanm/projects/src/llvm/Release+Asserts/bin/clang++
-cflags = -g -Wall -Wno-deprecated
+cflags = -g -Wall -Wno-deprecated -fno-exceptions -fvisibility=hidden -pipe
 # needed for backtrace()
 ldflags = -g -rdynamic
 
