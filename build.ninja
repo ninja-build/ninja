@@ -1,10 +1,9 @@
 # This file is used to build ninja itself, but it also serves as a
 # documented example.
 
+# Most variables aren't magic at all; it's up to the rules to make use
+# of them.
 builddir = build
-
-# Most other variables, like cflags, aren't magic at all; it's up to
-# the rules to make use of them.
 cxx = g++
 #cxx = /home/evanm/projects/src/llvm/Release+Asserts/bin/clang++
 cflags = -g -Wall -Wno-deprecated -fno-exceptions -fvisibility=hidden -pipe
@@ -18,12 +17,15 @@ ldflags = -g -rdynamic
 rule cxx
   depfile = $out.d
   command = $cxx -MMD -MF $out.d $cflags -c $in -o $out
+  description = CC $out
 
 rule ar
   command = ar crsT $out $in
+  description = AR $out
 
 rule link
   command = $cxx $ldflags -o $out $in
+  description = LINK $out
 
 # These build rules build the ".o" files from the ".cc" files,
 # build "ninja.a" by linking the builddir's "ninja.o",
@@ -65,6 +67,7 @@ build graph.png: gengraph $builddir/graph.dot
 
 rule asciidoc
   command = asciidoc -a toc $in
+  description = ASCIIDOC $in
 
 build manual.html: asciidoc manual.asciidoc
 build doc: phony | manual.html
