@@ -4,8 +4,7 @@
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
-    char mktemp_template[] = "BuildLogTest-XXXXXX";
-    log_filename_ = mktemp(mktemp_template);
+    log_filename_ = tempnam(NULL, "ninja");
   }
   virtual void TearDown() {
     unlink(log_filename_.c_str());
