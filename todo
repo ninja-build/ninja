@@ -1,4 +1,4 @@
-save command lines
+delete halfway-built output files when interrupted
 collect per-command timing, perhaps saving with command lines
 
 "explain" mode that shows why we're building a file
