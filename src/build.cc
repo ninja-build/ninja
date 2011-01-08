@@ -10,9 +10,9 @@
 
 struct BuildStatus {
   BuildStatus();
-  virtual void PlanHasTotalEdges(int total);
-  virtual void BuildEdgeStarted(Edge* edge);
-  virtual void BuildEdgeFinished(Edge* edge);
+  void PlanHasTotalEdges(int total);
+  void BuildEdgeStarted(Edge* edge);
+  void BuildEdgeFinished(Edge* edge);
 
   time_t last_update_;
   int finished_edges_, total_edges_;
