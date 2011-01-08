@@ -318,6 +318,9 @@ bool Builder::Build(string* err) {
         FinishEdge(edge);
     }
 
+    if (!plan_.more_to_do())
+      break;
+
     bool success;
     if (Edge* edge = command_runner_->NextFinishedCommand(&success)) {
       if (!success) {
