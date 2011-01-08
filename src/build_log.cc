@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "graph.h"
 #include "ninja.h"
 
 // Implementation details:

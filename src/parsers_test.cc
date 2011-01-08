@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "graph.h"
 #include "ninja.h"
 
 struct ParserTest : public testing::Test,

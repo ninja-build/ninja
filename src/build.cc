@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "graph.h"
 #include "ninja.h"
 #include "subprocess.h"
 

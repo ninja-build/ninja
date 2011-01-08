@@ -1,6 +1,7 @@
-#include "ninja.h"
-
 #include <gtest/gtest.h>
+
+#include "graph.h"
+#include "ninja.h"
 
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();

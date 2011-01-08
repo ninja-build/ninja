@@ -6,8 +6,9 @@
 
 #include "build.h"
 #include "build_log.h"
-#include "graphviz.h"
 #include "parsers.h"
+
+#include "graphviz.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },

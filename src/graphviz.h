@@ -1,5 +1,7 @@
 #include <set>
 
+// XXX deinline all this code so we don't need this include
+#include "graph.h"
 struct Node;
 
 struct GraphViz {

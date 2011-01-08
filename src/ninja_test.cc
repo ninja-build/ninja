@@ -31,9 +31,9 @@ TEST(State, Basic) {
   ASSERT_EQ("", err);
   state.AddRule(rule);
   Edge* edge = state.AddEdge(rule);
-  state.AddInOut(edge, Edge::IN, "in1");
-  state.AddInOut(edge, Edge::IN, "in2");
-  state.AddInOut(edge, Edge::OUT, "out");
+  state.AddIn(edge, "in1");
+  state.AddIn(edge, "in2");
+  state.AddOut(edge, "out");
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 

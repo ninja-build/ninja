@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "graph.h"
 #include "ninja.h"
 
 string Token::AsString() const {
@@ -460,9 +461,9 @@ bool ManifestParser::ParseEdge(string* err) {
   Edge* edge = state_->AddEdge(rule);
   edge->env_ = env;
   for (vector<string>::iterator i = ins.begin(); i != ins.end(); ++i)
-    state_->AddInOut(edge, Edge::IN, *i);
+    state_->AddIn(edge, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)
-    state_->AddInOut(edge, Edge::OUT, *i);
+    state_->AddOut(edge, *i);
   edge->order_only_deps_ = order_only;
 
   return true;
