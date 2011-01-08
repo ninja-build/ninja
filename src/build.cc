@@ -12,7 +12,8 @@ struct BuildStatus {
   BuildStatus();
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge);
+  // Returns the time the edge took, in ms.
+  int BuildEdgeFinished(Edge* edge);
 
   time_t last_update_;
   int finished_edges_, total_edges_;
@@ -32,9 +33,6 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  if (edge->rule_ == &State::kPhonyRule)
-    return;
-
   timeval now;
   gettimeofday(&now, NULL);
   running_edges_.insert(make_pair(edge, now));
@@ -48,10 +46,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   }
 }
 
-void BuildStatus::BuildEdgeFinished(Edge* edge) {
-  if (edge->rule_ == &State::kPhonyRule)
-    return;
-
+int BuildStatus::BuildEdgeFinished(Edge* edge) {
   timeval now;
   gettimeofday(&now, NULL);
   ++finished_edges_;
@@ -65,8 +60,10 @@ void BuildStatus::BuildEdgeFinished(Edge* edge) {
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   timeval delta;
   timersub(&now, &i->second, &delta);
-  printf("%dms\n", (int)((delta.tv_sec * 1000) + (delta.tv_usec / 1000)));
+  int ms = (delta.tv_sec * 1000) + (delta.tv_usec / 1000);
   running_edges_.erase(i);
+
+  return ms;
 }
 
 bool Plan::AddTarget(Node* node, string* err) {
@@ -340,10 +337,10 @@ bool Builder::Build(string* err) {
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
-  status_->BuildEdgeStarted(edge);
-
   if (edge->rule_ == &State::kPhonyRule)
     return true;
+
+  status_->BuildEdgeStarted(edge);
 
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
@@ -371,6 +368,10 @@ void Builder::FinishEdge(Edge* edge) {
     (*i)->dirty_ = false;
   }
   plan_.EdgeFinished(edge);
-  status_->BuildEdgeFinished(edge);
-  log_->RecordCommand(edge, 0);  // XXX get edge timing.
+
+  if (edge->rule_ == &State::kPhonyRule)
+    return;
+
+  int ms = status_->BuildEdgeFinished(edge);
+  log_->RecordCommand(edge, ms);
 }
