@@ -170,17 +170,55 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
+struct VirtualFileSystem : public DiskInterface {
+  struct Entry {
+    int mtime;
+    string contents;
+  };
+
+  void Create(const string& path, int time, const string& contents) {
+    files_[path].mtime = time;
+    files_[path].contents = contents;
+  }
+
+  // DiskInterface
+  virtual int Stat(const string& path) {
+    FileMap::iterator i = files_.find(path);
+    if (i != files_.end())
+      return i->second.mtime;
+    return 0;
+  }
+  virtual bool MakeDir(const string& path) {
+    directories_made_.push_back(path);
+    return true;  // success
+  }
+  virtual string ReadFile(const string& path, string* err) {
+    files_read_.push_back(path);
+    FileMap::iterator i = files_.find(path);
+    if (i != files_.end())
+      return i->second.contents;
+    return "";
+  }
+
+  vector<string> directories_made_;
+  vector<string> files_read_;
+  typedef map<string, Entry> FileMap;
+  FileMap files_;
+};
+
 struct BuildTest : public StateTestWithBuiltinRules,
-                   public CommandRunner,
-                   public DiskInterface {
+                   public CommandRunner {
   BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),
                 last_command_(NULL) {
-    builder_.disk_interface_ = this;
+    builder_.disk_interface_ = &fs_;
     builder_.command_runner_ = this;
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
 "build cat12: cat cat1 cat2\n");
+
+    fs_.Create("in1", now_, "");
+    fs_.Create("in2", now_, "");
   }
 
   // Mark a path dirty.
@@ -192,22 +230,6 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool WaitForCommands();
   virtual Edge* NextFinishedCommand(bool* success);
 
-  // DiskInterface
-  virtual int Stat(const string& path) {
-    return now_;
-  }
-  virtual bool MakeDir(const string& path) {
-    directories_made_.push_back(path);
-    return true;  // success
-  }
-  virtual string ReadFile(const string& path, string* err) {
-    files_read_.push_back(path);
-    map<string, string>::iterator i = file_contents_.find(path);
-    if (i != file_contents_.end())
-      return i->second;
-    return "";
-  }
-
   BuildConfig MakeConfig() {
     BuildConfig config;
     config.verbosity = BuildConfig::QUIET;
@@ -217,10 +239,10 @@ struct BuildTest : public StateTestWithBuiltinRules,
   BuildConfig config_;
   Builder builder_;
   int now_;
-  map<string, string> file_contents_;
+
+  VirtualFileSystem fs_;
+
   vector<string> commands_ran_;
-  vector<string> directories_made_;
-  vector<string> files_read_;
   Edge* last_command_;
 };
 
@@ -282,9 +304,10 @@ TEST_F(BuildTest, OneStep) {
   // we should rebuild the target.
   Dirty("cat1");
   string err;
-  ASSERT_TRUE(builder_.AddTarget("cat1", &err));
+  EXPECT_TRUE(builder_.AddTarget("cat1", &err));
+  ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ("", err);
+  ASSERT_EQ("", err);
 
   ASSERT_EQ(1, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
@@ -338,6 +361,7 @@ TEST_F(BuildTest, Chain) {
 "build c5: cat c4\n"));
 
   ResetDirty();
+  fs_.Create("c1", now_, "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
@@ -390,9 +414,9 @@ TEST_F(BuildTest, MakeDirs) {
   now_ = 0;  // Make all stat()s return file not found.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(2, directories_made_.size());
-  EXPECT_EQ("subdir", directories_made_[0]);
-  EXPECT_EQ("subdir/dir2", directories_made_[1]);
+  ASSERT_EQ(2, fs_.directories_made_.size());
+  EXPECT_EQ("subdir", fs_.directories_made_[0]);
+  EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
 }
 
 TEST_F(BuildTest, DepFileMissing) {
@@ -401,10 +425,12 @@ TEST_F(BuildTest, DepFileMissing) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   ResetDirty();
+  fs_.Create("foo.c", now_, "");
+
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, files_read_.size());
-  EXPECT_EQ("foo.o.d", files_read_[0]);
+  ASSERT_EQ(1, fs_.files_read_.size());
+  EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
 }
 
 TEST_F(BuildTest, DepFileOK) {
@@ -414,12 +440,13 @@ TEST_F(BuildTest, DepFileOK) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   ResetDirty();
+  fs_.Create("foo.c", now_, "");
   GetNode("bar.h")->dirty_ = true;  // Mark bar.h as missing.
-  file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
+  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, files_read_.size());
-  EXPECT_EQ("foo.o.d", files_read_[0]);
+  ASSERT_EQ(1, fs_.files_read_.size());
+  EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
 
   // Expect our edge to now have three inputs: foo.c and two headers.
   ASSERT_EQ(orig_edges + 1, state_.edges_.size());
@@ -436,7 +463,8 @@ TEST_F(BuildTest, DepFileParseError) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   ResetDirty();
-  file_contents_["foo.o.d"] = "foo.o blah.h bar.h\n";
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("foo.o.d", now_, "foo.o blah.h bar.h\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("line 1, col 7: expected ':', got 'blah.h'", err);
 }
@@ -447,8 +475,11 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c | otherfile\n"));
   ResetDirty();
-  file_contents_["foo.o.d"] = "foo.o: blah.h bar.h\n";
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("otherfile", now_, "");
+  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
 
   Edge* edge = state_.edges_.back();
   // One explicit, two implicit, one order only.
@@ -492,8 +523,10 @@ TEST_F(BuildTest, Phony) {
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
   ResetDirty();
+  fs_.Create("bar.cc", now_, "");
 
   EXPECT_TRUE(builder_.AddTarget("all", &err));
+  ASSERT_EQ("", err);
 
   // Only one command to run, because phony runs no command.
   EXPECT_TRUE(builder_.Build(&err));
