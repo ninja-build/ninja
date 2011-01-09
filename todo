@@ -1,5 +1,4 @@
 delete halfway-built output files when interrupted
-collect per-command timing, perhaps saving with command lines
 
 "explain" mode that shows why we're building a file
 "one file" mode that builds only outputs of a single file
