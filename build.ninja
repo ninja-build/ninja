@@ -1,13 +1,18 @@
 # This file is used to build ninja itself, but it also serves as a
 # documented example.
 
+# Note that it is an explicit non-goal of ninja to make it convenient
+# to write these build files by hand.  For a real project, you'd generate
+# this build file.  I was tempted to generate this file even for ninja
+# itself but I figured it'd be easier to bootstrap this way.
+
 # Most variables aren't magic at all; it's up to the rules to make use
 # of them.
 builddir = build
 cxx = g++
 #cxx = /home/evanm/projects/src/llvm/Release+Asserts/bin/clang++
 cflags = -g -Wall -Wno-deprecated -fno-exceptions -fvisibility=hidden -pipe
-# needed for backtrace()
+# -rdynamic is needed for backtrace()
 ldflags = -g -rdynamic
 
 # Here we declare a "rule" named "cxx", which knows how to compile

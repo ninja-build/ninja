@@ -12,7 +12,7 @@ Ninja joins a sea of other build systems.  Its distinguishing goal is
 to be fast.  It is born from my work on the Chromium browser project,
 which has well over 20,000 source files and whose other build systems
 (including one built from custom non-recursive Makefiles) take tens of
-seconds to rebuild after changing one file, even on a fast computer.
+seconds to start compiling after changing one file.
 
 Here are some of the design goals of Ninja:
 
@@ -22,9 +22,10 @@ Here are some of the design goals of Ninja:
 * very little implicit policy; "explicit is better than implicit".
 
 * get dependencies correct, and in particular situations that are
-  difficult to get right with Makefiles (e.g. outputs should have an
-  implicit dependency on the command line used to generate them; using
-  gcc's `-M` flags for header dependencies).
+  difficult to get right with Makefiles (e.g. outputs need an implicit
+  dependency on the command line used to generate them; C source code
+  need to be able to benefit from gcc's `-M` flags for header
+  dependencies).
 
 * when convenience and speed are in conflict, prefer speed.
 
@@ -32,7 +33,7 @@ Some explicit _non-goals_:
 
 * convenient syntax for writing build files by hand.  _You should
   generate your ninja files using another program_.  This is how we
-  sidestep many policy decisions.
+  can sidestep many policy decisions.
 
 * built-in rules. _Out of the box, ninja has no rules for
   e.g. compiling C code._
@@ -40,14 +41,18 @@ Some explicit _non-goals_:
 * build-time customization of the build. _Options belong in
   the program that generates the ninja files_.
 
+* build-time decision-making ability such as conditionals or search
+  paths. _Making decisions is slow.  Ninja strikes its target without
+  any hesitation._
+
 To restate, Ninja manages to be simpler and faster than other build
-systems by being much more stupid.  It has no built-in behavior
-describing how to build C source, or build libraries, or install
-binaries.  You instead decide this policy when you create your
-project's `.ninja` files.  Customization and configuration are out of
-scope; instead you should provide customization in the system that
-generates your `.ninja` files, like how autoconf provides
-`./configure`.
+systems by being much more stupid.  It has no built-in knowledge of
+how to build C source, or link libraries, or install binaries.
+
+You instead decide this policy when you create your project's `.ninja`
+files.  Customization and configuration are out of scope; instead you
+should provide customization in the system that generates your
+`.ninja` files, like how autoconf provides `./configure`.
 
 Conceptual overview
 ~~~~~~~~~~~~~~~~~~~
@@ -58,27 +63,41 @@ If you are familiar with Make, Ninja is very similar.
 A build file (default name: `build.ninja`) provides a list of _rules_
 -- short names for longer commands, like how to run the compiler --
 along with a list of _build_ statements saying how to build files
-using the rules -- a given source file and its output.
+using the rules -- which rule to apply to which inputs to produce
+which ouputs.
 
 Conceptually, `build` statements describe the dependency graph of your
 project, while `rule` statements describe how to generate the files
 along a given edge of the graph.
 
-Feature differences from make
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Semantic differences from make
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* A rule may point at where extra implicit dependency information
-  lives.  This makes getting header dependencies right for C nearly
-  trivial.
+* A rule may point at a path for extra implicit dependency
+  information.  This makes it easy to get header dependencies correct
+  for C/C++ code.
+
+* A build edge may have multiple outputs.
+
+* Outputs implicitly depend on the command line that was used to generate
+  them, which means that changing e.g. compilation flags will cause
+  the outputs to rebuild.
+
+* Output directories are always implicitly created before running the
+  command that relies on them.
+
+User interface differences from make
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Rules can provide shorter descriptions of the command being run, so
   you can print e.g. `CC foo.o` instead of a long command line while
-  running.
+  building.
 
 * Command output is always buffered.  This means commands running in
   parallel don't interleave their output, and when a command fails we
   can put its failure output next to the full command line that
   produced the failure.
+
 
 Getting started
 ---------------
@@ -110,20 +129,44 @@ rule cc
 build foo.o: cc foo.c
 ---------------------------------
 
+Variables
+~~~~~~~~~
+Despite the non-goal of being convenient to write by hand, to keep
+build files readable (debuggable), Ninja supports declaring shorter
+reusable names for strings.  A declaration like the following
+
+----------------
+cflags = -g
+----------------
+
+can be used on the right side of an equals sign, deferencing it with
+a dollar sign, like this:
+
+----------------
+rule cc
+  command = gcc $cflags -c $in -o $out
+----------------
+
+Variables can also be referenced using curly braces like `${in}`.
+
+Variables might better be called "bindings", in that a given variable
+cannot be changed, only shadowed.
+
+
 Rules
 ~~~~~
 
 Rules begin with a line consisting of the `rule` keyword and a name
-for the rule.  Then follows an indented set of `key = value` lines.
+for the rule.  Then follows an indented set of `variable = value` lines.
 
 The basic example above declares a new rule named `cc`, along with the
-command to run.  (In the context of a rule, the `command` key is
-special and defines the command to run.  A full list of special keys
-is provided in <<ref_rule,the reference>>.)
+command to run.  (In the context of a rule, the `command` variable is
+special and defines the command to run.  A full list of special
+variables is provided in <<ref_rule,the reference>>.)
 
-Variables begin with a `$` and are described more fully later, but
-here `$in` expands to the list of input files (`foo.c`) and `$out` to
-the output file (`foo.o`) for the command.
+Within the context of a rule, two additional special variables are
+available: `$in` expands to the list of input files (`foo.c`) and
+`$out` to the output file (`foo.o`) for the command.
 
 
 Build statements
@@ -138,9 +181,13 @@ to regenerate the outputs.
 The basic example above describes how to build `foo.o`, using the `cc`
 rule.
 
+In the scope of a `build` block (including in the evaluation of its
+associated `rule`), the variable `$in` is the list of inputs and the
+variable `$out` is the list of outputs.
+
 A build statement may be followed by an indented set of `key = value`
-pairs, much like a rule.  These bindings will shadow any bindings when
-evaluating the variables in the command.  For example:
+pairs, much like a rule.  These variables will shadow any variables
+when evaluating the variables in the command.  For example:
 
 ----------------
 cflags = -Wall -Werror
@@ -155,44 +202,28 @@ build special.o: cc.special.c
   cflags = -Wall
 ----------------
 
-In the scope of a `build` block (including in the evaluation of its associated
-`rule`), the variable `$in` is the list of inputs and the variable `$out` is
-the list of outputs.  If you need anything more complicated than this (for
-example, the basename of the first input), pass that in as an extra variable,
+For more discussion of how scoping works, consult <<ref_scope,the
+reference>>.
+
+If you need anything more complicated information passed from the
+build statement to the rule (for example, if the rule needs the file
+extension of the first input), pass that through as an extra variable,
 like how `cflags` is passed above.
 
-
-Variables
-~~~~~~~~~
-Despite the non-goal of being convenient to write by hand, to keep
-build files readable (debuggable), Ninja supports declaring bindings
-(variables).  A declaration like the following
-
-----------------
-cflags = -g
-----------------
-
-Can be used on the right side of an equals sign like this:
-
-----------------
-rule cc
-  command = gcc $cflags -c $in -o $out
-----------------
-
-Variables can also be referenced using curly braces like `${in}`.
-
-Variables might better be called "bindings", in that a given variable
-cannot be changed, only shadowed.  Within a larger Ninja project,
-different _scopes_ allow variable values to be overridden.  XXX finish
-describing scopes.
 
 Ninja file reference
 --------------------
 A file is a series of declarations.  A declaration can be one of:
 
 1. A rule declaration, which begins with +rule _rulename_+.
-2. A build edge, which looks like +build _outputs_: _rulename_ _inputs_+
+
+2. A build edge, which looks like +build _output1_ _output2_:
+   _rulename_ _input1_ _input2_+. +
+   Order-only dependencies may be tacked on the end with +_|
+   _dependency1_ _dependency2_+.
+
 3. Variable declarations, which look like +_variable_ = _value_+.
+
 4. References to more files, which look like +subninja _path_+.
 
 Comments begin with `#` and extend to the end of the line.
@@ -200,10 +231,10 @@ Comments begin with `#` and extend to the end of the line.
 Newlines are significant, but they can be escaped by putting a `\`
 before them.
 
-Whitespace is only significant if it's at the beginning of a line.  If
-a line is intended more than the previous one, it's considered part of
-its parent's scope; if it is indented less than the previous one, it
-closes the previous scope.
+Other whitespace is only significant if it's at the beginning of a
+line.  If a line is intended more than the previous one, it's
+considered part of its parent's scope; if it is indented less than the
+previous one, it closes the previous scope.
 
 Rule variables
 ~~~~~~~~~~~~~~
@@ -232,9 +263,47 @@ rule cc
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-`in`, `out`:: the space-separated list of inputs and outputs to the `build`
-  line referencing this `rule`.
+Additionally, the special `$in` and `$out` variables expand to the
+space-separated list of files provided to the `build` line referencing
+this `rule`.
+
+Build dependencies
+~~~~~~~~~~~~~~~~~~
+There are three types of build dependencies which are subtly different.
+
+1. Explicit dependencies, as listed in a build line.  These are
+   available as the `$in` variable in the rule.  Changes in these files
+   cause the output to be rebuilt; if these file are missing and
+   ninja doesn't know how to build them, the build is aborted.
+
+2. Implicit dependencies, as picked up from a `depfile` attribute on
+   a rule.  Changes in these files cause the output to be rebuilt; if
+   they are missing, they are just skipped.
+
+3. Order-only dependencies, expressed with the syntax `| dep1 dep2` on
+   the end of a build line.  When these are missing, the output is not
+   rebuilt until they are built, but once they are available further
+   changes to the files do not affect the output.  Order-only
+   dependencies can be useful for bootstrapping implicit dependencies:
+   for example, to generate a header file before starting a subsequent
+   compilation step.
 
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
-XXX talk about where variables live, nested scopes etc
+[[ref_scope]]
+
+Top-level variable declarations are scoped to the file they occur in.
+
+The `subninja` keyword, used to include another `.ninja` file,
+introduces a new scope.  The included `subninja` file may use the
+variables from the parent file, and shadow their values for the file's
+scope, but it won't affect values of the variables in the parent.
+
+Variable declarations indented in a `build` block are scoped to the
+`build` block.  This scope is inherited by the `rule`.  The full
+lookup order for a variable referenced in a rule is:
+
+1. Rule-level variables (i.e. `$in`, `$command`).
+2. Build-level variables from the `build` that references this rule.
+3. File-level variables from the current file.
+4. File-level variables from any file that included this file.
