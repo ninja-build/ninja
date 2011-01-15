@@ -15,6 +15,7 @@ string Token::AsString() const {
   case RULE:     return "'rule'";
   case BUILD:    return "'build'";
   case SUBNINJA: return "'subninja'";
+  case INCLUDE:  return "'include'";
   case NEWLINE:  return "newline";
   case EQUALS:   return "'='";
   case COLON:    return "':'";
@@ -22,11 +23,10 @@ string Token::AsString() const {
   case TEOF:     return "eof";
   case INDENT:   return "indenting in";
   case OUTDENT:  return "indenting out";
-  case NONE:
-  default:
-    assert(false);
-    return "";
+  case NONE:     break;
   }
+  assert(false);
+  return "";
 }
 
 void Tokenizer::Start(const char* start, const char* end) {
@@ -168,6 +168,8 @@ Token::Type Tokenizer::PeekToken() {
       token_.type_ = Token::RULE;
     else if (len == 5 && memcmp(token_.pos_, "build", 5) == 0)
       token_.type_ = Token::BUILD;
+    else if (len == 7 && memcmp(token_.pos_, "include", 7) == 0)
+      token_.type_ = Token::INCLUDE;
     else if (len == 8 && memcmp(token_.pos_, "subninja", 8) == 0)
       token_.type_ = Token::SUBNINJA;
     else
@@ -250,7 +252,8 @@ bool ManifestParser::Parse(const string& input, string* err) {
           return false;
         break;
       case Token::SUBNINJA:
-        if (!ParseSubNinja(err))
+      case Token::INCLUDE:
+        if (!ParseFileInclude(tokenizer_.PeekToken(), err))
           return false;
         break;
       case Token::IDENT: {
@@ -469,12 +472,12 @@ bool ManifestParser::ParseEdge(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseSubNinja(string* err) {
-  if (!tokenizer_.ExpectToken(Token::SUBNINJA, err))
+bool ManifestParser::ParseFileInclude(Token::Type type, string* err) {
+  if (!tokenizer_.ExpectToken(type, err))
     return false;
   string path;
   if (!tokenizer_.ReadIdent(&path))
-    return tokenizer_.Error("expected subninja path", err);
+    return tokenizer_.Error("expected path to ninja file", err);
   if (!tokenizer_.Newline(err))
     return false;
 
@@ -483,8 +486,15 @@ bool ManifestParser::ParseSubNinja(string* err) {
     return false;
 
   ManifestParser subparser(state_, file_reader_);
-  subparser.env_ = new BindingEnv;
-  subparser.env_->parent_ = env_;
+  if (type == Token::SUBNINJA) {
+    // subninja: Construct a new scope for the new parser.
+    subparser.env_ = new BindingEnv;
+    subparser.env_->parent_ = env_;
+  } else {
+    // include: Reuse the current scope.
+    subparser.env_ = env_;
+  }
+
   string sub_err;
   if (!subparser.Parse(contents, &sub_err))
     return tokenizer_.Error("in '" + path + "': " + sub_err, err);

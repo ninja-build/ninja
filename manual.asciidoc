@@ -224,7 +224,9 @@ A file is a series of declarations.  A declaration can be one of:
 
 3. Variable declarations, which look like +_variable_ = _value_+.
 
-4. References to more files, which look like +subninja _path_+.
+4. References to more files, which look like +subninja _path_+ or
+   +include _path_+.  The difference between these is explained below
+   <<ref_scope,in the discussion about scoping>>.
 
 Comments begin with `#` and extend to the end of the line.
 
@@ -299,11 +301,18 @@ introduces a new scope.  The included `subninja` file may use the
 variables from the parent file, and shadow their values for the file's
 scope, but it won't affect values of the variables in the parent.
 
+To include another `.ninja` file in the current scope, much like a C
+`#include` statement, use `include` instead of `subninja`.
+
 Variable declarations indented in a `build` block are scoped to the
 `build` block.  This scope is inherited by the `rule`.  The full
 lookup order for a variable referenced in a rule is:
 
 1. Rule-level variables (i.e. `$in`, `$command`).
+
 2. Build-level variables from the `build` that references this rule.
-3. File-level variables from the current file.
-4. File-level variables from any file that included this file.
+
+3. File-level variables from the file that the `build` line was in.
+
+4. Variables from the file that included that file using the
+   `subninja` keyword.

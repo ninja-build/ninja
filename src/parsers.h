@@ -16,6 +16,7 @@ struct Token {
     RULE,
     BUILD,
     SUBNINJA,
+    INCLUDE,
     NEWLINE,
     EQUALS,
     COLON,
@@ -87,7 +88,9 @@ struct ManifestParser {
   // within the value immediately.
   bool ParseLet(string* key, string* val, bool expand, string* err);
   bool ParseEdge(string* err);
-  bool ParseSubNinja(string* err);
+
+  // Parse either a 'subninja' or 'include' line.
+  bool ParseFileInclude(Token::Type type, string* err);
 
   State* state_;
   BindingEnv* env_;

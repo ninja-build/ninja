@@ -278,6 +278,17 @@ TEST_F(ParserTest, SubNinja) {
   EXPECT_EQ("varref outer", state.edges_[2]->EvaluateCommand());
 }
 
+TEST_F(ParserTest, Include) {
+  files_["include.ninja"] = "var = inner\n";
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"var = outer\n"
+"include include.ninja\n"));
+
+  ASSERT_EQ(1, files_read_.size());
+  EXPECT_EQ("include.ninja", files_read_[0]);
+  EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
+}
+
 TEST_F(ParserTest, OrderOnly) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n  command = cat $in > $out\n"
