@@ -483,8 +483,6 @@ bool ManifestParser::ParseSubNinja(string* err) {
     return false;
 
   ManifestParser subparser(state_, file_reader_);
-  // Simulate variable inheritance of builddir.
-  subparser.builddir_ = builddir_;
   subparser.env_ = new BindingEnv;
   subparser.env_->parent_ = env_;
   string sub_err;

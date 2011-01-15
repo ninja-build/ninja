@@ -93,7 +93,6 @@ struct ManifestParser {
   BindingEnv* env_;
   FileReader* file_reader_;
   Tokenizer tokenizer_;
-  string builddir_;
 };
 
 #endif  // NINJA_PARSERS_H_
