@@ -15,13 +15,17 @@ cflags = -g -Wall -Wno-deprecated -fno-exceptions -fvisibility=hidden -pipe
 # -rdynamic is needed for backtrace()
 ldflags = -g -rdynamic
 
+# bootstrap.sh generates a "config" file, which contains more build
+# flags.
+include config.ninja
+
 # Here we declare a "rule" named "cxx", which knows how to compile
 # C++ code.  The variables indented below the rule are scoped to the
 # rule itself.  The "command" and "depfile" variables in rule scope
 # are special; see the documentation.
 rule cxx
   depfile = $out.d
-  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out
+  command = $cxx -MMD -MF $out.d $conf_cflags $cflags -c $in -o $out
   description = CC $out
 
 rule ar
@@ -29,7 +33,7 @@ rule ar
   description = AR $out
 
 rule link
-  command = $cxx $ldflags -o $out $in
+  command = $cxx $conf_ldflags $ldflags -o $out $in
   description = LINK $out
 
 # These build rules build the ".o" files from the ".cc" files,
