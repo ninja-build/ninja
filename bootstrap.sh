@@ -8,6 +8,7 @@ conf_cflags = -O2
 conf_ldflags = -s
 # When developing:
 # conf_cflags = -g -Wall
+# conf_ldlags = -g -Wall
 EOT
 srcs=$(ls src/*.cc | grep -v test)
 echo "Building stage 1..."
