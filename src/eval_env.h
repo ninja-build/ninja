@@ -2,6 +2,8 @@
 #define NINJA_EVAL_ENV_H_
 
 #include <map>
+#include <string>
+#include <vector>
 using namespace std;
 
 // A scope for variable lookups.
@@ -13,17 +15,8 @@ struct Env {
 // as well as a pointer to a parent scope.
 struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
-  virtual string LookupVariable(const string& var) {
-    map<string, string>::iterator i = bindings_.find(var);
-    if (i != bindings_.end())
-      return i->second;
-    if (parent_)
-      return parent_->LookupVariable(var);
-    return "";
-  }
-  void AddBinding(const string& key, const string& val) {
-    bindings_[key] = val;
-  }
+  virtual string LookupVariable(const string& var);
+  void AddBinding(const string& key, const string& val);
 
   map<string, string> bindings_;
   Env* parent_;
