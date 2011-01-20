@@ -24,6 +24,7 @@ void usage() {
 "  -i FILE  specify input build file [default=build.ninja]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
+"  -q       show inputs/outputs of target (query mode)\n"
           );
 }
 
@@ -37,9 +38,10 @@ int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
   bool graph = false;
+  bool query = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "ghi:nv", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "ghi:nvq", options, NULL)) != -1) {
     switch (opt) {
       case 'g':
         graph = true;
@@ -52,6 +54,9 @@ int main(int argc, char** argv) {
         break;
       case 'v':
         config.verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'q':
+        query = true;
         break;
       case 'h':
       default:
@@ -88,6 +93,33 @@ int main(int argc, char** argv) {
     for (int i = 0; i < argc; ++i)
       graph.AddTarget(state.GetNode(argv[i]));
     graph.Finish();
+    return 0;
+  }
+
+  if (query) {
+    for (int i = 0; i < argc; ++i) {
+      Node* node = state.GetNode(argv[i]);
+      if (node) {
+        printf("%s:\n", argv[i]);
+        if (node->in_edge_) {
+          printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
+          for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
+               in != node->in_edge_->inputs_.end(); ++in) {
+            printf("    %s\n", (*in)->file_->path_.c_str());
+          }
+        }
+        for (vector<Edge*>::iterator edge = node->out_edges_.begin();
+             edge != node->out_edges_.end(); ++edge) {
+          printf("  output: %s\n", (*edge)->rule_->name_.c_str());
+          for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+               out != (*edge)->outputs_.end(); ++out) {
+            printf("    %s\n", (*out)->file_->path_.c_str());
+          }
+        }
+      } else {
+        printf("%s unknown\n", argv[i]);
+      }
+    }
     return 0;
   }
 
