@@ -1,3 +1,6 @@
+if command line for an output changed, no need to even stat
+the output, just mark it for rebuilding immediately.
+
 delete halfway-built output files when interrupted
 
 "explain" mode that shows why we're building a file
