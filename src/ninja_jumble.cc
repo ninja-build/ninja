@@ -118,7 +118,6 @@ const Rule State::kPhonyRule("phony");
 
 State::State() : build_log_(NULL) {
   AddRule(&kPhonyRule);
-  build_log_ = new BuildLog;
 }
 
 const Rule* State::LookupRule(const string& rule_name) {

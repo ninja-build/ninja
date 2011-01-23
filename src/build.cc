@@ -373,5 +373,6 @@ void Builder::FinishEdge(Edge* edge) {
     return;
 
   int ms = status_->BuildEdgeFinished(edge);
-  log_->RecordCommand(edge, ms);
+  if (log_)
+    log_->RecordCommand(edge, ms);
 }

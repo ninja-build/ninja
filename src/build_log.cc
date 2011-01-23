@@ -14,7 +14,8 @@
 // Once the number of redundant entries exceeds a threshold, we write
 // out a new file and replace the existing one with it.
 
-BuildLog::BuildLog() : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog()
+  : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
   if (needs_recompaction_) {

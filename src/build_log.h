@@ -2,6 +2,7 @@
 #include <string>
 using namespace std;
 
+struct BuildConfig;
 struct Edge;
 
 // Store a log of every command ran for every build.
@@ -14,6 +15,7 @@ struct Edge;
 struct BuildLog {
   BuildLog();
 
+  void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
   void RecordCommand(Edge* edge, int time_ms);
   void Close();
@@ -42,5 +44,6 @@ struct BuildLog {
   typedef map<string, LogEntry*> Log;
   Log log_;
   FILE* log_file_;
+  BuildConfig* config_;
   bool needs_recompaction_;
 };

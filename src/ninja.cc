@@ -171,13 +171,17 @@ int main(int argc, char** argv) {
   if (browse)
     return CmdBrowse(&state, argc, argv);
 
+  BuildLog build_log;
+  build_log.SetConfig(&config);
+  state.build_log_ = &build_log;
+
   const char* kLogPath = ".ninja_log";
-  if (!state.build_log_->Load(kLogPath, &err)) {
+  if (!build_log.Load(kLogPath, &err)) {
     fprintf(stderr, "error loading build log: %s\n", err.c_str());
     return 1;
   }
 
-  if (!config.dry_run && !state.build_log_->OpenForWrite(kLogPath, &err)) {
+  if (!config.dry_run && !build_log.OpenForWrite(kLogPath, &err)) {
     fprintf(stderr, "error opening build log: %s\n", err.c_str());
     return 1;
   }
