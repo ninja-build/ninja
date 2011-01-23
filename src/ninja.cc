@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (!config.dry_run && !build_log.OpenForWrite(kLogPath, &err)) {
+  if (!build_log.OpenForWrite(kLogPath, &err)) {
     fprintf(stderr, "error opening build log: %s\n", err.c_str());
     return 1;
   }

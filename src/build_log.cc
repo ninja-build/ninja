@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "build.h"
 #include "graph.h"
 #include "ninja.h"
 
@@ -18,6 +19,9 @@ BuildLog::BuildLog()
   : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
+  if (config_ && config_->dry_run)
+    return true;  // Do nothing, report success.
+
   if (needs_recompaction_) {
     if (!Recompact(path, err))
       return false;
@@ -61,7 +65,6 @@ void BuildLog::Close() {
   log_file_ = NULL;
 }
 
-// Load the on-disk log.
 bool BuildLog::Load(const string& path, string* err) {
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
@@ -115,7 +118,6 @@ bool BuildLog::Load(const string& path, string* err) {
   return true;
 }
 
-// Lookup a previously-run command by its output path.
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   Log::iterator i = log_.find(path);
   if (i != log_.end())
