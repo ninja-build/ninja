@@ -33,7 +33,14 @@ struct BuildLog {
   // Lookup a previously-run command by its output path.
   LogEntry* LookupByOutput(const string& path);
 
+  // Serialize an entry into a log file.
+  void WriteEntry(FILE* f, const LogEntry& entry);
+
+  // Rewrite the known log entries, throwing away old data.
+  bool Recompact(const string& path, string* err);
+
   typedef map<string, LogEntry*> Log;
   Log log_;
   FILE* log_file_;
+  bool needs_recompaction_;
 };

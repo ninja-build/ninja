@@ -11,11 +11,17 @@
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
 // older runs.
-// XXX figure out recompaction strategy
+// Once the number of redundant entries exceeds a threshold, we write
+// out a new file and replace the existing one with it.
 
-BuildLog::BuildLog() : log_file_(NULL) {}
+BuildLog::BuildLog() : log_file_(NULL), needs_recompaction_(false) {}
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
+  if (needs_recompaction_) {
+    if (!Recompact(path, err))
+      return false;
+  }
+
   log_file_ = fopen(path.c_str(), "ab");
   if (!log_file_) {
     *err = strerror(errno);
@@ -45,7 +51,7 @@ void BuildLog::RecordCommand(Edge* edge, int time_ms) {
     log_entry->command = command;
     log_entry->time_ms = time_ms;
 
-    fprintf(log_file_, "%d %s %s\n", time_ms, path.c_str(), command.c_str());
+    WriteEntry(log_file_, *log_entry);
   }
 }
 
@@ -64,6 +70,9 @@ bool BuildLog::Load(const string& path, string* err) {
     return false;
   }
 
+  int unique_entry_count = 0;
+  int total_entry_count = 0;
+
   char buf[256 << 10];
   while (fgets(buf, sizeof(buf), file)) {
     char* start = buf;
@@ -71,19 +80,36 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
 
-    LogEntry* entry = new LogEntry;
     *end = 0;
-    entry->time_ms = atoi(start);
-
+    int time_ms = atoi(start);
     start = end + 1;
     end = strchr(start, ' ');
-    entry->output = string(start, end - start);
+    string output = string(start, end - start);
+
+    LogEntry* entry;
+    Log::iterator i = log_.find(output);
+    if (i != log_.end()) {
+      entry = i->second;
+    } else {
+      entry = new LogEntry;
+      log_.insert(make_pair(output, entry));
+      ++unique_entry_count;
+    }
+    ++total_entry_count;
+
+    entry->time_ms = time_ms;
+    entry->output = output;
 
     start = end + 1;
     end = strchr(start, '\n');
     entry->command = string(start, end - start);
-    log_[entry->output] = entry;
   }
+
+  // Mark the log as "needs rebuiding" if it has kCompactionRatio times
+  // too many log entries.
+  int kCompactionRatio = 3;
+  if (total_entry_count > unique_entry_count * kCompactionRatio)
+    needs_recompaction_ = true;
 
   return true;
 }
@@ -94,4 +120,33 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   if (i != log_.end())
     return i->second;
   return NULL;
+}
+
+void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+  fprintf(f, "%d %s %s\n",
+          entry.time_ms, entry.output.c_str(), entry.command.c_str());
+}
+
+bool BuildLog::Recompact(const string& path, string* err) {
+  printf("Recompacting log...\n");
+
+  string temp_path = path + ".recompact";
+  FILE* f = fopen(temp_path.c_str(), "wb");
+  if (!f) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  for (Log::iterator i = log_.begin(); i != log_.end(); ++i) {
+    WriteEntry(f, *i->second);
+  }
+
+  fclose(f);
+
+  if (rename(temp_path.c_str(), path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  return true;
 }
