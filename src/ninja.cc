@@ -10,6 +10,17 @@
 
 #include "graphviz.h"
 
+// Import browse.py as binary data.
+asm(
+".data\n"
+"browse_data_begin:\n"
+".incbin \"src/browse.py\"\n"
+"browse_data_end:\n"
+);
+// Declare the symbols defined above.
+extern const char browse_data_begin[];
+extern const char browse_data_end[];
+
 option options[] = {
   { "help", no_argument, NULL, 'h' },
   { }
@@ -25,6 +36,7 @@ void usage() {
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
 "  -q       show inputs/outputs of target (query mode)\n"
+"  -b       browse dependency graph of target in a web browser\n"
           );
 }
 
@@ -39,9 +51,10 @@ int main(int argc, char** argv) {
   const char* input_file = "build.ninja";
   bool graph = false;
   bool query = false;
+  bool browse = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "ghi:nvq", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "bghi:nvq", options, NULL)) != -1) {
     switch (opt) {
       case 'g':
         graph = true;
@@ -57,6 +70,9 @@ int main(int argc, char** argv) {
         break;
       case 'q':
         query = true;
+        break;
+      case 'b':
+        browse = true;
         break;
       case 'h':
       default:
@@ -121,6 +137,30 @@ int main(int argc, char** argv) {
       }
     }
     return 0;
+  }
+
+  if (browse) {
+    // Create a temporary file, dump the Python code into it, and
+    // delete the file, keeping our open handle to it.
+    char tmpl[] = "browsepy-XXXXXX";
+    int fd = mkstemp(tmpl);
+    unlink(tmpl);
+    const int browse_data_len = browse_data_end - browse_data_begin;
+    int len = write(fd, browse_data_begin, browse_data_len);
+    if (len < browse_data_len) {
+      perror("write");
+      return 1;
+    }
+
+    // exec Python, telling it to use our script file.
+    const char* command[] = {
+      "python", "/proc/self/fd/3", argv[0], NULL
+    };
+    execvp(command[0], (char**)command);
+
+    // If we get here, the exec failed.
+    printf("ERROR: Failed to spawn python for graph browsing, aborting.\n");
+    return 1;
   }
 
   const char* kLogPath = ".ninja_log";
