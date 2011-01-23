@@ -4,27 +4,31 @@ Ninja
 Introduction
 ------------
 
-Ninja is yet another build system.  It takes as input a file
-describing interdependencies of files (typically source code and
-output executables) and orchestrates building them, _quickly_.
+Ninja is yet another build system.  It takes as input the
+interdependencies of files (typically source code and output
+executables) and orchestrates building them, _quickly_.
 
 Ninja joins a sea of other build systems.  Its distinguishing goal is
 to be fast.  It is born from my work on the Chromium browser project,
-which has well over 20,000 source files and whose other build systems
+which has over 30,000 source files and whose other build systems
 (including one built from custom non-recursive Makefiles) take tens of
-seconds to start compiling after changing one file.
+seconds to start building after changing one file.
+
+Design goals
+~~~~~~~~~~~~
 
 Here are some of the design goals of Ninja:
 
 * very fast (i.e., instant) incremental builds, even for very large
   projects.
 
-* very little implicit policy; "explicit is better than implicit".
+* very little policy about how code is built; "explicit is better than
+  implicit".
 
 * get dependencies correct, and in particular situations that are
   difficult to get right with Makefiles (e.g. outputs need an implicit
-  dependency on the command line used to generate them; C source code
-  need to be able to benefit from gcc's `-M` flags for header
+  dependency on the command line used to generate them; to build C
+  source code you need to use gcc's `-M` flags for header
   dependencies).
 
 * when convenience and speed are in conflict, prefer speed.
@@ -35,24 +39,35 @@ Some explicit _non-goals_:
   generate your ninja files using another program_.  This is how we
   can sidestep many policy decisions.
 
-* built-in rules. _Out of the box, ninja has no rules for
+* built-in rules. _Out of the box, Ninja has no rules for
   e.g. compiling C code._
 
 * build-time customization of the build. _Options belong in
   the program that generates the ninja files_.
 
 * build-time decision-making ability such as conditionals or search
-  paths. _Making decisions is slow.  Ninja strikes its target without
-  any hesitation._
+  paths. _Making decisions is slow._
 
-To restate, Ninja manages to be simpler and faster than other build
-systems by being much more stupid.  It has no built-in knowledge of
-how to build C source, or link libraries, or install binaries.
+To restate, Ninja is faster than other build systems because it is
+painfully simple.  You must tell Ninja exctly what to do when you
+create your project's `.ninja` files.  Customization and configuration
+are out of scope; instead you should provide customization in the
+system that generates your `.ninja` files, like how autoconf provides
+`./configure`.
 
-You instead decide this policy when you create your project's `.ninja`
-files.  Customization and configuration are out of scope; instead you
-should provide customization in the system that generates your
-`.ninja` files, like how autoconf provides `./configure`.
+Philosophical overview
+~~~~~~~~~~~~~~~~~~~~~~
+
+Build systems get slow when they need to make decisions.  When you are
+in a edit-compile cycle you want it to be as fast as possible -- you
+want the build system to do the minimum work necessary to start
+the build immediately.
+
+Ninja contains the barest functionality necessary to describe
+arbitrary dependency graphs.  Its lack of syntax makes it impossible
+to express complex decisions.  Even build-time decisions like "should
+I build a debug-mode or release-mode binary?" belong in a
+ninja-file-generation step separate from your incremental builds.
 
 Conceptual overview
 ~~~~~~~~~~~~~~~~~~~
@@ -70,10 +85,13 @@ Conceptually, `build` statements describe the dependency graph of your
 project, while `rule` statements describe how to generate the files
 along a given edge of the graph.
 
-Semantic differences from make
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Comparison to GNU make
+~~~~~~~~~~~~~~~~~~~~~~
 
-* A rule may point at a path for extra implicit dependency
+* Ninja lacks most of the features of Makefiles: conditionals, functions,
+  implicit rules.
+
+* A Ninja rule may point at a path for extra implicit dependency
   information.  This makes it easy to get header dependencies correct
   for C/C++ code.
 
@@ -85,9 +103,6 @@ Semantic differences from make
 
 * Output directories are always implicitly created before running the
   command that relies on them.
-
-User interface differences from make
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Rules can provide shorter descriptions of the command being run, so
   you can print e.g. `CC foo.o` instead of a long command line while
@@ -104,7 +119,7 @@ Getting started
 
 The included `bootstrap.sh` should hopefully produce a working `ninja`
 binary, by first blindly compiling all non-test files together then
-re-building ninja using itself.
+re-building Ninja using itself.
 
 Usage is currently just
 
@@ -175,7 +190,7 @@ Build statements
 Build statements begin with the `build` keyword, and have the format
 +build _outputs_: _rulename_ _inputs_+.  Such a declaration says that
 all of the output files are derived from the input files.  When the output
-files are missing or when the inputs change, ninja will run the rule
+files are missing or when the inputs change, Ninja will run the rule
 to regenerate the outputs.
 
 The basic example above describes how to build `foo.o`, using the `cc`
@@ -250,10 +265,10 @@ keys.
 
 `command` (_required_):: the command line to run.
 
-`depfile`:: path to an optional `Makefile` that contains _implicit
-  dependencies_.  Implicit dependencies are inputs to a build that are
-  not given on the command line; the best example is how `gcc` has the
-  `-M` family of flags to output the list of headers a given `.c` file
+`depfile`:: path to an optional `Makefile` that contains extra
+  _implicit dependencies_ (see the <<ref_dependencies,the reference on
+  dependency types>>).  The best example is how `gcc` has the `-M`
+  family of flags to output the list of headers a given `.c` file
   depends on.
 +
 ----
@@ -261,6 +276,7 @@ rule cc
   depfile = $out.d
   command = gcc -MMD -MF $out.d [other gcc flags here]
 ----
+
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
@@ -273,24 +289,28 @@ this `rule`.
 
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
+[[ref_dependencies]]
+
 There are three types of build dependencies which are subtly different.
 
 1. _Explicit dependencies_, as listed in a build line.  These are
    available as the `$in` variable in the rule.  Changes in these files
    cause the output to be rebuilt; if these file are missing and
-   ninja doesn't know how to build them, the build is aborted.
+   Ninja doesn't know how to build them, the build is aborted.
 +
 This is the standard form of dependency to be used for e.g. the
 source file of a compile command.
 
-2. _Implicit dependencies_, either as picked up from a `depfile`
-   attribute on a rule or from the syntax +| _dep1_ _dep2_+ on the end of
-   a build line.  Changes in these files cause the output to be
-   rebuilt; if they are missing, they are just skipped.
+2. _Implicit dependencies_, either as picked up from
+   a `depfile` attribute on a rule or from the syntax +| _dep1_
+   _dep2_+ on the end of a build line.  Changes in these files cause
+   the output to be rebuilt; if they are missing, they are just
+   skipped.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
-script, the script should be an implicit dependency.
+script, the script itself should be an implicit dependency, as
+changes to the script should cause the output to rebuild.
 
 3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
    _dep2_+ on the end of a build line.  When these are missing, the
