@@ -20,6 +20,7 @@ string Token::AsString() const {
   case EQUALS:   return "'='";
   case COLON:    return "':'";
   case PIPE:     return "'|'";
+  case PIPE2:    return "'||'";
   case TEOF:     return "eof";
   case INDENT:   return "indenting in";
   case OUTDENT:  return "indenting out";
@@ -181,8 +182,13 @@ Token::Type Tokenizer::PeekToken() {
     token_.type_ = Token::EQUALS;
     ++cur_;
   } else if (*cur_ == '|') {
-    token_.type_ = Token::PIPE;
-    ++cur_;
+    if (cur_ + 1 < end_ && cur_[1] == '|') {
+      token_.type_ = Token::PIPE2;
+      cur_ += 2;
+    } else {
+      token_.type_ = Token::PIPE;
+      ++cur_;
+    }
   } else if (*cur_ == '\n') {
     token_.type_ = Token::NEWLINE;
     ++cur_;
@@ -413,8 +419,21 @@ bool ManifestParser::ParseEdge(string* err) {
   }
 
   // Add all order-only deps, counting how many as we go.
-  int order_only = 0;
+  int implicit = 0;
   if (tokenizer_.PeekToken() == Token::PIPE) {
+    tokenizer_.ConsumeToken();
+    for (;;) {
+      string in;
+      if (!tokenizer_.ReadIdent(&in))
+        break;
+      ins.push_back(in);
+      ++implicit;
+    }
+  }
+
+  // Add all order-only deps, counting how many as we go.
+  int order_only = 0;
+  if (tokenizer_.PeekToken() == Token::PIPE2) {
     tokenizer_.ConsumeToken();
     for (;;) {
       string in;
@@ -467,6 +486,7 @@ bool ManifestParser::ParseEdge(string* err) {
     state_->AddIn(edge, *i);
   for (vector<string>::iterator i = outs.begin(); i != outs.end(); ++i)
     state_->AddOut(edge, *i);
+  edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
   return true;

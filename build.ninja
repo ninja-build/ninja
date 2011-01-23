@@ -80,8 +80,8 @@ rule asciidoc
   description = ASCIIDOC $in
 
 build manual.html: asciidoc manual.asciidoc
-build doc: phony | manual.html
+build doc: phony || manual.html
 
 # Use the built-in phony rule and an order-only dependency
 # to make building "all" build all targets.
-build all: phony | ninja ninja_test graph.png doc
+build all: phony || ninja ninja_test graph.png doc

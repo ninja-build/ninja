@@ -469,7 +469,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
-"build foo.o: cc foo.c | otherfile\n"));
+"build foo.o: cc foo.c || otherfile\n"));
   fs_.Create("foo.c", now_, "");
   fs_.Create("otherfile", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");

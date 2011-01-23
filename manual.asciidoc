@@ -219,7 +219,9 @@ A file is a series of declarations.  A declaration can be one of:
 
 2. A build edge, which looks like +build _output1_ _output2_:
    _rulename_ _input1_ _input2_+. +
-   Order-only dependencies may be tacked on the end with +_|
+   Implicit dependencies may be tacked on the end with +_|
+   _dependency1_ _dependency2_+.
+   Order-only dependencies may be tacked on the end with +_||
    _dependency1_ _dependency2_+.
 
 3. Variable declarations, which look like +_variable_ = _value_+.
@@ -273,22 +275,33 @@ Build dependencies
 ~~~~~~~~~~~~~~~~~~
 There are three types of build dependencies which are subtly different.
 
-1. Explicit dependencies, as listed in a build line.  These are
+1. _Explicit dependencies_, as listed in a build line.  These are
    available as the `$in` variable in the rule.  Changes in these files
    cause the output to be rebuilt; if these file are missing and
    ninja doesn't know how to build them, the build is aborted.
++
+This is the standard form of dependency to be used for e.g. the
+source file of a compile command.
 
-2. Implicit dependencies, as picked up from a `depfile` attribute on
-   a rule.  Changes in these files cause the output to be rebuilt; if
-   they are missing, they are just skipped.
+2. _Implicit dependencies_, either as picked up from a `depfile`
+   attribute on a rule or from the syntax +| _dep1_ _dep2_+ on the end of
+   a build line.  Changes in these files cause the output to be
+   rebuilt; if they are missing, they are just skipped.
++
+This is for expressing dependencies that don't show up on the
+command line of the command; for example, for a rule that runs a
+script, the script should be an implicit dependency.
 
-3. Order-only dependencies, expressed with the syntax `| dep1 dep2` on
-   the end of a build line.  When these are missing, the output is not
-   rebuilt until they are built, but once they are available further
-   changes to the files do not affect the output.  Order-only
-   dependencies can be useful for bootstrapping implicit dependencies:
-   for example, to generate a header file before starting a subsequent
-   compilation step.
+3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
+   _dep2_+ on the end of a build line.  When these are missing, the
+   output is not rebuilt until they are built, but once they are
+   available further changes to the files do not affect the output.
++
+Order-only dependencies can be useful for bootstrapping dependencies
+that are only discovered during build time: for example, to generate a
+header file before starting a subsequent compilation step.  (Once the
+header is used in compilation, a generated dependency file will then
+express the implicit dependency.)
 
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -289,10 +289,22 @@ TEST_F(ParserTest, Include) {
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
 }
 
-TEST_F(ParserTest, OrderOnly) {
+TEST_F(ParserTest, Implicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n  command = cat $in > $out\n"
 "build foo: cat bar | baz\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge_;
+  ASSERT_TRUE(edge->is_implicit(1));
+}
+
+TEST_F(ParserTest, OrderOnly) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build foo: cat bar || baz\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge_;
+  ASSERT_TRUE(edge->is_order_only(1));
 }
 
 TEST(MakefileParser, Basic) {

@@ -21,6 +21,7 @@ struct Token {
     EQUALS,
     COLON,
     PIPE,
+    PIPE2,
     INDENT,
     OUTDENT,
     TEOF
