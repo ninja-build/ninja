@@ -1,12 +1,23 @@
-if command line for an output changed, no need to even stat
-the output, just mark it for rebuilding immediately.
+necessary
+=========
 
 delete halfway-built output files when interrupted
 
+recompact log files
+
+frosting
+========
+
+if command line for an output changed, no need to even stat
+the output, just mark it for rebuilding immediately.
+
 "explain" mode that shows why we're building a file
+
 "one file" mode that builds only outputs of a single file
+
 adjust to system load dynamically
 
 progress bar rather than printing commands in series
-store historical timing info, allowing etas on builds
+
+compute etas on builds using logged timing info
   how does parallelization fit in?
