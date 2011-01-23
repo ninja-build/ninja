@@ -120,7 +120,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 port = 8000
 httpd = BaseHTTPServer.HTTPServer(('',port), RequestHandler)
 try:
-    print 'Web server running on port %d...' % port
+    print 'Web server running on port %d, ctl-C to abort...' % port
     webbrowser.open_new('http://localhost:%s' % port)
     httpd.serve_forever()
 except KeyboardInterrupt:
