@@ -46,6 +46,67 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
+int CmdGraph(State* state, int argc, char* argv[]) {
+  GraphViz graph;
+  graph.Start();
+  for (int i = 0; i < argc; ++i)
+    graph.AddTarget(state->GetNode(argv[i]));
+  graph.Finish();
+  return 0;
+}
+
+int CmdQuery(State* state, int argc, char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    Node* node = state->GetNode(argv[i]);
+    if (node) {
+      printf("%s:\n", argv[i]);
+      if (node->in_edge_) {
+        printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
+        for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
+             in != node->in_edge_->inputs_.end(); ++in) {
+          printf("    %s\n", (*in)->file_->path_.c_str());
+        }
+      }
+      for (vector<Edge*>::iterator edge = node->out_edges_.begin();
+           edge != node->out_edges_.end(); ++edge) {
+        printf("  output: %s\n", (*edge)->rule_->name_.c_str());
+        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+             out != (*edge)->outputs_.end(); ++out) {
+          printf("    %s\n", (*out)->file_->path_.c_str());
+        }
+      }
+    } else {
+      printf("%s unknown\n", argv[i]);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int CmdBrowse(State* state, int argc, char* argv[]) {
+  // Create a temporary file, dump the Python code into it, and
+  // delete the file, keeping our open handle to it.
+  char tmpl[] = "browsepy-XXXXXX";
+  int fd = mkstemp(tmpl);
+  unlink(tmpl);
+  const int browse_data_len = browse_data_end - browse_data_begin;
+  int len = write(fd, browse_data_begin, browse_data_len);
+  if (len < browse_data_len) {
+    perror("write");
+    return 1;
+  }
+
+  // exec Python, telling it to use our script file.
+  const char* command[] = {
+    "python", "/proc/self/fd/3", argv[0], NULL
+  };
+  execvp(command[0], (char**)command);
+
+  // If we get here, the exec failed.
+  printf("ERROR: Failed to spawn python for graph browsing, aborting.\n");
+  return 1;
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -103,65 +164,12 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (graph) {
-    GraphViz graph;
-    graph.Start();
-    for (int i = 0; i < argc; ++i)
-      graph.AddTarget(state.GetNode(argv[i]));
-    graph.Finish();
-    return 0;
-  }
-
-  if (query) {
-    for (int i = 0; i < argc; ++i) {
-      Node* node = state.GetNode(argv[i]);
-      if (node) {
-        printf("%s:\n", argv[i]);
-        if (node->in_edge_) {
-          printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
-          for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
-               in != node->in_edge_->inputs_.end(); ++in) {
-            printf("    %s\n", (*in)->file_->path_.c_str());
-          }
-        }
-        for (vector<Edge*>::iterator edge = node->out_edges_.begin();
-             edge != node->out_edges_.end(); ++edge) {
-          printf("  output: %s\n", (*edge)->rule_->name_.c_str());
-          for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
-               out != (*edge)->outputs_.end(); ++out) {
-            printf("    %s\n", (*out)->file_->path_.c_str());
-          }
-        }
-      } else {
-        printf("%s unknown\n", argv[i]);
-      }
-    }
-    return 0;
-  }
-
-  if (browse) {
-    // Create a temporary file, dump the Python code into it, and
-    // delete the file, keeping our open handle to it.
-    char tmpl[] = "browsepy-XXXXXX";
-    int fd = mkstemp(tmpl);
-    unlink(tmpl);
-    const int browse_data_len = browse_data_end - browse_data_begin;
-    int len = write(fd, browse_data_begin, browse_data_len);
-    if (len < browse_data_len) {
-      perror("write");
-      return 1;
-    }
-
-    // exec Python, telling it to use our script file.
-    const char* command[] = {
-      "python", "/proc/self/fd/3", argv[0], NULL
-    };
-    execvp(command[0], (char**)command);
-
-    // If we get here, the exec failed.
-    printf("ERROR: Failed to spawn python for graph browsing, aborting.\n");
-    return 1;
-  }
+  if (graph)
+    return CmdGraph(&state, argc, argv);
+  if (query)
+    return CmdQuery(&state, argc, argv);
+  if (browse)
+    return CmdBrowse(&state, argc, argv);
 
   const char* kLogPath = ".ninja_log";
   if (!state.build_log_->Load(kLogPath, &err)) {
