@@ -51,7 +51,7 @@ build $builddir/ninja.a: ar $builddir/build.o $builddir/build_log.o \
     $builddir/eval_env.o $builddir/graph.o $builddir/parsers.o \
     $builddir/subprocess.o $builddir/util.o $builddir/ninja_jumble.o
 
-build $builddir/ninja.o: cxx src/ninja.cc
+build $builddir/ninja.o: cxx src/ninja.cc | src/browse.py
 build ninja: link $builddir/ninja.o $builddir/ninja.a
 
 build $builddir/build_test.o: cxx src/build_test.cc
