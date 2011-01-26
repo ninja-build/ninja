@@ -1,13 +1,12 @@
-# This file is used to build ninja itself, but it also serves as a
-# documented example.
+# This file is used to build ninja itself.
 
-# Note that it is an explicit non-goal of ninja to make it convenient
-# to write these build files by hand.  For a real project, you'd generate
-# this build file.  I was tempted to generate this file even for ninja
-# itself but I figured it'd be easier to bootstrap this way.
+# NOTE: it is an explicit non-goal of ninja to make it convenient to
+# write these files by hand.  For a real project, you'd generate this
+# file from higher-level rules.
 
-# Most variables aren't magic at all; it's up to the rules to make use
-# of them.
+# I was tempted to generate this file even for ninja itself but I
+# figured it'd be easier to bootstrap this way.
+
 builddir = build
 cxx = g++
 #cxx = /home/evanm/projects/src/llvm/Release+Asserts/bin/clang++
@@ -15,14 +14,10 @@ cflags = -g -Wall -Wno-deprecated -fno-exceptions -fvisibility=hidden -pipe
 # -rdynamic is needed for backtrace()
 ldflags = -g -rdynamic
 
-# bootstrap.sh generates a "config" file, which contains more build
-# flags.
+# bootstrap.sh generates a "config.ninja" file, which contains some
+# minor build customization for development purposes.
 include config.ninja
 
-# Here we declare a "rule" named "cxx", which knows how to compile
-# C++ code.  The variables indented below the rule are scoped to the
-# rule itself.  The "command" and "depfile" variables in rule scope
-# are special; see the documentation.
 rule cxx
   depfile = $out.d
   command = $cxx -MMD -MF $out.d $conf_cflags $cflags -c $in -o $out
@@ -36,9 +31,6 @@ rule link
   command = $cxx $conf_ldflags $ldflags -o $out $in
   description = LINK $out
 
-# These build rules build the ".o" files from the ".cc" files,
-# build "ninja.a" by linking the builddir's "ninja.o",
-# and build that "ninja.o" by compiling "ninja.cc".
 build $builddir/build.o: cxx src/build.cc
 build $builddir/build_log.o: cxx src/build_log.cc
 build $builddir/eval_env.o: cxx src/eval_env.cc
@@ -65,8 +57,7 @@ build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
   ldflags = -g -rdynamic -lgtest -lgtest_main -lpthread
 
 
-# Generate a graph of the dependency tree (including the
-# graph generation itself in the resulting tree).
+# Generate a graph using the -g flag.
 rule gendot
   command = ./ninja -g all > $out
 rule gengraph
@@ -75,6 +66,7 @@ rule gengraph
 build $builddir/graph.dot: gendot ninja build.ninja
 build graph.png: gengraph $builddir/graph.dot
 
+# Generate docs.
 rule asciidoc
   command = asciidoc -a toc $in
   description = ASCIIDOC $in
@@ -82,6 +74,4 @@ rule asciidoc
 build manual.html: asciidoc manual.asciidoc
 build doc: phony || manual.html
 
-# Use the built-in phony rule and an order-only dependency
-# to make building "all" build all targets.
 build all: phony || ninja ninja_test graph.png doc
