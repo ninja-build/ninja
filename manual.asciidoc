@@ -88,8 +88,15 @@ along a given edge of the graph.
 Comparison to GNU make
 ~~~~~~~~~~~~~~~~~~~~~~
 
-* Ninja lacks most of the features of Makefiles: conditionals, functions,
-  implicit rules.
+Fundamentally, make has a lot of _features_: suffix rules, functions,
+built-in rules that look for RCS files when building.  Many projects
+find make alone adequate for their build problems.  In contrast, Ninja
+has almost no features; just those necessary to get builds correct
+while punting most complexity to generation of the ninja input files.
+
+Here are some of the features ninja adds to make.  (These sorts of
+features can often be implemented using more complicated Makefiles,
+but they are not part of make itself.)
 
 * A Ninja rule may point at a path for extra implicit dependency
   information.  This makes it easy to get header dependencies correct
@@ -132,8 +139,9 @@ current directory.
 
 
 Creating .ninja files
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 Here's a basic `.ninja` file that demonstrates most of the syntax.
+It wil be used as an example for for the following sections.
 
 ---------------------------------
 cflags = -Wall
@@ -165,14 +173,17 @@ rule cc
 Variables can also be referenced using curly braces like `${in}`.
 
 Variables might better be called "bindings", in that a given variable
-cannot be changed, only shadowed.
+cannot be changed, only shadowed.  More on how shadowing works
+follows.
+
 
 
 Rules
 ~~~~~
 
-Rules begin with a line consisting of the `rule` keyword and a name
-for the rule.  Then follows an indented set of `variable = value` lines.
+Rules declare a short name for a command line.  They begin with a line
+consisting of the `rule` keyword and a name for the rule.  Then
+follows an indented set of `variable = value` lines.
 
 The basic example above declares a new rule named `cc`, along with the
 command to run.  (In the context of a rule, the `command` variable is
@@ -187,11 +198,12 @@ available: `$in` expands to the list of input files (`foo.c`) and
 Build statements
 ~~~~~~~~~~~~~~~~
 
-Build statements begin with the `build` keyword, and have the format
+Build statements declare a relationship between input and output
+files.  They begin with the `build` keyword, and have the format
 +build _outputs_: _rulename_ _inputs_+.  Such a declaration says that
-all of the output files are derived from the input files.  When the output
-files are missing or when the inputs change, Ninja will run the rule
-to regenerate the outputs.
+all of the output files are derived from the input files.  When the
+output files are missing or when the inputs change, Ninja will run the
+rule to regenerate the outputs.
 
 The basic example above describes how to build `foo.o`, using the `cc`
 rule.
@@ -213,30 +225,36 @@ rule cc
 build foo.o: cc foo.c
 
 # But you can can shadow variables like cflags for a particular build.
-build special.o: cc.special.c
+build special.o: cc special.c
   cflags = -Wall
+
+# The variable was only shadowed for the scope of special.o;
+# Subsequent build lines get the outer (original) cflags.
+build bar.o: cc bar.c
+
 ----------------
 
 For more discussion of how scoping works, consult <<ref_scope,the
 reference>>.
 
-If you need anything more complicated information passed from the
-build statement to the rule (for example, if the rule needs the file
-extension of the first input), pass that through as an extra variable,
-like how `cflags` is passed above.
+If you need more complicated information passed from the build
+statement to the rule (for example, if the rule needs "the file
+extension of the first input"), pass that through as an extra
+variable, like how `cflags` is passed above.
 
 
 Ninja file reference
 --------------------
 A file is a series of declarations.  A declaration can be one of:
 
-1. A rule declaration, which begins with +rule _rulename_+.
+1. A rule declaration, which begins with +rule _rulename_+, and
+   then has a series of indented lines defining variables.
 
 2. A build edge, which looks like +build _output1_ _output2_:
    _rulename_ _input1_ _input2_+. +
-   Implicit dependencies may be tacked on the end with +_|
+   Implicit dependencies may be tacked on the end with +|
    _dependency1_ _dependency2_+.
-   Order-only dependencies may be tacked on the end with +_||
+   Order-only dependencies may be tacked on the end with +||
    _dependency1_ _dependency2_+.
 
 3. Variable declarations, which look like +_variable_ = _value_+.
@@ -267,9 +285,11 @@ keys.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see the <<ref_dependencies,the reference on
-  dependency types>>).  The best example is how `gcc` has the `-M`
-  family of flags to output the list of headers a given `.c` file
+  dependency types>>).  This is explicitly to support `gcc` and its `-M`
+  family of flags, which output the list of headers a given `.c` file
   depends on.
++
+Use it like in the following example:
 +
 ----
 rule cc
