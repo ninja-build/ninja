@@ -15,6 +15,43 @@ which has over 30,000 source files and whose other build systems
 seconds to start building after changing one file.  Ninja is under a
 second.
 
+
+Philosophical overview
+~~~~~~~~~~~~~~~~~~~~~~
+
+Build systems get slow when they need to make decisions.  When you are
+in a edit-compile cycle you want it to be as fast as possible -- you
+want the build system to do the minimum work necessary to figure out
+what needs to be built immediately.
+
+Ninja contains the barest functionality necessary to describe
+arbitrary dependency graphs.  Its lack of syntax makes it impossible
+to express complex decisions.  Instead, Ninja is intended to be used
+with a separate program generating its input files.  The generator
+program (like the `./configure` found in autotools projects) can
+analyze system dependencies and make as many decisions as possible up
+front so that incremental builds stay fast.  Going beyond autotools,
+even build-time decisions like "which compiler flags should I use?"
+or "should a build a debug or release-mode binary?"  belong in the
+ninjafile generator.
+
+Conceptual overview
+~~~~~~~~~~~~~~~~~~~
+
+Ninja evaluates a graph of dependencies between files, and runs
+whichever commands are necessary to make your build target up to date.
+If you are familiar with Make, Ninja is very similar.
+
+A build file (default name: `build.ninja`) provides a list of _rules_
+-- short names for longer commands, like how to run the compiler --
+along with a list of _build_ statements saying how to build files
+using the rules -- which rule to apply to which inputs to produce
+which ouputs.
+
+Conceptually, `build` statements describe the dependency graph of your
+project, while `rule` statements describe how to generate the files
+along a given edge of the graph.
+
 Design goals
 ~~~~~~~~~~~~
 
@@ -51,49 +88,18 @@ Some explicit _non-goals_:
 
 To restate, Ninja is faster than other build systems because it is
 painfully simple.  You must tell Ninja exctly what to do when you
-create your project's `.ninja` files.  Customization and configuration
-are out of scope; instead you should provide customization in the
-system that generates your `.ninja` files, like how autoconf provides
-`./configure`.
-
-Philosophical overview
-~~~~~~~~~~~~~~~~~~~~~~
-
-Build systems get slow when they need to make decisions.  When you are
-in a edit-compile cycle you want it to be as fast as possible -- you
-want the build system to do the minimum work necessary to start
-the build immediately.
-
-Ninja contains the barest functionality necessary to describe
-arbitrary dependency graphs.  Its lack of syntax makes it impossible
-to express complex decisions.  Even build-time decisions like "should
-I build a debug-mode or release-mode binary?" belong in a
-ninja-file-generation step separate from your incremental builds.
-
-Conceptual overview
-~~~~~~~~~~~~~~~~~~~
-Ninja evaluates a graph of dependencies between files, and runs
-whichever commands are necessary to make your build target up to date.
-If you are familiar with Make, Ninja is very similar.
-
-A build file (default name: `build.ninja`) provides a list of _rules_
--- short names for longer commands, like how to run the compiler --
-along with a list of _build_ statements saying how to build files
-using the rules -- which rule to apply to which inputs to produce
-which ouputs.
-
-Conceptually, `build` statements describe the dependency graph of your
-project, while `rule` statements describe how to generate the files
-along a given edge of the graph.
+create your project's `.ninja` files.
 
 Comparison to GNU make
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Fundamentally, make has a lot of _features_: suffix rules, functions,
-built-in rules that look for RCS files when building.  Many projects
-find make alone adequate for their build problems.  In contrast, Ninja
-has almost no features; just those necessary to get builds correct
-while punting most complexity to generation of the ninja input files.
+Ninja is closest in spirit and functionality to make.  But
+fundamentally, make has a lot of _features_: suffix rules, functions,
+built-in rules that e.g. search for RCS files when building source.
+Many projects find make alone adequate for their build problems.  In
+contrast, Ninja has almost no features; just those necessary to get
+builds correct while punting most complexity to generation of the
+ninja input files.
 
 Here are some of the features ninja adds to make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
@@ -118,7 +124,7 @@ but they are not part of make itself.)
 
 * Command output is always buffered.  This means commands running in
   parallel don't interleave their output, and when a command fails we
-  can put its failure output next to the full command line that
+  can print its failure output next to the full command line that
   produced the failure.
 
 
@@ -174,10 +180,8 @@ rule cc
 Variables can also be referenced using curly braces like `${in}`.
 
 Variables might better be called "bindings", in that a given variable
-cannot be changed, only shadowed.  More on how shadowing works
-follows.
-
-
+cannot be changed, only shadowed.  There is ore on how shadowing works
+later in this document.
 
 Rules
 ~~~~~
@@ -242,6 +246,18 @@ If you need more complicated information passed from the build
 statement to the rule (for example, if the rule needs "the file
 extension of the first input"), pass that through as an extra
 variable, like how `cflags` is passed above.
+
+Generating Ninja files
+----------------------
+
+A work-in-progress patch to http://gyp.googlecode.com[gyp, the system
+used to generate build files for the Chromium browser] to generate
+ninja files for Linux is included in the source distribution.
+
+Conceptually, you could coax Automake into producing ninja files as
+well, but I haven't tried it.  It may very well be the case that most
+projects use too much Makefile syntax in their `.am` files for this to
+work.
 
 
 Ninja file reference
