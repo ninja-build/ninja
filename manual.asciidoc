@@ -144,6 +144,9 @@ ninja target
 where `target` is a known output described by `build.ninja` in the
 current directory.
 
+There is no installation step; the only files of interest to user are
+the resulting binary and this manual.
+
 
 Creating .ninja files
 ---------------------
