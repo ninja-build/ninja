@@ -83,7 +83,8 @@ tt {
     print '</td></tr></table>'
 
 def ninja_dump(target):
-    proc = subprocess.Popen(['./ninja', '-q', target], stdout=subprocess.PIPE)
+    proc = subprocess.Popen(['./ninja', '-t', 'query', target],
+                            stdout=subprocess.PIPE)
     return proc.communicate()[0]
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):

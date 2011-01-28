@@ -31,12 +31,14 @@ void usage() {
 "usage: ninja [options] target\n"
 "\n"
 "options:\n"
-"  -g       output graphviz dot file for targets and exit\n"
 "  -i FILE  specify input build file [default=build.ninja]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
-"  -q       show inputs/outputs of target (query mode)\n"
-"  -b       browse dependency graph of target in a web browser\n"
+"\n"
+"  -t TOOL  run a subtool.  tools are:\n"
+"             browse  browse dependency graph in a web browser\n"
+"             graph   output graphviz dot file for targets\n"
+"             query   show inputs/outputs for a path\n"
           );
 }
 
@@ -110,16 +112,11 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
-  bool graph = false;
-  bool query = false;
-  bool browse = false;
+  string tool;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "bghi:nvq", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:nt:v", options, NULL)) != -1) {
     switch (opt) {
-      case 'g':
-        graph = true;
-        break;
       case 'i':
         input_file = optarg;
         break;
@@ -129,11 +126,8 @@ int main(int argc, char** argv) {
       case 'v':
         config.verbosity = BuildConfig::VERBOSE;
         break;
-      case 'q':
-        query = true;
-        break;
-      case 'b':
-        browse = true;
+      case 't':
+        tool = optarg;
         break;
       case 'h':
       default:
@@ -164,12 +158,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (graph)
-    return CmdGraph(&state, argc, argv);
-  if (query)
-    return CmdQuery(&state, argc, argv);
-  if (browse)
-    return CmdBrowse(&state, argc, argv);
+  if (!tool.empty()) {
+    if (tool == "graph")
+      return CmdGraph(&state, argc, argv);
+    if (tool == "query")
+      return CmdQuery(&state, argc, argv);
+    if (tool == "browse")
+      return CmdBrowse(&state, argc, argv);
+    fprintf(stderr, "unknown tool '%s'\n", tool.c_str());
+  }
 
   BuildLog build_log;
   build_log.SetConfig(&config);

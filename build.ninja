@@ -59,7 +59,7 @@ build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
 
 # Generate a graph using the -g flag.
 rule gendot
-  command = ./ninja -g all > $out
+  command = ./ninja -t graph all > $out
 rule gengraph
   command = dot -Tpng $in > $out
 
