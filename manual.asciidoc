@@ -262,6 +262,23 @@ well, but I haven't tried it.  It may very well be the case that most
 projects use too much Makefile syntax in their `.am` files for this to
 work.
 
+Extra tools
+-----------
+
+The `-t` flag on the Ninja command line runs some tools that I have
+found useful during Ninja's development.  The current tools are:
+
+`query`:: dump the inputs and outputs of a given target.
+
+`browse`:: browse the dependency graph in a web browser.  Clicking a
+file focuses the view on that file, showing inputs and outputs.  This
+feature requires a Python installation.
+
+`graph`:: output a file in the syntax used by `graphviz`, a automatic
+graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
+-ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph`
+generates an image for Ninja itself.
+
 
 Ninja file reference
 --------------------
