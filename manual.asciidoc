@@ -99,7 +99,8 @@ built-in rules that e.g. search for RCS files when building source.
 Many projects find make alone adequate for their build problems.  In
 contrast, Ninja has almost no features; just those necessary to get
 builds correct while punting most complexity to generation of the
-ninja input files.
+ninja input files.  Ninja by itself is unlikely to be useful for most
+projects.
 
 Here are some of the features ninja adds to make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
@@ -144,8 +145,8 @@ ninja target
 where `target` is a known output described by `build.ninja` in the
 current directory.
 
-There is no installation step; the only files of interest to user are
-the resulting binary and this manual.
+There is no installation step; the only files of interest to a user
+are the resulting binary and this manual.
 
 
 Creating .ninja files
@@ -282,6 +283,7 @@ generates an image for Ninja itself.
 
 Ninja file reference
 --------------------
+
 A file is a series of declarations.  A declaration can be one of:
 
 1. A rule declaration, which begins with +rule _rulename_+, and
@@ -406,3 +408,26 @@ lookup order for a variable referenced in a rule is:
 
 4. Variables from the file that included that file using the
    `subninja` keyword.
+
+Future work
+-----------
+
+Some pieces I'd like to add:
+
+_inotify_.  I had originally intended to make Ninja be memory-resident
+and to use `inotify` to keep the build state hot at all times.  But
+upon writing the code I found it was fast enough to run from scratch
+each time.  Perhaps a slower computer would still benefit from
+inotify; the data structures are set up such that using inotify
+shouldn't be hard.
+
+_build estimation and analysis_.  As part of build correctness, Ninja
+keeps a log of the time spent on each build statement.  This log
+format could be adjusted to instead store timing information across
+multiple runs.  From that, the total time necessary to build could be
+estimated, allowing Ninja to print status like "3 minutes until
+complete" when building.  Additionally, a tool could output which
+commands are the slowest or which directories take the most time
+to build.
+
+_many others_.  See the `todo` file included in the distribution.
