@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "build.h"
 #include "build_log.h"
@@ -26,20 +27,46 @@ option options[] = {
   { }
 };
 
-void usage() {
+void usage(const BuildConfig& config) {
   fprintf(stderr,
 "usage: ninja [options] target\n"
 "\n"
 "options:\n"
 "  -i FILE  specify input build file [default=build.ninja]\n"
+"  -j N     run N jobs in parallel [default=%d]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
 "\n"
 "  -t TOOL  run a subtool.  tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n"
-          );
+"             query   show inputs/outputs for a path\n",
+          config.parallelism);
+}
+
+int GuessParallelism() {
+  int processors = 0;
+
+  const char kProcessorPrefix[] = "processor\t";
+  char buf[16 << 10];
+  FILE* f = fopen("/proc/cpuinfo", "r");
+  if (!f)
+    return 2;
+  while (fgets(buf, sizeof(buf), f)) {
+    if (strncmp(buf, kProcessorPrefix, sizeof(kProcessorPrefix) - 1) == 0)
+      ++processors;
+  }
+  fclose(f);
+
+  switch (processors) {
+  case 0:
+  case 1:
+    return 2;
+  case 2:
+    return 3;
+  default:
+    return processors + 2;
+  }
 }
 
 struct RealFileReader : public ManifestParser::FileReader {
@@ -114,11 +141,16 @@ int main(int argc, char** argv) {
   const char* input_file = "build.ninja";
   string tool;
 
+  config.parallelism = GuessParallelism();
+
   int opt;
-  while ((opt = getopt_long(argc, argv, "hi:nt:v", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:j:nt:v", options, NULL)) != -1) {
     switch (opt) {
       case 'i':
         input_file = optarg;
+        break;
+      case 'j':
+        config.parallelism = atoi(optarg);
         break;
       case 'n':
         config.dry_run = true;
@@ -131,13 +163,13 @@ int main(int argc, char** argv) {
         break;
       case 'h':
       default:
-        usage();
+        usage(config);
         return 1;
     }
   }
   if (optind >= argc) {
     fprintf(stderr, "expected target to build\n");
-    usage();
+    usage(config);
     return 1;
   }
   argv += optind;

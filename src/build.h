@@ -60,7 +60,7 @@ struct CommandRunner {
 };
 
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false) {}
+  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1) {}
 
   enum Verbosity {
     NORMAL,
@@ -69,6 +69,7 @@ struct BuildConfig {
   };
   Verbosity verbosity;
   bool dry_run;
+  int parallelism;
 };
 
 struct Builder {
