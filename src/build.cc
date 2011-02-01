@@ -182,19 +182,20 @@ void Plan::Dump() {
 }
 
 struct RealCommandRunner : public CommandRunner {
+  RealCommandRunner(int parallelism) : parallelism_(parallelism) {}
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommands();
   virtual Edge* NextFinishedCommand(bool* success);
 
+  int parallelism_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
 
 bool RealCommandRunner::CanRunMore() {
-  const size_t kConcurrency = 8;  // XXX make configurable etc.
-  return subprocs_.running_.size() < kConcurrency;
+  return ((int)subprocs_.running_.size()) < parallelism_;
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -270,7 +271,7 @@ Builder::Builder(State* state, const BuildConfig& config)
   if (config.dry_run)
     command_runner_ = new DryRunCommandRunner;
   else
-    command_runner_ = new RealCommandRunner;
+    command_runner_ = new RealCommandRunner(config.parallelism);
   status_ = new BuildStatus;
   status_->verbosity_ = config.verbosity;
   log_ = state->build_log_;
