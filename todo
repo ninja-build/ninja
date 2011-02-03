@@ -10,6 +10,9 @@ delete halfway-built output files when interrupted
 frosting
 ========
 
+when we've been waiting for commands for more than a second
+with no output, print some "still waiting for xyz" text
+
 if command line for an output changed, no need to even stat
 the output, just mark it for rebuilding immediately.
 
