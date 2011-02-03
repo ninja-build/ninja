@@ -7,10 +7,10 @@ index 0000000..0d20b64
 +*.pyc
 diff --git a/pylib/gyp/generator/ninja.py b/pylib/gyp/generator/ninja.py
 new file mode 100644
-index 0000000..7782d16
+index 0000000..82992d9
 --- /dev/null
 +++ b/pylib/gyp/generator/ninja.py
-@@ -0,0 +1,538 @@
+@@ -0,0 +1,542 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -50,8 +50,8 @@ index 0000000..7782d16
 +# Build directory.
 +b = ninja
 +
-+cc = ccache gcc
-+cxx = ccache g++
++cc = %(cc)s
++cxx = %(cxx)s
 +
 +rule cc
 +  depfile = $out.d
@@ -89,6 +89,8 @@ index 0000000..7782d16
 +
 +""" % {
 +  'cwd': os.getcwd(),
++  'cc': os.environ.get('CC', 'gcc'),
++  'cxx': os.environ.get('CXX', 'g++'),
 +}
 +
 +def QuoteShellArgument(arg):
@@ -392,10 +394,13 @@ index 0000000..7782d16
 +    if '_library' in spec['type'] and target[:3] == 'lib':
 +      target = target[3:]
 +
++    if spec['type'] in ('static_library', 'loadable_module', 'shared_library'):
++      prefix = spec.get('product_prefix', 'lib')
++
 +    if spec['type'] == 'static_library':
-+      return 'lib%s.a' % target
++      return '%s%s.a' % (prefix, target)
 +    elif spec['type'] in ('loadable_module', 'shared_library'):
-+      return 'lib%s.so' % target
++      return '%s%s.so' % (prefix, target)
 +    elif spec['type'] == 'none':
 +      return '%s.stamp' % target
 +    elif spec['type'] == 'settings':
@@ -408,7 +413,6 @@ index 0000000..7782d16
 +  def ComputeOutput(self, spec):
 +    filename = self.ComputeOutputFileName(spec)
 +
-+    assert 'product_prefix' not in spec
 +    if 'product_name' in spec:
 +      print 'XXX ignoring product_name', spec['product_name']
 +    assert 'product_extension' not in spec
