@@ -121,8 +121,11 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
     return true;
 
   MakefileParser makefile;
-  if (!makefile.Parse(content, err))
+  string makefile_err;
+  if (!makefile.Parse(content, &makefile_err)) {
+    *err = path + ": " + makefile_err;
     return false;
+  }
 
   // Check that this depfile matches our output.
   if (outputs_.size() != 1) {
