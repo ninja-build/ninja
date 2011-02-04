@@ -316,3 +316,13 @@ TEST(MakefileParser, Basic) {
   ASSERT_EQ("", err);
 }
 
+TEST(MakefileParser, EarlyNewlineAndWhitespace) {
+  MakefileParser parser;
+  string err;
+  EXPECT_TRUE(parser.Parse(
+" \\\n"
+"  out: in\n",
+      &err));
+  ASSERT_EQ("", err);
+}
+

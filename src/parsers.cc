@@ -143,7 +143,7 @@ Token::Type Tokenizer::PeekToken() {
     return token_.type_;
 
   token_.pos_ = cur_;
-  if (cur_indent_ == -1) {
+  if (whitespace_significant_ && cur_indent_ == -1) {
     cur_indent_ = cur_ - cur_line_;
     if (cur_indent_ != last_indent_) {
       if (cur_indent_ > last_indent_) {
@@ -213,8 +213,12 @@ void Tokenizer::ConsumeToken() {
   token_.Clear();
 }
 
+MakefileParser::MakefileParser() : tokenizer_(false) {}
+
 bool MakefileParser::Parse(const string& input, string* err) {
   tokenizer_.Start(input.data(), input.data() + input.size());
+
+  tokenizer_.SkipWhitespace(true);
 
   if (!tokenizer_.ReadIdent(&out_))
     return tokenizer_.ErrorExpected("output filename", err);
@@ -234,7 +238,7 @@ bool MakefileParser::Parse(const string& input, string* err) {
 }
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
-  : state_(state), file_reader_(file_reader) {
+  : state_(state), file_reader_(file_reader), tokenizer_(true) {
   env_ = &state->bindings_;
 }
 bool ManifestParser::Load(const string& filename, string* err) {

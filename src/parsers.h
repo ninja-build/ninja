@@ -37,8 +37,9 @@ struct Token {
 };
 
 struct Tokenizer {
-  Tokenizer()
-      : token_(Token::NONE), line_number_(1),
+  Tokenizer(bool whitespace_significant)
+      : whitespace_significant_(whitespace_significant),
+        token_(Token::NONE), line_number_(1),
         last_indent_(0), cur_indent_(-1) {}
 
   void Start(const char* start, const char* end);
@@ -57,6 +58,8 @@ struct Tokenizer {
   Token::Type PeekToken();
   void ConsumeToken();
 
+  bool whitespace_significant_;
+
   const char* cur_;
   const char* end_;
 
@@ -67,6 +70,7 @@ struct Tokenizer {
 };
 
 struct MakefileParser {
+  MakefileParser();
   bool Parse(const string& input, string* err);
 
   Tokenizer tokenizer_;
