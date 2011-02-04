@@ -7,6 +7,8 @@ website, contact info
 
 delete halfway-built output files when interrupted
 
+put ninja_log somewhere useful and document it
+
 frosting
 ========
 
