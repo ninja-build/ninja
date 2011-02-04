@@ -45,6 +45,10 @@ bool Tokenizer::Error(const string& message, string* err) {
   return false;
 }
 
+bool Tokenizer::ErrorExpected(const string& expected, string* err) {
+  return Error("expected " + expected + ", got " + token_.AsString(), err);
+}
+
 void Tokenizer::SkipWhitespace(bool newline) {
   if (token_.type_ == Token::NEWLINE && newline)
     Newline(NULL);
@@ -89,10 +93,8 @@ static bool IsIdentChar(char c) {
 
 bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
   PeekToken();
-  if (token_.type_ != expected) {
-    return Error("expected " + Token(expected).AsString() + ", "
-                 "got " + token_.AsString(), err);
-  }
+  if (token_.type_ != expected)
+    return ErrorExpected(Token(expected).AsString(), err);
   ConsumeToken();
   return true;
 }
@@ -215,7 +217,7 @@ bool MakefileParser::Parse(const string& input, string* err) {
   tokenizer_.Start(input.data(), input.data() + input.size());
 
   if (!tokenizer_.ReadIdent(&out_))
-    return tokenizer_.Error("expected output filename", err);
+    return tokenizer_.ErrorExpected("output filename", err);
   if (!tokenizer_.ExpectToken(Token::COLON, err))
     return false;
   while (tokenizer_.PeekToken() == Token::IDENT) {
@@ -293,10 +295,8 @@ bool ManifestParser::ParseRule(string* err) {
   if (!tokenizer_.ExpectToken(Token::RULE, err))
     return false;
   string name;
-  if (!tokenizer_.ReadIdent(&name)) {
-    return tokenizer_.Error("expected rule name, got " + tokenizer_.token().AsString(),
-                         err);
-  }
+  if (!tokenizer_.ReadIdent(&name))
+    return tokenizer_.ErrorExpected("rule name", err);
   if (!tokenizer_.Newline(err))
     return false;
 
@@ -344,7 +344,7 @@ bool ManifestParser::ParseRule(string* err) {
 bool ManifestParser::ParseLet(string* name, string* value, bool expand,
                               string* err) {
   if (!tokenizer_.ReadIdent(name))
-    return tokenizer_.Error("expected variable name", err);
+    return tokenizer_.ErrorExpected("variable name", err);
   if (!tokenizer_.ExpectToken(Token::EQUALS, err))
     return false;
 
@@ -391,14 +391,14 @@ bool ManifestParser::ParseEdge(string* err) {
 
     string out;
     if (!tokenizer_.ReadIdent(&out))
-      return tokenizer_.Error("expected output file list", err);
+      return tokenizer_.ErrorExpected("output file list", err);
     outs.push_back(out);
   }
   // XXX check outs not empty
 
   string rule_name;
   if (!tokenizer_.ReadIdent(&rule_name))
-    return tokenizer_.Error("expected build command name", err);
+    return tokenizer_.ErrorExpected("build command name", err);
 
   const Rule* rule = state_->LookupRule(rule_name);
   if (!rule)
@@ -497,7 +497,7 @@ bool ManifestParser::ParseFileInclude(Token::Type type, string* err) {
     return false;
   string path;
   if (!tokenizer_.ReadIdent(&path))
-    return tokenizer_.Error("expected path to ninja file", err);
+    return tokenizer_.ErrorExpected("path to ninja file", err);
   if (!tokenizer_.Newline(err))
     return false;
 

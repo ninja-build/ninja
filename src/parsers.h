@@ -43,6 +43,8 @@ struct Tokenizer {
 
   void Start(const char* start, const char* end);
   bool Error(const string& message, string* err);
+  // Call Error() with "expected foo, got bar".
+  bool ErrorExpected(const string& expected, string* err);
 
   const Token& token() const { return token_; }
 

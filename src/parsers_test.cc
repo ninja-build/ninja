@@ -191,7 +191,7 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("build x:: y z\n", &err));
-    EXPECT_EQ("line 1, col 9: expected build command name", err);
+    EXPECT_EQ("line 1, col 9: expected build command name, got ':'", err);
   }
 
   {
