@@ -251,6 +251,19 @@ statement to the rule (for example, if the rule needs "the file
 extension of the first input"), pass that through as an extra
 variable, like how `cflags` is passed above.
 
+The Ninja log
+~~~~~~~~~~~~~
+
+For each built file, Ninja keeps a log of the command used to build
+it.  Using this log Ninja can know when an existing output was built
+with a different command line than the build files specify (i.e., the
+command line changed) and knows to rebuild the file.
+
+The log file is kept in the build root in a file called `.ninja_log`.
+If you provide a variable named `builddir` in the outermost scope,
+`.ninja_log` will be kept in that directory instead.
+
+
 Generating Ninja files
 ----------------------
 

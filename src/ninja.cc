@@ -204,13 +204,16 @@ int main(int argc, char** argv) {
   build_log.SetConfig(&config);
   state.build_log_ = &build_log;
 
+  const string build_dir = state.bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
-  if (!build_log.Load(kLogPath, &err)) {
-    fprintf(stderr, "error loading build log: %s\n", err.c_str());
+  string log_path = build_dir.empty() ? kLogPath : build_dir + "/" + kLogPath;
+  if (!build_log.Load(log_path.c_str(), &err)) {
+    fprintf(stderr, "error loading build log %s: %s\n",
+            log_path.c_str(), err.c_str());
     return 1;
   }
 
-  if (!build_log.OpenForWrite(kLogPath, &err)) {
+  if (!build_log.OpenForWrite(log_path.c_str(), &err)) {
     fprintf(stderr, "error opening build log: %s\n", err.c_str());
     return 1;
   }
