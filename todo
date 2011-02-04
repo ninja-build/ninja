@@ -10,6 +10,9 @@ delete halfway-built output files when interrupted
 frosting
 ========
 
+-k flag for "keep going on error".  take a numeric param
+for how many errors to swallow before aborting.
+
 when we've been waiting for commands for more than a second
 with no output, print some "still waiting for xyz" text
 
