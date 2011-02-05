@@ -25,7 +25,5 @@ the output, just mark it for rebuilding immediately.
 
 adjust to system load dynamically
 
-progress bar rather than printing commands in series
-
 compute etas on builds using logged timing info
   how does parallelization fit in?
