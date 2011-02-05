@@ -15,6 +15,8 @@ struct State;
 // Plan stores the state of a build plan: what we intend to build,
 // which steps we're ready to execute.
 struct Plan {
+  Plan();
+
   // Add a target to our plan (including all its dependencies).
   // Returns false if we don't need to build this target; may
   // fill in |err| with an error message if there's a problem.
@@ -34,8 +36,8 @@ struct Plan {
   // tests.
   void EdgeFinished(Edge* edge);
 
-  // Number of edges to run.
-  int edge_count() const { return want_.size(); }
+  // Number of edges with commands to run.
+  int command_edge_count() const { return command_edges_; }
 
 private:
   bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
@@ -44,6 +46,9 @@ private:
 
   set<Edge*> want_;
   set<Edge*> ready_;
+
+  // Total number of edges that have commands (not phony).
+  int command_edges_;
 };
 
 // CommandRunner is an interface that wraps running the build
