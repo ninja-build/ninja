@@ -1,5 +1,5 @@
 # An input file for running a "slow" build.
-# Use like: ninja -i misc/long-slow-build.ninja all
+# Use like: ninja -f misc/long-slow-build.ninja all
 
 rule sleep
   command = sleep 1

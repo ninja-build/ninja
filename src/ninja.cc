@@ -32,7 +32,7 @@ void usage(const BuildConfig& config) {
 "usage: ninja [options] target\n"
 "\n"
 "options:\n"
-"  -i FILE  specify input build file [default=build.ninja]\n"
+"  -f FILE  specify input build file [default=build.ninja]\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
@@ -144,9 +144,9 @@ int main(int argc, char** argv) {
   config.parallelism = GuessParallelism();
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "hi:j:nt:v", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:hj:nt:v", options, NULL)) != -1) {
     switch (opt) {
-      case 'i':
+      case 'f':
         input_file = optarg;
         break;
       case 'j':
