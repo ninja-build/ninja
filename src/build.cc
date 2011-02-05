@@ -312,7 +312,7 @@ bool Builder::Build(string* err) {
       if (!StartEdge(edge, err))
         return false;
 
-      if (edge->rule_ == &State::kPhonyRule)
+      if (edge->is_phony())
         FinishEdge(edge);
     }
 
@@ -338,7 +338,7 @@ bool Builder::Build(string* err) {
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
-  if (edge->rule_ == &State::kPhonyRule)
+  if (edge->is_phony())
     return true;
 
   status_->BuildEdgeStarted(edge);
@@ -370,7 +370,7 @@ void Builder::FinishEdge(Edge* edge) {
   }
   plan_.EdgeFinished(edge);
 
-  if (edge->rule_ == &State::kPhonyRule)
+  if (edge->is_phony())
     return;
 
   int ms = status_->BuildEdgeFinished(edge);

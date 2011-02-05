@@ -170,3 +170,6 @@ void Edge::Dump() {
   printf("]\n");
 }
 
+bool Edge::is_phony() const {
+  return rule_ == &State::kPhonyRule;
+}

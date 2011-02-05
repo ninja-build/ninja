@@ -101,6 +101,8 @@ struct Edge {
   bool is_order_only(int index) {
     return index >= ((int)inputs_.size()) - order_only_deps_;
   }
+
+  bool is_phony() const;
 };
 
 #endif  // NINJA_GRAPH_H_
