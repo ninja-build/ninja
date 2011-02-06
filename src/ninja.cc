@@ -1,9 +1,12 @@
 #include "ninja.h"
 
+#include <errno.h>
 #include <getopt.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "build.h"
 #include "build_log.h"
@@ -206,7 +209,16 @@ int main(int argc, char** argv) {
 
   const string build_dir = state.bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
-  string log_path = build_dir.empty() ? kLogPath : build_dir + "/" + kLogPath;
+  string log_path = kLogPath;
+  if (!build_dir.empty()) {
+    if (mkdir(build_dir.c_str(), 0777) < 0 && errno != EEXIST) {
+      fprintf(stderr, "Error creating build directory %s: %s\n",
+              build_dir.c_str(), strerror(errno));
+      return 1;
+    }
+    log_path = build_dir + "/" + kLogPath;
+  }
+
   if (!build_log.Load(log_path.c_str(), &err)) {
     fprintf(stderr, "error loading build log %s: %s\n",
             log_path.c_str(), err.c_str());
