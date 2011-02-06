@@ -1,1 +1,8 @@
-See manual.html.
+Ninja is a small build system closest in spirit to Make.
+
+See the manual -- http://martine.github.com/ninja/manual.html or
+manual.asciidoc included in the distribution -- for more background,
+including motivation and build instructions.
+
+Though the code is copyright Google, don't take that as an
+endorsement; I wrote this in my spare time for fun.

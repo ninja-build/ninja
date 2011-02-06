@@ -1,5 +1,7 @@
 Ninja
 =====
+Evan Martin <martine@danga.com>
+
 
 Introduction
 ------------
