@@ -8,12 +8,15 @@ conf_cflags = -O2
 conf_ldflags = -s
 # When developing:
 # conf_cflags = -g -Wall
-# conf_ldlags = -g -Wall
+# conf_ldlags =
 EOT
+
+echo "Building ninja manually..."
 srcs=$(ls src/*.cc | grep -v test)
-echo "Building stage 1..."
 g++ -Wno-deprecated -o ninja.bootstrap $srcs
-echo "Building final result..."
+
+echo "Building ninja using itself..."
 ./ninja.bootstrap ninja
 rm ninja.bootstrap
+
 echo "Done!"
