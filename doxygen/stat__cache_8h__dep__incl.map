@@ -1,0 +1,21 @@
+<map id="G" name="G">
+<area shape="rect" id="node3" href="$state_8h.html" title="state.h" alt="" coords="789,80,851,107"/>
+<area shape="rect" id="node39" href="$stat__cache_8cc.html" title="stat_cache.cc" alt="" coords="876,80,980,107"/>
+<area shape="rect" id="node5" href="$build_8cc.html" title="build.cc" alt="" coords="425,155,492,181"/>
+<area shape="rect" id="node7" href="$test_8h.html" title="test.h" alt="" coords="517,155,571,181"/>
+<area shape="rect" id="node25" href="$clean_8cc.html" title="clean.cc" alt="" coords="595,155,665,181"/>
+<area shape="rect" id="node27" href="$graph_8cc.html" title="graph.cc" alt="" coords="691,155,763,181"/>
+<area shape="rect" id="node29" href="$ninja_8cc.html" title="ninja.cc" alt="" coords="787,155,853,181"/>
+<area shape="rect" id="node31" href="$parsers_8cc.html" title="parsers.cc" alt="" coords="877,155,959,181"/>
+<area shape="rect" id="node33" href="$parsers__test_8cc.html" title="parsers_test.cc" alt="" coords="984,155,1095,181"/>
+<area shape="rect" id="node35" href="$state_8cc.html" title="state.cc" alt="" coords="1120,155,1189,181"/>
+<area shape="rect" id="node37" href="$state__test_8cc.html" title="state_test.cc" alt="" coords="1213,155,1312,181"/>
+<area shape="rect" id="node9" href="$build__log__test_8cc.html" title="build_log_test.cc" alt="" coords="5,229,125,256"/>
+<area shape="rect" id="node11" href="$build__test_8cc.html" title="build_test.cc" alt="" coords="149,229,245,256"/>
+<area shape="rect" id="node13" href="$clean__test_8cc.html" title="clean_test.cc" alt="" coords="270,229,369,256"/>
+<area shape="rect" id="node15" href="$disk__interface__test_8cc.html" title="disk_interface_test.cc" alt="" coords="394,229,544,256"/>
+<area shape="rect" id="node17" href="$graph__test_8cc.html" title="graph_test.cc" alt="" coords="569,229,671,256"/>
+<area shape="rect" id="node19" href="$subprocess__test_8cc.html" title="subprocess_test.cc" alt="" coords="695,229,829,256"/>
+<area shape="rect" id="node21" href="$test_8cc.html" title="test.cc" alt="" coords="855,229,917,256"/>
+<area shape="rect" id="node23" href="$util__test_8cc.html" title="util_test.cc" alt="" coords="942,229,1028,256"/>
+</map>

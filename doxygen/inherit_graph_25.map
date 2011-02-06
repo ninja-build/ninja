@@ -1,0 +1,12 @@
+<map id="G" name="G">
+<area shape="rect" id="node1" href="$structCommandRunner.html" title="CommandRunner is an interface that wraps running the build subcommands." alt="" coords="31,56,155,83"/>
+<area shape="rect" id="node3" href="$structBuildTest.html" title="BuildTest" alt="" coords="276,107,353,133"/>
+<area shape="rect" id="node7" href="$structDryRunCommandRunner.html" title="A CommandRunner that doesn&#39;t actually run the commands." alt="" coords="230,5,399,32"/>
+<area shape="rect" id="node9" href="$structRealCommandRunner.html" title="RealCommandRunner" alt="" coords="239,56,390,83"/>
+<area shape="rect" id="node5" href="$structBuildWithLogTest.html" title="BuildWithLogTest" alt="" coords="448,107,573,133"/>
+<area shape="rect" id="node10" href="$structStateTestWithBuiltinRules.html" title="A base test fixture that includes a State object with a builtin &quot;cat&quot; rule." alt="" coords="5,208,181,235"/>
+<area shape="rect" id="node12" href="$structBuildLogTest.html" title="BuildLogTest" alt="" coords="265,157,364,184"/>
+<area shape="rect" id="node15" href="$structCleanTest.html" title="CleanTest" alt="" coords="273,208,356,235"/>
+<area shape="rect" id="node17" href="$structGraphTest.html" title="GraphTest" alt="" coords="273,259,356,285"/>
+<area shape="rect" id="node19" href="$structPlanTest.html" title="Fixture for tests involving Plan." alt="" coords="277,309,352,336"/>
+</map>

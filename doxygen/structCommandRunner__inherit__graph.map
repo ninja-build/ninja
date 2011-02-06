@@ -1,0 +1,6 @@
+<map id="G" name="G">
+<area shape="rect" id="node3" href="$structBuildTest.html" title="BuildTest" alt="" coords="29,80,105,107"/>
+<area shape="rect" id="node7" href="$structDryRunCommandRunner.html" title="A CommandRunner that doesn&#39;t actually run the commands." alt="" coords="131,80,300,107"/>
+<area shape="rect" id="node9" href="$structRealCommandRunner.html" title="RealCommandRunner" alt="" coords="325,80,475,107"/>
+<area shape="rect" id="node5" href="$structBuildWithLogTest.html" title="BuildWithLogTest" alt="" coords="5,155,131,181"/>
+</map>

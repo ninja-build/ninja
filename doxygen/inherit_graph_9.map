@@ -1,0 +1,5 @@
+<map id="G" name="G">
+<area shape="rect" id="node1" href="$structEnv.html" title="An interface for a scope for variable (e.g. &quot;$foo&quot;) lookups." alt="" coords="5,31,51,57"/>
+<area shape="rect" id="node3" href="$structBindingEnv.html" title="An Env which contains a mapping of variables to values as well as a pointer to a parent scope..." alt="" coords="99,5,187,32"/>
+<area shape="rect" id="node5" href="$structEdgeEnv.html" title="An Env for an Edge, providing $in and $out." alt="" coords="105,56,180,83"/>
+</map>

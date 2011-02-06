@@ -1,0 +1,4031 @@
+<?xml version='1.0' encoding='ISO-8859-1' standalone='yes' ?>
+<tagfile>
+  <compound kind="page">
+    <name>index</name>
+    <title></title>
+    <filename>index</filename>
+    <docanchor file="index">COPYING</docanchor>
+    <docanchor file="index">HACKING</docanchor>
+    <docanchor file="index">README</docanchor>
+  </compound>
+  <compound kind="file">
+    <name>doxygen_mainpage</name>
+    <path>/home/evmar/projects/ninja/build/</path>
+    <filename>doxygen__mainpage</filename>
+  </compound>
+  <compound kind="file">
+    <name>browse.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>browse_8cc</filename>
+    <includes id="browse_8h" name="browse.h" local="yes" imported="no">browse.h</includes>
+    <member kind="function">
+      <type>void</type>
+      <name>RunBrowsePython</name>
+      <anchorfile>browse_8cc.html</anchorfile>
+      <anchor>a19bfd0ee33f15bcfce46114a0bdba59a</anchor>
+      <arglist>(State *state, const char *ninja_command, const char *initial_target)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>browse.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>browse_8h</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>RunBrowsePython</name>
+      <anchorfile>browse_8h.html</anchorfile>
+      <anchor>a19bfd0ee33f15bcfce46114a0bdba59a</anchor>
+      <arglist>(State *state, const char *ninja_command, const char *initial_target)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>build.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build_8cc</filename>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="subprocess_8h" name="subprocess.h" local="yes" imported="no">subprocess.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <class kind="struct">BuildStatus</class>
+    <class kind="struct">DryRunCommandRunner</class>
+    <class kind="struct">RealCommandRunner</class>
+  </compound>
+  <compound kind="file">
+    <name>build.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build_8h</filename>
+    <class kind="struct">BuildConfig</class>
+    <class kind="struct">Builder</class>
+    <class kind="struct">CommandRunner</class>
+    <class kind="struct">Plan</class>
+  </compound>
+  <compound kind="file">
+    <name>build_log.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build__log_8cc</filename>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>build_log.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build__log_8h</filename>
+    <includes id="hash__map_8h" name="hash_map.h" local="yes" imported="no">hash_map.h</includes>
+    <class kind="struct">BuildLog</class>
+    <class kind="struct">BuildLog::LogEntry</class>
+  </compound>
+  <compound kind="file">
+    <name>build_log_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build__log__test_8cc</filename>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <class kind="struct">BuildLogTest</class>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__log__test_8cc.html</anchorfile>
+      <anchor>ae03a9172fa1162c08264256ff54fe8cf</anchor>
+      <arglist>(BuildLogTest, WriteRead)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__log__test_8cc.html</anchorfile>
+      <anchor>a0fdba8e5e446e63aa5d25d91b3c25913</anchor>
+      <arglist>(BuildLogTest, DoubleEntry)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__log__test_8cc.html</anchorfile>
+      <anchor>a8b67db47138863c0d2668a55b9d1c9ed</anchor>
+      <arglist>(BuildLogTest, Truncate)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__log__test_8cc.html</anchorfile>
+      <anchor>a21f822dd91fbd541994382ec311c8a69</anchor>
+      <arglist>(BuildLogTest, UpgradeV2)</arglist>
+    </member>
+    <member kind="variable" static="yes">
+      <type>static const char</type>
+      <name>kTestFilename</name>
+      <anchorfile>build__log__test_8cc.html</anchorfile>
+      <anchor>a59e14193a985d28b8fe2bcba0ebb7481</anchor>
+      <arglist>[]</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>build_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>build__test_8cc</filename>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <class kind="struct">BuildTest</class>
+    <class kind="struct">BuildWithLogTest</class>
+    <class kind="struct">PlanTest</class>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>aa2d4879a1416ae4b4db00986d0b091eb</anchor>
+      <arglist>(PlanTest, Basic)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a465c1e426b27db03a5e58068f40918e6</anchor>
+      <arglist>(PlanTest, DoubleOutputDirect)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>af73564f25b6a3cdb2bff3fd63488ccd9</anchor>
+      <arglist>(PlanTest, DoubleOutputIndirect)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>ab6bbc3f9d794574d8544e994dc51763d</anchor>
+      <arglist>(PlanTest, DoubleDependent)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a32cb5f01c3792f42303ac0a484af16fe</anchor>
+      <arglist>(PlanTest, DependencyCycle)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>aeb100edada9b6d88d32289cdb07f6fe3</anchor>
+      <arglist>(BuildTest, NoWork)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>acd1f5902b337d6867f59c773af5525f8</anchor>
+      <arglist>(BuildTest, OneStep)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a717e3b6b3779ff8155844c91c065c9fc</anchor>
+      <arglist>(BuildTest, OneStep2)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>ace3ece4b39c0b4f31fc95f04ff8c4a6b</anchor>
+      <arglist>(BuildTest, TwoStep)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a680193f2c77e198ea6a9ad054cbfe2e9</anchor>
+      <arglist>(BuildTest, TwoOutputs)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a05b8ce5b9038e3ac96054690e6289c80</anchor>
+      <arglist>(BuildTest, Chain)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a2bb777934cdb98dc1dac325dd3d17b87</anchor>
+      <arglist>(BuildTest, MissingInput)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a4bc1ce124ac151045412a17ac316c46e</anchor>
+      <arglist>(BuildTest, MissingTarget)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>aaadbae9982b7daa69c50bab528e334a6</anchor>
+      <arglist>(BuildTest, MakeDirs)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>abe7584bb63eae56272542d797b97b210</anchor>
+      <arglist>(BuildTest, DepFileMissing)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>abc6af995c7a59b3be29e6dfe99b99d57</anchor>
+      <arglist>(BuildTest, DepFileOK)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a02c5903988358c30c5a3ec47d3abfde8</anchor>
+      <arglist>(BuildTest, DepFileParseError)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a48c0b8b1c43e57402a1e4bf1f1dd1b79</anchor>
+      <arglist>(BuildTest, OrderOnlyDeps)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a6d4b2762994d6d985dd5e50b840be6bb</anchor>
+      <arglist>(BuildTest, RebuildOrderOnlyDeps)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>ac6e6bab4702d4d11bc3dd57025cee96e</anchor>
+      <arglist>(BuildTest, Phony)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a1e954fac98e6e28efe553b8613a3ea3c</anchor>
+      <arglist>(BuildTest, PhonyNoWork)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a171d30ba1a29a2a87b69b4137cd7453b</anchor>
+      <arglist>(BuildTest, Fail)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a1f958058d537a879393548df4fbfde8a</anchor>
+      <arglist>(BuildTest, SwallowFailures)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>a43d85064a23e9f9ac4de0507dfb3a774</anchor>
+      <arglist>(BuildTest, SwallowFailuresLimit)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>build__test_8cc.html</anchorfile>
+      <anchor>ae9cac5524a8e8a92c615ab31dd3120b4</anchor>
+      <arglist>(BuildWithLogTest, RestatTest)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>clean.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>clean_8cc</filename>
+    <includes id="clean_8h" name="clean.h" local="yes" imported="no">clean.h</includes>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>clean.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>clean_8h</filename>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <class kind="class">Cleaner</class>
+  </compound>
+  <compound kind="file">
+    <name>clean_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>clean__test_8cc</filename>
+    <includes id="clean_8h" name="clean.h" local="yes" imported="no">clean.h</includes>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <class kind="struct">CleanTest</class>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>ae2a8749b47d6d2637a868585050aca1e</anchor>
+      <arglist>(CleanTest, CleanAll)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>a1b871b71139af12e10efb57a9af6c214</anchor>
+      <arglist>(CleanTest, CleanAllDryRun)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>a73a05ce6d7999240e651fbe7b53ae284</anchor>
+      <arglist>(CleanTest, CleanTarget)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>af98557cea739a11577ad4c9a832a305c</anchor>
+      <arglist>(CleanTest, CleanTargetDryRun)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>a1a93c964bad9eadcb4c0efdaf2fc73a9</anchor>
+      <arglist>(CleanTest, CleanRule)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>a67288e870f177af7b24d8665540187a3</anchor>
+      <arglist>(CleanTest, CleanRuleDryRun)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>ad7ffa4f0958a4f4f26c7083d30f44fac</anchor>
+      <arglist>(CleanTest, CleanRuleGenerator)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>clean__test_8cc.html</anchorfile>
+      <anchor>af0dd311ab2c2d0a2df64dbbbbb5cbe68</anchor>
+      <arglist>(CleanTest, CleanFailure)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>disk_interface.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>disk__interface_8cc</filename>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>disk_interface.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>disk__interface_8h</filename>
+    <class kind="struct">DiskInterface</class>
+    <class kind="struct">RealDiskInterface</class>
+  </compound>
+  <compound kind="file">
+    <name>disk_interface_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>disk__interface__test_8cc</filename>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>eval_env.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>eval__env_8cc</filename>
+    <includes id="eval__env_8h" name="eval_env.h" local="yes" imported="no">eval_env.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>eval_env.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>eval__env_8h</filename>
+    <class kind="struct">BindingEnv</class>
+    <class kind="struct">Env</class>
+    <class kind="struct">EvalString</class>
+  </compound>
+  <compound kind="file">
+    <name>eval_env_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>eval__env__test_8cc</filename>
+    <includes id="eval__env_8h" name="eval_env.h" local="yes" imported="no">eval_env.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>getopt.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>getopt_8h</filename>
+    <class kind="struct">GETOPT_LONG_OPTION_T</class>
+    <member kind="define">
+      <type>#define</type>
+      <name>no_argument</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>a3bc1d5f667b5b4ca4b4abb685dc874ce</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="define">
+      <type>#define</type>
+      <name>OPTIONAL_ARG</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>a2b8273976fc9ee97330e8561b3fed13c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="define">
+      <type>#define</type>
+      <name>REQUIRED_ARG</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>a668f16e7854ae9881b2534e5563d7c09</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="typedef">
+      <type>struct GETOPT_LONG_OPTION_T</type>
+      <name>GETOPT_LONG_OPTION_T</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>afbda14ece0f9058f11d050ba4dba934c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="typedef">
+      <type>GETOPT_LONG_OPTION_T</type>
+      <name>option</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>ac633afeefa5faaa72842c605f00a0ca7</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>getopt</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>ab5a9e4ffb6632f1f214ac39a1984139b</anchor>
+      <arglist>(int argc, char **argv, char *optstring)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>getopt_long</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>ac43de49b0ae60f45ef43921fdc3be623</anchor>
+      <arglist>(int argc, char **argv, const char *shortopts, GETOPT_LONG_OPTION_T *longopts, int *longind)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>getopt_long_only</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>a0b7597b13fe16e0bf6ac184294b5b8eb</anchor>
+      <arglist>(int argc, char **argv, const char *shortopts, GETOPT_LONG_OPTION_T *longopts, int *longind)</arglist>
+    </member>
+    <member kind="variable">
+      <type>char *</type>
+      <name>optarg</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>adb50a0eab9fed92fc3bfc7dfa4f2c410</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>opterr</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>ae30f05ee1e2e5652f174a35c7875d25e</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>optind</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>ad5e1c16213bbee2d5e8cc363309f418c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>optopt</name>
+      <anchorfile>getopt_8h.html</anchorfile>
+      <anchor>a475b8db98445da73e5f62a1ef6324b95</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>graph.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>graph_8cc</filename>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <class kind="struct">EdgeEnv</class>
+  </compound>
+  <compound kind="file">
+    <name>graph.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>graph_8h</filename>
+    <includes id="eval__env_8h" name="eval_env.h" local="yes" imported="no">eval_env.h</includes>
+    <class kind="struct">Edge</class>
+    <class kind="struct">FileStat</class>
+    <class kind="struct">Node</class>
+    <class kind="struct">Rule</class>
+  </compound>
+  <compound kind="file">
+    <name>graph_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>graph__test_8cc</filename>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <class kind="struct">GraphTest</class>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>ae4a824b98bb0e3fd42137844314c2ebb</anchor>
+      <arglist>(GraphTest, MissingImplicit)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>a36484d0b766fc2462290719e41a11063</anchor>
+      <arglist>(GraphTest, ModifiedImplicit)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>ad772806bb6f1e5dc59f2fd98d1597f11</anchor>
+      <arglist>(GraphTest, FunkyMakefilePath)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>adcf308ce63eceec942403d871e348748</anchor>
+      <arglist>(GraphTest, ExplicitImplicit)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>a9c18c2a191867b6f79a236d7d7c35aa5</anchor>
+      <arglist>(GraphTest, PathWithCurrentDirectory)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>graph__test_8cc.html</anchorfile>
+      <anchor>ace589cda9b43d520a054ce407fd703a7</anchor>
+      <arglist>(GraphTest, RootNodes)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>graphviz.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>graphviz_8cc</filename>
+    <includes id="graphviz_8h" name="graphviz.h" local="yes" imported="no">graphviz.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>graphviz.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>graphviz_8h</filename>
+    <class kind="struct">GraphViz</class>
+  </compound>
+  <compound kind="file">
+    <name>hash_map.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>hash__map_8h</filename>
+    <class kind="struct">ExternalStringEq</class>
+    <class kind="struct">ExternalStringHash</class>
+    <class kind="struct">ExternalStringHashMap</class>
+    <class kind="struct">__gnu_cxx::hash&lt; std::string &gt;</class>
+    <namespace>__gnu_cxx</namespace>
+  </compound>
+  <compound kind="file">
+    <name>ninja.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>ninja_8cc</filename>
+    <includes id="getopt_8h" name="getopt.h" local="no" imported="no">getopt.h</includes>
+    <includes id="browse_8h" name="browse.h" local="yes" imported="no">browse.h</includes>
+    <includes id="build_8h" name="build.h" local="yes" imported="no">build.h</includes>
+    <includes id="build__log_8h" name="build_log.h" local="yes" imported="no">build_log.h</includes>
+    <includes id="clean_8h" name="clean.h" local="yes" imported="no">clean.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="graphviz_8h" name="graphviz.h" local="yes" imported="no">graphviz.h</includes>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <member kind="function">
+      <type>int</type>
+      <name>main</name>
+      <anchorfile>ninja_8cc.html</anchorfile>
+      <anchor>a3c04138a5bfe5d72780bb7e82a18e627</anchor>
+      <arglist>(int argc, char **argv)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>parser_perftest.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>parser__perftest_8cc</filename>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <member kind="function">
+      <type>int</type>
+      <name>main</name>
+      <anchorfile>parser__perftest_8cc.html</anchorfile>
+      <anchor>a0ddf1224851353fc92bfbff6f499fa97</anchor>
+      <arglist>(int argc, char *argv[])</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>parsers.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>parsers_8cc</filename>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <member kind="function" static="yes">
+      <type>static bool</type>
+      <name>IsIdentChar</name>
+      <anchorfile>parsers_8cc.html</anchorfile>
+      <anchor>a457e320a425b02c23d092ca4bcf6d3c2</anchor>
+      <arglist>(char c)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>parsers.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>parsers_8h</filename>
+    <includes id="string__piece_8h" name="string_piece.h" local="yes" imported="no">string_piece.h</includes>
+    <class kind="struct">ManifestParser::FileReader</class>
+    <class kind="struct">MakefileParser</class>
+    <class kind="struct">ManifestParser</class>
+    <class kind="struct">Token</class>
+    <class kind="struct">Tokenizer</class>
+  </compound>
+  <compound kind="file">
+    <name>parsers_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>parsers__test_8cc</filename>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <class kind="struct">ParserTest</class>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a4770cbb591f757ba74a04dfe584b371b</anchor>
+      <arglist>(MakefileParser, Basic)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a5d9ab2e242e54ffa802cdbc23174b61d</anchor>
+      <arglist>(MakefileParser, EarlyNewlineAndWhitespace)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>ab804f2a3ad5009e2a308bd65d3f5bc84</anchor>
+      <arglist>(MakefileParser, Continuation)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a70997cefed3bb026523aff903efc79b0</anchor>
+      <arglist>(ParserTest, Empty)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a28171a798a0bb7c32ace6dac4cb001cf</anchor>
+      <arglist>(ParserTest, Rules)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a2847f4edf51d91dce1306601ae2d0682</anchor>
+      <arglist>(ParserTest, Variables)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a093186df062f93de0ce390d3a72f6bfe</anchor>
+      <arglist>(ParserTest, VariableScope)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a00d1cdb458da473855bdc30e4892cf3c</anchor>
+      <arglist>(ParserTest, Continuation)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a2bd09c522373e027f87cd54333292c44</anchor>
+      <arglist>(ParserTest, Backslash)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>aec90b87cbd6266115309855b966541e9</anchor>
+      <arglist>(ParserTest, Comment)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a9b395c3b8184fa41f60e7e558778e204</anchor>
+      <arglist>(ParserTest, Dollars)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>ac0079b4d19b7375fc5c353801e374223</anchor>
+      <arglist>(ParserTest, CanonicalizeFile)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>ac1a45708fd3409fe3968baaa17b2126e</anchor>
+      <arglist>(ParserTest, PathVariables)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a4b11ad770d5209994ca895c6153aba87</anchor>
+      <arglist>(ParserTest, CanonicalizePaths)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>aba1e84c7ae2914e7a077c9ae7cff432a</anchor>
+      <arglist>(ParserTest, ReservedWords)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a4c5af423b5fe4caa08bd42c2a2117c1d</anchor>
+      <arglist>(ParserTest, Errors)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a17d807700877152709ef9dcee94f740f</anchor>
+      <arglist>(ParserTest, MultipleOutputs)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>adf7ac4cfce25570bfee08364530afffd</anchor>
+      <arglist>(ParserTest, SubNinja)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a981e63c0429538780d0ebad85efa7364</anchor>
+      <arglist>(ParserTest, MissingSubNinja)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a542a5b366e3fcdf2fcbd8540df6bd217</anchor>
+      <arglist>(ParserTest, Include)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a625cd7b294eace118b97f6b57055959d</anchor>
+      <arglist>(ParserTest, Implicit)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a242c79d739a18eb8080ace709ce9798d</anchor>
+      <arglist>(ParserTest, OrderOnly)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>a80bd67dbe8aa1e47b42914010f73cfe0</anchor>
+      <arglist>(ParserTest, DefaultDefault)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>parsers__test_8cc.html</anchorfile>
+      <anchor>ad196afd64815d178720f584d3ce73039</anchor>
+      <arglist>(ParserTest, DefaultStatements)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>stat_cache.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>stat__cache_8cc</filename>
+    <includes id="stat__cache_8h" name="stat_cache.h" local="yes" imported="no">stat_cache.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>stat_cache.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>stat__cache_8h</filename>
+    <includes id="hash__map_8h" name="hash_map.h" local="yes" imported="no">hash_map.h</includes>
+    <class kind="struct">StatCache</class>
+  </compound>
+  <compound kind="file">
+    <name>state.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>state_8cc</filename>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>state.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>state_8h</filename>
+    <includes id="eval__env_8h" name="eval_env.h" local="yes" imported="no">eval_env.h</includes>
+    <includes id="stat__cache_8h" name="stat_cache.h" local="yes" imported="no">stat_cache.h</includes>
+    <class kind="struct">State</class>
+  </compound>
+  <compound kind="file">
+    <name>state_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>state__test_8cc</filename>
+    <includes id="graph_8h" name="graph.h" local="yes" imported="no">graph.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>string_piece.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>string__piece_8h</filename>
+    <class kind="struct">StringPiece</class>
+  </compound>
+  <compound kind="file">
+    <name>subprocess-win32.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>subprocess-win32_8cc</filename>
+    <includes id="subprocess_8h" name="subprocess.h" local="yes" imported="no">subprocess.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>subprocess.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>subprocess_8cc</filename>
+    <includes id="subprocess_8h" name="subprocess.h" local="yes" imported="no">subprocess.h</includes>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+  </compound>
+  <compound kind="file">
+    <name>subprocess.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>subprocess_8h</filename>
+    <class kind="struct">Subprocess</class>
+    <class kind="struct">SubprocessSet</class>
+  </compound>
+  <compound kind="file">
+    <name>subprocess_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>subprocess__test_8cc</filename>
+    <includes id="subprocess_8h" name="subprocess.h" local="yes" imported="no">subprocess.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>subprocess__test_8cc.html</anchorfile>
+      <anchor>a775f99b7e07e1594fca350359ab00a1b</anchor>
+      <arglist>(SubprocessTest, BadCommandStderr)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>subprocess__test_8cc.html</anchorfile>
+      <anchor>ac98552282f3b231a41e3fa3edd665620</anchor>
+      <arglist>(SubprocessTest, SetWithSingle)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST_F</name>
+      <anchorfile>subprocess__test_8cc.html</anchorfile>
+      <anchor>a21f43215ecf6c654a031a94126341d95</anchor>
+      <arglist>(SubprocessTest, SetWithMulti)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>test_8cc</filename>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <includes id="parsers_8h" name="parsers.h" local="yes" imported="no">parsers.h</includes>
+    <member kind="function">
+      <type>void</type>
+      <name>AssertParse</name>
+      <anchorfile>test_8cc.html</anchorfile>
+      <anchor>afb20bae83c4de264129c46c005ad3907</anchor>
+      <arglist>(State *state, const char *input)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>test.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>test_8h</filename>
+    <includes id="disk__interface_8h" name="disk_interface.h" local="yes" imported="no">disk_interface.h</includes>
+    <includes id="state_8h" name="state.h" local="yes" imported="no">state.h</includes>
+    <class kind="struct">VirtualFileSystem::Entry</class>
+    <class kind="struct">StateTestWithBuiltinRules</class>
+    <class kind="struct">VirtualFileSystem</class>
+    <member kind="function">
+      <type>void</type>
+      <name>AssertParse</name>
+      <anchorfile>test_8h.html</anchorfile>
+      <anchor>afb20bae83c4de264129c46c005ad3907</anchor>
+      <arglist>(State *state, const char *input)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>util.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>util_8cc</filename>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <member kind="function">
+      <type>bool</type>
+      <name>CanonicalizePath</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>abdb5937692c9c5a0fbe6cbbab7941414</anchor>
+      <arglist>(string *path, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Error</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>a8d48223b92317abcaf5984a00a97efb4</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Fatal</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>ad98ec6fb76f27b3d5a805cdad742df92</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+    <member kind="function">
+      <type>int64_t</type>
+      <name>GetTimeMillis</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>a139d0fe6387b9e230a9b8bb12d9b43b9</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>MakeDir</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>ae04109d68ece0ef0be9b662a35e09f1d</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>ReadFile</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>afa2642aae4af8af879417889a5e8f4f5</anchor>
+      <arglist>(const string &amp;path, string *contents, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>SetCloseOnExec</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>a946927145681d8bb8318f5a7c4dc57ae</anchor>
+      <arglist>(int fd)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Warning</name>
+      <anchorfile>util_8cc.html</anchorfile>
+      <anchor>aa92567b4012d3191db5d247c8db8e9d9</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>util.h</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>util_8h</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>CanonicalizePath</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>abdb5937692c9c5a0fbe6cbbab7941414</anchor>
+      <arglist>(string *path, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Error</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>a8d48223b92317abcaf5984a00a97efb4</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Fatal</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>ad98ec6fb76f27b3d5a805cdad742df92</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+    <member kind="function">
+      <type>int64_t</type>
+      <name>GetTimeMillis</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>a139d0fe6387b9e230a9b8bb12d9b43b9</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>MakeDir</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>ae04109d68ece0ef0be9b662a35e09f1d</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>ReadFile</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>afa2642aae4af8af879417889a5e8f4f5</anchor>
+      <arglist>(const string &amp;path, string *contents, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>SetCloseOnExec</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>a946927145681d8bb8318f5a7c4dc57ae</anchor>
+      <arglist>(int fd)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Warning</name>
+      <anchorfile>util_8h.html</anchorfile>
+      <anchor>aa92567b4012d3191db5d247c8db8e9d9</anchor>
+      <arglist>(const char *msg,...)</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
+    <name>util_test.cc</name>
+    <path>/home/evmar/projects/ninja/src/</path>
+    <filename>util__test_8cc</filename>
+    <includes id="util_8h" name="util.h" local="yes" imported="no">util.h</includes>
+    <includes id="test_8h" name="test.h" local="yes" imported="no">test.h</includes>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>util__test_8cc.html</anchorfile>
+      <anchor>a0194425f5c89a3070ebe843cf3e6974d</anchor>
+      <arglist>(CanonicalizePath, PathSamples)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>util__test_8cc.html</anchorfile>
+      <anchor>a25da3db30b890819f4754ecbc1862d39</anchor>
+      <arglist>(CanonicalizePath, UpDir)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>TEST</name>
+      <anchorfile>util__test_8cc.html</anchorfile>
+      <anchor>a1e8360315e371fcc8ca080cbc43895a1</anchor>
+      <arglist>(CanonicalizePath, AbsolutePath)</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BindingEnv</name>
+    <filename>structBindingEnv.html</filename>
+    <base>Env</base>
+    <member kind="function">
+      <type>void</type>
+      <name>AddBinding</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>a211325035c6b322fc3df25f3b943fb66</anchor>
+      <arglist>(const string &amp;key, const string &amp;val)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>BindingEnv</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>aa46e08738c7e15ef656683cc1ded4489</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual string</type>
+      <name>LookupVariable</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>af858f0c4dc64fee67545ffabb18ee2bb</anchor>
+      <arglist>(const string &amp;var)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~BindingEnv</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>af54aba77bfe2d28de4fcc8eb14e05aa2</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>map&lt; string, string &gt;</type>
+      <name>bindings_</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>aa809e9895e3fdb9a7a84cff11307abed</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Env *</type>
+      <name>parent_</name>
+      <anchorfile>structBindingEnv.html</anchorfile>
+      <anchor>a8d0a9ba09923c7160d0cbc1ff3dac6df</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildConfig</name>
+    <filename>structBuildConfig.html</filename>
+    <member kind="enumeration">
+      <name>Verbosity</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>a7a6581026821b221c12ccfc9203b4fff</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>NORMAL</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>a7a6581026821b221c12ccfc9203b4fffad535fbc3bb4f9840e0cf11deebb65df6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>QUIET</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>a7a6581026821b221c12ccfc9203b4fffa77a8643bf70b1759e3c27a915cc42b92</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>VERBOSE</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>a7a6581026821b221c12ccfc9203b4fffa44ec2c4f7fd9233c06f434e56faf1874</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>BuildConfig</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>aefc3e1180c9d6a19c176150b83103d28</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>dry_run</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>aa65c3f1fe7e0faa2b05b36ed1743da5d</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>parallelism</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>aedc92d7f5d96f1c94c9cdfb2014ea2f0</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>swallow_failures</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>a72b55b8ea7568fdcad7e237b3dfea8c2</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Verbosity</type>
+      <name>verbosity</name>
+      <anchorfile>structBuildConfig.html</anchorfile>
+      <anchor>ae50beadfa54bab9ea78feb96f56431cf</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Builder</name>
+    <filename>structBuilder.html</filename>
+    <member kind="function">
+      <type>Node *</type>
+      <name>AddTarget</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>aacbe026e5a186342d39939ea003e7ebc</anchor>
+      <arglist>(const string &amp;name, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>AddTarget</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a3b12ba4387f2886d0cdd86985e255af4</anchor>
+      <arglist>(Node *target, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>AlreadyUpToDate</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a608d1a92e0970bf3c18f0512bb8b5c62</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Build</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a8c2b02f9c4f068cbb57c56052310a6c4</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Builder</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a1d9c5c93403b055d6b71eabf887ed516</anchor>
+      <arglist>(State *state, const BuildConfig &amp;config)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>FinishEdge</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a443cbafa7d7e80e3efa4c8c614d542c4</anchor>
+      <arglist>(Edge *edge, bool success, const string &amp;output)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>StartEdge</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a66ff07bb0a3afc4651c8cd362a90831e</anchor>
+      <arglist>(Edge *edge, string *err)</arglist>
+    </member>
+    <member kind="variable">
+      <type>CommandRunner *</type>
+      <name>command_runner_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a2181057e3862f4ad11d6e590c7321dab</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const BuildConfig &amp;</type>
+      <name>config_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a982b2b7e9d5a7fcc3bf1082b1dfa8c7a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>DiskInterface *</type>
+      <name>disk_interface_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>aafffa035b2c7c6c492648f136a86082c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct BuildLog *</type>
+      <name>log_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>ac67c613485c47f8f0e53cb56a052538c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Plan</type>
+      <name>plan_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a2de7a62776a4c75650e3411928d22018</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State *</type>
+      <name>state_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a2c8ce0c9427c6bdc1084d3017d72a253</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct BuildStatus *</type>
+      <name>status_</name>
+      <anchorfile>structBuilder.html</anchorfile>
+      <anchor>a4a8cacc5a8241dff3ea782ee55ea721e</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildLog</name>
+    <filename>structBuildLog.html</filename>
+    <class kind="struct">BuildLog::LogEntry</class>
+    <member kind="typedef">
+      <type>ExternalStringHashMap&lt; LogEntry * &gt;::Type</type>
+      <name>Log</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a11a8f00f2c95c8bd2c3f19cec6386905</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>BuildLog</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a6501970e59544a895c05a9f776320de5</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Close</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a2f0657ed16b8ba9fadfb5c03e0c81695</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Load</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a0e7f4786ae2aee38095cd7eeed87af73</anchor>
+      <arglist>(const string &amp;path, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>LogEntry *</type>
+      <name>LookupByOutput</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>af01fac6ff13246e414e69b3737692f59</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>OpenForWrite</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a08a600782d1b1c8369b8437d9d9c4264</anchor>
+      <arglist>(const string &amp;path, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Recompact</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a864e5ac4b1d5239ae808b38ab3aeeb41</anchor>
+      <arglist>(const string &amp;path, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>RecordCommand</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a57db3e05be137ef25148b6fab1f55f7e</anchor>
+      <arglist>(Edge *edge, int start_time, int end_time, time_t restat_mtime=0)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>SetConfig</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a6cd31c693b9e057d604b9ef27be2bcfa</anchor>
+      <arglist>(BuildConfig *config)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>WriteEntry</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>ac1f4853d1fc456d71a0d9940c04234a0</anchor>
+      <arglist>(FILE *f, const LogEntry &amp;entry)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>~BuildLog</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a2d5fc7e9bcbaf8900e2fb671e1ebea6c</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>BuildConfig *</type>
+      <name>config_</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>ae84b6f83cfb8b0d7e9c49330c3c30c51</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Log</type>
+      <name>log_</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>ac0a0abd7f1aa1d7dc56e947d85f91349</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>FILE *</type>
+      <name>log_file_</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>a5fd4ee55ca61796e6d9aecaac2855cba</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>needs_recompaction_</name>
+      <anchorfile>structBuildLog.html</anchorfile>
+      <anchor>ab3726d9da8e8ae709671c6e6f3518773</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildLog::LogEntry</name>
+    <filename>structBuildLog_1_1LogEntry.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>operator==</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>afe5b06b8135336c86d91f56c8423f74b</anchor>
+      <arglist>(const LogEntry &amp;o)</arglist>
+    </member>
+    <member kind="variable">
+      <type>string</type>
+      <name>command</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>a0cc61e0f05a2dab553b221e54356e349</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>end_time</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>a8c9d71c8162925f8fe519543d3fb1416</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>string</type>
+      <name>output</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>ab83065a7478526bcb4c5b2544b5f078a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>time_t</type>
+      <name>restat_mtime</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>a6ba4567f62a5885259a5551c5ed8876c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>start_time</name>
+      <anchorfile>structBuildLog_1_1LogEntry.html</anchorfile>
+      <anchor>a2ba1f4c7b480857f4b54be8ff28db9fc</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildLogTest</name>
+    <filename>structBuildLogTest.html</filename>
+    <base>StateTestWithBuiltinRules</base>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual void</type>
+      <name>SetUp</name>
+      <anchorfile>structBuildLogTest.html</anchorfile>
+      <anchor>a8035f408c9cdb4f6e51d76afcdea9ea1</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual void</type>
+      <name>TearDown</name>
+      <anchorfile>structBuildLogTest.html</anchorfile>
+      <anchor>a517f93dd124a458978e810ab0cae540c</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildStatus</name>
+    <filename>structBuildStatus.html</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>BuildEdgeFinished</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>aa43abc4269585826ca8170480ff79ba3</anchor>
+      <arglist>(Edge *edge, bool success, const string &amp;output, int *start_time, int *end_time)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>BuildEdgeStarted</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a1ed5751d12fec96d3d0fd53d0b04a162</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>BuildStatus</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>ae0ee802c831f69a934e6d2205698e600</anchor>
+      <arglist>(const BuildConfig &amp;config)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>PlanHasTotalEdges</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a46706e3daf217f32bd3edd90371586d9</anchor>
+      <arglist>(int total)</arglist>
+    </member>
+    <member kind="typedef" protection="private">
+      <type>map&lt; Edge *, int &gt;</type>
+      <name>RunningEdgeMap</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>ab7b1138530a4b0d2e4c6ac9825747c69</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>PrintStatus</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a86a9921153c374661952003d57aff718</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>const BuildConfig &amp;</type>
+      <name>config_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>accbad5074966766fd07e53117223fe35</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>finished_edges_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>ac552d96d99005f0ba37477f67e1c6f46</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int64_t</type>
+      <name>last_update_millis_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a28d5b8eb8891e464f0f750c2f636f1ed</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>RunningEdgeMap</type>
+      <name>running_edges_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a8f56bb2d34a27c67c647529494679bf6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>bool</type>
+      <name>smart_terminal_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a87359432bdf6f64bacc2e1a2372dabfa</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int64_t</type>
+      <name>start_time_millis_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a148800f341d080cf65430b7369110344</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>started_edges_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>a4d456bf8d06d793d99f7a927a573ffad</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>total_edges_</name>
+      <anchorfile>structBuildStatus.html</anchorfile>
+      <anchor>af9db9889e39e2deb6d76488087b4bfe3</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildTest</name>
+    <filename>structBuildTest.html</filename>
+    <base>StateTestWithBuiltinRules</base>
+    <base>CommandRunner</base>
+    <member kind="function">
+      <type></type>
+      <name>BuildTest</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a8a3ce55f78c94bd43af5d6e9f9fc6699</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>CanRunMore</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>ac1d6dce2805d5c18d757bf8ae501c4b1</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Dirty</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a5c99bd787d394a683cbc696db30b47dd</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>BuildConfig</type>
+      <name>MakeConfig</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a591bffbbff3975fb44ce22f16ae4427e</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>StartCommand</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0cc789a1cd6605b09a803ca2d55a683e</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual Edge *</type>
+      <name>WaitForCommand</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a2a43f20982dc42ed8f2efceeae17e4c4</anchor>
+      <arglist>(bool *success, string *output)</arglist>
+    </member>
+    <member kind="variable">
+      <type>Builder</type>
+      <name>builder_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0fe0069156a94f69e378effdd4f382fe</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; string &gt;</type>
+      <name>commands_ran_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a2d5bad0febef5843b7bdba0a538c452c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>BuildConfig</type>
+      <name>config_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>adbf3fa7b00240708b88705af5f0eb5bb</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>VirtualFileSystem</type>
+      <name>fs_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a9ea88eb9c32d3eb77b0df06696b2d529</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Edge *</type>
+      <name>last_command_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a8c8456d33bc7f05bf04b78deed5ddad4</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>now_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0155c083f453329f7874f34024415774</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>BuildWithLogTest</name>
+    <filename>structBuildWithLogTest.html</filename>
+    <base>BuildTest</base>
+    <member kind="function">
+      <type></type>
+      <name>BuildWithLogTest</name>
+      <anchorfile>structBuildWithLogTest.html</anchorfile>
+      <anchor>a8e56542ec0fcfaa49ebf3b6c32699b96</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>CanRunMore</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>ac1d6dce2805d5c18d757bf8ae501c4b1</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Dirty</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a5c99bd787d394a683cbc696db30b47dd</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>BuildConfig</type>
+      <name>MakeConfig</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a591bffbbff3975fb44ce22f16ae4427e</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>StartCommand</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0cc789a1cd6605b09a803ca2d55a683e</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual Edge *</type>
+      <name>WaitForCommand</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a2a43f20982dc42ed8f2efceeae17e4c4</anchor>
+      <arglist>(bool *success, string *output)</arglist>
+    </member>
+    <member kind="variable">
+      <type>BuildLog</type>
+      <name>build_log_</name>
+      <anchorfile>structBuildWithLogTest.html</anchorfile>
+      <anchor>a56e2338504aa14084cdc0ed015c8a3c6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Builder</type>
+      <name>builder_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0fe0069156a94f69e378effdd4f382fe</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; string &gt;</type>
+      <name>commands_ran_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a2d5bad0febef5843b7bdba0a538c452c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>BuildConfig</type>
+      <name>config_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>adbf3fa7b00240708b88705af5f0eb5bb</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>VirtualFileSystem</type>
+      <name>fs_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a9ea88eb9c32d3eb77b0df06696b2d529</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Edge *</type>
+      <name>last_command_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a8c8456d33bc7f05bf04b78deed5ddad4</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>now_</name>
+      <anchorfile>structBuildTest.html</anchorfile>
+      <anchor>a0155c083f453329f7874f34024415774</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="class">
+    <name>Cleaner</name>
+    <filename>classCleaner.html</filename>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanAll</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>aee224f1e7c956ac8d9ad5280209434ad</anchor>
+      <arglist>(bool generator=false)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>cleaned_files_count</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>af4b0d5cb3c426f05e96c1222f724b880</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Cleaner</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>aa54754b39f27d5d566ce62bea4b814cc</anchor>
+      <arglist>(State *state, const BuildConfig &amp;config)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Cleaner</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a94b3e75dcc18d20d1fc0f075cf8d2a7a</anchor>
+      <arglist>(State *state, const BuildConfig &amp;config, DiskInterface *disk_interface)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanRule</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a0d7bcd7981b24ae786dd6654157b5978</anchor>
+      <arglist>(const Rule *rule)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanRule</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>ae02b542aa069eeb2c4b86d648263c2dd</anchor>
+      <arglist>(const char *rule)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanRules</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a77d3abb9b7062c1e8c86fe5ac9fb44c6</anchor>
+      <arglist>(int rule_count, char *rules[])</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanTarget</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a146f242991cf962752883da58c86d77c</anchor>
+      <arglist>(Node *target)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanTarget</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a9c71bc91ab523bdb54c29effe283136c</anchor>
+      <arglist>(const char *target)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>CleanTargets</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>adac9772fff3969b8e4b53706cc4dd868</anchor>
+      <arglist>(int target_count, char *targets[])</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>IsVerbose</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a197944f3ef71b02a07639970d45ca0f7</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>DoCleanRule</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a980cadf4f6cea5dd6d52c4218e4e646b</anchor>
+      <arglist>(const Rule *rule)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>DoCleanTarget</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a52c3095504e05303ec7eee008197e98c</anchor>
+      <arglist>(Node *target)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>bool</type>
+      <name>FileExists</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a90549dd5f5033f36a7620dc16609a970</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>bool</type>
+      <name>IsAlreadyRemoved</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a1b9ca5874a08b927ed8ed0476ccd3769</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>PrintFooter</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a1a85c3e4741da1685692c5f6dd0ab789</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>PrintHeader</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>afe60abac766fe0a45ffb1553a2987068</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>Remove</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>acd6bbb9d1e7600cec3f72d9c61a8c7cd</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>int</type>
+      <name>RemoveFile</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>ae8da968f18aa9fe94f4405f3db37079b</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>Report</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a6ef489fdbf9b34900d6d110e7bd22444</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>Reset</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a84a7c68251cfc3839ac97a90654e30b5</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>cleaned_files_count_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a202474ca14ab8841e0787eccce578cf9</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>const BuildConfig &amp;</type>
+      <name>config_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a061286ab1f16948224de40fcf042fd8a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>DiskInterface *</type>
+      <name>disk_interface_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>af1d5636bb9e186068d73b1923f73a92b</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>set&lt; string &gt;</type>
+      <name>removed_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>a49c672178809c2ff602d56ac8a9cb1f7</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>State *</type>
+      <name>state_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>af18bfb0e6a405d23537bce721ec46fda</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>status_</name>
+      <anchorfile>classCleaner.html</anchorfile>
+      <anchor>ae33166af3dc8173e45d6e2dc78b1477d</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>CleanTest</name>
+    <filename>structCleanTest.html</filename>
+    <base>StateTestWithBuiltinRules</base>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual void</type>
+      <name>SetUp</name>
+      <anchorfile>structCleanTest.html</anchorfile>
+      <anchor>ac95281eac4477b1a3a3a19496d21fee5</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>BuildConfig</type>
+      <name>config_</name>
+      <anchorfile>structCleanTest.html</anchorfile>
+      <anchor>a361d70919a53fecdea9123a349275f55</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>VirtualFileSystem</type>
+      <name>fs_</name>
+      <anchorfile>structCleanTest.html</anchorfile>
+      <anchor>ae9d626581c2a6623ab5b55eefb2f21cf</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>CommandRunner</name>
+    <filename>structCommandRunner.html</filename>
+    <member kind="function" virtualness="pure">
+      <type>virtual bool</type>
+      <name>CanRunMore</name>
+      <anchorfile>structCommandRunner.html</anchorfile>
+      <anchor>a210f0111087ec050ad9f301f9e6d98f9</anchor>
+      <arglist>()=0</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual bool</type>
+      <name>StartCommand</name>
+      <anchorfile>structCommandRunner.html</anchorfile>
+      <anchor>a23a37c5157518ed35fd1a366b1ab3d78</anchor>
+      <arglist>(Edge *edge)=0</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual Edge *</type>
+      <name>WaitForCommand</name>
+      <anchorfile>structCommandRunner.html</anchorfile>
+      <anchor>a57ab30f8e96af5cfe36f816c43b69557</anchor>
+      <arglist>(bool *success, string *output)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~CommandRunner</name>
+      <anchorfile>structCommandRunner.html</anchorfile>
+      <anchor>adfd406f68aa57e3a0360d8e96cf9355b</anchor>
+      <arglist>()</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>DiskInterface</name>
+    <filename>structDiskInterface.html</filename>
+    <member kind="function" virtualness="pure">
+      <type>virtual bool</type>
+      <name>MakeDir</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a070608053114e5c9dfa36bb92758db30</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>MakeDirs</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a27fc4c758ab7c6ea859e70451032abe5</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual std::string</type>
+      <name>ReadFile</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a4bf5b9961bbefd2f8982b742c7640aba</anchor>
+      <arglist>(const std::string &amp;path, std::string *err)=0</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual int</type>
+      <name>RemoveFile</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a4e43e3304cb9a492b9c838ebb9d4ac6b</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual int</type>
+      <name>Stat</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a1c517bdda59afe399d14568ea3c3fc00</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~DiskInterface</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a34d62e4d1ba8b716696bcfc6f2643cd3</anchor>
+      <arglist>()</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>DryRunCommandRunner</name>
+    <filename>structDryRunCommandRunner.html</filename>
+    <base>CommandRunner</base>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>CanRunMore</name>
+      <anchorfile>structDryRunCommandRunner.html</anchorfile>
+      <anchor>ae813d5cdca72404c3c3849cdec70c36b</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>StartCommand</name>
+      <anchorfile>structDryRunCommandRunner.html</anchorfile>
+      <anchor>a10f70f169e7e782ea7e55fc0e8bf15db</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual Edge *</type>
+      <name>WaitForCommand</name>
+      <anchorfile>structDryRunCommandRunner.html</anchorfile>
+      <anchor>acf925693edb3669e3ee70ec83b2c1a23</anchor>
+      <arglist>(bool *success, string *output)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~DryRunCommandRunner</name>
+      <anchorfile>structDryRunCommandRunner.html</anchorfile>
+      <anchor>a89d6bc1ff5c7bc78ed4dca7ad69ee0ba</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>queue&lt; Edge * &gt;</type>
+      <name>finished_</name>
+      <anchorfile>structDryRunCommandRunner.html</anchorfile>
+      <anchor>aea60923606281f7443fb25991c57d293</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Edge</name>
+    <filename>structEdge.html</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>Dump</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a334203269084492c653805eabc3acc70</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Edge</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a3106b11d60125009dbf7a738ce540fdf</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>string</type>
+      <name>EvaluateCommand</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a877d1c3fb799293027584c2f145e21fb</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>string</type>
+      <name>GetDescription</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a258ae67e84a8b3bc90f55902444b5346</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>is_implicit</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>acc7ff1bb8e09df27197fabe8e93498c1</anchor>
+      <arglist>(int index)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>is_order_only</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>af2a4629e1ade5e770c6ae9b1d2194852</anchor>
+      <arglist>(int index)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>is_phony</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>aaf7a366d8ba8f127da58839af826d548</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>LoadDepFile</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>af5ba70ed815ac306131b4379e1576262</anchor>
+      <arglist>(State *state, DiskInterface *disk_interface, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>outputs_ready</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a2fe2114ba09e80a6a227eb04f8a404de</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>RecomputeDirty</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a0d74c02ecd1cfb1514e25a4954538a9d</anchor>
+      <arglist>(State *state, DiskInterface *disk_interface, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>RecomputeOutputDirty</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>acde46c38b030ddc0374fca9550380267</anchor>
+      <arglist>(BuildLog *build_log, time_t most_recent_input, bool dirty, const string &amp;command, Node *output)</arglist>
+    </member>
+    <member kind="variable">
+      <type>Env *</type>
+      <name>env_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a5ad2a0063be2eb5ce2fb05a2b82b3213</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>implicit_deps_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a4dcd12be59a0653c7beef3c37edcf4ed</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Node * &gt;</type>
+      <name>inputs_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a4fd6b2daa2559765aaf2fed1de96f345</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>order_only_deps_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a7adc7b047f6574167758c27d87d9b5f8</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Node * &gt;</type>
+      <name>outputs_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>ac4ab5a6898d716f32683b63fafc65bb6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>outputs_ready_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>affddbfc0888b9af3c8b65449f9e54852</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const Rule *</type>
+      <name>rule_</name>
+      <anchorfile>structEdge.html</anchorfile>
+      <anchor>a6553b57e59b77a3f8a4bf9b19c25d7f8</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>EdgeEnv</name>
+    <filename>structEdgeEnv.html</filename>
+    <base>Env</base>
+    <member kind="function">
+      <type></type>
+      <name>EdgeEnv</name>
+      <anchorfile>structEdgeEnv.html</anchorfile>
+      <anchor>a04299d9d3744d2106bce92ea52338feb</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual string</type>
+      <name>LookupVariable</name>
+      <anchorfile>structEdgeEnv.html</anchorfile>
+      <anchor>a994086622b4aa0332fa43dd15f07e5a3</anchor>
+      <arglist>(const string &amp;var)</arglist>
+    </member>
+    <member kind="variable">
+      <type>Edge *</type>
+      <name>edge_</name>
+      <anchorfile>structEdgeEnv.html</anchorfile>
+      <anchor>a9cf14172d32813daa2e7e57e40230e60</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Env</name>
+    <filename>structEnv.html</filename>
+    <member kind="function" virtualness="pure">
+      <type>virtual string</type>
+      <name>LookupVariable</name>
+      <anchorfile>structEnv.html</anchorfile>
+      <anchor>a985781a5c04cc4a34ac6e07c57e44768</anchor>
+      <arglist>(const string &amp;var)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~Env</name>
+      <anchorfile>structEnv.html</anchorfile>
+      <anchor>ab1a26ca6473b63e1ea70237a5c91c813</anchor>
+      <arglist>()</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>EvalString</name>
+    <filename>structEvalString.html</filename>
+    <member kind="typedef">
+      <type>vector&lt; pair&lt; string, TokenType &gt; &gt;</type>
+      <name>TokenList</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a624839e4086e9fd2867357ee439c0310</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumeration">
+      <name>TokenType</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a751fb74ca53a79057d69b0dff4d64ab8</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>RAW</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a751fb74ca53a79057d69b0dff4d64ab8a5e036adce6899bc92dc78fa4cf7d7309</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>SPECIAL</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a751fb74ca53a79057d69b0dff4d64ab8a7605297b1cf665d19e1d9c18db23e5ee</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type>const bool</type>
+      <name>empty</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a9c3353ee14dc1643c0285f33304516b7</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>string</type>
+      <name>Evaluate</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a6a8e12404fd1ee3f425992edf3876118</anchor>
+      <arglist>(Env *env) const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Parse</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>aae803d9d90919aed8093ad1ed473dfde</anchor>
+      <arglist>(const string &amp;input, string *err, size_t *err_index=NULL)</arglist>
+    </member>
+    <member kind="function">
+      <type>const string &amp;</type>
+      <name>unparsed</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>a0acf34ee1ee730c4838ad756b608d50f</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="variable">
+      <type>TokenList</type>
+      <name>parsed_</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>addb087ce871bdfd4f6a130d14ece7604</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>string</type>
+      <name>unparsed_</name>
+      <anchorfile>structEvalString.html</anchorfile>
+      <anchor>ab1075a024cc824b08cfc8cbdab545184</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ExternalStringEq</name>
+    <filename>structExternalStringEq.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>operator()</name>
+      <anchorfile>structExternalStringEq.html</anchorfile>
+      <anchor>a4785810cfefd963786d27b1224d52655</anchor>
+      <arglist>(const char *a, const char *b)</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ExternalStringHash</name>
+    <filename>structExternalStringHash.html</filename>
+    <member kind="function">
+      <type>size_t</type>
+      <name>operator()</name>
+      <anchorfile>structExternalStringHash.html</anchorfile>
+      <anchor>aa3df6bea2b673032cb3e36b4fbc83c67</anchor>
+      <arglist>(const char *key) const </arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ExternalStringHashMap</name>
+    <filename>structExternalStringHashMap.html</filename>
+    <templarg>V</templarg>
+    <member kind="typedef">
+      <type>hash_map&lt; const char *, V, ExternalStringHash, ExternalStringEq &gt;</type>
+      <name>Type</name>
+      <anchorfile>structExternalStringHashMap.html</anchorfile>
+      <anchor>ab43c4320f89be8626d3034f9a21f3173</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>FileStat</name>
+    <filename>structFileStat.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>exists</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>a1772e57deefbc4de7b639105044f5dba</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>FileStat</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>ac5438ca278fa743b8f62cf5b1a7cd50c</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Stat</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>a0b67ead90f267d7f3aefb608cebe5879</anchor>
+      <arglist>(DiskInterface *disk_interface)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>StatIfNecessary</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>a0e791221ee7eff22fc1fbcfec210401a</anchor>
+      <arglist>(DiskInterface *disk_interface)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>status_known</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>a5ee9e4da3f9f823bc2eeb96bb969d197</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="variable">
+      <type>time_t</type>
+      <name>mtime_</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>abb13d43b8c2907cd41b9e235449739ef</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Node *</type>
+      <name>node_</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>af8cebed931bae71db56cf9603748c040</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>string</type>
+      <name>path_</name>
+      <anchorfile>structFileStat.html</anchorfile>
+      <anchor>a8c05070c27fcb6ed8e9f4cb821411daf</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>GETOPT_LONG_OPTION_T</name>
+    <filename>structGETOPT__LONG__OPTION__T.html</filename>
+    <member kind="variable">
+      <type>int *</type>
+      <name>flag</name>
+      <anchorfile>structGETOPT__LONG__OPTION__T.html</anchorfile>
+      <anchor>a9d4ff47718fe9bba8c44957fa450f4b6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>has_arg</name>
+      <anchorfile>structGETOPT__LONG__OPTION__T.html</anchorfile>
+      <anchor>a7ae5706d2ff1233f4b77f44c2c9ec835</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>name</name>
+      <anchorfile>structGETOPT__LONG__OPTION__T.html</anchorfile>
+      <anchor>a0ac05c4f733caf07c92d70408d181e8f</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>val</name>
+      <anchorfile>structGETOPT__LONG__OPTION__T.html</anchorfile>
+      <anchor>a0fa4f83e6a883e7acd8e6a373413ecf2</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>GraphTest</name>
+    <filename>structGraphTest.html</filename>
+    <base>StateTestWithBuiltinRules</base>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="variable">
+      <type>VirtualFileSystem</type>
+      <name>fs_</name>
+      <anchorfile>structGraphTest.html</anchorfile>
+      <anchor>a5288df1d31b827133b1a500b73d8d493</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>GraphViz</name>
+    <filename>structGraphViz.html</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>AddTarget</name>
+      <anchorfile>structGraphViz.html</anchorfile>
+      <anchor>a55ca0f366fbec5703e2e9e1609981a72</anchor>
+      <arglist>(Node *node)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Finish</name>
+      <anchorfile>structGraphViz.html</anchorfile>
+      <anchor>a2d788bf557363e0476d223cefdff38ac</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Start</name>
+      <anchorfile>structGraphViz.html</anchorfile>
+      <anchor>a84ede9951cede05d6a708e062a29d3ea</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>set&lt; Node * &gt;</type>
+      <name>visited_</name>
+      <anchorfile>structGraphViz.html</anchorfile>
+      <anchor>ae10d0216d6b13d67fda2355f75e75e2c</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>MakefileParser</name>
+    <filename>structMakefileParser.html</filename>
+    <member kind="function">
+      <type></type>
+      <name>MakefileParser</name>
+      <anchorfile>structMakefileParser.html</anchorfile>
+      <anchor>a6f478827b275bb73617204173aea6875</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Parse</name>
+      <anchorfile>structMakefileParser.html</anchorfile>
+      <anchor>a6213a0ce38ea62ca20d7d2f6414a122f</anchor>
+      <arglist>(const string &amp;input, string *err)</arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; StringPiece &gt;</type>
+      <name>ins_</name>
+      <anchorfile>structMakefileParser.html</anchorfile>
+      <anchor>ae115aad097397344b2f8e88cf359db68</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>StringPiece</type>
+      <name>out_</name>
+      <anchorfile>structMakefileParser.html</anchorfile>
+      <anchor>a7696671019eaed782fb51055a0caeb24</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Tokenizer</type>
+      <name>tokenizer_</name>
+      <anchorfile>structMakefileParser.html</anchorfile>
+      <anchor>ae0a29db76cf3905c5f785a27baadbee7</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ManifestParser</name>
+    <filename>structManifestParser.html</filename>
+    <class kind="struct">ManifestParser::FileReader</class>
+    <member kind="function">
+      <type>bool</type>
+      <name>Load</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>afb43144d1bb419456c5d5b376f561a63</anchor>
+      <arglist>(const string &amp;filename, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>ManifestParser</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>ac5d014b015600d5b88f0ab55b0b5c750</anchor>
+      <arglist>(State *state, FileReader *file_reader)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Parse</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a7c813cbd0fcd3e7a7395876d266d5e02</anchor>
+      <arglist>(const string &amp;input, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseDefaults</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a5fb7c0886739f1c59beafea7eeaca2de</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseEdge</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a70208843bcad06d5796b98ba7d24ec35</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseFileInclude</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>aafcf7abbccfe40f3d26b554c0843b3bf</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseLet</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a179beee432fde754656df673ace7c639</anchor>
+      <arglist>(string *key, string *val, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseLetKey</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a1e6388e645310ec55eb563fe02d98e4b</anchor>
+      <arglist>(string *key, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseLetValue</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>aab5c32f71f44a7ce22296321b5c2ec0d</anchor>
+      <arglist>(EvalString *eval, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseRule</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>ad8e59ed84a6c318e2169ae6c52b96379</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="variable">
+      <type>BindingEnv *</type>
+      <name>env_</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a0dbb40eddd53ef84a018cb2de667fcb1</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>FileReader *</type>
+      <name>file_reader_</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a2b634534e045a7e2b1576cbd70e9dc9d</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State *</type>
+      <name>state_</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>ad7b8cc26b5900c465a38106f8d92bbe0</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Tokenizer</type>
+      <name>tokenizer_</name>
+      <anchorfile>structManifestParser.html</anchorfile>
+      <anchor>a584e2477dc1a297c5797db40b0ded64d</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ManifestParser::FileReader</name>
+    <filename>structManifestParser_1_1FileReader.html</filename>
+    <member kind="function" virtualness="pure">
+      <type>virtual bool</type>
+      <name>ReadFile</name>
+      <anchorfile>structManifestParser_1_1FileReader.html</anchorfile>
+      <anchor>a2189a2031f8731473f1c4979c5b4fda5</anchor>
+      <arglist>(const string &amp;path, string *content, string *err)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~FileReader</name>
+      <anchorfile>structManifestParser_1_1FileReader.html</anchorfile>
+      <anchor>acfb2eeb2ec40be2ab44c0c104c0ef256</anchor>
+      <arglist>()</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Node</name>
+    <filename>structNode.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>dirty</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>a6e873ee67eebc1de8a67555cb649932b</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Node</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>ab41e421546297535175648999496f170</anchor>
+      <arglist>(FileStat *file)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ready</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>a8592dafce1d17373bf2f0f04c8d2c37d</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>dirty_</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>acaef6422e9a4543ab3100bfc48692633</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>FileStat *</type>
+      <name>file_</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>a7b183cd2969fd95bbd00e4e61460d141</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Edge *</type>
+      <name>in_edge_</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>accd8ebf1e30b9624dc4566183207c8a9</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Edge * &gt;</type>
+      <name>out_edges_</name>
+      <anchorfile>structNode.html</anchorfile>
+      <anchor>ad3170a7fe2a24ccc2240d0e64cb179b0</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>ParserTest</name>
+    <filename>structParserTest.html</filename>
+    <base>ManifestParser::FileReader</base>
+    <member kind="function">
+      <type>void</type>
+      <name>AssertParse</name>
+      <anchorfile>structParserTest.html</anchorfile>
+      <anchor>af21898f5fe97c7a919b4357f837a9cf8</anchor>
+      <arglist>(const char *input)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>ReadFile</name>
+      <anchorfile>structParserTest.html</anchorfile>
+      <anchor>a6a64ee37b845bb764e1c92e32fcc5184</anchor>
+      <arglist>(const string &amp;path, string *content, string *err)</arglist>
+    </member>
+    <member kind="variable">
+      <type>map&lt; string, string &gt;</type>
+      <name>files_</name>
+      <anchorfile>structParserTest.html</anchorfile>
+      <anchor>a497ef39fb6ad3957e2bd1d7819f96d2d</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; string &gt;</type>
+      <name>files_read_</name>
+      <anchorfile>structParserTest.html</anchorfile>
+      <anchor>a40b41aa069fb3495f4e45f583f312216</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state</name>
+      <anchorfile>structParserTest.html</anchorfile>
+      <anchor>a5246c88c6d1a741357a026b9e0bb6b17</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Plan</name>
+    <filename>structPlan.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>AddTarget</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>ace573e539c7ddf7192b27c045bfda819</anchor>
+      <arglist>(Node *node, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>CleanNode</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a6198a972b25cad5d28e5baefdd05b27b</anchor>
+      <arglist>(BuildLog *build_log, Node *node)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>command_edge_count</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a2c28ad28e9516290e567f8caede3aafa</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Dump</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a24ea67df1e2e46b2c1fa128fdb528a42</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>EdgeFinished</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a97410a76f87c87484ea3353c390f9885</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function">
+      <type>Edge *</type>
+      <name>FindWork</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>ade35148e31da830a66fd5a852f8901e4</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>more_to_do</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a41faf1d55334495c5443cdf0eb2c2ca4</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Plan</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a031ab495af5a99a883be2e09860086f1</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>bool</type>
+      <name>AddSubTarget</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>af4200052aecbdaa7a31bb267cee4b4ff</anchor>
+      <arglist>(Node *node, vector&lt; Node * &gt; *stack, string *err)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>bool</type>
+      <name>CheckDependencyCycle</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a7f6a2f59db582b6f228de8ab471e872f</anchor>
+      <arglist>(Node *node, vector&lt; Node * &gt; *stack, string *err)</arglist>
+    </member>
+    <member kind="function" protection="private">
+      <type>void</type>
+      <name>NodeFinished</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>aee4e9368a64b819b3fe2563551e8ef65</anchor>
+      <arglist>(Node *node)</arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>command_edges_</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a1c4331037018442e30c9269aebcd385a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>set&lt; Edge * &gt;</type>
+      <name>ready_</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>ac228b4a3b36ff0fc8a2fcfa698ebfe5d</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>map&lt; Edge *, bool &gt;</type>
+      <name>want_</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a2615745b23f7548943565d31d0e62ebd</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>wanted_edges_</name>
+      <anchorfile>structPlan.html</anchorfile>
+      <anchor>a6cddf393d7f7adb5827e006fa4f26314</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>PlanTest</name>
+    <filename>structPlanTest.html</filename>
+    <base>StateTestWithBuiltinRules</base>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="variable">
+      <type>Plan</type>
+      <name>plan_</name>
+      <anchorfile>structPlanTest.html</anchorfile>
+      <anchor>a4c01ff074b43aa178f4af994da7f7ae7</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>RealCommandRunner</name>
+    <filename>structRealCommandRunner.html</filename>
+    <base>CommandRunner</base>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>CanRunMore</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>a20c78ac0596d252fd92fc0697826f7f7</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>RealCommandRunner</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>ad7815c6e2b47ff6903b3a752dd532bb9</anchor>
+      <arglist>(const BuildConfig &amp;config)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>StartCommand</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>a314f3738437eb416004396ac267de515</anchor>
+      <arglist>(Edge *edge)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual Edge *</type>
+      <name>WaitForCommand</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>aae52cf96131e42aeb807bf7519fbe1b9</anchor>
+      <arglist>(bool *success, string *output)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~RealCommandRunner</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>a971f6ea0ec1df05e734c9aba16be6997</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>const BuildConfig &amp;</type>
+      <name>config_</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>aeece9d778b4cd826f377f33e9c25f53f</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>map&lt; Subprocess *, Edge * &gt;</type>
+      <name>subproc_to_edge_</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>a49f2391d5b878b7b2a9c97f5c7f3571a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>SubprocessSet</type>
+      <name>subprocs_</name>
+      <anchorfile>structRealCommandRunner.html</anchorfile>
+      <anchor>a36b41da74ab4d353172f228f72f67e14</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>RealDiskInterface</name>
+    <filename>structRealDiskInterface.html</filename>
+    <base>DiskInterface</base>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>MakeDir</name>
+      <anchorfile>structRealDiskInterface.html</anchorfile>
+      <anchor>af5594550cc29b0290b6d91af65adf4dd</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>MakeDirs</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a27fc4c758ab7c6ea859e70451032abe5</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual std::string</type>
+      <name>ReadFile</name>
+      <anchorfile>structRealDiskInterface.html</anchorfile>
+      <anchor>abd729e2b117e40d6c4c05c76a613bf25</anchor>
+      <arglist>(const std::string &amp;path, std::string *err)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual int</type>
+      <name>RemoveFile</name>
+      <anchorfile>structRealDiskInterface.html</anchorfile>
+      <anchor>a5e956d9948d01c02095c961ebd7d67cf</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual int</type>
+      <name>Stat</name>
+      <anchorfile>structRealDiskInterface.html</anchorfile>
+      <anchor>a18293f5abd236b890a0aa57142910068</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual</type>
+      <name>~RealDiskInterface</name>
+      <anchorfile>structRealDiskInterface.html</anchorfile>
+      <anchor>a9f702e2142f8227cc6cfdb682208bd85</anchor>
+      <arglist>()</arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Rule</name>
+    <filename>structRule.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>ParseCommand</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>a014f156d34fc9a77550bcbe99a4af675</anchor>
+      <arglist>(const string &amp;command, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Rule</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>a74a199eb08996f8d7a1f9b976824e0c2</anchor>
+      <arglist>(const string &amp;name)</arglist>
+    </member>
+    <member kind="variable">
+      <type>EvalString</type>
+      <name>command_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>acb5b447cbc0342b60e261572f291371c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>EvalString</type>
+      <name>depfile_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>aa351ca2a68a112776969480fe53828e3</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>EvalString</type>
+      <name>description_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>a30b8657c9652987fc0670447c77187dc</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>generator_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>a3795d688f98fd2b8c516b5bdd5e17611</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>string</type>
+      <name>name_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>ab78c8a835c42cf88c8344d9134432b67</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>restat_</name>
+      <anchorfile>structRule.html</anchorfile>
+      <anchor>a52ce96e224232cea39a2fbafb0184392</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>StatCache</name>
+    <filename>structStatCache.html</filename>
+    <member kind="typedef">
+      <type>ExternalStringHashMap&lt; FileStat * &gt;::Type</type>
+      <name>Paths</name>
+      <anchorfile>structStatCache.html</anchorfile>
+      <anchor>a8c608a4123af7d6f1670c9c6102db779</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Dump</name>
+      <anchorfile>structStatCache.html</anchorfile>
+      <anchor>a50a77119d07713e049c2ab5e6e8c782e</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>FileStat *</type>
+      <name>GetFile</name>
+      <anchorfile>structStatCache.html</anchorfile>
+      <anchor>a1755f5d7e9653a6edfe4974a3a217535</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Invalidate</name>
+      <anchorfile>structStatCache.html</anchorfile>
+      <anchor>aca4f4638e4624412a440bfc88225190d</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>Paths</type>
+      <name>paths_</name>
+      <anchorfile>structStatCache.html</anchorfile>
+      <anchor>acf57c421f427191a0d2d620275dade8b</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>State</name>
+    <filename>structState.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>AddDefault</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a2bcb8195c2711b2b15faaddbb6539855</anchor>
+      <arglist>(const string &amp;path, string *error)</arglist>
+    </member>
+    <member kind="function">
+      <type>Edge *</type>
+      <name>AddEdge</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a3e3a4a62a0e595451f649a5bf3ae0fe7</anchor>
+      <arglist>(const Rule *rule)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>AddIn</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>acd3d733d77d1b73d5f65efb49fd7e5d7</anchor>
+      <arglist>(Edge *edge, const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>AddOut</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a7f2749aec774f719704ec7349b149744</anchor>
+      <arglist>(Edge *edge, const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>AddRule</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ab4bac9807e4560de48f54ef8ad229081</anchor>
+      <arglist>(const Rule *rule)</arglist>
+    </member>
+    <member kind="function">
+      <type>vector&lt; Node * &gt;</type>
+      <name>DefaultNodes</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ac3b1ca172073b28adc6f88c10af0999f</anchor>
+      <arglist>(string *error)</arglist>
+    </member>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>adcbe649d24758557df143eb14d56358c</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>Node *</type>
+      <name>LookupNode</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ab7d3bd3103bdc09b4f42660284807225</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>const Rule *</type>
+      <name>LookupRule</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>abe8dfcbd700a01cb0e28f730055bf14c</anchor>
+      <arglist>(const string &amp;rule_name)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Reset</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>af0e2f344aff3b2a500637fe62d30bba2</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>vector&lt; Node * &gt;</type>
+      <name>RootNodes</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a7ab43da26456a3ca765e82a01130b5ce</anchor>
+      <arglist>(string *error)</arglist>
+    </member>
+    <member kind="function">
+      <type>StatCache *</type>
+      <name>stat_cache</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a7cd274c30729d2d0e4cd5e28d5f947f3</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>State</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ab91bb1dd5aa6260ab2a456581daf9ec2</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>BindingEnv</type>
+      <name>bindings_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ae09e90c5524df7fd37a96751930336c9</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct BuildLog *</type>
+      <name>build_log_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a463348843da891ba1f7f1df149051a54</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Node * &gt;</type>
+      <name>defaults_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ae2ba184ebe4f549b9e6c435083c07c33</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Edge * &gt;</type>
+      <name>edges_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>ab0f23f5026709fcb48d83e93d4bbed97</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>map&lt; string, const Rule * &gt;</type>
+      <name>rules_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a7853ca22a4a26bea1ea0e2b10a033e4a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>StatCache</type>
+      <name>stat_cache_</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a65c669e396eb63e38132d51f95f43b63</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" static="yes">
+      <type>static const Rule</type>
+      <name>kPhonyRule</name>
+      <anchorfile>structState.html</anchorfile>
+      <anchor>a9522a499bd62121a14e00a3016fa0599</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>StateTestWithBuiltinRules</name>
+    <filename>structStateTestWithBuiltinRules.html</filename>
+    <member kind="function">
+      <type>Node *</type>
+      <name>GetNode</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a73a86246aefb2b8aeed71ac6979f37f3</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>StateTestWithBuiltinRules</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a637c05490b0e84428021bfa595094063</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>State</type>
+      <name>state_</name>
+      <anchorfile>structStateTestWithBuiltinRules.html</anchorfile>
+      <anchor>a7fc39f179dd0a7d578690ce03ed58e87</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>StringPiece</name>
+    <filename>structStringPiece.html</filename>
+    <member kind="function">
+      <type>string</type>
+      <name>AsString</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>ae61eaf54a5cd334bcc476670684c2fc6</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>operator!=</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>a391dac08b833f273eed900fab8cec3ba</anchor>
+      <arglist>(const StringPiece &amp;other) const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>operator==</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>aae6f37b025758f8a04c1215563d87b30</anchor>
+      <arglist>(const StringPiece &amp;other) const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>StringPiece</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>a0f45b54fa594663333d1ac3c8d7c8997</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>StringPiece</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>a0ee45e9cdcaf87d70d97880fc10b10aa</anchor>
+      <arglist>(const string &amp;str)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>StringPiece</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>a1f2ea703262cb6af2948bafb29b7325e</anchor>
+      <arglist>(const char *str)</arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>len_</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>ae3e01f321de4cadd2d96fe2225d9859d</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>str_</name>
+      <anchorfile>structStringPiece.html</anchorfile>
+      <anchor>a0c21a59632952caa265e5898a0add91e</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Subprocess</name>
+    <filename>structSubprocess.html</filename>
+    <member kind="function">
+      <type>bool</type>
+      <name>Done</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>aa049c85e5204cdf37469066921a0bf25</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Finish</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a95267589f0d2979636abef4f4acb90f8</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>const string &amp;</type>
+      <name>GetOutput</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a9fcbe2be7d09688fc628263aae5d21dd</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>OnPipeReady</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>aea96bde27cbc9118d9c9572534da8872</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Start</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a6813da0fc1567ee13661a37cba2e58d8</anchor>
+      <arglist>(struct SubprocessSet *set, const string &amp;command)</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Subprocess</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a7261c6dd5c9826ea9c72f0f79dc5ad2a</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>~Subprocess</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a02e3668310fef77df1e0c760b4e26dfc</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>string</type>
+      <name>buf_</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>a8e02620076abef08210d4ffd865eccf2</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>int</type>
+      <name>fd_</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>aa7a359534ba9620b8968cf8237c20eb5</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable" protection="private">
+      <type>pid_t</type>
+      <name>pid_</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>af675690a04bd28e55685e35cd345c5b6</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="friend" protection="private">
+      <type>friend struct</type>
+      <name>SubprocessSet</name>
+      <anchorfile>structSubprocess.html</anchorfile>
+      <anchor>abfdc22438d5c005a2b739a845d985005</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>SubprocessSet</name>
+    <filename>structSubprocessSet.html</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>Add</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>adee078b36b6d5c563c6edaa2fba69404</anchor>
+      <arglist>(Subprocess *subprocess)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>DoWork</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>acb0ed752eea430cca8234f96bd958a4f</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>Subprocess *</type>
+      <name>NextFinished</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>a2909bb928dc470bda735f88d45307a7d</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>SubprocessSet</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>a00c1cd317ec172672fea906569f47806</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>~SubprocessSet</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>af10b9c81b8710f4f33e8d680349abd03</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>queue&lt; Subprocess * &gt;</type>
+      <name>finished_</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>a1b3aec115bae40c9298275c126e9614b</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; Subprocess * &gt;</type>
+      <name>running_</name>
+      <anchorfile>structSubprocessSet.html</anchorfile>
+      <anchor>ae71aa64afbdf9719dd14525944b9d453</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Token</name>
+    <filename>structToken.html</filename>
+    <member kind="enumeration">
+      <name>Type</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>NONE</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137a8d2be6da777c75fbdcf37d694a831679</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>UNKNOWN</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137a824ccdc50a85a224c12c19328c32ea83</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>IDENT</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137afc2ceb337b67aa8bfb8da82740b902f1</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>NEWLINE</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137ae2084fad321a2dd5695ed3332e491156</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>EQUALS</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137ac2f3ea0a822b3f0c110cb0fb25ccb926</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>COLON</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137a21c8141e34ffe27521dfc5afdd2cf17c</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>PIPE</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137a1c7a2de3ccfe2c1b93b8f774b0b4802e</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>PIPE2</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137a61b1c26e5f77c8d3bc325b89486a1b43</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>INDENT</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137ac55143f85a31f345b3697fec214e2acc</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>OUTDENT</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137af061133d9d1b651b8d3ef5343cca641b</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <name>TEOF</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>acf70e9411196c602738c3ed2428c7137aa7584527ac66542ff9aabbfe5494d097</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type>string</type>
+      <name>AsString</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>add8923e3793eaf8dbed983fc380d4e5c</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Clear</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>a259e5c73ff5d1c0f13dd3eaab8c39a3e</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Token</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>ac5b1af731830b70f07e948c466becf5e</anchor>
+      <arglist>(Type type)</arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>end_</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>ada473a0384b30570d3c9d4a5123543ed</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>pos_</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>aa847299d78a4190410a959b8a2803548</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Type</type>
+      <name>type_</name>
+      <anchorfile>structToken.html</anchorfile>
+      <anchor>abc2dacaaa0e08ce0a61a51042a0ae811</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>Tokenizer</name>
+    <filename>structTokenizer.html</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>ConsumeToken</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ab7a835fcb25652a6d756cd49a8538c62</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Error</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ad012e7f69b7e331a316792f185fb368f</anchor>
+      <arglist>(const string &amp;message, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ErrorAt</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a28a2b22db44d6d36c612d85c1fd47a7b</anchor>
+      <arglist>(const char *pos, const string &amp;message, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ErrorExpected</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a7d7bbaccb9ebf2a97c1552d57763d488</anchor>
+      <arglist>(const string &amp;expected, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ExpectIdent</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a22582fd9f32de493a1635f6540e93e57</anchor>
+      <arglist>(const char *expected, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ExpectToken</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>aaaf86a91eaa7c7fe1ff8710835faed4e</anchor>
+      <arglist>(Token::Type expected, string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>Newline</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a2aa77ae7ec9ebafa392ea224d9fb69c4</anchor>
+      <arglist>(string *err)</arglist>
+    </member>
+    <member kind="function">
+      <type>Token::Type</type>
+      <name>PeekToken</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a38b9c7e7550c3cbd4dcc4422205ecaf3</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ReadIdent</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a8ce8e12baf96ca86a4245724ca202597</anchor>
+      <arglist>(StringPiece *out)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ReadIdent</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>abca6dc44cb0e292065c3150fa0ea9407</anchor>
+      <arglist>(string *out)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>ReadToNewline</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a63e7511c8aa07b4b83e211020a5b7959</anchor>
+      <arglist>(string *text, string *err, size_t max_length=std::numeric_limits&lt; size_t &gt;::max())</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>SetMakefileFlavor</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ae4026d95d520237cc05f00f38c513d65</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>SkipWhitespace</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ac8045050d22bf62444fa18c809992da8</anchor>
+      <arglist>(bool newline=false)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Start</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a3af7f57272890b11464c2c9d2f3aea93</anchor>
+      <arglist>(const char *start, const char *end)</arglist>
+    </member>
+    <member kind="function">
+      <type>const Token &amp;</type>
+      <name>token</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a4d0068d199e77335ff1615d6daa0bb3b</anchor>
+      <arglist>() const </arglist>
+    </member>
+    <member kind="function">
+      <type></type>
+      <name>Tokenizer</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a2a6c04ea8c784f66bebcb6df7073769c</anchor>
+      <arglist>()</arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>cur_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ab942b075a8b9f7c6adafaec5ab8a6476</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>cur_indent_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a461a4dddd04f74f3a7e75b2d6b2655bb</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>cur_line_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>af7623135372ad5ed1e86f6798ec1172a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>end_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a1d8a63bae4c18cb2c95149af14c8ff25</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>last_indent_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a30155c156256628594296347c89bed1b</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>bool</type>
+      <name>makefile_flavor_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>a0e635f8b9b9546568e679a169b1a1756</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>const char *</type>
+      <name>start_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ad18183c414a56f7c03c2ed957881941f</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>Token</type>
+      <name>token_</name>
+      <anchorfile>structTokenizer.html</anchorfile>
+      <anchor>ab461782f59af4d0eea088d06ef898054</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>VirtualFileSystem</name>
+    <filename>structVirtualFileSystem.html</filename>
+    <base>DiskInterface</base>
+    <class kind="struct">VirtualFileSystem::Entry</class>
+    <member kind="typedef">
+      <type>map&lt; string, Entry &gt;</type>
+      <name>FileMap</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>abe2a64ffc8c99431e7393e8c69df25b5</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>Create</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>aafb3c3309e05d5f24455719a5cabb98b</anchor>
+      <arglist>(const string &amp;path, int time, const string &amp;contents)</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual bool</type>
+      <name>MakeDir</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a070608053114e5c9dfa36bb92758db30</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual bool</type>
+      <name>MakeDir</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>a04b55f1ee22d424d85244759cbd200ee</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function">
+      <type>bool</type>
+      <name>MakeDirs</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a27fc4c758ab7c6ea859e70451032abe5</anchor>
+      <arglist>(const std::string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual std::string</type>
+      <name>ReadFile</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a4bf5b9961bbefd2f8982b742c7640aba</anchor>
+      <arglist>(const std::string &amp;path, std::string *err)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual string</type>
+      <name>ReadFile</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>ab47293dbafe8926db6fb02742b42e140</anchor>
+      <arglist>(const string &amp;path, string *err)</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual int</type>
+      <name>RemoveFile</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a4e43e3304cb9a492b9c838ebb9d4ac6b</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual int</type>
+      <name>RemoveFile</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>adec99a414371927c9d5546b97c4e1cb0</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="function" virtualness="pure">
+      <type>virtual int</type>
+      <name>Stat</name>
+      <anchorfile>structDiskInterface.html</anchorfile>
+      <anchor>a1c517bdda59afe399d14568ea3c3fc00</anchor>
+      <arglist>(const std::string &amp;path)=0</arglist>
+    </member>
+    <member kind="function" virtualness="virtual">
+      <type>virtual int</type>
+      <name>Stat</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>a0804e93b0881e23e5b78e2ff1fa5e179</anchor>
+      <arglist>(const string &amp;path)</arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; string &gt;</type>
+      <name>directories_made_</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>a1f1de6e9f955aad9249b817c841a3a49</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>FileMap</type>
+      <name>files_</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>a8a2223cbff33bbd954f5d69edab57650</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>vector&lt; string &gt;</type>
+      <name>files_read_</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>af0989fe844495c2f648869a6a5074348</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>set&lt; string &gt;</type>
+      <name>files_removed_</name>
+      <anchorfile>structVirtualFileSystem.html</anchorfile>
+      <anchor>aaca2f5b74c3ea10b4de0d5268726be98</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="struct">
+    <name>VirtualFileSystem::Entry</name>
+    <filename>structVirtualFileSystem_1_1Entry.html</filename>
+    <member kind="variable">
+      <type>string</type>
+      <name>contents</name>
+      <anchorfile>structVirtualFileSystem_1_1Entry.html</anchorfile>
+      <anchor>a13ebd3f2eca71653563308338a7107bc</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>mtime</name>
+      <anchorfile>structVirtualFileSystem_1_1Entry.html</anchorfile>
+      <anchor>ab9e2a62f080b86a2b2fa829114787a93</anchor>
+      <arglist></arglist>
+    </member>
+  </compound>
+  <compound kind="namespace">
+    <name>__gnu_cxx</name>
+    <filename>namespace____gnu__cxx.html</filename>
+    <class kind="struct">__gnu_cxx::hash&lt; std::string &gt;</class>
+  </compound>
+  <compound kind="struct">
+    <name>__gnu_cxx::hash&lt; std::string &gt;</name>
+    <filename>struct____gnu__cxx_1_1hash_3_01std_1_1string_01_4.html</filename>
+    <member kind="function">
+      <type>size_t</type>
+      <name>operator()</name>
+      <anchorfile>struct____gnu__cxx_1_1hash_3_01std_1_1string_01_4.html</anchorfile>
+      <anchor>af1cbecea149377151f9f3e4e3ff9b0f0</anchor>
+      <arglist>(const std::string &amp;s) const </arglist>
+    </member>
+  </compound>
+  <compound kind="dir">
+    <name>/home/evmar/projects/ninja/build/</name>
+    <path>/home/evmar/projects/ninja/build/</path>
+    <filename>dir_c63090653cc71c881d61fe12a2936d34.html</filename>
+    <file>doxygen_mainpage</file>
+  </compound>
+</tagfile>
