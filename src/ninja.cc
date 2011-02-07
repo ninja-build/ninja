@@ -29,6 +29,7 @@
 #include "graphviz.h"
 
 // Import browse.py as binary data.
+#if !defined(__APPLE__)
 asm(
 ".data\n"
 "browse_data_begin:\n"
@@ -38,6 +39,7 @@ asm(
 // Declare the symbols defined above.
 extern const char browse_data_begin[];
 extern const char browse_data_end[];
+#endif
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
@@ -130,6 +132,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 }
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
+#if defined(__APPLE__)
+  printf("Error: browse not supported in mac OS X\n");
+  return 1;
+#else
   // Create a temporary file, dump the Python code into it, and
   // delete the file, keeping our open handle to it.
   char tmpl[] = "browsepy-XXXXXX";
@@ -151,6 +157,7 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
   // If we get here, the exec failed.
   printf("ERROR: Failed to spawn python for graph browsing, aborting.\n");
   return 1;
+#endif
 }
 
 int main(int argc, char** argv) {
