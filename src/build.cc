@@ -1,3 +1,17 @@
+// Copyright 2011 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "build.h"
 
 #include <stdio.h>
@@ -15,6 +29,8 @@ struct BuildStatus {
   // Returns the time the edge took, in ms.
   int BuildEdgeFinished(Edge* edge);
 
+  void PrintStatus(Edge* edge);
+
   time_t last_update_;
   int finished_edges_, total_edges_;
 
@@ -22,11 +38,16 @@ struct BuildStatus {
   RunningEdgeMap running_edges_;
 
   BuildConfig::Verbosity verbosity_;
+  // Whether we can do fancy terminal control codes.
+  bool smart_terminal_;
 };
 
 BuildStatus::BuildStatus()
     : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
-      verbosity_(BuildConfig::NORMAL) {}
+      verbosity_(BuildConfig::NORMAL) {
+  const char* term = getenv("TERM");
+  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+}
 
 void BuildStatus::PlanHasTotalEdges(int total) {
   total_edges_ = total;
@@ -37,13 +58,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   gettimeofday(&now, NULL);
   running_edges_.insert(make_pair(edge, now));
 
-  string desc = edge->GetDescription();
-  if (verbosity_ != BuildConfig::QUIET) {
-    if (verbosity_ != BuildConfig::VERBOSE && !desc.empty())
-      printf("%s\n", desc.c_str());
-    else
-      printf("%s\n", edge->EvaluateCommand().c_str());
-  }
+  PrintStatus(edge);
 }
 
 int BuildStatus::BuildEdgeFinished(Edge* edge) {
@@ -51,10 +66,18 @@ int BuildStatus::BuildEdgeFinished(Edge* edge) {
   gettimeofday(&now, NULL);
   ++finished_edges_;
 
-  if (now.tv_sec - last_update_ > 5) {
-    printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
-           finished_edges_, total_edges_);
-    last_update_ = now.tv_sec;
+  if (verbosity_ != BuildConfig::QUIET) {
+    if (smart_terminal_ && verbosity_ == BuildConfig::NORMAL) {
+      PrintStatus(edge);
+      if (finished_edges_ == total_edges_)
+        printf("\n");
+    } else {
+      if (now.tv_sec - last_update_ > 5) {
+        printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
+               finished_edges_, total_edges_);
+        last_update_ = now.tv_sec;
+      }
+    }
   }
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
@@ -65,6 +88,33 @@ int BuildStatus::BuildEdgeFinished(Edge* edge) {
 
   return ms;
 }
+
+void BuildStatus::PrintStatus(Edge* edge) {
+  switch (verbosity_) {
+  case BuildConfig::QUIET:
+    return;
+
+  case BuildConfig::VERBOSE:
+    printf("%s\n", edge->EvaluateCommand().c_str());
+    break;
+
+  default: {
+    string to_print = edge->GetDescription();
+    if (to_print.empty() || verbosity_ == BuildConfig::VERBOSE)
+      to_print = edge->EvaluateCommand();
+
+    if (smart_terminal_) {
+      printf("\r[%d/%d] %s\e[K", finished_edges_, total_edges_,
+             to_print.c_str());
+      fflush(stdout);
+    } else {
+      printf("%s\n", to_print.c_str());
+    }
+  }
+  }
+}
+
+Plan::Plan() : command_edges_(0) {}
 
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
@@ -93,6 +143,8 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (want_.find(edge) != want_.end())
     return true;  // We've already enqueued it.
   want_.insert(edge);
+  if (!edge->is_phony())
+    ++command_edges_;
 
   stack->push_back(node);
   bool awaiting_inputs = false;
@@ -230,12 +282,16 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   Edge* edge = i->second;
   subproc_to_edge_.erase(i);
 
-  if (!*success)
-    printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
-  if (!subproc->stdout_.buf_.empty())
-    printf("%s\n", subproc->stdout_.buf_.c_str());
-  if (!subproc->stderr_.buf_.empty())
-    printf("%s\n", subproc->stderr_.buf_.c_str());
+  if (!*success ||
+      !subproc->stdout_.buf_.empty() ||
+      !subproc->stderr_.buf_.empty()) {
+    printf("\n%s%s\n", *success ? "" : "FAILED: ",
+           edge->EvaluateCommand().c_str());
+    if (!subproc->stdout_.buf_.empty())
+      printf("%s\n", subproc->stdout_.buf_.c_str());
+    if (!subproc->stderr_.buf_.empty())
+      printf("%s\n", subproc->stderr_.buf_.c_str());
+  }
 
   delete subproc;
   return edge;
@@ -302,7 +358,7 @@ bool Builder::Build(string* err) {
     return true;
   }
 
-  status_->PlanHasTotalEdges(plan_.edge_count());
+  status_->PlanHasTotalEdges(plan_.command_edge_count());
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
       Edge* edge = plan_.FindWork();
@@ -312,7 +368,7 @@ bool Builder::Build(string* err) {
       if (!StartEdge(edge, err))
         return false;
 
-      if (edge->rule_ == &State::kPhonyRule)
+      if (edge->is_phony())
         FinishEdge(edge);
     }
 
@@ -338,7 +394,7 @@ bool Builder::Build(string* err) {
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
-  if (edge->rule_ == &State::kPhonyRule)
+  if (edge->is_phony())
     return true;
 
   status_->BuildEdgeStarted(edge);
@@ -370,7 +426,7 @@ void Builder::FinishEdge(Edge* edge) {
   }
   plan_.EdgeFinished(edge);
 
-  if (edge->rule_ == &State::kPhonyRule)
+  if (edge->is_phony())
     return;
 
   int ms = status_->BuildEdgeFinished(edge);

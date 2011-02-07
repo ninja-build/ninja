@@ -1,9 +1,26 @@
+// Copyright 2011 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "ninja.h"
 
+#include <errno.h>
 #include <getopt.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "build.h"
 #include "build_log.h"
@@ -32,7 +49,7 @@ void usage(const BuildConfig& config) {
 "usage: ninja [options] target\n"
 "\n"
 "options:\n"
-"  -i FILE  specify input build file [default=build.ninja]\n"
+"  -f FILE  specify input build file [default=build.ninja]\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
@@ -144,9 +161,9 @@ int main(int argc, char** argv) {
   config.parallelism = GuessParallelism();
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "hi:j:nt:v", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:hj:nt:v", options, NULL)) != -1) {
     switch (opt) {
-      case 'i':
+      case 'f':
         input_file = optarg;
         break;
       case 'j':
@@ -206,7 +223,16 @@ int main(int argc, char** argv) {
 
   const string build_dir = state.bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
-  string log_path = build_dir.empty() ? kLogPath : build_dir + "/" + kLogPath;
+  string log_path = kLogPath;
+  if (!build_dir.empty()) {
+    if (mkdir(build_dir.c_str(), 0777) < 0 && errno != EEXIST) {
+      fprintf(stderr, "Error creating build directory %s: %s\n",
+              build_dir.c_str(), strerror(errno));
+      return 1;
+    }
+    log_path = build_dir + "/" + kLogPath;
+  }
+
   if (!build_log.Load(log_path.c_str(), &err)) {
     fprintf(stderr, "error loading build log %s: %s\n",
             log_path.c_str(), err.c_str());

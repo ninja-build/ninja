@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Copyright 2011 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -e
 
 cat >config.ninja <<EOT
@@ -8,12 +22,15 @@ conf_cflags = -O2
 conf_ldflags = -s
 # When developing:
 # conf_cflags = -g -Wall
-# conf_ldlags = -g -Wall
+# conf_ldlags =
 EOT
+
+echo "Building ninja manually..."
 srcs=$(ls src/*.cc | grep -v test)
-echo "Building stage 1..."
 g++ -Wno-deprecated -o ninja.bootstrap $srcs
-echo "Building final result..."
+
+echo "Building ninja using itself..."
 ./ninja.bootstrap ninja
 rm ninja.bootstrap
+
 echo "Done!"

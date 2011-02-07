@@ -1,0 +1,38 @@
+# An input file for running a "slow" build.
+# Use like: ninja -f misc/long-slow-build.ninja all
+
+rule sleep
+  command = sleep 1
+  description = SLEEP $out
+
+build 0: sleep README
+build 1: sleep README
+build 2: sleep README
+build 3: sleep README
+build 4: sleep README
+build 5: sleep README
+build 6: sleep README
+build 7: sleep README
+build 8: sleep README
+build 9: sleep README
+build 10: sleep 0
+build 11: sleep 1
+build 12: sleep 2
+build 13: sleep 3
+build 14: sleep 4
+build 15: sleep 5
+build 16: sleep 6
+build 17: sleep 7
+build 18: sleep 8
+build 19: sleep 9
+build 20: sleep 10
+build 21: sleep 11
+build 22: sleep 12
+build 23: sleep 13
+build 24: sleep 14
+build 25: sleep 15
+build 26: sleep 16
+build 27: sleep 17
+build 28: sleep 18
+build 29: sleep 19
+build all: phony 20 21 22 23 24 25 26 27 28 29
