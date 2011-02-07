@@ -24,7 +24,7 @@ rule cxx
   description = CC $out
 
 rule ar
-  command = ar crsT $out $in
+  command = ar crs $out $in
   description = AR $out
 
 rule link
