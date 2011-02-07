@@ -41,6 +41,8 @@ Subprocess::~Subprocess() {
 }
 
 bool Subprocess::Start(const string& command) {
+  command_ = command;
+
   int stdout_pipe[2];
   if (pipe(stdout_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -154,11 +156,25 @@ void SubprocessSet::DoWork() {
     }
   }
 
-  int ret = poll(fds.data(), fds.size(), -1);
+  int ret = poll(fds.data(), fds.size(), POLL_TIMEOUT);
   if (ret == -1) {
     if (errno != EINTR)
       perror("poll");
     return;
+  }
+  else if (ret == 0) {
+    fprintf(stderr, "\nStill waiting on\n");
+    for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i) {
+        fprintf(stderr, "\t%s\n", (*i)->get_command().c_str());
+    }
+
+    ret = poll(fds.data(), fds.size(), -1);
+    if(ret == -1) {
+      if (errno != EINTR)
+        perror("poll");
+      return;
+    }
   }
 
   for (size_t i = 0; i < fds.size(); ++i) {

@@ -17,6 +17,8 @@
 #include <queue>
 using namespace std;
 
+const int POLL_TIMEOUT = 1000;
+
 // Subprocess wraps a single async subprocess.  It is entirely
 // passive: it expects the caller to notify it when its fds are ready
 // for reading, as well as call Finish() to reap the child once done()
@@ -33,6 +35,10 @@ struct Subprocess {
     return stdout_.fd_ == -1 && stderr_.fd_ == -1;
   }
 
+  const string& get_command() const {
+    return command_;
+  }
+
   struct Stream {
     Stream();
     ~Stream();
@@ -41,6 +47,7 @@ struct Subprocess {
   };
   Stream stdout_, stderr_;
   pid_t pid_;
+  string command_;
 };
 
 // SubprocessSet runs a poll() loop around a set of Subprocesses.
