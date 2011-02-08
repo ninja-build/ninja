@@ -186,7 +186,7 @@ rule cc
 Variables can also be referenced using curly braces like `${in}`.
 
 Variables might better be called "bindings", in that a given variable
-cannot be changed, only shadowed.  There is ore on how shadowing works
+cannot be changed, only shadowed.  There is more on how shadowing works
 later in this document.
 
 Rules
