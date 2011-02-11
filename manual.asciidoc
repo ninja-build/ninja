@@ -34,8 +34,8 @@ program (like the `./configure` found in autotools projects) can
 analyze system dependencies and make as many decisions as possible up
 front so that incremental builds stay fast.  Going beyond autotools,
 even build-time decisions like "which compiler flags should I use?"
-or "should a build a debug or release-mode binary?"  belong in the
-ninjafile generator.
+or "should I build a debug or release-mode binary?"  belong in the
+`.ninja` file generator.
 
 Conceptual overview
 ~~~~~~~~~~~~~~~~~~~
@@ -252,6 +252,24 @@ If you need more complicated information passed from the build
 statement to the rule (for example, if the rule needs "the file
 extension of the first input"), pass that through as an extra
 variable, like how `cflags` is passed above.
+
+
+The `phony` rule
+~~~~~~~~~~~~~~~~
+
+The special rule name `phony` can be used to create aliases for other
+targets.  For example:
+
+----------------
+build all: phony some/file/in/a/faraway/subdir
+----------------
+
+This makes `ninja all` build the other files.  Semantically, the
+`phony` rule is equivalent to a plain rule where the `command` does
+nothing, but phony rules are handled specially in that they aren't
+printed when run, logged (see below), nor do they contribute to the
+command count printed as part of the build process.
+
 
 The Ninja log
 ~~~~~~~~~~~~~
