@@ -48,7 +48,7 @@ A build file (default name: `build.ninja`) provides a list of _rules_
 -- short names for longer commands, like how to run the compiler --
 along with a list of _build_ statements saying how to build files
 using the rules -- which rule to apply to which inputs to produce
-which ouputs.
+which outputs.
 
 Conceptually, `build` statements describe the dependency graph of your
 project, while `rule` statements describe how to generate the files
@@ -89,7 +89,7 @@ Some explicit _non-goals_:
   paths. _Making decisions is slow._
 
 To restate, Ninja is faster than other build systems because it is
-painfully simple.  You must tell Ninja exctly what to do when you
+painfully simple.  You must tell Ninja exactly what to do when you
 create your project's `.ninja` files.
 
 Comparison to GNU make
@@ -154,7 +154,7 @@ are the resulting binary and this manual.
 Creating .ninja files
 ---------------------
 Here's a basic `.ninja` file that demonstrates most of the syntax.
-It wil be used as an example for for the following sections.
+It will be used as an example for the following sections.
 
 ---------------------------------
 cflags = -Wall
@@ -175,7 +175,7 @@ reusable names for strings.  A declaration like the following
 cflags = -g
 ----------------
 
-can be used on the right side of an equals sign, deferencing it with
+can be used on the right side of an equals sign, dereferencing it with
 a dollar sign, like this:
 
 ----------------
@@ -186,7 +186,7 @@ rule cc
 Variables can also be referenced using curly braces like `${in}`.
 
 Variables might better be called "bindings", in that a given variable
-cannot be changed, only shadowed.  There is ore on how shadowing works
+cannot be changed, only shadowed.  There is more on how shadowing works
 later in this document.
 
 Rules
