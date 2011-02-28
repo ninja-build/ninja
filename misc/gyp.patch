@@ -7,10 +7,10 @@ index 0000000..0d20b64
 +*.pyc
 diff --git a/pylib/gyp/generator/ninja.py b/pylib/gyp/generator/ninja.py
 new file mode 100644
-index 0000000..23f925b
+index 0000000..41a0730
 --- /dev/null
 +++ b/pylib/gyp/generator/ninja.py
-@@ -0,0 +1,545 @@
+@@ -0,0 +1,534 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -103,9 +103,8 @@ index 0000000..23f925b
 +  return arg
 +
 +class NinjaWriter:
-+  def __init__(self, target_outputs, target_links, base_dir, path):
++  def __init__(self, target_outputs, base_dir, path):
 +    self.target_outputs = target_outputs
-+    self.target_links = target_links
 +    self.base_dir = base_dir
 +    self.path = path
 +    self.file = open(path, 'w')
@@ -128,7 +127,7 @@ index 0000000..23f925b
 +    self.name = spec['target_name']  # XXX remove bad chars
 +
 +    if spec['type'] == 'settings':
-+      return (None, None)
++      return None
 +
 +    # Compute predepends for all rules.
 +    prebuild_deps = []
@@ -353,13 +352,14 @@ index 0000000..23f925b
 +    self.WriteVariableList('ldflags', config.get('ldflags'))
 +    self.WriteVariableList('libs', spec.get('libraries'))
 +
-+    deps = spec.get('dependencies', [])
-+
 +    output = self.ComputeOutput(spec)
-+    if spec['type'] in ('executable', 'loadable_module'):
++
++    if 'dependencies' in spec:
 +      extra_deps = set()
-+      for dep in deps:
-+        extra_deps.update(self.target_links.get(dep, set()))
++      for dep in spec['dependencies']:
++        input = self.target_outputs.get(dep, None)
++        if input and os.path.splitext(input)[1] in ('.so', '.a'):
++          extra_deps.add(input)
 +      final_deps.extend(list(extra_deps))
 +    command_map = {
 +      'executable':      'link',
@@ -381,14 +381,7 @@ index 0000000..23f925b
 +    # able to run actions and build libraries by their short name.
 +    self.WriteEdge([self.name], 'phony', [output], use_prebuild_stamp=False)
 +
-+    output_link_deps = set()
-+    if spec['type'] not in ('executable', 'loadable_module'):
-+      if 'library' in spec['type']:
-+        output_link_deps.add(output)
-+      #for dep in deps:
-+      #  output_link_deps.update(self.target_links.get(dep, set()))
-+
-+    return (output, output_link_deps)
++    return output
 +
 +  def ComputeOutputFileName(self, spec):
 +    target = spec['target_name']
@@ -516,7 +509,6 @@ index 0000000..23f925b
 +
 +  subninjas = set()
 +  target_outputs = {}
-+  target_links = {}
 +  for qualified_target in target_list:
 +    # qualified_target is like: third_party/icu/icu.gyp:icui18n#target
 +    #OverPrint(qualified_target)
@@ -535,18 +527,15 @@ index 0000000..23f925b
 +        config_name = spec['default_configuration']
 +    config = spec['configurations'][config_name]
 +
-+    writer = NinjaWriter(target_outputs, target_links, base_path, output_file)
++    writer = NinjaWriter(target_outputs, base_path, output_file)
 +    subninjas.add(ninja_path)
 +
-+    output, output_link_deps = writer.WriteSpec(spec, config)
++    output = writer.WriteSpec(spec, config)
 +    if output:
 +      target_outputs[qualified_target] = output
 +
 +      if qualified_target in all_targets:
 +        all_outputs.add(output)
-+
-+    if output_link_deps:
-+      target_links[qualified_target] = output_link_deps
 +
 +  for ninja in subninjas:
 +    print >>master_ninja, 'subninja', ninja
