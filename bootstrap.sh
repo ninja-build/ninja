@@ -23,7 +23,7 @@ if [ "${SYSTEMNAME}" = "Linux" ]; then
     EXTRA_LDFLAGS=
 elif [ "${SYSTEMNAME}" = "FreeBSD" ]; then
     EXTRA_CFLAGS="-I/usr/local/include"
-    EXTRA_LDFLAGS="-L/usr/local/lib -lexecinfo"
+    EXTRA_LDFLAGS="-L/usr/local/lib"
 fi
 
 cat >config.ninja <<EOT
@@ -37,11 +37,7 @@ EOT
 
 echo "Building ninja manually..."
 srcs=$(ls src/*.cc | grep -v test)
-if [ "${SYSTEMNAME}" = "Linux" ]; then
-    g++ -Wno-deprecated -o ninja.bootstrap $srcs
-elif [ "${SYSTEMNAME}" = "FreeBSD" ]; then
-    g++ -Wno-deprecated ${EXTRA_CFLAGS} ${EXTRA_LDFLAGS} -o ninja.bootstrap $srcs
-fi
+g++ -Wno-deprecated ${EXTRA_CFLAGS} ${EXTRA_LDFLAGS} -o ninja.bootstrap $srcs
 
 echo "Building ninja using itself..."
 ./ninja.bootstrap ninja
