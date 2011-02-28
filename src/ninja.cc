@@ -22,6 +22,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#endif
+
 #include "build.h"
 #include "build_log.h"
 #include "parsers.h"
@@ -64,6 +68,7 @@ void usage(const BuildConfig& config) {
 int GuessParallelism() {
   int processors = 0;
 
+#if defined(linux)
   const char kProcessorPrefix[] = "processor\t";
   char buf[16 << 10];
   FILE* f = fopen("/proc/cpuinfo", "r");
@@ -74,6 +79,15 @@ int GuessParallelism() {
       ++processors;
   }
   fclose(f);
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+  size_t processors_size = sizeof(processors);
+  int name[] = {CTL_HW, HW_NCPU};
+  if (sysctl(name, sizeof(name) / sizeof(int),
+             &processors, &processors_size,
+             NULL, 0) < 0) {
+    processors = 1;
+  }
+#endif
 
   switch (processors) {
   case 0:
