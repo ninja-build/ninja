@@ -234,20 +234,20 @@ void Plan::Dump() {
 }
 
 struct RealCommandRunner : public CommandRunner {
-  RealCommandRunner(int parallelism) : parallelism_(parallelism) {}
+  RealCommandRunner(const BuildConfig& config) : config_(config) {}
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommands();
   virtual Edge* NextFinishedCommand(bool* success);
 
-  int parallelism_;
+  const BuildConfig& config_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
 
 bool RealCommandRunner::CanRunMore() {
-  return ((int)subprocs_.running_.size()) < parallelism_;
+  return ((int)subprocs_.running_.size()) < config_.parallelism;
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -285,8 +285,17 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   if (!*success ||
       !subproc->stdout_.buf_.empty() ||
       !subproc->stderr_.buf_.empty()) {
-    printf("\n%s%s\n", *success ? "" : "FAILED: ",
-           edge->EvaluateCommand().c_str());
+    // Print the command that is spewing before printing its output.
+    // Print the full command when it failed, otherwise the short name if
+    // available.
+    string to_print = edge->GetDescription();
+    if (to_print.empty() ||
+        config_.verbosity == BuildConfig::VERBOSE ||
+        !*success) {
+      to_print = edge->EvaluateCommand();
+    }
+
+    printf("\n%s%s\n", *success ? "" : "FAILED: ", to_print.c_str());
     if (!subproc->stdout_.buf_.empty())
       printf("%s\n", subproc->stdout_.buf_.c_str());
     if (!subproc->stderr_.buf_.empty())
@@ -327,7 +336,7 @@ Builder::Builder(State* state, const BuildConfig& config)
   if (config.dry_run)
     command_runner_ = new DryRunCommandRunner;
   else
-    command_runner_ = new RealCommandRunner(config.parallelism);
+    command_runner_ = new RealCommandRunner(config);
   status_ = new BuildStatus;
   status_->verbosity_ = config.verbosity;
   log_ = state->build_log_;
