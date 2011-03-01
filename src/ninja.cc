@@ -24,6 +24,8 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#elif defined(linux)
+#include <sys/sysinfo.h>
 #endif
 
 #include "build.h"
@@ -69,16 +71,7 @@ int GuessParallelism() {
   int processors = 0;
 
 #if defined(linux)
-  const char kProcessorPrefix[] = "processor\t";
-  char buf[16 << 10];
-  FILE* f = fopen("/proc/cpuinfo", "r");
-  if (!f)
-    return 2;
-  while (fgets(buf, sizeof(buf), f)) {
-    if (strncmp(buf, kProcessorPrefix, sizeof(kProcessorPrefix) - 1) == 0)
-      ++processors;
-  }
-  fclose(f);
+  processors = get_nprocs();
 #elif defined(__APPLE__) || defined(__FreeBSD__)
   size_t processors_size = sizeof(processors);
   int name[] = {CTL_HW, HW_NCPU};
