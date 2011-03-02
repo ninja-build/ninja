@@ -15,7 +15,9 @@
 #include "build.h"
 
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
+#include <sys/termios.h>
 
 #include "build_log.h"
 #include "graph.h"
@@ -104,6 +106,16 @@ void BuildStatus::PrintStatus(Edge* edge) {
       to_print = edge->EvaluateCommand();
 
     if (smart_terminal_) {
+      // Limit output to width of the terminal so we don't cause line-wrapping.
+      winsize size;
+      if (ioctl(0, TIOCGWINSZ, &size) == 0) {
+        const int kMargin = 15;  // Space for [xxx/yyy] and "...".
+        if (to_print.size() + kMargin > size.ws_col) {
+          int substr = to_print.size() + kMargin - size.ws_col;
+          to_print = "..." + to_print.substr(substr);
+        }
+      }
+
       printf("\r[%d/%d] %s\e[K", finished_edges_, total_edges_,
              to_print.c_str());
       fflush(stdout);
