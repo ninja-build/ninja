@@ -197,6 +197,11 @@ public:
     ASSERT_TRUE(getcwd(buf, sizeof(buf)));
     start_dir_ = buf;
 
+    const char* tempdir = getenv("TMPDIR");
+    if (!tempdir)
+      tempdir = "/tmp";
+    ASSERT_EQ(0, chdir(tempdir));
+
     char name_template[] = "DiskInterfaceTest-XXXXXX";
     char* name = mkdtemp(name_template);
     temp_dir_name_ = name;
