@@ -15,6 +15,7 @@
 #include "browse.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "ninja.h"
 
@@ -30,24 +31,45 @@ extern const char browse_data_begin[];
 extern const char browse_data_end[];
 
 void RunBrowsePython(State* state, const char* ninja_command) {
-  // Create a temporary file, dump the Python code into it, and
-  // delete the file, keeping our open handle to it.
-  char tmpl[] = "browsepy-XXXXXX";
-  int fd = mkstemp(tmpl);
-  unlink(tmpl);
-  const int browse_data_len = browse_data_end - browse_data_begin;
-  int len = write(fd, browse_data_begin, browse_data_len);
-  if (len < browse_data_len) {
-    perror("write");
+  // Fork off a Python process and have it run our code via its stdin.
+  // (Actually the Python process becomes the parent.)
+  int pipefd[2];
+  if (pipe(pipefd) < 0) {
+    perror("pipe");
     return;
   }
 
-  // exec Python, telling it to use our script file.
-  const char* command[] = {
-    "python", "/proc/self/fd/3", ninja_command, NULL
-  };
-  execvp(command[0], (char**)command);
+  pid_t pid = fork();
+  if (pid < 0) {
+    perror("fork");
+    return;
+  }
 
-  // If we get here, the exec failed.
-  printf("ERROR: Failed to spawn python for graph browsing, aborting.\n");
+  if (pid > 0) {  // Parent.
+    close(pipefd[1]);
+    do {
+      if (dup2(pipefd[0], 0) < 0) {
+        perror("dup2");
+        break;
+      }
+
+      // exec Python, telling it to run the program from stdin.
+      const char* command[] = {
+        "python", "-", ninja_command, NULL
+      };
+      execvp(command[0], (char**)command);
+      perror("execvp");
+    } while (false);
+    _exit(1);
+  } else {  // Child.
+    close(pipefd[0]);
+
+    // Write the script file into the stdin of the Python process.
+    const int browse_data_len = browse_data_end - browse_data_begin;
+    int len = write(pipefd[1], browse_data_begin, browse_data_len);
+    if (len < browse_data_len)
+      perror("write");
+    close(pipefd[1]);
+    exit(0);
+  }
 }
