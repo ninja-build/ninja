@@ -31,7 +31,14 @@ rule link
   command = $cxx $conf_ldflags $ldflags -o $out $in
   description = LINK $out
 
-build $builddir/browse.o: cxx src/browse.cc | src/browse.py
+rule inline
+  command = src/inline.sh $varname < $in > $out
+  description = INLINE $out
+
+build $builddir/browse_py.h: inline src/browse.py
+  varname = kBrowsePy
+
+build $builddir/browse.o: cxx src/browse.cc || $builddir/browse_py.h
 build $builddir/build.o: cxx src/build.cc
 build $builddir/build_log.o: cxx src/build_log.cc
 build $builddir/eval_env.o: cxx src/eval_env.cc

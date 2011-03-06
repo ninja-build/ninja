@@ -26,7 +26,9 @@ import sys
 import webbrowser
 
 def match_strip(prefix, line):
-    assert line.startswith(prefix)
+    if not line.startswith(prefix):
+        print prefix, line
+        assert line.startswith(prefix)
     return line[len(prefix):]
 
 def parse(text):

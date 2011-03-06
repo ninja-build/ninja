@@ -17,18 +17,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "../build/browse_py.h"
 #include "ninja.h"
-
-// Import browse.py as binary data.
-asm(
-".data\n"
-"browse_data_begin:\n"
-".incbin \"src/browse.py\"\n"
-"browse_data_end:\n"
-);
-// Declare the symbols defined above.
-extern const char browse_data_begin[];
-extern const char browse_data_end[];
 
 void RunBrowsePython(State* state, const char* ninja_command) {
   // Fork off a Python process and have it run our code via its stdin.
@@ -65,9 +55,8 @@ void RunBrowsePython(State* state, const char* ninja_command) {
     close(pipefd[0]);
 
     // Write the script file into the stdin of the Python process.
-    const int browse_data_len = browse_data_end - browse_data_begin;
-    int len = write(pipefd[1], browse_data_begin, browse_data_len);
-    if (len < browse_data_len)
+    ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
+    if (len < (ssize_t)sizeof(kBrowsePy))
       perror("write");
     close(pipefd[1]);
     exit(0);
