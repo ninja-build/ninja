@@ -14,6 +14,7 @@
 
 #include "build.h"
 
+#include "graph.h"
 #include "test.h"
 
 // Though Plan doesn't use State, it's useful to have one around

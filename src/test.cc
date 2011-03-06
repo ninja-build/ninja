@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
+#include "test.h"
 
-#include "ninja.h"
+#include "parsers.h"
 
-// Support utilites for tests.
+StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
+  AssertParse(&state_,
+"rule cat\n"
+"  command = cat $in > $out\n");
+}
 
-struct Node;
+Node* StateTestWithBuiltinRules::GetNode(const string& path) {
+  return state_.GetNode(path);
+}
 
-struct StateTestWithBuiltinRules : public testing::Test {
-  StateTestWithBuiltinRules();
-  Node* GetNode(const string& path);
-
-  State state_;
-};
-
-void AssertParse(State* state, const char* input);
+void AssertParse(State* state, const char* input) {
+  ManifestParser parser(state, NULL);
+  string err;
+  ASSERT_TRUE(parser.Parse(input, &err)) << err;
+  ASSERT_EQ("", err);
+}

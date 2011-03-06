@@ -17,25 +17,9 @@
 #include <gtest/gtest.h>
 
 #include "build.h"
+#include "graph.h"
 #include "parsers.h"
 #include "test.h"
-
-void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state, NULL);
-  string err;
-  ASSERT_TRUE(parser.Parse(input, &err)) << err;
-  ASSERT_EQ("", err);
-}
-
-StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
-  AssertParse(&state_,
-"rule cat\n"
-"  command = cat $in > $out\n");
-}
-
-Node* StateTestWithBuiltinRules::GetNode(const string& path) {
-  return state_.GetNode(path);
-}
 
 TEST(State, Basic) {
   State state;
