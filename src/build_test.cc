@@ -188,42 +188,6 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
-struct VirtualFileSystem : public DiskInterface {
-  struct Entry {
-    int mtime;
-    string contents;
-  };
-
-  void Create(const string& path, int time, const string& contents) {
-    files_[path].mtime = time;
-    files_[path].contents = contents;
-  }
-
-  // DiskInterface
-  virtual int Stat(const string& path) {
-    FileMap::iterator i = files_.find(path);
-    if (i != files_.end())
-      return i->second.mtime;
-    return 0;
-  }
-  virtual bool MakeDir(const string& path) {
-    directories_made_.push_back(path);
-    return true;  // success
-  }
-  virtual string ReadFile(const string& path, string* err) {
-    files_read_.push_back(path);
-    FileMap::iterator i = files_.find(path);
-    if (i != files_.end())
-      return i->second.contents;
-    return "";
-  }
-
-  vector<string> directories_made_;
-  vector<string> files_read_;
-  typedef map<string, Entry> FileMap;
-  FileMap files_;
-};
-
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
   BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),

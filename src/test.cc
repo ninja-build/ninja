@@ -32,3 +32,29 @@ void AssertParse(State* state, const char* input) {
   ASSERT_TRUE(parser.Parse(input, &err)) << err;
   ASSERT_EQ("", err);
 }
+
+void VirtualFileSystem::Create(const string& path, int time,
+                               const string& contents) {
+  files_[path].mtime = time;
+  files_[path].contents = contents;
+}
+
+int VirtualFileSystem::Stat(const string& path) {
+  FileMap::iterator i = files_.find(path);
+  if (i != files_.end())
+    return i->second.mtime;
+  return 0;
+}
+
+bool VirtualFileSystem::MakeDir(const string& path) {
+  directories_made_.push_back(path);
+  return true;  // success
+}
+
+string VirtualFileSystem::ReadFile(const string& path, string* err) {
+  files_read_.push_back(path);
+  FileMap::iterator i = files_.find(path);
+  if (i != files_.end())
+    return i->second.contents;
+  return "";
+}

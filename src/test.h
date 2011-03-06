@@ -28,3 +28,26 @@ struct StateTestWithBuiltinRules : public testing::Test {
 };
 
 void AssertParse(State* state, const char* input);
+
+// An implementation of DiskInterface that uses an in-memory representation
+// of disk state.  It also logs file accesses and directory creations
+// so it can be used by tests to verify disk access patterns.
+struct VirtualFileSystem : public DiskInterface {
+  // "Create" a file with a given mtime and contents.
+  void Create(const string& path, int time, const string& contents);
+
+  // DiskInterface
+  virtual int Stat(const string& path);
+  virtual bool MakeDir(const string& path);
+  virtual string ReadFile(const string& path, string* err);
+
+  struct Entry {
+    int mtime;
+    string contents;
+  };
+
+  vector<string> directories_made_;
+  vector<string> files_read_;
+  typedef map<string, Entry> FileMap;
+  FileMap files_;
+};
