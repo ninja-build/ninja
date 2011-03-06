@@ -20,6 +20,8 @@
 
 struct Node;
 
+// A base test fixture that includes a State object with a
+// builtin "cat" rule.
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();
   Node* GetNode(const string& path);
