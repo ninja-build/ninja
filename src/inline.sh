@@ -20,10 +20,6 @@
 
 varname="$1"
 echo "const char $varname[] ="
-IFS=
-while read line; do
-    escaped=$(echo "$line" | sed -e 's|\\|\\\\|g; s|"|\\"|g')
-    echo "\"$escaped\\n\""
-done
+od -t x1 -A n -v | sed -e 's| |\\x|g; s|^|"|; s|$|"|'
 echo ";"
 
