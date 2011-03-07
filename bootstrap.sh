@@ -36,7 +36,7 @@ conf_ldflags = -s ${EXTRA_LDFLAGS}
 EOT
 
 echo "Building ninja manually..."
-mkdir build
+mkdir -p build
 ./src/inline.sh kBrowsePy < src/browse.py > build/browse_py.h
 srcs=$(ls src/*.cc | grep -v test)
 g++ -Wno-deprecated ${EXTRA_CFLAGS} ${EXTRA_LDFLAGS} -o ninja.bootstrap $srcs
