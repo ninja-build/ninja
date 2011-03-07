@@ -7,10 +7,10 @@ index 0000000..0d20b64
 +*.pyc
 diff --git a/pylib/gyp/generator/ninja.py b/pylib/gyp/generator/ninja.py
 new file mode 100644
-index 0000000..41a0730
+index 0000000..0f84e47
 --- /dev/null
 +++ b/pylib/gyp/generator/ninja.py
-@@ -0,0 +1,534 @@
+@@ -0,0 +1,544 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -135,8 +135,10 @@ index 0000000..41a0730
 +    # if any.
 +    self.prebuild_stamp = None
 +    if 'dependencies' in spec:
-+      prebuild_deps = filter(None, [self.target_outputs.get(dep)
-+                                    for dep in spec['dependencies']])
++      prebuild_deps = [x
++                       for x, _ in [self.target_outputs.get(dep, (None, False))
++                                    for dep in spec['dependencies']]
++                       if x]
 +    if prebuild_deps:
 +      self.prebuild_stamp = self.StampPath('predepends')
 +      self.WriteEdge([self.prebuild_stamp], 'stamp', prebuild_deps,
@@ -268,6 +270,7 @@ index 0000000..41a0730
 +      for source in rule.get('rule_sources', []):
 +        basename = os.path.basename(source)
 +        root, ext = os.path.splitext(basename)
++        source = self.InputPath(source)
 +
 +        outputs = []
 +        for output in rule['outputs']:
@@ -278,16 +281,19 @@ index 0000000..41a0730
 +          if var == 'root':
 +            extra_bindings.append(('root', root))
 +          elif var == 'source':
-+            extra_bindings.append(('source', self.InputPath(source)))
++            extra_bindings.append(('source', source))
 +          elif var == 'ext':
 +            extra_bindings.append(('ext', ext))
 +          elif var == 'name':
 +            extra_bindings.append(('name', basename))
 +          else:
 +            assert var == None, repr(var)
++
++        inputs = map(self.InputPath, rule.get('inputs', []))
 +        # XXX need to add extra dependencies on rule inputs
 +        # (e.g. if generator program changes, we need to rerun)
-+        self.WriteEdge(outputs, name, [self.InputPath(source)],
++        self.WriteEdge(outputs, name, [source],
++                       implicit_inputs=inputs,
 +                       extra_bindings=extra_bindings)
 +
 +        if int(rule.get('process_outputs_as_sources', False)):
@@ -357,8 +363,8 @@ index 0000000..41a0730
 +    if 'dependencies' in spec:
 +      extra_deps = set()
 +      for dep in spec['dependencies']:
-+        input = self.target_outputs.get(dep, None)
-+        if input and os.path.splitext(input)[1] in ('.so', '.a'):
++        input, linkable = self.target_outputs.get(dep, (None, False))
++        if input and linkable:
 +          extra_deps.add(input)
 +      final_deps.extend(list(extra_deps))
 +    command_map = {
@@ -435,16 +441,19 @@ index 0000000..41a0730
 +      self.WriteLn('  description = %s' % description)
 +
 +  def WriteEdge(self, outputs, command, inputs,
++                implicit_inputs=[],
 +                order_only_inputs=[],
 +                use_prebuild_stamp=True,
 +                extra_bindings=[]):
 +    extra_inputs = order_only_inputs[:]
 +    if use_prebuild_stamp and self.prebuild_stamp:
 +      extra_inputs.append(self.prebuild_stamp)
++    if implicit_inputs:
++      implicit_inputs = ['|'] + implicit_inputs
 +    if extra_inputs:
 +      extra_inputs = ['||'] + extra_inputs
 +    self.WriteList('build ' + ' '.join(outputs) + ': ' + command,
-+                   inputs + extra_inputs)
++                   inputs + implicit_inputs + extra_inputs)
 +    if extra_bindings:
 +      for key, val in extra_bindings:
 +        self.WriteLn('  %s = %s' % (key, val))
@@ -532,7 +541,8 @@ index 0000000..41a0730
 +
 +    output = writer.WriteSpec(spec, config)
 +    if output:
-+      target_outputs[qualified_target] = output
++      linkable = spec['type'] in ('static_library', 'shared_library')
++      target_outputs[qualified_target] = (output, linkable)
 +
 +      if qualified_target in all_targets:
 +        all_outputs.add(output)
