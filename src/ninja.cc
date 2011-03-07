@@ -31,9 +31,9 @@
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
-#include "parsers.h"
-
+#include "graph.h"
 #include "graphviz.h"
+#include "parsers.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
