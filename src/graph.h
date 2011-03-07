@@ -119,4 +119,7 @@ struct Edge {
   bool is_phony() const;
 };
 
+// Exposed for testing.
+bool CanonicalizePath(string* path, string* err);
+
 #endif  // NINJA_GRAPH_H_

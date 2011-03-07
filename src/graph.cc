@@ -20,6 +20,59 @@
 #include "ninja.h"
 #include "parsers.h"
 
+// Canonicalize a path like "foo/../bar.h" into just "bar.h".
+bool CanonicalizePath(string* path, string* err) {
+  // Try to fast-path out the common case.
+  if (path->find("/.") == string::npos &&
+      path->find("./") == string::npos) {
+    return true;
+  }
+
+  string inpath = *path;
+  vector<const char*> parts;
+  for (string::size_type start = 0; start < inpath.size(); ++start) {
+    string::size_type end = inpath.find('/', start);
+    if (end == string::npos)
+      end = inpath.size();
+    else
+      inpath[end] = 0;
+    parts.push_back(inpath.data() + start);
+    start = end;
+  }
+
+  vector<const char*>::iterator i = parts.begin();
+  while (i != parts.end()) {
+    const char* part = *i;
+    if (part[0] == '.') {
+      if (part[1] == 0) {
+        // "."; strip.
+        parts.erase(i);
+        continue;
+      } else if (part[1] == '.' && part[2] == 0) {
+        // ".."; go up one.
+        if (i == parts.begin()) {
+          *err = "can't canonicalize path '" + *path + "' that reaches "
+            "above its directory";
+          return false;
+        }
+        --i;
+        parts.erase(i, i + 2);
+        continue;
+      }
+    }
+    ++i;
+  }
+  path->clear();
+
+  for (i = parts.begin(); i != parts.end(); ++i) {
+    if (!path->empty())
+      path->push_back('/');
+    path->append(*i);
+  }
+
+  return true;
+}
+
 bool FileStat::Stat(DiskInterface* disk_interface) {
   mtime_ = disk_interface->Stat(path_);
   return mtime_ > 0;
@@ -124,7 +177,8 @@ string Edge::GetDescription() {
   return rule_->description_.Evaluate(&env);
 }
 
-bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err) {
+bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
+                       string* err) {
   EdgeEnv env(this);
   string path = rule_->depfile_.Evaluate(&env);
 
@@ -155,6 +209,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface, string* err)
   // Add all its in-edges.
   for (vector<string>::iterator i = makefile.ins_.begin();
        i != makefile.ins_.end(); ++i) {
+    if (!CanonicalizePath(&*i, err))
+      return false;
+
     Node* node = state->GetNode(*i);
     for (vector<Node*>::iterator j = inputs_.begin(); j != inputs_.end(); ++j) {
       if (*j == node) {
