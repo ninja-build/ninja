@@ -56,8 +56,10 @@ bool EvalString::Parse(const string& input, string* err) {
     } else {
       for (end = start; end < input.size(); ++end) {
         char c = input[end];
-        if (!(('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || c == '_'))
+        if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+              ('0' <= c && c <= '9') || c == '_')) {
           break;
+        }
       }
       if (end == start) {
         *err = "expected variable after $";
