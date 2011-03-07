@@ -213,17 +213,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
       return false;
 
     Node* node = state->GetNode(*i);
-    for (vector<Node*>::iterator j = inputs_.begin(); j != inputs_.end(); ++j) {
-      if (*j == node) {
-        node = NULL;
-        break;
-      }
-    }
-    if (node) {
-      inputs_.insert(inputs_.end() - order_only_deps_, node);
-      node->out_edges_.push_back(this);
-      ++implicit_deps_;
-    }
+    inputs_.insert(inputs_.end() - order_only_deps_, node);
+    node->out_edges_.push_back(this);
+    ++implicit_deps_;
   }
 
   return true;

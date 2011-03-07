@@ -88,3 +88,27 @@ TEST_F(GraphTest, FunkyMakefilePath) {
   // non-canonical path; we should still find it.
   EXPECT_TRUE(GetNode("out.o")->dirty_);
 }
+
+TEST_F(GraphTest, ExplicitImplicit) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build implicit.h: cat data\n"
+"build out.o: catdep foo.cc || implicit.h\n"));
+  fs_.Create("data", 2, "");
+  fs_.Create("implicit.h", 1, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 1, "out.o: implicit.h\n");
+  fs_.Create("out.o", 1, "");
+
+  Edge* edge = GetNode("out.o")->in_edge_;
+  string err;
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+
+  // We have both an implicit and an explicit dep on implicit.h.
+  // The implicit dep should "win" (in the sense that it should cause
+  // the output to be dirty).
+  EXPECT_TRUE(GetNode("out.o")->dirty_);
+}
