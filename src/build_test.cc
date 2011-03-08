@@ -262,6 +262,7 @@ bool BuildTest::StartCommand(Edge* edge) {
 }
 
 bool BuildTest::WaitForCommands() {
+  assert(last_command_);
   return true;
 }
 
