@@ -317,8 +317,13 @@ TEST_F(BuildTest, TwoStep) {
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
   ASSERT_EQ(3, commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
-  EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[1]);
+  // Depending on how the pointers work out, we could've ran
+  // the first two commands in either order.
+  EXPECT_TRUE((commands_ran_[0] == "cat in1 > cat1" &&
+               commands_ran_[1] == "cat in1 in2 > cat2") ||
+              (commands_ran_[1] == "cat in1 > cat1" &&
+               commands_ran_[0] == "cat in1 in2 > cat2"));
+
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
   // Modifying in2 requires rebuilding one intermediate file
