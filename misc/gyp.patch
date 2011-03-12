@@ -7,10 +7,10 @@ index 0000000..0d20b64
 +*.pyc
 diff --git a/pylib/gyp/generator/ninja.py b/pylib/gyp/generator/ninja.py
 new file mode 100644
-index 0000000..0f84e47
+index 0000000..be2a8af
 --- /dev/null
 +++ b/pylib/gyp/generator/ninja.py
-@@ -0,0 +1,544 @@
+@@ -0,0 +1,546 @@
 +#!/usr/bin/python
 +
 +# Copyright (c) 2010 Google Inc. All rights reserved.
@@ -348,7 +348,8 @@ index 0000000..0f84e47
 +        continue
 +      input = self.InputPath(source)
 +      output = self.OutputPath(filename + '.o')
-+      self.WriteEdge([output], command, [input], predepends)
++      self.WriteEdge([output], command, [input],
++                     order_only_inputs=predepends)
 +      outputs.append(output)
 +    self.WriteLn()
 +    return outputs
@@ -385,7 +386,8 @@ index 0000000..0f84e47
 +    # Write a short name to build this target.  This benefits both the
 +    # "build chrome" case as well as the gyp tests, which expect to be
 +    # able to run actions and build libraries by their short name.
-+    self.WriteEdge([self.name], 'phony', [output], use_prebuild_stamp=False)
++    self.WriteEdge([self.name], 'phony', [output],
++                   use_prebuild_stamp=False)
 +
 +    return output
 +
