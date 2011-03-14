@@ -15,7 +15,7 @@
 #ifndef NINJA_BROWSE_H_
 #define NINJA_BROWSE_H_
 
-class State;
+struct State;
 
 // Run in "browse" mode, which execs a Python webserver.
 // |command| is the command used to invoke ninja.

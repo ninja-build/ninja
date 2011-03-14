@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ninja", "src\ninja.vcxproj", "{836D9FFC-7AE3-9C3F-B8B2-C3D3E604C3B1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{836D9FFC-7AE3-9C3F-B8B2-C3D3E604C3B1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{836D9FFC-7AE3-9C3F-B8B2-C3D3E604C3B1}.Debug|Win32.Build.0 = Debug|Win32
+		{836D9FFC-7AE3-9C3F-B8B2-C3D3E604C3B1}.Release|Win32.ActiveCfg = Release|Win32
+		{836D9FFC-7AE3-9C3F-B8B2-C3D3E604C3B1}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -15,7 +15,11 @@
 #include "ninja.h"
 
 #include <errno.h>
+#ifdef WIN32
+#include "getopt.h"
+#else
 #include <getopt.h>
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,17 +74,23 @@ int GuessParallelism() {
              NULL, 0) < 0) {
     processors = 1;
   }
+#elif defined(WIN32)
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  processors = info.dwNumberOfProcessors;
 #endif
 
   switch (processors) {
   case 0:
   case 1:
-    return 2;
+    processors = 2; break;
   case 2:
-    return 3;
+    processors = 3; break;
   default:
-    return processors + 2;
+    processors = processors + 2; break;
   }
+
+  return processors;
 }
 
 struct RealFileReader : public ManifestParser::FileReader {
@@ -127,7 +137,11 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 }
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
+#ifndef WIN32
   RunBrowsePython(state, argv[0]);
+#else
+  printf("ERROR: Not supported on win32 platform, aborting.\n");
+#endif
   // If we get here, the browse failed.
   return 1;
 }
