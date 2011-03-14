@@ -15,9 +15,11 @@
 #include "build.h"
 
 #include <stdio.h>
+#ifndef WIN32
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/termios.h>
+#endif
 
 #include "build_log.h"
 #include "graph.h"
@@ -104,7 +106,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     string to_print = edge->GetDescription();
     if (to_print.empty() || verbosity_ == BuildConfig::VERBOSE)
       to_print = edge->EvaluateCommand();
-
+#ifndef WIN32
     if (smart_terminal_) {
       // Limit output to width of the terminal so we don't cause line-wrapping.
       winsize size;
@@ -119,7 +121,9 @@ void BuildStatus::PrintStatus(Edge* edge) {
       printf("\r[%d/%d] %s\e[K", finished_edges_, total_edges_,
              to_print.c_str());
       fflush(stdout);
-    } else {
+    } else
+#endif
+    {
       printf("%s\n", to_print.c_str());
     }
   }
@@ -264,7 +268,7 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = new Subprocess;
+  Subprocess* subproc = new Subprocess(&subprocs_);
   subproc_to_edge_.insert(make_pair(subproc, edge));
   if (!subproc->Start(command))
     return false;

@@ -27,7 +27,9 @@ using namespace std;
 
 #include "eval_env.h"
 #include "hash_map.h"
-
+#ifdef WIN32
+#include "win32port.h"
+#endif
 struct Edge;
 struct FileStat;
 struct Node;

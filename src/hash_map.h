@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _MSC_VER
+#include <hash_map>
+
+using stdext::hash_map;
+
+#else
 #include <ext/hash_map>
 
 using __gnu_cxx::hash_map;
@@ -24,3 +30,4 @@ struct hash<std::string> {
   }
 };
 }
+#endif
