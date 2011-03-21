@@ -20,10 +20,19 @@
 
 void Fatal(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "FATAL: ");
+  fprintf(stderr, "ninja: FATAL: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
   exit(1);
+}
+
+void Error(const char* msg, ...) {
+  va_list ap;
+  fprintf(stderr, "ninja: error: ");
+  va_start(ap, msg);
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+  fprintf(stderr, "\n");
 }

@@ -34,6 +34,7 @@
 #include "graph.h"
 #include "graphviz.h"
 #include "parsers.h"
+#include "util.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
@@ -164,7 +165,7 @@ int main(int argc, char** argv) {
     }
   }
   if (optind >= argc) {
-    fprintf(stderr, "expected target to build\n");
+    Error("expected target to build");
     usage(config);
     return 1;
   }
@@ -182,7 +183,7 @@ int main(int argc, char** argv) {
   ManifestParser parser(&state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
-    fprintf(stderr, "error loading '%s': %s\n", input_file, err.c_str());
+    Error("loading '%s': %s", input_file, err.c_str());
     return 1;
   }
 
@@ -193,7 +194,7 @@ int main(int argc, char** argv) {
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
       return CmdBrowse(&state, argc, argv);
-    fprintf(stderr, "unknown tool '%s'\n", tool.c_str());
+    Error("unknown tool '%s'", tool.c_str());
   }
 
   BuildLog build_log;
@@ -205,21 +206,21 @@ int main(int argc, char** argv) {
   string log_path = kLogPath;
   if (!build_dir.empty()) {
     if (mkdir(build_dir.c_str(), 0777) < 0 && errno != EEXIST) {
-      fprintf(stderr, "Error creating build directory %s: %s\n",
-              build_dir.c_str(), strerror(errno));
+      Error("creating build directory %s: %s",
+            build_dir.c_str(), strerror(errno));
       return 1;
     }
     log_path = build_dir + "/" + kLogPath;
   }
 
   if (!build_log.Load(log_path.c_str(), &err)) {
-    fprintf(stderr, "error loading build log %s: %s\n",
-            log_path.c_str(), err.c_str());
+    Error("loading build log %s: %s",
+          log_path.c_str(), err.c_str());
     return 1;
   }
 
   if (!build_log.OpenForWrite(log_path.c_str(), &err)) {
-    fprintf(stderr, "error opening build log: %s\n", err.c_str());
+    Error("opening build log: %s", err.c_str());
     return 1;
   }
 
@@ -227,7 +228,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < argc; ++i) {
     if (!builder.AddTarget(argv[i], &err)) {
       if (!err.empty()) {
-        fprintf(stderr, "%s\n", err.c_str());
+        Error("%s", err.c_str());
         return 1;
       } else {
         // Added a target that is already up-to-date; not really

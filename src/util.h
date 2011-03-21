@@ -19,3 +19,6 @@ void DumpBacktrace(int skip_frames);
 
 // Log a fatal message, dump a backtrace, and exit.
 void Fatal(const char* msg, ...);
+
+// Log an error message.
+void Error(const char* msg, ...);
