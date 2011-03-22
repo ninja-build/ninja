@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_MAP_H_
+#define NINJA_MAP_H_
+
 #include <ext/hash_map>
 
 using __gnu_cxx::hash_map;
@@ -24,3 +27,5 @@ struct hash<std::string> {
   }
 };
 }
+
+#endif // NINJA_MAP_H_
