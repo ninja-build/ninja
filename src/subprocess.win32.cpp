@@ -287,9 +287,12 @@ void SubprocessSet::DoWork()
 
   if (subproc->done())
   {
-    finished_.push(subproc);
     vector<Subprocess*>::iterator end = std::remove(running_.begin(), running_.end(), subproc);
-    running_.resize(running_.end() - end);
+    if (running_.end() != end)
+    {
+      finished_.push(subproc);
+      running_.resize(end - running_.begin());
+    }
   }
 }
 
