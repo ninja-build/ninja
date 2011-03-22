@@ -1,0 +1,1 @@
+cl.exe /nologo /EHsc /I. /Isrc /DWIN32 /Feninja-bootstrap.exe src\build.cc src\build_log.cc src\eval_env.cc src\graph.cc src\graphviz.cc src\parsers.cc src\subprocess.win32.cpp src\util.cc src\ninja_jumble.cc src\ninja.cc src\getopt.c shlwapi.lib && .\ninja-bootstrap.exe -f build-win32.ninja ninja.exe && del .\ninja-bootstrap.exe
