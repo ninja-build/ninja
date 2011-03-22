@@ -196,7 +196,14 @@ bool Subprocess::Start(const string& command)
   e = s + __min(e-s,MAX_PATH-1);
   memcpy(path, s, e-s);
   path[e-s]='\0';
-  
+
+  // replace back slashes with forward one
+  for (int i = 0; path[i]; ++i)
+  {
+    if (path[i] == '/')
+      path[i] = '\\';
+  }
+
   BOOL bOk = FALSE;
   if (PathFindOnPathA(path, NULL))
   {
