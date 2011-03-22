@@ -167,10 +167,6 @@ bool Subprocess::Start(const string& command)
   si.hStdOutput = hOutputWriteChild;
   si.hStdInput  = NULL;
   si.hStdError  = hErrWriteChild;
-  //si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-  //si.hStdInput  = NULL;
-  //si.hStdError  = NULL;
-  
  
   //skip spaces
   char* mem = strdup(command.c_str());
@@ -208,8 +204,19 @@ bool Subprocess::Start(const string& command)
   if (PathFindOnPathA(path, NULL))
   {
     bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
+    DWORD err = GetLastError();
+    if (!bOk)
+    {
+      char* lpMsgBuf;
+      FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &lpMsgBuf, 0, NULL);
+      fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), lpMsgBuf);
+      LocalFree(lpMsgBuf);
+    }
   }
-  DWORD err = GetLastError();
+  else
+  {
+    fprintf(stderr, "'%s' is not recognized as an internal or external command, operable program or batch file.", path);
+  }
 
   free(mem);
 
@@ -218,8 +225,6 @@ bool Subprocess::Start(const string& command)
     CloseHandle(hErrWriteChild);
   if (hOutputWriteChild)
     CloseHandle(hOutputWriteChild);
-  //close(stdout_pipe[1]);
-  //close(stderr_pipe[1]);
   
   if (bOk)
   {
@@ -230,18 +235,10 @@ bool Subprocess::Start(const string& command)
     return true;
   }
 
-  CloseHandle(stdout_.fd_);
-  CloseHandle(stderr_.fd_);
- 
-  char* lpMsgBuf;
-  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &lpMsgBuf, 0, NULL);
-  fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), lpMsgBuf);
-  LocalFree(lpMsgBuf);
-
-  stderr_.fd_ = NULL;//-1;
-  stdout_.fd_ = NULL;
-  stdout_.state = 0;
-  stderr_.state = 0;
+  // in order to close stdout_.fd_ and stderr_.fd_ we should get the NumBytesRead=0 because hErrWriteChild and hOutputWriteChild have been just closed
+  // and the DoWork will do the rest of the clean up in this case.
+  while (stdout_.state != 0 || stderr_.state != 0)
+    procset_->DoWork();
 
   return false;
 }
@@ -291,8 +288,8 @@ void SubprocessSet::DoWork()
   if (subproc->done())
   {
     finished_.push(subproc);
-    std::remove(running_.begin(), running_.end(), subproc);
-    running_.resize(running_.size() - 1);
+    vector<Subprocess*>::iterator end = std::remove(running_.begin(), running_.end(), subproc);
+    running_.resize(running_.end() - end);
   }
 }
 
