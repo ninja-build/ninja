@@ -25,13 +25,13 @@ void RunBrowsePython(State* state, const char* ninja_command) {
   // (Actually the Python process becomes the parent.)
   int pipefd[2];
   if (pipe(pipefd) < 0) {
-    perror("pipe");
+    perror("ninja: pipe");
     return;
   }
 
   pid_t pid = fork();
   if (pid < 0) {
-    perror("fork");
+    perror("ninja: fork");
     return;
   }
 
@@ -39,7 +39,7 @@ void RunBrowsePython(State* state, const char* ninja_command) {
     close(pipefd[1]);
     do {
       if (dup2(pipefd[0], 0) < 0) {
-        perror("dup2");
+        perror("ninja: dup2");
         break;
       }
 
@@ -48,7 +48,7 @@ void RunBrowsePython(State* state, const char* ninja_command) {
         "python", "-", ninja_command, NULL
       };
       execvp(command[0], (char**)command);
-      perror("execvp");
+      perror("ninja: execvp");
     } while (false);
     _exit(1);
   } else {  // Child.
@@ -57,7 +57,7 @@ void RunBrowsePython(State* state, const char* ninja_command) {
     // Write the script file into the stdin of the Python process.
     ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
     if (len < (ssize_t)sizeof(kBrowsePy))
-      perror("write");
+      perror("ninja: write");
     close(pipefd[1]);
     exit(0);
   }
