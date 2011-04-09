@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
 
   char cwd[PATH_MAX];
   if (!getcwd(cwd, sizeof(cwd))) {
-    perror("getcwd");
+    perror("ninja: getcwd");
     return 1;
   }
 
