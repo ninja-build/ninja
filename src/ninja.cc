@@ -53,6 +53,7 @@ void usage(const BuildConfig& config) {
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
+"  -C DIR   change to DIR before doing anything else\n"
 "\n"
 "  -t TOOL  run a subtool.  tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
@@ -163,12 +164,13 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
+  const char* working_dir = 0;
   string tool;
 
   config.parallelism = GuessParallelism();
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:nt:v", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:hj:nt:vC:", options, NULL)) != -1) {
     switch (opt) {
       case 'f':
         input_file = optarg;
@@ -185,6 +187,9 @@ int main(int argc, char** argv) {
       case 't':
         tool = optarg;
         break;
+      case 'C':
+        working_dir = optarg;
+        break;
       case 'h':
       default:
         usage(config);
@@ -198,6 +203,12 @@ int main(int argc, char** argv) {
   }
   argv += optind;
   argc -= optind;
+
+  if (working_dir) {
+    if (chdir(working_dir) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
+    }
+  }
 
   State state;
   RealFileReader file_reader;
