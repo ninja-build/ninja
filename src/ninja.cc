@@ -16,7 +16,6 @@
 
 #include <errno.h>
 #include <getopt.h>
-#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -298,12 +297,6 @@ int main(int argc, char** argv) {
     if (chdir(working_dir) < 0) {
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
     }
-  }
-
-  char cwd[PATH_MAX];
-  if (!getcwd(cwd, sizeof(cwd))) {
-    perror("ninja: getcwd");
-    return 1;
   }
 
   State state;
