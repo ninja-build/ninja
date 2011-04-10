@@ -19,7 +19,6 @@
 #include "getopt.h"
 #else
 #include <getopt.h>
-#include <limits.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -183,12 +182,6 @@ int main(int argc, char** argv) {
   }
   argv += optind;
   argc -= optind;
-
-  char cwd[PATH_MAX];
-  if (!getcwd(cwd, sizeof(cwd))) {
-    perror("ninja: getcwd");
-    return 1;
-  }
 
   State state;
   RealFileReader file_reader;
