@@ -313,6 +313,18 @@ graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
 -ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph`
 generates an image for Ninja itself.
 
+`targets`:: output a list of targets either by rule or by depth.  If used
+like this +ninja -t targets rule _name_+ it prints the list of targets
+using the given rule to be built.  If no rule is given, it prints the source
+files (the leaf of the graph.  If used like this
++ninja -t targets depth _digit_+ it
+prints the list of targets in the depth-first manner starting by the root
+targets (the ones with no outputs). Indentation is used to mark dependencies.
+If the depth is zero it prints all targets. If no arguments are provided
++ninja -t targets depth 1+ is assumed. In this mode targets may be listed
+several times. If used like this +ninja -t targets all+ it
+prints all the targets available without indentation and it is way faster
+than the _depth_ mode. It returns non-zero if no targets are found.
 
 Ninja file reference
 --------------------

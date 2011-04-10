@@ -55,7 +55,8 @@ void usage(const BuildConfig& config) {
 "  -t TOOL  run a subtool.  tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n",
+"             query   show inputs/outputs for a path\n"
+"             targets list targets by their rule or depth in the DAG\n",
           config.parallelism);
 }
 
@@ -134,6 +135,93 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
   return 1;
 }
 
+int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    for (int i = 0; i < indent; ++i)
+      printf("  ");
+    const char* target = (*n)->file_->path_.c_str();
+    if ((*n)->in_edge_) {
+      printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
+      if (depth > 1 || depth <= 0)
+        CmdTargetsList((*n)->in_edge_->inputs_, depth - 1, indent + 1);
+    } else {
+      printf("%s\n", target);
+    }
+  }
+  return 0;
+}
+
+int CmdTargetsList(const vector<Node*>& nodes, const char* rule) {
+  bool found = false;
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    const char* target = (*n)->file_->path_.c_str();
+    if ((*n)->in_edge_) {
+      if (!strcmp((*n)->in_edge_->rule_->name_.c_str(), rule)) {
+        printf("%s\n", target);
+        found = true;
+      }
+      if (!CmdTargetsList((*n)->in_edge_->inputs_, rule))
+        found = true;
+    } else {
+      if (!strncmp(rule, "", 2)) {
+        printf("%s\n", target);
+        found = true;
+      }
+    }
+  }
+  return (found ? 0 : 1);
+}
+
+int CmdTargetsAll(State* state) {
+  if (state->edges_.empty())
+    return 1;
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end();
+         ++out_node)
+      printf("%s: %s\n",
+             (*out_node)->file_->path_.c_str(),
+             (*e)->rule_->name_.c_str());
+  return 0;
+}
+
+int CmdTargets(State* state, int argc, char* argv[]) {
+  int depth = 1;
+  const char* rule = 0;
+  if (argc >= 1)
+  {
+    string mode = argv[0];
+    if (mode == "rule") {
+      if (argc > 1)
+        rule = argv[1];
+      else
+        rule = "";
+    } else if (mode == "depth") {
+      if (argc > 1)
+        depth = atoi(argv[1]);
+    } else if (mode == "all") {
+      return CmdTargetsAll(state);
+    } else {
+      Fatal("unknown mode '%s'", mode.c_str());
+    }
+  }
+
+  vector<Node*> root_nodes = state->RootNodes();
+  if (root_nodes.empty())
+    Fatal("there is no root node\n");
+
+  if (rule)
+    return CmdTargetsList(root_nodes, rule);
+  else
+    return CmdTargetsList(root_nodes, depth, 0);
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -205,6 +293,8 @@ int main(int argc, char** argv) {
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
       return CmdBrowse(&state, argc, argv);
+    if (tool == "targets")
+      return CmdTargets(&state, argc, argv);
     Error("unknown tool '%s'", tool.c_str());
   }
 

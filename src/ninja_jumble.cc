@@ -183,3 +183,16 @@ void State::AddOut(Edge* edge, const string& path) {
   }
   node->in_edge_ = edge;
 }
+
+vector<Node*> State::RootNodes()
+{
+  vector<Node*> root_nodes;
+  // Search for nodes with no output.
+  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
+    for (vector<Node*>::iterator outs = (*e)->outputs_.begin();
+         outs != (*e)->outputs_.end();
+         ++outs)
+      if ((*outs)->out_edges_.size() == 0)
+        root_nodes.push_back(*outs);
+    return root_nodes;
+}

@@ -73,6 +73,7 @@ struct State {
   Node* LookupNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
+  vector<Node*> RootNodes();
 
   StatCache stat_cache_;
   map<string, const Rule*> rules_;
