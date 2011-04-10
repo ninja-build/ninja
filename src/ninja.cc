@@ -107,6 +107,10 @@ int CmdGraph(State* state, int argc, char* argv[]) {
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
+  if (argc == 0) {
+    Error("expected a target to query");
+    return 1;
+  }
   for (int i = 0; i < argc; ++i) {
     Node* node = state->GetNode(argv[i]);
     if (node) {
@@ -136,6 +140,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
 #ifndef WIN32
+  if (argc < 1) {
+    Error("expected a target to browse");
+    return 1;
+  }
   RunBrowsePython(state, argv[0]);
 #else
   Error("browse mode not yet supported on Windows");
@@ -175,7 +183,7 @@ int main(int argc, char** argv) {
         return 1;
     }
   }
-  if (optind >= argc) {
+  if (optind >= argc && tool.empty()) {
     Error("expected target to build");
     usage(config);
     return 1;
