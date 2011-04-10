@@ -59,7 +59,8 @@ void usage(const BuildConfig& config) {
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
 "             query   show inputs/outputs for a path\n"
-"             targets list targets by their rule or depth in the DAG\n",
+"             targets list targets by their rule or depth in the DAG\n"
+"             rules   list all rules\n",
           config.parallelism);
 }
 
@@ -261,6 +262,20 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 }
 
+int CmdRules(State* state, int argc, char* argv[]) {
+  for (map<string, const Rule*>::iterator i = state->rules_.begin();
+       i != state->rules_.end();
+       ++i) {
+    if (i->second->description_.unparsed_.empty())
+      printf("%s\n", i->first.c_str());
+    else
+      printf("%s: %s\n",
+             i->first.c_str(),
+             i->second->description_.unparsed_.c_str());
+  }
+  return 0;
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -328,6 +343,8 @@ int main(int argc, char** argv) {
       return CmdBrowse(&state, argc, argv);
     if (tool == "targets")
       return CmdTargets(&state, argc, argv);
+    if (tool == "rules")
+      return CmdRules(&state, argc, argv);
     Error("unknown tool '%s'", tool.c_str());
   }
 
