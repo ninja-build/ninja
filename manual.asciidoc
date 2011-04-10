@@ -327,6 +327,10 @@ several times. If used like this +ninja -t targets all+ it
 prints all the targets available without indentation and it is way faster
 than the _depth_ mode. It returns non-zero if no targets are found.
 
+`rules`:: output the list of all rules with their description if they have
+one.  It can be used to know which rule name to pass to
++ninja -t targets rule _name_+.  It returns non-zero if there is no rule.
+
 Ninja file reference
 --------------------
 
