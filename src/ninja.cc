@@ -51,7 +51,7 @@ void usage(const BuildConfig& config) {
 "  -v       show all command lines\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "\n"
-"  -t TOOL  run a subtool.  tools are:\n"
+"  -t TOOL  run a subtool.  Tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
 "             query   show inputs/outputs for a path\n"
