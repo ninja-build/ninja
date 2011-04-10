@@ -95,13 +95,25 @@ struct RealFileReader : public ManifestParser::FileReader {
 int CmdGraph(State* state, int argc, char* argv[]) {
   GraphViz graph;
   graph.Start();
-  for (int i = 0; i < argc; ++i)
-    graph.AddTarget(state->GetNode(argv[i]));
+  if (argc == 0) {
+    vector<Node*> root_nodes = state->RootNodes();
+    if (root_nodes.empty())
+      Fatal("there is no root node\n");
+    for (vector<Node*>::const_iterator n = root_nodes.begin();
+         n != root_nodes.end();
+         ++n)
+      graph.AddTarget(*n);
+  } else {
+    for (int i = 0; i < argc; ++i)
+      graph.AddTarget(state->GetNode(argv[i]));
+  }
   graph.Finish();
   return 0;
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
+  if (argc == 0)
+    Fatal("expected a target to query");
   for (int i = 0; i < argc; ++i) {
     Node* node = state->GetNode(argv[i]);
     if (node) {
@@ -130,6 +142,8 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 }
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
+  if (argc < 1)
+    Fatal("expected a target to browse");
   RunBrowsePython(state, argv[0]);
   // If we get here, the browse failed.
   return 1;
@@ -257,7 +271,7 @@ int main(int argc, char** argv) {
         return 1;
     }
   }
-  if (optind >= argc) {
+  if (optind >= argc && tool.empty()) {
     Error("expected target to build");
     usage(config);
     return 1;
