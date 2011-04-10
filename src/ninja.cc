@@ -58,7 +58,8 @@ void usage(const BuildConfig& config) {
 "  -t TOOL  run a subtool.  tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n",
+"             query   show inputs/outputs for a path\n"
+"             targets list targets by their rule or depth in the DAG\n",
           config.parallelism);
 }
 
@@ -161,6 +162,105 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
   return 1;
 }
 
+int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    for (int i = 0; i < indent; ++i)
+      printf("  ");
+    const char* target = (*n)->file_->path_.c_str();
+    if ((*n)->in_edge_) {
+      printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
+      if (depth > 1 || depth <= 0)
+        CmdTargetsList((*n)->in_edge_->inputs_, depth - 1, indent + 1);
+    } else {
+      printf("%s\n", target);
+    }
+  }
+  return 0;
+}
+
+int CmdTargetsList(const vector<Node*>& nodes, int depth) {
+  return CmdTargetsList(nodes, depth, 0);
+}
+
+int CmdTargetsSourceList(State* state) {
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
+         inps != (*e)->inputs_.end();
+         ++inps)
+      if (!(*inps)->in_edge_)
+        printf("%s\n", (*inps)->file_->path_.c_str());
+  return 0;
+}
+
+int CmdTargetsList(State* state, const string& rule_name) {
+  set<string> rules;
+  // Gather the outputs.
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    if ((*e)->rule_->name_ == rule_name)
+      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+           out_node != (*e)->outputs_.end();
+           ++out_node)
+        rules.insert((*out_node)->file_->path_);
+  // Print them.
+  for (set<string>::const_iterator i = rules.begin();
+       i != rules.end();
+       ++i)
+    printf("%s\n", (*i).c_str());
+  return 0;
+}
+
+int CmdTargetsList(State* state) {
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end();
+         ++out_node)
+      printf("%s: %s\n",
+             (*out_node)->file_->path_.c_str(),
+             (*e)->rule_->name_.c_str());
+  return 0;
+}
+
+int CmdTargets(State* state, int argc, char* argv[]) {
+  int depth = 1;
+  if (argc >= 1) {
+    string mode = argv[0];
+    if (mode == "rule") {
+      string rule;
+      if (argc > 1)
+        rule = argv[1];
+      if (rule.empty())
+        return CmdTargetsSourceList(state);
+      else
+        return CmdTargetsList(state, rule);
+    } else if (mode == "depth") {
+      if (argc > 1)
+        depth = atoi(argv[1]);
+    } else if (mode == "all") {
+      return CmdTargetsList(state);
+    } else {
+      Error("unknown target tool mode '%s'", mode.c_str());
+      return 1;
+    }
+  }
+
+  string err;
+  vector<Node*> root_nodes = state->RootNodes(&err);
+  if (err.empty()) {
+    return CmdTargetsList(root_nodes, depth);
+  } else {
+    Error("%s", err.c_str());
+    return 1;
+  }
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -226,6 +326,8 @@ int main(int argc, char** argv) {
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
       return CmdBrowse(&state, argc, argv);
+    if (tool == "targets")
+      return CmdTargets(&state, argc, argv);
     Error("unknown tool '%s'", tool.c_str());
   }
 
