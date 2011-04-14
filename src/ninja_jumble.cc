@@ -24,6 +24,7 @@
 
 #include "build_log.h"
 #include "graph.h"
+#include "util.h"
 
 int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
@@ -53,7 +54,7 @@ int RealDiskInterface::Stat(const string& path) {
     if (errno == ENOENT) {
       return 0;
     } else {
-      fprintf(stderr, "stat(%s): %s\n", path.c_str(), strerror(errno));
+      Error("stat(%s): %s", path.c_str(), strerror(errno));
       return -1;
     }
   }
@@ -100,7 +101,7 @@ string RealDiskInterface::ReadFile(const string& path, string* err) {
 
 bool RealDiskInterface::MakeDir(const string& path) {
   if (mkdir(path.c_str(), 0777) < 0) {
-    fprintf(stderr, "mkdir(%s): %s\n", path.c_str(), strerror(errno));
+    Error("mkdir(%s): %s", path.c_str(), strerror(errno));
     return false;
   }
   return true;
@@ -178,8 +179,8 @@ void State::AddOut(Edge* edge, const string& path) {
   Node* node = GetNode(path);
   edge->outputs_.push_back(node);
   if (node->in_edge_) {
-    fprintf(stderr, "WARNING: multiple rules generate %s. "
-            "build will not be correct; continuing anyway\n", path.c_str());
+    Error("WARNING: multiple rules generate %s. "
+          "build will not be correct; continuing anyway", path.c_str());
   }
   node->in_edge_ = edge;
 }
