@@ -102,8 +102,10 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   graph.Start();
   if (argc == 0) {
     vector<Node*> root_nodes = state->RootNodes();
-    if (root_nodes.empty())
-      Fatal("there is no root node\n");
+    if (root_nodes.empty()) {
+      Error("there is no root node\n");
+      return 1;
+    }
     for (vector<Node*>::const_iterator n = root_nodes.begin();
          n != root_nodes.end();
          ++n)
@@ -124,8 +126,10 @@ int CmdGraph(State* state, int argc, char* argv[]) {
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
-  if (argc == 0)
-    Fatal("expected a target to query");
+  if (argc == 0) {
+    Error("expected a target to query");
+    return 1;
+  }
   for (int i = 0; i < argc; ++i) {
     Node* node = state->GetNode(argv[i]);
     if (node) {
@@ -154,8 +158,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 }
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
-  if (argc < 1)
-    Fatal("expected a target to browse");
+  if (argc < 1) {
+    Error("expected a target to browse");
+    return 1;
+  }
   RunBrowsePython(state, argv[0]);
   // If we get here, the browse failed.
   return 1;
@@ -234,13 +240,16 @@ int CmdTargets(State* state, int argc, char* argv[]) {
     } else if (mode == "all") {
       return CmdTargetsAll(state);
     } else {
-      Fatal("unknown mode '%s'", mode.c_str());
+      Error("unknown mode '%s'", mode.c_str());
+      return 1;
     }
   }
 
   vector<Node*> root_nodes = state->RootNodes();
-  if (root_nodes.empty())
-    Fatal("there is no root node\n");
+  if (root_nodes.empty()) {
+    Error("there is no root node\n");
+    return 1;
+  }
 
   if (rule)
     return CmdTargetsList(root_nodes, rule);
