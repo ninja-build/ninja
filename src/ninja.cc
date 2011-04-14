@@ -93,6 +93,7 @@ struct RealFileReader : public ManifestParser::FileReader {
 };
 
 int CmdGraph(State* state, int argc, char* argv[]) {
+  int status = 0;
   GraphViz graph;
   graph.Start();
   if (argc == 0) {
@@ -104,11 +105,18 @@ int CmdGraph(State* state, int argc, char* argv[]) {
          ++n)
       graph.AddTarget(*n);
   } else {
-    for (int i = 0; i < argc; ++i)
-      graph.AddTarget(state->GetNode(argv[i]));
+    for (int i = 0; i < argc; ++i) {
+      Node* node = state->LookupNode(argv[i]);
+      if (node)
+        graph.AddTarget(node);
+      else {
+       Error("unknown target '%s'", argv[i]);
+       status = 1;
+      }
+    }
   }
   graph.Finish();
-  return 0;
+  return status;
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
