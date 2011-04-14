@@ -34,6 +34,7 @@
 #include "graphviz.h"
 #include "parsers.h"
 #include "util.h"
+#include "clean.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
@@ -56,7 +57,8 @@ void usage(const BuildConfig& config) {
 "             graph   output graphviz dot file for targets\n"
 "             query   show inputs/outputs for a path\n"
 "             targets list targets by their rule or depth in the DAG\n"
-"             rules   list all rules\n",
+"             rules   list all rules\n"
+"             clean   clean built files\n",
           config.parallelism);
 }
 
@@ -258,6 +260,38 @@ int CmdRules(State* state, int argc, char* argv[]) {
   return 0;
 }
 
+int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
+  Cleaner cleaner(state, config);
+  if (argc >= 1)
+  {
+    string mode = argv[0];
+    if (mode == "all") {
+      cleaner.CleanAll();
+      return 0;
+    } else if (mode == "target") {
+      if (argc >= 2) {
+        return cleaner.CleanTargets(argc - 1, &argv[1]);
+      } else {
+        Error("expected a target to clean");
+        return 1;
+      }
+    } else if (mode == "rule") {
+      if (argc >= 2) {
+        return cleaner.CleanRules(argc - 1, &argv[1]);
+      } else {
+        Error("expected a rule to clean");
+        return 1;
+      }
+    } else {
+      return cleaner.CleanTargets(argc, argv);
+    }
+  }
+  else {
+    cleaner.CleanAll();
+    return 0;
+  }
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -327,6 +361,8 @@ int main(int argc, char** argv) {
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")
       return CmdRules(&state, argc, argv);
+    if (tool == "clean")
+      return CmdClean(&state, argc, argv, config);
     Error("unknown tool '%s'", tool.c_str());
   }
 

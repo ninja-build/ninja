@@ -331,6 +331,14 @@ than the _depth_ mode. It returns non-zero if no targets are found.
 one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.  It returns non-zero if there is no rule.
 
+`clean`:: remove built files.  If used like this +ninja -t clean+, like
+this +ninja -t clean all+ ot like this +ninja -t clean target+ it
+removes all the built files.  If used like this
++ninja -t clean target _targets..._+ or like this
++ninja -t clean _targets..._+ it removes the given targets and all files
+built for it.  If used like this +ninja -t clean rule _rules_+ it
+removes the file built using the given rules.
+
 Ninja file reference
 --------------------
 
