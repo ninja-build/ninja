@@ -339,6 +339,14 @@ removes all the built files.  If used like this
 built for it.  If used like this +ninja -t clean rule _rules_+ it
 removes the file built using the given rules.
 
+`touch`:: touch source files.  If used like this +ninja -t touch+, like
+this +ninja -t touch all+ or like this +ninja -t touch target+ it
+touches all the source files.  If used like this
++ninja -t touch target _targets..._+ or like this
++ninja -t touch _targets..._+ it touches all the source files the given
+targets depend on.  If used like this +ninja -t touch rule _rules..._+
+it touches all the input files built using the given rules.
+
 Ninja file reference
 --------------------
 

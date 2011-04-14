@@ -35,6 +35,7 @@
 #include "parsers.h"
 #include "util.h"
 #include "clean.h"
+#include "touch.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
@@ -58,7 +59,8 @@ void usage(const BuildConfig& config) {
 "             query   show inputs/outputs for a path\n"
 "             targets list targets by their rule or depth in the DAG\n"
 "             rules   list all rules\n"
-"             clean   clean built files\n",
+"             clean   clean built files\n"
+"             touch   touch source files\n",
           config.parallelism);
 }
 
@@ -292,6 +294,38 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   }
 }
 
+int CmdTouch(State* state, int argc, char* argv[], const BuildConfig& config) {
+  Toucher toucher(state, config);
+  if (argc >= 1)
+  {
+    string mode = argv[0];
+    if (mode == "all") {
+      toucher.TouchAll();
+      return 0;
+    } else if (mode == "target") {
+      if (argc >= 2) {
+        return toucher.TouchTargets(argc - 1, &argv[1]);
+      } else {
+        Error("expected at least one target to touch");
+        return 1;
+      }
+    } else if (mode == "rule") {
+      if (argc >= 2) {
+        return toucher.TouchRules(argc - 1, &argv[1]);
+      } else {
+        Error("expected at least one rule to touch");
+        return 1;
+      }
+    } else {
+      return toucher.TouchTargets(argc, argv);
+    }
+  }
+  else {
+    toucher.TouchAll();
+    return 0;
+  }
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -363,6 +397,8 @@ int main(int argc, char** argv) {
       return CmdRules(&state, argc, argv);
     if (tool == "clean")
       return CmdClean(&state, argc, argv, config);
+    if (tool == "touch")
+      return CmdTouch(&state, argc, argv, config);
     Error("unknown tool '%s'", tool.c_str());
   }
 
