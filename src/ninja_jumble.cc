@@ -116,8 +116,6 @@ FileStat* StatCache::GetFile(const string& path) {
   return file;
 }
 
-#include <stdio.h>
-
 void StatCache::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     FileStat* file = i->second;
