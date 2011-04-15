@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_BUILD_LOG_H_
+#define NINJA_BUILD_LOG_H_
+
 #include <map>
 #include <string>
 using namespace std;
@@ -61,3 +64,5 @@ struct BuildLog {
   BuildConfig* config_;
   bool needs_recompaction_;
 };
+
+#endif // NINJA_BUILD_LOG_H_

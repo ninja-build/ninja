@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_TEST_H_
+#define NINJA_TEST_H_
+
 #include <gtest/gtest.h>
 
 #include "ninja.h"
@@ -53,3 +56,5 @@ struct VirtualFileSystem : public DiskInterface {
   typedef map<string, Entry> FileMap;
   FileMap files_;
 };
+
+#endif // NINJA_TEST_H_

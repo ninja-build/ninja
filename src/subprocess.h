@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_SUBPROCESS_H_
+#define NINJA_SUBPROCESS_H_
+
 #include <string>
 #include <vector>
 #include <queue>
@@ -54,3 +57,5 @@ struct SubprocessSet {
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 };
+
+#endif // NINJA_SUBPROCESS_H_
