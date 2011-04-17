@@ -19,6 +19,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+
 //#include <poll.h>
 //#include <unistd.h>
 #include <stdio.h>
@@ -27,6 +29,17 @@
 #include <Shlwapi.h>
 
 #include "util.h"
+
+#ifdef _MSC_VER
+#define snprintf snprintf_s
+#else
+#define snprintf snprintf
+#define __min(x,y) min(x,y)
+#endif
+
+#if !defined(_TRUNCATE)
+#define _TRUNCATE ((size_t)-1)
+#endif
 
 static void Win32Fatal(const char* fmt)
 {
@@ -115,8 +128,8 @@ Subprocess::~Subprocess() {
 bool Subprocess::Start(const string& command)
 {
   char pipe_name_out[32], pipe_name_err[32];
-  _snprintf_s(pipe_name_out, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_out", ::GetModuleHandle(NULL));
-  _snprintf_s(pipe_name_err, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_err", ::GetModuleHandle(NULL));
+  _snprintf(pipe_name_out, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_out", ::GetModuleHandle(NULL));
+  _snprintf(pipe_name_err, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_err", ::GetModuleHandle(NULL));
   
   assert(stdout_.state == 0);
   assert(stderr_.state == 0);
