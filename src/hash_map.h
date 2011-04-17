@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#ifndef NINJA_MAP_H_
+#define NINJA_MAP_H_
 
 #ifdef _MSC_VER
 #include <hash_map>
@@ -18,6 +20,7 @@
 using stdext::hash_map;
 
 #else
+
 #include <ext/hash_map>
 
 using __gnu_cxx::hash_map;
@@ -30,4 +33,8 @@ struct hash<std::string> {
   }
 };
 }
+
 #endif
+
+#endif // NINJA_MAP_H_
+

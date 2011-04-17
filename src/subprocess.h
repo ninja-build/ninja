@@ -11,12 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifdef WIN32
-#include "win32port.h"
-#endif
+#ifndef NINJA_SUBPROCESS_H_
+#define NINJA_SUBPROCESS_H_
+
 #include <string>
 #include <vector>
 #include <queue>
+
+#ifdef WIN32
+#include "win32port.h"
+#endif
 
 using namespace std;
 
@@ -78,3 +82,5 @@ struct SubprocessSet {
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 };
+
+#endif // NINJA_SUBPROCESS_H_

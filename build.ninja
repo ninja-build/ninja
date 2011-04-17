@@ -63,6 +63,7 @@ build $builddir/ninja_test.o: cxx src/ninja_test.cc
 build $builddir/parsers_test.o: cxx src/parsers_test.cc
 build $builddir/subprocess_test.o: cxx src/subprocess_test.cc
 build $builddir/test.o: cxx src/test.cc
+build $builddir/util_test.o: cxx src/util_test.cc
 build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
     $builddir/graph_test.o $builddir/ninja_test.o $builddir/parsers_test.o \
     $builddir/subprocess_test.o $builddir/test.o $builddir/ninja.a

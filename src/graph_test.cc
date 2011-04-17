@@ -16,39 +16,6 @@
 
 #include "test.h"
 
-TEST(CanonicalizePath, PathSamples) {
-  string path = "foo.h";
-  string err;
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("foo.h", path);
-
-  path = "./foo.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("foo.h", path);
-
-  path = "./foo/./bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("foo/bar.h", path);
-
-  path = "./x/foo/../bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("x/bar.h", path);
-
-  path = "./x/foo/../../bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("bar.h", path);
-
-  path = "./x/../foo/../../bar.h"; err = "";
-  EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("can't canonicalize path './x/../foo/../../bar.h' that reaches "
-            "above its directory", err);
-}
-
 struct GraphTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
 };

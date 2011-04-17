@@ -18,12 +18,75 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <vector>
+
 void Fatal(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "FATAL: ");
+  fprintf(stderr, "ninja: FATAL: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
   exit(1);
+}
+
+void Error(const char* msg, ...) {
+  va_list ap;
+  fprintf(stderr, "ninja: error: ");
+  va_start(ap, msg);
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+  fprintf(stderr, "\n");
+}
+
+bool CanonicalizePath(std::string* path, std::string* err) {
+  // Try to fast-path out the common case.
+  if (path->find("/.") == std::string::npos &&
+      path->find("./") == std::string::npos) {
+    return true;
+  }
+
+  std::string inpath = *path;
+  std::vector<const char*> parts;
+  for (std::string::size_type start = 0; start < inpath.size(); ++start) {
+    std::string::size_type end = inpath.find('/', start);
+    if (end == std::string::npos)
+      end = inpath.size();
+    else
+      inpath[end] = 0;
+    parts.push_back(inpath.data() + start);
+    start = end;
+  }
+
+  std::vector<const char*>::iterator i = parts.begin();
+  while (i != parts.end()) {
+    const char* part = *i;
+    if (part[0] == '.') {
+      if (part[1] == 0) {
+        // "."; strip.
+        parts.erase(i);
+        continue;
+      } else if (part[1] == '.' && part[2] == 0) {
+        // ".."; go up one.
+        if (i == parts.begin()) {
+          *err = "can't canonicalize path '" + *path + "' that reaches "
+            "above its directory";
+          return false;
+        }
+        --i;
+        parts.erase(i, i + 2);
+        continue;
+      }
+    }
+    ++i;
+  }
+  path->clear();
+
+  for (i = parts.begin(); i != parts.end(); ++i) {
+    if (!path->empty())
+      path->push_back('/');
+    path->append(*i);
+  }
+
+  return true;
 }
