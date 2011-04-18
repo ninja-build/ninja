@@ -270,10 +270,7 @@ int CmdClean(State* state,
   if (argc >= 1)
   {
     string mode = argv[0];
-    if (mode == "all") {
-      cleaner.CleanAll();
-      return 0;
-    } else if (mode == "target") {
+    if (mode == "target") {
       if (argc >= 2) {
         return cleaner.CleanTargets(argc - 1, &argv[1]);
       } else {
@@ -305,10 +302,7 @@ int CmdTouch(State* state,
   if (argc >= 1)
   {
     string mode = argv[0];
-    if (mode == "all") {
-      toucher.TouchAll();
-      return 0;
-    } else if (mode == "target") {
+    if (mode == "target") {
       if (argc >= 2) {
         return toucher.TouchTargets(argc - 1, &argv[1]);
       } else {
