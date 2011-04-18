@@ -32,16 +32,16 @@ public:
 
   /// Clean the given @a target and all the file built for it.
   void CleanTarget(Node* target);
-  int CleanTarget(char* target);
-  int CleanTargets(int target_count, char* targets[]);
+  int CleanTarget(const char* target);
+  int CleanTargets(int target_count, const char* targets[]);
 
   /// Clean all built files.
   void CleanAll();
 
   /// Clean all the file built with the given rule @a rule.
   void CleanRule(const Rule* rule);
-  int CleanRule(char* rule);
-  int CleanRules(int rule_count, char* rules[]);
+  int CleanRule(const char* rule);
+  int CleanRules(int rule_count, const char* rules[]);
 
 private:
   /// Remove the file @a path.

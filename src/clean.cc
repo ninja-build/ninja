@@ -128,13 +128,13 @@ void Cleaner::CleanTarget(Node* target) {
   PrintFooter();
 }
 
-int Cleaner::CleanTarget(char* target) {
+int Cleaner::CleanTarget(const char* target) {
   assert(target);
 
   return CleanTargets(1, &target);
 }
 
-int Cleaner::CleanTargets(int target_count, char* targets[]) {
+int Cleaner::CleanTargets(int target_count, const char* targets[]) {
   int status = 0;
   PrintHeader();
   for (int i = 0; i < target_count; ++i) {
@@ -174,13 +174,13 @@ void Cleaner::CleanRule(const Rule* rule) {
   PrintFooter();
 }
 
-int Cleaner::CleanRule(char* rule) {
+int Cleaner::CleanRule(const char* rule) {
   assert(rule);
 
   return CleanRules(1, &rule);
 }
 
-int Cleaner::CleanRules(int rule_count, char* rules[]) {
+int Cleaner::CleanRules(int rule_count, const char* rules[]) {
   assert(rules);
 
   int status = 0;

@@ -32,16 +32,16 @@ public:
 
   /// Touch the given @a target and all the file built for it.
   void TouchTarget(Node* target);
-  int TouchTarget(char* target);
-  int TouchTargets(int target_count, char* targets[]);
+  int TouchTarget(const char* target);
+  int TouchTargets(int target_count, const char* targets[]);
 
   /// Touch all built files.
   void TouchAll();
 
   /// Touch all the file built with the given rule @a rule.
   void TouchRule(const Rule* rule);
-  int TouchRule(char* rule);
-  int TouchRules(int rule_count, char* rules[]);
+  int TouchRule(const char* rule);
+  int TouchRules(int rule_count, const char* rules[]);
 
 
 private:

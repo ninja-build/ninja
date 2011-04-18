@@ -262,7 +262,10 @@ int CmdRules(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
+int CmdClean(State* state,
+             int argc,
+             const char* argv[],
+             const BuildConfig& config) {
   Cleaner cleaner(state, config);
   if (argc >= 1)
   {
@@ -294,7 +297,10 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   }
 }
 
-int CmdTouch(State* state, int argc, char* argv[], const BuildConfig& config) {
+int CmdTouch(State* state,
+             int argc,
+             const char* argv[],
+             const BuildConfig& config) {
   Toucher toucher(state, config);
   if (argc >= 1)
   {
@@ -396,9 +402,9 @@ int main(int argc, char** argv) {
     if (tool == "rules")
       return CmdRules(&state, argc, argv);
     if (tool == "clean")
-      return CmdClean(&state, argc, argv, config);
+      return CmdClean(&state, argc, const_cast<const char**>(argv), config);
     if (tool == "touch")
-      return CmdTouch(&state, argc, argv, config);
+      return CmdTouch(&state, argc, const_cast<const char**>(argv), config);
     Error("unknown tool '%s'", tool.c_str());
   }
 

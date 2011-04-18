@@ -135,13 +135,13 @@ void Toucher::TouchTarget(Node* target) {
   PrintFooter();
 }
 
-int Toucher::TouchTarget(char* target) {
+int Toucher::TouchTarget(const char* target) {
   assert(target);
 
   return TouchTargets(1, &target);
 }
 
-int Toucher::TouchTargets(int target_count, char* targets[]) {
+int Toucher::TouchTargets(int target_count, const char* targets[]) {
   int status = 0;
   PrintHeader();
   for (int i = 0; i < target_count; ++i) {
@@ -181,13 +181,13 @@ void Toucher::TouchRule(const Rule* rule) {
   PrintFooter();
 }
 
-int Toucher::TouchRule(char* rule) {
+int Toucher::TouchRule(const char* rule) {
   assert(rule);
 
   return TouchRules(1, &rule);
 }
 
-int Toucher::TouchRules(int rule_count, char* rules[]) {
+int Toucher::TouchRules(int rule_count, const char* rules[]) {
   assert(rules);
 
   int status = 0;
