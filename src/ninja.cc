@@ -112,8 +112,8 @@ int CmdGraph(State* state, int argc, char* argv[]) {
       if (node)
         graph.AddTarget(node);
       else {
-       Error("unknown target '%s'", argv[i]);
-       status = 1;
+        Error("unknown target '%s'", argv[i]);
+        status = 1;
       }
     }
   }
@@ -222,8 +222,7 @@ int CmdTargetsAll(State* state) {
 int CmdTargets(State* state, int argc, char* argv[]) {
   int depth = 1;
   const char* rule = 0;
-  if (argc >= 1)
-  {
+  if (argc >= 1) {
     string mode = argv[0];
     if (mode == "rule") {
       if (argc > 1)
