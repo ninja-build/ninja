@@ -98,7 +98,7 @@ doxygen_mainpage_generator = ./gen_doxygen_mainpage.sh
 
 rule doxygen_mainpage
   command = $doxygen_mainpage_generator $in > $out
-  description = DOXYGEN_MAINPAGE
+  description = DOXYGEN_MAINPAGE $out
 
 build $builddir/doxygen_mainpage: doxygen_mainpage \
   README HACKING COPYING | $doxygen_mainpage_generator
