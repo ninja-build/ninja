@@ -52,7 +52,7 @@ include_file()
   if ! [ -r "$file" ]
   then
     error "'$file' is not readable."
-    return 1
+    return
   fi
   cat <<EOF
  * \\section $file
@@ -62,7 +62,6 @@ EOF
   cat <<EOF
  \\endverbatim
 EOF
-  return 0
 }
 
 if [ $# -eq 0 ]
