@@ -20,13 +20,25 @@ set -o nounset
 STATUS=0
 
 # Print each of its arguments on stderr (one per line) prefixed by the
+# basename of this script.
+stderr()
+{
+  local me=$(basename "$0")
+  local i
+  for i
+  do
+    echo >&2 "$me: $i"
+  done
+}
+
+# Print each of its arguments on stderr (one per line) prefixed by the
 # basename of this script and 'error'.
 error()
 {
   local i
   for i
   do
-    echo >&2 "error: $i"
+    stderr "error: $i"
   done
   STATUS=1
 }
