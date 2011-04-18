@@ -69,7 +69,8 @@ build $builddir/test.o: cxx src/test.cc
 build $builddir/util_test.o: cxx src/util_test.cc
 build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
     $builddir/graph_test.o $builddir/ninja_test.o $builddir/parsers_test.o \
-    $builddir/subprocess_test.o $builddir/test.o $builddir/ninja.a
+    $builddir/subprocess_test.o $builddir/util_test.o $builddir/test.o \
+    $builddir/ninja.a
   ldflags = -g -rdynamic -lgtest -lgtest_main -lpthread
 
 
