@@ -102,10 +102,6 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   graph.Start();
   if (argc == 0) {
     vector<Node*> root_nodes = state->RootNodes();
-    if (root_nodes.empty()) {
-      Error("there is no root node\n");
-      return 1;
-    }
     for (vector<Node*>::const_iterator n = root_nodes.begin();
          n != root_nodes.end();
          ++n)
@@ -246,10 +242,6 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 
   vector<Node*> root_nodes = state->RootNodes();
-  if (root_nodes.empty()) {
-    Error("there is no root node\n");
-    return 1;
-  }
 
   if (rule)
     return CmdTargetsList(root_nodes, rule);

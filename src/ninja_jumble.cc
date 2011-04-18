@@ -193,5 +193,6 @@ vector<Node*> State::RootNodes()
          ++outs)
       if ((*outs)->out_edges_.size() == 0)
         root_nodes.push_back(*outs);
-    return root_nodes;
+  assert(edges_.empty() || !root_nodes.empty());
+  return root_nodes;
 }
