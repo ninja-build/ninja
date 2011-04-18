@@ -49,7 +49,11 @@ EOF
 include_file()
 {
   local file="$1"
-  test -r "$file" || fatal "'$file' is not readable."
+  if ! [ -r "$file" ]
+  then
+    error "'$file' is not readable."
+    return 1
+  fi
   cat <<EOF
  * \\section $file
  * \\verbatim
@@ -58,6 +62,7 @@ EOF
   cat <<EOF
  \\endverbatim
 EOF
+  return 0
 }
 
 if [ $# -eq 0 ]
