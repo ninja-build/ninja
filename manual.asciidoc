@@ -331,21 +331,25 @@ than the _depth_ mode. It returns non-zero if no targets are found.
 one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.  It returns non-zero if there is no rule.
 
-`clean`:: remove built files.  If used like this +ninja -t clean+, like
-this +ninja -t clean all+ ot like this +ninja -t clean target+ it
+`clean`:: remove built files.  If used like this +ninja -t clean+ it
 removes all the built files.  If used like this
-+ninja -t clean target _targets..._+ or like this
-+ninja -t clean _targets..._+ it removes the given targets and all files
-built for it.  If used like this +ninja -t clean rule _rules_+ it
-removes the file built using the given rules.
++ninja -t clean _targets..._+ or like this
++ninja -t clean target _targets..._+ it removes the given targets and
+recursively all files built for it.  If used like this
++ninja -t clean rule _rules_+ it removes all files built using the given
+rules. The depfiles are not removed. Files created but not referenced in
+the graph are not removed. This tool takes in account the +-v+ and the
++-n+ options (note that +-n+ implies +-v+).
 
-`touch`:: touch source files.  If used like this +ninja -t touch+, like
-this +ninja -t touch all+ or like this +ninja -t touch target+ it
+`touch`:: touch source files.  If used like this +ninja -t touch+, it
 touches all the source files.  If used like this
-+ninja -t touch target _targets..._+ or like this
-+ninja -t touch _targets..._+ it touches all the source files the given
-targets depend on.  If used like this +ninja -t touch rule _rules..._+
-it touches all the input files built using the given rules.
++ninja -t touch _targets..._+ or like this
++ninja -t touch target _targets..._+ it touches all the source files
+the given targets depend on.  If used like this
++ninja -t touch rule _rules..._+ it touches all the input files built
+using the given rules (this is not recursive only the direct input files
+are touched). This tool takes in account the +-v+ and the +-n+ option
+(note that +-n+ implies +-v+).
 
 Ninja file reference
 --------------------
