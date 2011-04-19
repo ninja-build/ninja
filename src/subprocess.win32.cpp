@@ -209,7 +209,7 @@ bool Subprocess::Start(const string& command)
   else
   {
     e = s;
-    while (*e && !isspace(*e)) ++e;
+    while (*e && !isspace(*e) && *e != '&' && *e != '|' && *e != '>' && *e != '<') ++e;
   }
 
   // replace '/' with '\' in the executable name
