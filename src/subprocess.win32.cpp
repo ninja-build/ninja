@@ -181,13 +181,24 @@ bool Subprocess::Start(const string& command)
   si.hStdInput  = NULL;
   si.hStdError  = hErrWriteChild;
  
-  //skip spaces
-  char* mem = strdup(command.c_str());
+  char path[MAX_PATH]; BOOL bOk = FALSE;
+
+  const int Cmd32LiteralLen = 17; const char* Cmd32LiteralStr = "\\System32\\cmd.exe";
+  const int Cmd32MiddleLen = 6; const char* Cmd32MiddleStr = "\" /c \"";
+  GetSystemWindowsDirectoryA(path, sizeof(path) - Cmd32LiteralLen - 1);
+  strcat_s(path, sizeof(path), Cmd32LiteralStr);
+  size_t nWinDirLen = strlen(path);
+  char* mem = (char*) malloc(command.size() + nWinDirLen + 3 + Cmd32MiddleLen);
   if (!mem)
     Fatal("out of memory: %s", strerror(errno));
 
+  mem[0] = '"';
+  memcpy(mem+1, path, nWinDirLen);
+  memcpy(mem+1+nWinDirLen, Cmd32MiddleStr, Cmd32MiddleLen);
+  memcpy(mem+1+nWinDirLen+Cmd32MiddleLen, command.c_str(), command.size()+1);
+
   //extract executable name
-  const char *e,* s = command.c_str();
+  char *e,* s = mem+1+nWinDirLen+Cmd32MiddleLen;
   while (isspace(*s)) ++s;
   if (*s == '"')
   {
@@ -201,37 +212,60 @@ bool Subprocess::Start(const string& command)
     while (*e && !isspace(*e)) ++e;
   }
 
-  char path[MAX_PATH]; 
-  e = s + __min(e-s,MAX_PATH-1);
-  memcpy(path, s, e-s);
-  path[e-s]='\0';
-
-  // replace back slashes with forward one
-  for (int i = 0; path[i]; ++i)
+  // replace '/' with '\' in the executable name
+  for (char* i = s; i != e; ++i)
   {
-    if (path[i] == '/')
-      path[i] = '\\';
+    if (*i == '/')
+      *i = '\\';
   }
 
-  BOOL bOk = FALSE;
-  if (PathFindOnPathA(path, NULL))
+#if 0 // old code to manually resolve the executable path name (optimization to avoid launching cmd.exe) - does not really work with relative paths"
   {
-    bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
-    DWORD err = GetLastError();
-    if (!bOk)
+    e = s + __min(e-s,MAX_PATH-1);
+    memcpy(path, s, e-s);
+    path[e-s]='\0';
+
+    // extract the executable and a path 
+    char* dirsep = strrchr(path, '\\');
+    char* LookUpDirs[] = {NULL, NULL};
+    if (dirsep)
     {
-      char* lpMsgBuf;
-      FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &lpMsgBuf, 0, NULL);
-      fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), lpMsgBuf);
-      LocalFree(lpMsgBuf);
+      LookUpDirs[0] = (char*) malloc(dirsep-path);
+      memcpy(LookUpDirs[0], path, dirsep-path);
+      LookUpDirs[0][dirsep-path] = '\0';
+      memmove(path, dirsep+1, strlen(dirsep+1)+1);
     }
-  }
-  else
-  {
-    fprintf(stderr, "'%s' is not recognized as an internal or external command, operable program or batch file.", path);
+ 
+    DWORD err = ERROR_NOT_ENOUGH_MEMORY;
+
+    if (PathFindOnPathA(path, (PZPCSTR) LookUpDirs))
+    {
+      bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
+    }
+    free(mem);
   }
 
-  free(mem);
+  if (!bOk)
+#endif
+
+
+  {
+    mem[1+nWinDirLen+Cmd32MiddleLen+command.size()] = '"';
+    mem[1+nWinDirLen+Cmd32MiddleLen+command.size()+1] = '\0';
+    bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
+    free(mem);
+  }
+
+  
+  if (!bOk)
+  {
+    char* lpMsgBuf;
+    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &lpMsgBuf, 0, NULL);
+    fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), lpMsgBuf);
+    LocalFree(lpMsgBuf);
+  }
+
+  
 
   // close pipe channels we do not need
   if (hErrWriteChild)
