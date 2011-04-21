@@ -102,4 +102,4 @@ rule doxygen_mainpage
 
 build $builddir/doxygen_mainpage: doxygen_mainpage \
   README HACKING COPYING | $doxygen_mainpage_generator
-build doxygen: doxygen doxygen.config $builddir/doxygen_mainpage
+build doxygen: doxygen doxygen.config | $builddir/doxygen_mainpage || $builddir/doxygen_mainpage
