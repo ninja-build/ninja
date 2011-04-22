@@ -43,6 +43,11 @@ TEST(CanonicalizePath, PathSamples) {
   EXPECT_EQ("", err);
   EXPECT_EQ("bar.h", path);
 
+  path = "foo//bar"; err = "";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("foo/bar", path);
+
   path = "./x/../foo/../../bar.h"; err = "";
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("can't canonicalize path './x/../foo/../../bar.h' that reaches "

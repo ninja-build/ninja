@@ -42,7 +42,8 @@ void Error(const char* msg, ...) {
 bool CanonicalizePath(std::string* path, std::string* err) {
   // Try to fast-path out the common case.
   if (path->find("/.") == std::string::npos &&
-      path->find("./") == std::string::npos) {
+      path->find("./") == std::string::npos &&
+      path->find("//") == std::string::npos) {
     return true;
   }
 
@@ -54,7 +55,8 @@ bool CanonicalizePath(std::string* path, std::string* err) {
       end = inpath.size();
     else
       inpath[end] = 0;
-    parts.push_back(inpath.data() + start);
+    if (end > start)
+      parts.push_back(inpath.data() + start);
     start = end;
   }
 
