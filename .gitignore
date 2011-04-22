@@ -11,3 +11,6 @@ TAGS
 /ninja.exe
 /ninja.tmp
 /ninja.tmp.manifest
+/ninja_test.exe
+/ninja_test.tmp
+/ninja_test.tmp.manifest
