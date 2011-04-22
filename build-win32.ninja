@@ -2,16 +2,35 @@ builddir = build-win32
 o = obj
 x = .exe
 cxx =  cl.exe -nologo
-cflags = -EHsc -I. -Isrc -DWIN32
-ldflags =
+c =  cl.exe -nologo /TC
+link = link.exe -nologo
+cxxflags = -EHsc -I. -Isrc -DWIN32 
+ccflags = -EHsc -I. -Isrc -DWIN32
+ldflags = /INCREMENTAL:NO /MANIFEST /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF 
 
 rule cxx
-  command = $cxx $cflags -Fo$out /c $in
+  command = $cxx $cxxflags -Fo$out /c $in
+  description = CXX $out
+
+rule cc
+  command = $cxx $ccflags -Fo$out /c $in
   description = CC $out
 
 rule link
-  command = $cxx $ldflags -Fe$out $in $libs
+  command = $link $ldflags /OUT:$out $in $libs
   description = LINK $out
+
+rule lib
+  command = lib.exe /out:$out /nologo $in
+  description = LIB $out
+
+# has to do a temp copy as Microsoft mt.exe can only transform its input
+# rather than make a new output
+rule mt
+  command = cmd.exe /c copy /y $in $out && \
+      cmd.exe /c mt.exe /outputresource:$out /manifest $in.manifest
+  description = MT $out
+
 
 build $builddir/build.$o: cxx src/build.cc
 build $builddir/build_log.$o: cxx src/build_log.cc
@@ -23,11 +42,12 @@ build $builddir/subprocess.win32.$o: cxx src/subprocess.win32.cpp
 build $builddir/util.$o: cxx src/util.cc
 build $builddir/ninja_jumble.$o: cxx src/ninja_jumble.cc
 build $builddir/ninja.$o: cxx src/ninja.cc
-build $builddir/getopt.$o: cxx src/getopt.c
-build ninja$x: link $builddir/ninja.$o $builddir/build.$o \
+build $builddir/getopt.$o: cc src/getopt.c
+build ninja.tmp: link $builddir/ninja.$o $builddir/build.$o \
     $builddir/build_log.$o $builddir/eval_env.$o $builddir/graph.$o \
     $builddir/graphviz.$o $builddir/parsers.$o $builddir/subprocess.win32.$o \
     $builddir/util.$o $builddir/ninja_jumble.$o $builddir/getopt.$o
   libs = shlwapi.lib
+build ninja$x: mt ninja.tmp
 
 build all: phony || ninja$x
