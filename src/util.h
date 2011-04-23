@@ -17,6 +17,7 @@
 #pragma once
 
 #include <string>
+using namespace std;
 
 // Log a fatal message, dump a backtrace, and exit.
 void Fatal(const char* msg, ...);
@@ -25,6 +26,6 @@ void Fatal(const char* msg, ...);
 void Error(const char* msg, ...);
 
 // Canonicalize a path like "foo/../bar.h" into just "bar.h".
-bool CanonicalizePath(std::string* path, std::string* err);
+bool CanonicalizePath(string* path, string* err);
 
 #endif  // NINJA_UTIL_H_

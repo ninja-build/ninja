@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <vector>
 
@@ -39,56 +40,90 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(std::string* path, std::string* err) {
-  // Try to fast-path out the common case.
-  if (path->find("/.") == std::string::npos &&
-      path->find("./") == std::string::npos &&
-      path->find("//") == std::string::npos) {
-    return true;
-  }
+bool CanonicalizePath(string* path, string* err) {
+  // WARNING: this function is performance-critical; please benchmark
+  // any changes you make to it.
 
-  std::string inpath = *path;
-  std::vector<const char*> parts;
-  for (std::string::size_type start = 0; start < inpath.size(); ++start) {
-    std::string::size_type end = inpath.find('/', start);
-    if (end == std::string::npos)
-      end = inpath.size();
-    else
-      inpath[end] = 0;
-    if (end > start)
-      parts.push_back(inpath.data() + start);
+  // We don't want to allocate memory if necessary; a previous version
+  // of this function modified |path| as it went, which meant we
+  // needed to keep a copy of it around for including in a potential
+  // error message.
+  //
+  // Instead, we find all path components within the path, then fix
+  // them up to eliminate "foo/.." pairs and "." components.  Finally,
+  // we overwrite path with these new substrings (since the path only
+  // ever gets shorter, we can just use memmove within it).
+
+  const int kMaxPathComponents = 20;
+  const char* starts[kMaxPathComponents];  // Starts of path components.
+  int lens[100];  // Lengths of path components.
+
+  int parts_count = 0;  // Number of entries in starts/lens.
+  int slash_count = 0;  // Number of components in the original path.
+  for (string::size_type start = 0; start < path->size(); ++start) {
+    string::size_type end = path->find('/', start);
+    if (end == string::npos)
+      end = path->size();
+    if (end > start) {
+      if (parts_count == kMaxPathComponents) {
+        *err = "can't canonicalize path '" + *path + "'; too many "
+            "path components";
+        return false;
+      }
+      starts[parts_count] = path->data() + start;
+      lens[parts_count] = end - start;
+      ++parts_count;
+    }
+    ++slash_count;
     start = end;
   }
 
-  std::vector<const char*>::iterator i = parts.begin();
-  while (i != parts.end()) {
-    const char* part = *i;
-    if (part[0] == '.') {
-      if (part[1] == 0) {
-        // "."; strip.
-        parts.erase(i);
-        continue;
-      } else if (part[1] == '.' && part[2] == 0) {
-        // ".."; go up one.
-        if (i == parts.begin()) {
+  int i = 0;
+  while (i < parts_count) {
+    const char* start = starts[i];
+    int len = lens[i];
+    if (start[0] == '.') {
+      int strip_components = 0;
+      if (len == 1) {
+        // "."; strip this component.
+        strip_components = 1;
+      } else if (len == 2 && start[1] == '.') {
+        // ".."; strip this and the previous component.
+        if (i == 0) {
           *err = "can't canonicalize path '" + *path + "' that reaches "
             "above its directory";
           return false;
         }
+        strip_components = 2;
         --i;
-        parts.erase(i, i + 2);
+      }
+
+      if (strip_components) {
+        // Shift arrays backwards to remove bad path components.
+        int entries_to_move = parts_count - i - strip_components;
+        memmove(starts + i, starts + i + strip_components,
+                sizeof(starts[0]) * entries_to_move);
+        memmove(lens + i, lens + i + strip_components,
+                sizeof(lens[0]) * entries_to_move);
+        parts_count -= strip_components;
         continue;
       }
     }
     ++i;
   }
-  path->clear();
 
-  for (i = parts.begin(); i != parts.end(); ++i) {
-    if (!path->empty())
-      path->push_back('/');
-    path->append(*i);
+  if (parts_count == slash_count)
+    return true;  // Nothing to do.
+
+  char* p = (char*)path->data();
+  for (i = 0; i < parts_count; ++i) {
+    if (p > path->data())
+      *p++ = '/';
+    int len = lens[i];
+    memmove(p, starts[i], len);
+    p += len;
   }
+  path->resize(p - path->data());
 
   return true;
 }
