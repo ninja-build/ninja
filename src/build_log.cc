@@ -37,6 +37,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return true;  // Do nothing, report success.
 
   if (needs_recompaction_) {
+    Close();    // Windows needs us to close the file before we can rename over it
     if (!Recompact(path, err))
       return false;
   }
@@ -81,6 +82,7 @@ void BuildLog::Close() {
 
 bool BuildLog::Load(const string& path, string* err) {
   FILE* file = fopen(path.c_str(), "r");
+  log_file_ = file; // record this to close it later, as Windows needs this
   if (!file) {
     if (errno == ENOENT)
       return true;
@@ -158,7 +160,12 @@ bool BuildLog::Recompact(const string& path, string* err) {
     WriteEntry(f, *i->second);
   }
 
+  // Windows needs to close and unlink a file before a rename will be permitted
   fclose(f);
+  if (unlink(path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
 
   if (rename(temp_path.c_str(), path.c_str()) < 0) {
     *err = strerror(errno);
