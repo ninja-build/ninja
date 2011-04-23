@@ -15,8 +15,12 @@
 #include "ninja.h"
 
 #include <errno.h>
+#ifdef WIN32
+#include "getopt.h"
+#else
 #include <getopt.h>
 #include <limits.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
