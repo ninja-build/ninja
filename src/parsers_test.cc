@@ -162,6 +162,18 @@ TEST_F(ParserTest, PathVariables) {
   EXPECT_TRUE(state.LookupNode("out/exe"));
 }
 
+TEST_F(ParserTest, CanonicalizePaths) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build ./out.o: cat ./bar/baz/../foo.cc\n"));
+
+  EXPECT_FALSE(state.LookupNode("./out.o"));
+  EXPECT_TRUE(state.LookupNode("out.o"));
+  EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
+  EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
+}
+
 TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL, NULL);

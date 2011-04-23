@@ -108,12 +108,14 @@ void BuildStatus::PrintStatus(Edge* edge) {
       to_print = edge->EvaluateCommand();
 #ifndef WIN32
     if (smart_terminal_) {
-      // Limit output to width of the terminal so we don't cause line-wrapping.
+      // Limit output to width of the terminal if provided so we don't cause
+      // line-wrapping.
       winsize size;
-      if (ioctl(0, TIOCGWINSZ, &size) == 0) {
+      if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
         const int kMargin = 15;  // Space for [xxx/yyy] and "...".
         if (to_print.size() + kMargin > size.ws_col) {
-          int substr = to_print.size() + kMargin - size.ws_col;
+          int substr = std::min(to_print.size(),
+                                to_print.size() + kMargin - size.ws_col);
           to_print = "..." + to_print.substr(substr);
         }
       }

@@ -66,7 +66,8 @@ build $builddir/test.o: cxx src/test.cc
 build $builddir/util_test.o: cxx src/util_test.cc
 build ninja_test: link $builddir/build_test.o $builddir/build_log_test.o \
     $builddir/graph_test.o $builddir/ninja_test.o $builddir/parsers_test.o \
-    $builddir/subprocess_test.o $builddir/test.o $builddir/ninja.a
+    $builddir/subprocess_test.o $builddir/test.o $builddir/util_test.o \
+    $builddir/ninja.a
   ldflags = -g -rdynamic -lgtest -lgtest_main -lpthread
 
 
@@ -88,3 +89,18 @@ build manual.html: asciidoc manual.asciidoc
 build doc: phony || manual.html
 
 build all: phony || ninja ninja_test graph.png doc
+
+# Generate Doxygen.
+rule doxygen
+  command = doxygen $in
+  description = DOXYGEN $in
+
+doxygen_mainpage_generator = ./gen_doxygen_mainpage.sh
+
+rule doxygen_mainpage
+  command = $doxygen_mainpage_generator $in > $out
+  description = DOXYGEN_MAINPAGE $out
+
+build $builddir/doxygen_mainpage: doxygen_mainpage \
+  README HACKING COPYING | $doxygen_mainpage_generator
+build doxygen: doxygen doxygen.config | $builddir/doxygen_mainpage || $builddir/doxygen_mainpage

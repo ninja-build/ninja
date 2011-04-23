@@ -32,7 +32,7 @@ conf_cflags = -O2 ${EXTRA_CFLAGS}
 conf_ldflags = -s ${EXTRA_LDFLAGS}
 # When developing:
 # conf_cflags = -g -Wall ${EXTRA_CFLAGS}
-# conf_ldlags = ${EXTRA_LDFLAGS}
+# conf_ldflags = ${EXTRA_LDFLAGS}
 EOT
 
 echo "Building ninja manually..."

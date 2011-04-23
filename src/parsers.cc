@@ -21,6 +21,7 @@
 
 #include "graph.h"
 #include "ninja.h"
+#include "util.h"
 
 string Token::AsString() const {
   switch (type_) {
@@ -382,19 +383,6 @@ bool ManifestParser::ParseLet(string* name, string* value, bool expand,
   return true;
 }
 
-static string CanonicalizePath(const string& path) {
-  string out;
-  for (size_t i = 0; i < path.size(); ++i) {
-    char in = path[i];
-    if (in == '/' &&
-        (!out.empty() && *out.rbegin() == '/')) {
-      continue;
-    }
-    out.push_back(in);
-  }
-  return out;
-}
-
 bool ManifestParser::ParseEdge(string* err) {
   vector<string> ins, outs;
 
@@ -494,7 +482,10 @@ bool ManifestParser::ParseEdge(string* err) {
       string eval_err;
       if (!eval.Parse(*i, &eval_err))
         return tokenizer_.Error(eval_err, err);
-      *i = CanonicalizePath(eval.Evaluate(env));
+      string path = eval.Evaluate(env);
+      if (!CanonicalizePath(&path, err))
+        return false;
+      *i = path;
     }
   }
 

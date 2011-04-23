@@ -240,7 +240,12 @@ int main(int argc, char** argv) {
 
   Builder builder(&state, config);
   for (int i = 0; i < argc; ++i) {
-    if (!builder.AddTarget(argv[i], &err)) {
+    string path = argv[i];
+    string err;
+    if (!CanonicalizePath(&path, &err))
+      Fatal("can't canonicalize '%s': %s", path.c_str(), err.c_str());
+
+    if (!builder.AddTarget(path, &err)) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;
