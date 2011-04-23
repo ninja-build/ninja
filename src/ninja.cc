@@ -71,6 +71,10 @@ int GuessParallelism() {
              NULL, 0) < 0) {
     processors = 1;
   }
+#elif defined(WIN32)
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  processors = info.dwNumberOfProcessors;
 #endif
 
   switch (processors) {
