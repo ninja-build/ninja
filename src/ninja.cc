@@ -136,7 +136,11 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 }
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
+#ifndef WIN32
   RunBrowsePython(state, argv[0]);
+#else
+  Error("browse mode not yet supported on Windows");
+#endif
   // If we get here, the browse failed.
   return 1;
 }
