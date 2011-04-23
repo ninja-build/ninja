@@ -75,9 +75,12 @@ struct State {
   Node* LookupNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
+  vector<Node*> RootNodes();
 
   StatCache stat_cache_;
+  /// All the rules used in the graph.
   map<string, const Rule*> rules_;
+  /// All the edges of the graph.
   vector<Edge*> edges_;
   BindingEnv bindings_;
   struct BuildLog* build_log_;

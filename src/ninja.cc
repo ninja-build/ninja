@@ -20,7 +20,6 @@
 #else
 #include <getopt.h>
 #endif
-#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -39,6 +38,8 @@
 #include "graphviz.h"
 #include "parsers.h"
 #include "util.h"
+#include "clean.h"
+#include "touch.h"
 
 option options[] = {
   { "help", no_argument, NULL, 'h' },
@@ -54,11 +55,16 @@ void usage(const BuildConfig& config) {
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
+"  -C DIR   change to DIR before doing anything else\n"
 "\n"
 "  -t TOOL  run a subtool.  tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n",
+"             query   show inputs/outputs for a path\n"
+"             targets list targets by their rule or depth in the DAG\n"
+"             rules   list all rules\n"
+"             clean   clean built files\n"
+"             touch   touch source files\n",
           config.parallelism);
 }
 
@@ -101,15 +107,35 @@ struct RealFileReader : public ManifestParser::FileReader {
 };
 
 int CmdGraph(State* state, int argc, char* argv[]) {
+  int status = 0;
   GraphViz graph;
   graph.Start();
-  for (int i = 0; i < argc; ++i)
-    graph.AddTarget(state->GetNode(argv[i]));
+  if (argc == 0) {
+    vector<Node*> root_nodes = state->RootNodes();
+    for (vector<Node*>::const_iterator n = root_nodes.begin();
+         n != root_nodes.end();
+         ++n)
+      graph.AddTarget(*n);
+  } else {
+    for (int i = 0; i < argc; ++i) {
+      Node* node = state->LookupNode(argv[i]);
+      if (node)
+        graph.AddTarget(node);
+      else {
+        Error("unknown target '%s'", argv[i]);
+        status = 1;
+      }
+    }
+  }
   graph.Finish();
-  return 0;
+  return status;
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
+  if (argc == 0) {
+    Error("expected a target to query");
+    return 1;
+  }
   for (int i = 0; i < argc; ++i) {
     Node* node = state->GetNode(argv[i]);
     if (node) {
@@ -139,6 +165,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
 #ifndef WIN32
+  if (argc < 1) {
+    Error("expected a target to browse");
+    return 1;
+  }
   RunBrowsePython(state, argv[0]);
 #else
   printf("ERROR: Not supported on win32 platform, aborting.\n");
@@ -147,15 +177,179 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
   return 1;
 }
 
+int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    for (int i = 0; i < indent; ++i)
+      printf("  ");
+    const char* target = (*n)->file_->path_.c_str();
+    if ((*n)->in_edge_) {
+      printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
+      if (depth > 1 || depth <= 0)
+        CmdTargetsList((*n)->in_edge_->inputs_, depth - 1, indent + 1);
+    } else {
+      printf("%s\n", target);
+    }
+  }
+  return 0;
+}
+
+int CmdTargetsList(const vector<Node*>& nodes, const char* rule) {
+  bool found = false;
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    const char* target = (*n)->file_->path_.c_str();
+    if ((*n)->in_edge_) {
+      if (!strcmp((*n)->in_edge_->rule_->name_.c_str(), rule)) {
+        printf("%s\n", target);
+        found = true;
+      }
+      if (!CmdTargetsList((*n)->in_edge_->inputs_, rule))
+        found = true;
+    } else {
+      if (!strncmp(rule, "", 2)) {
+        printf("%s\n", target);
+        found = true;
+      }
+    }
+  }
+  return (found ? 0 : 1);
+}
+
+int CmdTargetsAll(State* state) {
+  if (state->edges_.empty())
+    return 1;
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end();
+         ++out_node)
+      printf("%s: %s\n",
+             (*out_node)->file_->path_.c_str(),
+             (*e)->rule_->name_.c_str());
+  return 0;
+}
+
+int CmdTargets(State* state, int argc, char* argv[]) {
+  int depth = 1;
+  const char* rule = 0;
+  if (argc >= 1) {
+    string mode = argv[0];
+    if (mode == "rule") {
+      if (argc > 1)
+        rule = argv[1];
+      else
+        rule = "";
+    } else if (mode == "depth") {
+      if (argc > 1)
+        depth = atoi(argv[1]);
+    } else if (mode == "all") {
+      return CmdTargetsAll(state);
+    } else {
+      Error("unknown mode '%s'", mode.c_str());
+      return 1;
+    }
+  }
+
+  vector<Node*> root_nodes = state->RootNodes();
+
+  if (rule)
+    return CmdTargetsList(root_nodes, rule);
+  else
+    return CmdTargetsList(root_nodes, depth, 0);
+}
+
+int CmdRules(State* state, int argc, char* argv[]) {
+  for (map<string, const Rule*>::iterator i = state->rules_.begin();
+       i != state->rules_.end();
+       ++i) {
+    if (i->second->description_.unparsed_.empty())
+      printf("%s\n", i->first.c_str());
+    else
+      printf("%s: %s\n",
+             i->first.c_str(),
+             i->second->description_.unparsed_.c_str());
+  }
+  return 0;
+}
+
+int CmdClean(State* state,
+             int argc,
+             const char* argv[],
+             const BuildConfig& config) {
+  Cleaner cleaner(state, config);
+  if (argc >= 1)
+  {
+    string mode = argv[0];
+    if (mode == "target") {
+      if (argc >= 2) {
+        return cleaner.CleanTargets(argc - 1, &argv[1]);
+      } else {
+        Error("expected a target to clean");
+        return 1;
+      }
+    } else if (mode == "rule") {
+      if (argc >= 2) {
+        return cleaner.CleanRules(argc - 1, &argv[1]);
+      } else {
+        Error("expected a rule to clean");
+        return 1;
+      }
+    } else {
+      return cleaner.CleanTargets(argc, argv);
+    }
+  }
+  else {
+    cleaner.CleanAll();
+    return 0;
+  }
+}
+
+int CmdTouch(State* state,
+             int argc,
+             const char* argv[],
+             const BuildConfig& config) {
+  Toucher toucher(state, config);
+  if (argc >= 1)
+  {
+    string mode = argv[0];
+    if (mode == "target") {
+      if (argc >= 2) {
+        return toucher.TouchTargets(argc - 1, &argv[1]);
+      } else {
+        Error("expected at least one target to touch");
+        return 1;
+      }
+    } else if (mode == "rule") {
+      if (argc >= 2) {
+        return toucher.TouchRules(argc - 1, &argv[1]);
+      } else {
+        Error("expected at least one rule to touch");
+        return 1;
+      }
+    } else {
+      return toucher.TouchTargets(argc, argv);
+    }
+  }
+  else {
+    toucher.TouchAll();
+    return 0;
+  }
+}
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
+  const char* working_dir = 0;
   string tool;
 
   config.parallelism = GuessParallelism();
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:nt:v", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:hj:nt:vC:", options, NULL)) != -1) {
     switch (opt) {
       case 'f':
         input_file = optarg;
@@ -172,13 +366,16 @@ int main(int argc, char** argv) {
       case 't':
         tool = optarg;
         break;
+      case 'C':
+        working_dir = optarg;
+        break;
       case 'h':
       default:
         usage(config);
         return 1;
     }
   }
-  if (optind >= argc) {
+  if (optind >= argc && tool.empty()) {
     Error("expected target to build");
     usage(config);
     return 1;
@@ -186,10 +383,10 @@ int main(int argc, char** argv) {
   argv += optind;
   argc -= optind;
 
-  char cwd[PATH_MAX];
-  if (!getcwd(cwd, sizeof(cwd))) {
-    perror("getcwd");
-    return 1;
+  if (working_dir) {
+    if (chdir(working_dir) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
+    }
   }
 
   State state;
@@ -208,6 +405,14 @@ int main(int argc, char** argv) {
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
       return CmdBrowse(&state, argc, argv);
+    if (tool == "targets")
+      return CmdTargets(&state, argc, argv);
+    if (tool == "rules")
+      return CmdRules(&state, argc, argv);
+    if (tool == "clean")
+      return CmdClean(&state, argc, const_cast<const char**>(argv), config);
+    if (tool == "touch")
+      return CmdTouch(&state, argc, const_cast<const char**>(argv), config);
     Error("unknown tool '%s'", tool.c_str());
   }
 
