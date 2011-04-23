@@ -43,7 +43,7 @@
 
 static void Win32Fatal(const char* fmt)
 {
-  char* lpMsgBuf;
+  char* msg_buf;
   DWORD dw = GetLastError(); 
 
   FormatMessageA(
@@ -53,12 +53,12 @@ static void Win32Fatal(const char* fmt)
         NULL,
         dw,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (char*) &lpMsgBuf,
+        (char*) &msg_buf,
         0, NULL );
 
     // Display the error message and exit the process
-    Fatal(fmt, lpMsgBuf, dw); 
-    LocalFree(lpMsgBuf);
+    Fatal(fmt, msg_buf, dw); 
+    LocalFree(msg_buf);
 }
 
 
@@ -79,43 +79,34 @@ public:
 } g_ioportcreator;
  
 
-Subprocess::Stream::Stream() : fd_(NULL), state(0) {}
+Subprocess::Stream::Stream() : fd_(NULL), state_(0) {}
 Subprocess::Stream::~Stream() {
   assert(fd_ == NULL);
-  //if (fd_ != 0)
-  //{
-  //  Cancel
-  //  CloseHandle(fd_);
-  //}
 }
 
-void Subprocess::Stream::ProcessInput(DWORD numbytesread)
-{
-  if (state)
-  {
-    if (numbytesread)
-    {
-      buf_.append(buf, numbytesread);
+void Subprocess::Stream::ProcessInput(DWORD numbytesread) {
+  if (state_) {
+    if (numbytesread) {
+      buf_.append(overlappedbuf_, numbytesread);
 
 start_reading:
-      memset(&overlapped, 0, sizeof(overlapped));
+      memset(&overlapped_, 0, sizeof(overlapped_));
         
-      if (::ReadFile(fd_, buf, sizeof(buf), &numbytesread, &overlapped) || GetLastError() == ERROR_IO_PENDING)
+      if (::ReadFile(fd_, overlappedbuf_, sizeof(overlappedbuf_), &numbytesread, &overlapped_) || GetLastError() == ERROR_IO_PENDING)
         return;
     }
 
-    state = 0;
+    state_ = 0;
     CloseHandle(fd_);
     fd_ = NULL;
     return;
   }
 
-  state = 1;
+  state_ = 1;
   goto start_reading;
 }
 
-Subprocess::Subprocess(SubprocessSet* pSetWeAreRunOn) : pid_(NULL) , procset_(pSetWeAreRunOn)
-{
+Subprocess::Subprocess(SubprocessSet* set_we_are_run_on) : pid_(NULL) , procset_(set_we_are_run_on) {
 
 }
 
@@ -125,14 +116,13 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(const string& command)
-{
+bool Subprocess::Start(const string& command) {
   char pipe_name_out[32], pipe_name_err[32];
   _snprintf(pipe_name_out, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_out", ::GetModuleHandle(NULL));
   _snprintf(pipe_name_err, _TRUNCATE, "\\\\.\\pipe\\ninja_%p_err", ::GetModuleHandle(NULL));
   
-  assert(stdout_.state == 0);
-  assert(stderr_.state == 0);
+  assert(stdout_.state_ == 0);
+  assert(stderr_.state_ == 0);
 
   if (INVALID_HANDLE_VALUE == (stdout_.fd_ = ::CreateNamedPipeA(pipe_name_out, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE, PIPE_UNLIMITED_INSTANCES, 4096, 4096, INFINITE, NULL)))
     Win32Fatal("CreateNamedPipe failed: %s");
@@ -145,29 +135,29 @@ bool Subprocess::Start(const string& command)
   if (!CreateIoCompletionPort(stderr_.fd_, g_ioport, (char*)this - (char*)0, 0))
     Win32Fatal("failed to bind pipe to io completion port: %s");
 
-  memset(&stdout_.overlapped, 0, sizeof(stdout_.overlapped));
-  if (!ConnectNamedPipe(stdout_.fd_, &stdout_.overlapped) && GetLastError() != ERROR_IO_PENDING)
+  memset(&stdout_.overlapped_, 0, sizeof(stdout_.overlapped_));
+  if (!ConnectNamedPipe(stdout_.fd_, &stdout_.overlapped_) && GetLastError() != ERROR_IO_PENDING)
     Win32Fatal("ConnectNamedPipe failed: %s");
-  memset(&stderr_.overlapped, 0, sizeof(stderr_.overlapped));
-  if (!ConnectNamedPipe(stderr_.fd_, &stderr_.overlapped) && GetLastError() != ERROR_IO_PENDING)
+  memset(&stderr_.overlapped_, 0, sizeof(stderr_.overlapped_));
+  if (!ConnectNamedPipe(stderr_.fd_, &stderr_.overlapped_) && GetLastError() != ERROR_IO_PENDING)
     Win32Fatal("ConnectNamedPipe failed: %s");
 
 
   // get the client pipes
-  HANDLE hOutputWrite = CreateFile(pipe_name_out, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-  HANDLE hOutputWriteChild;
-  if (!DuplicateHandle(GetCurrentProcess(),hOutputWrite, GetCurrentProcess(),&hOutputWriteChild, 0, TRUE, DUPLICATE_SAME_ACCESS))
+  HANDLE output_write_handle = CreateFile(pipe_name_out, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+  HANDLE output_write_child;
+  if (!DuplicateHandle(GetCurrentProcess(),output_write_handle, GetCurrentProcess(),&output_write_child, 0, TRUE, DUPLICATE_SAME_ACCESS))
     Win32Fatal("DuplicateHandle: %s");
-  CloseHandle(hOutputWrite);
+  CloseHandle(output_write_handle);
 
-  HANDLE hErrWrite = CreateFile(pipe_name_err, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-  HANDLE hErrWriteChild;
-  if (!DuplicateHandle(GetCurrentProcess(), hErrWrite, GetCurrentProcess(), &hErrWriteChild, 0, TRUE, DUPLICATE_SAME_ACCESS))
+  HANDLE error_wirte_handle = CreateFile(pipe_name_err, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+  HANDLE error_write_child;
+  if (!DuplicateHandle(GetCurrentProcess(), error_wirte_handle, GetCurrentProcess(), &error_write_child, 0, TRUE, DUPLICATE_SAME_ACCESS))
     Win32Fatal("DuplicateHandle: %s");
-  CloseHandle(hErrWrite);
+  CloseHandle(error_wirte_handle);
  
   //accept connection
-  while (stdout_.state != 1 || stderr_.state != 1)
+  while (stdout_.state_ != 1 || stderr_.state_ != 1)
     procset_->DoWork();
 
   PROCESS_INFORMATION pi;
@@ -177,44 +167,45 @@ bool Subprocess::Start(const string& command)
   ZeroMemory(&si,sizeof(STARTUPINFO));
   si.cb = sizeof(STARTUPINFO);
   si.dwFlags = STARTF_USESTDHANDLES;
-  si.hStdOutput = hOutputWriteChild;
+  si.hStdOutput = output_write_child;
   si.hStdInput  = NULL;
-  si.hStdError  = hErrWriteChild;
+  si.hStdError  = error_write_child;
  
-  char path[MAX_PATH]; BOOL bOk = FALSE;
+  char path[MAX_PATH]; BOOL ok = FALSE;
 
-  const int Cmd32LiteralLen = 17; const char* Cmd32LiteralStr = "\\System32\\cmd.exe";
-  const int Cmd32MiddleLen = 6; const char* Cmd32MiddleStr = "\" /c \"";
-  GetSystemWindowsDirectoryA(path, sizeof(path) - Cmd32LiteralLen - 1);
-  strcat_s(path, sizeof(path), Cmd32LiteralStr);
-  size_t nWinDirLen = strlen(path);
-  char* mem = (char*) malloc(command.size() + nWinDirLen + 3 + Cmd32MiddleLen);
+  const int kCmd32LiteralLen = 17; const char* kCmd32LiteralStr = "\\System32\\cmd.exe";
+  const int kCmd32MiddleLen = 6; const char* kCmd32MiddleStr = "\" /c \"";
+  GetSystemWindowsDirectoryA(path, sizeof(path) - kCmd32LiteralLen - 1);
+  strcat_s(path, sizeof(path), kCmd32LiteralStr);
+  size_t win_dir_len = strlen(path);
+  char* mem = (char*) malloc(command.size() + win_dir_len + 3 + kCmd32MiddleLen);
   if (!mem)
     Fatal("out of memory: %s", strerror(errno));
 
   mem[0] = '"';
-  memcpy(mem+1, path, nWinDirLen);
-  memcpy(mem+1+nWinDirLen, Cmd32MiddleStr, Cmd32MiddleLen);
-  memcpy(mem+1+nWinDirLen+Cmd32MiddleLen, command.c_str(), command.size()+1);
+  memcpy(mem+1, path, win_dir_len);
+  memcpy(mem+1+win_dir_len, kCmd32MiddleStr, kCmd32MiddleLen);
+  memcpy(mem+1+win_dir_len+kCmd32MiddleLen, command.c_str(), command.size()+1);
 
   //extract executable name
-  char *e,* s = mem+1+nWinDirLen+Cmd32MiddleLen;
-  while (isspace(*s)) ++s;
-  if (*s == '"')
-  {
-    while (isspace(*s)) ++s;
+  char *e,* s = mem+1+win_dir_len+kCmd32MiddleLen;
+  while (isspace(*s))
+    ++s;
+  
+  if (*s == '"') {
+    while (isspace(*s))
+      ++s;
     e = s;
-    while (*e && *e != '"') ++e;
-  }
-  else
-  {
+    while (*e && *e != '"')
+      ++e;
+  } else {
     e = s;
-    while (*e && !isspace(*e)) ++e;
+    while (*e && !isspace(*e) && *e != '&' && *e != '|' && *e != '>' && *e != '<')
+      ++e;
   }
 
   // replace '/' with '\' in the executable name
-  for (char* i = s; i != e; ++i)
-  {
+  for (char* i = s; i != e; ++i) {
     if (*i == '/')
       *i = '\\';
   }
@@ -227,54 +218,51 @@ bool Subprocess::Start(const string& command)
 
     // extract the executable and a path 
     char* dirsep = strrchr(path, '\\');
-    char* LookUpDirs[] = {NULL, NULL};
-    if (dirsep)
-    {
-      LookUpDirs[0] = (char*) malloc(dirsep-path);
-      memcpy(LookUpDirs[0], path, dirsep-path);
-      LookUpDirs[0][dirsep-path] = '\0';
+    char* look_up_dirs[] = {NULL, NULL};
+    if (dirsep) {
+      look_up_dirs[0] = (char*) malloc(dirsep-path);
+      memcpy(look_up_dirs[0], path, dirsep-path);
+      look_up_dirs[0][dirsep-path] = '\0';
       memmove(path, dirsep+1, strlen(dirsep+1)+1);
     }
  
     DWORD err = ERROR_NOT_ENOUGH_MEMORY;
 
-    if (PathFindOnPathA(path, (PZPCSTR) LookUpDirs))
-    {
-      bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
+    if (PathFindOnPathA(path, (PZPCSTR) look_up_dirs)) {
+      ok = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
     }
+
     free(mem);
   }
 
-  if (!bOk)
+  if (!ok)
 #endif
 
 
   {
-    mem[1+nWinDirLen+Cmd32MiddleLen+command.size()] = '"';
-    mem[1+nWinDirLen+Cmd32MiddleLen+command.size()+1] = '\0';
-    bOk = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
+    mem[1+win_dir_len+kCmd32MiddleLen+command.size()] = '"';
+    mem[1+win_dir_len+kCmd32MiddleLen+command.size()+1] = '\0';
+    ok = CreateProcessA(path, mem, NULL,NULL,TRUE, 0, NULL,NULL,&si,&pi);
     free(mem);
   }
 
   
-  if (!bOk)
-  {
-    char* lpMsgBuf;
-    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &lpMsgBuf, 0, NULL);
-    fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), lpMsgBuf);
-    LocalFree(lpMsgBuf);
+  if (!ok) {
+    char* msg_buf;
+    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*) &msg_buf, 0, NULL);
+    fprintf(stderr, "Failed to launch command \"%s\": %s", command.c_str(), msg_buf);
+    LocalFree(msg_buf);
   }
 
   
 
   // close pipe channels we do not need
-  if (hErrWriteChild)
-    CloseHandle(hErrWriteChild);
-  if (hOutputWriteChild)
-    CloseHandle(hOutputWriteChild);
+  if (error_write_child)
+    CloseHandle(error_write_child);
+  if (output_write_child)
+    CloseHandle(output_write_child);
   
-  if (bOk)
-  {
+  if (ok) {
     CloseHandle(pi.hThread);
 
     pid_ = pi.hProcess; // Set global child process handle to cause threads to exit.
@@ -282,16 +270,15 @@ bool Subprocess::Start(const string& command)
     return true;
   }
 
-  // in order to close stdout_.fd_ and stderr_.fd_ we should get the NumBytesRead=0 because hErrWriteChild and hOutputWriteChild have been just closed
+  // in order to close stdout_.fd_ and stderr_.fd_ we should get the NumBytesRead=0 because error_write_child and output_write_child have been just closed
   // and the DoWork will do the rest of the clean up in this case.
-  while (stdout_.state != 0 || stderr_.state != 0)
+  while (stdout_.state_ != 0 || stderr_.state_ != 0)
     procset_->DoWork();
 
   return false;
 }
 
-void Subprocess::OnFDReady(int)
-{
+void Subprocess::OnFDReady(int) {
   // not used on this platform
 }
 
@@ -315,28 +302,25 @@ void SubprocessSet::Add(Subprocess* subprocess) {
   running_.push_back(subprocess);
 }
 
-void SubprocessSet::DoWork()
-{
+void SubprocessSet::DoWork() {
   DWORD numbytesread; Subprocess* subproc; LPOVERLAPPED overlapped;
 
-  BOOL bOk = GetQueuedCompletionStatus(g_ioport, &numbytesread, (PULONG_PTR) &subproc, &overlapped, INFINITE);
+  BOOL ok = GetQueuedCompletionStatus(g_ioport, &numbytesread, (PULONG_PTR) &subproc, &overlapped, INFINITE);
     
-  assert(GetLastError() == ERROR_BROKEN_PIPE || bOk);
-  assert(&subproc->stdout_.overlapped == overlapped || &subproc->stderr_.overlapped == overlapped );
+  assert(GetLastError() == ERROR_BROKEN_PIPE || ok);
+  assert(&subproc->stdout_.overlapped_ == overlapped || &subproc->stderr_.overlapped_ == overlapped );
   
   Subprocess::Stream* stream;
-  if (overlapped == &subproc->stdout_.overlapped)
+  if (overlapped == &subproc->stdout_.overlapped_)
     stream = &subproc->stdout_;
   else
     stream = &subproc->stderr_;
 
-  stream->ProcessInput(bOk ? numbytesread : 0);
+  stream->ProcessInput(ok ? numbytesread : 0);
 
-  if (subproc->done())
-  {
+  if (subproc->done()) {
     vector<Subprocess*>::iterator end = std::remove(running_.begin(), running_.end(), subproc);
-    if (running_.end() != end)
-    {
+    if (running_.end() != end) {
       finished_.push(subproc);
       running_.resize(end - running_.begin());
     }

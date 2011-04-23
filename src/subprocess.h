@@ -31,7 +31,7 @@ using namespace std;
 struct SubprocessSet;
 
 struct Subprocess {
-  Subprocess(SubprocessSet* pSetWeAreRunOn);
+  Subprocess(SubprocessSet* set_we_are_run_on);
   ~Subprocess();
   bool Start(const string& command);
   void OnFDReady(int fd);
@@ -51,10 +51,10 @@ struct Subprocess {
     ~Stream();
 #ifdef WIN32
     void ProcessInput(DWORD numbytesread);
-    int  state; //0 - not yet connected, 1 - reading, 2 - closed
+    int  state_; //0 - not connected, 1 - reading
     HANDLE fd_; // NULL when in 'accepting connection' state
-    OVERLAPPED overlapped;
-    char buf[4<<10];
+    OVERLAPPED overlapped_;
+    char overlappedbuf_[4<<10];
 #else
     int fd_;
 #endif
