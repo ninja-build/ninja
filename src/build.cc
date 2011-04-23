@@ -15,9 +15,11 @@
 #include "build.h"
 
 #include <stdio.h>
+#ifndef WIN32
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/termios.h>
+#endif
 
 #include "build_log.h"
 #include "graph.h"
@@ -47,8 +49,12 @@ struct BuildStatus {
 BuildStatus::BuildStatus()
     : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
       verbosity_(BuildConfig::NORMAL) {
+#ifndef WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+#else
+  smart_terminal_ = false;
+#endif
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -104,7 +110,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     string to_print = edge->GetDescription();
     if (to_print.empty() || verbosity_ == BuildConfig::VERBOSE)
       to_print = edge->EvaluateCommand();
-
+#ifndef WIN32
     if (smart_terminal_) {
       // Limit output to width of the terminal if provided so we don't cause
       // line-wrapping.
@@ -121,7 +127,9 @@ void BuildStatus::PrintStatus(Edge* edge) {
       printf("\r[%d/%d] %s\e[K", finished_edges_, total_edges_,
              to_print.c_str());
       fflush(stdout);
-    } else {
+    } else
+#endif
+    {
       printf("%s\n", to_print.c_str());
     }
   }
