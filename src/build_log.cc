@@ -37,6 +37,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return true;  // Do nothing, report success.
 
   if (needs_recompaction_) {
+    Close();
     if (!Recompact(path, err))
       return false;
   }
@@ -129,6 +130,8 @@ bool BuildLog::Load(const string& path, string* err) {
   if (total_entry_count > unique_entry_count * kCompactionRatio)
     needs_recompaction_ = true;
 
+  fclose(file);
+
   return true;
 }
 
@@ -159,6 +162,10 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   fclose(f);
+  if (unlink(path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
 
   if (rename(temp_path.c_str(), path.c_str()) < 0) {
     *err = strerror(errno);
