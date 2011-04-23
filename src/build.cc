@@ -49,8 +49,12 @@ struct BuildStatus {
 BuildStatus::BuildStatus()
     : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
       verbosity_(BuildConfig::NORMAL) {
+#ifndef WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+#else
+  smart_terminal_ = false;
+#endif
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {

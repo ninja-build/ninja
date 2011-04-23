@@ -56,7 +56,7 @@ bool CanonicalizePath(string* path, string* err) {
 
   const int kMaxPathComponents = 20;
   const char* starts[kMaxPathComponents];  // Starts of path components.
-  int lens[100];  // Lengths of path components.
+  int lens[kMaxPathComponents];  // Lengths of path components.
 
   int parts_count = 0;  // Number of entries in starts/lens.
   int slash_count = 0;  // Number of components in the original path.

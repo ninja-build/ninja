@@ -171,7 +171,7 @@ int CmdBrowse(State* state, int argc, char* argv[]) {
   }
   RunBrowsePython(state, argv[0]);
 #else
-  printf("ERROR: Not supported on win32 platform, aborting.\n");
+  Error("browse mode not yet supported on Windows");
 #endif
   // If we get here, the browse failed.
   return 1;
