@@ -76,7 +76,8 @@ void BuildLog::RecordCommand(Edge* edge, int time_ms) {
 }
 
 void BuildLog::Close() {
-  fclose(log_file_);
+  if (log_file_)
+    fclose(log_file_);
   log_file_ = NULL;
 }
 
