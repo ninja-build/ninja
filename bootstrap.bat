@@ -3,7 +3,7 @@ rem "create dir if it doesn't exist" relibaly
 
 rem rmdir /q /s Bootstrap && mkdir Bootstrap
 
-cl.exe /nologo /EHsc /Zi /I. /Isrc /DWIN32 /DNDEBUG /D_CONSOLE /MD ^
+cl.exe /nologo /EHsc /Zi /Fdninja-bootstrap.pdb /I. /Isrc /DWIN32 /DNDEBUG /D_CONSOLE /MD ^
   /Fo"Bootstrap\\" /W3 /Feninja-bootstrap.exe ^
   src\build.cc ^
   src\build_log.cc ^
@@ -18,6 +18,6 @@ cl.exe /nologo /EHsc /Zi /I. /Isrc /DWIN32 /DNDEBUG /D_CONSOLE /MD ^
   src\getopt.c ^
   src\clean.cc ^
   src\touch.cc ^
-  /link /incremental:no /subsystem:Console /opt:ref /opt:icf shlwapi.lib ^
+  /link /debug /pdb:ninja-bootstrap.pdb /incremental:no /subsystem:Console /opt:ref /opt:icf shlwapi.lib ^
   && .\ninja-bootstrap.exe -f build-win32.ninja ninja.exe ^
-  && del .\ninja-bootstrap.exe
+  && del .\ninja-bootstrap.exe .\ninja-bootstrap.pdb

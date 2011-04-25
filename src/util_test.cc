@@ -31,12 +31,12 @@ TEST(CanonicalizePath, PathSamples) {
   path = "./foo/./bar.h"; err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("foo/bar.h", path);
+  EXPECT_EQ("foo" + string(1, kPathSeparator) + "bar.h", path);
 
   path = "./x/foo/../bar.h"; err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("x/bar.h", path);
+  EXPECT_EQ("x" + string(1, kPathSeparator) + "bar.h", path);
 
   path = "./x/foo/../../bar.h"; err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -46,10 +46,11 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo//bar"; err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("foo/bar", path);
+  EXPECT_EQ("foo" + string(1, kPathSeparator) + "bar", path);
 
   path = "./x/../foo/../../bar.h"; err = "";
   EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("can't canonicalize path './x/../foo/../../bar.h' that reaches "
+  EXPECT_EQ("can't canonicalize path '." + string(1, kPathSeparator) + "x" + string(1, kPathSeparator) + ".." + string(1, kPathSeparator)
+      + "foo" + string(1, kPathSeparator) + ".." + string(1, kPathSeparator) + ".." + string(1, kPathSeparator) + "bar.h' that reaches "
             "above its directory", err);
 }

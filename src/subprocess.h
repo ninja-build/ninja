@@ -31,6 +31,7 @@ struct SubprocessSet;
 /// for reading, as well as call Finish() to reap the child once done()
 /// is true.
 struct Subprocess {
+  Subprocess();
   Subprocess(SubprocessSet* set_we_are_run_on);
   ~Subprocess();
   bool Start(const string& command);

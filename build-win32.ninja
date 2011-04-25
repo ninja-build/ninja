@@ -13,11 +13,11 @@ dotflags = -Tpng
 ldflags = /LTCG /DEBUG /INCREMENTAL:NO /MANIFEST /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF
 
 rule cxx
-  command = $cxx $cxxflags -Fo$out /c $in
+  command = $cxx $cxxflags -Fo$out -Fd$out.pdb /c /TP $in
   description = CXX $out
 
 rule cc
-  command = $cc $ccflags -Fo$out /TC /c $in
+  command = $cc $ccflags -Fo$out -Fd$out.pdb /c /TC $in
   description = CC $out
 
 rule link
@@ -62,9 +62,9 @@ build $builddir/ninja.lib: lib $builddir/build.$o \
     $builddir/graphviz.$o $builddir/parsers.$o $builddir/subprocess.win32.$o \
     $builddir/util.$o $builddir/ninja_jumble.$o $builddir/getopt.$o \
     $builddir/clean.$o $builddir/touch.$o
-build ninja.tmp: link $builddir/ninja.$o $builddir/ninja.lib
+build $builddir/ninja.tmp: link $builddir/ninja.$o $builddir/ninja.lib
   libs = shlwapi.lib
-build ninja$x: mt ninja.tmp
+build ninja$x: mt $builddir/ninja.tmp
 
 build $builddir/build_test.$o: cxx src/build_test.cc
 build $builddir/build_log_test.$o: cxx src/build_log_test.cc
@@ -74,7 +74,7 @@ build $builddir/parsers_test.$o: cxx src/parsers_test.cc
 build $builddir/subprocess_test.win32.$o: cxx src/subprocess_test.win32.cpp
 build $builddir/test.$o: cxx src/test.cc
 build $builddir/util_test.$o: cxx src/util_test.cc
-build ninja_test.tmp: link $builddir/build_test.$o $builddir/build_log_test.$o \
+build $builddir/ninja_test.tmp: link $builddir/build_test.$o $builddir/build_log_test.$o \
     $builddir/graph_test.$o $builddir/ninja_test.$o $builddir/parsers_test.$o \
     $builddir/subprocess_test.win32.$o $builddir/test.$o \
     $builddir/util_test.$o $builddir/ninja.lib
@@ -82,7 +82,7 @@ build ninja_test.tmp: link $builddir/build_test.$o $builddir/build_log_test.$o \
   ldflags = /LTCG /DEBUG /INCREMENTAL:NO /MANIFEST \
     /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF \
     /LIBPATH:../gtest-1.6.0/msvc/gtest-md/Release/ gtest.lib gtest_main-md.lib
-build ninja_test$x: mt ninja_test.tmp
+build ninja_test$x: mt $builddir/ninja_test.tmp
 
 build $builddir/graph.dot: gendot ninja$x build-win32.ninja
 build graph.pdf: gengraph $builddir/graph.dot
