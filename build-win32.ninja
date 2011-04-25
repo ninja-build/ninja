@@ -1,0 +1,90 @@
+builddir = build-win32
+o = obj
+x = .exe
+cxx =  cl.exe -nologo
+cc =  cl.exe -nologo
+link = link.exe -nologo
+dot = "C:\Program Files (x86)\Graphviz2.26.3\bin\dot.exe"
+
+cflags = -EHsc -GL -MD /Zi -I. -Isrc -D_CONSOLE -DNDEBUG -DWIN32 -I"..\gtest-1.6.0\include"
+cxxflags = $cflags
+ccflags = $cflags
+dotflags = -Tpng
+ldflags = /LTCG /DEBUG /INCREMENTAL:NO /MANIFEST /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF
+
+rule cxx
+  command = $cxx $cxxflags -Fo$out -Fd$out.pdb /c /TP $in
+  description = CXX $out
+
+rule cc
+  command = $cc $ccflags -Fo$out -Fd$out.pdb /c /TC $in
+  description = CC $out
+
+rule link
+  command = $link $ldflags /OUT:$out $in $libs
+  description = LINK $out
+
+rule lib
+  command = lib.exe /LTCG /out:$out /nologo $in
+  description = LIB $out
+
+# has to do a temp copy as Microsoft mt.exe can only transform its input
+# rather than make a new output
+rule mt
+  command = copy /y "$in" $out && \
+            mt.exe /outputresource:$out /manifest $in.manifest
+  description = MT $out
+
+# Generate a graph using the -g flag.
+rule gendot
+  command = ninja$x -f build-win32.ninja -t graph all > $out
+  description = GENDOT $out
+
+rule gengraph
+  command = $dot $dotflags $in > $out
+  description = GENGRAPH $out
+
+build $builddir/build.$o: cxx src/build.cc
+build $builddir/build_log.$o: cxx src/build_log.cc
+build $builddir/eval_env.$o: cxx src/eval_env.cc
+build $builddir/graph.$o: cxx src/graph.cc
+build $builddir/graphviz.$o: cxx src/graphviz.cc
+build $builddir/parsers.$o: cxx src/parsers.cc
+build $builddir/subprocess.win32.$o: cxx src/subprocess.win32.cpp
+build $builddir/util.$o: cxx src/util.cc
+build $builddir/ninja_jumble.$o: cxx src/ninja_jumble.cc
+build $builddir/ninja.$o: cxx src/ninja.cc
+build $builddir/clean.$o: cxx src/clean.cc
+build $builddir/touch.$o: cxx src/touch.cc
+build $builddir/getopt.$o: cc src/getopt.c
+build $builddir/ninja.lib: lib $builddir/build.$o \
+    $builddir/build_log.$o $builddir/eval_env.$o $builddir/graph.$o \
+    $builddir/graphviz.$o $builddir/parsers.$o $builddir/subprocess.win32.$o \
+    $builddir/util.$o $builddir/ninja_jumble.$o $builddir/getopt.$o \
+    $builddir/clean.$o $builddir/touch.$o
+build $builddir/ninja.tmp: link $builddir/ninja.$o $builddir/ninja.lib
+  libs = shlwapi.lib
+build ninja$x: mt $builddir/ninja.tmp
+
+build $builddir/build_test.$o: cxx src/build_test.cc
+build $builddir/build_log_test.$o: cxx src/build_log_test.cc
+build $builddir/graph_test.$o: cxx src/graph_test.cc
+build $builddir/ninja_test.$o: cxx src/ninja_test.cc
+build $builddir/parsers_test.$o: cxx src/parsers_test.cc
+build $builddir/subprocess_test.win32.$o: cxx src/subprocess_test.win32.cpp
+build $builddir/test.$o: cxx src/test.cc
+build $builddir/util_test.$o: cxx src/util_test.cc
+build $builddir/ninja_test.tmp: link $builddir/build_test.$o $builddir/build_log_test.$o \
+    $builddir/graph_test.$o $builddir/ninja_test.$o $builddir/parsers_test.$o \
+    $builddir/subprocess_test.win32.$o $builddir/test.$o \
+    $builddir/util_test.$o $builddir/ninja.lib
+  libs = shlwapi.lib
+  ldflags = /LTCG /DEBUG /INCREMENTAL:NO /MANIFEST \
+    /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF \
+    /LIBPATH:../gtest-1.6.0/msvc/gtest-md/Release/ gtest.lib gtest_main-md.lib
+build ninja_test$x: mt $builddir/ninja_test.tmp
+
+build $builddir/graph.dot: gendot ninja$x build-win32.ninja
+build graph.pdf: gengraph $builddir/graph.dot
+
+build all: phony || ninja$x ninja_test$x graph.pdf

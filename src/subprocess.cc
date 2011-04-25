@@ -33,7 +33,8 @@ Subprocess::Stream::~Stream() {
     close(fd_);
 }
 
-Subprocess::Subprocess() : pid_(-1) {}
+Subprocess::Subprocess() : pid_(-1){}
+Subprocess::Subprocess(SubprocessSet* pSetWeAreRunOn) : pid_(-1), procset_(pSetWeAreRunOn){}
 Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (pid_ != -1)
@@ -157,7 +158,7 @@ void SubprocessSet::DoWork() {
   int ret = poll(fds.data(), fds.size(), -1);
   if (ret == -1) {
     if (errno != EINTR)
-      perror("poll");
+      perror("ninja: poll");
     return;
   }
 

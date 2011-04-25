@@ -52,6 +52,7 @@ TEST_F(BuildLogTest, WriteRead) {
   ASSERT_TRUE(*e1 == *e2);
   ASSERT_EQ(15, e1->time_ms);
   ASSERT_EQ("out", e1->output);
+  log2.Close(); // Windows can't unlink a file unless it's closed first
 }
 
 TEST_F(BuildLogTest, DoubleEntry) {
@@ -68,4 +69,5 @@ TEST_F(BuildLogTest, DoubleEntry) {
   BuildLog::LogEntry* e = log.LookupByOutput("out");
   ASSERT_TRUE(e);
   ASSERT_EQ("command def", e->command);
+  log.Close(); // Windows can't unlink a file unless it's closed first
 }

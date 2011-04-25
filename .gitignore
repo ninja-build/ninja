@@ -6,4 +6,12 @@ TAGS
 /README.html
 /config.ninja
 /manual.html
+/Bootstrap
+/build-win32
 /doxygen
+/ninja.exe
+/ninja.tmp
+/ninja.tmp.manifest
+/ninja_test.exe
+/ninja_test.tmp
+/ninja_test.tmp.manifest

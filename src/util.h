@@ -28,4 +28,10 @@ void Error(const char* msg, ...);
 // Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
+#ifndef WIN32
+const char kPathSeparator = '/';
+#else
+const char kPathSeparator = '\\';
+#endif
+
 #endif  // NINJA_UTIL_H_

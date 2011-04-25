@@ -185,6 +185,12 @@ TEST_F(StatTest, Middle) {
   ASSERT_TRUE(GetNode("out")->dirty_);
 }
 
+string makeTempName() {
+  char buff[7];
+  sprintf(buff, "%d", (rand() % 1000000));
+  return string("DiskInterfaceTest-") + buff;
+}
+
 class DiskInterfaceTest : public testing::Test {
 public:
   virtual void SetUp() {
@@ -192,6 +198,19 @@ public:
     ASSERT_TRUE(getcwd(buf, sizeof(buf)));
     start_dir_ = buf;
 
+#ifdef WIN32   
+    // real windows programs use the win32api call GetTempDir() here
+    const char* tempdir = getenv("TEMP");
+    if (!tempdir)
+      tempdir = getenv("TMP");
+    if (!tempdir)
+      tempdir = "C:\\Temp";
+    ASSERT_EQ(0, chdir(tempdir));
+
+    string name_template = tempdir + makeTempName();
+    _mkdir(name_template.c_str());
+    const char* name = name_template.c_str();
+#else
     const char* tempdir = getenv("TMPDIR");
     if (!tempdir)
       tempdir = "/tmp";
@@ -199,13 +218,18 @@ public:
 
     char name_template[] = "DiskInterfaceTest-XXXXXX";
     char* name = mkdtemp(name_template);
+#endif
     temp_dir_name_ = name;
     ASSERT_TRUE(name);
     ASSERT_EQ(0, chdir(name));
   }
   virtual void TearDown() {
     ASSERT_EQ(0, chdir(start_dir_.c_str()));
+#ifdef WIN32
+    ASSERT_EQ(0, system(("cmd.exe /c rmdir /q /s " + temp_dir_name_).c_str()));
+#else
     ASSERT_EQ(0, system(("rm -rf " + temp_dir_name_).c_str()));
+#endif
   }
 
   string start_dir_;
@@ -217,9 +241,16 @@ TEST_F(DiskInterfaceTest, Stat) {
   EXPECT_EQ(0, disk_.Stat("nosuchfile"));
 
   string too_long_name(512, 'x');
+// The below doesn't fail on Windows
+#ifndef WIN32
   EXPECT_EQ(-1, disk_.Stat(too_long_name));
+#endif
 
+#ifndef WIN32
   ASSERT_EQ(0, system("touch file"));
+#else
+  ASSERT_EQ(0, system("cmd.exe /c echo hi > file"));
+#endif
   EXPECT_GT(disk_.Stat("file"), 1);
 }
 

@@ -291,7 +291,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
           // XXX remove this hack, or make it more principled.
           char cwd[1024];
           if (!getcwd(cwd, sizeof(cwd))) {
-            perror("getcwd");
+            perror("ninja: getcwd");
             return 1;
           }
           value = cwd + value.substr(9);
