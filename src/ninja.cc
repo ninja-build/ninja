@@ -19,6 +19,7 @@
 #include "getopt.h"
 #else
 #include <getopt.h>
+#include <limits.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -165,13 +166,9 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
 #ifndef WIN32
-  if (argc < 1) {
-    Error("expected a target to browse");
-    return 1;
-  }
   RunBrowsePython(state, argv[0]);
 #else
-  printf("ERROR: Not supported on win32 platform, aborting.\n");
+  Error("browse mode not yet supported on Windows");
 #endif
   // If we get here, the browse failed.
   return 1;

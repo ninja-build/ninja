@@ -37,7 +37,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return true;  // Do nothing, report success.
 
   if (needs_recompaction_) {
-    Close();    // Windows needs us to close the file before we can rename over it
+    Close();
     if (!Recompact(path, err))
       return false;
   }
@@ -130,6 +130,8 @@ bool BuildLog::Load(const string& path, string* err) {
   int kCompactionRatio = 3;
   if (total_entry_count > unique_entry_count * kCompactionRatio)
     needs_recompaction_ = true;
+
+  fclose(file);
 
   return true;
 }
