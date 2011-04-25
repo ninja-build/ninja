@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "build.h"
+#include "util.h"
 
 #include "graph.h"
 #include "test.h"
@@ -393,14 +394,14 @@ TEST_F(BuildTest, MakeDirs) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build subdir/dir2/file: cat in1\n"));
 
-  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
+  EXPECT_TRUE(builder_.AddTarget("subdir" + string(1, kPathSeparator) + "dir2" + string(1, kPathSeparator) + "file", &err));
   EXPECT_EQ("", err);
   now_ = 0;  // Make all stat()s return file not found.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
-  EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
+  EXPECT_EQ("subdir" + string(1, kPathSeparator) + "dir2", fs_.directories_made_[1]);
 }
 
 TEST_F(BuildTest, DepFileMissing) {

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "parsers.h"
+#include "util.h"
 
 #include <gtest/gtest.h>
 
@@ -145,10 +146,10 @@ TEST_F(ParserTest, CanonicalizeFile) {
 "build in/1: cat\n"
 "build in/2: cat\n"));
 
-  EXPECT_TRUE(state.LookupNode("in/1"));
-  EXPECT_TRUE(state.LookupNode("in/2"));
-  EXPECT_FALSE(state.LookupNode("in//1"));
-  EXPECT_FALSE(state.LookupNode("in//2"));
+  EXPECT_TRUE(state.LookupNode("in" + string(1, kPathSeparator) + "1"));
+  EXPECT_TRUE(state.LookupNode("in" + string(1, kPathSeparator) + "2"));
+  EXPECT_FALSE(state.LookupNode("in" + string(2, kPathSeparator) + "1"));
+  EXPECT_FALSE(state.LookupNode("in" + string(2, kPathSeparator) + "2"));
 }
 
 TEST_F(ParserTest, PathVariables) {
@@ -158,8 +159,8 @@ TEST_F(ParserTest, PathVariables) {
 "dir = out\n"
 "build $dir/exe: cat src\n"));
 
-  EXPECT_FALSE(state.LookupNode("$dir/exe"));
-  EXPECT_TRUE(state.LookupNode("out/exe"));
+  EXPECT_FALSE(state.LookupNode("$dir" + string(1, kPathSeparator) + "exe"));
+  EXPECT_TRUE(state.LookupNode("out" + string(1, kPathSeparator) + "exe"));
 }
 
 TEST_F(ParserTest, CanonicalizePaths) {
@@ -168,10 +169,11 @@ TEST_F(ParserTest, CanonicalizePaths) {
 "  command = cat $in > $out\n"
 "build ./out.o: cat ./bar/baz/../foo.cc\n"));
 
-  EXPECT_FALSE(state.LookupNode("./out.o"));
+  EXPECT_FALSE(state.LookupNode("." + string(1, kPathSeparator) + "out.o"));
   EXPECT_TRUE(state.LookupNode("out.o"));
-  EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
-  EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
+  EXPECT_FALSE(state.LookupNode("." + string(1, kPathSeparator) + "bar" + string(1, kPathSeparator)
+      + "baz" + string(1, kPathSeparator) + ".." + string(1, kPathSeparator) + "foo.cc"));
+  EXPECT_TRUE(state.LookupNode("bar" + string(1, kPathSeparator) + "foo.cc"));
 }
 
 TEST_F(ParserTest, Errors) {
@@ -294,9 +296,9 @@ TEST_F(ParserTest, SubNinja) {
   ASSERT_EQ(1, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);
-  EXPECT_TRUE(state.LookupNode("some_dir/outer"));
+  EXPECT_TRUE(state.LookupNode("some_dir" + string(1, kPathSeparator) + "outer"));
   // Verify our builddir setting is inherited.
-  EXPECT_TRUE(state.LookupNode("some_dir/inner"));
+  EXPECT_TRUE(state.LookupNode("some_dir" + string(1, kPathSeparator) + "inner"));
 
   ASSERT_EQ(3, state.edges_.size());
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());

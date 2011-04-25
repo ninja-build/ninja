@@ -31,6 +31,7 @@ using namespace std;
 struct SubprocessSet;
 
 struct Subprocess {
+  Subprocess();
   Subprocess(SubprocessSet* set_we_are_run_on);
   ~Subprocess();
   bool Start(const string& command);

@@ -64,6 +64,10 @@ bool CanonicalizePath(string* path, string* err) {
     string::size_type end = path->find('/', start);
     if (end == string::npos)
       end = path->size();
+#ifdef WIN32
+    else
+       (*path)[end] = kPathSeparator;
+#endif
     if (end > start) {
       if (parts_count == kMaxPathComponents) {
         *err = "can't canonicalize path '" + *path + "'; too many "
@@ -118,7 +122,7 @@ bool CanonicalizePath(string* path, string* err) {
   char* p = (char*)path->data();
   for (i = 0; i < parts_count; ++i) {
     if (p > path->data())
-      *p++ = '/';
+      *p++ = kPathSeparator;
     int len = lens[i];
     memmove(p, starts[i], len);
     p += len;
