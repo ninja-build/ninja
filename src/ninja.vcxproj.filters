@@ -66,6 +66,12 @@
     <ClCompile Include="graphviz.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="util_test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="build.h">

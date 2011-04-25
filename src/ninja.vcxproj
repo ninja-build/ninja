@@ -99,7 +99,9 @@
     <ClCompile Include="subprocess_test.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="test.cc" />
     <ClCompile Include="util.cc" />
+    <ClCompile Include="util_test.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="build.h" />
