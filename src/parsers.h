@@ -17,6 +17,7 @@
 
 #include <string>
 #include <vector>
+#include <limits>
 
 using namespace std;
 
@@ -67,7 +68,8 @@ struct Tokenizer {
   bool Newline(string* err);
   bool ExpectToken(Token::Type expected, string* err);
   bool ReadIdent(string* out);
-  bool ReadToNewline(string* text, string* err);
+  bool ReadToNewline(string* text, string* err,
+                     size_t max_length=std::numeric_limits<size_t>::max());
 
   Token::Type PeekToken();
   void ConsumeToken();

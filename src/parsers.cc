@@ -52,7 +52,7 @@ void Tokenizer::Start(const char* start, const char* end) {
 
 bool Tokenizer::Error(const string& message, string* err) {
   char buf[1024];
-  sprintf(buf, "line %d, col %d: %s",
+  snprintf(buf, sizeof(buf), "line %d, col %d: %s",
           line_number_,
           (int)(token_.pos_ - cur_line_) + 1,
           message.c_str());
@@ -123,7 +123,7 @@ bool Tokenizer::ReadIdent(string* out) {
   return true;
 }
 
-bool Tokenizer::ReadToNewline(string* text, string* err) {
+bool Tokenizer::ReadToNewline(string *text, string* err, size_t max_length) {
   // XXX token_.clear();
   while (cur_ < end_ && *cur_ != '\n') {
     if (*cur_ == '\\') {
@@ -148,6 +148,10 @@ bool Tokenizer::ReadToNewline(string* text, string* err) {
     } else {
       text->push_back(*cur_);
       ++cur_;
+    }
+    if (text->size() >= max_length) {
+      token_.pos_ = cur_;
+      return false;
     }
   }
   return Newline(err);
@@ -367,6 +371,10 @@ bool ManifestParser::ParseLet(string* name, string* value, bool expand,
   if (!tokenizer_.ExpectToken(Token::EQUALS, err))
     return false;
 
+  // Backup the tokenizer state prior to consuming the line, for reporting
+  // the source location in case of a parse error later.
+  Tokenizer tokenizer_backup = tokenizer_;
+
   // XXX should we tokenize here?  it means we'll need to understand
   // command syntax, though...
   if (!tokenizer_.ReadToNewline(value, err))
@@ -375,8 +383,14 @@ bool ManifestParser::ParseLet(string* name, string* value, bool expand,
   if (expand) {
     EvalString eval;
     string eval_err;
-    if (!eval.Parse(*value, &eval_err))
-      return tokenizer_.Error(eval_err, err);
+    size_t err_index;
+    if (!eval.Parse(*value, &eval_err, &err_index)) {
+      string temp;
+      // Advance the saved tokenizer state up to the error index to report the
+      // error at the correct source location.
+      tokenizer_backup.ReadToNewline(&temp, err, err_index);
+      return tokenizer_backup.Error(eval_err, err);
+    }
     *value = eval.Evaluate(env_);
   }
 

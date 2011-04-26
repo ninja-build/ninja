@@ -27,7 +27,7 @@ void BindingEnv::AddBinding(const string& key, const string& val) {
   bindings_[key] = val;
 }
 
-bool EvalString::Parse(const string& input, string* err) {
+bool EvalString::Parse(const string& input, string* err, size_t* err_index) {
   unparsed_ = input;
 
   string::size_type start, end;
@@ -49,6 +49,8 @@ bool EvalString::Parse(const string& input, string* err) {
       }
       if (end >= input.size()) {
         *err = "expected closing curly after ${";
+        if (err_index)
+          *err_index = end;
         return false;
       }
       parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
@@ -63,6 +65,8 @@ bool EvalString::Parse(const string& input, string* err) {
       }
       if (end == start) {
         *err = "expected variable after $";
+        if (err_index)
+          *err_index = start;
         return false;
       }
       parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
