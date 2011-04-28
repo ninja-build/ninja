@@ -19,7 +19,6 @@
 #include "getopt.h"
 #else
 #include <getopt.h>
-#include <limits.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -99,15 +98,27 @@ struct RealFileReader : public ManifestParser::FileReader {
 };
 
 int CmdGraph(State* state, int argc, char* argv[]) {
+  int status = 0;
   GraphViz graph;
   graph.Start();
-  for (int i = 0; i < argc; ++i)
-    graph.AddTarget(state->GetNode(argv[i]));
+  for (int i = 0; i < argc; ++i) {
+    Node* node = state->LookupNode(argv[i]);
+    if (node)
+      graph.AddTarget(node);
+    else {
+      Error("unknown target '%s'", argv[i]);
+      status = 1;
+    }
+  }
   graph.Finish();
-  return 0;
+  return status;
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
+  if (argc == 0) {
+    Error("expected a target to query");
+    return 1;
+  }
   for (int i = 0; i < argc; ++i) {
     Node* node = state->GetNode(argv[i]);
     if (node) {
@@ -137,6 +148,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 
 int CmdBrowse(State* state, int argc, char* argv[]) {
 #ifndef WIN32
+  if (argc < 1) {
+    Error("expected a target to browse");
+    return 1;
+  }
   RunBrowsePython(state, argv[0]);
 #else
   Error("browse mode not yet supported on Windows");
@@ -176,19 +191,13 @@ int main(int argc, char** argv) {
         return 1;
     }
   }
-  if (optind >= argc) {
+  if (optind >= argc && tool.empty()) {
     Error("expected target to build");
     usage(config);
     return 1;
   }
   argv += optind;
   argc -= optind;
-
-  char cwd[PATH_MAX];
-  if (!getcwd(cwd, sizeof(cwd))) {
-    perror("getcwd");
-    return 1;
-  }
 
   State state;
   RealFileReader file_reader;
