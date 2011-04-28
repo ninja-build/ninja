@@ -90,14 +90,12 @@ int GuessParallelism() {
   switch (processors) {
   case 0:
   case 1:
-    processors = 2; break;
+    return 2;
   case 2:
-    processors = 3; break;
+    return 3;
   default:
-    processors = processors + 2; break;
+    return processors + 2;
   }
-
-  return processors;
 }
 
 struct RealFileReader : public ManifestParser::FileReader {
