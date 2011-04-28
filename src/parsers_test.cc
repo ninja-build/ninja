@@ -208,6 +208,30 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.Parse("x = $\n", &err));
+    EXPECT_EQ("line 1, col 6: expected variable after $", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("x = \\\n $[\n", &err));
+    EXPECT_EQ("line 2, col 3: expected variable after $", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("x = a\\\n b\\\n $\n", &err));
+    EXPECT_EQ("line 3, col 3: expected variable after $", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
     EXPECT_EQ("line 1, col 10: unknown build rule 'y'", err);
   }

@@ -7,15 +7,14 @@
 #include <io.h>
 #include <sys/timeb.h>
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 
 #define mkdir(path, mod) _mkdir(((mod),(path)))
 #define getcwd _getcwd
 #define isatty _isatty
-//int mktemp(char* path)
-//{
-//  _mktemp_s(path, 
-//}
+#define snprintf _snprintf
+
 #pragma warning(disable : 4996) // deprecate function use
 #define setlinebuf(f) do { int err = setvbuf(f, 0, _IOLBF, 4096); assert(err == 0); } while (0)
 #define PATH_MAX 4096

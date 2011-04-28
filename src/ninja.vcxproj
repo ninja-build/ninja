@@ -78,6 +78,7 @@
     <ClCompile Include="build_test.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="clean.cc" />
     <ClCompile Include="eval_env.cc" />
     <ClCompile Include="getopt.c" />
     <ClCompile Include="graph.cc" />
@@ -99,11 +100,13 @@
     <ClCompile Include="subprocess_test.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="touch.cc" />
     <ClCompile Include="util.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="build.h" />
     <ClInclude Include="build_log.h" />
+    <ClInclude Include="clean.h" />
     <ClInclude Include="eval_env.h" />
     <ClInclude Include="getopt.h" />
     <ClInclude Include="graph.h" />
@@ -113,6 +116,7 @@
     <ClInclude Include="parsers.h" />
     <ClInclude Include="subprocess.h" />
     <ClInclude Include="test.h" />
+    <ClInclude Include="touch.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="win32port.h" />
   </ItemGroup>

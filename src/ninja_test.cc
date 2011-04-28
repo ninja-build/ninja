@@ -78,8 +78,18 @@ TEST(EvalString, OneVariableUpperCase) {
 TEST(EvalString, Error) {
   EvalString str;
   string err;
-  EXPECT_FALSE(str.Parse("bad $", &err));
+  size_t err_index;
+  EXPECT_FALSE(str.Parse("bad $", &err, &err_index));
   EXPECT_EQ("expected variable after $", err);
+  EXPECT_EQ(5, err_index);
+}
+TEST(EvalString, CurlyError) {
+  EvalString str;
+  string err;
+  size_t err_index;
+  EXPECT_FALSE(str.Parse("bad ${bar", &err, &err_index));
+  EXPECT_EQ("expected closing curly after ${", err);
+  EXPECT_EQ(9, err_index);
 }
 TEST(EvalString, Curlies) {
   EvalString str;

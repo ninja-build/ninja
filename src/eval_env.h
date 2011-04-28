@@ -39,7 +39,7 @@ struct BindingEnv : public Env {
 // A tokenized string that contains variable references.
 // Can be evaluated relative to an Env.
 struct EvalString {
-  bool Parse(const string& input, string* err);
+  bool Parse(const string& input, string* err, size_t* err_index=NULL);
   string Evaluate(Env* env) const;
 
   const string& unparsed() const { return unparsed_; }

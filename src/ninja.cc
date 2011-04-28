@@ -110,21 +110,13 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   int status = 0;
   GraphViz graph;
   graph.Start();
-  if (argc == 0) {
-    vector<Node*> root_nodes = state->RootNodes();
-    for (vector<Node*>::const_iterator n = root_nodes.begin();
-         n != root_nodes.end();
-         ++n)
-      graph.AddTarget(*n);
-  } else {
-    for (int i = 0; i < argc; ++i) {
-      Node* node = state->LookupNode(argv[i]);
-      if (node)
-        graph.AddTarget(node);
-      else {
-        Error("unknown target '%s'", argv[i]);
-        status = 1;
-      }
+  for (int i = 0; i < argc; ++i) {
+    Node* node = state->LookupNode(argv[i]);
+    if (node)
+      graph.AddTarget(node);
+    else {
+      Error("unknown target '%s'", argv[i]);
+      status = 1;
     }
   }
   graph.Finish();
@@ -343,7 +335,6 @@ int CmdTouch(State* state,
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
-  const char* working_dir = 0;
   string tool;
 
   config.parallelism = GuessParallelism();
@@ -366,9 +357,6 @@ int main(int argc, char** argv) {
       case 't':
         tool = optarg;
         break;
-      case 'C':
-        working_dir = optarg;
-        break;
       case 'h':
       default:
         usage(config);
@@ -382,12 +370,6 @@ int main(int argc, char** argv) {
   }
   argv += optind;
   argc -= optind;
-
-  if (working_dir) {
-    if (chdir(working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
-    }
-  }
 
   State state;
   RealFileReader file_reader;
