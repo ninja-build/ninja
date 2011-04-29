@@ -317,19 +317,19 @@ graph for all root targets.
 `targets`:: output a list of targets either by rule or by depth.  If used
 like this +ninja -t targets rule _name_+ it prints the list of targets
 using the given rule to be built.  If no rule is given, it prints the source
-files (the leaf of the graph.  If used like this
+files (the leaf of the graph).  If used like this
 +ninja -t targets depth _digit_+ it
-prints the list of targets in the depth-first manner starting by the root
+prints the list of targets in a depth-first manner starting by the root
 targets (the ones with no outputs). Indentation is used to mark dependencies.
 If the depth is zero it prints all targets. If no arguments are provided
 +ninja -t targets depth 1+ is assumed. In this mode targets may be listed
 several times. If used like this +ninja -t targets all+ it
 prints all the targets available without indentation and it is way faster
-than the _depth_ mode. It returns non-zero if no targets are found.
+than the _depth_ mode.  It returns non-zero if an error occurs.
 
 `rules`:: output the list of all rules with their description if they have
 one.  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+.  It returns non-zero if there is no rule.
++ninja -t targets rule _name_+.
 
 `clean`:: remove built files.  If used like this +ninja -t clean+ it
 removes all the built files.  If used like this
@@ -339,17 +339,8 @@ recursively all files built for it.  If used like this
 +ninja -t clean rule _rules_+ it removes all files built using the given
 rules. The depfiles are not removed. Files created but not referenced in
 the graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).
-
-`touch`:: touch source files.  If used like this +ninja -t touch+, it
-touches all the source files.  If used like this
-+ninja -t touch _targets..._+ or like this
-+ninja -t touch target _targets..._+ it touches all the source files
-the given targets depend on.  If used like this
-+ninja -t touch rule _rules..._+ it touches all the input files built
-using the given rules (this is not recursive only the direct input files
-are touched). This tool takes in account the +-v+ and the +-n+ option
-(note that +-n+ implies +-v+).
++-n+ options (note that +-n+ implies +-v+).  It returns non-zero if an
+error occurs.
 
 Ninja file reference
 --------------------

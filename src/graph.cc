@@ -92,6 +92,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   return true;
 }
 
+/// An Env for an Edge, providing $in and $out.
 struct EdgeEnv : public Env {
   EdgeEnv(Edge* edge) : edge_(edge) {}
   virtual string LookupVariable(const string& var) {

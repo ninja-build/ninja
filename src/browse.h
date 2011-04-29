@@ -17,9 +17,9 @@
 
 struct State;
 
-// Run in "browse" mode, which execs a Python webserver.
-// |command| is the command used to invoke ninja.
-// This function does not return if it runs successfully.
+/// Run in "browse" mode, which execs a Python webserver.
+/// |command| is the command used to invoke ninja.
+/// This function does not return if it runs successfully.
 void RunBrowsePython(State* state, const char* ninja_command);
 
 #endif  // NINJA_BROWSE_H_

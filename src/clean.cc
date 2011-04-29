@@ -94,7 +94,7 @@ void Cleaner::PrintHeader() {
 }
 
 void Cleaner::PrintFooter() {
-  printf("%d files.\n", removed_.size());
+  printf("%d files.\n", (int)removed_.size());
 }
 
 void Cleaner::CleanAll() {
@@ -126,12 +126,6 @@ void Cleaner::CleanTarget(Node* target) {
   PrintHeader();
   DoCleanTarget(target);
   PrintFooter();
-}
-
-int Cleaner::CleanTarget(const char* target) {
-  assert(target);
-
-  return CleanTargets(1, &target);
 }
 
 int Cleaner::CleanTargets(int target_count, const char* targets[]) {
@@ -172,12 +166,6 @@ void Cleaner::CleanRule(const Rule* rule) {
   PrintHeader();
   DoCleanRule(rule);
   PrintFooter();
-}
-
-int Cleaner::CleanRule(const char* rule) {
-  assert(rule);
-
-  return CleanRules(1, &rule);
 }
 
 int Cleaner::CleanRules(int rule_count, const char* rules[]) {

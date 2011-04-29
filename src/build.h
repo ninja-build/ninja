@@ -26,31 +26,31 @@ struct DiskInterface;
 struct Node;
 struct State;
 
-// Plan stores the state of a build plan: what we intend to build,
-// which steps we're ready to execute.
+/// Plan stores the state of a build plan: what we intend to build,
+/// which steps we're ready to execute.
 struct Plan {
   Plan();
 
-  // Add a target to our plan (including all its dependencies).
-  // Returns false if we don't need to build this target; may
-  // fill in |err| with an error message if there's a problem.
+  /// Add a target to our plan (including all its dependencies).
+  /// Returns false if we don't need to build this target; may
+  /// fill in |err| with an error message if there's a problem.
   bool AddTarget(Node* node, string* err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns NULL if there's no work to do.
   Edge* FindWork();
 
-  // Returns true if there's more work to be done.
+  /// Returns true if there's more work to be done.
   bool more_to_do() const { return !want_.empty(); }
 
-  // Dumps the current state of the plan.
+  /// Dumps the current state of the plan.
   void Dump();
 
-  // Mark an edge as done building.  Used internally and by
-  // tests.
+  /// Mark an edge as done building.  Used internally and by
+  /// tests.
   void EdgeFinished(Edge* edge);
 
-  // Number of edges with commands to run.
+  /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
 
 private:
@@ -61,23 +61,24 @@ private:
   set<Edge*> want_;
   set<Edge*> ready_;
 
-  // Total number of edges that have commands (not phony).
+  /// Total number of edges that have commands (not phony).
   int command_edges_;
 };
 
-// CommandRunner is an interface that wraps running the build
-// subcommands.  This allows tests to abstract out running commands.
-// RealCommandRunner is an implementation that actually runs commands.
+/// CommandRunner is an interface that wraps running the build
+/// subcommands.  This allows tests to abstract out running commands.
+/// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  // Wait for commands to make progress; return false if there is no
-  // progress to be made.
+  /// Wait for commands to make progress; return false if there is no
+  /// progress to be made.
   virtual bool WaitForCommands() = 0;
   virtual Edge* NextFinishedCommand(bool* success) = 0;
 };
 
+/// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
   BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1) {}
 
@@ -91,6 +92,7 @@ struct BuildConfig {
   int parallelism;
 };
 
+/// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config);
 

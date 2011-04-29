@@ -98,6 +98,8 @@ int GuessParallelism() {
   }
 }
 
+/// An implementation of ManifestParser::FileReader that actually reads
+/// the file.
 struct RealFileReader : public ManifestParser::FileReader {
   bool ReadFile(const string& path, string* content, string* err) {
     return ::ReadFile(path, content, err) == 0;
@@ -108,13 +110,27 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   int status = 0;
   GraphViz graph;
   graph.Start();
-  for (int i = 0; i < argc; ++i) {
-    Node* node = state->LookupNode(argv[i]);
-    if (node)
-      graph.AddTarget(node);
-    else {
-      Error("unknown target '%s'", argv[i]);
+  if (argc == 0) {
+    string err;
+    vector<Node*> root_nodes = state->RootNodes(&err);
+    if (err.empty()) {
+      for (vector<Node*>::const_iterator n = root_nodes.begin();
+           n != root_nodes.end();
+           ++n)
+        graph.AddTarget(*n);
+    } else {
+      Error("%s", err.c_str());
       status = 1;
+    }
+  } else {
+    for (int i = 0; i < argc; ++i) {
+      Node* node = state->LookupNode(argv[i]);
+      if (node)
+        graph.AddTarget(node);
+      else {
+        Error("unknown target '%s'", argv[i]);
+        status = 1;
+      }
     }
   }
   graph.Finish();
@@ -185,32 +201,42 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   return 0;
 }
 
-int CmdTargetsList(const vector<Node*>& nodes, const char* rule) {
-  bool found = false;
-  for (vector<Node*>::const_iterator n = nodes.begin();
-       n != nodes.end();
-       ++n) {
-    const char* target = (*n)->file_->path_.c_str();
-    if ((*n)->in_edge_) {
-      if (!strcmp((*n)->in_edge_->rule_->name_.c_str(), rule)) {
-        printf("%s\n", target);
-        found = true;
-      }
-      if (!CmdTargetsList((*n)->in_edge_->inputs_, rule))
-        found = true;
-    } else {
-      if (!strncmp(rule, "", 2)) {
-        printf("%s\n", target);
-        found = true;
-      }
-    }
-  }
-  return (found ? 0 : 1);
+int CmdTargetsList(const vector<Node*>& nodes, int depth) {
+  return CmdTargetsList(nodes, depth, 0);
 }
 
-int CmdTargetsAll(State* state) {
-  if (state->edges_.empty())
-    return 1;
+int CmdTargetsSourceList(State* state) {
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
+         inps != (*e)->inputs_.end();
+         ++inps)
+      if (!(*inps)->in_edge_)
+        printf("%s\n", (*inps)->file_->path_.c_str());
+  return 0;
+}
+
+int CmdTargetsList(State* state, const string& rule_name) {
+  set<string> rules;
+  // Gather the outputs.
+  for (vector<Edge*>::iterator e = state->edges_.begin();
+       e != state->edges_.end();
+       ++e)
+    if ((*e)->rule_->name_ == rule_name)
+      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+           out_node != (*e)->outputs_.end();
+           ++out_node)
+        rules.insert((*out_node)->file_->path_);
+  // Print them.
+  for (set<string>::const_iterator i = rules.begin();
+       i != rules.end();
+       ++i)
+    printf("%s\n", (*i).c_str());
+  return 0;
+}
+
+int CmdTargetsList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
        e != state->edges_.end();
        ++e)
@@ -225,31 +251,35 @@ int CmdTargetsAll(State* state) {
 
 int CmdTargets(State* state, int argc, char* argv[]) {
   int depth = 1;
-  const char* rule = 0;
   if (argc >= 1) {
     string mode = argv[0];
     if (mode == "rule") {
+      string rule;
       if (argc > 1)
         rule = argv[1];
+      if (rule.empty())
+        return CmdTargetsSourceList(state);
       else
-        rule = "";
+        return CmdTargetsList(state, rule);
     } else if (mode == "depth") {
       if (argc > 1)
         depth = atoi(argv[1]);
     } else if (mode == "all") {
-      return CmdTargetsAll(state);
+      return CmdTargetsList(state);
     } else {
-      Error("unknown mode '%s'", mode.c_str());
+      Error("unknown target tool mode '%s'", mode.c_str());
       return 1;
     }
   }
 
-  vector<Node*> root_nodes = state->RootNodes();
-
-  if (rule)
-    return CmdTargetsList(root_nodes, rule);
-  else
-    return CmdTargetsList(root_nodes, depth, 0);
+  string err;
+  vector<Node*> root_nodes = state->RootNodes(&err);
+  if (err.empty()) {
+    return CmdTargetsList(root_nodes, depth);
+  } else {
+    Error("%s", err.c_str());
+    return 1;
+  }
 }
 
 int CmdRules(State* state, int argc, char* argv[]) {
@@ -333,6 +363,7 @@ int CmdTouch(State* state,
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
+  const char* working_dir = 0;
   string tool;
 
   config.parallelism = GuessParallelism();
@@ -355,6 +386,9 @@ int main(int argc, char** argv) {
       case 't':
         tool = optarg;
         break;
+      case 'C':
+        working_dir = optarg;
+        break;
       case 'h':
       default:
         usage(config);
@@ -368,6 +402,12 @@ int main(int argc, char** argv) {
   }
   argv += optind;
   argc -= optind;
+
+  if (working_dir) {
+    if (chdir(working_dir) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
+    }
+  }
 
   State state;
   RealFileReader file_reader;

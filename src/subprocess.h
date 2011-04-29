@@ -24,18 +24,18 @@
 
 using namespace std;
 
-// Subprocess wraps a single async subprocess.  It is entirely
-// passive: it expects the caller to notify it when its fds are ready
-// for reading, as well as call Finish() to reap the child once done()
-// is true.
 struct SubprocessSet;
 
+/// Subprocess wraps a single async subprocess.  It is entirely
+/// passive: it expects the caller to notify it when its fds are ready
+/// for reading, as well as call Finish() to reap the child once done()
+/// is true.
 struct Subprocess {
   Subprocess(SubprocessSet* set_we_are_run_on);
   ~Subprocess();
   bool Start(const string& command);
   void OnFDReady(int fd);
-  // Returns true on successful process exit.
+  /// Returns true on successful process exit.
   bool Finish();
 
   bool done() const {
@@ -71,9 +71,9 @@ struct Subprocess {
   SubprocessSet* procset_;
 };
 
-// SubprocessSet runs a poll() loop around a set of Subprocesses.
-// DoWork() waits for any state change in subprocesses; finished_
-// is a queue of subprocesses as they finish.
+/// SubprocessSet runs a poll() loop around a set of Subprocesses.
+/// DoWork() waits for any state change in subprocesses; finished_
+/// is a queue of subprocesses as they finish.
 struct SubprocessSet {
   void Add(Subprocess* subprocess);
   void DoWork();

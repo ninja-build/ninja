@@ -37,32 +37,44 @@ struct Rule;
 
 int ReadFile(const string& path, string* contents, string* err);
 
+/// Interface for accessing the disk.
+///
+/// Abstract so it can be mocked out for tests.  The real implementation
+/// is RealDiskInterface.
 struct DiskInterface {
-  // stat() a file, returning the mtime, or 0 if missing and -1 on other errors.
+  /// stat() a file, returning the mtime, or 0 if missing and -1 on
+  /// other errors.
   virtual int Stat(const string& path) = 0;
-  // Create a directory, returning false on failure.
+  /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
-  // Read a file to a string.  Fill in |err| on error.
+  /// Read a file to a string.  Fill in |err| on error.
   virtual string ReadFile(const string& path, string* err) = 0;
 
-  // Create all the parent directories for path; like mkdir -p `basename path`.
+  /// Create all the parent directories for path; like mkdir -p
+  /// `basename path`.
   bool MakeDirs(const string& path);
 };
 
+/// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   virtual int Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
 };
 
+/// Mapping of path -> FileStat.
 struct StatCache {
   typedef hash_map<string, FileStat*> Paths;
   Paths paths_;
+
   FileStat* GetFile(const string& path);
+
+  /// Dump the mapping to stdout (useful for debugging).
   void Dump();
   void Reload();
 };
 
+/// Global state (file status, loaded rules) for a single run.
 struct State {
   State();
 
@@ -75,7 +87,9 @@ struct State {
   Node* LookupNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
-  vector<Node*> RootNodes();
+  /// @return the root node(s) of the graph. (Root nodes have no input edges).
+  /// @param error where to write the error message if somethings went wrong.
+  vector<Node*> RootNodes(string* error);
 
   StatCache stat_cache_;
   /// All the rules used in the graph.

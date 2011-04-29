@@ -26,11 +26,12 @@
 #include "ninja.h"
 #include "subprocess.h"
 
+/// Tracks the status of a build: completion fraction, printing updates.
 struct BuildStatus {
   BuildStatus();
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  // Returns the time the edge took, in ms.
+  /// Returns the time the edge took, in ms.
   int BuildEdgeFinished(Edge* edge);
 
   void PrintStatus(Edge* edge);
@@ -42,7 +43,7 @@ struct BuildStatus {
   RunningEdgeMap running_edges_;
 
   BuildConfig::Verbosity verbosity_;
-  // Whether we can do fancy terminal control codes.
+  /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
 };
 
@@ -328,6 +329,7 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   return edge;
 }
 
+/// A CommandRunner that doesn't actually run the commands.
 struct DryRunCommandRunner : public CommandRunner {
   virtual ~DryRunCommandRunner() {}
   virtual bool CanRunMore() {
