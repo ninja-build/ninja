@@ -94,7 +94,7 @@ void Cleaner::PrintHeader() {
 }
 
 void Cleaner::PrintFooter() {
-  printf("%d files.\n", removed_.size());
+  printf("%d files.\n", (int)removed_.size());
 }
 
 void Cleaner::CleanAll() {
