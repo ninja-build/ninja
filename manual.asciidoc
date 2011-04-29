@@ -311,7 +311,8 @@ feature requires a Python installation.
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
 graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
 -ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph`
-generates an image for Ninja itself.
+generates an image for Ninja itself.  If no target is given generate a
+graph for all root targets.
 
 `targets`:: output a list of targets either by rule or by depth.  If used
 like this +ninja -t targets rule _name_+ it prints the list of targets

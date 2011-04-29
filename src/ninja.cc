@@ -106,13 +106,27 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   int status = 0;
   GraphViz graph;
   graph.Start();
-  for (int i = 0; i < argc; ++i) {
-    Node* node = state->LookupNode(argv[i]);
-    if (node)
-      graph.AddTarget(node);
-    else {
-      Error("unknown target '%s'", argv[i]);
+  if (argc == 0) {
+    string err;
+    vector<Node*> root_nodes = state->RootNodes(&err);
+    if (err.empty()) {
+      for (vector<Node*>::const_iterator n = root_nodes.begin();
+           n != root_nodes.end();
+           ++n)
+        graph.AddTarget(*n);
+    } else {
+      Error("%s", err.c_str());
       status = 1;
+    }
+  } else {
+    for (int i = 0; i < argc; ++i) {
+      Node* node = state->LookupNode(argv[i]);
+      if (node)
+        graph.AddTarget(node);
+      else {
+        Error("unknown target '%s'", argv[i]);
+        status = 1;
+      }
     }
   }
   graph.Finish();
