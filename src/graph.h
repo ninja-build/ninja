@@ -24,13 +24,15 @@ using namespace std;
 struct DiskInterface;
 
 struct Node;
+
+/// Information about a single on-disk file: path, mtime.
 struct FileStat {
   FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
 
-  // Return true if the file exists (mtime_ got a value).
+  /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
 
-  // Return true if we needed to stat.
+  /// Return true if we needed to stat.
   bool StatIfNecessary(DiskInterface* disk_interface) {
     if (status_known())
       return false;
@@ -56,6 +58,9 @@ struct FileStat {
 };
 
 struct Edge;
+
+/// Information about a node in the dependency graph: the file, whether
+/// it's dirty, etc.
 struct Node {
   Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
 
@@ -67,6 +72,7 @@ struct Node {
   vector<Edge*> out_edges_;
 };
 
+/// An invokable build command and associated metadata (description, etc.).
 struct Rule {
   Rule(const string& name) : name_(name) { }
 
@@ -80,6 +86,8 @@ struct Rule {
 };
 
 struct State;
+
+/// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
 

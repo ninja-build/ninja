@@ -23,8 +23,8 @@
 
 struct Node;
 
-// A base test fixture that includes a State object with a
-// builtin "cat" rule.
+/// A base test fixture that includes a State object with a
+/// builtin "cat" rule.
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();
   Node* GetNode(const string& path);
@@ -34,11 +34,11 @@ struct StateTestWithBuiltinRules : public testing::Test {
 
 void AssertParse(State* state, const char* input);
 
-// An implementation of DiskInterface that uses an in-memory representation
-// of disk state.  It also logs file accesses and directory creations
-// so it can be used by tests to verify disk access patterns.
+/// An implementation of DiskInterface that uses an in-memory representation
+/// of disk state.  It also logs file accesses and directory creations
+/// so it can be used by tests to verify disk access patterns.
 struct VirtualFileSystem : public DiskInterface {
-  // "Create" a file with a given mtime and contents.
+  /// "Create" a file with a given mtime and contents.
   void Create(const string& path, int time, const string& contents);
 
   // DiskInterface
@@ -46,6 +46,7 @@ struct VirtualFileSystem : public DiskInterface {
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
 
+  /// An entry for a single in-memory file.
   struct Entry {
     int mtime;
     string contents;

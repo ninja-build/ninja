@@ -20,6 +20,7 @@ using namespace std;
 
 struct Node;
 
+/// Runs the process of creating GraphViz .dot file output.
 struct GraphViz {
   void Start();
   void AddTarget(Node* node);

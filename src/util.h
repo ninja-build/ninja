@@ -19,13 +19,13 @@
 #include <string>
 using namespace std;
 
-// Log a fatal message, dump a backtrace, and exit.
+/// Log a fatal message and exit.
 void Fatal(const char* msg, ...);
 
-// Log an error message.
+/// Log an error message.
 void Error(const char* msg, ...);
 
-// Canonicalize a path like "foo/../bar.h" into just "bar.h".
+/// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
 #endif  // NINJA_UTIL_H_
