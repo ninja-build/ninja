@@ -317,7 +317,7 @@ graph for all root targets.
 `targets`:: output a list of targets either by rule or by depth.  If used
 like this +ninja -t targets rule _name_+ it prints the list of targets
 using the given rule to be built.  If no rule is given, it prints the source
-files (the leaf of the graph).  If used like this
+files (the leaves of the graph).  If used like this
 +ninja -t targets depth _digit_+ it
 prints the list of targets in a depth-first manner starting by the root
 targets (the ones with no outputs). Indentation is used to mark dependencies.
