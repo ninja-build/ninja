@@ -86,14 +86,14 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("./foo.cc", 1, "");
-  fs_.Create("./out.o.d", 1, "out.o: foo.cc\n");
-  fs_.Create("./out.o", 1, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
+  fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("./out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge_;
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(GetNode("./out.o")->dirty_);
+  EXPECT_FALSE(GetNode("out.o")->dirty_);
 }
