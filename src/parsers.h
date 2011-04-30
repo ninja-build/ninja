@@ -102,6 +102,7 @@ struct State;
 /// Parses .ninja files.
 struct ManifestParser {
   struct FileReader {
+    virtual ~FileReader() {}
     virtual bool ReadFile(const string& path, string* content, string* err) = 0;
   };
 
