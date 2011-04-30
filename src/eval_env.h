@@ -22,6 +22,7 @@ using namespace std;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
+  virtual ~Env() {}
   virtual string LookupVariable(const string& var) = 0;
 };
 
@@ -29,6 +30,7 @@ struct Env {
 /// as well as a pointer to a parent scope.
 struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
+  virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
   void AddBinding(const string& key, const string& val);
 
