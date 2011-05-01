@@ -29,10 +29,6 @@ struct Token {
     NONE,
     UNKNOWN,
     IDENT,
-    RULE,
-    BUILD,
-    SUBNINJA,
-    INCLUDE,
     NEWLINE,
     EQUALS,
     COLON,
@@ -69,6 +65,7 @@ struct Tokenizer {
   void SkipWhitespace(bool newline=false);
   bool Newline(string* err);
   bool ExpectToken(Token::Type expected, string* err);
+  bool ExpectIdent(const char* expected, string* err);
   bool ReadIdent(string* out);
   bool ReadToNewline(string* text, string* err,
                      size_t max_length=std::numeric_limits<size_t>::max());
@@ -118,7 +115,7 @@ struct ManifestParser {
   bool ParseEdge(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(Token::Type type, string* err);
+  bool ParseFileInclude(string* err);
 
   State* state_;
   BindingEnv* env_;

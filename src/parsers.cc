@@ -27,10 +27,6 @@ string Token::AsString() const {
   switch (type_) {
   case IDENT:    return "'" + string(pos_, end_ - pos_) + "'";
   case UNKNOWN:  return "unknown '" + string(pos_, end_ - pos_) + "'";
-  case RULE:     return "'rule'";
-  case BUILD:    return "'build'";
-  case SUBNINJA: return "'subninja'";
-  case INCLUDE:  return "'include'";
   case NEWLINE:  return "newline";
   case EQUALS:   return "'='";
   case COLON:    return "':'";
@@ -114,6 +110,16 @@ bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
   return true;
 }
 
+bool Tokenizer::ExpectIdent(const char* expected, string* err) {
+  PeekToken();
+  if (token_.type_ != Token::IDENT ||
+      strncmp(token_.pos_, expected, token_.end_ - token_.pos_) != 0) {
+    return ErrorExpected(string("'") + expected + "'", err);
+  }
+  ConsumeToken();
+  return true;
+}
+
 bool Tokenizer::ReadIdent(string* out) {
   PeekToken();
   if (token_.type_ != Token::IDENT)
@@ -185,17 +191,7 @@ Token::Type Tokenizer::PeekToken() {
       ++cur_;
     }
     token_.end_ = cur_;
-    int len = token_.end_ - token_.pos_;
-    if (len == 4 && memcmp(token_.pos_, "rule", 4) == 0)
-      token_.type_ = Token::RULE;
-    else if (len == 5 && memcmp(token_.pos_, "build", 5) == 0)
-      token_.type_ = Token::BUILD;
-    else if (len == 7 && memcmp(token_.pos_, "include", 7) == 0)
-      token_.type_ = Token::INCLUDE;
-    else if (len == 8 && memcmp(token_.pos_, "subninja", 8) == 0)
-      token_.type_ = Token::SUBNINJA;
-    else
-      token_.type_ = Token::IDENT;
+    token_.type_ = Token::IDENT;
   } else if (*cur_ == ':') {
     token_.type_ = Token::COLON;
     ++cur_;
@@ -274,33 +270,34 @@ bool ManifestParser::Parse(const string& input, string* err) {
 
   while (tokenizer_.token().type_ != Token::TEOF) {
     switch (tokenizer_.PeekToken()) {
-      case Token::RULE:
-        if (!ParseRule(err))
-          return false;
-        break;
-      case Token::BUILD:
-        if (!ParseEdge(err))
-          return false;
-        break;
-      case Token::SUBNINJA:
-      case Token::INCLUDE:
-        if (!ParseFileInclude(tokenizer_.PeekToken(), err))
-          return false;
-        break;
       case Token::IDENT: {
-        string name, value;
-        if (!ParseLet(&name, &value, true, err))
-          return false;
-        if (value.substr(0, 9) == "ROOT_HACK") {
-          // XXX remove this hack, or make it more principled.
-          char cwd[1024];
-          if (!getcwd(cwd, sizeof(cwd))) {
-            perror("ninja: getcwd");
-            return 1;
+        const Token& token = tokenizer_.token();
+        int len = token.end_ - token.pos_;
+        if (len == 4 && memcmp(token.pos_, "rule", 4) == 0) {
+          if (!ParseRule(err))
+            return false;
+        } else if (len == 5 && memcmp(token.pos_, "build", 5) == 0) {
+          if (!ParseEdge(err))
+            return false;
+        } else if ((len == 7 && memcmp(token.pos_, "include", 7) == 0) ||
+                   (len == 8 && memcmp(token.pos_, "subninja", 8) == 0)) {
+          if (!ParseFileInclude(err))
+            return false;
+        } else {
+          string name, value;
+          if (!ParseLet(&name, &value, true, err))
+            return false;
+          if (value.substr(0, 9) == "ROOT_HACK") {
+            // XXX remove this hack, or make it more principled.
+            char cwd[1024];
+            if (!getcwd(cwd, sizeof(cwd))) {
+              perror("getcwd");
+              return 1;
+            }
+            value = cwd + value.substr(9);
           }
-          value = cwd + value.substr(9);
+          env_->AddBinding(name, value);
         }
-        env_->AddBinding(name, value);
         break;
       }
       case Token::TEOF:
@@ -315,7 +312,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
 }
 
 bool ManifestParser::ParseRule(string* err) {
-  if (!tokenizer_.ExpectToken(Token::RULE, err))
+  if (!tokenizer_.ExpectIdent("rule", err))
     return false;
   string name;
   if (!tokenizer_.ReadIdent(&name))
@@ -400,7 +397,7 @@ bool ManifestParser::ParseLet(string* name, string* value, bool expand,
 bool ManifestParser::ParseEdge(string* err) {
   vector<string> ins, outs;
 
-  if (!tokenizer_.ExpectToken(Token::BUILD, err))
+  if (!tokenizer_.ExpectIdent("build", err))
     return false;
 
   for (;;) {
@@ -515,9 +512,10 @@ bool ManifestParser::ParseEdge(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseFileInclude(Token::Type type, string* err) {
-  if (!tokenizer_.ExpectToken(type, err))
-    return false;
+bool ManifestParser::ParseFileInclude(string* err) {
+  string type;
+  tokenizer_.ReadIdent(&type);
+
   string path;
   if (!tokenizer_.ReadIdent(&path))
     return tokenizer_.ErrorExpected("path to ninja file", err);
@@ -529,7 +527,7 @@ bool ManifestParser::ParseFileInclude(Token::Type type, string* err) {
     return false;
 
   ManifestParser subparser(state_, file_reader_);
-  if (type == Token::SUBNINJA) {
+  if (type == "subninja") {
     // subninja: Construct a new scope for the new parser.
     subparser.env_ = new BindingEnv;
     subparser.env_->parent_ = env_;
