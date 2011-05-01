@@ -89,8 +89,6 @@ rule asciidoc
 build manual.html: asciidoc manual.asciidoc
 build manual: phony || manual.html
 
-build all: phony || ninja ninja_test graph.png manual
-
 # Generate Doxygen.
 rule doxygen
   command = doxygen $in
