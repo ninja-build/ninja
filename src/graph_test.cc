@@ -97,3 +97,19 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 
   EXPECT_FALSE(GetNode("out.o")->dirty_);
 }
+
+TEST_F(GraphTest, RootNodes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out1: cat in1\n"
+"build mid1: cat in1\n"
+"build out2: cat mid1\n"
+"build out3 out4: cat mid1\n"));
+
+  string err;
+  vector<Node*> root_nodes = state_.RootNodes(&err);
+  EXPECT_EQ(4, root_nodes.size());
+  for (size_t i = 0; i < root_nodes.size(); ++i) {
+    string name = root_nodes[i]->file_->path_;
+    EXPECT_EQ("out", name.substr(0, 3));
+  }
+}

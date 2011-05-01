@@ -183,20 +183,20 @@ void State::AddOut(Edge* edge, const string& path) {
   node->in_edge_ = edge;
 }
 
-vector<Node*> State::RootNodes(string* error)
-{
-  assert(error);
+vector<Node*> State::RootNodes(string* err) {
   vector<Node*> root_nodes;
   // Search for nodes with no output.
-  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
-    for (vector<Node*>::iterator outs = (*e)->outputs_.begin();
-         outs != (*e)->outputs_.end();
-         ++outs)
-      if ((*outs)->out_edges_.size() == 0)
-        root_nodes.push_back(*outs);
-  if (!edges_.empty() && root_nodes.empty()) {
-    *error = "could not determine root nodes of build graph";
+  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
+    for (vector<Node*>::iterator out = (*e)->outputs_.begin();
+         out != (*e)->outputs_.end(); ++out) {
+      if ((*out)->out_edges_.empty())
+        root_nodes.push_back(*out);
+    }
   }
+
+  if (!edges_.empty() && root_nodes.empty())
+    *err = "could not determine root nodes of build graph";
+
   assert(edges_.empty() || !root_nodes.empty());
   return root_nodes;
 }
