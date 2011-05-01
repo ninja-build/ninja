@@ -22,6 +22,9 @@ using namespace std;
 /// Log a fatal message and exit.
 void Fatal(const char* msg, ...);
 
+/// Log a warning message.
+void Warning(const char* msg, ...);
+
 /// Log an error message.
 void Error(const char* msg, ...);
 
