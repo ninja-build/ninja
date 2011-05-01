@@ -114,11 +114,14 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
       return false;
   } else {
     for (int i = 0; i < argc; ++i) {
-      Node* node = state->LookupNode(argv[i]);
+      string path = argv[i];
+      if (!CanonicalizePath(&path, err))
+        return false;
+      Node* node = state->LookupNode(path);
       if (node) {
         targets->push_back(node);
       } else {
-        *err = string("unknown target '") + argv[i] + "'";
+        *err = "unknown target '" + path + "'";
         return false;
       }
     }
