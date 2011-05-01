@@ -97,6 +97,7 @@ struct Builder {
   Builder(State* state, const BuildConfig& config);
 
   Node* AddTarget(const string& name, string* err);
+  bool AddTarget(Node* target, string* err);
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);

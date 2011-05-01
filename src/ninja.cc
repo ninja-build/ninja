@@ -374,11 +374,6 @@ int main(int argc, char** argv) {
         return 1;
     }
   }
-  if (optind >= argc && tool.empty()) {
-    Error("expected target to build");
-    usage(config);
-    return 1;
-  }
   argv += optind;
   argc -= optind;
 
@@ -440,14 +435,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  Builder builder(&state, config);
-  for (int i = 0; i < argc; ++i) {
-    string path = argv[i];
-    string err;
-    if (!CanonicalizePath(&path, &err))
-      Fatal("can't canonicalize '%s': %s", path.c_str(), err.c_str());
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(&state, argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
 
-    if (!builder.AddTarget(path, &err)) {
+  Builder builder(&state, config);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;

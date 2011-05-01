@@ -372,17 +372,24 @@ Node* Builder::AddTarget(const string& name, string* err) {
     *err = "unknown target: '" + name + "'";
     return NULL;
   }
+  if (!AddTarget(node, err))
+    return NULL;
+  return node;
+}
+
+bool Builder::AddTarget(Node* node, string* err) {
   node->file_->StatIfNecessary(disk_interface_);
   if (node->in_edge_) {
     if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
-      return NULL;
+      return false;
   }
   if (!node->dirty_)
-    return NULL;  // Intentionally no error.
+    return false;  // Intentionally no error.
 
   if (!plan_.AddTarget(node, err))
-    return NULL;
-  return node;
+    return false;
+
+  return true;
 }
 
 bool Builder::Build(string* err) {
