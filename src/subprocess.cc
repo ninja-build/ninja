@@ -33,7 +33,6 @@ Subprocess::Stream::~Stream() {
     close(fd_);
 }
 
-Subprocess::Subprocess() : pid_(-1){}
 Subprocess::Subprocess(SubprocessSet* pSetWeAreRunOn) : pid_(-1), procset_(pSetWeAreRunOn){}
 Subprocess::~Subprocess() {
   // Reap child if forgotten.
