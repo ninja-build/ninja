@@ -81,15 +81,15 @@ rule gengraph
 build $builddir/graph.dot: gendot ninja build.ninja
 build graph.png: gengraph $builddir/graph.dot
 
-# Generate docs.
+# Generate the manual.
 rule asciidoc
   command = asciidoc -a toc $in
   description = ASCIIDOC $in
 
 build manual.html: asciidoc manual.asciidoc
-build doc: phony || manual.html
+build manual: phony || manual.html
 
-build all: phony || ninja ninja_test graph.png doc
+build all: phony || ninja ninja_test graph.png manual
 
 # Generate Doxygen.
 rule doxygen
