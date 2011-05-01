@@ -154,7 +154,7 @@ void SubprocessSet::DoWork() {
     }
   }
 
-  int ret = poll(fds.data(), fds.size(), -1);
+  int ret = poll(&fds.front(), fds.size(), -1);
   if (ret == -1) {
     if (errno != EINTR)
       perror("ninja: poll");

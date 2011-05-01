@@ -174,6 +174,13 @@ TEST_F(ParserTest, CanonicalizePaths) {
   EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
 }
 
+TEST_F(ParserTest, ReservedWords) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule build\n"
+"  command = rule run $out\n"
+"build subninja: build include foo.cc\n"));
+}
+
 TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL, NULL);

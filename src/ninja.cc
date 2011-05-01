@@ -41,6 +41,8 @@
 #include "clean.h"
 #include "touch.h"
 
+namespace {
+
 option options[] = {
   { "help", no_argument, NULL, 'h' },
   { }
@@ -106,35 +108,44 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
-int CmdGraph(State* state, int argc, char* argv[]) {
-  int status = 0;
-  GraphViz graph;
-  graph.Start();
+bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
+                            vector<Node*>* targets, string* err) {
   if (argc == 0) {
-    string err;
-    vector<Node*> root_nodes = state->RootNodes(&err);
-    if (err.empty()) {
-      for (vector<Node*>::const_iterator n = root_nodes.begin();
-           n != root_nodes.end();
-           ++n)
-        graph.AddTarget(*n);
-    } else {
-      Error("%s", err.c_str());
-      status = 1;
-    }
+    *targets = state->RootNodes(err);
+    if (!err->empty())
+      return false;
   } else {
     for (int i = 0; i < argc; ++i) {
-      Node* node = state->LookupNode(argv[i]);
-      if (node)
-        graph.AddTarget(node);
-      else {
-        Error("unknown target '%s'", argv[i]);
-        status = 1;
+      string path = argv[i];
+      if (!CanonicalizePath(&path, err))
+        return false;
+      Node* node = state->LookupNode(path);
+      if (node) {
+        targets->push_back(node);
+      } else {
+        *err = "unknown target '" + path + "'";
+        return false;
       }
     }
   }
+  return true;
+}
+
+int CmdGraph(State* state, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  GraphViz graph;
+  graph.Start();
+  for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
+    graph.AddTarget(*n);
   graph.Finish();
-  return status;
+
+  return 0;
 }
 
 int CmdQuery(State* state, int argc, char* argv[]) {
@@ -360,6 +371,8 @@ int CmdTouch(State* state,
   }
 }
 
+}  // anonymous namespace
+
 int main(int argc, char** argv) {
   BuildConfig config;
   const char* input_file = "build.ninja";
@@ -394,11 +407,6 @@ int main(int argc, char** argv) {
         usage(config);
         return 1;
     }
-  }
-  if (optind >= argc && tool.empty()) {
-    Error("expected target to build");
-    usage(config);
-    return 1;
   }
   argv += optind;
   argc -= optind;
@@ -463,14 +471,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  Builder builder(&state, config);
-  for (int i = 0; i < argc; ++i) {
-    string path = argv[i];
-    string err;
-    if (!CanonicalizePath(&path, &err))
-      Fatal("can't canonicalize '%s': %s", path.c_str(), err.c_str());
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(&state, argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
 
-    if (!builder.AddTarget(path, &err)) {
+  Builder builder(&state, config);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;

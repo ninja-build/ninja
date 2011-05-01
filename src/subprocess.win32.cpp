@@ -31,9 +31,7 @@
 #include "util.h"
 
 #ifdef _MSC_VER
-#define snprintf snprintf_s
 #else
-#define snprintf snprintf
 #define __min(x,y) min(x,y)
 #endif
 

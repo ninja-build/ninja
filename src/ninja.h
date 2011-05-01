@@ -42,6 +42,8 @@ int ReadFile(const string& path, string* contents, string* err);
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
 struct DiskInterface {
+  virtual ~DiskInterface() {}
+
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
   virtual int Stat(const string& path) = 0;
@@ -57,6 +59,7 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
+  virtual ~RealDiskInterface() {}
   virtual int Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
@@ -87,7 +90,7 @@ struct State {
   Node* LookupNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
-  /// @return the root node(s) of the graph. (Root nodes have no input edges).
+  /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
   vector<Node*> RootNodes(string* error);
 
