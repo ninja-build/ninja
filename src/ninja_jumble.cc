@@ -100,7 +100,7 @@ string RealDiskInterface::ReadFile(const string& path, string* err) {
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
-  if (mkdir(path.c_str(), 0777) < 0) {
+  if (::MakeDir(path) < 0) {
     Error("mkdir(%s): %s", path.c_str(), strerror(errno));
     return false;
   }
