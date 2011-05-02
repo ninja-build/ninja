@@ -114,6 +114,10 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return "";
   }
+  virtual bool RemoveFile(const string& path) {
+    assert(false);
+    return false;
+  }
 
   map<string, time_t> mtimes_;
   vector<string> stats_;
@@ -251,4 +255,13 @@ TEST_F(DiskInterfaceTest, ReadFile) {
 
 TEST_F(DiskInterfaceTest, MakeDirs) {
   EXPECT_TRUE(disk_.MakeDirs("path/with/double//slash/"));
+}
+
+TEST_F(DiskInterfaceTest, RemoveFile) {
+  const char* kFileName = "file-to-remove";
+  string cmd = "touch ";
+  cmd += kFileName;
+  ASSERT_EQ(0, system(cmd.c_str()));
+  EXPECT_TRUE(disk_.RemoveFile(kFileName));
+  EXPECT_FALSE(disk_.RemoveFile(kFileName));
 }

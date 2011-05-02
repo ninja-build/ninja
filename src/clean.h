@@ -15,6 +15,8 @@
 #ifndef NINJA_CLEAN_H_
 #define NINJA_CLEAN_H_
 
+#include "build.h"
+
 #include <string>
 #include <set>
 using namespace std;
@@ -23,15 +25,27 @@ struct State;
 struct BuildConfig;
 struct Node;
 struct Rule;
+struct DiskInterface;
 
 class Cleaner
 {
 public:
-  /// Constructor.
+  /// Build a cleaner object with a real disk interface.
   Cleaner(State* state, const BuildConfig& config);
+
+  /// Build a cleaner object with the given @a disk_interface
+  /// (Useful for testing).
+  Cleaner(State* state,
+          const BuildConfig& config,
+          DiskInterface* disk_interface);
 
   /// Clean the given @a target and all the file built for it.
   void CleanTarget(Node* target);
+  /// Clean the given target @a target.
+  /// @return non-zero if an error occurs.
+  int CleanTarget(const char* target);
+  /// Clean the given target @a targets.
+  /// @return non-zero if an error occurs.
   int CleanTargets(int target_count, char* targets[]);
 
   /// Clean all built files.
@@ -39,7 +53,23 @@ public:
 
   /// Clean all the file built with the given rule @a rule.
   void CleanRule(const Rule* rule);
+  /// Clean the file produced by the given @a rule.
+  /// @return non-zero if an error occurs.
+  int CleanRule(const char* rule);
+  /// Clean the file produced by the given @a rules.
+  /// @return non-zero if an error occurs.
   int CleanRules(int rule_count, char* rules[]);
+
+  /// @return the number of file cleaned.
+  int cleaned_files_count() const {
+    return cleaned_files_count_;
+  }
+
+  /// @return whether the cleaner is in verbose mode.
+  bool IsVerbose() const {
+    return (config_.verbosity != BuildConfig::QUIET
+            && (config_.verbosity == BuildConfig::VERBOSE || config_.dry_run));
+  }
 
 private:
   /// Remove the file @a path.
@@ -60,9 +90,10 @@ private:
 
 private:
   State* state_;
-  bool verbose_;
-  bool dry_run_;
+  BuildConfig config_;
   set<string> removed_;
+  int cleaned_files_count_;
+  DiskInterface* disk_interface_;
 };
 
 #endif  // NINJA_CLEAN_H_

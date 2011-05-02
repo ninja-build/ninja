@@ -27,50 +27,42 @@
 
 Cleaner::Cleaner(State* state, const BuildConfig& config)
   : state_(state)
-  , verbose_(config.verbosity == BuildConfig::VERBOSE || config.dry_run)
-  , dry_run_(config.dry_run)
+  , config_(config)
   , removed_()
+  , cleaned_files_count_(0)
+  , disk_interface_(new RealDiskInterface)
+{
+}
+
+Cleaner::Cleaner(State* state,
+                 const BuildConfig& config,
+                 DiskInterface* disk_interface)
+  : state_(state)
+  , config_(config)
+  , removed_()
+  , cleaned_files_count_(0)
+  , disk_interface_(disk_interface)
 {
 }
 
 bool Cleaner::RemoveFile(const string& path) {
-  if (remove(path.c_str()) < 0) {
-    switch (errno) {
-      case ENOENT:
-        return false;
-      default:
-        Error("remove(%s): %s", path.c_str(), strerror(errno));
-        return false;
-    }
-  } else {
-    return true;
-  }
+  return disk_interface_->RemoveFile(path);
 }
 
 bool Cleaner::FileExists(const string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
-    switch (errno) {
-      case ENOENT:
-        return false;
-      default:
-        Error("stat(%s): %s", path.c_str(), strerror(errno));
-        return false;
-    }
-  } else {
-    return true;
-  }
+  return disk_interface_->Stat(path) > 0;
 }
 
 void Cleaner::Report(const string& path) {
-  if (verbose_)
+  ++cleaned_files_count_;
+  if (IsVerbose())
     printf("Remove %s\n", path.c_str());
 }
 
 void Cleaner::Remove(const string& path) {
   if (!IsAlreadyRemoved(path)) {
     removed_.insert(path);
-    if (dry_run_) {
+    if (config_.dry_run) {
       if (FileExists(path))
         Report(path);
     } else {
@@ -86,15 +78,19 @@ bool Cleaner::IsAlreadyRemoved(const string& path) {
 }
 
 void Cleaner::PrintHeader() {
+  if (config_.verbosity == BuildConfig::QUIET)
+    return;
   printf("Cleaning...");
-  if (verbose_)
+  if (IsVerbose())
     printf("\n");
   else
     printf(" ");
 }
 
 void Cleaner::PrintFooter() {
-  printf("%d files.\n", (int)removed_.size());
+  if (config_.verbosity == BuildConfig::QUIET)
+    return;
+  printf("%d files.\n", cleaned_files_count_);
 }
 
 void Cleaner::CleanAll() {
@@ -128,6 +124,18 @@ void Cleaner::CleanTarget(Node* target) {
   PrintFooter();
 }
 
+int Cleaner::CleanTarget(const char* target) {
+  assert(target);
+  Node* node = state_->LookupNode(target);
+  if (node) {
+    CleanTarget(node);
+    return 0;
+  } else {
+    Error("unknown target '%s'", target);
+    return 1;
+  }
+}
+
 int Cleaner::CleanTargets(int target_count, char* targets[]) {
   int status = 0;
   PrintHeader();
@@ -135,7 +143,7 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
     const char* target_name = targets[i];
     Node* target = state_->LookupNode(target_name);
     if (target) {
-      if (verbose_)
+      if (IsVerbose())
         printf("Target %s\n", target_name);
       DoCleanTarget(target);
     } else {
@@ -168,6 +176,19 @@ void Cleaner::CleanRule(const Rule* rule) {
   PrintFooter();
 }
 
+int Cleaner::CleanRule(const char* rule) {
+  assert(rule);
+
+  const Rule* r = state_->LookupRule(rule);
+  if (r) {
+    CleanRule(r);
+    return 0;
+  } else {
+    Error("unknown rule '%s'", rule);
+    return 1;
+  }
+}
+
 int Cleaner::CleanRules(int rule_count, char* rules[]) {
   assert(rules);
 
@@ -177,7 +198,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
     const char* rule_name = rules[i];
     const Rule* rule = state_->LookupRule(rule_name);
     if (rule) {
-      if (verbose_)
+      if (IsVerbose())
         printf("Rule %s\n", rule_name);
       DoCleanRule(rule);
     } else {

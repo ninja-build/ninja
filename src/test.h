@@ -45,6 +45,7 @@ struct VirtualFileSystem : public DiskInterface {
   virtual int Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
+  virtual bool RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.
   struct Entry {
@@ -56,6 +57,7 @@ struct VirtualFileSystem : public DiskInterface {
   vector<string> files_read_;
   typedef map<string, Entry> FileMap;
   FileMap files_;
+  set<string> files_removed_;
 };
 
 #endif // NINJA_TEST_H_
