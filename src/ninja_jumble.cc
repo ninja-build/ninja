@@ -177,8 +177,8 @@ void State::AddOut(Edge* edge, const string& path) {
   Node* node = GetNode(path);
   edge->outputs_.push_back(node);
   if (node->in_edge_) {
-    Error("WARNING: multiple rules generate %s. "
-          "build will not be correct; continuing anyway", path.c_str());
+    Warning("multiple rules generate %s. "
+            "build will not be correct; continuing anyway", path.c_str());
   }
   node->in_edge_ = edge;
 }

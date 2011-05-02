@@ -37,6 +37,15 @@ void Fatal(const char* msg, ...) {
   exit(1);
 }
 
+void Warning(const char* msg, ...) {
+  va_list ap;
+  fprintf(stderr, "ninja: WARNING: ");
+  va_start(ap, msg);
+  vfprintf(stderr, msg, ap);
+  va_end(ap);
+  fprintf(stderr, "\n");
+}
+
 void Error(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: error: ");
