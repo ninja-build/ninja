@@ -52,7 +52,7 @@ struct DiskInterface {
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
-  ///          1 if the file does not exists, and
+  ///          1 if the file does not exist, and
   ///          -1 if an error occurs.
   virtual int RemoveFile(const string& path) = 0;
 

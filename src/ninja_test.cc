@@ -264,5 +264,5 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
   ASSERT_EQ(0, system(cmd.c_str()));
   EXPECT_EQ(0, disk_.RemoveFile(kFileName));
   EXPECT_EQ(1, disk_.RemoveFile(kFileName));
-  EXPECT_EQ(-1, disk_.RemoveFile("does not exist"));
+  EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
 }
