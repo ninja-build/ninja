@@ -58,3 +58,17 @@ string VirtualFileSystem::ReadFile(const string& path, string* err) {
     return i->second.contents;
   return "";
 }
+
+int VirtualFileSystem::RemoveFile(const string& path) {
+  if (find(directories_made_.begin(), directories_made_.end(), path)
+      != directories_made_.end())
+    return -1;
+  FileMap::iterator i = files_.find(path);
+  if (i != files_.end()) {
+    files_.erase(i);
+    files_removed_.insert(path);
+    return 0;
+  } else {
+    return 1;
+  }
+}

@@ -335,8 +335,7 @@ int CmdClean(State* state,
     }
   }
   else {
-    cleaner.CleanAll();
-    return 0;
+    return cleaner.CleanAll();
   }
 }
 
