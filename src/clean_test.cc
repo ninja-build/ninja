@@ -36,14 +36,12 @@ TEST_F(CleanTest, CleanAll) {
   fs_.Create("in2", 1, "");
   fs_.Create("out2", 1, "");
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, cleaner.CleanAll());
-    EXPECT_EQ(4, cleaner.cleaned_files_count());
-    EXPECT_EQ(4, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(4, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -52,14 +50,9 @@ TEST_F(CleanTest, CleanAll) {
   EXPECT_EQ(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, cleaner.CleanAll());
-    EXPECT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanAllDryRun) {
@@ -74,14 +67,12 @@ TEST_F(CleanTest, CleanAllDryRun) {
   fs_.Create("out2", 1, "");
 
   config_.dry_run = true;
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, cleaner.CleanAll());
-    EXPECT_EQ(4, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 
   // Check they are not removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -90,14 +81,9 @@ TEST_F(CleanTest, CleanAllDryRun) {
   EXPECT_NE(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, cleaner.CleanAll());
-    EXPECT_EQ(4, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanTarget) {
@@ -111,14 +97,12 @@ TEST_F(CleanTest, CleanTarget) {
   fs_.Create("in2", 1, "");
   fs_.Create("out2", 1, "");
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(2, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -127,14 +111,9 @@ TEST_F(CleanTest, CleanTarget) {
   EXPECT_NE(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-    EXPECT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanTargetDryRun) {
@@ -149,14 +128,12 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   fs_.Create("out2", 1, "");
 
   config_.dry_run = true;
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -165,14 +142,9 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   EXPECT_NE(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanRule) {
@@ -188,14 +160,12 @@ TEST_F(CleanTest, CleanRule) {
   fs_.Create("in2", 1, "");
   fs_.Create("out2", 1, "");
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(2, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -204,14 +174,9 @@ TEST_F(CleanTest, CleanRule) {
   EXPECT_NE(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
-    EXPECT_EQ(0, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
+  EXPECT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanRuleDryRun) {
@@ -228,14 +193,12 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   fs_.Create("out2", 1, "");
 
   config_.dry_run = true;
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, config_, &fs_);
 
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -244,14 +207,9 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   EXPECT_NE(0, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
-  {
-    Cleaner cleaner(&state_, config_, &fs_);
-
-    ASSERT_EQ(0, cleaner.cleaned_files_count());
-    ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
-    EXPECT_EQ(2, cleaner.cleaned_files_count());
-    EXPECT_EQ(0, fs_.files_removed_.size());
-  }
+  ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanFailure) {
