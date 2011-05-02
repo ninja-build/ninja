@@ -287,15 +287,6 @@ bool ManifestParser::Parse(const string& input, string* err) {
           string name, value;
           if (!ParseLet(&name, &value, true, err))
             return false;
-          if (value.substr(0, 9) == "ROOT_HACK") {
-            // XXX remove this hack, or make it more principled.
-            char cwd[1024];
-            if (!getcwd(cwd, sizeof(cwd))) {
-              perror("getcwd");
-              return 1;
-            }
-            value = cwd + value.substr(9);
-          }
           env_->AddBinding(name, value);
         }
         break;
