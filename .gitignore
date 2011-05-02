@@ -1,10 +1,10 @@
 *.pyc
 TAGS
 /build
+/build.ninja
 /ninja
 /ninja_test
 /graph.png
 /README.html
-/config.ninja
 /manual.html
 /doxygen

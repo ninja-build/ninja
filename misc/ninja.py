@@ -52,6 +52,8 @@ class Writer(object):
             for key, val in variables:
                 self.variable(key, val, indent=1)
 
+        return outputs
+
     def _line(self, text, indent=0):
         while len(text) > self.width:
             space = text.rfind(' ', 0, self.width - 4)
