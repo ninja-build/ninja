@@ -107,6 +107,20 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
+int RealDiskInterface::RemoveFile(const string& path) {
+  if (remove(path.c_str()) < 0) {
+    switch (errno) {
+      case ENOENT:
+        return 1;
+      default:
+        Error("remove(%s): %s", path.c_str(), strerror(errno));
+        return -1;
+    }
+  } else {
+    return 0;
+  }
+}
+
 FileStat* StatCache::GetFile(const string& path) {
   Paths::iterator i = paths_.find(path);
   if (i != paths_.end())

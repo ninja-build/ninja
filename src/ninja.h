@@ -49,6 +49,12 @@ struct DiskInterface {
   virtual bool MakeDir(const string& path) = 0;
   /// Read a file to a string.  Fill in |err| on error.
   virtual string ReadFile(const string& path, string* err) = 0;
+  /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
+  /// are reported if it does not exists.
+  /// @returns 0 if the file has been removed,
+  ///          1 if the file does not exists, and
+  ///          -1 if an error occurs.
+  virtual int RemoveFile(const string& path) = 0;
 
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
@@ -61,6 +67,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual int Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
+  virtual int RemoveFile(const string& path);
 };
 
 /// Mapping of path -> FileStat.
