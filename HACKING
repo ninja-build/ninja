@@ -12,3 +12,23 @@ Test-driven development:
   now you can repeatedly run that while developing until the tests pass.
   Remember to build "all" before committing to verify the other source
   still works!
+
+Coding guidelines:
+- Function name are camelcase.
+- Member methods are camelcase, expect for trivial getters which are
+  underscore separated.
+- Local variables are underscore separated.
+- Member variables are underscore separated and suffixed by an extra underscore.
+- Two spaces indentation.
+- Opening braces is at the end of line.
+- Lines are 80 columns maximum.
+- All source files should have the Google Inc. license header.
+- Also follow this style:
+  http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+
+Documentation guidelines:
+- Use /// for doxygen.
+- Use \a to refer to arguments.
+- It's not necessary to document each argument, especially when they're
+  relatively self-evident (e.g. in CanonicalizePath(string* path, string* err),
+  the arguments are hopefully obvious)
