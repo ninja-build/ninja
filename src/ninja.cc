@@ -15,11 +15,6 @@
 #include "ninja.h"
 
 #include <errno.h>
-#ifdef WIN32
-#include "getopt.h"
-#else
-#include <getopt.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -29,6 +24,14 @@
 #include <sys/sysctl.h>
 #elif defined(linux)
 #include <sys/sysinfo.h>
+#endif
+
+#ifdef WIN32
+#include "getopt.h"
+#include <direct.h>
+#include <windows.h>
+#else
+#include <getopt.h>
 #endif
 
 #include "browse.h"
@@ -378,7 +381,11 @@ int main(int argc, char** argv) {
   argc -= optind;
 
   if (working_dir) {
+#ifdef _WIN32
+    if (_chdir(working_dir) < 0) {
+#else
     if (chdir(working_dir) < 0) {
+#endif
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
     }
   }
@@ -416,7 +423,7 @@ int main(int argc, char** argv) {
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
-    if (mkdir(build_dir.c_str(), 0777) < 0 && errno != EEXIST) {
+    if (MakeDir(build_dir) < 0 && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir.c_str(), strerror(errno));
       return 1;
