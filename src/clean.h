@@ -40,7 +40,8 @@ public:
           DiskInterface* disk_interface);
 
   /// Clean the given @a target and all the file built for it.
-  void CleanTarget(Node* target);
+  /// @return non-zero if an error occurs.
+  int CleanTarget(Node* target);
   /// Clean the given target @a target.
   /// @return non-zero if an error occurs.
   int CleanTarget(const char* target);
@@ -49,10 +50,12 @@ public:
   int CleanTargets(int target_count, char* targets[]);
 
   /// Clean all built files.
-  void CleanAll();
+  /// @return non-zero if an error occurs.
+  int CleanAll();
 
   /// Clean all the file built with the given rule @a rule.
-  void CleanRule(const Rule* rule);
+  /// @return non-zero if an error occurs.
+  int CleanRule(const Rule* rule);
   /// Clean the file produced by the given @a rule.
   /// @return non-zero if an error occurs.
   int CleanRule(const char* rule);
@@ -74,7 +77,7 @@ public:
 private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
-  bool RemoveFile(const string& path);
+  int RemoveFile(const string& path);
   /// @returns whether the file @a path exists.
   bool FileExists(const string& path);
   void Report(const string& path);
@@ -87,6 +90,7 @@ private:
   void PrintHeader();
   void PrintFooter();
   void DoCleanRule(const Rule* rule);
+  void Reset();
 
 private:
   State* state_;
@@ -94,6 +98,7 @@ private:
   set<string> removed_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
+  int status_;
 };
 
 #endif  // NINJA_CLEAN_H_

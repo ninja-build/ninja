@@ -114,9 +114,9 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return "";
   }
-  virtual bool RemoveFile(const string& path) {
+  virtual int RemoveFile(const string& path) {
     assert(false);
-    return false;
+    return 0;
   }
 
   map<string, time_t> mtimes_;
@@ -262,6 +262,7 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
   string cmd = "touch ";
   cmd += kFileName;
   ASSERT_EQ(0, system(cmd.c_str()));
-  EXPECT_TRUE(disk_.RemoveFile(kFileName));
-  EXPECT_FALSE(disk_.RemoveFile(kFileName));
+  EXPECT_EQ(0, disk_.RemoveFile(kFileName));
+  EXPECT_EQ(1, disk_.RemoveFile(kFileName));
+  EXPECT_EQ(-1, disk_.RemoveFile("does not exist"));
 }

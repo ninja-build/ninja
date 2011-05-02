@@ -31,6 +31,7 @@ Cleaner::Cleaner(State* state, const BuildConfig& config)
   , removed_()
   , cleaned_files_count_(0)
   , disk_interface_(new RealDiskInterface)
+  , status_(0)
 {
 }
 
@@ -42,10 +43,11 @@ Cleaner::Cleaner(State* state,
   , removed_()
   , cleaned_files_count_(0)
   , disk_interface_(disk_interface)
+  , status_(0)
 {
 }
 
-bool Cleaner::RemoveFile(const string& path) {
+int Cleaner::RemoveFile(const string& path) {
   return disk_interface_->RemoveFile(path);
 }
 
@@ -66,8 +68,11 @@ void Cleaner::Remove(const string& path) {
       if (FileExists(path))
         Report(path);
     } else {
-      if (RemoveFile(path))
+      int ret = RemoveFile(path);
+      if (ret == 0)
         Report(path);
+      else if (ret == -1)
+        status_ = 1;
     }
   }
 }
@@ -93,7 +98,8 @@ void Cleaner::PrintFooter() {
   printf("%d files.\n", cleaned_files_count_);
 }
 
-void Cleaner::CleanAll() {
+int Cleaner::CleanAll() {
+  Reset();
   PrintHeader();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end();
@@ -103,6 +109,7 @@ void Cleaner::CleanAll() {
          ++out_node)
       Remove((*out_node)->file_->path_);
   PrintFooter();
+  return status_;
 }
 
 void Cleaner::DoCleanTarget(Node* target) {
@@ -116,28 +123,32 @@ void Cleaner::DoCleanTarget(Node* target) {
   }
 }
 
-void Cleaner::CleanTarget(Node* target) {
+int Cleaner::CleanTarget(Node* target) {
   assert(target);
 
+  Reset();
   PrintHeader();
   DoCleanTarget(target);
   PrintFooter();
+  return status_;
 }
 
 int Cleaner::CleanTarget(const char* target) {
   assert(target);
+
+  Reset();
   Node* node = state_->LookupNode(target);
   if (node) {
     CleanTarget(node);
-    return 0;
   } else {
     Error("unknown target '%s'", target);
-    return 1;
+    status_ = 1;
   }
+  return status_;
 }
 
 int Cleaner::CleanTargets(int target_count, char* targets[]) {
-  int status = 0;
+  Reset();
   PrintHeader();
   for (int i = 0; i < target_count; ++i) {
     const char* target_name = targets[i];
@@ -148,11 +159,11 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
       DoCleanTarget(target);
     } else {
       Error("unknown target '%s'", target_name);
-      status = 1;
+      status_ = 1;
     }
   }
   PrintFooter();
-  return status;
+  return status_;
 }
 
 void Cleaner::DoCleanRule(const Rule* rule) {
@@ -168,31 +179,34 @@ void Cleaner::DoCleanRule(const Rule* rule) {
         Remove((*out_node)->file_->path_);
 }
 
-void Cleaner::CleanRule(const Rule* rule) {
+int Cleaner::CleanRule(const Rule* rule) {
   assert(rule);
 
+  Reset();
   PrintHeader();
   DoCleanRule(rule);
   PrintFooter();
+  return status_;
 }
 
 int Cleaner::CleanRule(const char* rule) {
   assert(rule);
 
+  Reset();
   const Rule* r = state_->LookupRule(rule);
   if (r) {
     CleanRule(r);
-    return 0;
   } else {
     Error("unknown rule '%s'", rule);
-    return 1;
+    status_ = 1;
   }
+  return status_;
 }
 
 int Cleaner::CleanRules(int rule_count, char* rules[]) {
   assert(rules);
 
-  int status = 0;
+  Reset();
   PrintHeader();
   for (int i = 0; i < rule_count; ++i) {
     const char* rule_name = rules[i];
@@ -203,9 +217,15 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
       DoCleanRule(rule);
     } else {
       Error("unknown rule '%s'", rule_name);
-      status = 1;
+      status_ = 1;
     }
   }
   PrintFooter();
-  return status;
+  return status_;
+}
+
+void Cleaner::Reset() {
+  status_ = 0;
+  cleaned_files_count_ = 0;
+  removed_.clear();
 }

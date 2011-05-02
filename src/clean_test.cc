@@ -40,7 +40,7 @@ TEST_F(CleanTest, CleanAll) {
     Cleaner cleaner(&state_, config_, &fs_);
 
     ASSERT_EQ(0, cleaner.cleaned_files_count());
-    cleaner.CleanAll();
+    EXPECT_EQ(0, cleaner.CleanAll());
     EXPECT_EQ(4, cleaner.cleaned_files_count());
     EXPECT_EQ(4, fs_.files_removed_.size());
   }
@@ -56,7 +56,7 @@ TEST_F(CleanTest, CleanAll) {
     Cleaner cleaner(&state_, config_, &fs_);
 
     ASSERT_EQ(0, cleaner.cleaned_files_count());
-    cleaner.CleanAll();
+    EXPECT_EQ(0, cleaner.CleanAll());
     EXPECT_EQ(0, cleaner.cleaned_files_count());
     EXPECT_EQ(0, fs_.files_removed_.size());
   }
@@ -78,7 +78,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
     Cleaner cleaner(&state_, config_, &fs_);
 
     ASSERT_EQ(0, cleaner.cleaned_files_count());
-    cleaner.CleanAll();
+    EXPECT_EQ(0, cleaner.CleanAll());
     EXPECT_EQ(4, cleaner.cleaned_files_count());
     EXPECT_EQ(0, fs_.files_removed_.size());
   }
@@ -94,7 +94,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
     Cleaner cleaner(&state_, config_, &fs_);
 
     ASSERT_EQ(0, cleaner.cleaned_files_count());
-    cleaner.CleanAll();
+    EXPECT_EQ(0, cleaner.CleanAll());
     EXPECT_EQ(4, cleaner.cleaned_files_count());
     EXPECT_EQ(0, fs_.files_removed_.size());
   }
@@ -252,4 +252,12 @@ TEST_F(CleanTest, CleanRuleDryRun) {
     EXPECT_EQ(2, cleaner.cleaned_files_count());
     EXPECT_EQ(0, fs_.files_removed_.size());
   }
+}
+
+TEST_F(CleanTest, CleanFailure) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build dir: cat src1\n"));
+  fs_.MakeDir("dir");
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_NE(0, cleaner.CleanAll());
 }

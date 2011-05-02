@@ -107,17 +107,17 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-bool RealDiskInterface::RemoveFile(const string& path) {
+int RealDiskInterface::RemoveFile(const string& path) {
   if (remove(path.c_str()) < 0) {
     switch (errno) {
       case ENOENT:
-        return false;
+        return 1;
       default:
         Error("remove(%s): %s", path.c_str(), strerror(errno));
-        return false;
+        return -1;
     }
   } else {
-    return true;
+    return 0;
   }
 }
 
