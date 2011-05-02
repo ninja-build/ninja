@@ -13,7 +13,7 @@
 /* GETOPT_LONG_OPTION_T: The type of long option */
 typedef struct GETOPT_LONG_OPTION_T
 {
-  char *name;                   /* the name of the long option */
+  const char *name;             /* the name of the long option */
   int has_arg;                  /* one of the above macros */
   int *flag;                    /* determines if getopt_long() returns a
                                  * value for a long option; if it is
@@ -40,9 +40,9 @@ extern "C"
 
   /* function prototypes */
   int getopt (int argc, char **argv, char *optstring);
-  int getopt_long (int argc, char **argv, char *shortopts,
+  int getopt_long (int argc, char **argv, const char *shortopts,
                    GETOPT_LONG_OPTION_T * longopts, int *longind);
-  int getopt_long_only (int argc, char **argv, char *shortopts,
+  int getopt_long_only (int argc, char **argv, const char *shortopts,
                         GETOPT_LONG_OPTION_T * longopts, int *longind);
 
 #ifdef __cplusplus
