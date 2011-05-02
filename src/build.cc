@@ -15,7 +15,10 @@
 #include "build.h"
 
 #include <stdio.h>
-#ifndef WIN32
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/termios.h>
@@ -25,6 +28,21 @@
 #include "graph.h"
 #include "ninja.h"
 #include "subprocess.h"
+
+namespace {
+
+int64_t GetTimeMillis() {
+#ifdef _WIN32
+  // GetTickCount64 is only available on Vista or later.
+  return GetTickCount();
+#else
+  timeval now;
+  gettimeofday(&now, NULL);
+  return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
+#endif
+}
+
+}
 
 /// Tracks the status of a build: completion fraction, printing updates.
 struct BuildStatus {
@@ -36,10 +54,10 @@ struct BuildStatus {
 
   void PrintStatus(Edge* edge);
 
-  time_t last_update_;
+  int64_t last_update_millis_;
   int finished_edges_, total_edges_;
 
-  typedef map<Edge*, timeval> RunningEdgeMap;
+  typedef map<Edge*, int64_t> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   BuildConfig::Verbosity verbosity_;
@@ -48,7 +66,8 @@ struct BuildStatus {
 };
 
 BuildStatus::BuildStatus()
-    : last_update_(time(NULL)), finished_edges_(0), total_edges_(0),
+    : last_update_millis_(GetTimeMillis()),
+      finished_edges_(0), total_edges_(0),
       verbosity_(BuildConfig::NORMAL) {
 #ifndef WIN32
   const char* term = getenv("TERM");
@@ -63,16 +82,13 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  timeval now;
-  gettimeofday(&now, NULL);
-  running_edges_.insert(make_pair(edge, now));
+  running_edges_.insert(make_pair(edge, GetTimeMillis()));
 
   PrintStatus(edge);
 }
 
 int BuildStatus::BuildEdgeFinished(Edge* edge) {
-  timeval now;
-  gettimeofday(&now, NULL);
+  int64_t now = GetTimeMillis();
   ++finished_edges_;
 
   if (verbosity_ != BuildConfig::QUIET) {
@@ -81,18 +97,16 @@ int BuildStatus::BuildEdgeFinished(Edge* edge) {
       if (finished_edges_ == total_edges_)
         printf("\n");
     } else {
-      if (now.tv_sec - last_update_ > 5) {
+      if (now - last_update_millis_ > 5*1000) {
         printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
                finished_edges_, total_edges_);
-        last_update_ = now.tv_sec;
+        last_update_millis_ = now;
       }
     }
   }
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
-  timeval delta;
-  timersub(&now, &i->second, &delta);
-  int ms = (delta.tv_sec * 1000) + (delta.tv_usec / 1000);
+  int ms = (int)(now - i->second);
   running_edges_.erase(i);
 
   return ms;
