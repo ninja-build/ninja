@@ -69,7 +69,7 @@ bool CanonicalizePath(string* path, string* err) {
   // we overwrite path with these new substrings (since the path only
   // ever gets shorter, we can just use memmove within it).
 
-  const int kMaxPathComponents = 20;
+  const int kMaxPathComponents = 30;
   const char* starts[kMaxPathComponents];  // Starts of path components.
   int lens[kMaxPathComponents];  // Lengths of path components.
 
