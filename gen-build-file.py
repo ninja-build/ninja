@@ -103,12 +103,13 @@ if platform not in ('mingw'):
 
 n.comment('Core source files all build into ninja library.')
 for name in ['build', 'build_log', 'clean', 'eval_env', 'graph', 'graphviz',
-             'parsers', 'util', 'subprocess',
+             'parsers', 'util',
              'ninja_jumble']:
-    if platform == 'mingw' and name == 'subprocess':
-        # TODO: merge subprocess port
-        continue
     objs += cxx(name)
+if platform == 'mingw':
+    objs += cxx('subprocess-win32')
+else:
+    objs += cxx('subprocess')
 ninja_lib = n.build(built('libninja.a'), 'ar', objs)
 n.newline()
 
