@@ -36,9 +36,12 @@ struct Subprocess {
 
   const string& GetOutput() const;
 
-  struct Stream;
-  Stream* stream_;
+ private:
+  string buf_;
+  int fd_;
   pid_t pid_;
+
+  friend struct SubprocessSet;
 };
 
 /// SubprocessSet runs a poll() loop around a set of Subprocesses.

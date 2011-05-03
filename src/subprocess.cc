@@ -27,35 +27,21 @@
 
 #include "util.h"
 
-struct Subprocess::Stream {
-  Stream();
-  ~Stream();
-  string buf_;
-
-  int fd_;
-};
-
-Subprocess::Stream::Stream() : fd_(-1) {}
-Subprocess::Stream::~Stream() {
-  if (fd_ >= 0)
-    close(fd_);
-}
-
-Subprocess::Subprocess() : pid_(-1) {
-  stream_ = new Stream;
+Subprocess::Subprocess() : fd_(-1), pid_(-1) {
 }
 Subprocess::~Subprocess() {
+  if (fd_ >= 0)
+    close(fd_);
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
-  delete stream_;
 }
 
 bool Subprocess::Start(const string& command) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
-  stream_->fd_ = output_pipe[0];
+  fd_ = output_pipe[0];
 
   pid_ = fork();
   if (pid_ < 0)
@@ -100,14 +86,14 @@ bool Subprocess::Start(const string& command) {
 
 void Subprocess::OnFDReady() {
   char buf[4 << 10];
-  ssize_t len = read(stream_->fd_, buf, sizeof(buf));
+  ssize_t len = read(fd_, buf, sizeof(buf));
   if (len > 0) {
-    stream_->buf_.append(buf, len);
+    buf_.append(buf, len);
   } else {
     if (len < 0)
       Fatal("read: %s", strerror(errno));
-    close(stream_->fd_);
-    stream_->fd_ = -1;
+    close(fd_);
+    fd_ = -1;
   }
 }
 
@@ -127,11 +113,11 @@ bool Subprocess::Finish() {
 }
 
 bool Subprocess::Done() const {
-  return stream_->fd_ == -1;
+  return fd_ == -1;
 }
 
 const string& Subprocess::GetOutput() const {
-  return stream_->buf_;
+  return buf_;
 }
 
 void SubprocessSet::Add(Subprocess* subprocess) {
@@ -144,7 +130,7 @@ void SubprocessSet::DoWork() {
   map<int, Subprocess*> fd_to_subprocess;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
-    int fd = (*i)->stream_->fd_;
+    int fd = (*i)->fd_;
     if (fd >= 0) {
       fd_to_subprocess[fd] = *i;
       fds.resize(fds.size() + 1);
