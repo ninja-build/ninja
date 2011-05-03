@@ -21,11 +21,10 @@ TEST(Subprocess, Ls) {
   EXPECT_TRUE(ls.Start("ls /"));
 
   // Pretend we discovered that stdout was ready for writing.
-  ls.OnFDReady(ls.stdout_.fd_);
+  ls.OnFDReady();
 
   EXPECT_TRUE(ls.Finish());
-  EXPECT_NE("", ls.stdout_.buf_);
-  EXPECT_EQ("", ls.stderr_.buf_);
+  EXPECT_NE("", ls.GetOutput());
 }
 
 TEST(Subprocess, BadCommand) {
@@ -33,11 +32,10 @@ TEST(Subprocess, BadCommand) {
   EXPECT_TRUE(subproc.Start("ninja_no_such_command"));
 
   // Pretend we discovered that stderr was ready for writing.
-  subproc.OnFDReady(subproc.stderr_.fd_);
+  subproc.OnFDReady();
 
   EXPECT_FALSE(subproc.Finish());
-  EXPECT_EQ("", subproc.stdout_.buf_);
-  EXPECT_NE("", subproc.stderr_.buf_);
+  EXPECT_NE("", subproc.GetOutput());
 }
 
 TEST(SubprocessSet, Single) {
@@ -46,11 +44,11 @@ TEST(SubprocessSet, Single) {
   EXPECT_TRUE(ls->Start("ls /"));
   subprocs.Add(ls);
 
-  while (!ls->done()) {
+  while (!ls->Done()) {
     subprocs.DoWork();
   }
   ASSERT_TRUE(ls->Finish());
-  ASSERT_NE("", ls->stdout_.buf_);
+  ASSERT_NE("", ls->GetOutput());
 
   ASSERT_EQ(1, subprocs.finished_.size());
 }
@@ -72,13 +70,12 @@ TEST(SubprocessSet, Multi) {
 
   ASSERT_EQ(3, subprocs.running_.size());
   for (int i = 0; i < 3; ++i) {
-    ASSERT_FALSE(processes[i]->done());
-    ASSERT_EQ("", processes[i]->stdout_.buf_);
-    ASSERT_EQ("", processes[i]->stderr_.buf_);
+    ASSERT_FALSE(processes[i]->Done());
+    ASSERT_EQ("", processes[i]->GetOutput());
   }
 
-  while (!processes[0]->done() || !processes[1]->done() ||
-         !processes[2]->done()) {
+  while (!processes[0]->Done() || !processes[1]->Done() ||
+         !processes[2]->Done()) {
     ASSERT_GT(subprocs.running_.size(), 0);
     subprocs.DoWork();
   }
@@ -88,8 +85,7 @@ TEST(SubprocessSet, Multi) {
 
   for (int i = 0; i < 3; ++i) {
     ASSERT_TRUE(processes[i]->Finish());
-    ASSERT_NE("", processes[i]->stdout_.buf_);
-    ASSERT_EQ("", processes[i]->stderr_.buf_);
+    ASSERT_NE("", processes[i]->GetOutput());
     delete processes[i];
   }
 }

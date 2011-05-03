@@ -319,9 +319,8 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
   Edge* edge = i->second;
   subproc_to_edge_.erase(i);
 
-  if (!*success ||
-      !subproc->stdout_.buf_.empty() ||
-      !subproc->stderr_.buf_.empty()) {
+  string output = subproc->GetOutput();
+  if (!*success || !output.empty()) {
     // Print the command that is spewing before printing its output.
     // Print the full command when it failed, otherwise the short name if
     // available.
@@ -333,10 +332,8 @@ Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
     }
 
     printf("\n%s%s\n", *success ? "" : "FAILED: ", to_print.c_str());
-    if (!subproc->stdout_.buf_.empty())
-      printf("%s\n", subproc->stdout_.buf_.c_str());
-    if (!subproc->stderr_.buf_.empty())
-      printf("%s\n", subproc->stderr_.buf_.c_str());
+    if (!output.empty())
+      printf("%s\n", output.c_str());
   }
 
   delete subproc;

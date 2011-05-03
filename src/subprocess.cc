@@ -27,40 +27,45 @@
 
 #include "util.h"
 
+struct Subprocess::Stream {
+  Stream();
+  ~Stream();
+  string buf_;
+
+  int fd_;
+};
+
 Subprocess::Stream::Stream() : fd_(-1) {}
 Subprocess::Stream::~Stream() {
   if (fd_ >= 0)
     close(fd_);
 }
 
-Subprocess::Subprocess() : pid_(-1) {}
+Subprocess::Subprocess() : pid_(-1) {
+  stream_ = new Stream;
+}
 Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
+  delete stream_;
 }
 
 bool Subprocess::Start(const string& command) {
-  int stdout_pipe[2];
-  if (pipe(stdout_pipe) < 0)
+  int output_pipe[2];
+  if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
-  stdout_.fd_ = stdout_pipe[0];
-
-  int stderr_pipe[2];
-  if (pipe(stderr_pipe) < 0)
-    Fatal("pipe: %s", strerror(errno));
-  stderr_.fd_ = stderr_pipe[0];
+  stream_->fd_ = output_pipe[0];
 
   pid_ = fork();
   if (pid_ < 0)
     Fatal("fork: %s", strerror(errno));
 
   if (pid_ == 0) {
-    close(stdout_pipe[0]);
-    close(stderr_pipe[0]);
+    close(output_pipe[0]);
 
     // Track which fd we use to report errors on.
-    int error_pipe = stderr_pipe[1];
+    int error_pipe = output_pipe[1];
     do {
       // Open /dev/null over stdin.
       int devnull = open("/dev/null", O_WRONLY);
@@ -70,14 +75,13 @@ bool Subprocess::Start(const string& command) {
         break;
       close(devnull);
 
-      if (dup2(stdout_pipe[1], 1) < 0 ||
-          dup2(stderr_pipe[1], 2) < 0)
+      if (dup2(output_pipe[1], 1) < 0 ||
+          dup2(output_pipe[1], 2) < 0)
         break;
 
       // Now can use stderr for errors.
       error_pipe = 2;
-      close(stdout_pipe[1]);
-      close(stderr_pipe[1]);
+      close(output_pipe[1]);
 
       execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL);
     } while (false);
@@ -90,22 +94,20 @@ bool Subprocess::Start(const string& command) {
     _exit(1);
   }
 
-  close(stdout_pipe[1]);
-  close(stderr_pipe[1]);
+  close(output_pipe[1]);
   return true;
 }
 
-void Subprocess::OnFDReady(int fd) {
+void Subprocess::OnFDReady() {
   char buf[4 << 10];
-  ssize_t len = read(fd, buf, sizeof(buf));
-  Stream* stream = fd == stdout_.fd_ ? &stdout_ : &stderr_;
+  ssize_t len = read(stream_->fd_, buf, sizeof(buf));
   if (len > 0) {
-    stream->buf_.append(buf, len);
+    stream_->buf_.append(buf, len);
   } else {
     if (len < 0)
       Fatal("read: %s", strerror(errno));
-    close(stream->fd_);
-    stream->fd_ = -1;
+    close(stream_->fd_);
+    stream_->fd_ = -1;
   }
 }
 
@@ -124,6 +126,14 @@ bool Subprocess::Finish() {
   return false;
 }
 
+bool Subprocess::Done() const {
+  return stream_->fd_ == -1;
+}
+
+const string& Subprocess::GetOutput() const {
+  return stream_->buf_;
+}
+
 void SubprocessSet::Add(Subprocess* subprocess) {
   running_.push_back(subprocess);
 }
@@ -134,16 +144,7 @@ void SubprocessSet::DoWork() {
   map<int, Subprocess*> fd_to_subprocess;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
-    int fd = (*i)->stdout_.fd_;
-    if (fd >= 0) {
-      fd_to_subprocess[fd] = *i;
-      fds.resize(fds.size() + 1);
-      pollfd* newfd = &fds.back();
-      newfd->fd = fd;
-      newfd->events = POLLIN;
-      newfd->revents = 0;
-    }
-    fd = (*i)->stderr_.fd_;
+    int fd = (*i)->stream_->fd_;
     if (fd >= 0) {
       fd_to_subprocess[fd] = *i;
       fds.resize(fds.size() + 1);
@@ -164,13 +165,11 @@ void SubprocessSet::DoWork() {
   for (size_t i = 0; i < fds.size(); ++i) {
     if (fds[i].revents) {
       Subprocess* subproc = fd_to_subprocess[fds[i].fd];
-      if (fds[i].revents) {
-        subproc->OnFDReady(fds[i].fd);
-        if (subproc->done()) {
-          finished_.push(subproc);
-          std::remove(running_.begin(), running_.end(), subproc);
-          running_.resize(running_.size() - 1);
-        }
+      subproc->OnFDReady();
+      if (subproc->Done()) {
+        finished_.push(subproc);
+        std::remove(running_.begin(), running_.end(), subproc);
+        running_.resize(running_.size() - 1);
       }
     }
   }

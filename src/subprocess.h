@@ -28,21 +28,16 @@ struct Subprocess {
   Subprocess();
   ~Subprocess();
   bool Start(const string& command);
-  void OnFDReady(int fd);
+  void OnFDReady();
   /// Returns true on successful process exit.
   bool Finish();
 
-  bool done() const {
-    return stdout_.fd_ == -1 && stderr_.fd_ == -1;
-  }
+  bool Done() const;
 
-  struct Stream {
-    Stream();
-    ~Stream();
-    int fd_;
-    string buf_;
-  };
-  Stream stdout_, stderr_;
+  const string& GetOutput() const;
+
+  struct Stream;
+  Stream* stream_;
   pid_t pid_;
 };
 
