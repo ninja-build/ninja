@@ -32,3 +32,14 @@ Documentation guidelines:
 - It's not necessary to document each argument, especially when they're
   relatively self-evident (e.g. in CanonicalizePath(string* path, string* err),
   the arguments are hopefully obvious)
+
+Windows development:
+- sudo apt-get install gcc-mingw32 wine
+- NINJA_PLATFORM=mingw ./gen-build-file.py > build.ninja
+- Build gtest:
+  - unpack it into your source dir
+  - ./configure CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++
+  - to work around missing _TlsAlloc I had to hack the libtool script to
+    append -lmingw32 -lkernel32 at the *end* of the link line
+- Build ninja: /path/to/linux/ninja ninja
+- Run: ./ninja  (implicitly runs through wine(!))
