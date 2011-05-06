@@ -18,10 +18,10 @@
 
 TEST(Subprocess, Ls) {
   Subprocess ls;
-  EXPECT_TRUE(ls.Start("ls /"));
+  EXPECT_TRUE(ls.Start(NULL, "ls /"));
 
   // Pretend we discovered that stdout was ready for writing.
-  ls.OnFDReady();
+  ls.OnPipeReady();
 
   EXPECT_TRUE(ls.Finish());
   EXPECT_NE("", ls.GetOutput());
@@ -29,10 +29,10 @@ TEST(Subprocess, Ls) {
 
 TEST(Subprocess, BadCommand) {
   Subprocess subproc;
-  EXPECT_TRUE(subproc.Start("ninja_no_such_command"));
+  EXPECT_TRUE(subproc.Start(NULL, "ninja_no_such_command"));
 
   // Pretend we discovered that stderr was ready for writing.
-  subproc.OnFDReady();
+  subproc.OnPipeReady();
 
   EXPECT_FALSE(subproc.Finish());
   EXPECT_NE("", subproc.GetOutput());
@@ -41,7 +41,7 @@ TEST(Subprocess, BadCommand) {
 TEST(SubprocessSet, Single) {
   SubprocessSet subprocs;
   Subprocess* ls = new Subprocess;
-  EXPECT_TRUE(ls->Start("ls /"));
+  EXPECT_TRUE(ls->Start(NULL, "ls /"));
   subprocs.Add(ls);
 
   while (!ls->Done()) {
@@ -64,7 +64,7 @@ TEST(SubprocessSet, Multi) {
 
   for (int i = 0; i < 3; ++i) {
     processes[i] = new Subprocess;
-    EXPECT_TRUE(processes[i]->Start(kCommands[i]));
+    EXPECT_TRUE(processes[i]->Start(NULL, kCommands[i]));
     subprocs.Add(processes[i]);
   }
 
