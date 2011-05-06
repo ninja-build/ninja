@@ -16,59 +16,82 @@
 
 #include "test.h"
 
-TEST(Subprocess, Ls) {
-  Subprocess ls;
-  EXPECT_TRUE(ls.Start(NULL, "ls /"));
+namespace {
 
-  // Pretend we discovered that stdout was ready for writing.
-  ls.OnPipeReady();
+#ifdef _WIN32
+const char* kSimpleCommand = "dir \\";
+#else
+const char* kSimpleCommand = "ls /";
+#endif
+
+struct SubprocessTest : public testing::Test {
+  SubprocessSet subprocs_;
+};
+
+}  // anonymous namespace
+
+// Run a command that succeeds and emits to stdout.
+TEST_F(SubprocessTest, GoodCommandStdout) {
+  Subprocess ls;
+  EXPECT_TRUE(ls.Start(&subprocs_, kSimpleCommand));
+
+  while (!ls.Done()) {
+    // Pretend we discovered that stdout was ready for writing.
+    ls.OnPipeReady();
+  }
 
   EXPECT_TRUE(ls.Finish());
   EXPECT_NE("", ls.GetOutput());
 }
 
-TEST(Subprocess, BadCommand) {
+// Run a command that fails and emits to stderr.
+TEST_F(SubprocessTest, BadCommandStderr) {
   Subprocess subproc;
-  EXPECT_TRUE(subproc.Start(NULL, "ninja_no_such_command"));
+  EXPECT_TRUE(subproc.Start(&subprocs_, "ninja_no_such_command"));
 
-  // Pretend we discovered that stderr was ready for writing.
-  subproc.OnPipeReady();
+  while (!subproc.Done()) {
+    // Pretend we discovered that stderr was ready for writing.
+    subproc.OnPipeReady();
+  }
 
   EXPECT_FALSE(subproc.Finish());
   EXPECT_NE("", subproc.GetOutput());
 }
 
-TEST(SubprocessSet, Single) {
-  SubprocessSet subprocs;
-  Subprocess* ls = new Subprocess;
-  EXPECT_TRUE(ls->Start(NULL, "ls /"));
-  subprocs.Add(ls);
+TEST_F(SubprocessTest, SetWithSingle) {
+  Subprocess* subproc = new Subprocess;
+  EXPECT_TRUE(subproc->Start(&subprocs_, kSimpleCommand));
+  subprocs_.Add(subproc);
 
-  while (!ls->Done()) {
-    subprocs.DoWork();
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
   }
-  ASSERT_TRUE(ls->Finish());
-  ASSERT_NE("", ls->GetOutput());
+  ASSERT_TRUE(subproc->Finish());
+  ASSERT_NE("", subproc->GetOutput());
 
-  ASSERT_EQ(1u, subprocs.finished_.size());
+  ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 
-TEST(SubprocessSet, Multi) {
-  SubprocessSet subprocs;
+TEST_F(SubprocessTest, SetWithMulti) {
   Subprocess* processes[3];
   const char* kCommands[3] = {
-    "ls /",
+    kSimpleCommand,
+#ifdef _WIN32
+    "echo hi",
+    "time /t",
+#else
     "whoami",
     "pwd",
+#endif
   };
 
   for (int i = 0; i < 3; ++i) {
     processes[i] = new Subprocess;
-    EXPECT_TRUE(processes[i]->Start(NULL, kCommands[i]));
-    subprocs.Add(processes[i]);
+    EXPECT_TRUE(processes[i]->Start(&subprocs_, kCommands[i]));
+    subprocs_.Add(processes[i]);
   }
 
-  ASSERT_EQ(3u, subprocs.running_.size());
+  ASSERT_EQ(3u, subprocs_.running_.size());
   for (int i = 0; i < 3; ++i) {
     ASSERT_FALSE(processes[i]->Done());
     ASSERT_EQ("", processes[i]->GetOutput());
@@ -76,12 +99,12 @@ TEST(SubprocessSet, Multi) {
 
   while (!processes[0]->Done() || !processes[1]->Done() ||
          !processes[2]->Done()) {
-    ASSERT_GT(subprocs.running_.size(), 0u);
-    subprocs.DoWork();
+    ASSERT_GT(subprocs_.running_.size(), 0u);
+    subprocs_.DoWork();
   }
 
-  ASSERT_EQ(0u, subprocs.running_.size());
-  ASSERT_EQ(3u, subprocs.finished_.size());
+  ASSERT_EQ(0u, subprocs_.running_.size());
+  ASSERT_EQ(3u, subprocs_.finished_.size());
 
   for (int i = 0; i < 3; ++i) {
     ASSERT_TRUE(processes[i]->Finish());

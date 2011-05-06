@@ -95,8 +95,10 @@ bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
   startup_info.cb = sizeof(STARTUPINFO);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
   startup_info.hStdOutput = child_pipe;
+  // TODO: what does this hook up stdin to?
   startup_info.hStdInput  = NULL;
-  startup_info.hStdError  = NULL;  // TODO: handle child stderr as well.
+  // TODO: is it ok to reuse pipe like this?
+  startup_info.hStdError  = child_pipe;
 
   PROCESS_INFORMATION process_info;
 
@@ -121,7 +123,7 @@ bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
 
 void Subprocess::OnPipeReady() {
   DWORD bytes;
-  if (!GetOverlappedResult(pipe_, &overlapped_, &bytes, FALSE)) {
+  if (!GetOverlappedResult(pipe_, &overlapped_, &bytes, TRUE)) {
     if (GetLastError() == ERROR_BROKEN_PIPE) {
       CloseHandle(pipe_);
       pipe_ = NULL;
