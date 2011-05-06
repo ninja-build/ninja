@@ -37,7 +37,7 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -84,7 +84,7 @@ bool Subprocess::Start(const string& command) {
   return true;
 }
 
-void Subprocess::OnFDReady() {
+void Subprocess::OnPipeReady() {
   char buf[4 << 10];
   ssize_t len = read(fd_, buf, sizeof(buf));
   if (len > 0) {
@@ -120,6 +120,9 @@ const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
+SubprocessSet::SubprocessSet() {}
+SubprocessSet::~SubprocessSet() {}
+
 void SubprocessSet::Add(Subprocess* subprocess) {
   running_.push_back(subprocess);
 }
@@ -151,7 +154,7 @@ void SubprocessSet::DoWork() {
   for (size_t i = 0; i < fds.size(); ++i) {
     if (fds[i].revents) {
       Subprocess* subproc = fd_to_subprocess[fds[i].fd];
-      subproc->OnFDReady();
+      subproc->OnPipeReady();
       if (subproc->Done()) {
         finished_.push(subproc);
         std::remove(running_.begin(), running_.end(), subproc);

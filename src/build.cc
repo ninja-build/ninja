@@ -291,7 +291,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
   Subprocess* subproc = new Subprocess;
   subproc_to_edge_.insert(make_pair(subproc, edge));
-  if (!subproc->Start(command))
+  if (!subproc->Start(&subprocs_, command))
     return false;
 
   subprocs_.Add(subproc);
