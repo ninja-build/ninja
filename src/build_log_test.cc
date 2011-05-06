@@ -43,8 +43,8 @@ TEST_F(BuildLogTest, WriteRead) {
   EXPECT_TRUE(log2.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(2, log1.log_.size());
-  ASSERT_EQ(2, log2.log_.size());
+  ASSERT_EQ(2u, log1.log_.size());
+  ASSERT_EQ(2u, log2.log_.size());
   BuildLog::LogEntry* e1 = log1.LookupByOutput("out");
   ASSERT_TRUE(e1);
   BuildLog::LogEntry* e2 = log2.LookupByOutput("out");

@@ -14,6 +14,10 @@
 
 #include "ninja.h"
 
+#ifdef _WIN32
+#include <io.h>
+#endif
+
 #include <gtest/gtest.h>
 
 #include "build.h"
@@ -81,7 +85,7 @@ TEST(EvalString, Error) {
   size_t err_index;
   EXPECT_FALSE(str.Parse("bad $", &err, &err_index));
   EXPECT_EQ("expected variable after $", err);
-  EXPECT_EQ(5, err_index);
+  EXPECT_EQ(5u, err_index);
 }
 TEST(EvalString, CurlyError) {
   EvalString str;
@@ -89,7 +93,7 @@ TEST(EvalString, CurlyError) {
   size_t err_index;
   EXPECT_FALSE(str.Parse("bad ${bar", &err, &err_index));
   EXPECT_EQ("expected closing curly after ${", err);
-  EXPECT_EQ(9, err_index);
+  EXPECT_EQ(9u, err_index);
 }
 TEST(EvalString, Curlies) {
   EvalString str;
@@ -137,10 +141,10 @@ TEST_F(StatTest, Simple) {
 
   Node* out = GetNode("out");
   out->file_->Stat(this);
-  ASSERT_EQ(1, stats_.size());
+  ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
-  ASSERT_EQ(2, stats_.size());
+  ASSERT_EQ(2u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
 }
@@ -152,10 +156,10 @@ TEST_F(StatTest, TwoStep) {
 
   Node* out = GetNode("out");
   out->file_->Stat(this);
-  ASSERT_EQ(1, stats_.size());
+  ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
-  ASSERT_EQ(3, stats_.size());
+  ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty_);
   ASSERT_EQ("mid",  stats_[1]);
@@ -171,10 +175,10 @@ TEST_F(StatTest, Tree) {
 
   Node* out = GetNode("out");
   out->file_->Stat(this);
-  ASSERT_EQ(1, stats_.size());
+  ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
-  ASSERT_EQ(1 + 6, stats_.size());
+  ASSERT_EQ(1u + 6u, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty_);
   ASSERT_EQ("in11", stats_[2]);
@@ -191,7 +195,7 @@ TEST_F(StatTest, Middle) {
 
   Node* out = GetNode("out");
   out->file_->Stat(this);
-  ASSERT_EQ(1, stats_.size());
+  ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_FALSE(GetNode("in")->dirty_);
@@ -199,27 +203,55 @@ TEST_F(StatTest, Middle) {
   ASSERT_TRUE(GetNode("out")->dirty_);
 }
 
+#ifdef _WIN32
+#ifndef _mktemp_s
+/* mingw has no mktemp. */
+int _mktemp_s(const char* templ) {
+  char* ofs = strchr(templ, 'X');
+  sprintf(ofs, "%d", rand() % 1000000);
+  return 0;
+}
+#endif
+#endif
+
 class DiskInterfaceTest : public testing::Test {
 public:
   virtual void SetUp() {
     char buf[4 << 10];
     ASSERT_TRUE(getcwd(buf, sizeof(buf)));
     start_dir_ = buf;
+    temp_dir_name_ = SetupTempDir();
+    printf("temp dir: %s\n", temp_dir_name_.c_str());
+
+    ASSERT_FALSE(temp_dir_name_.empty());
+    ASSERT_EQ(0, chdir(temp_dir_name_.c_str()));
+  }
+
+  virtual void TearDown() {
+    ASSERT_EQ(0, chdir(start_dir_.c_str()));
+    ASSERT_EQ(0, system(("rm -rf " + temp_dir_name_).c_str()));
+  }
+
+  string SetupTempDir() {
+    char name_template[] = "DiskInterfaceTest-XXXXXX";
+    char* name = NULL;
 
     const char* tempdir = getenv("TMPDIR");
     if (!tempdir)
       tempdir = "/tmp";
-    ASSERT_EQ(0, chdir(tempdir));
 
-    char name_template[] = "DiskInterfaceTest-XXXXXX";
-    char* name = mkdtemp(name_template);
-    temp_dir_name_ = name;
-    ASSERT_TRUE(name);
-    ASSERT_EQ(0, chdir(name));
-  }
-  virtual void TearDown() {
-    ASSERT_EQ(0, chdir(start_dir_.c_str()));
-    ASSERT_EQ(0, system(("rm -rf " + temp_dir_name_).c_str()));
+#ifdef _WIN32
+    if (_chdir(tempdir) < 0)
+      return "";
+    if (_mktemp_s(name_template) < 0)
+      return "";
+    name = name_template;
+#else
+    if (chdir(tempdir) < 0)
+      return "";
+    name = mkdtemp(name_template);
+#endif
+    return name ? name : "";
   }
 
   string start_dir_;

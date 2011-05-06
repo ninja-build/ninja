@@ -51,18 +51,23 @@ n.variable('builddir', 'build')
 
 cflags = ['-O2', '-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
+ldflags = []
 if platform == 'mingw':
     n.variable('cxx', 'i586-mingw32msvc-c++')
     # "warning: visibility attribute not supported in this
     # configuration; ignored"
     cflags.remove('-fvisibility=hidden')
+    cflags.append('-Igtest-1.6.0/include')
+    ldflags.append('-Lgtest-1.6.0/lib/.libs')
 else:
     n.variable('cxx', os.environ.get('CXX', 'g++'))
+
 if 'CFLAGS' in os.environ:
     cflags.append(os.environ['CFLAGS'])
 n.variable('cflags', ' '.join(cflags))
-
-n.variable('ldflags', os.environ.get('LDFLAGS', ''))
+if 'LDFLAGS' in os.environ:
+    ldflags.append(os.environ['LDFLAGS'])
+n.variable('ldflags', ' '.join(ldflags))
 n.newline()
 
 n.rule('cxx',
@@ -124,12 +129,12 @@ for name in ['build_test', 'build_log_test', 'graph_test', 'ninja_test',
              'parsers_test', 'subprocess_test', 'util_test', 'clean_test',
              'test']:
     objs += cxx(name)
-ldflags = '-lgtest -lgtest_main -lpthread'
-if 'LDFLAGS' in os.environ:
-    ldflags += ' ' + os.environ.get('LDFLAGS')
+ldflags.append('-lgtest_main -lgtest')
+if platform != 'mingw':
+    ldflags.append('-lpthread')
 n.build('ninja_test', 'link', objs, implicit=ninja_lib, order_only=ninja_lib,
         variables=[('libs', '-L$builddir -lninja'),
-                   ('ldflags', ldflags)])
+                   ('ldflags', ' '.join(ldflags))])
 n.newline()
 
 n.comment('Generate a graph using the "graph" tool.')

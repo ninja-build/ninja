@@ -107,7 +107,7 @@ TEST_F(GraphTest, RootNodes) {
 
   string err;
   vector<Node*> root_nodes = state_.RootNodes(&err);
-  EXPECT_EQ(4, root_nodes.size());
+  EXPECT_EQ(4u, root_nodes.size());
   for (size_t i = 0; i < root_nodes.size(); ++i) {
     string name = root_nodes[i]->file_->path_;
     EXPECT_EQ("out", name.substr(0, 3));
