@@ -57,7 +57,7 @@ if platform == 'mingw':
     # configuration; ignored"
     cflags.remove('-fvisibility=hidden')
 else:
-    n.variable('cxx', os.environ.get('CC', 'g++'))
+    n.variable('cxx', os.environ.get('CXX', 'g++'))
 if 'CFLAGS' in os.environ:
     cflags.append(os.environ['CFLAGS'])
 n.variable('cflags', ' '.join(cflags))
@@ -68,7 +68,7 @@ n.newline()
 n.rule('cxx',
        command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
        depfile='$out.d',
-       description='CC $out')
+       description='CXX $out')
 n.newline()
 
 ar = 'ar'
