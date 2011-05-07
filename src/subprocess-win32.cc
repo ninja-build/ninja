@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+
 #include "subprocess.h"
 
 #include <stdio.h>
@@ -209,3 +211,5 @@ Subprocess* SubprocessSet::NextFinished() {
   finished_.pop();
   return subproc;
 }
+
+#endif // _WIN32
