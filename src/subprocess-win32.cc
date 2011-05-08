@@ -103,7 +103,6 @@ bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
   PROCESS_INFORMATION process_info;
 
   string full_command = "cmd /c " + command;
-  printf("running %s\n", full_command.c_str());
   if (!CreateProcessA(NULL, (char*)full_command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, 0,
                       NULL, NULL,
