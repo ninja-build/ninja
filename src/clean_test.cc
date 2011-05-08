@@ -41,7 +41,7 @@ TEST_F(CleanTest, CleanAll) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(4, cleaner.cleaned_files_count());
-  EXPECT_EQ(4, fs_.files_removed_.size());
+  EXPECT_EQ(4u, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -52,7 +52,7 @@ TEST_F(CleanTest, CleanAll) {
 
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(0, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanAllDryRun) {
@@ -72,7 +72,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(4, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -83,7 +83,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
 
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(4, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanTarget) {
@@ -102,7 +102,7 @@ TEST_F(CleanTest, CleanTarget) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(2, fs_.files_removed_.size());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -113,7 +113,7 @@ TEST_F(CleanTest, CleanTarget) {
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(0, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanTargetDryRun) {
@@ -133,7 +133,7 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -144,7 +144,7 @@ TEST_F(CleanTest, CleanTargetDryRun) {
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanRule) {
@@ -165,7 +165,7 @@ TEST_F(CleanTest, CleanRule) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(2, fs_.files_removed_.size());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_EQ(0, fs_.Stat("in1"));
@@ -176,7 +176,7 @@ TEST_F(CleanTest, CleanRule) {
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
   EXPECT_EQ(0, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanRuleDryRun) {
@@ -198,7 +198,7 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are removed.
   EXPECT_NE(0, fs_.Stat("in1"));
@@ -209,7 +209,7 @@ TEST_F(CleanTest, CleanRuleDryRun) {
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_EQ(0, fs_.files_removed_.size());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
 TEST_F(CleanTest, CleanFailure) {

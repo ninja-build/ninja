@@ -280,7 +280,7 @@ TEST_F(BuildTest, NoWork) {
   string err;
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("no work to do", err);
-  EXPECT_EQ(0, commands_ran_.size());
+  EXPECT_EQ(0u, commands_ran_.size());
 }
 
 TEST_F(BuildTest, OneStep) {
@@ -293,7 +293,7 @@ TEST_F(BuildTest, OneStep) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
 }
 
@@ -307,7 +307,7 @@ TEST_F(BuildTest, OneStep2) {
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
 }
 
@@ -317,7 +317,7 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(3, commands_ran_.size());
+  ASSERT_EQ(3u, commands_ran_.size());
   // Depending on how the pointers work out, we could've ran
   // the first two commands in either order.
   EXPECT_TRUE((commands_ran_[0] == "cat in1 > cat1" &&
@@ -335,7 +335,7 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(5, commands_ran_.size());
+  ASSERT_EQ(5u, commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
 }
@@ -354,14 +354,14 @@ TEST_F(BuildTest, Chain) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(4, commands_ran_.size());
+  ASSERT_EQ(4u, commands_ran_.size());
 
   err.clear();
   commands_ran_.clear();
   EXPECT_FALSE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(0, commands_ran_.size());
+  ASSERT_EQ(0u, commands_ran_.size());
 
   GetNode("c4")->dirty_ = true;
   GetNode("c5")->dirty_ = true;
@@ -370,7 +370,7 @@ TEST_F(BuildTest, Chain) {
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2, commands_ran_.size());  // 3->4, 4->5
+  ASSERT_EQ(2u, commands_ran_.size());  // 3->4, 4->5
 }
 
 TEST_F(BuildTest, MissingInput) {
@@ -399,7 +399,7 @@ TEST_F(BuildTest, MakeDirs) {
   now_ = 0;  // Make all stat()s return file not found.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(2, fs_.directories_made_.size());
+  ASSERT_EQ(2u, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
   EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
 }
@@ -413,7 +413,7 @@ TEST_F(BuildTest, DepFileMissing) {
 
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, fs_.files_read_.size());
+  ASSERT_EQ(1u, fs_.files_read_.size());
   EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
 }
 
@@ -428,13 +428,13 @@ TEST_F(BuildTest, DepFileOK) {
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, fs_.files_read_.size());
+  ASSERT_EQ(1u, fs_.files_read_.size());
   EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
 
   // Expect our edge to now have three inputs: foo.c and two headers.
-  ASSERT_EQ(orig_edges + 1, state_.edges_.size());
+  ASSERT_EQ(orig_edges + 1, (int)state_.edges_.size());
   Edge* edge = state_.edges_.back();
-  ASSERT_EQ(3, edge->inputs_.size());
+  ASSERT_EQ(3u, edge->inputs_.size());
 
   // Expect the command line we generate to only use the original input.
   ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
@@ -464,7 +464,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   Edge* edge = state_.edges_.back();
   // One explicit, two implicit, one order only.
-  ASSERT_EQ(4, edge->inputs_.size());
+  ASSERT_EQ(4u, edge->inputs_.size());
   EXPECT_EQ(2, edge->implicit_deps_);
   EXPECT_EQ(1, edge->order_only_deps_);
   // Verify the inputs are in the order we expect
@@ -480,7 +480,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // explicit dep dirty, expect a rebuild.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
 
   // implicit dep dirty, expect a rebuild.
   commands_ran_.clear();
@@ -488,7 +488,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
 
   // order only dep dirty, no rebuild.
   commands_ran_.clear();
@@ -511,7 +511,7 @@ TEST_F(BuildTest, Phony) {
   // Only one command to run, because phony runs no command.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
 
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_NE("", err);

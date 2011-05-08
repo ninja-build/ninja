@@ -58,7 +58,7 @@ TEST_F(ParserTest, Rules) {
 "\n"
 "build result: cat in_1.cc in-2.O\n"));
 
-  ASSERT_EQ(3, state.rules_.size());
+  ASSERT_EQ(3u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name_);
   EXPECT_EQ("cat $in > $out", rule->command_.unparsed());
@@ -78,7 +78,7 @@ TEST_F(ParserTest, Variables) {
 "build supernested: link x\n"
 "  extra = $nested2/3\n"));
 
-  ASSERT_EQ(2, state.edges_.size());
+  ASSERT_EQ(2u, state.edges_.size());
   Edge* edge = state.edges_[0];
   EXPECT_EQ("ld one-letter-test -pthread -under -o a b c",
             edge->EvaluateCommand());
@@ -101,7 +101,7 @@ TEST_F(ParserTest, VariableScope) {
 "\n"  // Extra newline after build line tickles a regression.
 ));
 
-  ASSERT_EQ(2, state.edges_.size());
+  ASSERT_EQ(2u, state.edges_.size());
   EXPECT_EQ("cmd baz a inner", state.edges_[0]->EvaluateCommand());
   EXPECT_EQ("cmd bar b outer", state.edges_[1]->EvaluateCommand());
 }
@@ -115,7 +115,7 @@ TEST_F(ParserTest, Continuation) {
 "build a: link c \\\n"
 " d e f\n"));
 
-  ASSERT_EQ(2, state.rules_.size());
+  ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("link", rule->name_);
   EXPECT_EQ("foo bar baz", rule->command_.unparsed());
@@ -322,14 +322,14 @@ TEST_F(ParserTest, SubNinja) {
 "build $builddir/outer: varref\n"
 "subninja test.ninja\n"
 "build $builddir/outer2: varref\n"));
-  ASSERT_EQ(1, files_read_.size());
+  ASSERT_EQ(1u, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);
   EXPECT_TRUE(state.LookupNode("some_dir/outer"));
   // Verify our builddir setting is inherited.
   EXPECT_TRUE(state.LookupNode("some_dir/inner"));
 
-  ASSERT_EQ(3, state.edges_.size());
+  ASSERT_EQ(3u, state.edges_.size());
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
   EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
   EXPECT_EQ("varref outer", state.edges_[2]->EvaluateCommand());
@@ -341,7 +341,7 @@ TEST_F(ParserTest, Include) {
 "var = outer\n"
 "include include.ninja\n"));
 
-  ASSERT_EQ(1, files_read_.size());
+  ASSERT_EQ(1u, files_read_.size());
   EXPECT_EQ("include.ninja", files_read_[0]);
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
 }
