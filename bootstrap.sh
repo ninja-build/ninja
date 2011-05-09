@@ -19,7 +19,7 @@ set -e
 SYSTEMNAME=`uname -s`
 
 # Compute system-specific CFLAGS/LDFLAGS as used in both in the below
-# g++ call as well as in the later gen-build-file.py.
+# g++ call as well as in the later configure.py.
 if [ "${SYSTEMNAME}" = "Linux" ]; then
     export CFLAGS=
     export LDFLAGS=
@@ -41,7 +41,7 @@ fi
 g++ -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
 
 echo "Building ninja using itself..."
-./gen-build-file.py > build.ninja
+./configure.py
 ./ninja.bootstrap ninja
 rm ninja.bootstrap
 

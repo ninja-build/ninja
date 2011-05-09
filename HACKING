@@ -35,7 +35,7 @@ Documentation guidelines:
 
 Windows development:
 - sudo apt-get install gcc-mingw32 wine
-- NINJA_PLATFORM=mingw ./gen-build-file.py > build.ninja
+- NINJA_PLATFORM=mingw ./configure
 - Build gtest:
   - unpack it into your source dir
   - ./configure CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++
