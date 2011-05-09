@@ -555,5 +555,5 @@ TEST_F(BuildTest, SwallowFailures) {
 
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, commands_ran_.size());
-  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ("subcommands failed", err);
 }
