@@ -57,6 +57,7 @@ void usage(const BuildConfig& config) {
 "options:\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
+"  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines\n"
 "  -C DIR   change to DIR before doing anything else\n"
@@ -350,13 +351,19 @@ int main(int argc, char** argv) {
   config.parallelism = GuessParallelism();
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:nt:vC:", options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", options,
+                            NULL)) != -1) {
     switch (opt) {
       case 'f':
         input_file = optarg;
         break;
       case 'j':
         config.parallelism = atoi(optarg);
+        break;
+      case 'k':
+        // We want to go until N jobs fail, which means we should ignore
+        // the first N-1 that fail and then stop.
+        config.swallow_failures = atoi(optarg) - 1;
         break;
       case 'n':
         config.dry_run = true;

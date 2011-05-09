@@ -431,7 +431,10 @@ bool Builder::Build(string* err) {
     if (Edge* edge = command_runner_->NextFinishedCommand(&success)) {
       if (!success) {
         if (--failures_allowed < 0) {
-          *err = "subcommand failed";
+          if (config_.swallow_failures > 0)
+            *err = "subcommands failed";
+          else
+            *err = "subcommand failed";
           return false;
         }
       } else {
