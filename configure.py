@@ -19,21 +19,31 @@
 Projects that use ninja themselves should either write a similar script
 or use a meta-build system that supports Ninja output."""
 
+from optparse import OptionParser
 import os
 import sys
 sys.path.insert(0, 'misc')
 
 import ninja
 
-platform = os.environ.get('NINJA_PLATFORM', sys.platform)
-if platform.startswith('linux'):
-    platform = 'linux'
-elif platform.startswith('freebsd'):
-    platform = 'freebsd'
-elif platform.startswith('mingw'):
-    platform = 'mingw'
-elif platform.startswith('win'):
-    platform = 'windows'
+parser = OptionParser()
+platforms = ['linux', 'freebsd', 'mingw', 'windows']
+parser.add_option('--platform',
+                  help='target platform (' + '/'.join(platforms) + ')',
+                  choices=platforms)
+(options, args) = parser.parse_args()
+
+platform = options.platform
+if platform is None:
+    platform = sys.platform
+    if platform.startswith('linux'):
+        platform = 'linux'
+    elif platform.startswith('freebsd'):
+        platform = 'freebsd'
+    elif platform.startswith('mingw'):
+        platform = 'mingw'
+    elif platform.startswith('win'):
+        platform = 'windows'
 
 BUILD_FILENAME = 'build.ninja'
 buildfile = open(BUILD_FILENAME, 'w')
