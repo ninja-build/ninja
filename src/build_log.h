@@ -35,7 +35,7 @@ struct BuildLog {
 
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
-  void RecordCommand(Edge* edge, int time_ms);
+  void RecordCommand(Edge* edge, int start_time, int end_time);
   void Close();
 
   /// Load the on-disk log.
@@ -44,9 +44,13 @@ struct BuildLog {
   struct LogEntry {
     string output;
     string command;
-    int time_ms;
+    int start_time;
+    int end_time;
+
+    // Used by tests.
     bool operator==(const LogEntry& o) {
-      return output == o.output && command == o.command && time_ms == o.time_ms;
+      return output == o.output && command == o.command &&
+          start_time == o.start_time && end_time == o.end_time;
     }
   };
 

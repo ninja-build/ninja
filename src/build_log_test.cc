@@ -35,8 +35,8 @@ TEST_F(BuildLogTest, WriteRead) {
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state_.edges_[0], 15);
-  log1.RecordCommand(state_.edges_[1], 20);
+  log1.RecordCommand(state_.edges_[0], 15, 18);
+  log1.RecordCommand(state_.edges_[1], 20, 25);
   log1.Close();
 
   BuildLog log2;
@@ -50,7 +50,7 @@ TEST_F(BuildLogTest, WriteRead) {
   BuildLog::LogEntry* e2 = log2.LookupByOutput("out");
   ASSERT_TRUE(e2);
   ASSERT_TRUE(*e1 == *e2);
-  ASSERT_EQ(15, e1->time_ms);
+  ASSERT_EQ(15, e1->start_time);
   ASSERT_EQ("out", e1->output);
 }
 

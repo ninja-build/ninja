@@ -29,6 +29,13 @@
 // Once the number of redundant entries exceeds a threshold, we write
 // out a new file and replace the existing one with it.
 
+namespace {
+
+const char kFileSignature[] = "# ninja log v2\n";
+const int kCurrentVersion = 2;
+
+}
+
 BuildLog::BuildLog()
   : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
 
@@ -48,10 +55,18 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return false;
   }
   setvbuf(log_file_, NULL, _IOLBF, 0);
+
+  if (ftell(log_file_) == 0) {
+    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {
+      *err = strerror(errno);
+      return false;
+    }
+  }
+
   return true;
 }
 
-void BuildLog::RecordCommand(Edge* edge, int time_ms) {
+void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
   if (!log_file_)
     return;
 
@@ -69,7 +84,8 @@ void BuildLog::RecordCommand(Edge* edge, int time_ms) {
     }
     log_entry->output = path;
     log_entry->command = command;
-    log_entry->time_ms = time_ms;
+    log_entry->start_time = start_time;
+    log_entry->end_time = end_time;
 
     WriteEntry(log_file_, *log_entry);
   }
@@ -90,19 +106,43 @@ bool BuildLog::Load(const string& path, string* err) {
     return false;
   }
 
+  int log_version = 0;
   int unique_entry_count = 0;
   int total_entry_count = 0;
 
   char buf[256 << 10];
   while (fgets(buf, sizeof(buf), file)) {
+    if (!log_version) {
+      log_version = 1;  // Assume by default.
+      if (strcmp(buf, kFileSignature) == 0) {
+        log_version = 2;
+        continue;
+      }
+    }
     char* start = buf;
     char* end = strchr(start, ' ');
     if (!end)
       continue;
-
     *end = 0;
-    int time_ms = atoi(start);
-    start = end + 1;
+
+    int start_time = 0, end_time = 0;
+    if (log_version == 1) {
+      // In v1 we logged how long the command took; we don't use this info.
+      // int time_ms = atoi(start);
+      start = end + 1;
+    } else {
+      // In v2 we log the start time and the end time.
+      start_time = atoi(start);
+      start = end + 1;
+
+      char* end = strchr(start, ' ');
+      if (!end)
+        continue;
+      *end = 0;
+      end_time = atoi(start);
+      start = end + 1;
+    }
+
     end = strchr(start, ' ');
     string output = string(start, end - start);
 
@@ -117,8 +157,9 @@ bool BuildLog::Load(const string& path, string* err) {
     }
     ++total_entry_count;
 
-    entry->time_ms = time_ms;
     entry->output = output;
+    entry->start_time = start_time;
+    entry->end_time = end_time;
 
     start = end + 1;
     end = strchr(start, '\n');
@@ -126,10 +167,12 @@ bool BuildLog::Load(const string& path, string* err) {
   }
 
   // Mark the log as "needs rebuiding" if it has kCompactionRatio times
-  // too many log entries.
+  // too many log entries or it's the wrong version.
   int kCompactionRatio = 3;
-  if (total_entry_count > unique_entry_count * kCompactionRatio)
+  if (total_entry_count > unique_entry_count * kCompactionRatio ||
+      log_version < kCurrentVersion) {
     needs_recompaction_ = true;
+  }
 
   fclose(file);
 
@@ -144,8 +187,9 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d %s %s\n",
-          entry.time_ms, entry.output.c_str(), entry.command.c_str());
+  fprintf(f, "%d %d %s %s\n",
+          entry.start_time, entry.end_time,
+          entry.output.c_str(), entry.command.c_str());
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {

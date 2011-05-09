@@ -49,15 +49,19 @@ struct BuildStatus {
   BuildStatus();
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  /// Returns the time the edge took, in ms.
-  int BuildEdgeFinished(Edge* edge);
+  void BuildEdgeFinished(Edge* edge, int* start_time, int* end_time);
 
   void PrintStatus(Edge* edge);
 
+  /// Time the build started.
+  int64_t start_time_millis_;
+  /// Time we last printed an update.
   int64_t last_update_millis_;
+
   int finished_edges_, total_edges_;
 
-  typedef map<Edge*, int64_t> RunningEdgeMap;
+  /// Map of running edge to time the edge started running.
+  typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   BuildConfig::Verbosity verbosity_;
@@ -66,7 +70,8 @@ struct BuildStatus {
 };
 
 BuildStatus::BuildStatus()
-    : last_update_millis_(GetTimeMillis()),
+    : start_time_millis_(GetTimeMillis()),
+      last_update_millis_(start_time_millis_),
       finished_edges_(0), total_edges_(0),
       verbosity_(BuildConfig::NORMAL) {
 #ifndef WIN32
@@ -82,12 +87,15 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  running_edges_.insert(make_pair(edge, GetTimeMillis()));
+  int start_time = (int)(GetTimeMillis() - start_time_millis_);
+  running_edges_.insert(make_pair(edge, start_time));
 
   PrintStatus(edge);
 }
 
-int BuildStatus::BuildEdgeFinished(Edge* edge) {
+void BuildStatus::BuildEdgeFinished(Edge* edge,
+                                    int* start_time,
+                                    int* end_time) {
   int64_t now = GetTimeMillis();
   ++finished_edges_;
 
@@ -106,10 +114,9 @@ int BuildStatus::BuildEdgeFinished(Edge* edge) {
   }
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
-  int ms = (int)(now - i->second);
+  *start_time = i->second;
+  *end_time = (int)(now - start_time_millis_);
   running_edges_.erase(i);
-
-  return ms;
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
@@ -487,7 +494,8 @@ void Builder::FinishEdge(Edge* edge) {
   if (edge->is_phony())
     return;
 
-  int ms = status_->BuildEdgeFinished(edge);
+  int start_time, end_time;
+  status_->BuildEdgeFinished(edge, &start_time, &end_time);
   if (log_)
-    log_->RecordCommand(edge, ms);
+    log_->RecordCommand(edge, start_time, end_time);
 }
