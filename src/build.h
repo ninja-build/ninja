@@ -80,7 +80,8 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1) {}
+  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
+                  swallow_failures(0) {}
 
   enum Verbosity {
     NORMAL,
@@ -90,6 +91,7 @@ struct BuildConfig {
   Verbosity verbosity;
   bool dry_run;
   int parallelism;
+  int swallow_failures;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
@@ -104,6 +106,7 @@ struct Builder {
   void FinishEdge(Edge* edge);
 
   State* state_;
+  const BuildConfig& config_;
   Plan plan_;
   DiskInterface* disk_interface_;
   CommandRunner* command_runner_;

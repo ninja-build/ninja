@@ -366,7 +366,7 @@ struct DryRunCommandRunner : public CommandRunner {
 };
 
 Builder::Builder(State* state, const BuildConfig& config)
-    : state_(state) {
+    : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
   if (config.dry_run)
     command_runner_ = new DryRunCommandRunner;
@@ -410,6 +410,7 @@ bool Builder::Build(string* err) {
   }
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
+  int failures_allowed = config_.swallow_failures;
   while (plan_.more_to_do()) {
     while (command_runner_->CanRunMore()) {
       Edge* edge = plan_.FindWork();
@@ -429,10 +430,13 @@ bool Builder::Build(string* err) {
     bool success;
     if (Edge* edge = command_runner_->NextFinishedCommand(&success)) {
       if (!success) {
-        *err = "subcommand failed";
-        return false;
+        if (--failures_allowed < 0) {
+          *err = "subcommand failed";
+          return false;
+        }
+      } else {
+        FinishEdge(edge);
       }
-      FinishEdge(edge);
     } else {
       if (!command_runner_->WaitForCommands()) {
         *err = "stuck [this is a bug]";

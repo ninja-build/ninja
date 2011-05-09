@@ -253,13 +253,15 @@ bool BuildTest::StartCommand(Edge* edge) {
       (*out)->file_->mtime_ = now_;
       (*out)->dirty_ = false;
     }
-    last_command_ = edge;
-    return true;
+  } else if (edge->rule_->name_ == "fail") {
+    // Don't do anything.
   } else {
-    printf("unkown command\n");
+    printf("unknown command\n");
+    return false;
   }
 
-  return false;
+  last_command_ = edge;
+  return true;
 }
 
 bool BuildTest::WaitForCommands() {
@@ -269,7 +271,10 @@ bool BuildTest::WaitForCommands() {
 
 Edge* BuildTest::NextFinishedCommand(bool* success) {
   if (Edge* edge = last_command_) {
-    *success = true;
+    if (edge->rule_->name_ == "fail")
+      *success = false;
+    else
+      *success = true;
     last_command_ = NULL;
     return edge;
   }
@@ -517,3 +522,38 @@ TEST_F(BuildTest, Phony) {
   ASSERT_NE("", err);
 }
 
+TEST_F(BuildTest, Fail) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = fail\n"
+"build out1: fail\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ("subcommand failed", err);
+}
+
+TEST_F(BuildTest, SwallowFailures) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = fail\n"
+"build out1: fail\n"
+"build out2: fail\n"
+"build out3: fail\n"
+"build all: phony out1 out2 out3\n"));
+
+  // Swallow two failures, die on the third.
+  config_.swallow_failures = 2;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("all", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ("subcommand failed", err);
+}
