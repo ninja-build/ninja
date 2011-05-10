@@ -32,11 +32,14 @@ echo "Building ninja manually..."
 mkdir -p build
 ./src/inline.sh kBrowsePy < src/browse.py > build/browse_py.h
 
-if [ "${SYSTEMNAME:0:7}" = "MINGW32" ]; then
+case "$SYSTEMNAME" in
+  MINGW32*)
     srcs=$(ls src/*.cc | grep -v test | grep -v subprocess.cc)
-else
+    ;;
+  *)
     srcs=$(ls src/*.cc | grep -v test | grep -v subprocess-win32.cc)
-fi
+    ;;
+esac
 
 g++ -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
 
