@@ -43,3 +43,7 @@ Windows development:
     append -lmingw32 -lkernel32 at the *end* of the link line
 - Build ninja: /path/to/linux/ninja ninja
 - Run: ./ninja  (implicitly runs through wine(!))
+
+Using clang:
+- Enable colors manually:
+  CXX='/path/to/llvm/Release+Asserts/bin/clang++ -fcolor-diagnostics' ./configure.py
