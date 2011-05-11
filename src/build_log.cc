@@ -144,7 +144,14 @@ bool BuildLog::Load(const string& path, string* err) {
     }
 
     end = strchr(start, ' ');
+    if (!end)
+      continue;
     string output = string(start, end - start);
+
+    start = end + 1;
+    end = strchr(start, '\n');
+    if (!end)
+      continue;
 
     LogEntry* entry;
     Log::iterator i = log_.find(output);
@@ -160,9 +167,6 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->output = output;
     entry->start_time = start_time;
     entry->end_time = end_time;
-
-    start = end + 1;
-    end = strchr(start, '\n');
     entry->command = string(start, end - start);
   }
 

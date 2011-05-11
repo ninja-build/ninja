@@ -69,3 +69,31 @@ TEST_F(BuildLogTest, DoubleEntry) {
   ASSERT_TRUE(e);
   ASSERT_EQ("command def", e->command);
 }
+
+TEST_F(BuildLogTest, Truncate) {
+  AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n");
+
+  BuildLog log1;
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  log1.RecordCommand(state_.edges_[0], 15, 18);
+  log1.RecordCommand(state_.edges_[1], 20, 25);
+  log1.Close();
+
+  struct stat statbuf;
+  ASSERT_EQ(0, stat(kTestFilename, &statbuf));
+  ASSERT_GT(statbuf.st_size, 0);
+
+  // For all possible truncations of the input file, assert that we don't
+  // crash or report an error when parsing.
+  for (off_t size = statbuf.st_size; size > 0; --size) {
+    ASSERT_EQ(0, truncate(kTestFilename, size));
+
+    BuildLog log2;
+    EXPECT_TRUE(log2.Load(kTestFilename, &err));
+    ASSERT_EQ("", err);
+  }
+}
