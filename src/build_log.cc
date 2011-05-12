@@ -206,7 +206,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
-  if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {
+  if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, f) < 1) {
     *err = strerror(errno);
     return false;
   }
