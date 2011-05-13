@@ -132,7 +132,7 @@ n.newline()
 
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
-n.build('ninja', 'link', objs, implicit=ninja_lib, order_only=ninja_lib,
+n.build('ninja', 'link', objs, implicit=ninja_lib,
         variables=[('libs', '-L$builddir -lninja')])
 
 n.comment('Tests all build into ninja_test executable.')
@@ -144,7 +144,7 @@ for name in ['build_test', 'build_log_test', 'graph_test', 'ninja_test',
 ldflags.append('-lgtest_main -lgtest')
 if platform != 'mingw':
     ldflags.append('-lpthread')
-n.build('ninja_test', 'link', objs, implicit=ninja_lib, order_only=ninja_lib,
+n.build('ninja_test', 'link', objs, implicit=ninja_lib,
         variables=[('libs', '-L$builddir -lninja'),
                    ('ldflags', ' '.join(ldflags))])
 n.newline()
@@ -180,8 +180,7 @@ mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
                    ['README', 'HACKING', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', 'doxygen.config',
-        implicit=mainpage,
-        order_only=mainpage)
+        implicit=mainpage)
 n.newline()
 
 n.comment('Regenerate build files if build script changes.')
