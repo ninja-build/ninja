@@ -20,7 +20,8 @@
 #include "../build/browse_py.h"
 #include "ninja.h"
 
-void RunBrowsePython(State* state, const char* ninja_command) {
+void RunBrowsePython(State* state, const char* ninja_command,
+                     const char* initial_target) {
   // Fork off a Python process and have it run our code via its stdin.
   // (Actually the Python process becomes the parent.)
   int pipefd[2];
@@ -45,7 +46,7 @@ void RunBrowsePython(State* state, const char* ninja_command) {
 
       // exec Python, telling it to run the program from stdin.
       const char* command[] = {
-        "python", "-", ninja_command, NULL
+        "python", "-", ninja_command, initial_target, NULL
       };
       execvp(command[0], (char**)command);
       perror("ninja: execvp");

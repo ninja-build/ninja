@@ -182,13 +182,14 @@ int CmdQuery(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdBrowse(State* state, int argc, char* argv[]) {
+int CmdBrowse(State* state, const char* ninja_command,
+              int argc, char* argv[]) {
 #ifndef WIN32
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
   }
-  RunBrowsePython(state, argv[0]);
+  RunBrowsePython(state, ninja_command, argv[0]);
 #else
   Error("browse mode not yet supported on Windows");
 #endif
@@ -343,6 +344,7 @@ int CmdClean(State* state,
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
+  const char* ninja_command = argv[0];
   BuildConfig config;
   const char* input_file = "build.ninja";
   const char* working_dir = 0;
@@ -411,7 +413,7 @@ int main(int argc, char** argv) {
     if (tool == "query")
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
-      return CmdBrowse(&state, argc, argv);
+      return CmdBrowse(&state, ninja_command, argc, argv);
     if (tool == "targets")
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")
