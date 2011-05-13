@@ -353,9 +353,11 @@ A file is a series of declarations.  A declaration can be one of:
 2. A build edge, which looks like +build _output1_ _output2_:
    _rulename_ _input1_ _input2_+. +
    Implicit dependencies may be tacked on the end with +|
-   _dependency1_ _dependency2_+.
+   _dependency1_ _dependency2_+. +
    Order-only dependencies may be tacked on the end with +||
-   _dependency1_ _dependency2_+.
+   _dependency1_ _dependency2_+.  (See <<ref_dependencies,the reference on
+   dependency types>>.)
+
 
 3. Variable declarations, which look like +_variable_ = _value_+.
 
@@ -386,7 +388,7 @@ keys.
   interpretation by Ninja.
 
 `depfile`:: path to an optional `Makefile` that contains extra
-  _implicit dependencies_ (see the <<ref_dependencies,the reference on
+  _implicit dependencies_ (see <<ref_dependencies,the reference on
   dependency types>>).  This is explicitly to support `gcc` and its `-M`
   family of flags, which output the list of headers a given `.c` file
   depends on.
@@ -398,6 +400,11 @@ rule cc
   depfile = $out.d
   command = gcc -MMD -MF $out.d [other gcc flags here]
 ----
++
+When loading a `depfile`, Ninja implicitly adds edges such that it is
+not an error if the listed dependency is missing.  This allows you to
+delete a depfile-discovered header file and rebuild, without the build
+aborting due to a missing input.
 
 
 `description`:: a short description of the command, used to pretty-print
@@ -425,14 +432,17 @@ source file of a compile command.
 
 2. _Implicit dependencies_, either as picked up from
    a `depfile` attribute on a rule or from the syntax +| _dep1_
-   _dep2_+ on the end of a build line.  Changes in these files cause
-   the output to be rebuilt; if they are missing, they are just
-   skipped.
+   _dep2_+ on the end of a build line.  The semantics are identical to
+   explicit dependencies, the only difference is that implicit dependencies
+   don't show up in the `$in` variable.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
 script, the script itself should be an implicit dependency, as
 changes to the script should cause the output to rebuild.
++
+Note that dependencies as loaded through depfiles have slightly different
+semantics, as described in the <<ref_rule,rule reference>>.
 
 3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
    _dep2_+ on the end of a build line.  When these are missing, the

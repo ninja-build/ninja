@@ -194,8 +194,7 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!edge->is_implicit(i - edge->inputs_.begin()) &&
-        AddSubTarget(*i, stack, err)) {
+    if (AddSubTarget(*i, stack, err)) {
       awaiting_inputs = true;
     } else if (!err->empty()) {
       return false;

@@ -31,8 +31,26 @@ TEST_F(GraphTest, MissingImplicit) {
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
-  // A missing implicit dep does not make the output dirty.
-  EXPECT_FALSE(GetNode("out")->dirty_);
+  // A missing implicit dep *should* make the output dirty.
+  // (In fact, a build will fail.)
+  // This is a change from prior semantics of ninja.
+  EXPECT_TRUE(GetNode("out")->dirty_);
+}
+
+TEST_F(GraphTest, ModifiedImplicit) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in | implicit\n"));
+  fs_.Create("in", 1, "");
+  fs_.Create("out", 1, "");
+  fs_.Create("implicit", 2, "");
+
+  Edge* edge = GetNode("out")->in_edge_;
+  string err;
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+
+  // A modified implicit dep should make the output dirty.
+  EXPECT_TRUE(GetNode("out")->dirty_);
 }
 
 TEST_F(GraphTest, FunkyMakefilePath) {

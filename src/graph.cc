@@ -43,9 +43,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
           return false;
       } else {
         // This input has no in-edge; it is dirty if it is missing.
-        // But it's ok for implicit deps to be missing.
-        if (!is_implicit(i - inputs_.begin()))
-          (*i)->dirty_ = !(*i)->file_->exists();
+        (*i)->dirty_ = !(*i)->file_->exists();
       }
     }
 
@@ -165,6 +163,15 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     inputs_.insert(inputs_.end() - order_only_deps_, node);
     node->out_edges_.push_back(this);
     ++implicit_deps_;
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge_) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->in_edge_ = phony_edge;
+      phony_edge->outputs_.push_back(node);
+    }
   }
 
   return true;

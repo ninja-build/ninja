@@ -428,6 +428,8 @@ TEST_F(BuildTest, DepFileOK) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
+  Edge* edge = state_.edges_.back();
+
   fs_.Create("foo.c", now_, "");
   GetNode("bar.h")->dirty_ = true;  // Mark bar.h as missing.
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
@@ -436,9 +438,10 @@ TEST_F(BuildTest, DepFileOK) {
   ASSERT_EQ(1u, fs_.files_read_.size());
   EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
 
+  // Expect three new edges: one generating foo.o, and two more from
+  // loading the depfile.
+  ASSERT_EQ(orig_edges + 3, (int)state_.edges_.size());
   // Expect our edge to now have three inputs: foo.c and two headers.
-  ASSERT_EQ(orig_edges + 1, (int)state_.edges_.size());
-  Edge* edge = state_.edges_.back();
   ASSERT_EQ(3u, edge->inputs_.size());
 
   // Expect the command line we generate to only use the original input.
@@ -461,13 +464,14 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c || otherfile\n"));
+  Edge* edge = state_.edges_.back();
+
   fs_.Create("foo.c", now_, "");
   fs_.Create("otherfile", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
 
-  Edge* edge = state_.edges_.back();
   // One explicit, two implicit, one order only.
   ASSERT_EQ(4u, edge->inputs_.size());
   EXPECT_EQ(2, edge->implicit_deps_);
