@@ -157,13 +157,15 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (smart_terminal_)
     printf("\r");  // Print over previous line, if any.
 
+  int progress_chars = printf("[%d/%d] ", finished_edges_, total_edges_);
+
 #ifndef WIN32
   if (smart_terminal_ && !force_full_command) {
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      const int kMargin = 15;  // Space for [xxx/yyy] and "...".
+      const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
         int substr = std::min(to_print.size(),
                               to_print.size() + kMargin - size.ws_col);
@@ -173,7 +175,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   }
 #endif
 
-  printf("[%d/%d] %s", finished_edges_, total_edges_, to_print.c_str());
+  printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
     printf("\e[K");  // Clear to end of line.
