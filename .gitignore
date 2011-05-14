@@ -5,6 +5,5 @@ TAGS
 /ninja
 /ninja_test
 /graph.png
-/README.html
-/manual.html
-/doxygen
+/doc/manual.html
+/doc/doxygen

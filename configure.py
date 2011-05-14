@@ -56,6 +56,8 @@ def src(filename):
     return os.path.join('src', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
+def doc(filename):
+    return os.path.join('doc', filename)
 def cxx(name, **kwargs):
     return n.build(built(name + '.o'), 'cxx', src(name + '.cc'), **kwargs)
 
@@ -160,11 +162,11 @@ n.newline()
 
 n.comment('Generate the manual using asciidoc.')
 n.rule('asciidoc',
-       command='asciidoc -a toc $in',
+       command='asciidoc -a toc $in -o $out',
        description='ASCIIDOC $in')
-n.build('manual.html', 'asciidoc', 'manual.asciidoc')
+manual = n.build(doc('manual.html'), 'asciidoc', doc('manual.asciidoc'))
 n.build('manual', 'phony',
-        order_only='manual.html')
+        order_only=manual)
 n.newline()
 
 n.comment('Generate Doxygen.')
@@ -172,14 +174,14 @@ n.rule('doxygen',
        command='doxygen $in',
        description='DOXYGEN $in')
 n.variable('doxygen_mainpage_generator',
-           './gen_doxygen_mainpage.sh')
+           src('gen_doxygen_mainpage.sh'))
 n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
                    ['README', 'HACKING', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
-n.build('doxygen', 'doxygen', 'doxygen.config',
+n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
