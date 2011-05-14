@@ -75,7 +75,7 @@ struct CommandRunner {
   /// Wait for commands to make progress; return false if there is no
   /// progress to be made.
   virtual bool WaitForCommands() = 0;
-  virtual Edge* NextFinishedCommand(bool* success) = 0;
+  virtual Edge* NextFinishedCommand(bool* success, string* output) = 0;
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
@@ -103,7 +103,7 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
-  void FinishEdge(Edge* edge);
+  void FinishEdge(Edge* edge, bool success, const string& output);
 
   State* state_;
   const BuildConfig& config_;

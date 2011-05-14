@@ -49,7 +49,8 @@ struct BuildStatus {
   BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, int* start_time, int* end_time);
+  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+                         int* start_time, int* end_time);
 
  private:
   void PrintStatus(Edge* edge);
@@ -82,6 +83,10 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 #else
   smart_terminal_ = false;
 #endif
+
+  // Don't do anything fancy in verbose mode.
+  if (config_.verbosity != BuildConfig::NORMAL)
+    smart_terminal_ = false;
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -96,67 +101,85 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
+                                    bool success,
+                                    const string& output,
                                     int* start_time,
                                     int* end_time) {
   int64_t now = GetTimeMillis();
   ++finished_edges_;
 
-  if (config_.verbosity != BuildConfig::QUIET) {
-    if (smart_terminal_ && config_.verbosity == BuildConfig::NORMAL) {
-      PrintStatus(edge);
+  RunningEdgeMap::iterator i = running_edges_.find(edge);
+  *start_time = i->second;
+  *end_time = (int)(now - start_time_millis_);
+  int total_time = end_time - start_time;
+  running_edges_.erase(i);
+
+  if (config_.verbosity == BuildConfig::QUIET)
+    return;
+
+  if (smart_terminal_)
+    PrintStatus(edge);
+
+  if (success && output.empty()) {
+    if (smart_terminal_) {
       if (finished_edges_ == total_edges_)
         printf("\n");
     } else {
-      if (now - last_update_millis_ > 5*1000) {
+      if (total_time > 5*1000) {
         printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
                finished_edges_, total_edges_);
         last_update_millis_ = now;
       }
     }
-  }
+  } else {
+    if (smart_terminal_)
+      printf("\n");
 
-  RunningEdgeMap::iterator i = running_edges_.find(edge);
-  *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
-  running_edges_.erase(i);
+    // Print the command that is spewing before printing its output.
+    if (!success)
+      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+
+    if (!output.empty())
+      printf("%s", output.c_str());
+  }
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
-  switch (config_.verbosity) {
-  case BuildConfig::QUIET:
+  if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  case BuildConfig::VERBOSE:
-    printf("%s\n", edge->EvaluateCommand().c_str());
-    break;
+  bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
 
-  default: {
-    string to_print = edge->GetDescription();
-    if (to_print.empty() || config_.verbosity == BuildConfig::VERBOSE)
-      to_print = edge->EvaluateCommand();
+  string to_print = edge->GetDescription();
+  if (to_print.empty() || force_full_command)
+    to_print = edge->EvaluateCommand();
+
+  if (smart_terminal_)
+    printf("\r");  // Print over previous line, if any.
+
 #ifndef WIN32
-    if (smart_terminal_) {
-      // Limit output to width of the terminal if provided so we don't cause
-      // line-wrapping.
-      winsize size;
-      if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-        const int kMargin = 15;  // Space for [xxx/yyy] and "...".
-        if (to_print.size() + kMargin > size.ws_col) {
-          int substr = std::min(to_print.size(),
-                                to_print.size() + kMargin - size.ws_col);
-          to_print = "..." + to_print.substr(substr);
-        }
+  if (smart_terminal_ && !force_full_command) {
+    // Limit output to width of the terminal if provided so we don't cause
+    // line-wrapping.
+    winsize size;
+    if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
+      const int kMargin = 15;  // Space for [xxx/yyy] and "...".
+      if (to_print.size() + kMargin > size.ws_col) {
+        int substr = std::min(to_print.size(),
+                              to_print.size() + kMargin - size.ws_col);
+        to_print = "..." + to_print.substr(substr);
       }
-
-      printf("\r[%d/%d] %s\e[K", finished_edges_, total_edges_,
-             to_print.c_str());
-      fflush(stdout);
-    } else
-#endif
-    {
-      printf("%s\n", to_print.c_str());
     }
   }
+#endif
+
+  printf("[%d/%d] %s", finished_edges_, total_edges_, to_print.c_str());
+
+  if (smart_terminal_ && !force_full_command) {
+    printf("\e[K");  // Clear to end of line.
+    fflush(stdout);
+  } else {
+    printf("\n");
   }
 }
 
@@ -284,7 +307,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommands();
-  virtual Edge* NextFinishedCommand(bool* success);
+  virtual Edge* NextFinishedCommand(bool* success, string* output);
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
@@ -316,33 +339,17 @@ bool RealCommandRunner::WaitForCommands() {
   return true;
 }
 
-Edge* RealCommandRunner::NextFinishedCommand(bool* success) {
+Edge* RealCommandRunner::NextFinishedCommand(bool* success, string* output) {
   Subprocess* subproc = subprocs_.NextFinished();
   if (!subproc)
     return NULL;
 
   *success = subproc->Finish();
+  *output = subproc->GetOutput();
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
   Edge* edge = i->second;
   subproc_to_edge_.erase(i);
-
-  string output = subproc->GetOutput();
-  if (!*success || !output.empty()) {
-    // Print the command that is spewing before printing its output.
-    // Print the full command when it failed, otherwise the short name if
-    // available.
-    string to_print = edge->GetDescription();
-    if (to_print.empty() ||
-        config_.verbosity == BuildConfig::VERBOSE ||
-        !*success) {
-      to_print = edge->EvaluateCommand();
-    }
-
-    printf("\n%s%s\n", *success ? "" : "FAILED: ", to_print.c_str());
-    if (!output.empty())
-      printf("%s\n", output.c_str());
-  }
 
   delete subproc;
   return edge;
@@ -361,7 +368,7 @@ struct DryRunCommandRunner : public CommandRunner {
   virtual bool WaitForCommands() {
     return true;
   }
-  virtual Edge* NextFinishedCommand(bool* success) {
+  virtual Edge* NextFinishedCommand(bool* success, string* output) {
     if (finished_.empty())
       return NULL;
     *success = true;
@@ -428,14 +435,16 @@ bool Builder::Build(string* err) {
         return false;
 
       if (edge->is_phony())
-        FinishEdge(edge);
+        FinishEdge(edge, true, "");
     }
 
     if (!plan_.more_to_do())
       break;
 
     bool success;
-    if (Edge* edge = command_runner_->NextFinishedCommand(&success)) {
+    string output;
+    if (Edge* edge = command_runner_->NextFinishedCommand(&success, &output)) {
+      FinishEdge(edge, success, output);
       if (!success) {
         if (--failures_allowed < 0) {
           if (config_.swallow_failures > 0)
@@ -444,8 +453,6 @@ bool Builder::Build(string* err) {
             *err = "subcommand failed";
           return false;
         }
-      } else {
-        FinishEdge(edge);
       }
     } else {
       if (!command_runner_->WaitForCommands()) {
@@ -482,20 +489,20 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
-void Builder::FinishEdge(Edge* edge) {
-  for (vector<Node*>::iterator i = edge->outputs_.begin();
-       i != edge->outputs_.end(); ++i) {
-    // XXX check that the output actually changed
-    // XXX just notify node and have it propagate?
-    (*i)->dirty_ = false;
+void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
+  if (success) {
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      (*i)->dirty_ = false;
+    }
+    plan_.EdgeFinished(edge);
   }
-  plan_.EdgeFinished(edge);
 
   if (edge->is_phony())
     return;
 
   int start_time, end_time;
-  status_->BuildEdgeFinished(edge, &start_time, &end_time);
-  if (log_)
+  status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
+  if (success && log_)
     log_->RecordCommand(edge, start_time, end_time);
 }
