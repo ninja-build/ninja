@@ -62,7 +62,7 @@ struct BuildStatus {
   /// Time we last printed an update.
   int64_t last_update_millis_;
 
-  int finished_edges_, total_edges_;
+  int started_edges_, finished_edges_, total_edges_;
 
   /// Map of running edge to time the edge started running.
   typedef map<Edge*, int> RunningEdgeMap;
@@ -76,7 +76,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
-      finished_edges_(0), total_edges_(0) {
+      started_edges_(0), finished_edges_(0), total_edges_(0) {
 #ifndef WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -96,6 +96,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
+  ++started_edges_;
 
   PrintStatus(edge);
 }
@@ -157,7 +158,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (smart_terminal_)
     printf("\r");  // Print over previous line, if any.
 
-  int progress_chars = printf("[%d/%d] ", finished_edges_, total_edges_);
+  int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
 
 #ifndef WIN32
   if (smart_terminal_ && !force_full_command) {
