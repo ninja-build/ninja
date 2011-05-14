@@ -46,12 +46,15 @@ int64_t GetTimeMillis() {
 
 /// Tracks the status of a build: completion fraction, printing updates.
 struct BuildStatus {
-  BuildStatus();
+  BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, int* start_time, int* end_time);
 
+ private:
   void PrintStatus(Edge* edge);
+
+  const BuildConfig& config_;
 
   /// Time the build started.
   int64_t start_time_millis_;
@@ -64,16 +67,15 @@ struct BuildStatus {
   typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
-  BuildConfig::Verbosity verbosity_;
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
 };
 
-BuildStatus::BuildStatus()
-    : start_time_millis_(GetTimeMillis()),
+BuildStatus::BuildStatus(const BuildConfig& config)
+    : config_(config),
+      start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
-      finished_edges_(0), total_edges_(0),
-      verbosity_(BuildConfig::NORMAL) {
+      finished_edges_(0), total_edges_(0) {
 #ifndef WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -99,8 +101,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   int64_t now = GetTimeMillis();
   ++finished_edges_;
 
-  if (verbosity_ != BuildConfig::QUIET) {
-    if (smart_terminal_ && verbosity_ == BuildConfig::NORMAL) {
+  if (config_.verbosity != BuildConfig::QUIET) {
+    if (smart_terminal_ && config_.verbosity == BuildConfig::NORMAL) {
       PrintStatus(edge);
       if (finished_edges_ == total_edges_)
         printf("\n");
@@ -120,7 +122,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
-  switch (verbosity_) {
+  switch (config_.verbosity) {
   case BuildConfig::QUIET:
     return;
 
@@ -130,7 +132,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 
   default: {
     string to_print = edge->GetDescription();
-    if (to_print.empty() || verbosity_ == BuildConfig::VERBOSE)
+    if (to_print.empty() || config_.verbosity == BuildConfig::VERBOSE)
       to_print = edge->EvaluateCommand();
 #ifndef WIN32
     if (smart_terminal_) {
@@ -378,8 +380,7 @@ Builder::Builder(State* state, const BuildConfig& config)
     command_runner_ = new DryRunCommandRunner;
   else
     command_runner_ = new RealCommandRunner(config);
-  status_ = new BuildStatus;
-  status_->verbosity_ = config.verbosity;
+  status_ = new BuildStatus(config);
   log_ = state->build_log_;
 }
 
