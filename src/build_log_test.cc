@@ -71,6 +71,7 @@ TEST_F(BuildLogTest, DoubleEntry) {
 }
 
 TEST_F(BuildLogTest, Truncate) {
+#ifndef _MSC_VER
   AssertParse(&state_,
 "build out: cat mid\n"
 "build mid: cat in\n");
@@ -96,4 +97,5 @@ TEST_F(BuildLogTest, Truncate) {
     EXPECT_TRUE(log2.Load(kTestFilename, &err));
     ASSERT_EQ("", err);
   }
+#endif
 }

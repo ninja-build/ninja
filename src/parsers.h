@@ -21,6 +21,14 @@
 
 using namespace std;
 
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+
 struct BindingEnv;
 
 /// A single parsed token in an input stream.

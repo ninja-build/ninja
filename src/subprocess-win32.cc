@@ -21,6 +21,10 @@
 
 #include "util.h"
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 namespace {
 
 void Win32Fatal(const char* function) {

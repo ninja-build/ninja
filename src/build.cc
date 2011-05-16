@@ -18,6 +18,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#ifdef _MSC_VER
+typedef __int64 int64_t;
+#endif
 #else
 #include <sys/ioctl.h>
 #include <sys/time.h>
