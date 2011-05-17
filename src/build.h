@@ -72,10 +72,8 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  /// Wait for commands to make progress; return false if there is no
-  /// progress to be made.
-  virtual bool WaitForCommands() = 0;
-  virtual Edge* NextFinishedCommand(bool* success, string* output) = 0;
+  /// Wait for a command to complete.
+  virtual Edge* WaitForCommand(bool* success, string* output) = 0;
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.

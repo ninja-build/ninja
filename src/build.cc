@@ -309,8 +309,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommands();
-  virtual Edge* NextFinishedCommand(bool* success, string* output);
+  virtual Edge* WaitForCommand(bool* success, string* output);
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
@@ -332,20 +331,11 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool RealCommandRunner::WaitForCommands() {
-  if (subprocs_.running_.empty())
-    return false;
-
-  while (subprocs_.finished_.empty()) {
+Edge* RealCommandRunner::WaitForCommand(bool* success, string* output) {
+  Subprocess* subproc;
+  while ((subproc = subprocs_.NextFinished()) == NULL) {
     subprocs_.DoWork();
   }
-  return true;
-}
-
-Edge* RealCommandRunner::NextFinishedCommand(bool* success, string* output) {
-  Subprocess* subproc = subprocs_.NextFinished();
-  if (!subproc)
-    return NULL;
 
   *success = subproc->Finish();
   *output = subproc->GetOutput();
@@ -368,10 +358,7 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual bool WaitForCommands() {
-    return true;
-  }
-  virtual Edge* NextFinishedCommand(bool* success, string* output) {
+  virtual Edge* WaitForCommand(bool* success, string* output) {
     if (finished_.empty())
       return NULL;
     *success = true;
@@ -459,7 +446,7 @@ bool Builder::Build(string* err) {
       bool success;
       string output;
       Edge* edge;
-      if ((edge = command_runner_->NextFinishedCommand(&success, &output))) {
+      if ((edge = command_runner_->WaitForCommand(&success, &output))) {
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
@@ -477,14 +464,10 @@ bool Builder::Build(string* err) {
       }
     }
 
-    // If we get here, we can neither enqueue new commands nor are any done.
+    // If we get here, we can neither enqueue new commands nor are any running.
     if (pending_commands) {
-      if (!command_runner_->WaitForCommands()) {
-        // TODO: change the API such that this doesn't have a return value.
-        *err = "stuck: pending commands but none to wait for? [this is a bug]";
-        return false;
-      }
-      continue;
+      *err = "stuck: pending commands but none to wait for? [this is a bug]";
+      return false;
     }
 
     // If we get here, we cannot make any more progress.

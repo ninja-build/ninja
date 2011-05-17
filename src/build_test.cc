@@ -210,8 +210,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // CommandRunner impl
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommands();
-  virtual Edge* NextFinishedCommand(bool* success, string* output);
+  virtual Edge* WaitForCommand(bool* success, string* output);
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -264,11 +263,7 @@ bool BuildTest::StartCommand(Edge* edge) {
   return true;
 }
 
-bool BuildTest::WaitForCommands() {
-  return last_command_ != NULL;
-}
-
-Edge* BuildTest::NextFinishedCommand(bool* success, string* output) {
+Edge* BuildTest::WaitForCommand(bool* success, string* output) {
   if (Edge* edge = last_command_) {
     if (edge->rule_->name_ == "fail")
       *success = false;
