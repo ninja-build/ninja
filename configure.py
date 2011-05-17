@@ -162,7 +162,7 @@ n.newline()
 
 n.comment('Generate the manual using asciidoc.')
 n.rule('asciidoc',
-       command='asciidoc -a toc $in -o $out',
+       command='asciidoc -a toc -o $out $in',
        description='ASCIIDOC $in')
 manual = n.build(doc('manual.html'), 'asciidoc', doc('manual.asciidoc'))
 n.build('manual', 'phony',
