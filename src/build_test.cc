@@ -499,6 +499,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // We should fail to even add the depenency on foo.o, because
   // there's nothing to do.
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
+  EXPECT_EQ("", err);
 }
 
 TEST_F(BuildTest, Phony) {
