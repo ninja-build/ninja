@@ -79,7 +79,7 @@ bool CanonicalizePath(string* path, string* err) {
     string::size_type end = path->find('/', start);
     if (end == string::npos)
       end = path->size();
-    if (end > start) {
+    if (end == 0 || end > start) {
       if (parts_count == kMaxPathComponents) {
         *err = "can't canonicalize path '" + *path + "'; too many "
             "path components";

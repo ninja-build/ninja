@@ -53,3 +53,11 @@ TEST(CanonicalizePath, PathSamples) {
   EXPECT_EQ("can't canonicalize path './x/../foo/../../bar.h' that reaches "
             "above its directory", err);
 }
+
+TEST(CanonicalizePath, AbsolutePath) {
+  string path = "/usr/include/stdio.h";
+  string err = "";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("/usr/include/stdio.h", path);
+}
