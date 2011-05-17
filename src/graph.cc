@@ -169,6 +169,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge_) {
       Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      phony_edge->order_only_deps_ = 1;
       node->in_edge_ = phony_edge;
       phony_edge->outputs_.push_back(node);
     }
