@@ -265,8 +265,7 @@ bool BuildTest::StartCommand(Edge* edge) {
 }
 
 bool BuildTest::WaitForCommands() {
-  assert(last_command_);
-  return true;
+  return last_command_ != NULL;
 }
 
 Edge* BuildTest::NextFinishedCommand(bool* success, string* output) {
@@ -555,6 +554,27 @@ TEST_F(BuildTest, SwallowFailures) {
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("all", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ("subcommands failed", err);
+}
+
+TEST_F(BuildTest, DISABLED_SwallowFailuresLimit) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = fail\n"
+"build out1: fail\n"
+"build out2: fail\n"
+"build out3: fail\n"
+"build final: cat out1 out2 out3\n"));
+
+  // Swallow ten failures; we should stop before building final.
+  config_.swallow_failures = 10;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("final", &err));
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(builder_.Build(&err));
