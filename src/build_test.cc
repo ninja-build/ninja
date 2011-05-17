@@ -561,7 +561,7 @@ TEST_F(BuildTest, SwallowFailures) {
   ASSERT_EQ("subcommands failed", err);
 }
 
-TEST_F(BuildTest, DISABLED_SwallowFailuresLimit) {
+TEST_F(BuildTest, SwallowFailuresLimit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule fail\n"
 "  command = fail\n"
@@ -579,5 +579,5 @@ TEST_F(BuildTest, DISABLED_SwallowFailuresLimit) {
 
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, commands_ran_.size());
-  ASSERT_EQ("subcommands failed", err);
+  ASSERT_EQ("cannot make progress due to previous errors", err);
 }

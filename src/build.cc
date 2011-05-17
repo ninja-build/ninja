@@ -427,41 +427,73 @@ bool Builder::Build(string* err) {
   }
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
+  int pending_commands = 0;
   int failures_allowed = config_.swallow_failures;
+
+  // This main loop runs the entire build process.
+  // It is structured like this:
+  // First, we attempt to start as many commands as allowed by the
+  // command runner.
+  // Second, we attempt to wait for / reap the next finished command.
+  // If we can do neither of those, the build is stuck, and we report
+  // an error.
   while (plan_.more_to_do()) {
-    while (command_runner_->CanRunMore()) {
-      Edge* edge = plan_.FindWork();
-      if (!edge)
-        break;
+    // See if we can start any more commands.
+    if (command_runner_->CanRunMore()) {
+      if (Edge* edge = plan_.FindWork()) {
+        if (!StartEdge(edge, err))
+          return false;
 
-      if (!StartEdge(edge, err))
-        return false;
+        if (edge->is_phony())
+          FinishEdge(edge, true, "");
+        else
+          ++pending_commands;
 
-      if (edge->is_phony())
-        FinishEdge(edge, true, "");
+        // We made some progress; go back to the main loop.
+        continue;
+      }
     }
 
-    if (!plan_.more_to_do())
-      break;
-
-    bool success;
-    string output;
-    if (Edge* edge = command_runner_->NextFinishedCommand(&success, &output)) {
-      FinishEdge(edge, success, output);
-      if (!success) {
-        if (--failures_allowed < 0) {
-          if (config_.swallow_failures > 0)
-            *err = "subcommands failed";
-          else
-            *err = "subcommand failed";
-          return false;
+    // See if we can reap any finished commands.
+    if (pending_commands) {
+      bool success;
+      string output;
+      Edge* edge;
+      if ((edge = command_runner_->NextFinishedCommand(&success, &output))) {
+        --pending_commands;
+        FinishEdge(edge, success, output);
+        if (!success) {
+          if (--failures_allowed < 0) {
+            if (config_.swallow_failures > 0)
+              *err = "subcommands failed";
+            else
+              *err = "subcommand failed";
+            return false;
+          }
         }
+
+        // We made some progress; start the main loop over.
+        continue;
       }
-    } else {
+    }
+
+    // If we get here, we can neither enqueue new commands nor are any done.
+    if (pending_commands) {
       if (!command_runner_->WaitForCommands()) {
-        *err = "stuck [this is a bug]";
+        // TODO: change the API such that this doesn't have a return value.
+        *err = "stuck: pending commands but none to wait for? [this is a bug]";
         return false;
       }
+      continue;
+    }
+
+    // If we get here, we cannot make any more progress.
+    if (failures_allowed < config_.swallow_failures) {
+      *err = "cannot make progress due to previous errors";
+      return false;
+    } else {
+      *err = "stuck [this is a bug]";
+      return false;
     }
   }
 
