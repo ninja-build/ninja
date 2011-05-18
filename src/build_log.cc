@@ -170,11 +170,15 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->command = string(start, end - start);
   }
 
-  // Mark the log as "needs rebuiding" if it has kCompactionRatio times
-  // too many log entries or it's the wrong version.
+  // Decide whether it's time to rebuild the log:
+  // - if we're upgrading versions
+  // - if it's getting large
+  int kMinCompactionEntryCount = 100;
   int kCompactionRatio = 3;
-  if (total_entry_count > unique_entry_count * kCompactionRatio ||
-      log_version < kCurrentVersion) {
+  if (log_version < kCurrentVersion) {
+    needs_recompaction_ = true;
+  } else if (total_entry_count > kMinCompactionEntryCount &&
+             total_entry_count > unique_entry_count * kCompactionRatio) {
     needs_recompaction_ = true;
   }
 
