@@ -32,7 +32,7 @@ struct ParserTest : public testing::Test,
     files_read_.push_back(path);
     map<string, string>::iterator i = files_.find(path);
     if (i == files_.end()) {
-      *err = "file not found";
+      *err = "No such file or directory";  // Match strerror() for ENOENT.
       return false;
     }
     *content = i->second;
@@ -333,6 +333,14 @@ TEST_F(ParserTest, SubNinja) {
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
   EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
   EXPECT_EQ("varref outer", state.edges_[2]->EvaluateCommand());
+}
+
+TEST_F(ParserTest, MissingSubNinja) {
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.Parse("subninja foo.ninja\n", &err));
+  EXPECT_EQ("line 1, col 10: loading foo.ninja: No such file or directory",
+            err);
 }
 
 TEST_F(ParserTest, Include) {

@@ -510,12 +510,11 @@ bool ManifestParser::ParseFileInclude(string* err) {
   string path;
   if (!tokenizer_.ReadIdent(&path))
     return tokenizer_.ErrorExpected("path to ninja file", err);
-  if (!tokenizer_.Newline(err))
-    return false;
 
   string contents;
-  if (!file_reader_->ReadFile(path, &contents, err))
-    return false;
+  string read_err;
+  if (!file_reader_->ReadFile(path, &contents, &read_err))
+    return tokenizer_.Error("loading " + path + ": " + read_err, err);
 
   ManifestParser subparser(state_, file_reader_);
   if (type == "subninja") {
@@ -530,6 +529,9 @@ bool ManifestParser::ParseFileInclude(string* err) {
   string sub_err;
   if (!subparser.Parse(contents, &sub_err))
     return tokenizer_.Error("in '" + path + "': " + sub_err, err);
+
+  if (!tokenizer_.Newline(err))
+    return false;
 
   return true;
 }
