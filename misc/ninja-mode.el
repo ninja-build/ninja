@@ -22,6 +22,8 @@
                                      'words))
              font-lock-keyword-face)
        '("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
+       ;; Variable expansion.
+       '("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
        ))
 (define-derived-mode ninja-mode fundamental-mode "ninja"
   (setq comment-start "#")
