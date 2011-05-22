@@ -133,24 +133,21 @@ bool Tokenizer::ReadToNewline(string *text, string* err, size_t max_length) {
   // XXX token_.clear();
   while (cur_ < end_ && *cur_ != '\n') {
     if (*cur_ == '\\') {
-      ++cur_;
-      if (cur_ >= end_)
+      // Might be a line continuation; peek ahead to check.
+      if (cur_ + 1 >= end_)
         return Error("unexpected eof", err);
-      if (*cur_ != '\n') {
-        // XXX we just let other backslashes through verbatim now.
-        // This may not be wise.
-        text->push_back('\\');
-        text->push_back(*cur_);
-        ++cur_;
+      if (*(cur_ + 1) == '\n') {
+        // Let SkipWhitespace handle the continuation logic.
+        SkipWhitespace();
         continue;
       }
+
+      // XXX we just let other backslashes through verbatim now.
+      // This may not be wise.
+      text->push_back(*cur_);
       ++cur_;
-      cur_line_ = cur_;
-      ++line_number_;
-      SkipWhitespace();
-      // Collapse whitespace, but make sure we get at least one space.
-      if (text->size() > 0 && text->at(text->size() - 1) != ' ')
-        text->push_back(' ');
+      text->push_back(*cur_);
+      ++cur_;
     } else {
       text->push_back(*cur_);
       ++cur_;
