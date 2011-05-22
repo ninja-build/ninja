@@ -374,7 +374,7 @@ A file is a series of declarations.  A declaration can be one of:
 
 Comments begin with `#` and extend to the end of the line.
 
-Newlines are significant, but they can be escaped by putting a `\`
+Newlines are significant, but they can be escaped by putting a `$`
 before them.
 
 Other whitespace is only significant if it's at the beginning of a

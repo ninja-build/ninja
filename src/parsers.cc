@@ -66,12 +66,14 @@ void Tokenizer::SkipWhitespace(bool newline) {
   if (token_.type_ == Token::NEWLINE && newline)
     Newline(NULL);
 
+  const char kContinuation = makefile_flavor_ ? '\\' : '$';
+
   while (cur_ < end_) {
     if (*cur_ == ' ') {
       ++cur_;
     } else if (newline && *cur_ == '\n') {
       Newline(NULL);
-    } else if (*cur_ == '\\' && cur_ + 1 < end_ && cur_[1] == '\n') {
+    } else if (*cur_ == kContinuation && cur_ + 1 < end_ && cur_[1] == '\n') {
       ++cur_; ++cur_;
       cur_line_ = cur_;
       ++line_number_;
@@ -101,7 +103,7 @@ static bool IsIdentChar(char c) {
     ('a' <= c && c <= 'z') ||
     ('+' <= c && c <= '9') ||  // +,-./ and numbers
     ('A' <= c && c <= 'Z') ||
-    (c == '_') || (c == '$');
+    (c == '_') || (c == '$') || (c == '\\');
 }
 
 bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
@@ -131,10 +133,23 @@ bool Tokenizer::ReadIdent(string* out) {
   return true;
 }
 
+// A note on backslashes in Makefiles, from reading the docs:
+// Backslash-newline is the line continuation character.
+// Backslash-# escapes a # (otherwise meaningful as a comment start).
+// Backslash-% escapes a % (otherwise meaningful as a special).
+// Finally, quoting the GNU manual, "Backslashes that are not in danger
+// of quoting ‘%’ characters go unmolested."
+// How do you end a line with a backslash?  The netbsd Make docs suggest
+// reading the result of a shell command echoing a backslash!
+//
+// Rather than implement the above, we do the simpler thing here.
+// If anyone actually has depfiles that rely on the more complicated
+// behavior we can adjust this.
 bool Tokenizer::ReadToNewline(string *text, string* err, size_t max_length) {
   // XXX token_.clear();
+  const char kContinuation = makefile_flavor_ ? '\\' : '$';
   while (cur_ < end_ && *cur_ != '\n') {
-    if (*cur_ == '\\') {
+    if (*cur_ == kContinuation) {
       // Might be a line continuation; peek ahead to check.
       if (cur_ + 1 >= end_)
         return Error("unexpected eof", err);
@@ -144,10 +159,7 @@ bool Tokenizer::ReadToNewline(string *text, string* err, size_t max_length) {
         continue;
       }
 
-      // XXX we just let other backslashes through verbatim now.
-      // This may not be wise.
-      text->push_back(*cur_);
-      ++cur_;
+      // Otherwise, just treat it like a normal character.
       text->push_back(*cur_);
       ++cur_;
     } else {
@@ -167,7 +179,7 @@ Token::Type Tokenizer::PeekToken() {
     return token_.type_;
 
   token_.pos_ = cur_;
-  if (whitespace_significant_ && cur_indent_ == -1) {
+  if (!makefile_flavor_ && cur_indent_ == -1) {
     cur_indent_ = cur_ - cur_line_;
     if (cur_indent_ != last_indent_) {
       if (cur_indent_ > last_indent_) {
@@ -227,7 +239,9 @@ void Tokenizer::ConsumeToken() {
   token_.Clear();
 }
 
-MakefileParser::MakefileParser() : tokenizer_(false) {}
+MakefileParser::MakefileParser() {
+  tokenizer_.SetMakefileFlavor();
+}
 
 bool MakefileParser::Parse(const string& input, string* err) {
   tokenizer_.Start(input.data(), input.data() + input.size());
@@ -252,7 +266,7 @@ bool MakefileParser::Parse(const string& input, string* err) {
 }
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
-  : state_(state), file_reader_(file_reader), tokenizer_(true) {
+  : state_(state), file_reader_(file_reader) {
   env_ = &state->bindings_;
 }
 bool ManifestParser::Load(const string& filename, string* err) {

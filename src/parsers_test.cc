@@ -109,10 +109,10 @@ TEST_F(ParserTest, VariableScope) {
 TEST_F(ParserTest, Continuation) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
-"  command = foo bar \\\n"
+"  command = foo bar $\n"
 "    baz\n"
 "\n"
-"build a: link c \\\n"
+"build a: link c $\n"
 " d e f\n"));
 
   ASSERT_EQ(2u, state.rules_.size());
@@ -215,15 +215,15 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = $\n", &err));
-    EXPECT_EQ("line 1, col 6: expected variable after $", err);
+    EXPECT_FALSE(parser.Parse("x = $", &err));
+    EXPECT_EQ("line 1, col 3: unexpected eof", err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = \\\n $[\n", &err));
+    EXPECT_FALSE(parser.Parse("x = $\n $[\n", &err));
     EXPECT_EQ("line 2, col 3: expected variable after $", err);
   }
 
@@ -231,8 +231,8 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = a\\\n b\\\n $\n", &err));
-    EXPECT_EQ("line 3, col 3: expected variable after $", err);
+    EXPECT_FALSE(parser.Parse("x = a$\n b$\n $\n", &err));
+    EXPECT_EQ("line 4, col 1: expected newline, got eof", err);
   }
 
   {
@@ -256,7 +256,7 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n  command = cat ok\n"
-                              "build x: cat \\\n :\n",
+                              "build x: cat $\n :\n",
                               &err));
     EXPECT_EQ("line 4, col 2: expected newline, got ':'", err);
   }

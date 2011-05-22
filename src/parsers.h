@@ -63,10 +63,17 @@ struct SourceLocation {
 
 /// Processes an input stream into Tokens.
 struct Tokenizer {
-  Tokenizer(bool whitespace_significant)
-      : whitespace_significant_(whitespace_significant),
-        token_(Token::NONE), line_number_(0),
-        last_indent_(0), cur_indent_(-1) {}
+  Tokenizer()
+    : makefile_flavor_(false),
+      token_(Token::NONE), line_number_(0),
+      last_indent_(0), cur_indent_(-1) {}
+
+  /// Tokenization differs slightly between ninja files and Makefiles.
+  /// By default we tokenize as ninja files; calling this changes to
+  /// Makefile-style tokenization.
+  void SetMakefileFlavor() {
+    makefile_flavor_ = true;
+  }
 
   void Start(const char* start, const char* end);
   /// Report an error with a location pointing at the current token.
@@ -91,7 +98,7 @@ struct Tokenizer {
     return SourceLocation(line_number_ + 1, token_.pos_ - cur_line_ + 1);
   }
 
-  bool whitespace_significant_;
+  bool makefile_flavor_;
 
   const char* cur_;
   const char* end_;

@@ -58,7 +58,7 @@ class Writer(object):
         while len(text) > self.width:
             space = text.rfind(' ', 0, self.width - 4)
             assert space != -1  # TODO: handle if no space found.
-            self.output.write(text[0:space] + ' \\\n')
+            self.output.write(text[0:space] + ' $\n')
             text = '  ' * (indent+2) + text[space:].lstrip()
         self.output.write(text + '\n')
 
