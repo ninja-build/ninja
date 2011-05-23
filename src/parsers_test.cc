@@ -317,8 +317,7 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
                               &err));
-    // XXX EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
-    EXPECT_EQ("line 4, col 0: unexpected variable 'othervar'", err);
+    EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
   }
 
   {

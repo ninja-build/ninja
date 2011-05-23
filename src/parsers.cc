@@ -321,6 +321,8 @@ bool ManifestParser::ParseRule(string* err) {
     tokenizer_.ConsumeToken();
 
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
+      SourceLocation let_loc = tokenizer_.Location();
+
       string key, val;
       if (!ParseLet(&key, &val, false, err))
         return false;
@@ -338,7 +340,7 @@ bool ManifestParser::ParseRule(string* err) {
       } else {
         // Die on other keyvals for now; revisit if we want to add a
         // scope here.
-        return tokenizer_.Error("unexpected variable '" + key + "'", err);
+        return let_loc.Error("unexpected variable '" + key + "'", err);
       }
     }
     tokenizer_.ConsumeToken();
