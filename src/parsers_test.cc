@@ -274,6 +274,27 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.Parse("rule cat\n  command = ${fafsd\n  foo = bar\n",
+                              &err));
+    // XXX EXPECT_EQ("line 2, col 20: expected closing curly after ${", err);
+    EXPECT_EQ("line 3, col 0: expected closing curly after ${", err);
+  }
+
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule cat\n  command = cat\nbuild $: cat foo\n",
+                              &err));
+    // XXX EXPECT_EQ("line 3, col 7: expected variable after $", err);
+    EXPECT_EQ("line 4, col 1: expected variable after $", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.Parse("rule %foo\n",
                               &err));
     EXPECT_EQ("line 1, col 6: expected rule name, got unknown '%'", err);
@@ -296,6 +317,7 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
                               &err));
+    // XXX EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
     EXPECT_EQ("line 4, col 0: unexpected variable 'othervar'", err);
   }
 

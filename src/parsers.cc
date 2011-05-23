@@ -41,19 +41,21 @@ string Token::AsString() const {
   return "";
 }
 
+bool SourceLocation::Error(const string& message, string* err) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), "line %d, col %d: %s", line_, column_,
+           message.c_str());
+  err->assign(buf);
+  return false;
+}
+
 void Tokenizer::Start(const char* start, const char* end) {
   cur_line_ = cur_ = start;
   end_ = end;
 }
 
 bool Tokenizer::Error(const string& message, string* err) {
-  char buf[1024];
-  snprintf(buf, sizeof(buf), "line %d, col %d: %s",
-          line_number_,
-          (int)(token_.pos_ - cur_line_) + 1,
-          message.c_str());
-  err->assign(buf);
-  return false;
+  return Location().Error(message, err);
 }
 
 bool Tokenizer::ErrorExpected(const string& expected, string* err) {
