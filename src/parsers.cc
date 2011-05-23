@@ -327,21 +327,22 @@ bool ManifestParser::ParseRule(string* err) {
       if (!ParseLet(&key, &val, false, err))
         return false;
 
-      string parse_err;
+      EvalString* eval_target = NULL;
       if (key == "command") {
-        if (!rule->ParseCommand(val, &parse_err))
-          return tokenizer_.Error(parse_err, err);
+        eval_target = &rule->command_;
       } else if (key == "depfile") {
-        if (!rule->depfile_.Parse(val, &parse_err))
-          return tokenizer_.Error(parse_err, err);
+        eval_target = &rule->depfile_;
       } else if (key == "description") {
-        if (!rule->description_.Parse(val, &parse_err))
-          return tokenizer_.Error(parse_err, err);
+        eval_target = &rule->description_;
       } else {
         // Die on other keyvals for now; revisit if we want to add a
         // scope here.
         return let_loc.Error("unexpected variable '" + key + "'", err);
       }
+
+      string parse_err;
+      if (!eval_target->Parse(val, &parse_err))
+        return tokenizer_.Error(parse_err, err);
     }
     tokenizer_.ConsumeToken();
   }
