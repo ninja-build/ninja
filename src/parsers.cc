@@ -284,7 +284,7 @@ bool ManifestParser::Parse(const string& input, string* err) {
             return false;
         } else {
           string name, value;
-          if (!ParseLet(&name, &value, true, err))
+          if (!ParseLet(&name, &value, err))
             return false;
           env_->AddBinding(name, value);
         }
@@ -323,8 +323,8 @@ bool ManifestParser::ParseRule(string* err) {
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
       SourceLocation let_loc = tokenizer_.Location();
 
-      string key, val;
-      if (!ParseLet(&key, &val, false, err))
+      string key;
+      if (!ParseLetKey(&key, err))
         return false;
 
       EvalString* eval_target = NULL;
@@ -340,9 +340,8 @@ bool ManifestParser::ParseRule(string* err) {
         return let_loc.Error("unexpected variable '" + key + "'", err);
       }
 
-      string parse_err;
-      if (!eval_target->Parse(val, &parse_err))
-        return tokenizer_.Error(parse_err, err);
+      if (!ParseLetValue(eval_target, err))
+        return false;
     }
     tokenizer_.ConsumeToken();
   }
@@ -354,34 +353,46 @@ bool ManifestParser::ParseRule(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseLet(string* name, string* value, bool expand,
-                              string* err) {
-  if (!tokenizer_.ReadIdent(name))
+bool ManifestParser::ParseLet(string* key, string* value, string* err) {
+  if (!ParseLetKey(key, err))
+    return false;
+
+  EvalString eval;
+  if (!ParseLetValue(&eval, err))
+    return false;
+
+  *value = eval.Evaluate(env_);
+
+  return true;
+}
+
+bool ManifestParser::ParseLetKey(string* key, string* err) {
+  if (!tokenizer_.ReadIdent(key))
     return tokenizer_.ErrorExpected("variable name", err);
   if (!tokenizer_.ExpectToken(Token::EQUALS, err))
     return false;
+  return true;
+}
 
+bool ManifestParser::ParseLetValue(EvalString* eval, string* err) {
   // Backup the tokenizer state prior to consuming the line, for reporting
   // the source location in case of a parse error later.
   Tokenizer tokenizer_backup = tokenizer_;
 
   // XXX should we tokenize here?  it means we'll need to understand
   // command syntax, though...
-  if (!tokenizer_.ReadToNewline(value, err))
+  string value;
+  if (!tokenizer_.ReadToNewline(&value, err))
     return false;
 
-  if (expand) {
-    EvalString eval;
-    string eval_err;
-    size_t err_index;
-    if (!eval.Parse(*value, &eval_err, &err_index)) {
-      string temp;
-      // Advance the saved tokenizer state up to the error index to report the
-      // error at the correct source location.
-      tokenizer_backup.ReadToNewline(&temp, err, err_index);
-      return tokenizer_backup.Error(eval_err, err);
-    }
-    *value = eval.Evaluate(env_);
+  string eval_err;
+  size_t err_index;
+  if (!eval->Parse(value, &eval_err, &err_index)) {
+    value.clear();
+    // Advance the saved tokenizer state up to the error index to report the
+    // error at the correct source location.
+    tokenizer_backup.ReadToNewline(&value, err, err_index);
+    return tokenizer_backup.Error(eval_err, err);
   }
 
   return true;
@@ -469,7 +480,7 @@ bool ManifestParser::ParseEdge(string* err) {
     env->parent_ = env_;
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
       string key, val;
-      if (!ParseLet(&key, &val, true, err))
+      if (!ParseLet(&key, &val, err))
         return false;
       env->AddBinding(key, val);
     }

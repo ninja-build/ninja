@@ -276,8 +276,7 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.Parse("rule cat\n  command = ${fafsd\n  foo = bar\n",
                               &err));
-    // XXX EXPECT_EQ("line 2, col 20: expected closing curly after ${", err);
-    EXPECT_EQ("line 3, col 0: expected closing curly after ${", err);
+    EXPECT_EQ("line 2, col 20: expected closing curly after ${", err);
   }
 
 

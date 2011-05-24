@@ -112,6 +112,7 @@ struct MakefileParser {
   vector<string> ins_;
 };
 
+struct EvalString;
 struct State;
 
 /// Parses .ninja files.
@@ -127,13 +128,20 @@ struct ManifestParser {
   bool Parse(const string& input, string* err);
 
   bool ParseRule(string* err);
-  /// Parse a key=val statement.  If expand is true, evaluate variables
-  /// within the value immediately.
-  bool ParseLet(string* key, string* val, bool expand, string* err);
+  /// Parse a key=val statement, expanding $vars in the value with the
+  /// current env.
+  bool ParseLet(string* key, string* val, string* err);
   bool ParseEdge(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(string* err);
+
+
+  /// Parse the "key=" half of a key=val statement.
+  bool ParseLetKey(string* key, string* err);
+  /// Parse the val half of a key=val statement, writing and parsing
+  /// output into an EvalString (ready for expansion).
+  bool ParseLetValue(EvalString* eval, string* err);
 
   State* state_;
   BindingEnv* env_;
