@@ -16,6 +16,8 @@
 #define NINJA_UTIL_H_
 #pragma once
 
+#include <stdint.h>
+
 #include <string>
 using namespace std;
 
@@ -38,5 +40,10 @@ int MakeDir(const string& path);
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
+
+/// Get the current time as relative to some epoch.
+/// Epoch varies between platforms; only useful for measuring elapsed
+/// time.
+int64_t GetTimeMillis();
 
 #endif  // NINJA_UTIL_H_

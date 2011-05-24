@@ -28,21 +28,7 @@
 #include "graph.h"
 #include "ninja.h"
 #include "subprocess.h"
-
-namespace {
-
-int64_t GetTimeMillis() {
-#ifdef _WIN32
-  // GetTickCount64 is only available on Vista or later.
-  return GetTickCount();
-#else
-  timeval now;
-  gettimeofday(&now, NULL);
-  return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
-#endif
-}
-
-}
+#include "util.h"
 
 /// Tracks the status of a build: completion fraction, printing updates.
 struct BuildStatus {

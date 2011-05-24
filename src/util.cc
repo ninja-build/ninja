@@ -14,6 +14,10 @@
 
 #include "util.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -21,6 +25,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <vector>
 
@@ -172,4 +177,15 @@ int ReadFile(const string& path, string* contents, string* err) {
   }
   fclose(f);
   return 0;
+}
+
+int64_t GetTimeMillis() {
+#ifdef _WIN32
+  // GetTickCount64 is only available on Vista or later.
+  return GetTickCount();
+#else
+  timeval now;
+  gettimeofday(&now, NULL);
+  return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
+#endif
 }
