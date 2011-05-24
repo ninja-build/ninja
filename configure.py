@@ -136,6 +136,7 @@ n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 n.build('ninja', 'link', objs, implicit=ninja_lib,
         variables=[('libs', '-L$builddir -lninja')])
+n.newline()
 
 n.comment('Tests all build into ninja_test executable.')
 objs = []
@@ -149,6 +150,12 @@ if platform != 'mingw':
 n.build('ninja_test', 'link', objs, implicit=ninja_lib,
         variables=[('libs', '-L$builddir -lninja'),
                    ('ldflags', ' '.join(ldflags))])
+n.newline()
+
+n.comment('Perftest executable.')
+objs = cxx('parser_perftest')
+n.build('parser_perftest', 'link', objs, implicit=ninja_lib,
+        variables=[('libs', '-L$builddir -lninja')])
 n.newline()
 
 n.comment('Generate a graph using the "graph" tool.')
