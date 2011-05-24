@@ -26,28 +26,6 @@
 #include "graph.h"
 #include "util.h"
 
-int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
-  if (!f) {
-    err->assign(strerror(errno));
-    return -errno;
-  }
-
-  char buf[64 << 10];
-  size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
-    contents->append(buf, len);
-  }
-  if (ferror(f)) {
-    err->assign(strerror(errno));  // XXX errno?
-    contents->clear();
-    fclose(f);
-    return -errno;
-  }
-  fclose(f);
-  return 0;
-}
-
 int RealDiskInterface::Stat(const string& path) {
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {

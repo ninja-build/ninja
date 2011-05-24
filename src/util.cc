@@ -14,6 +14,7 @@
 
 #include "util.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -149,4 +150,26 @@ int MakeDir(const string& path) {
 #else
   return mkdir(path.c_str(), 0777);
 #endif
+}
+
+int ReadFile(const string& path, string* contents, string* err) {
+  FILE* f = fopen(path.c_str(), "r");
+  if (!f) {
+    err->assign(strerror(errno));
+    return -errno;
+  }
+
+  char buf[64 << 10];
+  size_t len;
+  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+    contents->append(buf, len);
+  }
+  if (ferror(f)) {
+    err->assign(strerror(errno));  // XXX errno?
+    contents->clear();
+    fclose(f);
+    return -errno;
+  }
+  fclose(f);
+  return 0;
 }

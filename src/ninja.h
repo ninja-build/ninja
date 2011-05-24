@@ -33,8 +33,6 @@ struct FileStat;
 struct Node;
 struct Rule;
 
-int ReadFile(const string& path, string* contents, string* err);
-
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
