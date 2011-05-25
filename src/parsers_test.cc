@@ -399,6 +399,8 @@ TEST(MakefileParser, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
+  EXPECT_EQ("build/ninja.o", parser.out_);
+  EXPECT_EQ(4u, parser.ins_.size());
 }
 
 TEST(MakefileParser, EarlyNewlineAndWhitespace) {
@@ -411,3 +413,14 @@ TEST(MakefileParser, EarlyNewlineAndWhitespace) {
   ASSERT_EQ("", err);
 }
 
+TEST(MakefileParser, Continuation) {
+  MakefileParser parser;
+  string err;
+  EXPECT_TRUE(parser.Parse(
+"foo.o: \\\n"
+"  bar.h baz.h\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("foo.o", parser.out_);
+  EXPECT_EQ(2u, parser.ins_.size());
+}
