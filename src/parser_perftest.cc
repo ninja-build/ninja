@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  vector<float> times;
   for (int i = 1; i < argc; ++i) {
     const char* filename = argv[i];
 
@@ -47,10 +48,28 @@ int main(int argc, char* argv[]) {
 
       if (end - start > 100) {
         int delta = (int)(end - start);
-        printf("%s: %.2fus\n", filename, (float)(delta*1000 / (float)limit));
+        float time = delta*1000 / (float)limit;
+        printf("%s: %.1fus\n", filename, time);
+        times.push_back(time);
         break;
       }
     }
+  }
+
+  if (!times.empty()) {
+    float min = times[0];
+    float max = times[0];
+    float total = 0;
+    for (size_t i = 0; i < times.size(); ++i) {
+      total += times[i];
+      if (times[i] < min)
+        min = times[i];
+      else if (times[i] > max)
+        max = times[i];
+    }
+
+    printf("min %.1fus  max %.1fus  avg %.1fus\n",
+           min, max, total / times.size());
   }
 
   return 0;

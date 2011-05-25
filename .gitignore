@@ -4,6 +4,7 @@ TAGS
 /build.ninja
 /ninja
 /ninja_test
+/parser_perftest
 /graph.png
 /doc/manual.html
 /doc/doxygen
