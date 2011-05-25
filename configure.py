@@ -31,6 +31,8 @@ platforms = ['linux', 'freebsd', 'mingw', 'windows']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
                   choices=platforms)
+parser.add_option('--profile', action='store_true',
+                  help='enable profiling',)
 (options, args) = parser.parse_args()
 
 platform = options.platform
@@ -75,6 +77,9 @@ if platform == 'mingw':
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
 else:
     n.variable('cxx', os.environ.get('CXX', 'g++'))
+    if options.profile:
+        cflags.append('-pg')
+        ldflags.append('-pg')
 
 if 'CFLAGS' in os.environ:
     cflags.append(os.environ['CFLAGS'])
