@@ -55,7 +55,7 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
-  ASSERT_EQ(NULL, edge);
+  ASSERT_EQ(0, edge);
 }
 
 // Test that two outputs from one rule can be handled as inputs to the next.
