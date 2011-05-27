@@ -137,6 +137,18 @@ TEST_F(ParserTest, Comment) {
   EXPECT_EQ("not # a comment", state.bindings_.LookupVariable("foo"));
 }
 
+TEST_F(ParserTest, Dollars) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule foo\n"
+"  command = ${out}bar$$baz$$$\n"
+"blah\n"
+"x = $$dollar\n"
+"build $x: foo y\n"
+));
+  EXPECT_EQ("$dollar", state.bindings_.LookupVariable("x"));
+  EXPECT_EQ("$dollarbar$baz$blah", state.edges_[0]->EvaluateCommand());
+}
+
 TEST_F(ParserTest, CanonicalizeFile) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"

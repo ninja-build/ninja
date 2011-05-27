@@ -106,6 +106,15 @@ TEST(EvalString, Curlies) {
   env.vars["var"] = "barbar";
   EXPECT_EQ("foo barbarbaz", str.Evaluate(&env));
 }
+TEST(EvalString, Dollars) {
+  EvalString str;
+  string err;
+  EXPECT_TRUE(str.Parse("foo$$bar$bar", &err));
+  ASSERT_EQ("", err);
+  TestEnv env;
+  env.vars["bar"] = "baz";
+  EXPECT_EQ("foo$barbaz", str.Evaluate(&env));
+}
 
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {

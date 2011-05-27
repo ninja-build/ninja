@@ -55,6 +55,9 @@ bool EvalString::Parse(const string& input, string* err, size_t* err_index) {
       }
       parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
       ++end;
+    } else if (start < input.size() && input[start] == '$') {
+      parsed_.push_back(make_pair("$", RAW));
+      end = start + 1;
     } else {
       for (end = start; end < input.size(); ++end) {
         char c = input[end];
