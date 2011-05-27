@@ -23,6 +23,10 @@
 #include "ninja.h"
 #include "util.h"
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 string Token::AsString() const {
   switch (type_) {
   case IDENT:    return "'" + string(pos_, end_ - pos_) + "'";

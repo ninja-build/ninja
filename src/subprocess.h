@@ -24,6 +24,8 @@ using namespace std;
 #include <windows.h>
 #endif
 
+struct SubprocessSet;
+
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
@@ -31,7 +33,7 @@ using namespace std;
 struct Subprocess {
   Subprocess();
   ~Subprocess();
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(SubprocessSet* set, const string& command);
   void OnPipeReady();
   /// Returns true on successful process exit.
   bool Finish();

@@ -21,6 +21,10 @@
 
 #include "util.h"
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 namespace {
 
 void Win32Fatal(const char* function) {
@@ -88,7 +92,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   STARTUPINFOA startup_info = {};
