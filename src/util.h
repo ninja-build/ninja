@@ -46,4 +46,8 @@ int ReadFile(const string& path, string* contents, string* err);
 /// time.
 int64_t GetTimeMillis();
 
+#ifdef _WIN32
+#define snprintf _snprintf
+#endif
+
 #endif  // NINJA_UTIL_H_
