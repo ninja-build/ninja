@@ -54,7 +54,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     *err = strerror(errno);
     return false;
   }
-  setvbuf(log_file_, NULL, _IOLBF, 0);
+  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
 
   if (ftell(log_file_) == 0) {
     if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {

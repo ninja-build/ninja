@@ -25,7 +25,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 #include <vector>
 
