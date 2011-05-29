@@ -44,12 +44,12 @@ int RealDiskInterface::Stat(const string& path) {
 string DirName(const string& path) {
 
 #ifdef WIN32
-    const char kPathSeparator = '\\';
+  const char kPathSeparator = '\\';
 #else
-    const char kPathSeparator = '/';
+  const char kPathSeparator = '/';
 #endif
     
-    string::size_type slash_pos = path.rfind(kPathSeparator);
+  string::size_type slash_pos = path.rfind(kPathSeparator);
   if (slash_pos == string::npos)
     return "";  // Nothing to do.
   while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
