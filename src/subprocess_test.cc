@@ -30,32 +30,19 @@ struct SubprocessTest : public testing::Test {
 
 }  // anonymous namespace
 
-// Run a command that succeeds and emits to stdout.
-TEST_F(SubprocessTest, GoodCommandStdout) {
-  Subprocess ls;
-  EXPECT_TRUE(ls.Start(&subprocs_, kSimpleCommand));
-
-  while (!ls.Done()) {
-    // Pretend we discovered that stdout was ready for writing.
-    ls.OnPipeReady();
-  }
-
-  EXPECT_TRUE(ls.Finish());
-  EXPECT_NE("", ls.GetOutput());
-}
-
 // Run a command that fails and emits to stderr.
 TEST_F(SubprocessTest, BadCommandStderr) {
-  Subprocess subproc;
-  EXPECT_TRUE(subproc.Start(&subprocs_, "ninja_no_such_command"));
+  Subprocess* subproc = new Subprocess;
+  EXPECT_TRUE(subproc->Start(&subprocs_, "ninja_no_such_command"));
+  subprocs_.Add(subproc);
 
-  while (!subproc.Done()) {
+  while (!subproc->Done()) {
     // Pretend we discovered that stderr was ready for writing.
-    subproc.OnPipeReady();
+    subprocs_.DoWork();
   }
 
-  EXPECT_FALSE(subproc.Finish());
-  EXPECT_NE("", subproc.GetOutput());
+  EXPECT_FALSE(subproc->Finish());
+  EXPECT_NE("", subproc->GetOutput());
 }
 
 TEST_F(SubprocessTest, SetWithSingle) {
