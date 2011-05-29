@@ -18,6 +18,7 @@
 
 #ifdef WIN32
 #include <fcntl.h>
+#include <share.h>
 #endif
 
 static const char kTestFilename[] = "BuildLogTest-tempfile";
@@ -98,7 +99,7 @@ TEST_F(BuildLogTest, Truncate) {
     ASSERT_EQ(0, truncate(kTestFilename, size));
 #else
     int fh;
-    ASSERT_EQ(0, _sopen_s(&fh, kTestFilename, _O_RDWR | _O_CREAT, _SH_DENYNO, _S_IREAD | _S_IWRITE));
+    fh = _sopen(kTestFilename, _O_RDWR | _O_CREAT, _SH_DENYNO, _S_IREAD | _S_IWRITE);
     ASSERT_EQ(0, _chsize(fh, size));
     _close(fh);
 #endif
