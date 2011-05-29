@@ -390,17 +390,26 @@ TEST_F(BuildTest, MissingTarget) {
 
 TEST_F(BuildTest, MakeDirs) {
   string err;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build subdir/dir2/file: cat in1\n"));
 
+#ifdef WIN32
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build subdir\\dir2\\file: cat in1\n"));
+  EXPECT_TRUE(builder_.AddTarget("subdir\\dir2\\file", &err));
+#else
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build subdir/dir2/file: cat in1\n"));
   EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
+#endif
+
   EXPECT_EQ("", err);
   now_ = 0;  // Make all stat()s return file not found.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
+#ifdef WIN32
+  EXPECT_EQ("subdir\\dir2", fs_.directories_made_[1]);
+#else
   EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
+#endif
 }
 
 TEST_F(BuildTest, DepFileMissing) {
