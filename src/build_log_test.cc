@@ -16,6 +16,11 @@
 
 #include "test.h"
 
+#ifdef WIN32
+#include <fcntl.h>
+#include <share.h>
+#endif
+
 static const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
@@ -90,7 +95,14 @@ TEST_F(BuildLogTest, Truncate) {
   // For all possible truncations of the input file, assert that we don't
   // crash or report an error when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
+#ifndef WIN32
     ASSERT_EQ(0, truncate(kTestFilename, size));
+#else
+    int fh;
+    fh = _sopen(kTestFilename, _O_RDWR | _O_CREAT, _SH_DENYNO, _S_IREAD | _S_IWRITE);
+    ASSERT_EQ(0, _chsize(fh, size));
+    _close(fh);
+#endif
 
     BuildLog log2;
     EXPECT_TRUE(log2.Load(kTestFilename, &err));

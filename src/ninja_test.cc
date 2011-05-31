@@ -217,7 +217,7 @@ TEST_F(StatTest, Middle) {
 #ifndef _mktemp_s
 /// mingw has no mktemp.  Implement one with the same type as the one
 /// found in the Windows API.
-int _mktemp_s(const char* templ) {
+int _mktemp_s(char* templ) {
   char* ofs = strchr(templ, 'X');
   sprintf(ofs, "%d", rand() % 1000000);
   return 0;
