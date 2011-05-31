@@ -99,26 +99,6 @@ int RealDiskInterface::RemoveFile(const string& path) {
   }
 }
 
-FileStat* StatCache::GetFile(const string& path) {
-  Paths::iterator i = paths_.find(path);
-  if (i != paths_.end())
-    return i->second;
-  FileStat* file = new FileStat(path);
-  paths_[path] = file;
-  return file;
-}
-
-void StatCache::Dump() {
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    FileStat* file = i->second;
-    printf("%s %s\n",
-           file->path_.c_str(),
-           file->status_known()
-           ? (file->node_->dirty_ ? "dirty" : "clean")
-           : "unknown");
-  }
-}
-
 const Rule State::kPhonyRule("phony");
 
 State::State() : build_log_(NULL) {
