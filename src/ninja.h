@@ -15,18 +15,18 @@
 #ifndef NINJA_NINJA_H_
 #define NINJA_NINJA_H_
 
+#include <assert.h>
+
 #include <algorithm>
 #include <queue>
 #include <set>
 #include <string>
 #include <vector>
 
-#include <assert.h>
+#include "eval_env.h"
+#include "stat_cache.h"
 
 using namespace std;
-
-#include "eval_env.h"
-#include "hash_map.h"
 
 struct Edge;
 struct FileStat;
@@ -66,18 +66,6 @@ struct RealDiskInterface : public DiskInterface {
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
   virtual int RemoveFile(const string& path);
-};
-
-/// Mapping of path -> FileStat.
-struct StatCache {
-  typedef hash_map<string, FileStat*> Paths;
-  Paths paths_;
-
-  FileStat* GetFile(const string& path);
-
-  /// Dump the mapping to stdout (useful for debugging).
-  void Dump();
-  void Reload();
 };
 
 /// Global state (file status, loaded rules) for a single run.
