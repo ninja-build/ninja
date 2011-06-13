@@ -76,7 +76,9 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     if (state && state->build_log_) {
       log_entry = state->build_log_->LookupByOutput((*i)->file_->path_);
       if (log_entry) {
-        outputs_last_build_log_.push_back(log_entry);
+        if (log_entry->exit_code != 0) {
+          priority_++;
+        }
       }
     }
 

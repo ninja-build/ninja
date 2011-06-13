@@ -252,17 +252,7 @@ Edge* Plan::FindWork() {
   for (set<Edge*>::iterator i = ready_.begin(); i != ready_.end(); i++) {
     Edge* edge = *i;
 
-    int score = 0;
-    for (vector<BuildLog::LogEntry*>::iterator log_iterator = edge->outputs_last_build_log_.begin(); log_iterator != edge->outputs_last_build_log_.end(); log_iterator++) {
-      BuildLog::LogEntry* log_entry = *log_iterator;
-      if (log_entry->exit_code != 0) {
-        printf("Boosting score because exit_code = %d for output=%s\n", log_entry->exit_code, log_entry->command.c_str());
-        score++;
-      }
-    }
-
-    printf("Score = %d for:", score);
-    edge->Dump();
+    int score = edge->priority_;
 
     if (score > best_score) {
       best = i;
@@ -272,9 +262,6 @@ Edge* Plan::FindWork() {
 
   Edge* edge = *best;
   ready_.erase(best);
-
-  printf("Best = %d for:", best_score);
-  edge->Dump();
 
   return edge;
 }

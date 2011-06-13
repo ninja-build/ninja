@@ -90,7 +90,7 @@ struct State;
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
+  Edge() : rule_(NULL), env_(NULL), priority_(0), implicit_deps_(0), order_only_deps_(0) {}
 
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
   string EvaluateCommand();  // XXX move to env, take env ptr
@@ -104,7 +104,8 @@ struct Edge {
   vector<Node*> outputs_;
   Env* env_;
 
-  vector<BuildLog::LogEntry*> outputs_last_build_log_;
+  // We choose the higher priority edges first
+  int priority_;
 
   // XXX There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;
