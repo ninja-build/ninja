@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "build_log.h"
 
 struct DiskInterface;
 
@@ -102,6 +103,8 @@ struct Edge {
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   Env* env_;
+
+  vector<BuildLog::LogEntry*> outputs_last_build_log_;
 
   // XXX There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;

@@ -72,6 +72,14 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     // yet (or never will).  Stat them if we haven't already.
     (*i)->file_->StatIfNecessary(disk_interface);
 
+    BuildLog::LogEntry* log_entry = 0;
+    if (state && state->build_log_) {
+      log_entry = state->build_log_->LookupByOutput((*i)->file_->path_);
+      if (log_entry) {
+        outputs_last_build_log_.push_back(log_entry);
+      }
+    }
+
     // Output is dirty if we're dirty, we're missing the output,
     // or if it's older than the most recent input mtime.
     if (dirty || !(*i)->file_->exists() ||
@@ -79,13 +87,12 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       (*i)->dirty_ = true;
     } else {
       // May also be dirty due to the command changing since the last build.
-      BuildLog::LogEntry* entry;
-      if (state->build_log_ &&
-          (entry = state->build_log_->LookupByOutput((*i)->file_->path_))) {
-        if (command != entry->command)
+      if (log_entry) {
+        if (command != log_entry->command)
           (*i)->dirty_ = true;
       }
     }
+
   }
   return true;
 }

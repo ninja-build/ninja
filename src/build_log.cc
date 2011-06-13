@@ -31,8 +31,9 @@
 
 namespace {
 
-const char kFileSignature[] = "# ninja log v2\n";
-const int kCurrentVersion = 2;
+const char kFileSignature_V2[] = "# ninja log v2\n";
+const char kFileSignature_V3[] = "# ninja log v3\n";
+const int kCurrentVersion = 3;
 
 }
 
@@ -57,7 +58,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
 
   if (ftell(log_file_) == 0) {
-    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {
+    if (fwrite(kFileSignature_V3, sizeof(kFileSignature_V3) - 1, 1, log_file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -66,7 +67,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   return true;
 }
 
-void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
+void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time, int exit_code) {
   if (!log_file_)
     return;
 
@@ -86,6 +87,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
     log_entry->command = command;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
+    log_entry->exit_code = exit_code;
 
     WriteEntry(log_file_, *log_entry);
   }
@@ -114,11 +116,16 @@ bool BuildLog::Load(const string& path, string* err) {
   while (fgets(buf, sizeof(buf), file)) {
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (strcmp(buf, kFileSignature) == 0) {
+      if (strcmp(buf, kFileSignature_V2) == 0) {
         log_version = 2;
         continue;
       }
+      if (strcmp(buf, kFileSignature_V3) == 0) {
+        log_version = 3;
+        continue;
+      }
     }
+
     char* start = buf;
     char* end = strchr(start, ' ');
     if (!end)
@@ -126,6 +133,7 @@ bool BuildLog::Load(const string& path, string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
+    int exit_code = 0;
     if (log_version == 1) {
       // In v1 we logged how long the command took; we don't use this info.
       // int time_ms = atoi(start);
@@ -141,6 +149,15 @@ bool BuildLog::Load(const string& path, string* err) {
       *end = 0;
       end_time = atoi(start);
       start = end + 1;
+
+      if (log_version >= 3) {
+        char* end = strchr(start, ' ');
+        if (!end)
+          continue;
+        *end = 0;
+        exit_code = atoi(start);
+        start = end + 1;
+      }
     }
 
     end = strchr(start, ' ');
@@ -167,6 +184,7 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->output = output;
     entry->start_time = start_time;
     entry->end_time = end_time;
+    entry->exit_code = exit_code;
     entry->command = string(start, end - start);
   }
 
@@ -195,8 +213,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d %d %s %s\n",
-          entry.start_time, entry.end_time,
+  fprintf(f, "%d %d %d %s %s\n",
+          entry.start_time, entry.end_time, entry.exit_code,
           entry.output.c_str(), entry.command.c_str());
 }
 
@@ -210,7 +228,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
-  if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, f) < 1) {
+  if (fwrite(kFileSignature_V3, sizeof(kFileSignature_V3) - 1, 1, f) < 1) {
     *err = strerror(errno);
     return false;
   }

@@ -40,8 +40,8 @@ TEST_F(BuildLogTest, WriteRead) {
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state_.edges_[0], 15, 18);
-  log1.RecordCommand(state_.edges_[1], 20, 25);
+  log1.RecordCommand(state_.edges_[0], 15, 18, 1);
+  log1.RecordCommand(state_.edges_[1], 20, 25, 2);
   log1.Close();
 
   BuildLog log2;
@@ -84,8 +84,8 @@ TEST_F(BuildLogTest, Truncate) {
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state_.edges_[0], 15, 18);
-  log1.RecordCommand(state_.edges_[1], 20, 25);
+  log1.RecordCommand(state_.edges_[0], 15, 18, 1);
+  log1.RecordCommand(state_.edges_[1], 20, 25, 2);
   log1.Close();
 
   struct stat statbuf;
