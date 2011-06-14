@@ -105,7 +105,12 @@ struct EdgeEnv : public Env {
         result.append((*i)->file_->path_);
       }
     } else if (var == "out") {
-      result = edge_->outputs_[0]->file_->path_;
+      for (vector<Node*>::iterator i = edge_->outputs_.begin();
+           i != edge_->outputs_.end(); ++i) {
+        if (!result.empty())
+          result.push_back(' ');
+        result.append((*i)->file_->path_);
+      }
     } else if (edge_->env_) {
       return edge_->env_->LookupVariable(var);
     }
