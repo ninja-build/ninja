@@ -21,6 +21,12 @@
 #include <share.h>
 #endif
 
+#ifdef linux
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 static const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
