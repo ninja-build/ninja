@@ -246,7 +246,8 @@ bool BuildTest::CanRunMore() {
 bool BuildTest::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
-  if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc") {
+  if (edge->rule_->name_ == "cat" || edge->rule_->name_ == "cc" ||
+        edge->rule_->name_ == "touch") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       (*out)->file_->mtime_ = now_;
@@ -337,6 +338,23 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ(5u, commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
+}
+
+TEST_F(BuildTest, TwoOutputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"build out1 out2: touch in.txt\n"));
+
+  fs_.Create("in.txt", now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+  EXPECT_EQ("touch out1 out2", commands_ran_[0]);
 }
 
 TEST_F(BuildTest, Chain) {
