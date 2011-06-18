@@ -141,6 +141,11 @@ void Subprocess::OnPipeReady() {
     // between the GetOverlappedResult() above, and the ReadFile().
     // If the remote agent has finished then the pipe is closed.
     if (GetLastError() == ERROR_BROKEN_PIPE) {
+      // Close the pipe and dont report any error.
+      // A broken pipe is not a problem in distributed builds.
+      // OK, the distribution engine mught just be rude and not doing
+      // the right thing, but we should allow them to be rude because
+      // after all, not everything is as smart as Ninja.
       CloseHandle(pipe_);
       pipe_ = NULL;
       return;
