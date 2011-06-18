@@ -15,8 +15,9 @@
 #include "browse.h"
 
 #include <stdio.h>
+#ifndef WIN32
 #include <unistd.h>
-
+#endif
 #include "../build/browse_py.h"
 #include "ninja.h"
 

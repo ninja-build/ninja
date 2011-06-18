@@ -137,9 +137,9 @@ void Subprocess::OnPipeReady() {
   memset(&overlapped_, 0, sizeof(overlapped_));
   if (!::ReadFile(pipe_, overlapped_buf_, sizeof(overlapped_buf_),
                   &bytes, &overlapped_)) {
-	// In distributed builds on Win32, this is a race condition
-	// between the GetOverlappedResult() above, and the ReadFile().
-	// If the remote agent has finished then the pipe is closed.
+    // In distributed builds on Win32, this is a race condition
+    // between the GetOverlappedResult() above, and the ReadFile().
+    // If the remote agent has finished then the pipe is closed.
     if (GetLastError() == ERROR_BROKEN_PIPE) {
       CloseHandle(pipe_);
       pipe_ = NULL;
