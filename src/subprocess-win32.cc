@@ -102,8 +102,9 @@ bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
 
   PROCESS_INFORMATION process_info;
 
-  string full_command = "cmd /c " + command;
-  if (!CreateProcessA(NULL, (char*)full_command.c_str(), NULL, NULL,
+  // Do not prepend 'cmd /c' - the user can do this in the .ninja file if they wish.
+  // This avoids the command-line length limitation on Windows.
+  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, 0,
                       NULL, NULL,
                       &startup_info, &process_info)) {
