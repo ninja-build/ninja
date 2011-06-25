@@ -41,7 +41,7 @@ case "$SYSTEMNAME" in
     ;;
 esac
 
-g++ -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
+${CXX:-g++} -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
 
 echo "Building ninja using itself..."
 ./configure.py
