@@ -137,6 +137,11 @@ void Subprocess::OnPipeReady() {
   memset(&overlapped_, 0, sizeof(overlapped_));
   if (!::ReadFile(pipe_, overlapped_buf_, sizeof(overlapped_buf_),
                   &bytes, &overlapped_)) {
+    if (GetLastError() == ERROR_BROKEN_PIPE) {
+      CloseHandle(pipe_);
+      pipe_ = NULL;
+      return;
+    }
     if (GetLastError() != ERROR_IO_PENDING)
       Win32Fatal("ReadFile");
   }
