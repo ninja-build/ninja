@@ -373,7 +373,6 @@ A file is a series of declarations.  A declaration can be one of:
    _dependency1_ _dependency2_+.  (See <<ref_dependencies,the reference on
    dependency types>>.)
 
-
 3. Variable declarations, which look like +_variable_ = _value_+.
 
 4. References to more files, which look like +subninja _path_+ or
@@ -421,7 +420,6 @@ When loading a `depfile`, Ninja implicitly adds edges such that it is
 not an error if the listed dependency is missing.  This allows you to
 delete a depfile-discovered header file and rebuild, without the build
 aborting due to a missing input.
-
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
@@ -497,6 +495,40 @@ lookup order for a variable referenced in a rule is:
 
 4. Variables from the file that included that file using the
    `subninja` keyword.
+
+Variable expansion
+~~~~~~~~~~~~~~~~~~
+
+Variables are expanded in two cases: in the right side of a `name =
+value` statement and in paths in a `build` statement.
+
+When a `name = value` statement is evaluated, its right-hand side is
+expanded once (according to the above scoping rules) immediately, and
+from then on `$name` expands to the static string as the result of the
+expansion.  It is never the case that you'll need to "double-escape" a
+variable with some syntax like `$$foo`.
+
+A `build` statement is first parsed as a space-separated list of
+filenames and then each name is expanded.  This means that spaces
+within a variable will result in spaces in the expanded filename.
+
+----
+spaced = foo bar
+build $spaced/baz other: ...
+# The above build line has two outputs: "foo bar/baz" and "other".
+----
+
+In a `name = value` statement, whitespace at the beginning of a value
+is always stripped.  Whitespace at the beginning of a line after a
+line continuation is also stripped.
+
+----
+two_words_with_one_space = foo $
+    bar
+one_word_with_no_space = foo$
+    bar
+----
+
 
 Future work
 -----------
