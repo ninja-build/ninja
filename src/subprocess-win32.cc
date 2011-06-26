@@ -102,8 +102,9 @@ bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
 
   PROCESS_INFORMATION process_info;
 
-  string full_command = "cmd /c " + command;
-  if (!CreateProcessA(NULL, (char*)full_command.c_str(), NULL, NULL,
+  // Do not prepend 'cmd /c' on Windows, this breaks command
+  // lines greater than 8,191 chars.
+  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, 0,
                       NULL, NULL,
                       &startup_info, &process_info)) {

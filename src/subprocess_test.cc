@@ -19,7 +19,7 @@
 namespace {
 
 #ifdef _WIN32
-const char* kSimpleCommand = "dir \\";
+const char* kSimpleCommand = "cmd /c dir \\";
 #else
 const char* kSimpleCommand = "ls /";
 #endif
@@ -33,7 +33,7 @@ struct SubprocessTest : public testing::Test {
 // Run a command that fails and emits to stderr.
 TEST_F(SubprocessTest, BadCommandStderr) {
   Subprocess* subproc = new Subprocess;
-  EXPECT_TRUE(subproc->Start(&subprocs_, "ninja_no_such_command"));
+  EXPECT_TRUE(subproc->Start(&subprocs_, "cmd /c ninja_no_such_command"));
   subprocs_.Add(subproc);
 
   while (!subproc->Done()) {
@@ -64,8 +64,8 @@ TEST_F(SubprocessTest, SetWithMulti) {
   const char* kCommands[3] = {
     kSimpleCommand,
 #ifdef _WIN32
-    "echo hi",
-    "time /t",
+    "cmd /c echo hi",
+    "cmd /c time /t",
 #else
     "whoami",
     "pwd",
