@@ -287,7 +287,7 @@ If you provide a variable named `builddir` in the outermost scope,
 Generating Ninja files
 ----------------------
 
-The Ninja distribution includes a tiny (<100 line) Python module to
+The Ninja distribution includes a tiny (<100 lines) Python module to
 facilitate generating Ninja files.  It allows you to make Python calls
 like `ninja.rule(name='foo', command='bar', depfile='$out.d')` and
 it will generate the appropriate syntax.
