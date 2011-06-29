@@ -105,7 +105,7 @@ int Cleaner::CleanAll() {
        e != state_->edges_.end();
        ++e) {
     // Do not try to remove phony targets
-    if( (*e)->rule_->name_ == "phony")
+    if( (*e)->rule_->name_ == State::kPhonyRule.name_)
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end();
