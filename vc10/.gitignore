@@ -1,4 +1,5 @@
 *.filters
+*.opensdf
 *.sdf
 *.suo
 *.user
