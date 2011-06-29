@@ -19,6 +19,10 @@
 #include "graph.h"
 #include "ninja.h"
 
+#ifdef _WIN32
+#pragma warning(disable:4800)
+#endif
+
 struct ParserTest : public testing::Test,
                     public ManifestParser::FileReader {
   void AssertParse(const char* input) {
