@@ -19,6 +19,10 @@
 #include <vector>
 #include <limits>
 
+#ifdef _WIN32
+#undef max
+#endif
+
 using namespace std;
 
 struct BindingEnv;
