@@ -18,11 +18,27 @@
 
 #include "graph.h"
 
+namespace {
+  char *escape_backslash(const char *src)
+  {
+    static char buf[256];
+    char *dst = buf;
+    while (*src != '\0' && dst < (buf + sizeof buf - 1)) {
+      if (*src == '\\') {
+	*dst++ = '\\';
+      }
+      *dst++ = *src++;
+    }
+    *dst = '\0';
+    return buf;
+  }
+}
+
 void GraphViz::AddTarget(Node* node) {
   if (visited_.find(node) != visited_.end())
     return;
 
-  printf("\"%p\" [label=\"%s\"]\n", node, node->file_->path_.c_str());
+  printf("\"%p\" [label=\"%s\"]\n", node, escape_backslash(node->file_->path_.c_str()));
   visited_.insert(node);
 
   if (!node->in_edge_) {
