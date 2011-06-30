@@ -102,12 +102,15 @@ int Cleaner::CleanAll() {
   Reset();
   PrintHeader();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
-       e != state_->edges_.end();
-       ++e)
+       e != state_->edges_.end(); ++e) {
+    // Do not try to remove phony targets
+    if ((*e)->rule_ == &State::kPhonyRule)
+      continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-         out_node != (*e)->outputs_.end();
-         ++out_node)
+         out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->file_->path_);
+    }
+  }
   PrintFooter();
   return status_;
 }
