@@ -350,6 +350,8 @@ int main(int argc, char** argv) {
   const char* working_dir = 0;
   string tool;
 
+  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+
   config.parallelism = GuessParallelism();
 
   int opt;
