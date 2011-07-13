@@ -54,12 +54,33 @@ class Writer(object):
 
         return outputs
 
+    # write 'text' word-wrapped at self.width characters
     def _line(self, text, indent=0):
         while len(text) > self.width:
+            # we're searching for the last space in the
+            # word-wraped area, and if non found we're looking
+            # for the first space after the word-wrapped area.
+            # for instance, if we want to wrap
+            # "a b ghijkl mnopq" at 4 characters, wel'll first
+            # the substring that fits the word wrapped area is
+            # "a b ", so the last space (marked ~) is "a b~",
+            # we'll print "a b ", next substring that fits
+            # word wrapped area is "ghij", since there are no
+            # spaces there, we'll look for the first space in
+            # "kl mno" which is "kl~mno", we'll print
+            # "ghijk " and continue to the next substring.
+            # Now at "mnop" we have no space, and neither
+            # at the next substring "q". In that case we'll
+            # just print all current string, and stop.
             space = text.rfind(' ', 0, self.width - 4)
-            assert space != -1  # TODO: handle if no space found.
+            if space < 0 or text[:space].strip() == "":
+                space = text.find(' ',self.width -4)
+            leading_space = '  ' * (indent+2)
+            if space < 0 or text[:space].strip() == "":
+                text = leading_space + text.lstrip()
+                break
             self.output.write(text[0:space] + ' $\n')
-            text = '  ' * (indent+2) + text[space:].lstrip()
+            text = leading_space + text[space:].lstrip()
         self.output.write(text + '\n')
 
     def _as_list(self, input):
