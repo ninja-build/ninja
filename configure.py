@@ -31,6 +31,8 @@ platforms = ['linux', 'freebsd', 'mingw', 'windows']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
                   choices=platforms)
+parser.add_option('--debug', action='store_true',
+                  help='enable debugging flags',)
 parser.add_option('--profile', action='store_true',
                   help='enable profiling',)
 (options, args) = parser.parse_args()
@@ -65,8 +67,10 @@ def cxx(name, **kwargs):
 
 n.variable('builddir', 'build')
 
-cflags = ['-O2', '-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
+cflags = ['-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
+if not options.debug:
+    cflags.append('-O2')
 ldflags = []
 if platform == 'mingw':
     n.variable('cxx', 'i586-mingw32msvc-c++')
