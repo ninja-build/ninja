@@ -48,24 +48,11 @@ struct Token {
   const char* end_;
 };
 
-/// Represents a user-understandable position within a source file.
-struct SourceLocation {
-  SourceLocation(int line, int col) : line_(line), column_(col) {}
-
-  /// Construct an error message based on the position and message,
-  /// write it into \a err, then return false.
-  bool Error(const string& message, string* err);
-
-  /// 1-based line and column numbers.
-  int line_;
-  int column_;
-};
-
 /// Processes an input stream into Tokens.
 struct Tokenizer {
   Tokenizer()
     : makefile_flavor_(false),
-      token_(Token::NONE), line_number_(0),
+      token_(Token::NONE),
       last_indent_(0), cur_indent_(-1) {}
 
   /// Tokenization differs slightly between ninja files and Makefiles.
@@ -76,8 +63,12 @@ struct Tokenizer {
   }
 
   void Start(const char* start, const char* end);
+  /// Report an error at a particular location.
+  bool ErrorAt(const char* pos, const string& message, string* err);
   /// Report an error with a location pointing at the current token.
-  bool Error(const string& message, string* err);
+  bool Error(const string& message, string* err) {
+    return ErrorAt(token_.pos_, message, err);
+  }
   /// Call Error() with "expected foo, got bar".
   bool ErrorExpected(const string& expected, string* err);
 
@@ -94,18 +85,14 @@ struct Tokenizer {
   Token::Type PeekToken();
   void ConsumeToken();
 
-  SourceLocation Location() {
-    return SourceLocation(line_number_ + 1, token_.pos_ - cur_line_ + 1);
-  }
-
   bool makefile_flavor_;
 
-  const char* cur_;
-  const char* end_;
+  const char* start_;  /// Start of the input.
+  const char* cur_;    /// Current position within the input.
+  const char* end_;    /// End of the input.
 
-  const char* cur_line_;
+  const char* cur_line_;  /// Start of current line.
   Token token_;
-  int line_number_;
   int last_indent_, cur_indent_;
 };
 

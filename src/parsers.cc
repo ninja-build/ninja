@@ -41,21 +41,29 @@ string Token::AsString() const {
   return "";
 }
 
-bool SourceLocation::Error(const string& message, string* err) {
+bool Tokenizer::ErrorAt(const char* pos, const string& message, string* err) {
+  // Re-scan the input, counting newlines so that we can compute the
+  // correct position.
+  int line = 1;
+  const char* line_start = start_;
+  for (const char* p = start_; p < pos; ++p) {
+    if (*p == '\n') {
+      ++line;
+      line_start = p + 1;
+    }
+  }
+  int col = pos - line_start + 1;
+
   char buf[1024];
-  snprintf(buf, sizeof(buf), "line %d, col %d: %s", line_, column_,
-           message.c_str());
+  snprintf(buf, sizeof(buf),
+           "line %d, col %d: %s", line, col, message.c_str());
   err->assign(buf);
   return false;
 }
 
 void Tokenizer::Start(const char* start, const char* end) {
-  cur_line_ = cur_ = start;
+  cur_line_ = cur_ = start_ = start;
   end_ = end;
-}
-
-bool Tokenizer::Error(const string& message, string* err) {
-  return Location().Error(message, err);
 }
 
 bool Tokenizer::ErrorExpected(const string& expected, string* err) {
@@ -75,16 +83,12 @@ void Tokenizer::SkipWhitespace(bool newline) {
       Newline(NULL);
     } else if (*cur_ == kContinuation && cur_ + 1 < end_ && cur_[1] == '\n') {
       ++cur_; ++cur_;
-      cur_line_ = cur_;
-      ++line_number_;
     } else if (*cur_ == '#' && cur_ == cur_line_) {
       while (cur_ < end_ && *cur_ != '\n')
         ++cur_;
-      if (cur_ < end_ && *cur_ == '\n') {
+      if (cur_ < end_ && *cur_ == '\n')
         ++cur_;
-        cur_line_ = cur_;
-        ++line_number_;
-      }
+      cur_line_ = cur_;
     } else {
       break;
     }
@@ -222,7 +226,6 @@ Token::Type Tokenizer::PeekToken() {
     ++cur_;
     cur_line_ = cur_;
     cur_indent_ = -1;
-    ++line_number_;
   }
 
   SkipWhitespace();
@@ -335,7 +338,7 @@ bool ManifestParser::ParseRule(string* err) {
     tokenizer_.ConsumeToken();
 
     while (tokenizer_.PeekToken() != Token::OUTDENT) {
-      SourceLocation let_loc = tokenizer_.Location();
+      const char* let_loc = tokenizer_.token_.pos_;
 
       string key;
       if (!ParseLetKey(&key, err))
@@ -351,7 +354,8 @@ bool ManifestParser::ParseRule(string* err) {
       } else {
         // Die on other keyvals for now; revisit if we want to add a
         // scope here.
-        return let_loc.Error("unexpected variable '" + key + "'", err);
+        return tokenizer_.ErrorAt(let_loc, "unexpected variable '" + key + "'",
+                                  err);
       }
 
       if (!ParseLetValue(eval_target, err))
