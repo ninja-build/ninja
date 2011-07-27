@@ -22,7 +22,7 @@ class Writer(object):
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
-        self._line('%s%s = %s' % ('  ' * indent, key, value), indent)
+        self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None):
         self._line('rule %s' % name)
