@@ -55,12 +55,28 @@ class Writer(object):
         return outputs
 
     def _line(self, text, indent=0):
+        """Write 'text' word-wrapped at self.width characters."""
+        leading_space = '  ' * indent
         while len(text) > self.width:
-            space = text.rfind(' ', 0, self.width - 4)
-            assert space != -1  # TODO: handle if no space found.
-            self.output.write(text[0:space] + ' $\n')
-            text = '  ' * (indent+2) + text[space:].lstrip()
-        self.output.write(text + '\n')
+            # The text is too wide; wrap if possible.
+
+            # Find the rightmost space that would obey our width constraint.
+            available_space = self.width - len(leading_space) - len(' $')
+            space = text.rfind(' ', 0, available_space)
+            if space < 0:
+                # No such space; just use the first space we can find.
+                space = text.find(' ', available_space)
+            if space < 0:
+                # Give up on breaking.
+                break
+
+            self.output.write(leading_space + text[0:space] + ' $\n')
+            text = text[space+1:]
+
+            # Subsequent lines are continuations, so indent them.
+            leading_space = '  ' * (indent+2)
+
+        self.output.write(leading_space + text + '\n')
 
     def _as_list(self, input):
         if input is None:

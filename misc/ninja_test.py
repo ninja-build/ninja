@@ -20,26 +20,33 @@ from StringIO import StringIO
 import ninja
 
 LONGWORD = 'a' * 10
+INDENT = '    '
 
 class TestLineWordWrap(unittest.TestCase):
     def setUp(self):
         self.out = StringIO()
-        self.n = ninja.Writer(self.out, width=5)
+        self.n = ninja.Writer(self.out, width=8)
 
     def test_single_long_word(self):
         # We shouldn't wrap a single long word.
         self.n._line(LONGWORD)
-        self.assertEqual(LONGWORD, self.out.getvalue())
+        self.assertEqual(LONGWORD + '\n', self.out.getvalue())
 
     def test_few_long_words(self):
         # We should wrap a line where the second word is overlong.
         self.n._line(' '.join(['x', LONGWORD, 'y']))
-        self.assertEqual('x \n' + LONGWORD + '\ny', self.out.getvalue())
+        self.assertEqual(' $\n'.join(['x',
+                                      INDENT + LONGWORD,
+                                      INDENT + 'y']) + '\n',
+                         self.out.getvalue())
 
-    def test_few_long_words_space(self):
-        # We should also wrap indented lines.
-        self.n._line(' '.join(['x', LONGWORD, 'y']), indent=2)
-        self.assertEqual('x \n  ' + LONGWORD + '\n  y', self.out.getvalue())
+    def test_few_long_words_indented(self):
+        # Check wrapping in the presence of indenting.
+        self.n._line(' '.join(['x', LONGWORD, 'y']), indent=1)
+        self.assertEqual(' $\n'.join(['  ' + 'x',
+                                      '  ' + INDENT + LONGWORD,
+                                      '  ' + INDENT + 'y']) + '\n',
+                         self.out.getvalue())
 
 if __name__ == '__main__':
     unittest.main()
