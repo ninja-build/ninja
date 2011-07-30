@@ -91,6 +91,10 @@ gpietsch@comcast.net
 #include "getopt.h"
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4701) /* potentially uninitialized local variable 'cp' used */
+#endif
+
 /* macros */
 
 /* types */
@@ -143,7 +147,7 @@ is_option (char *argv_element, int only)
 
 /* getopt_internal:  the function that does all the dirty work */
 static int
-getopt_internal (int argc, char **argv, char *shortopts,
+getopt_internal (int argc, char **argv, const char *shortopts,
                  GETOPT_LONG_OPTION_T * longopts, int *longind, int only)
 {
   GETOPT_ORDERING_T ordering = PERMUTE;
@@ -392,14 +396,14 @@ getopt (int argc, char **argv, char *optstring)
 }
 
 int
-getopt_long (int argc, char **argv, char *shortopts,
+getopt_long (int argc, char **argv, const char *shortopts,
              GETOPT_LONG_OPTION_T * longopts, int *longind)
 {
   return getopt_internal (argc, argv, shortopts, longopts, longind, 0);
 }
 
 int
-getopt_long_only (int argc, char **argv, char *shortopts,
+getopt_long_only (int argc, char **argv, const char *shortopts,
                   GETOPT_LONG_OPTION_T * longopts, int *longind)
 {
   return getopt_internal (argc, argv, shortopts, longopts, longind, 1);

@@ -16,7 +16,11 @@
 #define NINJA_UTIL_H_
 #pragma once
 
-#include <stdint.h>
+#ifdef _MSC_VER
+    typedef long long int64_t;
+#else
+    #include <stdint.h>
+#endif
 
 #include <string>
 using namespace std;

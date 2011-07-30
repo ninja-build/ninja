@@ -37,8 +37,7 @@ int RealDiskInterface::Stat(const string& path) {
     }
   }
 
-  return st.st_mtime;
-  return true;
+  return (int)st.st_mtime;
 }
 
 string DirName(const string& path) {

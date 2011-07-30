@@ -80,7 +80,13 @@ struct Tokenizer {
   bool ExpectIdent(const char* expected, string* err);
   bool ReadIdent(string* out);
   bool ReadToNewline(string* text, string* err,
-                     size_t max_length=std::numeric_limits<size_t>::max());
+                     size_t max_length=
+#ifdef _MSC_VER
+                            (size_t)-1
+#else
+                            std::numeric_limits<size_t>::max()
+#endif
+                     );
 
   Token::Type PeekToken();
   void ConsumeToken();

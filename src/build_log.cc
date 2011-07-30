@@ -47,6 +47,7 @@ void SetCloseOnExec(FILE* file) {
 #else
   // On Windows, handles must be explicitly marked to be passed to a
   // spawned process, so there's nothing to do here.
+  (void)file;
 #endif  // WIN32
 }
 
@@ -237,7 +238,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if (_unlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

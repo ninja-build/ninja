@@ -26,7 +26,7 @@
 #include <sys/sysinfo.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
 #include <windows.h>

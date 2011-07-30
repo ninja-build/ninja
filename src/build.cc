@@ -144,9 +144,9 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (smart_terminal_)
     printf("\r");  // Print over previous line, if any.
 
+#ifndef WIN32
   int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
 
-#ifndef WIN32
   if (smart_terminal_ && !force_full_command) {
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
@@ -165,7 +165,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
-    printf("\e[K");  // Clear to end of line.
+    printf("\033[K");  // Clear to end of line.
     fflush(stdout);
   } else {
     printf("\n");
