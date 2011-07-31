@@ -22,6 +22,8 @@ FOR /F "usebackq tokens=*" %%i in (`dir /s/b src\*.cc src\*.c ^| findstr /v test
 cl /nologo /Zi /W4 /WX /D_CRT_SECURE_NO_WARNINGS /wd4530 /wd4512 /wd4706 /wd4100 %SRCS% /link /out:ninja.bootstrap.exe
 if %ERRORLEVEL% gtr 0 goto dead
 
+call misc\makecldeps.bat
+
 echo Building ninja using itself...
 python configure.py
 ninja.bootstrap.exe ninja
