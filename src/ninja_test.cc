@@ -142,7 +142,7 @@ int StatTest::Stat(const string& path) {
   map<string, time_t>::iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
     return 0;  // File not found.
-  return i->second;
+  return (int)i->second;
 }
 
 TEST_F(StatTest, Simple) {
@@ -250,17 +250,17 @@ public:
 
     // First change into the system temp dir and save it for cleanup.
     start_dir_ = GetSystemTempDir();
-    ASSERT_EQ(0, chdir(start_dir_.c_str()));
+    ASSERT_EQ(0, _chdir(start_dir_.c_str()));
 
     // Then create and change into a temporary subdirectory of that.
     temp_dir_name_ = MakeTempDir();
     ASSERT_FALSE(temp_dir_name_.empty());
-    ASSERT_EQ(0, chdir(temp_dir_name_.c_str()));
+    ASSERT_EQ(0, _chdir(temp_dir_name_.c_str()));
   }
 
   virtual void TearDown() {
     // Move out of the directory we're about to clobber.
-    ASSERT_EQ(0, chdir(start_dir_.c_str()));
+    ASSERT_EQ(0, _chdir(start_dir_.c_str()));
 #ifdef _WIN32
     ASSERT_EQ(0, system(("rmdir /s /q " + temp_dir_name_).c_str()));
 #else

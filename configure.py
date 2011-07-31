@@ -75,7 +75,7 @@ n.variable('builddir', 'build')
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4512',
-            '/wd4706', '/wd4100', '/D_CRT_SECURE_NO_WARNINGS']
+            '/wd4706', '/wd4100', '/wd4800', '/D_CRT_SECURE_NO_WARNINGS']
     if not options.debug:
         cflags.append('/Ox')
 else:
@@ -93,6 +93,7 @@ if platform == 'mingw':
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
 elif platform == 'windows':
     n.variable('cxx', 'cldeps')
+    ldflags.append('/LIBPATH:gtest-1.6.0/lib')
     cflags.append('-Igtest-1.6.0/include')
 else:
     n.variable('cxx', os.environ.get('CXX', 'g++'))
@@ -136,7 +137,7 @@ n.newline()
 
 if platform == 'windows':
     n.rule('link',
-        command='$cxx $ldflags $in $libs /nologo /link /out:$out',
+        command='link $ldflags $in $libs /nologo /out:$out',
         description='LINK $out')
 else:
     n.rule('link',
@@ -193,12 +194,19 @@ for name in ['build_test', 'build_log_test', 'graph_test', 'ninja_test',
              'parsers_test', 'subprocess_test', 'util_test', 'clean_test',
              'test']:
     objs += cxx(name)
-ldflags.append('-lgtest_main -lgtest')
-if platform != 'mingw':
+if platform != 'mingw' and platform != 'windows':
     ldflags.append('-lpthread')
-n.build('ninja_test', 'link', objs, implicit=ninja_lib,
-        variables=[('libs', '-L$builddir -lninja'),
-                   ('ldflags', ' '.join(ldflags))])
+
+if platform == 'windows':
+    ldflags.append('gtest_main.lib gtest.lib')
+    n.build('ninja_test.exe', 'link', objs, implicit=ninja_lib,
+            variables=[('libs', '$builddir\\ninja.lib'),
+                    ('ldflags', ' '.join(ldflags))])
+else:
+    ldflags.append('-lgtest_main -lgtest')
+    n.build('ninja_test', 'link', objs, implicit=ninja_lib,
+            variables=[('libs', '-L$builddir -lninja'),
+                    ('ldflags', ' '.join(ldflags))])
 n.newline()
 
 n.comment('Perftest executable.')
