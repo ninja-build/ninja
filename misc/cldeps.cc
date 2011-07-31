@@ -45,14 +45,6 @@ static string trimLeadingSpace(const string& cmdline) {
   return cmdline.substr(i);
 }
 
-static void doEscape(string& str, const string& search, const string& repl) {
-  string::size_type pos = 0;
-  while ((pos = str.find(search, pos)) != string::npos) {
-    str.replace(pos, search.size(), repl);
-    pos += repl.size();
-  }
-}
-
 // Strips one argument from the cmdline and returns it. "surrounding quotes"
 // are removed from the argument if there were any.
 static string getArg(string& cmdline) {
@@ -103,10 +95,11 @@ static void outputDepFile(const string& dfile, const string& objfile,
 
   fprintf(out, "%s: \\\n", objfile.c_str());
   for (vector<string>::iterator i(incs.begin()); i != incs.end(); ++i) {
-    string tmp = *i;
-    doEscape(tmp, "\\", "\\\\");
-    doEscape(tmp, " ", "\\ ");
-    fprintf(out, "%s \\\n", tmp.c_str());
+    TCHAR short_path[_MAX_PATH];
+    // Rather than escape spaces in the weird way that mingw does (backslashes are literal unless followed by a space?)
+    // we just output the short file name instead. Ugly, but should work ok.
+    GetShortPathName(i->c_str(), short_path, _MAX_PATH);
+    fprintf(out, "%s \\\n", short_path);
   }
 
   fprintf(out, "\n");
