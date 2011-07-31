@@ -26,7 +26,7 @@ call misc\makecldeps.bat
 
 echo Building ninja using itself...
 python configure.py
-ninja.bootstrap.exe ninja
+ninja.bootstrap.exe ninja.exe
 del *.obj *.pdb ninja.bootstrap.exe *.ilk
 
 echo Done!
