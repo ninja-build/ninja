@@ -88,6 +88,7 @@ struct Tokenizer {
 #endif
                      );
 
+  bool LooksLikeFilenameDrive() const;
   Token::Type PeekToken();
   void ConsumeToken();
 

@@ -107,7 +107,9 @@ static bool IsIdentChar(char c) {
     ('a' <= c && c <= 'z') ||
     ('+' <= c && c <= '9') ||  // +,-./ and numbers
     ('A' <= c && c <= 'Z') ||
-    (c == '_') || (c == '$') || (c == '\\');
+    (c == '_') || (c == '$') ||
+    (c == '(') || (c == ')') ||
+    (c == '~') || (c == '\\');
 }
 
 bool Tokenizer::ExpectToken(Token::Type expected, string* err) {
@@ -178,6 +180,17 @@ bool Tokenizer::ReadToNewline(string *text, string* err, size_t max_length) {
   return Newline(err);
 }
 
+// Hacky function to allow C:stuff, but still support 1 character filenames as
+// left side of rule. See MakefileParser.OneLetterFilename and
+// MakefileParser.ColonInFilename tests.
+bool Tokenizer::LooksLikeFilenameDrive() const {
+  return makefile_flavor_ &&
+      cur_ - token_.pos_ == 1 &&
+      *cur_ == ':' &&
+      cur_ + 1 < end_ &&
+      IsIdentChar(*(cur_ + 1));
+}
+
 Token::Type Tokenizer::PeekToken() {
   if (token_.type_ != Token::NONE)
     return token_.type_;
@@ -202,7 +215,7 @@ Token::Type Tokenizer::PeekToken() {
   }
 
   if (IsIdentChar(*cur_)) {
-    while (cur_ < end_ && IsIdentChar(*cur_)) {
+    while (cur_ < end_ && (IsIdentChar(*cur_) || LooksLikeFilenameDrive())) {
       ++cur_;
     }
     token_.end_ = cur_;
