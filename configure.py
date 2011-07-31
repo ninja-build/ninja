@@ -92,7 +92,7 @@ if platform == 'mingw':
     cflags.append('-Igtest-1.6.0/include')
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
 elif platform == 'windows':
-    n.variable('cxx', 'cl')
+    n.variable('cxx', 'cldeps')
     cflags.append('-Igtest-1.6.0/include')
 else:
     n.variable('cxx', os.environ.get('CXX', 'g++'))
@@ -108,13 +108,16 @@ if 'LDFLAGS' in os.environ:
 n.variable('ldflags', ' '.join(ldflags))
 n.newline()
 
-outspec = '-o '
 if platform == 'windows':
-    outspec = '/Fo'
-n.rule('cxx',
-       command='$cxx -MMD -MF $out.d $cflags -c $in %s$out' % outspec,
-       depfile='$out.d',
-       description='CXX $out')
+  n.rule('cxx',
+        command='$cxx "$out.d" "$out" cl $cflags -c "$in" "/Fo$out"', # cldeps, assume cl in path
+        depfile='$out.d',
+        description='CXX $out')
+else:
+  n.rule('cxx',
+        command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
+        depfile='$out.d',
+        description='CXX $out')
 n.newline()
 
 ar = 'ar'
