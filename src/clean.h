@@ -27,9 +27,8 @@ struct Node;
 struct Rule;
 struct DiskInterface;
 
-class Cleaner
-{
-public:
+class Cleaner {
+ public:
   /// Build a cleaner object with a real disk interface.
   Cleaner(State* state, const BuildConfig& config);
 
@@ -74,7 +73,7 @@ public:
             && (config_.verbosity == BuildConfig::VERBOSE || config_.dry_run));
   }
 
-private:
+ private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
   int RemoveFile(const string& path);
@@ -92,7 +91,6 @@ private:
   void DoCleanRule(const Rule* rule);
   void Reset();
 
-private:
   State* state_;
   BuildConfig config_;
   set<string> removed_;
