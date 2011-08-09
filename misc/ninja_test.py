@@ -17,7 +17,7 @@
 import unittest
 from StringIO import StringIO
 
-import ninja
+import ninja_syntax
 
 LONGWORD = 'a' * 10
 INDENT = '    '
@@ -25,7 +25,7 @@ INDENT = '    '
 class TestLineWordWrap(unittest.TestCase):
     def setUp(self):
         self.out = StringIO()
-        self.n = ninja.Writer(self.out, width=8)
+        self.n = ninja_syntax.Writer(self.out, width=8)
 
     def test_single_long_word(self):
         # We shouldn't wrap a single long word.
