@@ -41,39 +41,6 @@ int RealDiskInterface::Stat(const string& path) {
   return true;
 }
 
-string DirName(const string& path) {
-
-#ifdef WIN32
-  const char kPathSeparator = '\\';
-#else
-  const char kPathSeparator = '/';
-#endif
-    
-  string::size_type slash_pos = path.rfind(kPathSeparator);
-  if (slash_pos == string::npos)
-    return "";  // Nothing to do.
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
-    --slash_pos;
-  return path.substr(0, slash_pos);
-}
-
-bool DiskInterface::MakeDirs(const string& path) {
-  string dir = DirName(path);
-  if (dir.empty())
-    return true;  // Reached root; assume it's there.
-  int mtime = Stat(dir);
-  if (mtime < 0)
-    return false;  // Error.
-  if (mtime > 0)
-    return true;  // Exists already; we're done.
-
-  // Directory doesn't exist.  Try creating its parent first.
-  bool success = MakeDirs(dir);
-  if (!success)
-    return false;
-  return MakeDir(dir);
-}
-
 string RealDiskInterface::ReadFile(const string& path, string* err) {
   string contents;
   int ret = ::ReadFile(path, &contents, err);

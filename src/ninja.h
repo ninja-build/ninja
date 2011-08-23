@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "disk_interface.h"
 #include "eval_env.h"
 #include "stat_cache.h"
 
@@ -32,32 +33,6 @@ struct Edge;
 struct FileStat;
 struct Node;
 struct Rule;
-
-/// Interface for accessing the disk.
-///
-/// Abstract so it can be mocked out for tests.  The real implementation
-/// is RealDiskInterface.
-struct DiskInterface {
-  virtual ~DiskInterface() {}
-
-  /// stat() a file, returning the mtime, or 0 if missing and -1 on
-  /// other errors.
-  virtual int Stat(const string& path) = 0;
-  /// Create a directory, returning false on failure.
-  virtual bool MakeDir(const string& path) = 0;
-  /// Read a file to a string.  Fill in |err| on error.
-  virtual string ReadFile(const string& path, string* err) = 0;
-  /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
-  /// are reported if it does not exists.
-  /// @returns 0 if the file has been removed,
-  ///          1 if the file does not exist, and
-  ///          -1 if an error occurs.
-  virtual int RemoveFile(const string& path) = 0;
-
-  /// Create all the parent directories for path; like mkdir -p
-  /// `basename path`.
-  bool MakeDirs(const string& path);
-};
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
