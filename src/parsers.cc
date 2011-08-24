@@ -516,8 +516,7 @@ bool ManifestParser::ParseEdge(string* err) {
       if (!eval.Parse(*i, &eval_err))
         return tokenizer_.Error(eval_err, err);
       string path = eval.Evaluate(env);
-      if (!CanonicalizePath(&path, err))
-        return false;
+      CanonicalizePath(&path);
       *i = path;
     }
   }

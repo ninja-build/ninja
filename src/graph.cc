@@ -161,8 +161,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   // Add all its in-edges.
   for (vector<string>::iterator i = makefile.ins_.begin();
        i != makefile.ins_.end(); ++i) {
-    if (!CanonicalizePath(&*i, err))
-      return false;
+    CanonicalizePath(&*i);
 
     Node* node = state->GetNode(*i);
     inputs_.insert(inputs_.end() - order_only_deps_, node);

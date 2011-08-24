@@ -18,46 +18,51 @@
 
 TEST(CanonicalizePath, PathSamples) {
   std::string path = "foo.h";
-  std::string err;
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  CanonicalizePath(&path);
   EXPECT_EQ("foo.h", path);
 
-  path = "./foo.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  path = "./foo.h";
+  CanonicalizePath(&path);
   EXPECT_EQ("foo.h", path);
 
-  path = "./foo/./bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  path = "./foo/./bar.h";
+  CanonicalizePath(&path);
   EXPECT_EQ("foo/bar.h", path);
 
-  path = "./x/foo/../bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  path = "./x/foo/../bar.h";
+  CanonicalizePath(&path);
   EXPECT_EQ("x/bar.h", path);
 
-  path = "./x/foo/../../bar.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  path = "./x/foo/../../bar.h";
+  CanonicalizePath(&path);
   EXPECT_EQ("bar.h", path);
 
-  path = "foo//bar"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  path = "foo//bar";
+  CanonicalizePath(&path);
   EXPECT_EQ("foo/bar", path);
 
-  path = "./x/../foo/../../bar.h"; err = "";
-  EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("can't canonicalize path './x/../foo/../../bar.h' that reaches "
-            "above its directory", err);
+  path = "foo//.//..///bar";
+  CanonicalizePath(&path);
+  EXPECT_EQ("bar", path);
+
+  path = "./x/../foo/../../bar.h";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../bar.h", path);
+}
+
+TEST(CanonicalizePath, UpDir) {
+  std::string path, err;
+  path = "../../foo/bar.h";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../../foo/bar.h", path);
+
+  path = "test/../../foo/bar.h";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../foo/bar.h", path);
 }
 
 TEST(CanonicalizePath, AbsolutePath) {
   string path = "/usr/include/stdio.h";
-  string err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("", err);
+  CanonicalizePath(&path);
   EXPECT_EQ("/usr/include/stdio.h", path);
 }

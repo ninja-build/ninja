@@ -119,8 +119,7 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   } else {
     for (int i = 0; i < argc; ++i) {
       string path = argv[i];
-      if (!CanonicalizePath(&path, err))
-        return false;
+      CanonicalizePath(&path);
       Node* node = state->LookupNode(path);
       if (node) {
         targets->push_back(node);
