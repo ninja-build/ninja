@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 
-#include "disk_interface.h"
 #include "eval_env.h"
 #include "stat_cache.h"
 
@@ -33,15 +32,6 @@ struct Edge;
 struct FileStat;
 struct Node;
 struct Rule;
-
-/// Implementation of DiskInterface that actually hits the disk.
-struct RealDiskInterface : public DiskInterface {
-  virtual ~RealDiskInterface() {}
-  virtual int Stat(const string& path);
-  virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
-  virtual int RemoveFile(const string& path);
-};
 
 /// Global state (file status, loaded rules) for a single run.
 struct State {

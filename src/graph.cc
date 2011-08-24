@@ -19,6 +19,7 @@
 #include "build_log.h"
 #include "ninja.h"
 #include "parsers.h"
+#include "real_disk_interface.h"
 #include "util.h"
 
 bool FileStat::Stat(DiskInterface* disk_interface) {
