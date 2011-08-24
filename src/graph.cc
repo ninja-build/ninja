@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "disk_interface.h"
 #include "ninja.h"
 #include "parsers.h"
 #include "util.h"

@@ -26,53 +26,6 @@
 #include "graph.h"
 #include "util.h"
 
-int RealDiskInterface::Stat(const string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT) {
-      return 0;
-    } else {
-      Error("stat(%s): %s", path.c_str(), strerror(errno));
-      return -1;
-    }
-  }
-
-  return st.st_mtime;
-  return true;
-}
-
-string RealDiskInterface::ReadFile(const string& path, string* err) {
-  string contents;
-  int ret = ::ReadFile(path, &contents, err);
-  if (ret == -ENOENT) {
-    // Swallow ENOENT.
-    err->clear();
-  }
-  return contents;
-}
-
-bool RealDiskInterface::MakeDir(const string& path) {
-  if (::MakeDir(path) < 0) {
-    Error("mkdir(%s): %s", path.c_str(), strerror(errno));
-    return false;
-  }
-  return true;
-}
-
-int RealDiskInterface::RemoveFile(const string& path) {
-  if (remove(path.c_str()) < 0) {
-    switch (errno) {
-      case ENOENT:
-        return 1;
-      default:
-        Error("remove(%s): %s", path.c_str(), strerror(errno));
-        return -1;
-    }
-  } else {
-    return 0;
-  }
-}
-
 const Rule State::kPhonyRule("phony");
 
 State::State() : build_log_(NULL) {

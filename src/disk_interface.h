@@ -46,4 +46,13 @@ struct DiskInterface {
   bool MakeDirs(const std::string& path);
 };
 
+/// Implementation of DiskInterface that actually hits the disk.
+struct RealDiskInterface : public DiskInterface {
+  virtual ~RealDiskInterface() {}
+  virtual int Stat(const std::string& path);
+  virtual bool MakeDir(const std::string& path);
+  virtual std::string ReadFile(const std::string& path, std::string* err);
+  virtual int RemoveFile(const std::string& path);
+};
+
 #endif  // NINJA_DISK_INTERFACE_H_

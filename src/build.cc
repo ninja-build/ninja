@@ -25,6 +25,7 @@
 #endif
 
 #include "build_log.h"
+#include "disk_interface.h"
 #include "graph.h"
 #include "ninja.h"
 #include "subprocess.h"
