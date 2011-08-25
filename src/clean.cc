@@ -14,37 +14,36 @@
 
 #include "clean.h"
 
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#include "build.h"
+#include "disk_interface.h"
 #include "graph.h"
 #include "ninja.h"
 #include "util.h"
-#include "build.h"
-
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <assert.h>
 
 Cleaner::Cleaner(State* state, const BuildConfig& config)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(new RealDiskInterface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(new RealDiskInterface),
+    status_(0) {
 }
 
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(disk_interface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(disk_interface),
+    status_(0) {
 }
 
 int Cleaner::RemoveFile(const string& path) {
