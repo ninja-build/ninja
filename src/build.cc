@@ -27,6 +27,7 @@
 #include "build_log.h"
 #include "graph.h"
 #include "ninja.h"
+#include "real_disk_interface.h"
 #include "subprocess.h"
 #include "util.h"
 
