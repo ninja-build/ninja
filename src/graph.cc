@@ -14,12 +14,13 @@
 
 #include "graph.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include "build_log.h"
 #include "disk_interface.h"
-#include "ninja.h"
 #include "parsers.h"
+#include "state.h"
 #include "util.h"
 
 bool FileStat::Stat(DiskInterface* disk_interface) {

@@ -131,8 +131,7 @@ if platform not in ('mingw'):
 
 n.comment('Core source files all build into ninja library.')
 for name in ['build', 'build_log', 'clean', 'eval_env', 'graph', 'graphviz',
-             'parsers', 'util', 'stat_cache',
-             'ninja_jumble', 'disk_interface']:
+             'parsers', 'util', 'stat_cache', 'disk_interface', 'state']:
     objs += cxx(name)
 if platform == 'mingw':
     objs += cxx('subprocess-win32')
