@@ -17,6 +17,7 @@
 
 #include <gtest/gtest.h>
 
+#include "disk_interface.h"
 #include "ninja.h"
 
 // Support utilites for tests.
