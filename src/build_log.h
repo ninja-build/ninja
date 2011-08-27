@@ -32,6 +32,7 @@ struct Edge;
 ///    from it
 struct BuildLog {
   BuildLog();
+  ~BuildLog() { Close(); }
 
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
