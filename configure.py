@@ -135,7 +135,7 @@ for name in ['build', 'build_log', 'clean', 'eval_env', 'graph', 'graphviz',
              'ninja_jumble', 'disk_interface']:
     objs += cxx(name)
 if platform == 'mingw':
-    objs += cxx('subprocess-win32')
+    objs += cxx('subprocess_win')
 else:
     objs += cxx('subprocess')
 ninja_lib = n.build(built('libninja.a'), 'ar', objs)

@@ -37,7 +37,7 @@ case "$SYSTEMNAME" in
     srcs=$(ls src/*.cc | grep -v test | grep -v subprocess.cc)
     ;;
   *)
-    srcs=$(ls src/*.cc | grep -v test | grep -v subprocess-win32.cc)
+    srcs=$(ls src/*.cc | grep -v test | grep -v subprocess_win.cc)
     ;;
 esac
 
