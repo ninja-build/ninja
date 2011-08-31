@@ -21,11 +21,11 @@ SYSTEMNAME=`uname -s`
 # Compute system-specific CFLAGS/LDFLAGS as used in both in the below
 # g++ call as well as in the later configure.py.
 if [ "${SYSTEMNAME}" = "Linux" ]; then
-    export CFLAGS=
-    export LDFLAGS=
+    export CFLAGS="${CFLAGS}"
+    export LDFLAGS="${LDFLAGS}"
 elif [ "${SYSTEMNAME}" = "FreeBSD" ]; then
-    export CFLAGS="-I/usr/local/include"
-    export LDFLAGS="-L/usr/local/lib"
+    export CFLAGS="${CFLAGS} -I/usr/local/include"
+    export LDFLAGS="${LDFLAGS} -L/usr/local/lib"
 fi
 
 echo "Building ninja manually..."
