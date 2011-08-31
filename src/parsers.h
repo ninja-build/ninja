@@ -126,6 +126,7 @@ struct ManifestParser {
   /// current env.
   bool ParseLet(string* key, string* val, string* err);
   bool ParseEdge(string* err);
+  bool ParseDefaults(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(string* err);

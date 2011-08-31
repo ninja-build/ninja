@@ -46,9 +46,11 @@ struct State {
   Node* LookupNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
+  bool AddDefault(const string& path, string* error);
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
   vector<Node*> RootNodes(string* error);
+  vector<Node*> DefaultNodes(string* error);
 
   StatCache stat_cache_;
   /// All the rules used in the graph.
@@ -56,6 +58,7 @@ struct State {
   /// All the edges of the graph.
   vector<Edge*> edges_;
   BindingEnv bindings_;
+  vector<Node*> defaults_;
   struct BuildLog* build_log_;
 
   static const Rule kPhonyRule;

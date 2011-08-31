@@ -113,7 +113,7 @@ struct RealFileReader : public ManifestParser::FileReader {
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
-    *targets = state->RootNodes(err);
+    *targets = state->DefaultNodes(err);
     if (!err->empty())
       return false;
   } else {
