@@ -145,7 +145,7 @@ n.newline()
 
 n.comment('Tests all build into ninja_test executable.')
 objs = []
-for name in ['build_test', 'build_log_test', 'graph_test', 'ninja_test',
+for name in ['build_test', 'build_log_test', 'graph_test', 'graphviz_test', 'ninja_test',
              'parsers_test', 'subprocess_test', 'util_test', 'clean_test',
              'test']:
     objs += cxx(name)
