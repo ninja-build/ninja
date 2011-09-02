@@ -44,10 +44,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
 }
 } // unnamed namespace
 
-struct GraphvizTest : public StateTestWithBuiltinRules {
+struct GraphVizTest : public StateTestWithBuiltinRules {
 };
 
-TEST_F(GraphvizTest, EscapeSlashes) {
+TEST_F(GraphVizTest, EscapeSlashes) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out\\out: cat in\\in\n"));
 
