@@ -20,7 +20,7 @@
 #include <string.h>
 
 #include "graph.h"
-#include "ninja.h"
+#include "state.h"
 #include "util.h"
 
 string Token::AsString() const {

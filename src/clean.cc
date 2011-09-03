@@ -23,7 +23,7 @@
 #include "build.h"
 #include "disk_interface.h"
 #include "graph.h"
-#include "ninja.h"
+#include "state.h"
 #include "util.h"
 
 Cleaner::Cleaner(State* state, const BuildConfig& config)

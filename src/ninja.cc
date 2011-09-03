@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ninja.h"
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,11 +35,12 @@
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
+#include "clean.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "parsers.h"
+#include "state.h"
 #include "util.h"
-#include "clean.h"
 
 namespace {
 

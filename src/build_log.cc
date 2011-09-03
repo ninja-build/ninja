@@ -17,11 +17,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "build.h"
 #include "graph.h"
-#include "ninja.h"
 
 // Implementation details:
 // Each run's log appends to the log file.
