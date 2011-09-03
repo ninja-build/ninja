@@ -82,6 +82,16 @@ void State::AddOut(Edge* edge, const string& path) {
   node->in_edge_ = edge;
 }
 
+bool State::AddDefault(const string& path, string* err) {
+  Node* node = LookupNode(path);
+  if (!node) {
+    *err = "unknown target '" + path + "'";
+    return false;
+  } 
+  defaults_.push_back(node);
+  return true;
+}
+
 vector<Node*> State::RootNodes(string* err) {
   vector<Node*> root_nodes;
   // Search for nodes with no output.
@@ -98,4 +108,8 @@ vector<Node*> State::RootNodes(string* err) {
 
   assert(edges_.empty() || !root_nodes.empty());
   return root_nodes;
+}
+
+vector<Node*> State::DefaultNodes(string* err) {
+  return defaults_.empty() ? RootNodes(err) : defaults_;
 }

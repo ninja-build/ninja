@@ -295,6 +295,9 @@ bool ManifestParser::Parse(const string& input, string* err) {
         } else if (len == 5 && memcmp(token.pos_, "build", 5) == 0) {
           if (!ParseEdge(err))
             return false;
+        } else if (len == 7 && memcmp(token.pos_, "default", 7) == 0) {
+          if (!ParseDefaults(err))
+            return false;
         } else if ((len == 7 && memcmp(token.pos_, "include", 7) == 0) ||
                    (len == 8 && memcmp(token.pos_, "subninja", 8) == 0)) {
           if (!ParseFileInclude(err))
@@ -412,6 +415,31 @@ bool ManifestParser::ParseLetValue(EvalString* eval, string* err) {
     tokenizer_backup.ReadToNewline(&value, err, err_index);
     return tokenizer_backup.Error(eval_err, err);
   }
+
+  return true;
+}
+
+bool ManifestParser::ParseDefaults(string* err) {
+  if (!tokenizer_.ExpectIdent("default", err))
+    return false;
+
+  string target;
+  if (!tokenizer_.ReadIdent(&target))
+    return tokenizer_.ErrorExpected("target name", err);
+
+  do {
+    EvalString eval;
+    string eval_err;
+    if (!eval.Parse(target, &eval_err))
+      return tokenizer_.Error(eval_err, err);
+    string path = eval.Evaluate(env_);
+    CanonicalizePath(&path);
+    if (!state_->AddDefault(path, &eval_err))
+      return tokenizer_.Error(eval_err, err);
+  } while (tokenizer_.ReadIdent(&target));
+
+  if (!tokenizer_.Newline(err))
+    return false;
 
   return true;
 }
