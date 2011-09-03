@@ -75,8 +75,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // If we get here, something went wrong; the execl should have
     // replaced us.
     char* err = strerror(errno);
-    int unused = write(error_pipe, err, strlen(err));
-    unused = unused;  // If the write fails, there's nothing we can do.
+    // If the write fails, there's nothing we can do.
+    (void) write(error_pipe, err, strlen(err));
     _exit(1);
   }
 
