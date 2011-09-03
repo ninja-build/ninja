@@ -190,7 +190,8 @@ TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule build\n"
 "  command = rule run $out\n"
-"build subninja: build include foo.cc\n"));
+"build subninja: build include default foo.cc\n"
+"default subninja\n"));
 }
 
 TEST_F(ParserTest, Errors) {
@@ -340,6 +341,35 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 1: expected variable after $", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default\n",
+                              &err));
+    EXPECT_EQ("line 1, col 8: expected target name, got newline", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default nonexistent\n",
+                              &err));
+    EXPECT_EQ("line 1, col 9: unknown target 'nonexistent'", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule r\n  command = r\n"
+                              "build b: r\n"
+                              "default b:\n",
+                              &err));
+    EXPECT_EQ("line 4, col 10: expected newline, got ':'", err);
+  }
 }
 
 TEST_F(ParserTest, SubNinja) {
@@ -402,6 +432,39 @@ TEST_F(ParserTest, OrderOnly) {
 
   Edge* edge = state.LookupNode("foo")->in_edge_;
   ASSERT_TRUE(edge->is_order_only(1));
+}
+
+TEST_F(ParserTest, DefaultDefault) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build a: cat foo\n"
+"build b: cat foo\n"
+"build c: cat foo\n"
+"build d: cat foo\n"));
+
+  string err;
+  EXPECT_EQ(4u, state.DefaultNodes(&err).size());
+  EXPECT_EQ("", err);
+}
+
+TEST_F(ParserTest, DefaultStatements) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build a: cat foo\n"
+"build b: cat foo\n"
+"build c: cat foo\n"
+"build d: cat foo\n"
+"third = c\n"
+"default a b\n"
+"default $third\n"));
+
+  string err;
+  std::vector<Node*> nodes = state.DefaultNodes(&err);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(3u, nodes.size());
+  EXPECT_EQ("a", nodes[0]->file_->path_);
+  EXPECT_EQ("b", nodes[1]->file_->path_);
+  EXPECT_EQ("c", nodes[2]->file_->path_);
 }
 
 TEST(MakefileParser, Basic) {
