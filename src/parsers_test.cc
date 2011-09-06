@@ -316,11 +316,10 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
+    EXPECT_TRUE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
                               "build a.o b.o: cc c.cc\n",
                               &err));
-    EXPECT_EQ("line 4, col 16: dependency files only work with "
-              "single-output rules", err);
+    EXPECT_EQ("", err);
   }
 
   {

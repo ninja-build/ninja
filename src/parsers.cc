@@ -471,13 +471,6 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!rule)
     return tokenizer_.Error("unknown build rule '" + rule_name + "'", err);
 
-  if (!rule->depfile_.empty()) {
-    if (outs.size() > 1) {
-      return tokenizer_.Error("dependency files only work with single-output "
-                           "rules", err);
-    }
-  }
-
   for (;;) {
     string in;
     if (!tokenizer_.ReadIdent(&in))
