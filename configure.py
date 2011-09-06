@@ -28,13 +28,15 @@ import ninja_syntax
 
 parser = OptionParser()
 platforms = ['linux', 'freebsd', 'mingw', 'windows']
+profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
                   choices=platforms)
 parser.add_option('--debug', action='store_true',
                   help='enable debugging flags',)
-parser.add_option('--profile', action='store_true',
-                  help='enable profiling',)
+parser.add_option('--profile', metavar='TYPE',
+                  choices=['gmon', 'pprof'],
+                  help='enable profiling (' + '/'.join(profilers) + ')',)
 (options, args) = parser.parse_args()
 
 platform = options.platform
@@ -81,9 +83,11 @@ if platform == 'mingw':
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
 else:
     n.variable('cxx', os.environ.get('CXX', 'g++'))
-    if options.profile:
+    if options.profile == 'gmon':
         cflags.append('-pg')
         ldflags.append('-pg')
+    elif options.profile == 'pprof':
+        ldflags.append('-lprofiler')
 
 if 'CFLAGS' in os.environ:
     cflags.append(os.environ['CFLAGS'])
