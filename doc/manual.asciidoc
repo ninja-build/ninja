@@ -134,6 +134,9 @@ but they are not part of make itself.)
 Getting started
 ---------------
 
+Start by downloading the code from
+https://github.com/martine/ninja[the github repo].
+
 The included `bootstrap.sh` should hopefully produce a working `ninja`
 binary, by first blindly compiling all non-test files together then
 re-building Ninja using itself.
