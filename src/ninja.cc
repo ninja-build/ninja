@@ -109,6 +109,21 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
+bool RebuildManifest(State* state, const BuildConfig& config,
+                     const char* input_file, string* err) {
+  string path = input_file;
+  CanonicalizePath(&path);
+  Node* node = state->LookupNode(path);
+  if (!node)
+    return false;
+
+  Builder manifest_builder(state, config);
+  if (!manifest_builder.AddTarget(node, err))
+    return false;
+
+  return manifest_builder.Build(err);
+}
+
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
@@ -398,6 +413,9 @@ int main(int argc, char** argv) {
     }
   }
 
+  bool rebuilt_manifest = false;
+
+reload:
   State state;
   RealFileReader file_reader;
   ManifestParser parser(&state, &file_reader);
@@ -448,6 +466,17 @@ int main(int argc, char** argv) {
   if (!build_log.OpenForWrite(log_path.c_str(), &err)) {
     Error("opening build log: %s", err.c_str());
     return 1;
+  }
+
+  if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
+                           // target that is never up to date.
+    if (RebuildManifest(&state, config, input_file, &err)) {
+      rebuilt_manifest = true;
+      goto reload;
+    } else if (!err.empty()) {
+      Error("rebuilding '%s': %s", input_file, err.c_str());
+      return 1;
+    }
   }
 
   vector<Node*> targets;

@@ -256,6 +256,10 @@ statement to the rule (for example, if the rule needs "the file
 extension of the first input"), pass that through as an extra
 variable, like how `cflags` is passed above.
 
+If the top-level Ninja file is specified as an output of any build
+statement and it is out of date, Ninja will rebuild and reload it
+before building the targets requested by the user.
+
 
 The `phony` rule
 ~~~~~~~~~~~~~~~~
