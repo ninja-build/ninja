@@ -209,5 +209,9 @@ n.rule('configure',
        command='./configure.py')
 n.build('build.ninja', 'configure',
         implicit='configure.py')
+n.newline()
+
+n.comment('Build only the main binary by default.')
+n.default('ninja')
 
 print 'wrote %s.' % BUILD_FILENAME
