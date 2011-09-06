@@ -319,16 +319,15 @@ it will generate the appropriate syntax.
 Integration with other build systems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*gyp*  A work-in-progress patch to http://gyp.googlecode.com[gyp, the
-system used to generate build files for the Chromium browser] to
-generate ninja files for Linux is available from
-https://github.com/martine/gyp/tree/ninja[my "ninja" branch of the
-upstream gyp project].  To use it, put that branch in place of
-Chromium's gyp, set `GYP_GENERATORS=ninja` in your environment, and
-run `./build/gyp_chromium` to regenerate the build files.
+*gyp*. http://gyp.googlecode.com[gyp, the system used to generate build
+files for the Chromium browser] can generate ninja files for Linux.
+See http://code.google.com/p/chromium/wiki/NinjaBuild[the Chromium
+Ninja documentation] for details.
 
-*CMake*.  I have heard from people who have been working on generating
-Ninja files from CMake, but I don't think it's in a working state yet.
+*CMake*.  Various people have worked on generating Ninja files from
+CMake.  Currently, it sounds like
+https://github.com/pcc/CMake/tree/ninja-generator[pcc's branch] is the
+one to try.
 
 *Autotools*.  In theory, you could coax Automake into producing
 .ninja files as well, but I haven't tried it.  It may very well be the
