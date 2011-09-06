@@ -264,10 +264,10 @@ The special rule name `phony` can be used to create aliases for other
 targets.  For example:
 
 ----------------
-build all: phony some/file/in/a/faraway/subdir
+build foo: phony some/file/in/a/faraway/subdir/foo
 ----------------
 
-This makes `ninja all` build the other files.  Semantically, the
+This makes `ninja foo` build the longer path.  Semantically, the
 `phony` rule is equivalent to a plain rule where the `command` does
 nothing, but phony rules are handled specially in that they aren't
 printed when run, logged (see below), nor do they contribute to the
