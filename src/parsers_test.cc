@@ -316,16 +316,6 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_TRUE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
-                              "build a.o b.o: cc c.cc\n",
-                              &err));
-    EXPECT_EQ("", err);
-  }
-
-  {
-    State state;
-    ManifestParser parser(&state, NULL);
-    string err;
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
                               &err));
     EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
@@ -369,6 +359,17 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 10: expected newline, got ':'", err);
   }
+}
+
+TEST_F(ParserTest, MultipleOutputs)
+{
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+  EXPECT_TRUE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
+                            "build a.o b.o: cc c.cc\n",
+                            &err));
+  EXPECT_EQ("", err);
 }
 
 TEST_F(ParserTest, SubNinja) {
