@@ -22,6 +22,10 @@ class Writer(object):
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
+        if value is None:
+            return
+        if isinstance(value, list):
+            value = ' '.join(value)
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None):

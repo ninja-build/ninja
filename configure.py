@@ -37,6 +37,8 @@ parser.add_option('--debug', action='store_true',
 parser.add_option('--profile', metavar='TYPE',
                   choices=['gmon', 'pprof'],
                   help='enable profiling (' + '/'.join(profilers) + ')',)
+parser.add_option('--with-gtest', metavar='PATH',
+                  help='use gtest built in directory PATH')
 (options, args) = parser.parse_args()
 
 platform = options.platform
@@ -76,7 +78,8 @@ cflags = ['-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
 if not options.debug:
     cflags.append('-O2')
-ldflags = []
+ldflags = ['-L$builddir']
+libs = []
 if platform == 'mingw':
     n.variable('cxx', 'i586-mingw32msvc-c++')
     # "warning: visibility attribute not supported in this
@@ -90,7 +93,7 @@ else:
         cflags.append('-pg')
         ldflags.append('-pg')
     elif options.profile == 'pprof':
-        ldflags.append('-lprofiler')
+        libs.append('-lprofiler')
 
 if 'CFLAGS' in os.environ:
     cflags.append(os.environ['CFLAGS'])
@@ -147,24 +150,38 @@ else:
 ninja_lib = n.build(built('libninja.a'), 'ar', objs)
 n.newline()
 
+libs.append('-lninja')
+
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 n.build('ninja', 'link', objs, implicit=ninja_lib,
-        variables=[('libs', '-L$builddir -lninja')])
+        variables=[('libs', libs)])
 n.newline()
 
 n.comment('Tests all build into ninja_test executable.')
+
+variables = []
+test_cflags = None
+test_ldflags = None
+if options.with_gtest:
+    path = options.with_gtest
+    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+    test_libs = libs + [os.path.join(path, 'lib/.libs/lib%s.a' % lib)
+                        for lib in ['gtest_main', 'gtest']]
+else:
+    test_libs = libs + ['-lgtest_main', '-lgtest']
+
 objs = []
 for name in ['build_test', 'build_log_test', 'graph_test', 'ninja_test',
              'parsers_test', 'subprocess_test', 'util_test', 'clean_test',
              'test']:
-    objs += cxx(name)
-ldflags.append('-lgtest_main -lgtest')
+    objs += cxx(name, variables=[('cflags', test_cflags)])
+
 if platform != 'mingw':
-    ldflags.append('-lpthread')
+    libs.append('-lpthread')
 n.build('ninja_test', 'link', objs, implicit=ninja_lib,
-        variables=[('libs', '-L$builddir -lninja'),
-                   ('ldflags', ' '.join(ldflags))])
+        variables=[('ldflags', test_ldflags),
+                   ('libs', test_libs)])
 n.newline()
 
 n.comment('Perftest executable.')
@@ -211,7 +228,7 @@ n.comment('Regenerate build files if build script changes.')
 n.rule('configure',
        command='./configure.py $configure_args')
 n.build('build.ninja', 'configure',
-        implicit='configure.py')
+        implicit=['configure.py', 'misc/ninja_syntax.py'])
 n.newline()
 
 n.comment('Build only the main binary by default.')
