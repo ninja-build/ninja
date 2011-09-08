@@ -278,9 +278,7 @@ Edge* BuildTest::WaitForCommand(bool* success, string* output) {
 
 TEST_F(BuildTest, NoWork) {
   string err;
-  EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ("no work to do", err);
-  EXPECT_EQ(0u, commands_ran_.size());
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 TEST_F(BuildTest, OneStep) {
@@ -375,10 +373,9 @@ TEST_F(BuildTest, Chain) {
 
   err.clear();
   commands_ran_.clear();
-  EXPECT_FALSE(builder_.AddTarget("c5", &err));
+  EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(0u, commands_ran_.size());
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 
   GetNode("c4")->dirty_ = true;
   GetNode("c5")->dirty_ = true;
@@ -386,6 +383,7 @@ TEST_F(BuildTest, Chain) {
   commands_ran_.clear();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(2u, commands_ran_.size());  // 3->4, 4->5
 }
@@ -523,10 +521,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // order only dep dirty, no rebuild.
   commands_ran_.clear();
   GetNode("otherfile")->dirty_ = true;
-  // We should fail to even add the depenency on foo.o, because
-  // there's nothing to do.
-  EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 TEST_F(BuildTest, Phony) {
@@ -540,12 +537,17 @@ TEST_F(BuildTest, Phony) {
   ASSERT_EQ("", err);
 
   // Only one command to run, because phony runs no command.
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
 
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_NE("", err);
+  // XXX need a test that asserts we do nothing when we only
+  // have pending phony rules.
+  // fs_.Create("out", now_, "");
+  // EXPECT_TRUE(builder_.AddTarget("all", &err));
+  // ASSERT_EQ("", err);
+  // EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 TEST_F(BuildTest, Fail) {

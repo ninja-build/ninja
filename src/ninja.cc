@@ -109,6 +109,8 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
+/// Rebuild the build manifest, if necessary.
+/// Returns true if the manifest was rebuilt.
 bool RebuildManifest(State* state, const BuildConfig& config,
                      const char* input_file, string* err) {
   string path = input_file;
@@ -121,6 +123,8 @@ bool RebuildManifest(State* state, const BuildConfig& config,
   if (!manifest_builder.AddTarget(node, err))
     return false;
 
+  if (manifest_builder.AlreadyUpToDate())
+    return false;  // Not an error, but we didn't rebuild.
   return manifest_builder.Build(err);
 }
 
@@ -498,10 +502,15 @@ reload:
     }
   }
 
-  bool success = builder.Build(&err);
-  if (!err.empty()) {
-    printf("build stopped: %s.\n", err.c_str());
+  if (builder.AlreadyUpToDate()) {
+    printf("ninja: no work to do.\n");
+    return 0;
   }
 
-  return success ? 0 : 1;
+  if (!builder.Build(&err)) {
+    printf("ninja: build stopped: %s.\n", err.c_str());
+    return 1;
+  }
+
+  return 0;
 }

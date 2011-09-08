@@ -97,7 +97,16 @@ struct Builder {
   Builder(State* state, const BuildConfig& config);
 
   Node* AddTarget(const string& name, string* err);
+
+  /// Add a target to the build, scanning dependencies.
+  /// @return false on error.
   bool AddTarget(Node* target, string* err);
+
+  /// Returns true if the build targets are already up to date.
+  bool AlreadyUpToDate() const;
+
+  /// Run the build.  Returns false on error.
+  /// It is an error to call this function when AlreadyUpToDate() is true.
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);

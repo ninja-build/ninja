@@ -387,7 +387,7 @@ bool Builder::AddTarget(Node* node, string* err) {
       return false;
   }
   if (!node->dirty_)
-    return false;  // Intentionally no error.
+    return true;  // Nothing to do.
 
   if (!plan_.AddTarget(node, err))
     return false;
@@ -395,11 +395,12 @@ bool Builder::AddTarget(Node* node, string* err) {
   return true;
 }
 
+bool Builder::AlreadyUpToDate() const {
+  return !plan_.more_to_do();
+}
+
 bool Builder::Build(string* err) {
-  if (!plan_.more_to_do()) {
-    *err = "no work to do";
-    return true;
-  }
+  assert(!AlreadyUpToDate());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
