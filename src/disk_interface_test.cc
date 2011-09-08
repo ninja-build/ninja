@@ -25,6 +25,35 @@ using namespace std;
 
 namespace {
 
+#ifdef _WIN32
+#ifndef _mktemp_s
+/// mingw has no mktemp.  Implement one with the same type as the one
+/// found in the Windows API.
+int _mktemp_s(char* templ) {
+  char* ofs = strchr(templ, 'X');
+  sprintf(ofs, "%d", rand() % 1000000);
+  return 0;
+}
+#endif
+
+/// Windows has no mkdtemp.  Implement it in terms of _mktemp_s.
+char* mkdtemp(char* name_template) {
+  int err = _mktemp_s(name_template);
+  if (err < 0) {
+    perror("_mktemp_s");
+    return NULL;
+  }
+
+  err = _mkdir(name_template);
+  if (err < 0) {
+    perror("mkdir");
+    return NULL;
+  }
+
+  return name_template;
+}
+#endif
+
 class DiskInterfaceTest : public testing::Test {
  public:
   virtual void SetUp() {
