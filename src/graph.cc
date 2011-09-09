@@ -150,10 +150,6 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   }
 
   // Check that this depfile matches our output.
-  if (outputs_.size() != 1) {
-    *err = "expected only one output";
-    return false;
-  }
   if (outputs_[0]->file_->path_ != makefile.out_) {
     *err = "expected makefile to mention '" + outputs_[0]->file_->path_ + "', "
            "got '" + makefile.out_ + "'";
