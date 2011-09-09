@@ -169,7 +169,7 @@ if options.with_gtest:
     test_libs = libs + [os.path.join(path, 'lib/.libs/lib%s.a' % lib)
                         for lib in ['gtest_main', 'gtest']]
 else:
-    test_libs = libs + ['-lgtest_main', '-lgtest']
+    test_libs = libs + ['-lgtest_main', '-lgtest', '-lpthread']
 
 objs = []
 for name in ['build_test', 'build_log_test', 'disk_interface_test',
