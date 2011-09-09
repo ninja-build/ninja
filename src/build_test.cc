@@ -541,13 +541,19 @@ TEST_F(BuildTest, Phony) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
+}
 
-  // XXX need a test that asserts we do nothing when we only
-  // have pending phony rules.
-  // fs_.Create("out", now_, "");
-  // EXPECT_TRUE(builder_.AddTarget("all", &err));
-  // ASSERT_EQ("", err);
-  // EXPECT_TRUE(builder_.AlreadyUpToDate());
+TEST_F(BuildTest, PhonyNoWork) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat bar.cc\n"
+"build all: phony out\n"));
+  fs_.Create("bar.cc", now_, "");
+  fs_.Create("out", now_, "");
+
+  EXPECT_TRUE(builder_.AddTarget("all", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 TEST_F(BuildTest, Fail) {

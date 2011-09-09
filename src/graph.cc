@@ -70,9 +70,18 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   assert(!outputs_.empty());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    // We may have other outputs, that our input-recursive traversal hasn't hit
-    // yet (or never will).  Stat them if we haven't already.
+    // We may have other outputs that our input-recursive traversal hasn't hit
+    // yet (or never will).  Stat them if we haven't already to mark that we've
+    // visited their dependents.
     (*i)->file_->StatIfNecessary(disk_interface);
+
+    if (is_phony()) {
+      // Phony edges don't write any output.
+      // They're only dirty if an input is dirty.
+      if (dirty)
+        (*i)->dirty_ = true;
+      continue;
+    }
 
     // Output is dirty if we're dirty, we're missing the output,
     // or if it's older than the most recent input mtime.
