@@ -20,7 +20,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "build.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "state.h"
