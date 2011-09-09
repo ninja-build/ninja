@@ -75,8 +75,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // If we get here, something went wrong; the execl should have
     // replaced us.
     char* err = strerror(errno);
-    // If the write fails, there's nothing we can do.
-    (void) write(error_pipe, err, strlen(err));
+    if (write(error_pipe, err, strlen(err)) < 0) {
+      // If the write fails, there's nothing we can do.
+      // But this block seems necessary to silence the warning.
+    }
     _exit(1);
   }
 
