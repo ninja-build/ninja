@@ -14,15 +14,16 @@
 
 #ifndef NINJA_CLEAN_H_
 #define NINJA_CLEAN_H_
+#pragma once
+
+#include <set>
+#include <string>
 
 #include "build.h"
 
-#include <string>
-#include <set>
 using namespace std;
 
 struct State;
-struct BuildConfig;
 struct Node;
 struct Rule;
 struct DiskInterface;
@@ -92,7 +93,7 @@ class Cleaner {
   void Reset();
 
   State* state_;
-  BuildConfig config_;
+  const BuildConfig& config_;
   set<string> removed_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
