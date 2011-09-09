@@ -49,7 +49,8 @@ option options[] = {
   { }
 };
 
-void usage(const BuildConfig& config) {
+/// Print usage information.
+void Usage(const BuildConfig& config) {
   fprintf(stderr,
 "usage: ninja [options] target\n"
 "\n"
@@ -71,6 +72,7 @@ void usage(const BuildConfig& config) {
           config.parallelism);
 }
 
+/// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
   int processors = 0;
 
@@ -400,7 +402,7 @@ int main(int argc, char** argv) {
         break;
       case 'h':
       default:
-        usage(config);
+        Usage(config);
         return 1;
     }
   }
