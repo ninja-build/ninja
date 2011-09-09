@@ -43,77 +43,6 @@ TEST(State, Basic) {
   EXPECT_FALSE(state.GetNode("out")->dirty());
 }
 
-struct TestEnv : public Env {
-  virtual string LookupVariable(const string& var) {
-    return vars[var];
-  }
-  map<string, string> vars;
-};
-TEST(EvalString, PlainText) {
-  EvalString str;
-  string err;
-  EXPECT_TRUE(str.Parse("plain text", &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("plain text", str.Evaluate(NULL));
-}
-TEST(EvalString, OneVariable) {
-  EvalString str;
-  string err;
-  EXPECT_TRUE(str.Parse("hi $var", &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("hi $var", str.unparsed());
-  TestEnv env;
-  EXPECT_EQ("hi ", str.Evaluate(&env));
-  env.vars["var"] = "there";
-  EXPECT_EQ("hi there", str.Evaluate(&env));
-}
-TEST(EvalString, OneVariableUpperCase) {
-  EvalString str;
-  string err;
-  EXPECT_TRUE(str.Parse("hi $VaR", &err));
-  EXPECT_EQ("", err);
-  EXPECT_EQ("hi $VaR", str.unparsed());
-  TestEnv env;
-  EXPECT_EQ("hi ", str.Evaluate(&env));
-  env.vars["VaR"] = "there";
-  EXPECT_EQ("hi there", str.Evaluate(&env));
-}
-TEST(EvalString, Error) {
-  EvalString str;
-  string err;
-  size_t err_index;
-  EXPECT_FALSE(str.Parse("bad $", &err, &err_index));
-  EXPECT_EQ("expected variable after $", err);
-  EXPECT_EQ(5u, err_index);
-}
-TEST(EvalString, CurlyError) {
-  EvalString str;
-  string err;
-  size_t err_index;
-  EXPECT_FALSE(str.Parse("bad ${bar", &err, &err_index));
-  EXPECT_EQ("expected closing curly after ${", err);
-  EXPECT_EQ(9u, err_index);
-}
-TEST(EvalString, Curlies) {
-  EvalString str;
-  string err;
-  EXPECT_TRUE(str.Parse("foo ${var}baz", &err));
-  EXPECT_EQ("", err);
-  TestEnv env;
-  EXPECT_EQ("foo baz", str.Evaluate(&env));
-  env.vars["var"] = "barbar";
-  EXPECT_EQ("foo barbarbaz", str.Evaluate(&env));
-}
-TEST(EvalString, Dollars) {
-  EvalString str;
-  string err;
-  EXPECT_TRUE(str.Parse("foo$$bar$bar", &err));
-  ASSERT_EQ("", err);
-  TestEnv env;
-  env.vars["bar"] = "baz";
-  EXPECT_EQ("foo$barbaz", str.Evaluate(&env));
-}
-
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
@@ -210,5 +139,3 @@ TEST_F(StatTest, Middle) {
   ASSERT_TRUE(GetNode("mid")->dirty_);
   ASSERT_TRUE(GetNode("out")->dirty_);
 }
-
-
