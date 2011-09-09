@@ -178,7 +178,7 @@ for name in ['build_test', 'build_log_test', 'disk_interface_test',
     objs += cxx(name, variables=[('cflags', test_cflags)])
 
 if platform != 'mingw':
-    libs.append('-lpthread')
+    test_libs.append('-lpthread')
 n.build('ninja_test', 'link', objs, implicit=ninja_lib,
         variables=[('ldflags', test_ldflags),
                    ('libs', test_libs)])
