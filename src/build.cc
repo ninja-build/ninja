@@ -439,8 +439,8 @@ bool Builder::Build(string* err) {
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
-          if (--failures_allowed < 0) {
-            if (config_.swallow_failures > 0)
+          if (failures_allowed-- == 0) {
+            if (config_.swallow_failures != 0)
               *err = "subcommands failed";
             else
               *err = "subcommand failed";

@@ -383,11 +383,17 @@ int main(int argc, char** argv) {
       case 'j':
         config.parallelism = atoi(optarg);
         break;
-      case 'k':
+      case 'k': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0)
+          Fatal("-k parameter not numeric; did you mean -k0?");
+
         // We want to go until N jobs fail, which means we should ignore
         // the first N-1 that fail and then stop.
-        config.swallow_failures = atoi(optarg) - 1;
+        config.swallow_failures = value - 1;
         break;
+      }
       case 'n':
         config.dry_run = true;
         break;
