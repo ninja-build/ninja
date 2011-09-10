@@ -19,11 +19,12 @@
 #include "graph.h"
 
 FileStat* StatCache::GetFile(const std::string& path) {
-  Paths::iterator i = paths_.find(path);
+  Key key(path.c_str());
+  Paths::iterator i = paths_.find(key);
   if (i != paths_.end())
     return i->second;
   FileStat* file = new FileStat(path);
-  paths_[path] = file;
+  paths_[Key(file->path_.c_str())] = file;
   return file;
 }
 
