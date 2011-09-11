@@ -250,8 +250,7 @@ bool BuildTest::StartCommand(Edge* edge) {
         edge->rule_->name_ == "touch") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      (*out)->file_->mtime_ = now_;
-      (*out)->dirty_ = false;
+      fs_.Create((*out)->file_->path_, now_, "");
     }
   } else if (edge->rule_->name_ == "fail") {
     // Don't do anything.
@@ -373,14 +372,17 @@ TEST_F(BuildTest, Chain) {
 
   err.clear();
   commands_ran_.clear();
+  state_.stat_cache_.Invalidate();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
-  GetNode("c4")->dirty_ = true;
-  GetNode("c5")->dirty_ = true;
+  now_++;
+
+  fs_.Create("c3", now_, "");
   err.clear();
   commands_ran_.clear();
+  state_.stat_cache_.Invalidate();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
@@ -510,17 +512,24 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
 
+  now_++;
+
   // implicit dep dirty, expect a rebuild.
+  fs_.Create("blah.h", now_, "");
+  fs_.Create("bar.h", now_, "");
   commands_ran_.clear();
-  GetNode("blah.h")->dirty_ = true;
+  state_.stat_cache_.Invalidate();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
 
+  now_++;
+
   // order only dep dirty, no rebuild.
+  fs_.Create("otherfile", now_, "");
   commands_ran_.clear();
-  GetNode("otherfile")->dirty_ = true;
+  state_.stat_cache_.Invalidate();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());

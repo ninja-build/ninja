@@ -36,3 +36,8 @@ void StatCache::Dump() {
                                 : "unknown");
   }
 }
+
+void StatCache::Invalidate() {
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
+    i->second->mtime_ = -1;
+}
