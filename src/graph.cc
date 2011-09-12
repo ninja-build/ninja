@@ -159,18 +159,20 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   }
 
   // Check that this depfile matches our output.
-  if (outputs_[0]->file_->path_ != makefile.out_) {
+  StringPiece opath = StringPiece(outputs_[0]->file_->path_);
+  if (opath != makefile.out_) {
     *err = "expected makefile to mention '" + outputs_[0]->file_->path_ + "', "
-           "got '" + makefile.out_ + "'";
+        "got '" + makefile.out_.AsString() + "'";
     return false;
   }
 
   // Add all its in-edges.
-  for (vector<string>::iterator i = makefile.ins_.begin();
+  for (vector<StringPiece>::iterator i = makefile.ins_.begin();
        i != makefile.ins_.end(); ++i) {
-    CanonicalizePath(&*i);
+    string path(i->str_, i->len_);
+    CanonicalizePath(&path);
 
-    Node* node = state->GetNode(*i);
+    Node* node = state->GetNode(path);
     inputs_.insert(inputs_.end() - order_only_deps_, node);
     node->out_edges_.push_back(this);
     ++implicit_deps_;

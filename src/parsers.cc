@@ -148,12 +148,21 @@ bool Tokenizer::ExpectIdent(const char* expected, string* err) {
   return true;
 }
 
-bool Tokenizer::ReadIdent(string* out) {
+bool Tokenizer::ReadIdent(StringPiece* out) {
   PeekToken();
   if (token_.type_ != Token::IDENT)
     return false;
-  out->assign(token_.pos_, token_.end_ - token_.pos_);
+  out->str_ = token_.pos_;
+  out->len_ = token_.end_ - token_.pos_;
   ConsumeToken();
+  return true;
+}
+
+bool Tokenizer::ReadIdent(string* out) {
+  StringPiece token;
+  if (!ReadIdent(&token))
+    return false;
+  out->assign(token.str_, token.len_);
   return true;
 }
 
@@ -276,7 +285,7 @@ bool MakefileParser::Parse(const string& input, string* err) {
   if (!tokenizer_.ExpectToken(Token::COLON, err))
     return false;
   while (tokenizer_.PeekToken() == Token::IDENT) {
-    string in;
+    StringPiece in;
     tokenizer_.ReadIdent(&in);
     ins_.push_back(in);
   }
