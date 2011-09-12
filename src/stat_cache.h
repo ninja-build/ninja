@@ -31,27 +31,7 @@ struct StatCache {
   void Dump();
   void Reload();
 
-  struct Key {
-    Key() : path(NULL) {}
-    Key(const char* p) : path(p) {}
-
-    const char* path;
-    bool operator==(const Key& other) const {
-      return strcmp(path, other.path) == 0;
-    }
-  };
-
-  struct KeyHash {
-    size_t operator()(const StatCache::Key& key) const {
-#ifdef _MSC_VER
-      return stdext::hash<const char*>()(key.path);
-#else
-      return __gnu_cxx::hash<const char*>()(key.path);
-#endif
-    }
-  };
-
-  typedef hash_map<Key, FileStat*, KeyHash> Paths;
+  typedef ExternalStringHashMap<FileStat*>::Type Paths;
   Paths paths_;
 };
 

@@ -19,6 +19,8 @@
 #include <string>
 using namespace std;
 
+#include "hash_map.h"
+
 struct BuildConfig;
 struct Edge;
 
@@ -64,7 +66,7 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
-  typedef map<string, LogEntry*> Log;
+  typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
   FILE* log_file_;
   BuildConfig* config_;
