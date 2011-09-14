@@ -166,23 +166,26 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     return false;
   }
 
+  inputs_.insert(inputs_.end() - order_only_deps_, makefile.ins_.size(), 0);
+  implicit_deps_ += makefile.ins_.size();
+  vector<Node*>::iterator implicit_dep =
+    inputs_.end() - order_only_deps_ - makefile.ins_.size();
+
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = makefile.ins_.begin();
-       i != makefile.ins_.end(); ++i) {
+       i != makefile.ins_.end(); ++i, ++implicit_dep) {
     string path(i->str_, i->len_);
     CanonicalizePath(&path);
 
     Node* node = state->GetNode(path);
-    inputs_.insert(inputs_.end() - order_only_deps_, node);
+    *implicit_dep = node;
     node->out_edges_.push_back(this);
-    ++implicit_deps_;
 
     // If we don't have a edge that generates this input already,
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge_) {
       Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
-      phony_edge->order_only_deps_ = 1;
       node->in_edge_ = phony_edge;
       phony_edge->outputs_.push_back(node);
     }
