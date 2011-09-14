@@ -533,6 +533,15 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // implicit dep missing, expect rebuild.
+  fs_.RemoveFile("bar.h");
+  commands_ran_.clear();
+  state_.stat_cache_.Invalidate();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
 }
 
 TEST_F(BuildTest, Phony) {
