@@ -77,8 +77,11 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
     if (is_phony()) {
       // Phony edges don't write any output.
-      // They're only dirty if an input is dirty.
+      // They're only dirty if an input is dirty, or if there are no inputs
+      // and we're missing the output.
       if (dirty)
+        (*i)->dirty_ = true;
+      else if (inputs_.empty() && !(*i)->file_->exists())
         (*i)->dirty_ = true;
       continue;
     }

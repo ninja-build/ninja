@@ -277,6 +277,12 @@ nothing, but phony rules are handled specially in that they aren't
 printed when run, logged (see below), nor do they contribute to the
 command count printed as part of the build process.
 
+`phony' can also be used to create dummy targets for files which
+may not exist at build time.  If a phony build statement is written
+without any dependencies, the target will be considered out of date if
+it does not exist.  Without a phony build statement, Ninja will report
+an error if the file does not exist and is required by the build.
+
 
 Default target statements
 ~~~~~~~~~~~~~~~~~~~~~~~~~

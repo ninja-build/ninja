@@ -29,7 +29,7 @@ struct StatCache {
 
   /// Dump the mapping to stdout (useful for debugging).
   void Dump();
-  void Reload();
+  void Invalidate();
 
   typedef ExternalStringHashMap<FileStat*>::Type Paths;
   Paths paths_;
