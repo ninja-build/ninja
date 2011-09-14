@@ -113,7 +113,7 @@ ar = 'ar'
 if platform == 'mingw':
     ar = 'i586-mingw32msvc-ar'
 n.rule('ar',
-       command=ar + ' crs $out $in',
+       command='rm -f $out && %s crs $out $in' % ar,
        description='AR $out')
 n.newline()
 
