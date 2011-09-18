@@ -42,7 +42,6 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  GetNode("mid")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -50,7 +49,6 @@ TEST_F(PlanTest, Basic) {
   ASSERT_EQ("mid", edge->inputs_[0]->file_->path_);
   ASSERT_EQ("out", edge->outputs_[0]->file_->path_);
 
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   ASSERT_FALSE(plan_.more_to_do());
@@ -75,13 +73,10 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("mid1")->dirty_ = false;
-  GetNode("mid2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid1 mid2
-  GetNode("in")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -108,23 +103,18 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("a1")->dirty_ = false;
-  GetNode("a2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1
-  GetNode("b1")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a2
-  GetNode("b2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -151,22 +141,18 @@ TEST_F(PlanTest, DoubleDependent) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("mid")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  GetNode("a1")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  GetNode("a2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1 a2
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -324,10 +310,12 @@ TEST_F(BuildTest, TwoStep) {
 
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
+  now_++;
+
   // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
-  GetNode("cat2")->dirty_ = true;
-  GetNode("cat12")->dirty_ = true;
+  fs_.Create("in2", now_, "");
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -372,7 +360,7 @@ TEST_F(BuildTest, Chain) {
 
   err.clear();
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -382,7 +370,7 @@ TEST_F(BuildTest, Chain) {
   fs_.Create("c3", now_, "");
   err.clear();
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
@@ -518,7 +506,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("blah.h", now_, "");
   fs_.Create("bar.h", now_, "");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -529,7 +517,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", now_, "");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -537,7 +525,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // implicit dep missing, expect rebuild.
   fs_.RemoveFile("bar.h");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);

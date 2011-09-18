@@ -175,7 +175,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   }
 }
 
-Plan::Plan() : command_edges_(0) {}
+Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
@@ -199,29 +199,38 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (CheckDependencyCycle(node, stack, err))
     return false;
 
-  if (!node->dirty())
+  if (edge->outputs_ready())
     return false;  // Don't need to do anything.
-  if (want_.find(edge) != want_.end())
-    return true;  // We've already enqueued it.
-  want_.insert(edge);
-  if (!edge->is_phony())
-    ++command_edges_;
+
+  // If an entry in want_ does not already exist for edge, create an entry which
+  // maps to false, indicating that we do not want to build this entry itself.
+  pair<map<Edge*, bool>::iterator, bool> want_ins =
+    want_.insert(make_pair(edge, false));
+  bool& want = want_ins.first->second;
+
+  // If we do need to build edge and we haven't already marked it as wanted,
+  // mark it now.
+  if (node->dirty() && !want) {
+    want = true;
+    ++wanted_edges_;
+    if (find_if(edge->inputs_.begin(), edge->inputs_.end(),
+                not1(mem_fun(&Node::ready))) == edge->inputs_.end())
+      ready_.insert(edge);
+    if (!edge->is_phony())
+      ++command_edges_;
+  }
+
+  if (!want_ins.second)
+    return true;  // We've already processed the inputs.
 
   stack->push_back(node);
-  bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (AddSubTarget(*i, stack, err)) {
-      awaiting_inputs = true;
-    } else if (!err->empty()) {
+    if (!AddSubTarget(*i, stack, err) && !err->empty())
       return false;
-    }
   }
   assert(stack->back() == node);
   stack->pop_back();
-
-  if (!awaiting_inputs)
-    ready_.insert(edge);
 
   return true;
 }
@@ -256,7 +265,12 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::EdgeFinished(Edge* edge) {
-  want_.erase(edge);
+  map<Edge*, bool>::iterator i = want_.find(edge);
+  assert(i != want_.end());
+  if (i->second)
+    --wanted_edges_;
+  want_.erase(i);
+  edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -269,26 +283,30 @@ void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
   for (vector<Edge*>::iterator i = node->out_edges_.begin();
        i != node->out_edges_.end(); ++i) {
-    if (want_.find(*i) != want_.end()) {
-      // See if the edge is now ready.
-      bool ready = true;
-      for (vector<Node*>::iterator j = (*i)->inputs_.begin();
-           j != (*i)->inputs_.end(); ++j) {
-        if ((*j)->dirty()) {
-          ready = false;
-          break;
-        }
-      }
-      if (ready)
+    map<Edge*, bool>::iterator want_i = want_.find(*i);
+    if (want_i == want_.end())
+      continue;
+
+    // See if the edge is now ready.
+    if (find_if((*i)->inputs_.begin(), (*i)->inputs_.end(),
+                not1(mem_fun(&Node::ready))) == (*i)->inputs_.end()) {
+      if (want_i->second) {
         ready_.insert(*i);
+      } else {
+        // We do not need to build this edge, but we might need to build one of
+        // its dependents.
+        EdgeFinished(*i);
+      }
     }
   }
 }
 
 void Plan::Dump() {
   printf("pending: %d\n", (int)want_.size());
-  for (set<Edge*>::iterator i = want_.begin(); i != want_.end(); ++i) {
-    (*i)->Dump();
+  for (map<Edge*, bool>::iterator i = want_.begin(); i != want_.end(); ++i) {
+    if (i->second)
+      printf("want ");
+    i->first->Dump();
   }
   printf("ready: %d\n", (int)ready_.size());
 }
@@ -383,12 +401,12 @@ Node* Builder::AddTarget(const string& name, string* err) {
 
 bool Builder::AddTarget(Node* node, string* err) {
   node->file_->StatIfNecessary(disk_interface_);
-  if (node->in_edge_) {
-    if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
+  if (Edge* in_edge = node->in_edge_) {
+    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;
+    if (in_edge->outputs_ready())
+      return true;  // Nothing to do.
   }
-  if (!node->dirty_)
-    return true;  // Nothing to do.
 
   if (!plan_.AddTarget(node, err))
     return false;
@@ -498,13 +516,8 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-  if (success) {
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      (*i)->dirty_ = false;
-    }
+  if (success)
     plan_.EdgeFinished(edge);
-  }
 
   if (edge->is_phony())
     return;

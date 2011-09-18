@@ -37,6 +37,8 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       return false;
   }
 
+  outputs_ready_ = true;
+
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->file_->StatIfNecessary(disk_interface)) {
@@ -51,10 +53,17 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
     if (is_order_only(i - inputs_.begin())) {
       // Order-only deps only make us dirty if they're missing.
-      if (!(*i)->file_->exists())
+      if (!(*i)->file_->exists()) {
         dirty = true;
+        outputs_ready_ = false;
+      }
       continue;
     }
+
+    // If an input is not ready, neither are our outputs.
+    if (Edge* edge = (*i)->in_edge_)
+      if (!edge->outputs_ready_)
+        outputs_ready_ = false;
 
     // If a regular input is dirty (or missing), we're dirty.
     // Otherwise consider mtime.
@@ -66,6 +75,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
   }
 
+  BuildLog* build_log = state ? state->build_log_ : 0;
   string command = EvaluateCommand();
 
   assert(!outputs_.empty());
@@ -75,35 +85,44 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     // visited their dependents.
     (*i)->file_->StatIfNecessary(disk_interface);
 
-    if (is_phony()) {
-      // Phony edges don't write any output.
-      // They're only dirty if an input is dirty, or if there are no inputs
-      // and we're missing the output.
-      if (dirty)
-        (*i)->dirty_ = true;
-      else if (inputs_.empty() && !(*i)->file_->exists())
-        (*i)->dirty_ = true;
-      continue;
-    }
+    RecomputeOutputDirty(build_log, most_recent_input, dirty, command, *i);
+    if ((*i)->dirty_)
+      outputs_ready_ = false;
+  }
 
-    // Output is dirty if we're dirty, we're missing the output,
-    // or if it's older than the most recent input mtime.
-    if (dirty || !(*i)->file_->exists() ||
-        (*i)->file_->mtime_ < most_recent_input) {
-      (*i)->dirty_ = true;
-    } else {
-      // May also be dirty due to the command changing since the last build.
-      // But if this is a generator rule, the command changing does not make us
-      // dirty.
-      BuildLog::LogEntry* entry;
-      if (!rule_->generator_ && state->build_log_ &&
-          (entry = state->build_log_->LookupByOutput((*i)->file_->path_))) {
-        if (command != entry->command)
-          (*i)->dirty_ = true;
-      }
+  return true;
+}
+
+void Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+                                bool dirty, const string& command,
+                                Node* output) {
+  if (is_phony()) {
+    // Phony edges don't write any output.
+    // They're only dirty if an input is dirty, or if there are no inputs
+    // and we're missing the output.
+    if (dirty)
+      output->dirty_ = true;
+    else if (inputs_.empty() && !output->file_->exists())
+      output->dirty_ = true;
+    return;
+  }
+
+  // Output is dirty if we're dirty, we're missing the output,
+  // or if it's older than the most recent input mtime.
+  if (dirty || !output->file_->exists() ||
+      output->file_->mtime_ < most_recent_input) {
+    output->dirty_ = true;
+  } else {
+    // May also be dirty due to the command changing since the last build.
+    // But if this is a generator rule, the command changing does not make us
+    // dirty.
+    BuildLog::LogEntry* entry;
+    if (!rule_->generator_ && build_log &&
+        (entry = build_log->LookupByOutput(output->file_->path_))) {
+      if (command != entry->command)
+        output->dirty_ = true;
     }
   }
-  return true;
 }
 
 /// An Env for an Edge, providing $in and $out.
@@ -194,6 +213,14 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
       Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
       node->in_edge_ = phony_edge;
       phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
     }
   }
 
