@@ -532,6 +532,53 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ(1u, commands_ran_.size());
 }
 
+TEST_F(BuildTest, RebuildOrderOnlyDeps) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n"
+"rule true\n  command = true\n"
+"build oo.h: cc oo.h.in\n"
+"build foo.o: cc foo.c || oo.h\n"));
+
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("oo.h.in", now_, "");
+
+  // foo.o and order-only dep dirty, build both.
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, commands_ran_.size());
+
+  // all clean, no rebuild.
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // order-only dep missing, build it only.
+  fs_.RemoveFile("oo.h");
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
+
+  now_++;
+
+  // order-only dep dirty, build it only.
+  fs_.Create("oo.h.in", now_, "");
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
+}
+
 TEST_F(BuildTest, Phony) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

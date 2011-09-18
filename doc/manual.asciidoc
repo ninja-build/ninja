@@ -502,9 +502,9 @@ Note that dependencies as loaded through depfiles have slightly different
 semantics, as described in the <<ref_rule,rule reference>>.
 
 3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
-   _dep2_+ on the end of a build line.  When these are missing, the
-   output is not rebuilt until they are built, but once they are
-   available further changes to the files do not affect the output.
+   _dep2_+ on the end of a build line.  When these are out of date, the
+   output is not rebuilt until they are built, but changes in order-only
+   dependencies alone do not cause the output to be rebuilt.
 +
 Order-only dependencies can be useful for bootstrapping dependencies
 that are only discovered during build time: for example, to generate a

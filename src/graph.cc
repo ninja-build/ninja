@@ -51,27 +51,20 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       }
     }
 
-    if (is_order_only(i - inputs_.begin())) {
-      // Order-only deps only make us dirty if they're missing.
-      if (!(*i)->file_->exists()) {
-        dirty = true;
-        outputs_ready_ = false;
-      }
-      continue;
-    }
-
     // If an input is not ready, neither are our outputs.
     if (Edge* edge = (*i)->in_edge_)
       if (!edge->outputs_ready_)
         outputs_ready_ = false;
 
-    // If a regular input is dirty (or missing), we're dirty.
-    // Otherwise consider mtime.
-    if ((*i)->dirty_) {
-      dirty = true;
-    } else {
-      if ((*i)->file_->mtime_ > most_recent_input)
-        most_recent_input = (*i)->file_->mtime_;
+    if (!is_order_only(i - inputs_.begin())) {
+       // If a regular input is dirty (or missing), we're dirty.
+       // Otherwise consider mtime.
+       if ((*i)->dirty_) {
+         dirty = true;
+       } else {
+         if ((*i)->file_->mtime_ > most_recent_input)
+           most_recent_input = (*i)->file_->mtime_;
+       }
     }
   }
 
