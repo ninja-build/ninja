@@ -14,6 +14,7 @@
 
 #include "build.h"
 
+#include "build_log.h"
 #include "graph.h"
 #include "test.h"
 
@@ -238,7 +239,8 @@ bool BuildTest::StartCommand(Edge* edge) {
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->file_->path_, now_, "");
     }
-  } else if (edge->rule_->name_ == "fail") {
+  } else if (edge->rule_->name_ == "true" ||
+             edge->rule_->name_ == "fail") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -664,4 +666,62 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
+struct BuildWithLogTest : public BuildTest {
+  BuildWithLogTest() {
+    state_.build_log_ = builder_.log_ = &build_log_;
+  }
+
+  BuildLog build_log_;
+};
+
+TEST_F(BuildWithLogTest, RestatTest) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"
+"  restat = 1\n"
+"rule cc\n"
+"  command = cc\n"
+"  restat = 1\n"
+"build out1: cc in\n"
+"build out2: true out1\n"
+"build out3: cat out2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  fs_.Create("out3", now_, "");
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // "cc" touches out1, so we should build out2.  But because "true" does not
+  // touch out2, we should cancel the build of out3.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2u, commands_ran_.size());
+
+  // If we run again, it should be a no-op, because the build log has recorded
+  // that we've already built out2 with an input timestamp of 2 (from out1).
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // The build log entry should not, however, prevent us from rebuilding out2
+  // if out1 changes.
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2u, commands_ran_.size());
 }

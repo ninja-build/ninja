@@ -100,18 +100,31 @@ void Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
     return;
   }
 
+  BuildLog::LogEntry* entry = 0;
   // Output is dirty if we're dirty, we're missing the output,
   // or if it's older than the most recent input mtime.
-  if (dirty || !output->file_->exists() ||
-      output->file_->mtime_ < most_recent_input) {
+  if (dirty || !output->file_->exists()) {
     output->dirty_ = true;
-  } else {
+  } else if (output->file_->mtime_ < most_recent_input) {
+    // If this is a restat rule, we may have cleaned the output with a restat
+    // rule in a previous run and stored the most recent input mtime in the
+    // build log.  Use that mtime instead, so that the file will only be
+    // considered dirty if an input was modified since the previous run.
+    if (rule_->restat_ && build_log &&
+        (entry = build_log->LookupByOutput(output->file_->path_))) {
+      if (entry->restat_mtime < most_recent_input)
+        output->dirty_ = true;
+    } else {
+      output->dirty_ = true;
+    }
+  }
+
+  if (!output->dirty_) {
     // May also be dirty due to the command changing since the last build.
     // But if this is a generator rule, the command changing does not make us
     // dirty.
-    BuildLog::LogEntry* entry;
     if (!rule_->generator_ && build_log &&
-        (entry = build_log->LookupByOutput(output->file_->path_))) {
+        (entry || (entry = build_log->LookupByOutput(output->file_->path_)))) {
       if (command != entry->command)
         output->dirty_ = true;
     }

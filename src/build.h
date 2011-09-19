@@ -22,6 +22,7 @@
 #include <vector>
 using namespace std;
 
+struct BuildLog;
 struct Edge;
 struct DiskInterface;
 struct Node;
@@ -50,6 +51,9 @@ struct Plan {
   /// Mark an edge as done building.  Used internally and by
   /// tests.
   void EdgeFinished(Edge* edge);
+
+  /// Clean the given node during the build.
+  void CleanNode(BuildLog* build_log, Node* node);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }

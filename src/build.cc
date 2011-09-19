@@ -301,6 +301,60 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
+void Plan::CleanNode(BuildLog* build_log, Node* node) {
+  node->dirty_ = false;
+
+  for (vector<Edge*>::iterator ei = node->out_edges_.begin();
+       ei != node->out_edges_.end(); ++ei) {
+    // Don't process edges that we don't actually want.
+    map<Edge*, bool>::iterator want_i = want_.find(*ei);
+    if (want_i == want_.end() || !want_i->second)
+      continue;
+
+    // If all non-order-only inputs for this edge are now clean,
+    // we might have changed the dirty state of the outputs.
+    vector<Node*>::iterator begin = (*ei)->inputs_.begin(),
+                            end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
+    if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
+      // Recompute most_recent_input and command.
+      time_t most_recent_input = 1;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
+        if ((*ni)->file_->mtime_ > most_recent_input)
+          most_recent_input = (*ni)->file_->mtime_;
+      string command = (*ei)->EvaluateCommand();
+
+      // Now, recompute the dirty state of each output.
+      bool all_outputs_clean = true;
+      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
+           ni != (*ei)->outputs_.end(); ++ni) {
+        if (!(*ni)->dirty_)
+          continue;
+
+        // RecomputeOutputDirty will not modify dirty_ if the output is clean.
+        (*ni)->dirty_ = false;
+
+        // Since we know that all non-order-only inputs are clean, we can pass
+        // "false" as the "dirty" argument here.
+        (*ei)->RecomputeOutputDirty(build_log, most_recent_input, false,
+                                    command, *ni);
+        if ((*ni)->dirty_) {
+          all_outputs_clean = false;
+        } else {
+          CleanNode(build_log, *ni);
+        }
+      }
+
+      // If we cleaned all outputs, mark the node as not wanted.
+      if (all_outputs_clean) {
+        want_i->second = false;
+        --wanted_edges_;
+        if (!(*ei)->is_phony())
+          --command_edges_;
+      }
+    }
+  }
+}
+
 void Plan::Dump() {
   printf("pending: %d\n", (int)want_.size());
   for (map<Edge*, bool>::iterator i = want_.begin(); i != want_.end(); ++i) {
@@ -516,8 +570,47 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-  if (success)
+  time_t restat_mtime = 0;
+
+  if (success) {
+    if (edge->rule_->restat_) {
+      bool node_cleaned = false;
+
+      for (vector<Node*>::iterator i = edge->outputs_.begin();
+           i != edge->outputs_.end(); ++i) {
+        if ((*i)->file_->exists()) {
+          time_t new_mtime = disk_interface_->Stat((*i)->file_->path_);
+          if ((*i)->file_->mtime_ == new_mtime) {
+            // The rule command did not change the output.  Propagate the clean
+            // state through the build graph.
+            plan_.CleanNode(log_, *i);
+            node_cleaned = true;
+          }
+        }
+      }
+
+      if (node_cleaned) {
+        // If any output was cleaned, find the most recent mtime of any
+        // (existing) non-order-only input.
+        for (vector<Node*>::iterator i = edge->inputs_.begin();
+             i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+          time_t input_mtime = disk_interface_->Stat((*i)->file_->path_);
+          if (input_mtime == 0) {
+            restat_mtime = 0;
+            break;
+          }
+          if (input_mtime > restat_mtime)
+            restat_mtime = input_mtime;
+        }
+
+        // The total number of edges in the plan may have changed as a result
+        // of a restat.
+        status_->PlanHasTotalEdges(plan_.command_edge_count());
+      }
+    }
+
     plan_.EdgeFinished(edge);
+  }
 
   if (edge->is_phony())
     return;
@@ -525,5 +618,5 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
   if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time);
+    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
 }

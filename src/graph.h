@@ -59,7 +59,7 @@ struct FileStat {
 
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
-  Rule(const string& name) : name_(name), generator_(false) { }
+  Rule(const string& name) : name_(name), generator_(false), restat_(false) { }
 
   bool ParseCommand(const string& command, string* err) {
     return command_.Parse(command, err);
@@ -68,7 +68,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
-  bool generator_;
+  bool generator_, restat_;
 };
 
 struct BuildLog;

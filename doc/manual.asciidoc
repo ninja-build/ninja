@@ -469,6 +469,12 @@ aborting due to a missing input.
   if the command line changes; and secondly, they are not cleaned
   by default.
 
+`restat`:: if present, causes Ninja to re-stat the command's outputs after
+ execution of the command.  Each output whose modification time the command
+ did not change will be treated as though it had never needed to be built.
+ This may cause the output's reverse dependencies to be removed from the
+ list of pending build actions.
+
 Additionally, the special `$in` and `$out` variables expand to the
 space-separated list of files provided to the `build` line referencing
 this `rule`.
