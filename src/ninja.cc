@@ -254,33 +254,37 @@ int CmdTargetsSourceList(State* state) {
 
 int CmdTargetsList(State* state, const string& rule_name) {
   set<string> rules;
+
   // Gather the outputs.
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
-    if ((*e)->rule_->name_ == rule_name)
+       e != state->edges_.end(); ++e) {
+    if ((*e)->rule_->name_ == rule_name) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-           out_node != (*e)->outputs_.end();
-           ++out_node)
+           out_node != (*e)->outputs_.end(); ++out_node) {
         rules.insert((*out_node)->file_->path_);
+      }
+    }
+  }
+
   // Print them.
   for (set<string>::const_iterator i = rules.begin();
-       i != rules.end();
-       ++i)
+       i != rules.end(); ++i) {
     printf("%s\n", (*i).c_str());
+  }
+
   return 0;
 }
 
 int CmdTargetsList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
+       e != state->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-         out_node != (*e)->outputs_.end();
-         ++out_node)
+         out_node != (*e)->outputs_.end(); ++out_node) {
       printf("%s: %s\n",
              (*out_node)->file_->path_.c_str(),
              (*e)->rule_->name_.c_str());
+    }
+  }
   return 0;
 }
 
@@ -319,22 +323,19 @@ int CmdTargets(State* state, int argc, char* argv[]) {
 
 int CmdRules(State* state, int argc, char* argv[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
-       i != state->rules_.end();
-       ++i) {
-    if (i->second->description_.unparsed_.empty())
+       i != state->rules_.end(); ++i) {
+    if (i->second->description_.unparsed_.empty()) {
       printf("%s\n", i->first.c_str());
-    else
+    } else {
       printf("%s: %s\n",
              i->first.c_str(),
              i->second->description_.unparsed_.c_str());
+    }
   }
   return 0;
 }
 
-int CmdClean(State* state,
-             int argc,
-             char* argv[],
-             const BuildConfig& config) {
+int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   Cleaner cleaner(state, config);
   if (argc >= 1)
   {
