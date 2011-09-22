@@ -47,9 +47,9 @@ namespace {
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
-"usage: ninja [options] [target]\n"
+"usage: ninja [options] [targets...]\n"
 "\n"
-"if target is unspecified, builds the 'default' target (see manual).\n"
+"if targets are unspecified, builds the 'default' target (see manual).\n"
 "\n"
 "options:\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
