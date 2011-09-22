@@ -52,7 +52,9 @@ option options[] = {
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
-"usage: ninja [options] target\n"
+"usage: ninja [options] [target]\n"
+"\n"
+"if target is unspecified, builds the 'default' target (see manual).\n"
 "\n"
 "options:\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
