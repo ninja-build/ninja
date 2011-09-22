@@ -44,11 +44,6 @@
 
 namespace {
 
-option options[] = {
-  { "help", no_argument, NULL, 'h' },
-  { }
-};
-
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
@@ -376,8 +371,13 @@ int main(int argc, char** argv) {
 
   config.parallelism = GuessParallelism();
 
+  const option kLongOptions[] = {
+    { "help", no_argument, NULL, 'h' },
+    { }
+  };
+
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", options,
+  while ((opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'f':
