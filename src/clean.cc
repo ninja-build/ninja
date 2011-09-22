@@ -96,13 +96,16 @@ void Cleaner::PrintFooter() {
   printf("%d files.\n", cleaned_files_count_);
 }
 
-int Cleaner::CleanAll() {
+int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
     if ((*e)->rule_ == &State::kPhonyRule)
+      continue;
+    // Do not remove generator's files unless generator specified.
+    if (!generator && (*e)->rule_->generator_)
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {

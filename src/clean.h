@@ -49,9 +49,10 @@ class Cleaner {
   /// @return non-zero if an error occurs.
   int CleanTargets(int target_count, char* targets[]);
 
-  /// Clean all built files.
+  /// Clean all built files, except for files created by generator rules.
+  /// @param generator If set, also clean files created by generator rules.
   /// @return non-zero if an error occurs.
-  int CleanAll();
+  int CleanAll(bool generator = false);
 
   /// Clean all the file built with the given rule @a rule.
   /// @return non-zero if an error occurs.

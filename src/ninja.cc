@@ -358,6 +358,23 @@ int CmdRules(State* state, int argc, char* argv[]) {
 }
 
 int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
+  bool generator = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, "g")) != -1) {
+    switch (opt) {
+      case 'g':
+        generator = true;
+        break;
+      default:
+        Usage(config);
+        return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   Cleaner cleaner(state, config);
   if (argc >= 1)
   {
@@ -381,7 +398,7 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
     }
   }
   else {
-    return cleaner.CleanAll();
+    return cleaner.CleanAll(generator);
   }
 }
 
@@ -479,8 +496,10 @@ reload:
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")
       return CmdRules(&state, argc, argv);
+    // The clean tool uses getopt, and expects argv[0] to contain the name of
+    // the tool, i.e. "clean".
     if (tool == "clean")
-      return CmdClean(&state, argc, argv, config);
+      return CmdClean(&state, argc+1, argv-1, config);
     Error("unknown tool '%s'", tool.c_str());
   }
 

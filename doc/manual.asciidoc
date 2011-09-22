@@ -382,16 +382,16 @@ than the _depth_ mode.  It returns non-zero if an error occurs.
 one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.
 
-`clean`:: remove built files.  If used like this +ninja -t clean+ it
-removes all the built files.  If used like this
-+ninja -t clean _targets..._+ or like this
-+ninja -t clean target _targets..._+ it removes the given targets and
-recursively all files built for it.  If used like this
-+ninja -t clean rule _rules_+ it removes all files built using the given
-rules. The depfiles are not removed. Files created but not referenced in
-the graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).  It returns non-zero if an
-error occurs.
+`clean`:: remove built files.  If used like this +ninja -t clean+ it removes
+all the built files, except for those created by the generator.  If used like
+this +ninja -t clean -g+ it also removes built files created by the generator.
+If used like this +ninja -t clean _targets..._+ or like this +ninja -t clean
+target _targets..._+ it removes the given targets and recursively all files
+built for it.  If used like this +ninja -t clean rule _rules_+ it removes
+all files built using the given rules. The depfiles are not removed. Files
+created but not referenced in the graph are not removed. This tool takes
+in account the +-v+ and the +-n+ options (note that +-n+ implies +-v+).
+It returns non-zero if an error occurs.
 
 Ninja file reference
 --------------------
@@ -463,6 +463,12 @@ aborting due to a missing input.
   the command as it's running.  The `-v` flag controls whether to print
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
+
+`generator`:: if present, specifies that this rule is used to re-invoke
+  the generator program.  Files built using `generator` rules are
+  treated specially in two ways: firstly, they will not be rebuilt
+  if the command line changes; and secondly, they are not cleaned
+  by default.
 
 Additionally, the special `$in` and `$out` variables expand to the
 space-separated list of files provided to the `build` line referencing

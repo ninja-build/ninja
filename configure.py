@@ -234,7 +234,8 @@ n.newline()
 
 n.comment('Regenerate build files if build script changes.')
 n.rule('configure',
-       command='./configure.py $configure_args')
+       command='./configure.py $configure_args',
+       generator=True)
 n.build('build.ninja', 'configure',
         implicit=['configure.py', 'misc/ninja_syntax.py'])
 n.newline()
