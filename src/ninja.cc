@@ -50,6 +50,9 @@ void Usage(const BuildConfig& config) {
 "usage: ninja [options] [targets...]\n"
 "\n"
 "if targets are unspecified, builds the 'default' target (see manual).\n"
+"targets are paths, with additional special syntax:\n"
+"  target^ means 'the first output that uses target'.\n"
+"  example: 'ninja foo.cc^' will likely build foo.o.\n"
 "\n"
 "options:\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -137,8 +140,28 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
     for (int i = 0; i < argc; ++i) {
       string path = argv[i];
       CanonicalizePath(&path);
+
+      // Special syntax: "foo.cc^" means "the first output of foo.cc".
+      bool first_dependent = false;
+      if (!path.empty() && path[path.size() - 1] == '^') {
+        path.resize(path.size() - 1);
+        first_dependent = true;
+      }
+
       Node* node = state->LookupNode(path);
       if (node) {
+        if (first_dependent) {
+          if (node->out_edges_.empty()) {
+            *err = "'" + path + "' has no out edge";
+            return false;
+          }
+          Edge* edge = node->out_edges_[0];
+          if (edge->outputs_.empty()) {
+            edge->Dump();
+            Fatal("edge has no outputs");
+          }
+          node = edge->outputs_[0];
+        }
         targets->push_back(node);
       } else {
         *err = "unknown target '" + path + "'";
