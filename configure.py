@@ -77,7 +77,7 @@ n.variable('builddir', 'build')
 cflags = ['-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
 if not options.debug:
-    cflags.append('-O2')
+    cflags += ['-O2', '-DNDEBUG']
 ldflags = ['-L$builddir']
 libs = []
 if platform == 'mingw':
