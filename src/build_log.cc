@@ -84,9 +84,6 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 }
 
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
-  if (!log_file_)
-    return;
-
   const string command = edge->EvaluateCommand();
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
@@ -104,7 +101,8 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
 
-    WriteEntry(log_file_, *log_entry);
+    if (log_file_)
+      WriteEntry(log_file_, *log_entry);
   }
 }
 
