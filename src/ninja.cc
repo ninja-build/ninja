@@ -65,12 +65,13 @@ void Usage(const BuildConfig& config) {
 "  -t TOOL  run a subtool.\n"
 "           terminates toplevel options; further flags are passed to the tool.\n"
 "           tools are:\n"
-"             browse  browse dependency graph in a web browser\n"
-"             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n"
-"             targets list targets by their rule or depth in the DAG\n"
-"             rules   list all rules\n"
-"             clean   clean built files\n",
+"             browse   browse dependency graph in a web browser\n"
+"             graph    output graphviz dot file for targets\n"
+"             query    show inputs/outputs for a path\n"
+"             targets  list targets by their rule or depth in the DAG\n"
+"             rules    list all rules\n"
+"             commands list all commands required to rebuild given targets\n"
+"             clean    clean built files\n",
           config.parallelism);
 }
 
@@ -357,6 +358,35 @@ int CmdRules(State* state, int argc, char* argv[]) {
   return 0;
 }
 
+void PrintCommands(Edge* edge, set<Edge*>* seen) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in)
+    PrintCommands((*in)->in_edge_, seen);
+
+  if (!edge->is_phony())
+    puts(edge->EvaluateCommand().c_str());
+}
+
+int CmdCommands(State* state, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  set<Edge*> seen;
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintCommands((*in)->in_edge_, &seen);
+
+  return 0;
+}
+
 int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   bool generator = false;
   bool clean_rules = false;
@@ -489,6 +519,8 @@ reload:
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")
       return CmdRules(&state, argc, argv);
+    if (tool == "commands")
+      return CmdCommands(&state, argc, argv);
     // The clean tool uses getopt, and expects argv[0] to contain the name of
     // the tool, i.e. "clean".
     if (tool == "clean")
