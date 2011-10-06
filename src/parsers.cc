@@ -462,7 +462,8 @@ bool ManifestParser::ParseDefaults(string* err) {
     if (!eval.Parse(target, &eval_err))
       return tokenizer_.Error(eval_err, err);
     string path = eval.Evaluate(env_);
-    CanonicalizePath(&path);
+    if (!CanonicalizePath(&path, &eval_err))
+      return tokenizer_.Error(eval_err, err);
     if (!state_->AddDefault(path, &eval_err))
       return tokenizer_.Error(eval_err, err);
   } while (tokenizer_.ReadIdent(&target));
@@ -566,7 +567,8 @@ bool ManifestParser::ParseEdge(string* err) {
       if (!eval.Parse(*i, &eval_err))
         return tokenizer_.Error(eval_err, err);
       string path = eval.Evaluate(env);
-      CanonicalizePath(&path);
+      if (!CanonicalizePath(&path, &eval_err))
+        return tokenizer_.Error(eval_err, err);
       *i = path;
     }
   }

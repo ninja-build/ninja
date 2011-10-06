@@ -359,6 +359,26 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 10: expected newline, got ':'", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default $a\n", &err));
+    EXPECT_EQ("line 1, col 9: empty path", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule r\n"
+                              "  command = r\n"
+                              "build $a: r $c\n", &err));
+    // XXX the line number is wrong; we should evaluate paths in ParseEdge
+    // as we see them, not after we've read them all!
+    EXPECT_EQ("line 4, col 1: empty path", err);
+  }
 }
 
 TEST_F(ParserTest, MultipleOutputs)

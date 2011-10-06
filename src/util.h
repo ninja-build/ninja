@@ -31,7 +31,7 @@ void Warning(const char* msg, ...);
 void Error(const char* msg, ...);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
-void CanonicalizePath(string* path);
+bool CanonicalizePath(string* path, string* err);
 
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.

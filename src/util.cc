@@ -64,9 +64,14 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-void CanonicalizePath(string* path) {
+bool CanonicalizePath(string* path, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
+
+  if (path->empty()) {
+    *err = "empty path";
+    return false;
+  }
 
   const int kMaxPathComponents = 30;
   char* components[kMaxPathComponents];
@@ -120,6 +125,7 @@ void CanonicalizePath(string* path) {
   }
 
   path->resize(dst - path->c_str() - 1);
+  return true;
 }
 
 int MakeDir(const string& path) {

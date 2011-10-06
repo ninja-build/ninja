@@ -116,7 +116,8 @@ struct RealFileReader : public ManifestParser::FileReader {
 bool RebuildManifest(State* state, const BuildConfig& config,
                      const char* input_file, string* err) {
   string path = input_file;
-  CanonicalizePath(&path);
+  if (!CanonicalizePath(&path, err))
+    return false;
   Node* node = state->LookupNode(path);
   if (!node)
     return false;
@@ -139,7 +140,8 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   } else {
     for (int i = 0; i < argc; ++i) {
       string path = argv[i];
-      CanonicalizePath(&path);
+      if (!CanonicalizePath(&path, err))
+        return false;
 
       // Special syntax: "foo.cc^" means "the first output of foo.cc".
       bool first_dependent = false;

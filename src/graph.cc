@@ -178,7 +178,8 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   for (vector<StringPiece>::iterator i = makefile.ins_.begin();
        i != makefile.ins_.end(); ++i, ++implicit_dep) {
     string path(i->str_, i->len_);
-    CanonicalizePath(&path);
+    if (!CanonicalizePath(&path, err))
+      return false;
 
     Node* node = state->GetNode(path);
     *implicit_dep = node;
