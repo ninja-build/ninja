@@ -156,9 +156,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
-        int substr = std::min(to_print.size(),
-                              to_print.size() + kMargin - size.ws_col);
-        to_print = "..." + to_print.substr(substr);
+        int elide_size = (size.ws_col - kMargin) / 2;
+        to_print = to_print.substr(0, elide_size)
+          + "..."
+          + to_print.substr(to_print.size() - elide_size, elide_size);
       }
     }
   }
