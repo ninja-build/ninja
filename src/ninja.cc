@@ -62,7 +62,9 @@ void Usage(const BuildConfig& config) {
 "  -v       show all command lines\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "\n"
-"  -t TOOL  run a subtool.  tools are:\n"
+"  -t TOOL  run a subtool.\n"
+"           terminates toplevel options; further flags are passed to the tool.\n"
+"           tools are:\n"
 "             browse  browse dependency graph in a web browser\n"
 "             graph   output graphviz dot file for targets\n"
 "             query   show inputs/outputs for a path\n"
@@ -402,7 +404,8 @@ int main(int argc, char** argv) {
   };
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", kLongOptions,
+  while (tool.empty() &&
+         (opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'f':
