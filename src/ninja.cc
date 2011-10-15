@@ -358,30 +358,40 @@ int CmdRules(State* state, int argc, char* argv[]) {
 }
 
 int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
-  Cleaner cleaner(state, config);
-  if (argc >= 1)
-  {
-    string mode = argv[0];
-    if (mode == "target") {
-      if (argc >= 2) {
-        return cleaner.CleanTargets(argc - 1, &argv[1]);
-      } else {
-        Error("expected a target to clean");
+  bool generator = false;
+  bool clean_rules = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, "gr")) != -1) {
+    switch (opt) {
+      case 'g':
+        generator = true;
+        break;
+      case 'r':
+        clean_rules = true;
+        break;
+      default:
+        Usage(config);
         return 1;
-      }
-    } else if (mode == "rule") {
-      if (argc >= 2) {
-        return cleaner.CleanRules(argc - 1, &argv[1]);
-      } else {
-        Error("expected a rule to clean");
-        return 1;
-      }
-    } else {
-      return cleaner.CleanTargets(argc, argv);
     }
   }
-  else {
-    return cleaner.CleanAll();
+  argv += optind;
+  argc -= optind;
+
+  if (clean_rules && argc == 0) {
+    Error("expected a rule to clean");
+    return 1;
+  }
+
+  Cleaner cleaner(state, config);
+  if (argc >= 1) {
+    if (clean_rules)
+      return cleaner.CleanRules(argc, argv);
+    else
+      return cleaner.CleanTargets(argc, argv);
+  } else {
+    return cleaner.CleanAll(generator);
   }
 }
 
@@ -479,8 +489,10 @@ reload:
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")
       return CmdRules(&state, argc, argv);
+    // The clean tool uses getopt, and expects argv[0] to contain the name of
+    // the tool, i.e. "clean".
     if (tool == "clean")
-      return CmdClean(&state, argc, argv, config);
+      return CmdClean(&state, argc+1, argv-1, config);
     Error("unknown tool '%s'", tool.c_str());
   }
 

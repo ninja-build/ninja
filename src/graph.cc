@@ -93,8 +93,10 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       (*i)->dirty_ = true;
     } else {
       // May also be dirty due to the command changing since the last build.
+      // But if this is a generator rule, the command changing does not make us
+      // dirty.
       BuildLog::LogEntry* entry;
-      if (state->build_log_ &&
+      if (!rule_->generator_ && state->build_log_ &&
           (entry = state->build_log_->LookupByOutput((*i)->file_->path_))) {
         if (command != entry->command)
           (*i)->dirty_ = true;

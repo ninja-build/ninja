@@ -383,6 +383,12 @@ bool ManifestParser::ParseRule(string* err) {
         eval_target = &rule->depfile_;
       } else if (key == "description") {
         eval_target = &rule->description_;
+      } else if (key == "generator") {
+        rule->generator_ = true;
+        string dummy;
+        if (!tokenizer_.ReadToNewline(&dummy, err))
+          return false;
+        continue;
       } else {
         // Die on other keyvals for now; revisit if we want to add a
         // scope here.
