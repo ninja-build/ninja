@@ -383,15 +383,14 @@ one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.
 
 `clean`:: remove built files.  If used like this +ninja -t clean+ it removes
-all the built files, except for those created by the generator.  If used like
-this +ninja -t clean -g+ it also removes built files created by the generator.
-If used like this +ninja -t clean _targets..._+ or like this +ninja -t clean
-target _targets..._+ it removes the given targets and recursively all files
-built for it.  If used like this +ninja -t clean rule _rules_+ it removes
-all files built using the given rules. The depfiles are not removed. Files
-created but not referenced in the graph are not removed. This tool takes
-in account the +-v+ and the +-n+ options (note that +-n+ implies +-v+).
-It returns non-zero if an error occurs.
+all the built files, except for those created by the generator.  If used
+like this +ninja -t clean -g+ it also removes built files created by the
+generator.  If used like this +ninja -t clean _targets..._+ it removes the
+given targets and recursively all files built for it.  If used like this
++ninja -t clean -r _rules_+ it removes all files built using the given
+rules. The depfiles are not removed. Files created but not referenced in
+the graph are not removed. This tool takes in account the +-v+ and the +-n+
+options (note that +-n+ implies +-v+).  It returns non-zero if an error occurs.
 
 Ninja file reference
 --------------------

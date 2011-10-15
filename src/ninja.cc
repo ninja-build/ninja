@@ -359,13 +359,17 @@ int CmdRules(State* state, int argc, char* argv[]) {
 
 int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   bool generator = false;
+  bool clean_rules = false;
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, "g")) != -1) {
+  while ((opt = getopt(argc, argv, "gr")) != -1) {
     switch (opt) {
       case 'g':
         generator = true;
+        break;
+      case 'r':
+        clean_rules = true;
         break;
       default:
         Usage(config);
@@ -375,29 +379,18 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   argv += optind;
   argc -= optind;
 
-  Cleaner cleaner(state, config);
-  if (argc >= 1)
-  {
-    string mode = argv[0];
-    if (mode == "target") {
-      if (argc >= 2) {
-        return cleaner.CleanTargets(argc - 1, &argv[1]);
-      } else {
-        Error("expected a target to clean");
-        return 1;
-      }
-    } else if (mode == "rule") {
-      if (argc >= 2) {
-        return cleaner.CleanRules(argc - 1, &argv[1]);
-      } else {
-        Error("expected a rule to clean");
-        return 1;
-      }
-    } else {
-      return cleaner.CleanTargets(argc, argv);
-    }
+  if (clean_rules && argc == 0) {
+    Error("expected a rule to clean");
+    return 1;
   }
-  else {
+
+  Cleaner cleaner(state, config);
+  if (argc >= 1) {
+    if (clean_rules)
+      return cleaner.CleanRules(argc, argv);
+    else
+      return cleaner.CleanTargets(argc, argv);
+  } else {
     return cleaner.CleanAll(generator);
   }
 }
