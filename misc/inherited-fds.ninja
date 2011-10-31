@@ -1,0 +1,23 @@
+# This build file prints out a list of open file descriptors in
+# Ninja subprocesses, to help verify we don't accidentally leak
+# any.
+
+# Because one fd leak was in the code managing multiple subprocesses,
+# this test brings up multiple subprocesses and then dumps the fd
+# table of the last one.
+
+# Use like: ./ninja -f misc/inherited-fds.ninja
+
+rule sleep
+  command = sleep 10000
+
+rule dump
+  command = sleep 1; ls -l /proc/self/fd; exit 1
+
+build all: phony a b c d e
+
+build a: sleep
+build b: sleep
+build c: sleep
+build d: sleep
+build e: dump

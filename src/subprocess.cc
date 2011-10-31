@@ -42,6 +42,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
+  SetCloseOnExec(fd_);
 
   pid_ = fork();
   if (pid_ < 0)
