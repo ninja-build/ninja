@@ -19,6 +19,7 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,6 +157,21 @@ int ReadFile(const string& path, string* contents, string* err) {
   }
   fclose(f);
   return 0;
+}
+
+void SetCloseOnExec(int fd) {
+#ifndef _WIN32
+  int flags = fcntl(fd, F_GETFD);
+  if (flags < 0) {
+    perror("fcntl(F_GETFD)");
+  } else {
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0)
+      perror("fcntl(F_SETFD)");
+  }
+#else
+  // On Windows, handles must be explicitly marked to be passed to a
+  // spawned process, so there's nothing to do here.
+#endif  // WIN32
 }
 
 int64_t GetTimeMillis() {

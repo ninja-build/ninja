@@ -41,6 +41,9 @@ int MakeDir(const string& path);
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
+/// Mark a file descriptor to not be inherited on exec()s.
+void SetCloseOnExec(int fd);
+
 /// Get the current time as relative to some epoch.
 /// Epoch varies between platforms; only useful for measuring elapsed
 /// time.

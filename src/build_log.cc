@@ -15,13 +15,13 @@
 #include "build_log.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "build.h"
 #include "graph.h"
+#include "util.h"
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -34,21 +34,6 @@ namespace {
 
 const char kFileSignature[] = "# ninja log v2\n";
 const int kCurrentVersion = 2;
-
-void SetCloseOnExec(FILE* file) {
-#ifndef _WIN32
-  int flags = fcntl(fileno(file), F_GETFD);
-  if (flags < 0) {
-    perror("fcntl(F_GETFD)");
-  } else {
-    if (fcntl(fileno(file), F_SETFD, flags | FD_CLOEXEC) < 0)
-      perror("fcntl(F_SETFD)");
-  }
-#else
-  // On Windows, handles must be explicitly marked to be passed to a
-  // spawned process, so there's nothing to do here.
-#endif  // WIN32
-}
 
 }
 
@@ -71,7 +56,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return false;
   }
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
-  SetCloseOnExec(log_file_);
+  SetCloseOnExec(fileno(log_file_));
 
   if (ftell(log_file_) == 0) {
     if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {
