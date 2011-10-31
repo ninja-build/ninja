@@ -389,6 +389,12 @@ bool ManifestParser::ParseRule(string* err) {
         if (!tokenizer_.ReadToNewline(&dummy, err))
           return false;
         continue;
+      } else if (key == "restat") {
+        rule->restat_ = true;
+        string dummy;
+        if (!tokenizer_.ReadToNewline(&dummy, err))
+          return false;
+        continue;
       } else {
         // Die on other keyvals for now; revisit if we want to add a
         // scope here.

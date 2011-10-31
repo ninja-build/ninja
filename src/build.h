@@ -15,12 +15,14 @@
 #ifndef NINJA_BUILD_H_
 #define NINJA_BUILD_H_
 
+#include <map>
 #include <set>
 #include <string>
 #include <queue>
 #include <vector>
 using namespace std;
 
+struct BuildLog;
 struct Edge;
 struct DiskInterface;
 struct Node;
@@ -41,7 +43,7 @@ struct Plan {
   Edge* FindWork();
 
   /// Returns true if there's more work to be done.
-  bool more_to_do() const { return !want_.empty(); }
+  bool more_to_do() const { return wanted_edges_; }
 
   /// Dumps the current state of the plan.
   void Dump();
@@ -49,6 +51,9 @@ struct Plan {
   /// Mark an edge as done building.  Used internally and by
   /// tests.
   void EdgeFinished(Edge* edge);
+
+  /// Clean the given node during the build.
+  void CleanNode(BuildLog* build_log, Node* node);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -58,11 +63,20 @@ private:
   bool CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err);
   void NodeFinished(Node* node);
 
-  set<Edge*> want_;
+  /// Keep track of which edges we want to build in this plan.  If this map does
+  /// not contain an entry for an edge, we do not want to build the entry or its
+  /// dependents.  If an entry maps to false, we do not want to build it, but we
+  /// might want to build one of its dependents.  If the entry maps to true, we
+  /// want to build it.
+  map<Edge*, bool> want_;
+
   set<Edge*> ready_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
+
+  /// Total remaining number of wanted edges.
+  int wanted_edges_;
 };
 
 /// CommandRunner is an interface that wraps running the build
