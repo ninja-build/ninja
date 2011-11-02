@@ -106,3 +106,9 @@ vector<Node*> State::RootNodes(string* err) {
 vector<Node*> State::DefaultNodes(string* err) {
   return defaults_.empty() ? RootNodes(err) : defaults_;
 }
+
+void State::Reset() {
+  stat_cache_.Invalidate();
+  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
+    (*e)->outputs_ready_ = false;
+}

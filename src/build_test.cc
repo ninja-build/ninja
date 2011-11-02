@@ -14,6 +14,7 @@
 
 #include "build.h"
 
+#include "build_log.h"
 #include "graph.h"
 #include "test.h"
 
@@ -42,7 +43,6 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  GetNode("mid")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -50,7 +50,6 @@ TEST_F(PlanTest, Basic) {
   ASSERT_EQ("mid", edge->inputs_[0]->file_->path_);
   ASSERT_EQ("out", edge->outputs_[0]->file_->path_);
 
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   ASSERT_FALSE(plan_.more_to_do());
@@ -75,13 +74,10 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("mid1")->dirty_ = false;
-  GetNode("mid2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid1 mid2
-  GetNode("in")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -108,23 +104,18 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("a1")->dirty_ = false;
-  GetNode("a2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1
-  GetNode("b1")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a2
-  GetNode("b2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -151,22 +142,18 @@ TEST_F(PlanTest, DoubleDependent) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  GetNode("mid")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  GetNode("a1")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  GetNode("a2")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1 a2
-  GetNode("out")->dirty_ = false;
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
@@ -252,7 +239,8 @@ bool BuildTest::StartCommand(Edge* edge) {
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->file_->path_, now_, "");
     }
-  } else if (edge->rule_->name_ == "fail") {
+  } else if (edge->rule_->name_ == "true" ||
+             edge->rule_->name_ == "fail") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -324,10 +312,12 @@ TEST_F(BuildTest, TwoStep) {
 
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
+  now_++;
+
   // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
-  GetNode("cat2")->dirty_ = true;
-  GetNode("cat12")->dirty_ = true;
+  fs_.Create("in2", now_, "");
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -372,7 +362,7 @@ TEST_F(BuildTest, Chain) {
 
   err.clear();
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -382,7 +372,7 @@ TEST_F(BuildTest, Chain) {
   fs_.Create("c3", now_, "");
   err.clear();
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
@@ -518,7 +508,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("blah.h", now_, "");
   fs_.Create("bar.h", now_, "");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -529,7 +519,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", now_, "");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -537,11 +527,58 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // implicit dep missing, expect rebuild.
   fs_.RemoveFile("bar.h");
   commands_ran_.clear();
-  state_.stat_cache_.Invalidate();
+  state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
+}
+
+TEST_F(BuildTest, RebuildOrderOnlyDeps) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n"
+"rule true\n  command = true\n"
+"build oo.h: cc oo.h.in\n"
+"build foo.o: cc foo.c || oo.h\n"));
+
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("oo.h.in", now_, "");
+
+  // foo.o and order-only dep dirty, build both.
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, commands_ran_.size());
+
+  // all clean, no rebuild.
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // order-only dep missing, build it only.
+  fs_.RemoveFile("oo.h");
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
+
+  now_++;
+
+  // order-only dep dirty, build it only.
+  fs_.Create("oo.h.in", now_, "");
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
 }
 
 TEST_F(BuildTest, Phony) {
@@ -629,4 +666,62 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
+struct BuildWithLogTest : public BuildTest {
+  BuildWithLogTest() {
+    state_.build_log_ = builder_.log_ = &build_log_;
+  }
+
+  BuildLog build_log_;
+};
+
+TEST_F(BuildWithLogTest, RestatTest) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"
+"  restat = 1\n"
+"rule cc\n"
+"  command = cc\n"
+"  restat = 1\n"
+"build out1: cc in\n"
+"build out2: true out1\n"
+"build out3: cat out2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  fs_.Create("out3", now_, "");
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // "cc" touches out1, so we should build out2.  But because "true" does not
+  // touch out2, we should cancel the build of out3.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2u, commands_ran_.size());
+
+  // If we run again, it should be a no-op, because the build log has recorded
+  // that we've already built out2 with an input timestamp of 2 (from out1).
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // The build log entry should not, however, prevent us from rebuilding out2
+  // if out1 changes.
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2u, commands_ran_.size());
 }

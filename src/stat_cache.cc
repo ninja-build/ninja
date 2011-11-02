@@ -38,6 +38,8 @@ void StatCache::Dump() {
 }
 
 void StatCache::Invalidate() {
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     i->second->mtime_ = -1;
+    i->second->node_->dirty_ = false;
+  }
 }

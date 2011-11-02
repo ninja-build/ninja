@@ -469,6 +469,12 @@ aborting due to a missing input.
   if the command line changes; and secondly, they are not cleaned
   by default.
 
+`restat`:: if present, causes Ninja to re-stat the command's outputs after
+ execution of the command.  Each output whose modification time the command
+ did not change will be treated as though it had never needed to be built.
+ This may cause the output's reverse dependencies to be removed from the
+ list of pending build actions.
+
 Additionally, the special `$in` and `$out` variables expand to the
 space-separated list of files provided to the `build` line referencing
 this `rule`.
@@ -502,9 +508,9 @@ Note that dependencies as loaded through depfiles have slightly different
 semantics, as described in the <<ref_rule,rule reference>>.
 
 3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
-   _dep2_+ on the end of a build line.  When these are missing, the
-   output is not rebuilt until they are built, but once they are
-   available further changes to the files do not affect the output.
+   _dep2_+ on the end of a build line.  When these are out of date, the
+   output is not rebuilt until they are built, but changes in order-only
+   dependencies alone do not cause the output to be rebuilt.
 +
 Order-only dependencies can be useful for bootstrapping dependencies
 that are only discovered during build time: for example, to generate a
