@@ -382,6 +382,10 @@ than the _depth_ mode.  It returns non-zero if an error occurs.
 one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.
 
+`commands`:: given a list of targets, print a list of commands which, if
+executed in order, may be used to rebuild those targets, assuming that all
+output files are out of date.
+
 `clean`:: remove built files.  If used like this +ninja -t clean+ it removes
 all the built files, except for those created by the generator.  If used
 like this +ninja -t clean -g+ it also removes built files created by the
