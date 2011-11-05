@@ -69,7 +69,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       error_pipe = 2;
       close(output_pipe[1]);
 
-      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL);
+      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
     } while (false);
 
     // If we get here, something went wrong; the execl should have
