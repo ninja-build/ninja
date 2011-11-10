@@ -46,8 +46,6 @@ int EditDistance(const StringPiece& s1,
 
 
     for (int x = 1; x <= n; ++x) {
-(void)(x + n ? 1 : 2);
-
       if (allow_replacements) {
         current[x] = min(previous[x-1] + (s1.str_[y-1] == s2.str_[x-1] ? 0 : 1),
                          min(current[x-1], previous[x])+1);
