@@ -48,4 +48,4 @@ struct StringPiece {
   int len_;
 };
 
-#endif  // NINJA_BROWSE_H_
+#endif  // NINJA_STRINGPIECE_H_
