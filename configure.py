@@ -130,13 +130,11 @@ if platform not in ('mingw'):
            command='src/inline.sh $varname < $in > $out',
            description='INLINE $out')
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
+            implicit='src/inline.sh',
             variables=[('varname', 'kBrowsePy')])
     n.newline()
 
-    n.comment("TODO: this shouldn't need to depend on inline.sh.")
-    objs += cxx('browse',
-                implicit='src/inline.sh',
-                order_only=built('browse_py.h'))
+    objs += cxx('browse', order_only=built('browse_py.h'))
     n.newline()
 
 n.comment('Core source files all build into ninja library.')
