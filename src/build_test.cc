@@ -181,7 +181,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),
                 last_command_(NULL) {
     builder_.disk_interface_ = &fs_;
-    builder_.command_runner_ = this;
+    builder_.command_runner_.reset(this);
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
@@ -191,13 +191,17 @@ struct BuildTest : public StateTestWithBuiltinRules,
     fs_.Create("in2", now_, "");
   }
 
+  ~BuildTest() {
+    builder_.command_runner_.release();
+  }
+
   // Mark a path dirty.
   void Dirty(const string& path);
 
   // CommandRunner impl
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(bool* success, string* output);
+  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -251,15 +255,16 @@ bool BuildTest::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* BuildTest::WaitForCommand(bool* success, string* output) {
+Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   if (Edge* edge = last_command_) {
     if (edge->rule().name() == "fail")
-      *success = false;
+      *status = ExitFailure;
     else
-      *success = true;
+      *status = ExitSuccess;
     last_command_ = NULL;
     return edge;
   }
+  *status = ExitFailure;
   return NULL;
 }
 

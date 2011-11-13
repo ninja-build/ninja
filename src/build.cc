@@ -396,12 +396,26 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(bool* success, string* output);
+  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual vector<Edge*> GetActiveEdges();
+  virtual void Abort();
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
+
+vector<Edge*> RealCommandRunner::GetActiveEdges() {
+  vector<Edge*> edges;
+  for (map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.begin();
+       i != subproc_to_edge_.end(); ++i)
+    edges.push_back(i->second);
+  return edges;
+}
+
+void RealCommandRunner::Abort() {
+  subprocs_.Clear();
+}
 
 bool RealCommandRunner::CanRunMore() {
   return ((int)subprocs_.running_.size()) < config_.parallelism;
@@ -409,22 +423,25 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = new Subprocess;
-  subproc_to_edge_.insert(make_pair(subproc, edge));
-  if (!subproc->Start(&subprocs_, command))
+  Subprocess* subproc = subprocs_.Add(command);
+  if (!subproc)
     return false;
-
-  subprocs_.Add(subproc);
+  subproc_to_edge_.insert(make_pair(subproc, edge));
+  
   return true;
 }
 
-Edge* RealCommandRunner::WaitForCommand(bool* success, string* output) {
+Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
-    subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork();
+    if (interrupted) {
+      *status = ExitInterrupted;
+      return 0;
+    }
   }
 
-  *success = subproc->Finish();
+  *status = subproc->Finish();
   *output = subproc->GetOutput();
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
@@ -445,10 +462,12 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual Edge* WaitForCommand(bool* success, string* output) {
-    if (finished_.empty())
+  virtual Edge* WaitForCommand(ExitStatus* status, string* /* output */) {
+    if (finished_.empty()) {
+      *status = ExitFailure;
       return NULL;
-    *success = true;
+    }
+    *status = ExitSuccess;
     Edge* edge = finished_.front();
     finished_.pop();
     return edge;
@@ -461,11 +480,27 @@ Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
   if (config.dry_run)
-    command_runner_ = new DryRunCommandRunner;
+    command_runner_.reset(new DryRunCommandRunner);
   else
-    command_runner_ = new RealCommandRunner(config);
+    command_runner_.reset(new RealCommandRunner(config));
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
+}
+
+Builder::~Builder() {
+  if (command_runner_.get()) {
+    vector<Edge*> active_edges = command_runner_->GetActiveEdges();
+    command_runner_->Abort();
+
+    for (vector<Edge*>::iterator i = active_edges.begin();
+         i != active_edges.end(); ++i) {
+      for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
+           ni != (*i)->outputs_.end(); ++ni)
+        disk_interface_->RemoveFile((*ni)->path());
+      if (!(*i)->rule_->depfile_.empty())
+        disk_interface_->RemoveFile((*i)->EvaluateDepFile());
+    }
+  }
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -533,10 +568,11 @@ bool Builder::Build(string* err) {
 
     // See if we can reap any finished commands.
     if (pending_commands) {
-      bool success;
+      ExitStatus status;
       string output;
-      Edge* edge;
-      if ((edge = command_runner_->WaitForCommand(&success, &output))) {
+      Edge* edge = command_runner_->WaitForCommand(&status, &output);
+      if (edge && status != ExitInterrupted) {
+        bool success = (status == ExitSuccess);
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
@@ -551,6 +587,12 @@ bool Builder::Build(string* err) {
 
         // We made some progress; start the main loop over.
         continue;
+      }
+
+      if (status == ExitInterrupted) {
+        status_->BuildFinished();
+        *err = "interrupted by user";
+        return false;
       }
     }
 
