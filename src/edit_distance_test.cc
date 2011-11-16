@@ -14,7 +14,6 @@
 
 #include "edit_distance.h"
 
-#include "string_piece.h"
 #include "test.h"
 
 TEST(EditDistanceTest, TestEmpty) {

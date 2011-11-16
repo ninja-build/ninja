@@ -37,6 +37,8 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "edit_distance.h"
+
 void Fatal(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: FATAL: ");
@@ -183,4 +185,27 @@ int64_t GetTimeMillis() {
   gettimeofday(&now, NULL);
   return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
 #endif
+}
+
+const char* SpellcheckString(const string& text, ...) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  va_list ap;
+  va_start(ap, text);
+  const char* correct_spelling;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  const char* result = NULL;
+  while ((correct_spelling = va_arg(ap, const char*))) {
+    int distance = EditDistance(
+        correct_spelling, text, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance) {
+      min_distance = distance;
+      result = correct_spelling;
+    }
+  }
+
+  va_end(ap);
+  return result;
 }

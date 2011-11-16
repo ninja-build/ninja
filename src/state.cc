@@ -59,6 +59,13 @@ Node* State::LookupNode(const string& path) {
   return file->node_;
 }
 
+Node* State::SpellcheckNode(const string& path) {
+  FileStat* file = stat_cache_.SpellcheckFile(path);
+  if (!file || !file->node_)
+    return NULL;
+  return file->node_;
+}
+
 void State::AddIn(Edge* edge, const string& path) {
   Node* node = GetNode(path);
   edge->inputs_.push_back(node);

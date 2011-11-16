@@ -26,6 +26,7 @@ struct FileStat;
 /// Mapping of path -> FileStat.
 struct StatCache {
   FileStat* GetFile(const std::string& path);
+  FileStat* SpellcheckFile(const std::string& path);
 
   /// Dump the mapping to stdout (useful for debugging).
   void Dump();

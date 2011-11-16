@@ -16,8 +16,6 @@
 
 #include <vector>
 
-#include "string_piece.h"
-
 int EditDistance(const StringPiece& s1,
                  const StringPiece& s2,
                  bool allow_replacements,
