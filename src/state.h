@@ -41,6 +41,7 @@ struct State {
   Edge* AddEdge(const Rule* rule);
   Node* GetNode(const string& path);
   Node* LookupNode(const string& path);
+  Node* SpellcheckNode(const string& path);
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
   bool AddDefault(const string& path, string* error);
