@@ -49,6 +49,10 @@ void SetCloseOnExec(int fd);
 /// time.
 int64_t GetTimeMillis();
 
+/// Given a misspelled string and a NULL-terminatd list of correct spellings,
+/// returns the closest match or NULL if there is no close enough match.
+const char* SpellcheckString(const string& text, ...);
+
 #ifdef _WIN32
 #define snprintf _snprintf
 #endif

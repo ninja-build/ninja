@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 
+#include "edit_distance.h"
 #include "graph.h"
 
 FileStat* StatCache::GetFile(const std::string& path) {
@@ -25,6 +26,23 @@ FileStat* StatCache::GetFile(const std::string& path) {
   FileStat* file = new FileStat(path);
   paths_[file->path_.c_str()] = file;
   return file;
+}
+
+FileStat* StatCache::SpellcheckFile(const std::string& path) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  FileStat* result = NULL;
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    int distance = EditDistance(
+        i->first, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && i->second->node_) {
+      min_distance = distance;
+      result = i->second;
+    }
+  }
+  return result;
 }
 
 void StatCache::Dump() {

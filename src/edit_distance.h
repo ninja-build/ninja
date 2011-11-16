@@ -15,7 +15,7 @@
 #ifndef NINJA_EDIT_DISTANCE_H_
 #define NINJA_EDIT_DISTANCE_H_
 
-struct StringPiece;
+#include "string_piece.h"
 
 int EditDistance(const StringPiece& s1,
                  const StringPiece& s2,

@@ -36,6 +36,7 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "edit_distance.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "parsers.h"
@@ -170,6 +171,11 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
         targets->push_back(node);
       } else {
         *err = "unknown target '" + path + "'";
+
+        Node* suggestion = state->SpellcheckNode(path);
+        if (suggestion) {
+          *err += ", did you mean '" + suggestion->file_->path_ + "'?";
+        }
         return false;
       }
     }
@@ -200,7 +206,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = state->GetNode(argv[i]);
+    Node* node = state->LookupNode(argv[i]);
     if (node) {
       printf("%s:\n", argv[i]);
       if (node->in_edge_) {
@@ -219,7 +225,13 @@ int CmdQuery(State* state, int argc, char* argv[]) {
         }
       }
     } else {
-      printf("%s unknown\n", argv[i]);
+      Node* suggestion = state->SpellcheckNode(argv[i]);
+      if (suggestion) {
+        printf("%s unknown, did you mean %s?\n",
+               argv[i], suggestion->file_->path_.c_str());
+      } else {
+        printf("%s unknown\n", argv[i]);
+      }
       return 1;
     }
   }
@@ -329,7 +341,14 @@ int CmdTargets(State* state, int argc, char* argv[]) {
     } else if (mode == "all") {
       return CmdTargetsList(state);
     } else {
-      Error("unknown target tool mode '%s'", mode.c_str());
+      const char* suggestion =
+          SpellcheckString(mode, "rule", "depth", "all", NULL);
+      if (suggestion) {
+        Error("unknown target tool mode '%s', did you mean '%s'?",
+              mode.c_str(), suggestion);
+      } else {
+        Error("unknown target tool mode '%s'", mode.c_str());
+      }
       return 1;
     }
   }
@@ -525,7 +544,14 @@ reload:
     // the tool, i.e. "clean".
     if (tool == "clean")
       return CmdClean(&state, argc+1, argv-1, config);
-    Error("unknown tool '%s'", tool.c_str());
+
+    const char* suggestion = SpellcheckString(tool,
+        "graph", "query", "browse", "targets", "rules", "commands", NULL);
+    if (suggestion) {
+      Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
+    } else {
+      Error("unknown tool '%s'", tool.c_str());
+    }
   }
 
   BuildLog build_log;
