@@ -31,7 +31,7 @@ void Warning(const char* msg, ...);
 void Error(const char* msg, ...);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
-void CanonicalizePath(string* path);
+bool CanonicalizePath(string* path, string* err);
 
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.
@@ -41,10 +41,17 @@ int MakeDir(const string& path);
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
+/// Mark a file descriptor to not be inherited on exec()s.
+void SetCloseOnExec(int fd);
+
 /// Get the current time as relative to some epoch.
 /// Epoch varies between platforms; only useful for measuring elapsed
 /// time.
 int64_t GetTimeMillis();
+
+/// Given a misspelled string and a NULL-terminatd list of correct spellings,
+/// returns the closest match or NULL if there is no close enough match.
+const char* SpellcheckString(const string& text, ...);
 
 #ifdef _WIN32
 #define snprintf _snprintf

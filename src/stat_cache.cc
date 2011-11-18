@@ -16,15 +16,33 @@
 
 #include <stdio.h>
 
+#include "edit_distance.h"
 #include "graph.h"
 
 FileStat* StatCache::GetFile(const std::string& path) {
-  Paths::iterator i = paths_.find(path);
+  Paths::iterator i = paths_.find(path.c_str());
   if (i != paths_.end())
     return i->second;
   FileStat* file = new FileStat(path);
-  paths_[path] = file;
+  paths_[file->path_.c_str()] = file;
   return file;
+}
+
+FileStat* StatCache::SpellcheckFile(const std::string& path) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  FileStat* result = NULL;
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    int distance = EditDistance(
+        i->first, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && i->second->node_) {
+      min_distance = distance;
+      result = i->second;
+    }
+  }
+  return result;
 }
 
 void StatCache::Dump() {
@@ -34,5 +52,12 @@ void StatCache::Dump() {
            file->path_.c_str(),
            file->status_known() ? (file->node_->dirty_ ? "dirty" : "clean")
                                 : "unknown");
+  }
+}
+
+void StatCache::Invalidate() {
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    i->second->mtime_ = -1;
+    i->second->node_->dirty_ = false;
   }
 }

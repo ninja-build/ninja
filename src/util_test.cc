@@ -17,52 +17,59 @@
 #include "test.h"
 
 TEST(CanonicalizePath, PathSamples) {
-  std::string path = "foo.h";
-  CanonicalizePath(&path);
+  string path;
+  string err;
+
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("empty path", err);
+
+  path = "foo.h"; err = "";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo.h", path);
 
   path = "./foo.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo.h", path);
 
   path = "./foo/./bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo/bar.h", path);
 
   path = "./x/foo/../bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("x/bar.h", path);
 
   path = "./x/foo/../../bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("bar.h", path);
 
   path = "foo//bar";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo/bar", path);
 
   path = "foo//.//..///bar";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("bar", path);
 
   path = "./x/../foo/../../bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../bar.h", path);
 }
 
 TEST(CanonicalizePath, UpDir) {
   std::string path, err;
   path = "../../foo/bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../../foo/bar.h", path);
 
   path = "test/../../foo/bar.h";
-  CanonicalizePath(&path);
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../foo/bar.h", path);
 }
 
 TEST(CanonicalizePath, AbsolutePath) {
   string path = "/usr/include/stdio.h";
-  CanonicalizePath(&path);
+  string err;
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("/usr/include/stdio.h", path);
 }

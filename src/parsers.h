@@ -21,6 +21,8 @@
 
 using namespace std;
 
+#include "string_piece.h"
+
 struct BindingEnv;
 
 /// A single parsed token in an input stream.
@@ -78,6 +80,7 @@ struct Tokenizer {
   bool Newline(string* err);
   bool ExpectToken(Token::Type expected, string* err);
   bool ExpectIdent(const char* expected, string* err);
+  bool ReadIdent(StringPiece* out);
   bool ReadIdent(string* out);
   bool ReadToNewline(string* text, string* err,
                      size_t max_length=std::numeric_limits<size_t>::max());
@@ -102,8 +105,8 @@ struct MakefileParser {
   bool Parse(const string& input, string* err);
 
   Tokenizer tokenizer_;
-  string out_;
-  vector<string> ins_;
+  StringPiece out_;
+  vector<StringPiece> ins_;
 };
 
 struct EvalString;
@@ -126,6 +129,7 @@ struct ManifestParser {
   /// current env.
   bool ParseLet(string* key, string* val, string* err);
   bool ParseEdge(string* err);
+  bool ParseDefaults(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(string* err);

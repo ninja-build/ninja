@@ -15,10 +15,10 @@
 #include "browse.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "../build/browse_py.h"
-#include "ninja.h"
 
 void RunBrowsePython(State* state, const char* ninja_command,
                      const char* initial_target) {

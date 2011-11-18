@@ -14,6 +14,7 @@
 
 #include "build.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -27,7 +28,7 @@
 #include "build_log.h"
 #include "disk_interface.h"
 #include "graph.h"
-#include "ninja.h"
+#include "state.h"
 #include "subprocess.h"
 #include "util.h"
 
@@ -155,9 +156,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
-        int substr = std::min(to_print.size(),
-                              to_print.size() + kMargin - size.ws_col);
-        to_print = "..." + to_print.substr(substr);
+        int elide_size = (size.ws_col - kMargin) / 2;
+        to_print = to_print.substr(0, elide_size)
+          + "..."
+          + to_print.substr(to_print.size() - elide_size, elide_size);
       }
     }
   }
@@ -173,7 +175,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   }
 }
 
-Plan::Plan() : command_edges_(0) {}
+Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
@@ -197,29 +199,38 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (CheckDependencyCycle(node, stack, err))
     return false;
 
-  if (!node->dirty())
+  if (edge->outputs_ready())
     return false;  // Don't need to do anything.
-  if (want_.find(edge) != want_.end())
-    return true;  // We've already enqueued it.
-  want_.insert(edge);
-  if (!edge->is_phony())
-    ++command_edges_;
+
+  // If an entry in want_ does not already exist for edge, create an entry which
+  // maps to false, indicating that we do not want to build this entry itself.
+  pair<map<Edge*, bool>::iterator, bool> want_ins =
+    want_.insert(make_pair(edge, false));
+  bool& want = want_ins.first->second;
+
+  // If we do need to build edge and we haven't already marked it as wanted,
+  // mark it now.
+  if (node->dirty() && !want) {
+    want = true;
+    ++wanted_edges_;
+    if (find_if(edge->inputs_.begin(), edge->inputs_.end(),
+                not1(mem_fun(&Node::ready))) == edge->inputs_.end())
+      ready_.insert(edge);
+    if (!edge->is_phony())
+      ++command_edges_;
+  }
+
+  if (!want_ins.second)
+    return true;  // We've already processed the inputs.
 
   stack->push_back(node);
-  bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (AddSubTarget(*i, stack, err)) {
-      awaiting_inputs = true;
-    } else if (!err->empty()) {
+    if (!AddSubTarget(*i, stack, err) && !err->empty())
       return false;
-    }
   }
   assert(stack->back() == node);
   stack->pop_back();
-
-  if (!awaiting_inputs)
-    ready_.insert(edge);
 
   return true;
 }
@@ -254,7 +265,12 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::EdgeFinished(Edge* edge) {
-  want_.erase(edge);
+  map<Edge*, bool>::iterator i = want_.find(edge);
+  assert(i != want_.end());
+  if (i->second)
+    --wanted_edges_;
+  want_.erase(i);
+  edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -267,26 +283,84 @@ void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
   for (vector<Edge*>::iterator i = node->out_edges_.begin();
        i != node->out_edges_.end(); ++i) {
-    if (want_.find(*i) != want_.end()) {
-      // See if the edge is now ready.
-      bool ready = true;
-      for (vector<Node*>::iterator j = (*i)->inputs_.begin();
-           j != (*i)->inputs_.end(); ++j) {
-        if ((*j)->dirty()) {
-          ready = false;
-          break;
+    map<Edge*, bool>::iterator want_i = want_.find(*i);
+    if (want_i == want_.end())
+      continue;
+
+    // See if the edge is now ready.
+    if (find_if((*i)->inputs_.begin(), (*i)->inputs_.end(),
+                not1(mem_fun(&Node::ready))) == (*i)->inputs_.end()) {
+      if (want_i->second) {
+        ready_.insert(*i);
+      } else {
+        // We do not need to build this edge, but we might need to build one of
+        // its dependents.
+        EdgeFinished(*i);
+      }
+    }
+  }
+}
+
+void Plan::CleanNode(BuildLog* build_log, Node* node) {
+  node->dirty_ = false;
+
+  for (vector<Edge*>::iterator ei = node->out_edges_.begin();
+       ei != node->out_edges_.end(); ++ei) {
+    // Don't process edges that we don't actually want.
+    map<Edge*, bool>::iterator want_i = want_.find(*ei);
+    if (want_i == want_.end() || !want_i->second)
+      continue;
+
+    // If all non-order-only inputs for this edge are now clean,
+    // we might have changed the dirty state of the outputs.
+    vector<Node*>::iterator begin = (*ei)->inputs_.begin(),
+                            end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
+    if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
+      // Recompute most_recent_input and command.
+      time_t most_recent_input = 1;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
+        if ((*ni)->file_->mtime_ > most_recent_input)
+          most_recent_input = (*ni)->file_->mtime_;
+      string command = (*ei)->EvaluateCommand();
+
+      // Now, recompute the dirty state of each output.
+      bool all_outputs_clean = true;
+      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
+           ni != (*ei)->outputs_.end(); ++ni) {
+        if (!(*ni)->dirty_)
+          continue;
+
+        // RecomputeOutputDirty will not modify dirty_ if the output is clean.
+        (*ni)->dirty_ = false;
+
+        // Since we know that all non-order-only inputs are clean, we can pass
+        // "false" as the "dirty" argument here.
+        (*ei)->RecomputeOutputDirty(build_log, most_recent_input, false,
+                                    command, *ni);
+        if ((*ni)->dirty_) {
+          all_outputs_clean = false;
+        } else {
+          CleanNode(build_log, *ni);
         }
       }
-      if (ready)
-        ready_.insert(*i);
+
+      // If we cleaned all outputs, mark the node as not wanted.
+      if (all_outputs_clean) {
+        want_i->second = false;
+        --wanted_edges_;
+        if (!(*ei)->is_phony())
+          --command_edges_;
+      }
     }
   }
 }
 
 void Plan::Dump() {
   printf("pending: %d\n", (int)want_.size());
-  for (set<Edge*>::iterator i = want_.begin(); i != want_.end(); ++i) {
-    (*i)->Dump();
+  for (map<Edge*, bool>::iterator i = want_.begin(); i != want_.end(); ++i) {
+    if (i->second)
+      printf("want ");
+    i->first->Dump();
   }
   printf("ready: %d\n", (int)ready_.size());
 }
@@ -381,12 +455,12 @@ Node* Builder::AddTarget(const string& name, string* err) {
 
 bool Builder::AddTarget(Node* node, string* err) {
   node->file_->StatIfNecessary(disk_interface_);
-  if (node->in_edge_) {
-    if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
+  if (Edge* in_edge = node->in_edge_) {
+    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;
+    if (in_edge->outputs_ready())
+      return true;  // Nothing to do.
   }
-  if (!node->dirty_)
-    return false;  // Intentionally no error.
 
   if (!plan_.AddTarget(node, err))
     return false;
@@ -394,11 +468,12 @@ bool Builder::AddTarget(Node* node, string* err) {
   return true;
 }
 
+bool Builder::AlreadyUpToDate() const {
+  return !plan_.more_to_do();
+}
+
 bool Builder::Build(string* err) {
-  if (!plan_.more_to_do()) {
-    *err = "no work to do";
-    return true;
-  }
+  assert(!AlreadyUpToDate());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
@@ -437,8 +512,8 @@ bool Builder::Build(string* err) {
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
-          if (--failures_allowed < 0) {
-            if (config_.swallow_failures > 0)
+          if (failures_allowed-- == 0) {
+            if (config_.swallow_failures != 0)
               *err = "subcommands failed";
             else
               *err = "subcommand failed";
@@ -495,11 +570,45 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
+  time_t restat_mtime = 0;
+
   if (success) {
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      (*i)->dirty_ = false;
+    if (edge->rule_->restat_) {
+      bool node_cleaned = false;
+
+      for (vector<Node*>::iterator i = edge->outputs_.begin();
+           i != edge->outputs_.end(); ++i) {
+        if ((*i)->file_->exists()) {
+          time_t new_mtime = disk_interface_->Stat((*i)->file_->path_);
+          if ((*i)->file_->mtime_ == new_mtime) {
+            // The rule command did not change the output.  Propagate the clean
+            // state through the build graph.
+            plan_.CleanNode(log_, *i);
+            node_cleaned = true;
+          }
+        }
+      }
+
+      if (node_cleaned) {
+        // If any output was cleaned, find the most recent mtime of any
+        // (existing) non-order-only input.
+        for (vector<Node*>::iterator i = edge->inputs_.begin();
+             i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+          time_t input_mtime = disk_interface_->Stat((*i)->file_->path_);
+          if (input_mtime == 0) {
+            restat_mtime = 0;
+            break;
+          }
+          if (input_mtime > restat_mtime)
+            restat_mtime = input_mtime;
+        }
+
+        // The total number of edges in the plan may have changed as a result
+        // of a restat.
+        status_->PlanHasTotalEdges(plan_.command_edge_count());
+      }
     }
+
     plan_.EdgeFinished(edge);
   }
 
@@ -509,5 +618,5 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
   if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time);
+    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
 }

@@ -19,6 +19,7 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +36,8 @@
 #ifdef _WIN32
 #include <direct.h>  // _mkdir
 #endif
+
+#include "edit_distance.h"
 
 void Fatal(const char* msg, ...) {
   va_list ap;
@@ -64,9 +67,14 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-void CanonicalizePath(string* path) {
+bool CanonicalizePath(string* path, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
+
+  if (path->empty()) {
+    *err = "empty path";
+    return false;
+  }
 
   const int kMaxPathComponents = 30;
   char* components[kMaxPathComponents];
@@ -120,6 +128,7 @@ void CanonicalizePath(string* path) {
   }
 
   path->resize(dst - path->c_str() - 1);
+  return true;
 }
 
 int MakeDir(const string& path) {
@@ -152,6 +161,21 @@ int ReadFile(const string& path, string* contents, string* err) {
   return 0;
 }
 
+void SetCloseOnExec(int fd) {
+#ifndef _WIN32
+  int flags = fcntl(fd, F_GETFD);
+  if (flags < 0) {
+    perror("fcntl(F_GETFD)");
+  } else {
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0)
+      perror("fcntl(F_SETFD)");
+  }
+#else
+  // On Windows, handles must be explicitly marked to be passed to a
+  // spawned process, so there's nothing to do here.
+#endif  // WIN32
+}
+
 int64_t GetTimeMillis() {
 #ifdef _WIN32
   // GetTickCount64 is only available on Vista or later.
@@ -161,4 +185,27 @@ int64_t GetTimeMillis() {
   gettimeofday(&now, NULL);
   return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
 #endif
+}
+
+const char* SpellcheckString(const string& text, ...) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  va_list ap;
+  va_start(ap, text);
+  const char* correct_spelling;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  const char* result = NULL;
+  while ((correct_spelling = va_arg(ap, const char*))) {
+    int distance = EditDistance(
+        correct_spelling, text, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance) {
+      min_distance = distance;
+      result = correct_spelling;
+    }
+  }
+
+  va_end(ap);
+  return result;
 }

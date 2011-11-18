@@ -22,15 +22,22 @@ class Writer(object):
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
+        if value is None:
+            return
+        if isinstance(value, list):
+            value = ' '.join(value)
         self._line('%s = %s' % (key, value), indent)
 
-    def rule(self, name, command, description=None, depfile=None):
+    def rule(self, name, command, description=None, depfile=None,
+             generator=False):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
             self.variable('description', description, indent=1)
         if depfile:
             self.variable('depfile', depfile, indent=1)
+        if generator:
+            self.variable('generator', '1', indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
@@ -59,6 +66,9 @@ class Writer(object):
 
     def subninja(self, path):
         self._line('subninja %s' % path)
+
+    def default(self, paths):
+        self._line('default %s' % ' '.join(self._as_list(paths)))
 
     def _line(self, text, indent=0):
         """Write 'text' word-wrapped at self.width characters."""

@@ -12,28 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_STAT_CACHE_H_
-#define NINJA_STAT_CACHE_H_
+#include <gtest/gtest.h>
 
-#include <string>
+#include "graph.h"
+#include "state.h"
 
-#include "hash_map.h"
+namespace {
 
-#include <string.h>
+TEST(State, Basic) {
+  State state;
+  Rule* rule = new Rule("cat");
+  string err;
+  EXPECT_TRUE(rule->ParseCommand("cat $in > $out", &err));
+  ASSERT_EQ("", err);
+  state.AddRule(rule);
+  Edge* edge = state.AddEdge(rule);
+  state.AddIn(edge, "in1");
+  state.AddIn(edge, "in2");
+  state.AddOut(edge, "out");
 
-struct FileStat;
+  EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 
-/// Mapping of path -> FileStat.
-struct StatCache {
-  FileStat* GetFile(const std::string& path);
-  FileStat* SpellcheckFile(const std::string& path);
+  EXPECT_FALSE(state.GetNode("in1")->dirty());
+  EXPECT_FALSE(state.GetNode("in2")->dirty());
+  EXPECT_FALSE(state.GetNode("out")->dirty());
+}
 
-  /// Dump the mapping to stdout (useful for debugging).
-  void Dump();
-  void Invalidate();
-
-  typedef ExternalStringHashMap<FileStat*>::Type Paths;
-  Paths paths_;
-};
-
-#endif  // NINJA_STAT_CACHE_H_
+}  // namespace

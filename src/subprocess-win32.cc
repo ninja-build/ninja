@@ -53,9 +53,9 @@ Subprocess::~Subprocess() {
 }
 
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
-  char pipe_name[32];
+  char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_%p_out", ::GetModuleHandle(NULL));
+           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetProcessId(GetCurrentProcess()), this);
 
   pipe_ = ::CreateNamedPipeA(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
@@ -88,7 +88,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(struct SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   STARTUPINFOA startup_info = {};

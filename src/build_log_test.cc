@@ -115,3 +115,22 @@ TEST_F(BuildLogTest, Truncate) {
     ASSERT_EQ("", err);
   }
 }
+
+TEST_F(BuildLogTest, UpgradeV2) {
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v2\n");
+  fprintf(f, "123 456 out command\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(123, e->start_time);
+  ASSERT_EQ(456, e->end_time);
+  ASSERT_EQ(0, e->restat_mtime);
+  ASSERT_EQ("command", e->command);
+}

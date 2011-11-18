@@ -14,15 +14,16 @@
 
 #ifndef NINJA_CLEAN_H_
 #define NINJA_CLEAN_H_
+#pragma once
+
+#include <set>
+#include <string>
 
 #include "build.h"
 
-#include <string>
-#include <set>
 using namespace std;
 
 struct State;
-struct BuildConfig;
 struct Node;
 struct Rule;
 struct DiskInterface;
@@ -48,9 +49,10 @@ class Cleaner {
   /// @return non-zero if an error occurs.
   int CleanTargets(int target_count, char* targets[]);
 
-  /// Clean all built files.
+  /// Clean all built files, except for files created by generator rules.
+  /// @param generator If set, also clean files created by generator rules.
   /// @return non-zero if an error occurs.
-  int CleanAll();
+  int CleanAll(bool generator = false);
 
   /// Clean all the file built with the given rule @a rule.
   /// @return non-zero if an error occurs.
@@ -92,7 +94,7 @@ class Cleaner {
   void Reset();
 
   State* state_;
-  BuildConfig config_;
+  const BuildConfig& config_;
   set<string> removed_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
