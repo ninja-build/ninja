@@ -412,7 +412,7 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, "gr")) != -1) {
+  while ((opt = getopt(argc, argv, const_cast<char*>("gr"))) != -1) {
     switch (opt) {
       case 'g':
         generator = true;
