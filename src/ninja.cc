@@ -247,6 +247,10 @@ int CmdBrowse(State* state, const char* ninja_command,
   }
   RunBrowsePython(state, ninja_command, argv[0]);
 #else
+  NINJA_UNUSED_ARG(state);
+  NINJA_UNUSED_ARG(ninja_command);
+  NINJA_UNUSED_ARG(argc);
+  NINJA_UNUSED_ARG(argv);
   Error("browse mode not yet supported on Windows");
 #endif
   // If we get here, the browse failed.

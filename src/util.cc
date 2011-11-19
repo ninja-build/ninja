@@ -173,7 +173,8 @@ void SetCloseOnExec(int fd) {
 #else
   // On Windows, handles must be explicitly marked to be passed to a
   // spawned process, so there's nothing to do here.
-#endif  // WIN32
+  NINJA_UNUSED_ARG(fd);
+#endif  // ! _WIN32
 }
 
 int64_t GetTimeMillis() {
