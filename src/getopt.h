@@ -41,9 +41,9 @@ extern "C"
   /* function prototypes */
   int getopt (int argc, char **argv, char *optstring);
   int getopt_long (int argc, char **argv, const char *shortopts,
-                   GETOPT_LONG_OPTION_T * longopts, int *longind);
+                   const GETOPT_LONG_OPTION_T * longopts, int *longind);
   int getopt_long_only (int argc, char **argv, const char *shortopts,
-                        GETOPT_LONG_OPTION_T * longopts, int *longind);
+                        const GETOPT_LONG_OPTION_T * longopts, int *longind);
 
 #ifdef __cplusplus
 };
