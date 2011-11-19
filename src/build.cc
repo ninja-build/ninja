@@ -163,6 +163,8 @@ void BuildStatus::PrintStatus(Edge* edge) {
       }
     }
   }
+#else
+  NINJA_UNUSED_ARG(progress_chars);
 #endif
 
   printf("%s", to_print.c_str());
@@ -419,7 +421,7 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual Edge* WaitForCommand(bool* success, string* output) {
+  virtual Edge* WaitForCommand(bool* success, string* /* output */) {
     if (finished_.empty())
       return NULL;
     *success = true;

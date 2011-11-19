@@ -90,7 +90,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
-  STARTUPINFOA startup_info = {};
+  STARTUPINFOA startup_info;
   startup_info.cb = sizeof(STARTUPINFO);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
   startup_info.hStdOutput = child_pipe;
