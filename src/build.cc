@@ -419,7 +419,7 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual Edge* WaitForCommand(bool* success, string* output) {
+  virtual Edge* WaitForCommand(bool* success, string* /* output */) {
     if (finished_.empty())
       return NULL;
     *success = true;

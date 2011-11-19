@@ -363,7 +363,7 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 }
 
-int CmdRules(State* state, int argc, char* argv[]) {
+int CmdRules(State* state, int /* argc */, char* /* argv */[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
        i != state->rules_.end(); ++i) {
     if (i->second->description_.unparsed_.empty()) {
@@ -459,7 +459,7 @@ int main(int argc, char** argv) {
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
-    { }
+    { NULL, 0, NULL, 0 }
   };
 
   int opt;
