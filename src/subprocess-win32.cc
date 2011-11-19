@@ -15,7 +15,6 @@
 #include "subprocess.h"
 
 #include <stdio.h>
-#include <windows.h>
 
 #include <algorithm>
 
@@ -55,7 +54,7 @@ Subprocess::~Subprocess() {
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetProcessId(GetCurrentProcess()), this);
+           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetCurrentProcessId(), this);
 
   pipe_ = ::CreateNamedPipeA(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
