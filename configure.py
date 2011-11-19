@@ -35,7 +35,7 @@ parser.add_option('--platform',
 parser.add_option('--debug', action='store_true',
                   help='enable debugging flags',)
 parser.add_option('--profile', metavar='TYPE',
-                  choices=['gmon', 'pprof'],
+                  choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
 parser.add_option('--with-gtest', metavar='PATH',
                   help='use gtest built in directory PATH')
