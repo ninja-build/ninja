@@ -37,7 +37,7 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* /* set */, const string& command) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
