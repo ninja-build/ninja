@@ -45,7 +45,7 @@ struct EvalString {
   string Evaluate(Env* env) const;
 
   const string& unparsed() const { return unparsed_; }
-  const bool empty() const { return unparsed_.empty(); }
+  bool empty() const { return unparsed_.empty(); }
 
   string unparsed_;
   enum TokenType { RAW, SPECIAL };

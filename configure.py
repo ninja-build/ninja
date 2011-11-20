@@ -74,7 +74,7 @@ def cxx(name, **kwargs):
 
 n.variable('builddir', 'build')
 
-cflags = ['-g', '-Wall', '-Wno-deprecated', '-fno-exceptions',
+cflags = ['-g', '-Wall', '-Wextra', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
 if not options.debug:
     cflags += ['-O2', '-DNDEBUG']

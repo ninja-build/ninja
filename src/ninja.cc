@@ -247,6 +247,10 @@ int CmdBrowse(State* state, const char* ninja_command,
   }
   RunBrowsePython(state, ninja_command, argv[0]);
 #else
+  NINJA_UNUSED_ARG(state);
+  NINJA_UNUSED_ARG(ninja_command);
+  NINJA_UNUSED_ARG(argc);
+  NINJA_UNUSED_ARG(argv);
   Error("browse mode not yet supported on Windows");
 #endif
   // If we get here, the browse failed.
@@ -363,7 +367,7 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 }
 
-int CmdRules(State* state, int argc, char* argv[]) {
+int CmdRules(State* state, int /* argc */, char* /* argv */[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
        i != state->rules_.end(); ++i) {
     if (i->second->description_.unparsed_.empty()) {
@@ -459,7 +463,7 @@ int main(int argc, char** argv) {
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
-    { }
+    { NULL, 0, NULL, 0 }
   };
 
   int opt;
