@@ -19,20 +19,19 @@
 #include "graph.h"
 
 namespace {
-  std::string escape_backslash(const std::string &str)
+  std::string escape_backslash(const std::string &src)
   {
-    const char *src = str.c_str();
-    char buf[str.size() * 2 + 1];
-    char *dst = buf;
-    while (*src != '\0' && dst < (buf + sizeof buf - 1)) {
-      if (*src == '\\') {
-	*dst++ = '\\';
+    std::string dst(src);
+    std::string::size_type pos = 0;
+    do {
+      pos = dst.find("\\", pos);
+      if (pos == std::string::npos) {
+	break;
       }
-      *dst++ = *src++;
-    }
-    *dst = '\0';
-    std::string ret(buf);
-    return ret;
+      dst.replace(pos, 1, "\\\\");
+      pos += 2;
+    } while (true);
+    return dst;
   }
 }
 
