@@ -14,37 +14,35 @@
 
 #include "clean.h"
 
-#include "graph.h"
-#include "ninja.h"
-#include "util.h"
-#include "build.h"
-
-#include <stdio.h>
+#include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <assert.h>
+
+#include "disk_interface.h"
+#include "graph.h"
+#include "state.h"
+#include "util.h"
 
 Cleaner::Cleaner(State* state, const BuildConfig& config)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(new RealDiskInterface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(new RealDiskInterface),
+    status_(0) {
 }
 
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(disk_interface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(disk_interface),
+    status_(0) {
 }
 
 int Cleaner::RemoveFile(const string& path) {
@@ -98,13 +96,16 @@ void Cleaner::PrintFooter() {
   printf("%d files.\n", cleaned_files_count_);
 }
 
-int Cleaner::CleanAll() {
+int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
     if ((*e)->rule_ == &State::kPhonyRule)
+      continue;
+    // Do not remove generator's files unless generator specified.
+    if (!generator && (*e)->rule_->generator_)
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {

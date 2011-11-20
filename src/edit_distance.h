@@ -12,28 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_STAT_CACHE_H_
-#define NINJA_STAT_CACHE_H_
+#ifndef NINJA_EDIT_DISTANCE_H_
+#define NINJA_EDIT_DISTANCE_H_
 
-#include <string>
+#include "string_piece.h"
 
-#include "hash_map.h"
+int EditDistance(const StringPiece& s1,
+                 const StringPiece& s2,
+                 bool allow_replacements = true,
+                 int max_edit_distance = 0);
 
-#include <string.h>
-
-struct FileStat;
-
-/// Mapping of path -> FileStat.
-struct StatCache {
-  FileStat* GetFile(const std::string& path);
-  FileStat* SpellcheckFile(const std::string& path);
-
-  /// Dump the mapping to stdout (useful for debugging).
-  void Dump();
-  void Invalidate();
-
-  typedef ExternalStringHashMap<FileStat*>::Type Paths;
-  Paths paths_;
-};
-
-#endif  // NINJA_STAT_CACHE_H_
+#endif  // NINJA_EDIT_DISTANCE_H_

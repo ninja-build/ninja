@@ -19,6 +19,8 @@
 #include <string>
 using namespace std;
 
+#include "hash_map.h"
+
 struct BuildConfig;
 struct Edge;
 
@@ -32,10 +34,12 @@ struct Edge;
 ///    from it
 struct BuildLog {
   BuildLog();
+  ~BuildLog() { Close(); }
 
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
-  void RecordCommand(Edge* edge, int start_time, int end_time);
+  void RecordCommand(Edge* edge, int start_time, int end_time,
+                     time_t restat_mtime = 0);
   void Close();
 
   /// Load the on-disk log.
@@ -46,11 +50,13 @@ struct BuildLog {
     string command;
     int start_time;
     int end_time;
+    time_t restat_mtime;
 
     // Used by tests.
     bool operator==(const LogEntry& o) {
       return output == o.output && command == o.command &&
-          start_time == o.start_time && end_time == o.end_time;
+          start_time == o.start_time && end_time == o.end_time &&
+          restat_mtime == o.restat_mtime;
     }
   };
 
@@ -63,7 +69,7 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
-  typedef map<string, LogEntry*> Log;
+  typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
   FILE* log_file_;
   BuildConfig* config_;

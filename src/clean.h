@@ -14,22 +14,22 @@
 
 #ifndef NINJA_CLEAN_H_
 #define NINJA_CLEAN_H_
+#pragma once
+
+#include <set>
+#include <string>
 
 #include "build.h"
 
-#include <string>
-#include <set>
 using namespace std;
 
 struct State;
-struct BuildConfig;
 struct Node;
 struct Rule;
 struct DiskInterface;
 
-class Cleaner
-{
-public:
+class Cleaner {
+ public:
   /// Build a cleaner object with a real disk interface.
   Cleaner(State* state, const BuildConfig& config);
 
@@ -49,9 +49,10 @@ public:
   /// @return non-zero if an error occurs.
   int CleanTargets(int target_count, char* targets[]);
 
-  /// Clean all built files.
+  /// Clean all built files, except for files created by generator rules.
+  /// @param generator If set, also clean files created by generator rules.
   /// @return non-zero if an error occurs.
-  int CleanAll();
+  int CleanAll(bool generator = false);
 
   /// Clean all the file built with the given rule @a rule.
   /// @return non-zero if an error occurs.
@@ -74,7 +75,7 @@ public:
             && (config_.verbosity == BuildConfig::VERBOSE || config_.dry_run));
   }
 
-private:
+ private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
   int RemoveFile(const string& path);
@@ -92,9 +93,8 @@ private:
   void DoCleanRule(const Rule* rule);
   void Reset();
 
-private:
   State* state_;
-  BuildConfig config_;
+  const BuildConfig& config_;
   set<string> removed_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;

@@ -37,11 +37,12 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* /* set */, const string& command) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
+  SetCloseOnExec(fd_);
 
   pid_ = fork();
   if (pid_ < 0)
@@ -69,14 +70,16 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       error_pipe = 2;
       close(output_pipe[1]);
 
-      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), NULL);
+      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
     } while (false);
 
     // If we get here, something went wrong; the execl should have
     // replaced us.
     char* err = strerror(errno);
-    int unused = write(error_pipe, err, strlen(err));
-    unused = unused;  // If the write fails, there's nothing we can do.
+    if (write(error_pipe, err, strlen(err)) < 0) {
+      // If the write fails, there's nothing we can do.
+      // But this block seems necessary to silence the warning.
+    }
     _exit(1);
   }
 

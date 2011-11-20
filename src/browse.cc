@@ -15,12 +15,12 @@
 #include "browse.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "../build/browse_py.h"
-#include "ninja.h"
 
-void RunBrowsePython(State* state, const char* ninja_command,
+void RunBrowsePython(State* /* state */, const char* ninja_command,
                      const char* initial_target) {
   // Fork off a Python process and have it run our code via its stdin.
   // (Actually the Python process becomes the parent.)

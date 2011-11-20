@@ -22,15 +22,22 @@ class Writer(object):
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
-        self._line('%s%s = %s' % ('  ' * indent, key, value), indent)
+        if value is None:
+            return
+        if isinstance(value, list):
+            value = ' '.join(value)
+        self._line('%s = %s' % (key, value), indent)
 
-    def rule(self, name, command, description=None, depfile=None):
+    def rule(self, name, command, description=None, depfile=None,
+             generator=False):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
             self.variable('description', description, indent=1)
         if depfile:
             self.variable('depfile', depfile, indent=1)
+        if generator:
+            self.variable('generator', '1', indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
@@ -54,13 +61,38 @@ class Writer(object):
 
         return outputs
 
+    def include(self, path):
+        self._line('include %s' % path)
+
+    def subninja(self, path):
+        self._line('subninja %s' % path)
+
+    def default(self, paths):
+        self._line('default %s' % ' '.join(self._as_list(paths)))
+
     def _line(self, text, indent=0):
+        """Write 'text' word-wrapped at self.width characters."""
+        leading_space = '  ' * indent
         while len(text) > self.width:
-            space = text.rfind(' ', 0, self.width - 4)
-            assert space != -1  # TODO: handle if no space found.
-            self.output.write(text[0:space] + ' $\n')
-            text = '  ' * (indent+2) + text[space:].lstrip()
-        self.output.write(text + '\n')
+            # The text is too wide; wrap if possible.
+
+            # Find the rightmost space that would obey our width constraint.
+            available_space = self.width - len(leading_space) - len(' $')
+            space = text.rfind(' ', 0, available_space)
+            if space < 0:
+                # No such space; just use the first space we can find.
+                space = text.find(' ', available_space)
+            if space < 0:
+                # Give up on breaking.
+                break
+
+            self.output.write(leading_space + text[0:space] + ' $\n')
+            text = text[space+1:]
+
+            # Subsequent lines are continuations, so indent them.
+            leading_space = '  ' * (indent+2)
+
+        self.output.write(leading_space + text + '\n')
 
     def _as_list(self, input):
         if input is None:
@@ -68,3 +100,11 @@ class Writer(object):
         if isinstance(input, list):
             return input
         return [input]
+
+
+def escape(string):
+    """Escape a string such that it can be embedded into a Ninja file without
+    further interpretation."""
+    assert '\n' not in string, 'Ninja syntax does not allow newlines'
+    # We only have one special metacharacter: '$'.
+    return string.replace('$', '$$')
