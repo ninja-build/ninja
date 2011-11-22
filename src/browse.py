@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 #
 # Copyright 2001 Google Inc. All Rights Reserved.
 #
