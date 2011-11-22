@@ -106,7 +106,7 @@ ul {
     print '</td></tr></table>'
 
 def ninja_dump(target):
-    proc = subprocess.Popen([sys.argv[1], '-t', 'query', target],
+    proc = subprocess.Popen([sys.argv[1], "-f", sys.argv[2], '-t', 'query', target],
                             stdout=subprocess.PIPE)
     return proc.communicate()[0]
 
@@ -117,7 +117,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         if target == '':
             self.send_response(302)
-            self.send_header('Location', '?' + sys.argv[2])
+            self.send_header('Location', '?' + sys.argv[3])
             self.end_headers()
             return
 

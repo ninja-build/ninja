@@ -238,14 +238,14 @@ int CmdQuery(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdBrowse(State* state, const char* ninja_command,
+int CmdBrowse(State* state, const char* ninja_command, const char* ninja_file,
               int argc, char* argv[]) {
 #ifndef WIN32
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
   }
-  RunBrowsePython(state, ninja_command, argv[0]);
+  RunBrowsePython(state, ninja_command, ninja_file, argv[0]);
 #else
   Error("browse mode not yet supported on Windows");
 #endif
@@ -533,7 +533,7 @@ reload:
     if (tool == "query")
       return CmdQuery(&state, argc, argv);
     if (tool == "browse")
-      return CmdBrowse(&state, ninja_command, argc, argv);
+      return CmdBrowse(&state, ninja_command, input_file, argc, argv);
     if (tool == "targets")
       return CmdTargets(&state, argc, argv);
     if (tool == "rules")

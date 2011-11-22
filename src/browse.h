@@ -22,6 +22,6 @@ struct State;
 /// \a initial_target is the first target to load.
 /// This function does not return if it runs successfully.
 void RunBrowsePython(State* state, const char* ninja_command,
-                     const char* initial_target);
+                     const char* ninja_file, const char* initial_target);
 
 #endif  // NINJA_BROWSE_H_
