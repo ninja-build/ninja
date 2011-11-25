@@ -46,7 +46,7 @@ void RunBrowsePython(State* /* state */, const char* ninja_command,
 
       // exec Python, telling it to run the program from stdin.
       const char* command[] = {
-        "python2", "-", ninja_command, initial_target, NULL
+        "python", "-", ninja_command, initial_target, NULL
       };
       execvp(command[0], (char**)command);
       perror("ninja: execvp");
