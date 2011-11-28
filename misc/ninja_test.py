@@ -20,6 +20,7 @@ from StringIO import StringIO
 import ninja_syntax
 
 LONGWORD = 'a' * 10
+LONGWORDWITHSPACES = 'a'*5 + '$ ' + 'a'*5
 INDENT = '    '
 
 class TestLineWordWrap(unittest.TestCase):
@@ -46,6 +47,23 @@ class TestLineWordWrap(unittest.TestCase):
         self.assertEqual(' $\n'.join(['  ' + 'x',
                                       '  ' + INDENT + LONGWORD,
                                       '  ' + INDENT + 'y']) + '\n',
+                         self.out.getvalue())
+
+    def test_escaped_spaces(self):
+        self.n._line(' '.join(['x', LONGWORDWITHSPACES, 'y']))
+        self.assertEqual(' $\n'.join(['x',
+                                      INDENT + LONGWORDWITHSPACES,
+                                      INDENT + 'y']) + '\n',
+                         self.out.getvalue())
+
+    def test_fit_many_words(self):
+        self.n = ninja_syntax.Writer(self.out, width=78)
+        self.n._line('command = cd ../../chrome; python ../tools/grit/grit/format/repack.py ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak ../out/Debug/gen/chrome/theme_resources_large.pak', 1)
+        self.assertEqual('''\
+  command = cd ../../chrome; python ../tools/grit/grit/format/repack.py $
+      ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak $
+      ../out/Debug/gen/chrome/theme_resources_large.pak
+''',
                          self.out.getvalue())
 
 if __name__ == '__main__':
