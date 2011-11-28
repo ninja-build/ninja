@@ -232,6 +232,9 @@ Token::Type Tokenizer::PeekToken() {
 
   if (IsIdentChar(*cur_)) {
     while (cur_ < end_ && IsIdentChar(*cur_)) {
+      if (*cur_ == '$' && cur_ + 1 < end_ && cur_[1] == ' ') {
+        ++cur_;
+      }
       ++cur_;
     }
     token_.end_ = cur_;
