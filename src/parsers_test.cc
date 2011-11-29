@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "graph.h"
-#include "ninja.h"
+#include "state.h"
 
 #ifdef _WIN32
 #pragma warning(disable:4800)
@@ -194,7 +194,8 @@ TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule build\n"
 "  command = rule run $out\n"
-"build subninja: build include foo.cc\n"));
+"build subninja: build include default foo.cc\n"
+"default subninja\n"));
 }
 
 TEST_F(ParserTest, Errors) {
@@ -319,17 +320,6 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
-                              "build a.o b.o: cc c.cc\n",
-                              &err));
-    EXPECT_EQ("line 4, col 16: dependency files only work with "
-              "single-output rules", err);
-  }
-
-  {
-    State state;
-    ManifestParser parser(&state, NULL);
-    string err;
     EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
                               &err));
     EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
@@ -344,6 +334,66 @@ TEST_F(ParserTest, Errors) {
                               &err));
     EXPECT_EQ("line 4, col 1: expected variable after $", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default\n",
+                              &err));
+    EXPECT_EQ("line 1, col 8: expected target name, got newline", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default nonexistent\n",
+                              &err));
+    EXPECT_EQ("line 1, col 9: unknown target 'nonexistent'", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule r\n  command = r\n"
+                              "build b: r\n"
+                              "default b:\n",
+                              &err));
+    EXPECT_EQ("line 4, col 10: expected newline, got ':'", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("default $a\n", &err));
+    EXPECT_EQ("line 1, col 9: empty path", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.Parse("rule r\n"
+                              "  command = r\n"
+                              "build $a: r $c\n", &err));
+    // XXX the line number is wrong; we should evaluate paths in ParseEdge
+    // as we see them, not after we've read them all!
+    EXPECT_EQ("line 4, col 1: empty path", err);
+  }
+}
+
+TEST_F(ParserTest, MultipleOutputs)
+{
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+  EXPECT_TRUE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
+                            "build a.o b.o: cc c.cc\n",
+                            &err));
+  EXPECT_EQ("", err);
 }
 
 TEST_F(ParserTest, SubNinja) {
@@ -408,6 +458,39 @@ TEST_F(ParserTest, OrderOnly) {
   ASSERT_TRUE(edge->is_order_only(1));
 }
 
+TEST_F(ParserTest, DefaultDefault) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build a: cat foo\n"
+"build b: cat foo\n"
+"build c: cat foo\n"
+"build d: cat foo\n"));
+
+  string err;
+  EXPECT_EQ(4u, state.DefaultNodes(&err).size());
+  EXPECT_EQ("", err);
+}
+
+TEST_F(ParserTest, DefaultStatements) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build a: cat foo\n"
+"build b: cat foo\n"
+"build c: cat foo\n"
+"build d: cat foo\n"
+"third = c\n"
+"default a b\n"
+"default $third\n"));
+
+  string err;
+  std::vector<Node*> nodes = state.DefaultNodes(&err);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(3u, nodes.size());
+  EXPECT_EQ("a", nodes[0]->file_->path_);
+  EXPECT_EQ("b", nodes[1]->file_->path_);
+  EXPECT_EQ("c", nodes[2]->file_->path_);
+}
+
 TEST(MakefileParser, Basic) {
   MakefileParser parser;
   string err;
@@ -415,7 +498,7 @@ TEST(MakefileParser, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser.out_);
+  EXPECT_EQ("build/ninja.o", parser.out_.AsString());
   EXPECT_EQ(4u, parser.ins_.size());
 }
 
@@ -437,6 +520,6 @@ TEST(MakefileParser, Continuation) {
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser.out_);
+  EXPECT_EQ("foo.o", parser.out_.AsString());
   EXPECT_EQ(2u, parser.ins_.size());
 }

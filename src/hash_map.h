@@ -15,6 +15,8 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
+#include <string.h>
+
 #ifdef _MSC_VER
 #include <hash_map>
 
@@ -36,5 +38,32 @@ struct hash<std::string> {
 }
 
 #endif
+
+/// Equality binary predicate for const char*.
+struct ExternalStringEq {
+  bool operator()(const char* a, const char* b) {
+    return strcmp(a, b) == 0;
+  }
+};
+
+/// Hash functor for const char*.
+struct ExternalStringHash {
+  size_t operator()(const char* key) const {
+#ifdef _MSC_VER
+    return stdext::hash<const char*>()(key);
+#else
+    return __gnu_cxx::hash<const char*>()(key);
+#endif
+  }
+};
+
+/// A template for hash_maps keyed by a const char* that is maintained within
+/// the values.  Use like:
+///   ExternalStringHash<Foo*>::Type foos;
+/// to make foos into a hash mapping const char* => Foo*.
+template<typename V>
+struct ExternalStringHashMap {
+  typedef hash_map<const char*, V, ExternalStringHash, ExternalStringEq> Type;
+};
 
 #endif // NINJA_MAP_H_

@@ -57,24 +57,9 @@ struct FileStat {
   Node* node_;
 };
 
-struct Edge;
-
-/// Information about a node in the dependency graph: the file, whether
-/// it's dirty, etc.
-struct Node {
-  Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
-
-  bool dirty() const { return dirty_; }
-
-  FileStat* file_;
-  bool dirty_;
-  Edge* in_edge_;
-  vector<Edge*> out_edges_;
-};
-
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
-  Rule(const string& name) : name_(name) { }
+  Rule(const string& name) : name_(name), generator_(false), restat_(false) { }
 
   bool ParseCommand(const string& command, string* err) {
     return command_.Parse(command, err);
@@ -83,15 +68,21 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  bool generator_, restat_;
 };
 
+struct BuildLog;
+struct Node;
 struct State;
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), implicit_deps_(0), order_only_deps_(0) {}
+  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
+           order_only_deps_(0) {}
 
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
+  void RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+                            bool dirty, const string& command, Node* output);
   string EvaluateCommand();  // XXX move to env, take env ptr
   string GetDescription();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
@@ -102,6 +93,9 @@ struct Edge {
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   Env* env_;
+  bool outputs_ready_;
+
+  bool outputs_ready() const { return outputs_ready_; }
 
   // XXX There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;
@@ -125,6 +119,20 @@ struct Edge {
   }
 
   bool is_phony() const;
+};
+
+/// Information about a node in the dependency graph: the file, whether
+/// it's dirty, etc.
+struct Node {
+  Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
+
+  bool dirty() const { return dirty_; }
+  bool ready() const { return !in_edge_ || in_edge_->outputs_ready(); }
+
+  FileStat* file_;
+  bool dirty_;
+  Edge* in_edge_;
+  vector<Edge*> out_edges_;
 };
 
 #endif  // NINJA_GRAPH_H_
