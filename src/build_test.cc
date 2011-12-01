@@ -661,7 +661,7 @@ TEST_F(BuildTest, SwallowFailures) {
 "build all: phony out1 out2 out3\n"));
 
   // Swallow two failures, die on the third.
-  config_.swallow_failures = 2;
+  config_.failures_allowed = 3;
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("all", &err));
@@ -682,7 +682,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
 "build final: cat out1 out2 out3\n"));
 
   // Swallow ten failures; we should stop before building final.
-  config_.swallow_failures = 10;
+  config_.failures_allowed = 11;
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("final", &err));

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -613,9 +614,10 @@ int main(int argc, char** argv) {
         if (*end != 0)
           Fatal("-k parameter not numeric; did you mean -k0?");
 
-        // We want to go until N jobs fail, which means we should ignore
-        // the first N-1 that fail and then stop.
-        globals.config.swallow_failures = value - 1;
+        // We want to go until N jobs fail, which means we should allow
+        // N failures and then stop.  For N <= 0, INT_MAX is close enough
+        // to infinite for most sane builds.
+        globals.config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'n':

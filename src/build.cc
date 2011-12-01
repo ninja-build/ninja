@@ -538,7 +538,7 @@ bool Builder::Build(string* err) {
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
-  int failures_allowed = config_.swallow_failures;
+  int failures_allowed = config_.failures_allowed;
 
   // This main loop runs the entire build process.
   // It is structured like this:
@@ -549,7 +549,7 @@ bool Builder::Build(string* err) {
   // an error.
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
-    if (command_runner_->CanRunMore()) {
+    if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
         if (!StartEdge(edge, err)) {
           status_->BuildFinished();
@@ -576,13 +576,8 @@ bool Builder::Build(string* err) {
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
-          if (failures_allowed-- == 0) {
-            if (config_.swallow_failures != 0)
-              *err = "subcommands failed";
-            else
-              *err = "subcommand failed";
-            return false;
-          }
+          if (failures_allowed)
+            failures_allowed--;
         }
 
         // We made some progress; start the main loop over.
@@ -605,13 +600,17 @@ bool Builder::Build(string* err) {
 
     // If we get here, we cannot make any more progress.
     status_->BuildFinished();
-    if (failures_allowed < config_.swallow_failures) {
+    if (failures_allowed == 0) {
+      if (config_.failures_allowed > 1)
+        *err = "subcommands failed";
+      else
+        *err = "subcommand failed";
+    } else if (failures_allowed < config_.failures_allowed)
       *err = "cannot make progress due to previous errors";
-      return false;
-    } else {
+    else 
       *err = "stuck [this is a bug]";
-      return false;
-    }
+
+    return false;
   }
 
   status_->BuildFinished();
