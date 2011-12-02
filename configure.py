@@ -27,7 +27,7 @@ sys.path.insert(0, 'misc')
 import ninja_syntax
 
 parser = OptionParser()
-platforms = ['linux', 'freebsd', 'mingw', 'windows']
+platforms = ['linux', 'freebsd', 'mingw']
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
@@ -48,10 +48,8 @@ if platform is None:
         platform = 'linux'
     elif platform.startswith('freebsd'):
         platform = 'freebsd'
-    elif platform.startswith('mingw'):
+    elif platform.startswith('mingw') or platform.startswith('win'):
         platform = 'mingw'
-    elif platform.startswith('win'):
-        platform = 'windows'
 
 BUILD_FILENAME = 'build.ninja'
 buildfile = open(BUILD_FILENAME, 'w')
@@ -73,6 +71,8 @@ def cxx(name, **kwargs):
     return n.build(built(name + '.o'), 'cxx', src(name + '.cc'), **kwargs)
 
 n.variable('builddir', 'build')
+n.variable('cxx', os.environ.get('CXX', 'g++'))
+n.variable('ar', os.environ.get('AR', 'ar'))
 
 cflags = ['-g', '-Wall', '-Wextra', '-Wno-deprecated', '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
@@ -80,15 +80,12 @@ if not options.debug:
     cflags += ['-O2', '-DNDEBUG']
 ldflags = ['-L$builddir']
 libs = []
+
 if platform == 'mingw':
-    n.variable('cxx', 'i586-mingw32msvc-c++')
-    # "warning: visibility attribute not supported in this
-    # configuration; ignored"
-    cflags.remove('-fvisibility=hidden')
     cflags.append('-Igtest-1.6.0/include')
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
+    ldflags.extend(['-static-libgcc', '-static-libstdc++'])
 else:
-    n.variable('cxx', os.environ.get('CXX', 'g++'))
     if options.profile == 'gmon':
         cflags.append('-pg')
         ldflags.append('-pg')
@@ -109,12 +106,14 @@ n.rule('cxx',
        description='CXX $out')
 n.newline()
 
-ar = 'ar'
-if platform == 'mingw':
-    ar = 'i586-mingw32msvc-ar'
-n.rule('ar',
-       command='rm -f $out && %s crs $out $in' % ar,
-       description='AR $out')
+if platform != 'mingw':
+    n.rule('ar',
+           command='rm -f $out && $ar crs $out $in',
+           description='AR $out')
+else:
+    n.rule('ar',
+           command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
+           description='AR $out')
 n.newline()
 
 n.rule('link',
@@ -124,7 +123,7 @@ n.newline()
 
 objs = []
 
-if platform not in ('mingw'):
+if platform != 'mingw':
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -153,7 +152,10 @@ libs.append('-lninja')
 
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
-n.build('ninja', 'link', objs, implicit=ninja_lib,
+binary = 'ninja'
+if platform == 'mingw':
+    binary = 'ninja.exe'
+n.build(binary, 'link', objs, implicit=ninja_lib,
         variables=[('libs', libs)])
 n.newline()
 
@@ -232,15 +234,16 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-n.comment('Regenerate build files if build script changes.')
-n.rule('configure',
-       command='./configure.py $configure_args',
-       generator=True)
-n.build('build.ninja', 'configure',
-        implicit=['configure.py', 'misc/ninja_syntax.py'])
-n.newline()
+if platform != 'mingw':
+    n.comment('Regenerate build files if build script changes.')
+    n.rule('configure',
+           command='./configure.py $configure_args',
+           generator=True)
+    n.build('build.ninja', 'configure',
+            implicit=['configure.py', 'misc/ninja_syntax.py'])
+    n.newline()
 
 n.comment('Build only the main binary by default.')
-n.default('ninja')
+n.default(binary)
 
 print 'wrote %s.' % BUILD_FILENAME
