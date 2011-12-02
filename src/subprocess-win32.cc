@@ -91,6 +91,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   STARTUPINFOA startup_info;
+  memset(&startup_info, 0, sizeof(startup_info));
   startup_info.cb = sizeof(STARTUPINFO);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
   startup_info.hStdOutput = child_pipe;
@@ -100,6 +101,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   startup_info.hStdError  = child_pipe;
 
   PROCESS_INFORMATION process_info;
+  memset(&process_info, 0, sizeof(process_info));
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
