@@ -35,14 +35,23 @@ Generating the manual:
 
 Windows development on Linux (this is kind of hacky right now):
 - sudo apt-get install gcc-mingw32 wine
+- export CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++ AR=i586-mingw32msvc-ar
 - ./configure.py --platform=mingw
 - Build gtest:
   - unpack it into your source dir
-  - ./configure CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++
+  - ./configure
   - to work around missing _TlsAlloc I had to hack the libtool script to
     append -lmingw32 -lkernel32 at the *end* of the link line
 - Build ninja: /path/to/linux/ninja ninja
 - Run: ./ninja  (implicitly runs through wine(!))
+
+Windows development on Windows:
+- install mingw, msys, and python
+- in the mingw shell, put Python in your path, and: sh bootstrap.sh
+- to reconfigure, run 'python configure.py'
+- remember to strip the resulting executable if size matters to you
+- you'll need to rename ninja.exe into my-ninja.exe during development,
+  otherwise ninja won't be able to overwrite itself when building
 
 Using clang:
 - Enable colors manually:
