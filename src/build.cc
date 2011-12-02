@@ -70,6 +70,11 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
   smart_terminal_ = false;
+  // Disable output buffer.  It'd be nice to use line buffering but
+  // MSDN says: "For some systems, [_IOLBF] provides line
+  // buffering. However, for Win32, the behavior is the same as _IOFBF
+  // - Full Buffering."
+  setvbuf(stdout, NULL, _IONBF, 0);
 #endif
 
   // Don't do anything fancy in verbose mode.
