@@ -34,7 +34,7 @@ mkdir -p build
 
 case "$SYSTEMNAME" in
   MINGW32*)
-    srcs=$(ls src/*.cc | grep -v test | grep -v subprocess.cc)
+    srcs=$(ls src/*.cc | grep -v test | egrep -v 'browse.cc|subprocess.cc')
     ;;
   *)
     srcs=$(ls src/*.cc | grep -v test | grep -v subprocess-win32.cc)
@@ -44,8 +44,8 @@ esac
 ${CXX:-g++} -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
 
 echo "Building ninja using itself..."
-./configure.py
-./ninja.bootstrap ninja
+python ./configure.py
+./ninja.bootstrap
 rm ninja.bootstrap
 
 echo "Done!"
