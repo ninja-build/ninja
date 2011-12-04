@@ -39,6 +39,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   outputs_ready_ = true;
 
+  // Visit all inputs; we're dirty if any of the inputs are dirty.
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->file_->StatIfNecessary(disk_interface)) {
@@ -68,20 +69,35 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
   }
 
-  BuildLog* build_log = state ? state->build_log_ : 0;
-  string command = EvaluateCommand();
+  // We may also be dirty due to output state: missing outputs, out of
+  // date outputs, etc.  Visit all outputs and determine whether they're dirty.
+  if (!dirty) {
+    BuildLog* build_log = state ? state->build_log_ : 0;
+    string command = EvaluateCommand();
 
-  assert(!outputs_.empty());
-  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    // We may have other outputs that our input-recursive traversal hasn't hit
-    // yet (or never will).  Stat them if we haven't already to mark that we've
-    // visited their dependents.
-    (*i)->file_->StatIfNecessary(disk_interface);
-    if (dirty || RecomputeOutputDirty(build_log, most_recent_input, command, *i)) {
-      (*i)->dirty_ = true;
-      outputs_ready_ = false;
+    for (vector<Node*>::iterator i = outputs_.begin();
+         i != outputs_.end(); ++i) {
+      (*i)->file_->StatIfNecessary(disk_interface);
+      if (RecomputeOutputDirty(build_log, most_recent_input, command, *i)) {
+        dirty = true;
+        break;
+      }
     }
   }
+
+  // Finally, visit each output to mark off that we've visited it, and update
+  // their dirty state if necessary.
+  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
+    (*i)->file_->StatIfNecessary(disk_interface);
+    if (dirty)
+      (*i)->dirty_ = true;
+  }
+
+  // If we're dirty, our outputs are not ready.  (It's possible to be
+  // clean but still have not be ready in the presence of order-only
+  // inputs.)
+  if (dirty)
+    outputs_ready_ = false;
 
   return true;
 }

@@ -345,9 +345,8 @@ TEST_F(BuildTest, TwoOutputs) {
 }
 
 // Test case from
-// https://github.com/martine/ninja/issues/148
-// disabled right now because the build gets stuck (which is the bug).
-TEST_F(BuildTest, DISABLED_MultiOutIn) {
+//   https://github.com/martine/ninja/issues/148
+TEST_F(BuildTest, MultiOutIn) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out\n"
