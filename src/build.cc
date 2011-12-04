@@ -337,14 +337,9 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if (!(*ni)->dirty_)
           continue;
 
-        // RecomputeOutputDirty will not modify dirty_ if the output is clean.
-        (*ni)->dirty_ = false;
-
-        // Since we know that all non-order-only inputs are clean, we can pass
-        // "false" as the "dirty" argument here.
-        (*ei)->RecomputeOutputDirty(build_log, most_recent_input, false,
-                                    command, *ni);
-        if ((*ni)->dirty_) {
+        if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, command,
+                                        *ni)) {
+          (*ni)->dirty_ = true;
           all_outputs_clean = false;
         } else {
           CleanNode(build_log, *ni);

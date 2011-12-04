@@ -80,9 +80,17 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
            order_only_deps_(0) {}
 
+  /// Examine inputs, outputs, and command lines to judge whether this edge needs
+  /// to be re-run, and update outputs_ready_ and each outputs' dirty_ state
+  /// accordingly.
+  /// Returns false on failure.
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
-  void RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
-                            bool dirty, const string& command, Node* output);
+
+  /// Recompute whether a given single output should be marked dirty.
+  /// Returns true if so.
+  bool RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+                            const string& command, Node* output);
+
   string EvaluateCommand();  // XXX move to env, take env ptr
   string GetDescription();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);

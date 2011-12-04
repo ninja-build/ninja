@@ -77,35 +77,31 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     // yet (or never will).  Stat them if we haven't already to mark that we've
     // visited their dependents.
     (*i)->file_->StatIfNecessary(disk_interface);
-
-    RecomputeOutputDirty(build_log, most_recent_input, dirty, command, *i);
-    if ((*i)->dirty_)
+    if (dirty || RecomputeOutputDirty(build_log, most_recent_input, command, *i)) {
+      (*i)->dirty_ = true;
       outputs_ready_ = false;
+    }
   }
 
   return true;
 }
 
-void Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
-                                bool dirty, const string& command,
-                                Node* output) {
+bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+                                const string& command, Node* output) {
   if (is_phony()) {
     // Phony edges don't write any output.
-    // They're only dirty if an input is dirty, or if there are no inputs
-    // and we're missing the output.
-    if (dirty)
-      output->dirty_ = true;
-    else if (inputs_.empty() && !output->file_->exists())
-      output->dirty_ = true;
-    return;
+    // Outputs are only dirty if there are no inputs and we're missing the output.
+    return inputs_.empty() && !output->file_->exists();
   }
 
   BuildLog::LogEntry* entry = 0;
-  // Output is dirty if we're dirty, we're missing the output,
-  // or if it's older than the most recent input mtime.
-  if (dirty || !output->file_->exists()) {
-    output->dirty_ = true;
-  } else if (output->file_->mtime_ < most_recent_input) {
+
+  // Dirty if we're missing the output.
+  if (!output->file_->exists())
+    return true;
+
+  // Dirty if the output is older than the input.
+  if (output->file_->mtime_ < most_recent_input) {
     // If this is a restat rule, we may have cleaned the output with a restat
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
@@ -113,22 +109,22 @@ void Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
     if (rule_->restat_ && build_log &&
         (entry = build_log->LookupByOutput(output->file_->path_))) {
       if (entry->restat_mtime < most_recent_input)
-        output->dirty_ = true;
+        return true;
     } else {
-      output->dirty_ = true;
+      return true;
     }
   }
 
-  if (!output->dirty_) {
-    // May also be dirty due to the command changing since the last build.
-    // But if this is a generator rule, the command changing does not make us
-    // dirty.
-    if (!rule_->generator_ && build_log &&
-        (entry || (entry = build_log->LookupByOutput(output->file_->path_)))) {
-      if (command != entry->command)
-        output->dirty_ = true;
-    }
+  // May also be dirty due to the command changing since the last build.
+  // But if this is a generator rule, the command changing does not make us
+  // dirty.
+  if (!rule_->generator_ && build_log &&
+      (entry || (entry = build_log->LookupByOutput(output->file_->path_)))) {
+    if (command != entry->command)
+      return true;
   }
+
+  return false;
 }
 
 /// An Env for an Edge, providing $in and $out.
