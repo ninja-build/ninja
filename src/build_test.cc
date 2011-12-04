@@ -344,6 +344,26 @@ TEST_F(BuildTest, TwoOutputs) {
   EXPECT_EQ("touch out1 out2", commands_ran_[0]);
 }
 
+// Test case from
+// https://github.com/martine/ninja/issues/148
+// disabled right now because the build gets stuck (which is the bug).
+TEST_F(BuildTest, DISABLED_MultiOutIn) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"build in1 otherfile: touch in\n"
+"build out: touch in | in1\n"));
+
+  fs_.Create("in", now_, "");
+  fs_.Create("in1", ++now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+}
+
 TEST_F(BuildTest, Chain) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build c2: cat c1\n"
