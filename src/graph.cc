@@ -31,13 +31,12 @@ bool FileStat::Stat(DiskInterface* disk_interface) {
 bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
                           string* err) {
   bool dirty = false;
+  outputs_ready_ = true;
 
   if (!rule_->depfile_.empty()) {
     if (!LoadDepFile(state, disk_interface, err))
       return false;
   }
-
-  outputs_ready_ = true;
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
   time_t most_recent_input = 1;
@@ -53,19 +52,20 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
 
     // If an input is not ready, neither are our outputs.
-    if (Edge* edge = (*i)->in_edge_)
+    if (Edge* edge = (*i)->in_edge_) {
       if (!edge->outputs_ready_)
         outputs_ready_ = false;
+    }
 
     if (!is_order_only(i - inputs_.begin())) {
-       // If a regular input is dirty (or missing), we're dirty.
-       // Otherwise consider mtime.
-       if ((*i)->dirty_) {
-         dirty = true;
-       } else {
-         if ((*i)->file_->mtime_ > most_recent_input)
-           most_recent_input = (*i)->file_->mtime_;
-       }
+      // If a regular input is dirty (or missing), we're dirty.
+      // Otherwise consider mtime.
+      if ((*i)->dirty_) {
+        dirty = true;
+      } else {
+        if ((*i)->file_->mtime_ > most_recent_input)
+          most_recent_input = (*i)->file_->mtime_;
+      }
     }
   }
 
