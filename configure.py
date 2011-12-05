@@ -82,6 +82,7 @@ ldflags = ['-L$builddir']
 libs = []
 
 if platform == 'mingw':
+    cflags.remove('-fvisibility=hidden');
     cflags.append('-Igtest-1.6.0/include')
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
     ldflags.extend(['-static'])
