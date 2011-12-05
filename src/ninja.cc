@@ -52,27 +52,21 @@ void Usage(const BuildConfig& config) {
 "\n"
 "if targets are unspecified, builds the 'default' target (see manual).\n"
 "targets are paths, with additional special syntax:\n"
-"  target^ means 'the first output that uses target'.\n"
+"  'target^' means 'the first output that uses target'.\n"
 "  example: 'ninja foo.cc^' will likely build foo.o.\n"
 "\n"
 "options:\n"
+"  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
+"\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
-"  -v       show all command lines\n"
-"  -C DIR   change to DIR before doing anything else\n"
+"  -v       show all command lines while building\n"
 "\n"
-"  -t TOOL  run a subtool.\n"
-"           terminates toplevel options; further flags are passed to the tool.\n"
-"           tools are:\n"
-"             browse   browse dependency graph in a web browser\n"
-"             graph    output graphviz dot file for targets\n"
-"             query    show inputs/outputs for a path\n"
-"             targets  list targets by their rule or depth in the DAG\n"
-"             rules    list all rules\n"
-"             commands list all commands required to rebuild given targets\n"
-"             clean    clean built files\n",
+"  -t TOOL  run a subtool\n"
+"    use '-t list' to list subtools.\n"
+"    terminates toplevel options; further flags are passed to the tool.\n",
           config.parallelism);
 }
 
@@ -448,6 +442,22 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   }
 }
 
+/// Print out a list of tools.
+int CmdList(State* state, int argc, char* argv[]) {
+  printf("subtools:\n"
+"             clean    clean built files\n"
+"\n"
+"             browse   browse dependency graph in a web browser\n"
+"             graph    output graphviz dot file for targets\n"
+"             query    show inputs/outputs for a path\n"
+"\n"
+"             targets  list targets by their rule or depth in the DAG\n"
+"             rules    list all rules\n"
+"             commands list all commands required to rebuild given targets\n"
+         );
+  return 0;
+}
+
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -548,9 +558,12 @@ reload:
     // the tool, i.e. "clean".
     if (tool == "clean")
       return CmdClean(&state, argc+1, argv-1, config);
+    if (tool == "list")
+      return CmdClean(&state, argc+1, argv-1, config);
 
     const char* suggestion = SpellcheckString(tool,
-        "graph", "query", "browse", "targets", "rules", "commands", NULL);
+        "graph", "query", "browse", "targets", "rules", "commands", "list",
+        NULL);
     if (suggestion) {
       Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
     } else {
