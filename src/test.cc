@@ -51,7 +51,7 @@ bool VirtualFileSystem::MakeDir(const string& path) {
   return true;  // success
 }
 
-string VirtualFileSystem::ReadFile(const string& path, string* /* err */) {
+string VirtualFileSystem::ReadFile(const string& path, string* err) {
   files_read_.push_back(path);
   FileMap::iterator i = files_.find(path);
   if (i != files_.end())

@@ -367,7 +367,7 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 }
 
-int CmdRules(State* state, int /* argc */, char* /* argv */[]) {
+int CmdRules(State* state, int argc, char* /* argv */[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
        i != state->rules_.end(); ++i) {
     if (i->second->description_.unparsed_.empty()) {

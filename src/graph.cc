@@ -203,8 +203,8 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   // Check that this depfile matches our output.
   StringPiece opath = StringPiece(outputs_[0]->file_->path_);
   if (opath != makefile.out_) {
-    *err = "expected makefile to mention '" + outputs_[0]->file_->path_ + "', "
-        "got '" + makefile.out_.AsString() + "'";
+    *err = "expected depfile '" + path + "' to mention '" +
+      outputs_[0]->file_->path_ + "', got '" + makefile.out_.AsString() + "'";
     return false;
   }
 

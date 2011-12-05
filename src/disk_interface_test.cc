@@ -163,15 +163,15 @@ struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
   virtual int Stat(const string& path);
-  virtual bool MakeDir(const string& /* path */) {
+  virtual bool MakeDir(const string& path) {
     assert(false);
     return false;
   }
-  virtual string ReadFile(const string& /* path */, string* /* err */) {
+  virtual string ReadFile(const string& path, string* err) {
     assert(false);
     return "";
   }
-  virtual int RemoveFile(const string& /* path */) {
+  virtual int RemoveFile(const string& path) {
     assert(false);
     return 0;
   }

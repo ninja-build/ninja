@@ -74,7 +74,10 @@ n.variable('builddir', 'build')
 n.variable('cxx', os.environ.get('CXX', 'g++'))
 n.variable('ar', os.environ.get('AR', 'ar'))
 
-cflags = ['-g', '-Wall', '-Wextra', '-Wno-deprecated', '-fno-exceptions',
+cflags = ['-g', '-Wall', '-Wextra',
+          '-Wno-deprecated',
+          '-Wno-unused-parameter',
+          '-fno-exceptions',
           '-fvisibility=hidden', '-pipe']
 if not options.debug:
     cflags += ['-O2', '-DNDEBUG']

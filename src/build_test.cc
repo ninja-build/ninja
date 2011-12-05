@@ -251,7 +251,7 @@ bool BuildTest::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* BuildTest::WaitForCommand(bool* success, string* /* output */) {
+Edge* BuildTest::WaitForCommand(bool* success, string* output) {
   if (Edge* edge = last_command_) {
     if (edge->rule_->name_ == "fail")
       *success = false;
