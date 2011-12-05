@@ -410,17 +410,23 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("gr"))) != -1) {
+  while ((opt = getopt(argc, argv, const_cast<char*>("hgr"))) != -1) {
     switch (opt) {
-      case 'g':
-        generator = true;
-        break;
-      case 'r':
-        clean_rules = true;
-        break;
-      default:
-        Usage(config);
-        return 1;
+    case 'g':
+      generator = true;
+      break;
+    case 'r':
+      clean_rules = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t clean [options] [targets]\n"
+"\n"
+"options:\n"
+"  -g     also clean files marked as ninja generator output\n"
+"  -r     interpret targets as a list of rules to clean instead\n"
+             );
+    return 1;
     }
   }
   argv += optind;
