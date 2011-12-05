@@ -562,13 +562,14 @@ reload:
       return CmdClean(&state, argc+1, argv-1, config);
 
     const char* suggestion = SpellcheckString(tool,
-        "graph", "query", "browse", "targets", "rules", "commands", "list",
-        NULL);
+        "graph", "query", "browse", "targets", "rules", "commands", "clean",
+        "list", NULL);
     if (suggestion) {
       Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
     } else {
       Error("unknown tool '%s'", tool.c_str());
     }
+    return 1;
   }
 
   BuildLog build_log;
