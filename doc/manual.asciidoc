@@ -352,9 +352,10 @@ for this to work.
 Extra tools
 -----------
 
-The `-t` flag on the Ninja command line runs some tools that I have
+The `-t` flag on the Ninja command line runs some tools that we have
 found useful during Ninja's development.  The current tools are:
 
+[horizontal]
 `query`:: dump the inputs and outputs of a given target.
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
@@ -362,23 +363,28 @@ file focuses the view on that file, showing inputs and outputs.  This
 feature requires a Python installation.
 
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
-graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
--ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph.png`
+graph layout tool.  Use it like:
++
+----
+ninja -t graph mytarget | dot -Tpng -ograph.png
+----
++
+In the Ninja source tree, `ninja graph.png`
 generates an image for Ninja itself.  If no target is given generate a
 graph for all root targets.
 
 `targets`:: output a list of targets either by rule or by depth.  If used
-like this +ninja -t targets rule _name_+ it prints the list of targets
+like +ninja -t targets rule _name_+ it prints the list of targets
 using the given rule to be built.  If no rule is given, it prints the source
-files (the leaves of the graph).  If used like this
+files (the leaves of the graph).  If used like
 +ninja -t targets depth _digit_+ it
 prints the list of targets in a depth-first manner starting by the root
 targets (the ones with no outputs). Indentation is used to mark dependencies.
 If the depth is zero it prints all targets. If no arguments are provided
 +ninja -t targets depth 1+ is assumed. In this mode targets may be listed
 several times. If used like this +ninja -t targets all+ it
-prints all the targets available without indentation and it is way faster
-than the _depth_ mode.  It returns non-zero if an error occurs.
+prints all the targets available without indentation and it is faster
+than the _depth_ mode.
 
 `rules`:: output the list of all rules with their description if they have
 one.  It can be used to know which rule name to pass to
@@ -388,15 +394,19 @@ one.  It can be used to know which rule name to pass to
 executed in order, may be used to rebuild those targets, assuming that all
 output files are out of date.
 
-`clean`:: remove built files.  If used like this +ninja -t clean+ it removes
-all the built files, except for those created by the generator.  If used
-like this +ninja -t clean -g+ it also removes built files created by the
-generator.  If used like this +ninja -t clean _targets..._+ it removes the
-given targets and recursively all files built for it.  If used like this
-+ninja -t clean -r _rules_+ it removes all files built using the given
-rules. The depfiles are not removed. Files created but not referenced in
-the graph are not removed. This tool takes in account the +-v+ and the +-n+
-options (note that +-n+ implies +-v+).  It returns non-zero if an error occurs.
+`clean`:: remove built files. By default it removes all built files
+except for those created by the generator.  Adding the `-g` flag also
+removes built files created by the generator (see <<ref_rule,the rule
+reference for the +generator+ attribute>>).  Additional arguments are
+targets, which removes the given targets and recursively all files
+built for them.
++
+If used like +ninja -t clean -r _rules_+ it removes all files built using
+the given rules.
++
+depfiles are not removed. Files created but not referenced in the
+graph are not removed. This tool takes in account the +-v+ and the
++-n+ options (note that +-n+ implies +-v+).
 
 Ninja file reference
 --------------------
@@ -469,11 +479,11 @@ aborting due to a missing input.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-`generator`:: if present, specifies that this rule is used to re-invoke
-  the generator program.  Files built using `generator` rules are
-  treated specially in two ways: firstly, they will not be rebuilt
-  if the command line changes; and secondly, they are not cleaned
-  by default.
+`generator`:: if present, specifies that this rule is used to
+  re-invoke the generator program.  Files built using `generator`
+  rules are treated specially in two ways: firstly, they will not be
+  rebuilt if the command line changes; and secondly, they are not
+  cleaned by default.
 
 `restat`:: if present, causes Ninja to re-stat the command's outputs after
  execution of the command.  Each output whose modification time the command
