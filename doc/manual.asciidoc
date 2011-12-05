@@ -154,8 +154,8 @@ There is no installation step; the only files of interest to a user
 are the resulting binary and this manual.
 
 
-Creating .ninja files
----------------------
+Writing .ninja files
+--------------------
 Here's a basic `.ninja` file that demonstrates most of the syntax.
 It will be used as an example for the following sections.
 
@@ -324,28 +324,30 @@ If you provide a variable named `builddir` in the outermost scope,
 Generating Ninja files
 ----------------------
 
-The Ninja distribution includes a tiny (<100 line) Python module to
-facilitate generating Ninja files.  It allows you to make Python calls
-like `ninja.rule(name='foo', command='bar', depfile='$out.d')` and
-it will generate the appropriate syntax.
+`misc/ninja_syntax.py` in the Ninja distribution is a tiny Python
+module to facilitate generating Ninja files.  It allows you to make
+Python calls like `ninja.rule(name='foo', command='bar',
+depfile='$out.d')` and it will generate the appropriate syntax.  Feel
+free to just inline it into your project's build system if it's
+useful.
 
 Integration with other build systems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*gyp*. http://gyp.googlecode.com[gyp, the system used to generate build
+gyp:: http://gyp.googlecode.com[gyp, the system used to generate build
 files for the Chromium browser] can generate ninja files for Linux.
 See http://code.google.com/p/chromium/wiki/NinjaBuild[the Chromium
 Ninja documentation] for details.
 
-*CMake*.  Various people have worked on generating Ninja files from
+CMake::  Various people have worked on generating Ninja files from
 CMake.  Currently, it sounds like
 https://github.com/pcc/CMake/tree/ninja-generator[pcc's branch] is the
 one to try.
 
-*Autotools*.  In theory, you could coax Automake into producing
-.ninja files as well, but I haven't tried it.  It may very well be the
-case that most projects use too much Makefile syntax in their `.am`
-files for this to work.
+Autotools:: In theory, you could coax Automake into producing .ninja
+files as well, but I haven't tried it.  It may very well be the case
+that most projects use too much Makefile syntax in their `.am` files
+for this to work.
 
 Extra tools
 -----------
@@ -361,7 +363,7 @@ feature requires a Python installation.
 
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
 graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
--ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph`
+-ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph.png`
 generates an image for Ninja itself.  If no target is given generate a
 graph for all root targets.
 
