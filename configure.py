@@ -60,6 +60,7 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
+n.newline()
 
 def src(filename):
     return os.path.join('src', filename)
