@@ -84,7 +84,7 @@ libs = []
 if platform == 'mingw':
     cflags.append('-Igtest-1.6.0/include')
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
-    ldflags.extend(['-static-libgcc', '-static-libstdc++'])
+    ldflags.extend(['-static'])
 else:
     if options.profile == 'gmon':
         cflags.append('-pg')
