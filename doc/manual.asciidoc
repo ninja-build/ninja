@@ -617,5 +617,3 @@ estimated, allowing Ninja to print status like "3 minutes until
 complete" when building.  Additionally, a tool could output which
 commands are the slowest or which directories take the most time
 to build.
-
-_many others_.  See the `todo` file included in the distribution.
