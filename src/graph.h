@@ -92,6 +92,7 @@ struct Edge {
                             const string& command, Node* output);
 
   string EvaluateCommand();  // XXX move to env, take env ptr
+  string EvaluateDepFile();
   string GetDescription();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
