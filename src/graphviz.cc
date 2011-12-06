@@ -18,11 +18,28 @@
 
 #include "graph.h"
 
+namespace {
+  std::string escape_backslash(const std::string &src)
+  {
+    std::string dst(src);
+    std::string::size_type pos = 0;
+    do {
+      pos = dst.find("\\", pos);
+      if (pos == std::string::npos) {
+	break;
+      }
+      dst.replace(pos, 1, "\\\\");
+      pos += 2;
+    } while (true);
+    return dst;
+  }
+}
+
 void GraphViz::AddTarget(Node* node) {
   if (visited_.find(node) != visited_.end())
     return;
 
-  printf("\"%p\" [label=\"%s\"]\n", node, node->file_->path_.c_str());
+  printf("\"%p\" [label=\"%s\"]\n", node, escape_backslash(node->file_->path_).c_str());
   visited_.insert(node);
 
   if (!node->in_edge_) {
