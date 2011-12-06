@@ -593,7 +593,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
       if (node_cleaned) {
         // If any output was cleaned, find the most recent mtime of any
-        // (existing) non-order-only input.
+        // (existing) non-order-only input or the depfile.
         for (vector<Node*>::iterator i = edge->inputs_.begin();
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
           time_t input_mtime = disk_interface_->Stat((*i)->file_->path_);
@@ -603,6 +603,14 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           }
           if (input_mtime > restat_mtime)
             restat_mtime = input_mtime;
+        }
+
+        if (restat_mtime != 0 && !edge->rule_->depfile_.empty()) {
+          time_t depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
+          if (depfile_mtime == 0)
+            restat_mtime = 0;
+          else if (depfile_mtime > restat_mtime)
+            restat_mtime = depfile_mtime;
         }
 
         // The total number of edges in the plan may have changed as a result

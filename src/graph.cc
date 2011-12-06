@@ -177,6 +177,11 @@ string Edge::EvaluateCommand() {
   return rule_->command_.Evaluate(&env);
 }
 
+string Edge::EvaluateDepFile() {
+  EdgeEnv env(this);
+  return rule_->depfile_.Evaluate(&env);
+}
+
 string Edge::GetDescription() {
   EdgeEnv env(this);
   return rule_->description_.Evaluate(&env);
@@ -184,9 +189,7 @@ string Edge::GetDescription() {
 
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
                        string* err) {
-  EdgeEnv env(this);
-  string path = rule_->depfile_.Evaluate(&env);
-
+  string path = EvaluateDepFile();
   string content = disk_interface->ReadFile(path, err);
   if (!err->empty())
     return false;
