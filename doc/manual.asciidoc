@@ -136,23 +136,7 @@ Getting started
 
 Start by downloading the code from
 https://github.com/martine/ninja[the github repo].
-
-The included `bootstrap.sh` should hopefully produce a working `ninja`
-binary, by first blindly compiling all non-test files together then
-re-building Ninja using itself.
-
-Usage is currently just
-
-----------------
-ninja target
-----------------
-
-where `target` is a known output described by `build.ninja` in the
-current directory.
-
-There is no installation step; the only files of interest to a user
-are the resulting binary and this manual.
-
+The included `README` describes the build and install process.
 
 Writing .ninja files
 --------------------

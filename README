@@ -1,11 +1,15 @@
-Ninja is a small build system closest in spirit to Make.
+Ninja is a small build system with a focus on speed.
+http://martine.github.com/ninja/
 
 See the manual -- http://martine.github.com/ninja/manual.html or
-manual.asciidoc included in the distribution -- for more background,
-including motivation and build instructions.
+doc/manual.asciidoc included in the distribution -- for background
+and more details.
 
-Though the code is copyright Google, don't take that as an
-endorsement; I wrote this in my spare time for fun.
+To build, run ./bootstrap.sh.  It first blindly compiles all non-test
+source files together, then re-builds Ninja using itself.  You should
+end up with a 'ninja' binary in the source root.  Run './ninja -h' for
+help.
 
-Discussions about Ninja should take place on the mailing list:
-http://groups.google.com/group/ninja-build
+There is no installation step.  The only file of interest to a user
+is the resulting ninja binary.
+
