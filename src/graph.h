@@ -99,7 +99,14 @@ private:
 struct Rule {
   Rule(const string& name) : name_(name), generator_(false), restat_(false) { }
 
+  const string& name() const { return name_; }
+
+private:
   string name_;
+
+  // TODO: make these private.  But adding set/getters for each is so boring
+  // and doesn't really contribute to the readability of the code...
+public:
   EvalString command_;
   EvalString description_;
   EvalString depfile_;

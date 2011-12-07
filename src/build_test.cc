@@ -233,14 +233,14 @@ bool BuildTest::CanRunMore() {
 bool BuildTest::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
-  if (edge->rule().name_ == "cat" || edge->rule_->name_ == "cc" ||
-      edge->rule().name_ == "touch") {
+  if (edge->rule().name() == "cat" || edge->rule_->name() == "cc" ||
+      edge->rule().name() == "touch") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->path(), now_, "");
     }
-  } else if (edge->rule().name_ == "true" ||
-             edge->rule().name_ == "fail") {
+  } else if (edge->rule().name() == "true" ||
+             edge->rule().name() == "fail") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -253,7 +253,7 @@ bool BuildTest::StartCommand(Edge* edge) {
 
 Edge* BuildTest::WaitForCommand(bool* success, string* output) {
   if (Edge* edge = last_command_) {
-    if (edge->rule().name_ == "fail")
+    if (edge->rule().name() == "fail")
       *success = false;
     else
       *success = true;

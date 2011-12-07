@@ -176,13 +176,14 @@ void Cleaner::DoCleanRule(const Rule* rule) {
   assert(rule);
 
   for (vector<Edge*>::iterator e = state_->edges_.begin();
-       e != state_->edges_.end();
-       ++e)
-    if ((*e)->rule().name_ == rule->name_)
+       e != state_->edges_.end(); ++e) {
+    if ((*e)->rule().name() == rule->name()) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-           out_node != (*e)->outputs_.end();
-           ++out_node)
+           out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
+      }
+    }
+  }
 }
 
 int Cleaner::CleanRule(const Rule* rule) {

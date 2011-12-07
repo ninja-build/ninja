@@ -29,7 +29,7 @@ State::State() : build_log_(NULL) {
 
 void State::AddRule(const Rule* rule) {
   assert(LookupRule(rule->name_) == NULL);
-  rules_[rule->name_] = rule;
+  rules_[rule->name()] = rule;
 }
 
 const Rule* State::LookupRule(const string& rule_name) {

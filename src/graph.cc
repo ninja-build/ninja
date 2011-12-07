@@ -262,7 +262,7 @@ void Edge::Dump() {
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     printf("%s ", (*i)->path().c_str());
   }
-  printf("--%s-> ", rule_->name_.c_str());
+  printf("--%s-> ", rule_->name().c_str());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
     printf("%s ", (*i)->path().c_str());
   }

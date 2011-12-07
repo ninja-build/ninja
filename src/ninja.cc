@@ -204,7 +204,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
     if (node) {
       printf("%s:\n", argv[i]);
       if (node->in_edge()) {
-        printf("  input: %s\n", node->in_edge()->rule_->name_.c_str());
+        printf("  input: %s\n", node->in_edge()->rule_->name().c_str());
         for (vector<Node*>::iterator in = node->in_edge()->inputs_.begin();
              in != node->in_edge()->inputs_.end(); ++in) {
           printf("    %s\n", (*in)->path().c_str());
@@ -212,7 +212,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
       }
       for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
            edge != node->out_edges().end(); ++edge) {
-        printf("  output: %s\n", (*edge)->rule_->name_.c_str());
+        printf("  output: %s\n", (*edge)->rule_->name().c_str());
         for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
              out != (*edge)->outputs_.end(); ++out) {
           printf("    %s\n", (*out)->path().c_str());
@@ -259,7 +259,7 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
       printf("  ");
     const char* target = (*n)->path().c_str();
     if ((*n)->in_edge()) {
-      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name_.c_str());
+      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
       if (depth > 1 || depth <= 0)
         CmdTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
@@ -291,7 +291,7 @@ int CmdTargetsList(State* state, const string& rule_name) {
   // Gather the outputs.
   for (vector<Edge*>::iterator e = state->edges_.begin();
        e != state->edges_.end(); ++e) {
-    if ((*e)->rule_->name_ == rule_name) {
+    if ((*e)->rule_->name() == rule_name) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         rules.insert((*out_node)->path());
@@ -315,7 +315,7 @@ int CmdTargetsList(State* state) {
          out_node != (*e)->outputs_.end(); ++out_node) {
       printf("%s: %s\n",
              (*out_node)->path().c_str(),
-             (*e)->rule_->name_.c_str());
+             (*e)->rule_->name().c_str());
     }
   }
   return 0;
