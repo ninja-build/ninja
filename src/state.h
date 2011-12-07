@@ -19,11 +19,10 @@
 #include <map>
 #include <string>
 #include <vector>
+using namespace std;
 
 #include "eval_env.h"
-#include "stat_cache.h"
-
-using namespace std;
+#include "hash_map.h"
 
 struct BuildLog;
 struct Edge;
@@ -45,16 +44,21 @@ struct State {
   void AddIn(Edge* edge, const string& path);
   void AddOut(Edge* edge, const string& path);
   bool AddDefault(const string& path, string* error);
+  /// Reset state.  Keeps all nodes and edges, but restores them to the
+  /// state where we haven't yet examined the disk for dirty state.
   void Reset();
+
+  /// Dump the nodes (useful for debugging).
+  void Dump();
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
   vector<Node*> RootNodes(string* error);
   vector<Node*> DefaultNodes(string* error);
 
-  StatCache* stat_cache() { return &stat_cache_; }
-
-  StatCache stat_cache_;
+  /// Mapping of path -> Node.
+  typedef ExternalStringHashMap<Node*>::Type Paths;
+  Paths paths_;
 
   /// All the rules used in the graph.
   map<string, const Rule*> rules_;

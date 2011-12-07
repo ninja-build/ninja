@@ -143,7 +143,7 @@ if platform != 'mingw':
 
 n.comment('Core source files all build into ninja library.')
 for name in ['build', 'build_log', 'clean', 'edit_distance', 'eval_env',
-             'graph', 'graphviz', 'parsers', 'util', 'stat_cache',
+             'graph', 'graphviz', 'parsers', 'util',
              'disk_interface', 'state']:
     objs += cxx(name)
 if platform == 'mingw':

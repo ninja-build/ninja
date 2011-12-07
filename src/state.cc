@@ -15,7 +15,9 @@
 #include "state.h"
 
 #include <assert.h>
+#include <stdio.h>
 
+#include "edit_distance.h"
 #include "graph.h"
 #include "util.h"
 
@@ -46,15 +48,36 @@ Edge* State::AddEdge(const Rule* rule) {
 }
 
 Node* State::GetNode(const string& path) {
-  return stat_cache_.GetFile(path);
+  Node* node = LookupNode(path);
+  if (node)
+    return node;
+  node = new Node(path);
+  paths_[node->path().c_str()] = node;
+  return node;
 }
 
 Node* State::LookupNode(const string& path) {
-  return stat_cache_.LookupFile(path);
+  Paths::iterator i = paths_.find(path.c_str());
+  if (i != paths_.end())
+    return i->second;
+  return NULL;
 }
 
 Node* State::SpellcheckNode(const string& path) {
-  return stat_cache_.SpellcheckFile(path);
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  Node* result = NULL;
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    int distance = EditDistance(
+        i->first, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && i->second) {
+      min_distance = distance;
+      result = i->second;
+    }
+  }
+  return result;
 }
 
 void State::AddIn(Edge* edge, const string& path) {
@@ -106,7 +129,18 @@ vector<Node*> State::DefaultNodes(string* err) {
 }
 
 void State::Reset() {
-  stat_cache_.Invalidate();
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
+    i->second->ResetState();
   for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
     (*e)->outputs_ready_ = false;
+}
+
+void State::Dump() {
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+    Node* node = i->second;
+    printf("%s %s\n",
+           node->path().c_str(),
+           node->status_known() ? (node->dirty() ? "dirty" : "clean")
+                                : "unknown");
+  }
 }
