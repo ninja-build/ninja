@@ -143,6 +143,15 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
   return false;
 }
 
+bool Edge::AllInputsReady() const {
+  for (vector<Node*>::const_iterator i = inputs_.begin();
+       i != inputs_.end(); ++i) {
+    if ((*i)->in_edge_ && !(*i)->in_edge_->outputs_ready())
+      return false;
+  }
+  return true;
+}
+
 /// An Env for an Edge, providing $in and $out.
 struct EdgeEnv : public Env {
   EdgeEnv(Edge* edge) : edge_(edge) {}

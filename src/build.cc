@@ -220,8 +220,7 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (node->dirty() && !want) {
     want = true;
     ++wanted_edges_;
-    if (find_if(edge->inputs_.begin(), edge->inputs_.end(),
-                not1(mem_fun(&Node::ready))) == edge->inputs_.end())
+    if (edge->AllInputsReady())
       ready_.insert(edge);
     if (!edge->is_phony())
       ++command_edges_;
@@ -295,8 +294,7 @@ void Plan::NodeFinished(Node* node) {
       continue;
 
     // See if the edge is now ready.
-    if (find_if((*i)->inputs_.begin(), (*i)->inputs_.end(),
-                not1(mem_fun(&Node::ready))) == (*i)->inputs_.end()) {
+    if ((*i)->AllInputsReady()) {
       if (want_i->second) {
         ready_.insert(*i);
       } else {

@@ -91,6 +91,9 @@ struct Edge {
   bool RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
                             const string& command, Node* output);
 
+  /// Return true if all inputs' in-edges are ready.
+  bool AllInputsReady() const;
+
   string EvaluateCommand();  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
@@ -137,7 +140,6 @@ struct Node {
   Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
 
   bool dirty() const { return dirty_; }
-  bool ready() const { return !in_edge_ || in_edge_->outputs_ready(); }
 
   FileStat* file_;
   bool dirty_;
