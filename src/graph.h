@@ -71,6 +71,9 @@ struct Node {
   Edge* in_edge() const { return in_edge_; }
   void set_in_edge(Edge* edge) { in_edge_ = edge; }
 
+  const vector<Edge*>& out_edges() const { return out_edges_; }
+  void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
+
 private:
   string path_;
   /// Possible values of mtime_:
@@ -88,9 +91,7 @@ private:
   /// known edge to produce it.
   Edge* in_edge_;
 
-  // TODO: make these private as well.  But don't just blindly add
-  // setters/getters, instead pay attention to the proper API.
-public:
+  /// All Edges that use this Node as an input.
   vector<Edge*> out_edges_;
 };
 

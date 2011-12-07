@@ -151,11 +151,11 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
       Node* node = state->LookupNode(path);
       if (node) {
         if (first_dependent) {
-          if (node->out_edges_.empty()) {
+          if (node->out_edges().empty()) {
             *err = "'" + path + "' has no out edge";
             return false;
           }
-          Edge* edge = node->out_edges_[0];
+          Edge* edge = node->out_edges()[0];
           if (edge->outputs_.empty()) {
             edge->Dump();
             Fatal("edge has no outputs");
@@ -210,8 +210,8 @@ int CmdQuery(State* state, int argc, char* argv[]) {
           printf("    %s\n", (*in)->path().c_str());
         }
       }
-      for (vector<Edge*>::iterator edge = node->out_edges_.begin();
-           edge != node->out_edges_.end(); ++edge) {
+      for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+           edge != node->out_edges().end(); ++edge) {
         printf("  output: %s\n", (*edge)->rule_->name_.c_str());
         for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
              out != (*edge)->outputs_.end(); ++out) {

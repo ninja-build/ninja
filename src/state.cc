@@ -83,7 +83,7 @@ Node* State::SpellcheckNode(const string& path) {
 void State::AddIn(Edge* edge, const string& path) {
   Node* node = GetNode(path);
   edge->inputs_.push_back(node);
-  node->out_edges_.push_back(edge);
+  node->AddOutEdge(edge);
 }
 
 void State::AddOut(Edge* edge, const string& path) {
@@ -112,7 +112,7 @@ vector<Node*> State::RootNodes(string* err) {
   for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
     for (vector<Node*>::iterator out = (*e)->outputs_.begin();
          out != (*e)->outputs_.end(); ++out) {
-      if ((*out)->out_edges_.empty())
+      if ((*out)->out_edges().empty())
         root_nodes.push_back(*out);
     }
   }

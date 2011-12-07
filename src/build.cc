@@ -286,8 +286,8 @@ void Plan::EdgeFinished(Edge* edge) {
 
 void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
-  for (vector<Edge*>::iterator i = node->out_edges_.begin();
-       i != node->out_edges_.end(); ++i) {
+  for (vector<Edge*>::const_iterator i = node->out_edges().begin();
+       i != node->out_edges().end(); ++i) {
     map<Edge*, bool>::iterator want_i = want_.find(*i);
     if (want_i == want_.end())
       continue;
@@ -308,8 +308,8 @@ void Plan::NodeFinished(Node* node) {
 void Plan::CleanNode(BuildLog* build_log, Node* node) {
   node->set_dirty(false);
 
-  for (vector<Edge*>::iterator ei = node->out_edges_.begin();
-       ei != node->out_edges_.end(); ++ei) {
+  for (vector<Edge*>::const_iterator ei = node->out_edges().begin();
+       ei != node->out_edges().end(); ++ei) {
     // Don't process edges that we don't actually want.
     map<Edge*, bool>::iterator want_i = want_.find(*ei);
     if (want_i == want_.end() || !want_i->second)

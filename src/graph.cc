@@ -234,7 +234,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
 
     Node* node = state->GetNode(path);
     *implicit_dep = node;
-    node->out_edges_.push_back(this);
+    node->AddOutEdge(this);
 
     // If we don't have a edge that generates this input already,
     // create one; this makes us not abort if the input is missing,
