@@ -105,7 +105,7 @@ int Cleaner::CleanAll(bool generator) {
     if ((*e)->rule_ == &State::kPhonyRule)
       continue;
     // Do not remove generator's files unless generator specified.
-    if (!generator && (*e)->rule().generator_)
+    if (!generator && (*e)->rule().generator())
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {

@@ -122,7 +122,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
-    if (rule_->restat_ && build_log &&
+    if (rule_->restat() && build_log &&
         (entry = build_log->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_input)
         return true;
@@ -134,7 +134,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
   // May also be dirty due to the command changing since the last build.
   // But if this is a generator rule, the command changing does not make us
   // dirty.
-  if (!rule_->generator_ && build_log &&
+  if (!rule_->generator() && build_log &&
       (entry || (entry = build_log->LookupByOutput(output->path())))) {
     if (command != entry->command)
       return true;

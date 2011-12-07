@@ -101,16 +101,24 @@ struct Rule {
 
   const string& name() const { return name_; }
 
+  bool generator() const { return generator_; }
+  bool restat() const { return restat_; }
+
 private:
   string name_;
 
-  // TODO: make these private.  But adding set/getters for each is so boring
-  // and doesn't really contribute to the readability of the code...
+  // TODO: make these private.  But various tests want to reach into them...
 public:
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+
+private:
   bool generator_, restat_;
+
+  // Allow the parsers to reach into this object and fill out its fields.
+  friend class ManifestParser;
+  friend class ParserTest;
 };
 
 struct BuildLog;
