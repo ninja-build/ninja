@@ -141,9 +141,17 @@ if platform != 'mingw':
     objs += cxx('browse', order_only=built('browse_py.h'))
     n.newline()
 
+n.comment('the depfile parser is generated using re2c.')
+n.rule('re2c',
+       command='re2c -b --no-generation-date -o $out $in',
+       description='RE2C $out')
+# Generate the .cc file in the source directory so we can check it in.
+n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+n.newline()
+
 n.comment('Core source files all build into ninja library.')
 for name in ['build', 'build_log', 'clean', 'edit_distance', 'eval_env',
-             'graph', 'graphviz', 'parsers', 'util',
+             'graph', 'graphviz', 'parsers', 'util', 'depfile_parser',
              'disk_interface', 'state']:
     objs += cxx(name)
 if platform == 'mingw':

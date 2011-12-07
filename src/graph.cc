@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "depfile_parser.h"
 #include "disk_interface.h"
 #include "parsers.h"
 #include "state.h"
@@ -217,29 +218,29 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   if (content.empty())
     return true;
 
-  MakefileParser makefile;
-  string makefile_err;
-  if (!makefile.Parse(content, &makefile_err)) {
-    *err = path + ": " + makefile_err;
+  DepfileParser depfile;
+  string depfile_err;
+  if (!depfile.Parse(content, &depfile_err)) {
+    *err = path + ": " + depfile_err;
     return false;
   }
 
   // Check that this depfile matches our output.
   StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != makefile.out_) {
+  if (opath != depfile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + makefile.out_.AsString() + "'";
+      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
     return false;
   }
 
-  inputs_.insert(inputs_.end() - order_only_deps_, makefile.ins_.size(), 0);
-  implicit_deps_ += makefile.ins_.size();
+  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins_.size(), 0);
+  implicit_deps_ += depfile.ins_.size();
   vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - makefile.ins_.size();
+    inputs_.end() - order_only_deps_ - depfile.ins_.size();
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = makefile.ins_.begin();
-       i != makefile.ins_.end(); ++i, ++implicit_dep) {
+  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
+       i != depfile.ins_.end(); ++i, ++implicit_dep) {
     string path(i->str_, i->len_);
     if (!CanonicalizePath(&path, err))
       return false;
