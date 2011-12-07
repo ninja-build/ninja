@@ -104,6 +104,7 @@ struct Edge {
   Env* env_;
   bool outputs_ready_;
 
+  const Rule& rule() const { return *rule_; }
   bool outputs_ready() const { return outputs_ready_; }
 
   // XXX There are three types of inputs.

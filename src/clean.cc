@@ -105,13 +105,13 @@ int Cleaner::CleanAll(bool generator) {
     if ((*e)->rule_ == &State::kPhonyRule)
       continue;
     // Do not remove generator's files unless generator specified.
-    if (!generator && (*e)->rule_->generator_)
+    if (!generator && (*e)->rule().generator_)
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->file_->path_);
     }
-    if (!(*e)->rule_->depfile_.empty())
+    if (!(*e)->rule().depfile_.empty())
       Remove((*e)->EvaluateDepFile());
   }
   PrintFooter();
@@ -178,7 +178,7 @@ void Cleaner::DoCleanRule(const Rule* rule) {
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end();
        ++e)
-    if ((*e)->rule_->name_ == rule->name_)
+    if ((*e)->rule().name_ == rule->name_)
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end();
            ++out_node)

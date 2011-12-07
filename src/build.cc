@@ -575,7 +575,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   time_t restat_mtime = 0;
 
   if (success) {
-    if (edge->rule_->restat_) {
+    if (edge->rule().restat_) {
       bool node_cleaned = false;
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -605,7 +605,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
             restat_mtime = input_mtime;
         }
 
-        if (restat_mtime != 0 && !edge->rule_->depfile_.empty()) {
+        if (restat_mtime != 0 && !edge->rule().depfile_.empty()) {
           time_t depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
           if (depfile_mtime == 0)
             restat_mtime = 0;
