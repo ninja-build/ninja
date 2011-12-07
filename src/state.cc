@@ -46,24 +46,15 @@ Edge* State::AddEdge(const Rule* rule) {
 }
 
 Node* State::GetNode(const string& path) {
-  FileStat* file = stat_cache_.GetFile(path);
-  if (!file->node_)
-    file->node_ = new Node(file);
-  return file->node_;
+  return stat_cache_.GetFile(path);
 }
 
 Node* State::LookupNode(const string& path) {
-  FileStat* file = stat_cache_.GetFile(path);
-  if (!file->node_)
-    return NULL;
-  return file->node_;
+  return stat_cache_.LookupFile(path);
 }
 
 Node* State::SpellcheckNode(const string& path) {
-  FileStat* file = stat_cache_.SpellcheckFile(path);
-  if (!file || !file->node_)
-    return NULL;
-  return file->node_;
+  return stat_cache_.SpellcheckFile(path);
 }
 
 void State::AddIn(Edge* edge, const string& path) {

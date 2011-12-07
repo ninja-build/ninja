@@ -23,7 +23,7 @@
 #include "state.h"
 #include "util.h"
 
-bool FileStat::Stat(DiskInterface* disk_interface) {
+bool Node::Stat(DiskInterface* disk_interface) {
   mtime_ = disk_interface->Stat(path_);
   return mtime_ > 0;
 }
@@ -41,13 +41,13 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Visit all inputs; we're dirty if any of the inputs are dirty.
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->file_->StatIfNecessary(disk_interface)) {
+    if ((*i)->StatIfNecessary(disk_interface)) {
       if (Edge* edge = (*i)->in_edge_) {
         if (!edge->RecomputeDirty(state, disk_interface, err))
           return false;
       } else {
         // This input has no in-edge; it is dirty if it is missing.
-        (*i)->dirty_ = !(*i)->file_->exists();
+        (*i)->dirty_ = !(*i)->exists();
       }
     }
 
@@ -63,8 +63,8 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       if ((*i)->dirty_) {
         dirty = true;
       } else {
-        if ((*i)->file_->mtime_ > most_recent_input)
-          most_recent_input = (*i)->file_->mtime_;
+        if ((*i)->mtime() > most_recent_input)
+          most_recent_input = (*i)->mtime();
       }
     }
   }
@@ -77,7 +77,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
     for (vector<Node*>::iterator i = outputs_.begin();
          i != outputs_.end(); ++i) {
-      (*i)->file_->StatIfNecessary(disk_interface);
+      (*i)->StatIfNecessary(disk_interface);
       if (RecomputeOutputDirty(build_log, most_recent_input, command, *i)) {
         dirty = true;
         break;
@@ -88,7 +88,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    (*i)->file_->StatIfNecessary(disk_interface);
+    (*i)->StatIfNecessary(disk_interface);
     if (dirty)
       (*i)->dirty_ = true;
   }
@@ -107,23 +107,23 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
   if (is_phony()) {
     // Phony edges don't write any output.
     // Outputs are only dirty if there are no inputs and we're missing the output.
-    return inputs_.empty() && !output->file_->exists();
+    return inputs_.empty() && !output->exists();
   }
 
   BuildLog::LogEntry* entry = 0;
 
   // Dirty if we're missing the output.
-  if (!output->file_->exists())
+  if (!output->exists())
     return true;
 
   // Dirty if the output is older than the input.
-  if (output->file_->mtime_ < most_recent_input) {
+  if (output->mtime() < most_recent_input) {
     // If this is a restat rule, we may have cleaned the output with a restat
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
     if (rule_->restat_ && build_log &&
-        (entry = build_log->LookupByOutput(output->file_->path_))) {
+        (entry = build_log->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_input)
         return true;
     } else {
@@ -135,7 +135,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
   // But if this is a generator rule, the command changing does not make us
   // dirty.
   if (!rule_->generator_ && build_log &&
-      (entry || (entry = build_log->LookupByOutput(output->file_->path_)))) {
+      (entry || (entry = build_log->LookupByOutput(output->path())))) {
     if (command != entry->command)
       return true;
   }
@@ -164,14 +164,14 @@ struct EdgeEnv : public Env {
            i != edge_->inputs_.end() && explicit_deps; ++i, --explicit_deps) {
         if (!result.empty())
           result.push_back(' ');
-        result.append((*i)->file_->path_);
+        result.append((*i)->path());
       }
     } else if (var == "out") {
       for (vector<Node*>::iterator i = edge_->outputs_.begin();
            i != edge_->outputs_.end(); ++i) {
         if (!result.empty())
           result.push_back(' ');
-        result.append((*i)->file_->path_);
+        result.append((*i)->path());
       }
     } else if (edge_->env_) {
       return edge_->env_->LookupVariable(var);
@@ -213,10 +213,10 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   }
 
   // Check that this depfile matches our output.
-  StringPiece opath = StringPiece(outputs_[0]->file_->path_);
+  StringPiece opath = StringPiece(outputs_[0]->path());
   if (opath != makefile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->file_->path_ + "', got '" + makefile.out_.AsString() + "'";
+      outputs_[0]->path() + "', got '" + makefile.out_.AsString() + "'";
     return false;
   }
 
@@ -260,11 +260,11 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
 void Edge::Dump() {
   printf("[ ");
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    printf("%s ", (*i)->file_->path_.c_str());
+    printf("%s ", (*i)->path().c_str());
   }
   printf("--%s-> ", rule_->name_.c_str());
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    printf("%s ", (*i)->file_->path_.c_str());
+    printf("%s ", (*i)->path().c_str());
   }
   printf("]\n");
 }

@@ -482,9 +482,9 @@ TEST_F(ParserTest, DefaultStatements) {
   std::vector<Node*> nodes = state.DefaultNodes(&err);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, nodes.size());
-  EXPECT_EQ("a", nodes[0]->file_->path_);
-  EXPECT_EQ("b", nodes[1]->file_->path_);
-  EXPECT_EQ("c", nodes[2]->file_->path_);
+  EXPECT_EQ("a", nodes[0]->path());
+  EXPECT_EQ("b", nodes[1]->path());
+  EXPECT_EQ("c", nodes[2]->path());
 }
 
 TEST(MakefileParser, Basic) {

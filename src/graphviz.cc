@@ -22,7 +22,7 @@ void GraphViz::AddTarget(Node* node) {
   if (visited_.find(node) != visited_.end())
     return;
 
-  printf("\"%p\" [label=\"%s\"]\n", node, node->file_->path_.c_str());
+  printf("\"%p\" [label=\"%s\"]\n", node, node->path().c_str());
   visited_.insert(node);
 
   if (!node->in_edge_) {

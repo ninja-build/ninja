@@ -193,7 +193,7 @@ TEST_F(StatTest, Simple) {
 "build out: cat in\n"));
 
   Node* out = GetNode("out");
-  out->file_->Stat(this);
+  out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
@@ -208,7 +208,7 @@ TEST_F(StatTest, TwoStep) {
 "build mid: cat in\n"));
 
   Node* out = GetNode("out");
-  out->file_->Stat(this);
+  out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
@@ -227,7 +227,7 @@ TEST_F(StatTest, Tree) {
 "build mid2: cat in21 in22\n"));
 
   Node* out = GetNode("out");
-  out->file_->Stat(this);
+  out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
@@ -247,7 +247,7 @@ TEST_F(StatTest, Middle) {
   mtimes_["out"] = 1;
 
   Node* out = GetNode("out");
-  out->file_->Stat(this);
+  out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);

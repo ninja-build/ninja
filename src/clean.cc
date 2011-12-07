@@ -109,7 +109,7 @@ int Cleaner::CleanAll(bool generator) {
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
-      Remove((*out_node)->file_->path_);
+      Remove((*out_node)->path());
     }
     if (!(*e)->rule().depfile_.empty())
       Remove((*e)->EvaluateDepFile());
@@ -120,7 +120,7 @@ int Cleaner::CleanAll(bool generator) {
 
 void Cleaner::DoCleanTarget(Node* target) {
   if (target->in_edge_) {
-    Remove(target->file_->path_);
+    Remove(target->path());
     for (vector<Node*>::iterator n = target->in_edge_->inputs_.begin();
          n != target->in_edge_->inputs_.end();
          ++n) {
@@ -182,7 +182,7 @@ void Cleaner::DoCleanRule(const Rule* rule) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end();
            ++out_node)
-        Remove((*out_node)->file_->path_);
+        Remove((*out_node)->path());
 }
 
 int Cleaner::CleanRule(const Rule* rule) {

@@ -19,25 +19,32 @@
 #include "edit_distance.h"
 #include "graph.h"
 
-FileStat* StatCache::GetFile(const std::string& path) {
+Node* StatCache::GetFile(const std::string& path) {
+  Node* node = LookupFile(path);
+  if (node)
+    return node;
+  node = new Node(path);
+  paths_[node->path().c_str()] = node;
+  return node;
+}
+
+Node* StatCache::LookupFile(const std::string& path) {
   Paths::iterator i = paths_.find(path.c_str());
   if (i != paths_.end())
     return i->second;
-  FileStat* file = new FileStat(path);
-  paths_[file->path_.c_str()] = file;
-  return file;
+  return NULL;
 }
 
-FileStat* StatCache::SpellcheckFile(const std::string& path) {
+Node* StatCache::SpellcheckFile(const std::string& path) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
-  FileStat* result = NULL;
+  Node* result = NULL;
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     int distance = EditDistance(
         i->first, path, kAllowReplacements, kMaxValidEditDistance);
-    if (distance < min_distance && i->second->node_) {
+    if (distance < min_distance && i->second) {
       min_distance = distance;
       result = i->second;
     }
@@ -47,17 +54,15 @@ FileStat* StatCache::SpellcheckFile(const std::string& path) {
 
 void StatCache::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    FileStat* file = i->second;
+    Node* node = i->second;
     printf("%s %s\n",
-           file->path_.c_str(),
-           file->status_known() ? (file->node_->dirty_ ? "dirty" : "clean")
+           node->path().c_str(),
+           node->status_known() ? (node->dirty() ? "dirty" : "clean")
                                 : "unknown");
   }
 }
 
 void StatCache::Invalidate() {
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    i->second->mtime_ = -1;
-    i->second->node_->dirty_ = false;
-  }
+  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
+    i->second->ResetState();
 }

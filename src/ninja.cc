@@ -168,7 +168,7 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
 
         Node* suggestion = state->SpellcheckNode(path);
         if (suggestion) {
-          *err += ", did you mean '" + suggestion->file_->path_ + "'?";
+          *err += ", did you mean '" + suggestion->path() + "'?";
         }
         return false;
       }
@@ -207,7 +207,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
         printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
         for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
              in != node->in_edge_->inputs_.end(); ++in) {
-          printf("    %s\n", (*in)->file_->path_.c_str());
+          printf("    %s\n", (*in)->path().c_str());
         }
       }
       for (vector<Edge*>::iterator edge = node->out_edges_.begin();
@@ -215,14 +215,14 @@ int CmdQuery(State* state, int argc, char* argv[]) {
         printf("  output: %s\n", (*edge)->rule_->name_.c_str());
         for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
              out != (*edge)->outputs_.end(); ++out) {
-          printf("    %s\n", (*out)->file_->path_.c_str());
+          printf("    %s\n", (*out)->path().c_str());
         }
       }
     } else {
       Node* suggestion = state->SpellcheckNode(argv[i]);
       if (suggestion) {
         printf("%s unknown, did you mean %s?\n",
-               argv[i], suggestion->file_->path_.c_str());
+               argv[i], suggestion->path().c_str());
       } else {
         printf("%s unknown\n", argv[i]);
       }
@@ -257,7 +257,7 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
        ++n) {
     for (int i = 0; i < indent; ++i)
       printf("  ");
-    const char* target = (*n)->file_->path_.c_str();
+    const char* target = (*n)->path().c_str();
     if ((*n)->in_edge_) {
       printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
       if (depth > 1 || depth <= 0)
@@ -281,7 +281,7 @@ int CmdTargetsSourceList(State* state) {
          inps != (*e)->inputs_.end();
          ++inps)
       if (!(*inps)->in_edge_)
-        printf("%s\n", (*inps)->file_->path_.c_str());
+        printf("%s\n", (*inps)->path().c_str());
   return 0;
 }
 
@@ -294,7 +294,7 @@ int CmdTargetsList(State* state, const string& rule_name) {
     if ((*e)->rule_->name_ == rule_name) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
-        rules.insert((*out_node)->file_->path_);
+        rules.insert((*out_node)->path());
       }
     }
   }
@@ -314,7 +314,7 @@ int CmdTargetsList(State* state) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       printf("%s: %s\n",
-             (*out_node)->file_->path_.c_str(),
+             (*out_node)->path().c_str(),
              (*e)->rule_->name_.c_str());
     }
   }

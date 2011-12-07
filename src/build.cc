@@ -195,8 +195,8 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
     if (node->dirty_) {
       string referenced;
       if (!stack->empty())
-        referenced = ", needed by '" + stack->back()->file_->path_ + "',";
-      *err = "'" + node->file_->path_ + "'" + referenced + " missing "
+        referenced = ", needed by '" + stack->back()->path() + "',";
+      *err = "'" + node->path() + "'" + referenced + " missing "
              "and no known rule to make it";
     }
     return false;
@@ -256,7 +256,7 @@ bool Plan::CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err) {
   for (vector<Node*>::iterator i = start; i != stack->end(); ++i) {
     if (i != start)
       err->append(" -> ");
-    err->append((*i)->file_->path_);
+    err->append((*i)->path());
   }
   return true;
 }
@@ -324,8 +324,8 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
       // Recompute most_recent_input and command.
       time_t most_recent_input = 1;
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
-        if ((*ni)->file_->mtime_ > most_recent_input)
-          most_recent_input = (*ni)->file_->mtime_;
+        if ((*ni)->mtime() > most_recent_input)
+          most_recent_input = (*ni)->mtime();
       string command = (*ei)->EvaluateCommand();
 
       // Now, recompute the dirty state of each output.
@@ -454,7 +454,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
-  node->file_->StatIfNecessary(disk_interface_);
+  node->StatIfNecessary(disk_interface_);
   if (Edge* in_edge = node->in_edge_) {
     if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;
@@ -555,7 +555,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // XXX: this will block; do we care?
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
-    if (!disk_interface_->MakeDirs((*i)->file_->path_))
+    if (!disk_interface_->MakeDirs((*i)->path()))
       return false;
   }
 
@@ -578,9 +578,9 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
-        if ((*i)->file_->exists()) {
-          time_t new_mtime = disk_interface_->Stat((*i)->file_->path_);
-          if ((*i)->file_->mtime_ == new_mtime) {
+        if ((*i)->exists()) {
+          time_t new_mtime = disk_interface_->Stat((*i)->path());
+          if ((*i)->mtime() == new_mtime) {
             // The rule command did not change the output.  Propagate the clean
             // state through the build graph.
             plan_.CleanNode(log_, *i);
@@ -594,7 +594,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         // (existing) non-order-only input or the depfile.
         for (vector<Node*>::iterator i = edge->inputs_.begin();
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-          time_t input_mtime = disk_interface_->Stat((*i)->file_->path_);
+          time_t input_mtime = disk_interface_->Stat((*i)->path());
           if (input_mtime == 0) {
             restat_mtime = 0;
             break;

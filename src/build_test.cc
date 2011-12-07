@@ -38,8 +38,8 @@ TEST_F(PlanTest, Basic) {
 
   Edge* edge = plan_.FindWork();
   ASSERT_TRUE(edge);
-  ASSERT_EQ("in",  edge->inputs_[0]->file_->path_);
-  ASSERT_EQ("mid", edge->outputs_[0]->file_->path_);
+  ASSERT_EQ("in",  edge->inputs_[0]->path());
+  ASSERT_EQ("mid", edge->outputs_[0]->path());
 
   ASSERT_FALSE(plan_.FindWork());
 
@@ -47,8 +47,8 @@ TEST_F(PlanTest, Basic) {
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
-  ASSERT_EQ("mid", edge->inputs_[0]->file_->path_);
-  ASSERT_EQ("out", edge->outputs_[0]->file_->path_);
+  ASSERT_EQ("mid", edge->inputs_[0]->path());
+  ASSERT_EQ("out", edge->outputs_[0]->path());
 
   plan_.EdgeFinished(edge);
 
@@ -222,7 +222,7 @@ void BuildTest::Dirty(const string& path) {
   // If it's an input file, mark that we've already stat()ed it and
   // it's missing.
   if (!node->in_edge_)
-    node->file_->mtime_ = 0;
+    node->MarkMissing();
 }
 
 bool BuildTest::CanRunMore() {
@@ -237,7 +237,7 @@ bool BuildTest::StartCommand(Edge* edge) {
       edge->rule().name_ == "touch") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      fs_.Create((*out)->file_->path_, now_, "");
+      fs_.Create((*out)->path(), now_, "");
     }
   } else if (edge->rule().name_ == "true" ||
              edge->rule().name_ == "fail") {
@@ -508,10 +508,10 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   EXPECT_EQ(1, edge->order_only_deps_);
   // Verify the inputs are in the order we expect
   // (explicit then implicit then orderonly).
-  EXPECT_EQ("foo.c", edge->inputs_[0]->file_->path_);
-  EXPECT_EQ("blah.h", edge->inputs_[1]->file_->path_);
-  EXPECT_EQ("bar.h", edge->inputs_[2]->file_->path_);
-  EXPECT_EQ("otherfile", edge->inputs_[3]->file_->path_);
+  EXPECT_EQ("foo.c", edge->inputs_[0]->path());
+  EXPECT_EQ("blah.h", edge->inputs_[1]->path());
+  EXPECT_EQ("bar.h", edge->inputs_[2]->path());
+  EXPECT_EQ("otherfile", edge->inputs_[3]->path());
 
   // Expect the command line we generate to only use the original input.
   ASSERT_EQ("cc foo.c", edge->EvaluateCommand());

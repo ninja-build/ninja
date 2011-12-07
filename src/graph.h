@@ -23,11 +23,13 @@ using namespace std;
 
 struct DiskInterface;
 
-struct Node;
+struct Edge;
 
-/// Information about a single on-disk file: path, mtime.
-struct FileStat {
-  FileStat(const string& path) : path_(path), mtime_(-1), node_(NULL) {}
+/// Information about a node in the dependency graph: the file, whether
+/// it's dirty, mtime, etc.
+struct Node {
+  Node(const string& path) : path_(path), mtime_(-1), dirty_(false),
+                             in_edge_(NULL) {}
 
   /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
@@ -40,6 +42,17 @@ struct FileStat {
     return true;
   }
 
+  /// Mark as not-yet-stat()ed and not dirty.
+  void ResetState() {
+    mtime_ = -1;
+    dirty_ = false;
+  }
+
+  /// Mark the Node as already-stat()ed and missing.
+  void MarkMissing() {
+    mtime_ = 0;
+  }
+
   bool exists() const {
     return mtime_ != 0;
   }
@@ -48,13 +61,25 @@ struct FileStat {
     return mtime_ != -1;
   }
 
+  const string& path() const { return path_; }
+  time_t mtime() const { return mtime_; }
+
+  bool dirty() const { return dirty_; }
+
+private:
   string path_;
   // Possible values of mtime_:
   //   -1: file hasn't been examined
   //   0:  we looked, and file doesn't exist
   //   >0: actual file's mtime
   time_t mtime_;
-  Node* node_;
+
+  // TODO: make these private as well.  But don't just blindly add
+  // setters/getters, instead pay attention to the proper API.
+public:
+  bool dirty_;
+  Edge* in_edge_;
+  vector<Edge*> out_edges_;
 };
 
 /// An invokable build command and associated metadata (description, etc.).
@@ -132,19 +157,6 @@ struct Edge {
   }
 
   bool is_phony() const;
-};
-
-/// Information about a node in the dependency graph: the file, whether
-/// it's dirty, etc.
-struct Node {
-  Node(FileStat* file) : file_(file), dirty_(false), in_edge_(NULL) {}
-
-  bool dirty() const { return dirty_; }
-
-  FileStat* file_;
-  bool dirty_;
-  Edge* in_edge_;
-  vector<Edge*> out_edges_;
 };
 
 #endif  // NINJA_GRAPH_H_

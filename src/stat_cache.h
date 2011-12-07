@@ -16,23 +16,25 @@
 #define NINJA_STAT_CACHE_H_
 
 #include <string>
+using namespace std;
 
 #include "hash_map.h"
 
 #include <string.h>
 
-struct FileStat;
+struct Node;
 
-/// Mapping of path -> FileStat.
+/// Mapping of path -> Node.
 struct StatCache {
-  FileStat* GetFile(const std::string& path);
-  FileStat* SpellcheckFile(const std::string& path);
+  Node* GetFile(const string& path);
+  Node* LookupFile(const string& path);
+  Node* SpellcheckFile(const string& path);
 
   /// Dump the mapping to stdout (useful for debugging).
   void Dump();
   void Invalidate();
 
-  typedef ExternalStringHashMap<FileStat*>::Type Paths;
+  typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
 };
 

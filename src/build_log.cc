@@ -73,7 +73,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   const string command = edge->EvaluateCommand();
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->file_->path_;
+    const string& path = (*out)->path();
     Log::iterator i = log_.find(path.c_str());
     LogEntry* log_entry;
     if (i != log_.end()) {
