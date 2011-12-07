@@ -16,6 +16,18 @@
 
 #include "depfile_parser.h"
 
+// A note on backslashes in Makefiles, from reading the docs:
+// Backslash-newline is the line continuation character.
+// Backslash-# escapes a # (otherwise meaningful as a comment start).
+// Backslash-% escapes a % (otherwise meaningful as a special).
+// Finally, quoting the GNU manual, "Backslashes that are not in danger
+// of quoting ‘%’ characters go unmolested."
+// How do you end a line with a backslash?  The netbsd Make docs suggest
+// reading the result of a shell command echoing a backslash!
+//
+// Rather than implement the above, we do the simpler thing here.
+// If anyone actually has depfiles that rely on the more complicated
+// behavior we can adjust this.
 bool DepfileParser::Parse(const string& content, string* err) {
   const char* p = content.data();
   const char* end = content.data() + content.size();
@@ -23,7 +35,7 @@ bool DepfileParser::Parse(const string& content, string* err) {
     const char* start = p;
     char yych;
     
-#line 27 "src/depfile_parser.cc"
+#line 39 "src/depfile_parser.cc"
     {
       static const unsigned char yybm[] = {
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -84,19 +96,19 @@ bool DepfileParser::Parse(const string& content, string* err) {
         }
       }
 yy2:
-#line 38 "src/depfile_parser.in.cc"
+#line 50 "src/depfile_parser.in.cc"
       { continue; }
-#line 90 "src/depfile_parser.cc"
+#line 102 "src/depfile_parser.cc"
 yy3:
       ++p;
       if ((yych = *p) == '\n') goto yy13;
 yy4:
-#line 48 "src/depfile_parser.in.cc"
+#line 60 "src/depfile_parser.in.cc"
       {
       *err = "BUG: depfile lexer encountered unknown state";
       return false;
     }
-#line 100 "src/depfile_parser.cc"
+#line 112 "src/depfile_parser.cc"
 yy5:
       yych = *++p;
       goto yy12;
@@ -105,7 +117,7 @@ yy6:
       yych = *p;
       goto yy10;
 yy7:
-#line 39 "src/depfile_parser.in.cc"
+#line 51 "src/depfile_parser.in.cc"
       {
       // Got a filename.
       if (p[-1] == ':') {
@@ -115,7 +127,7 @@ yy7:
       }
       continue;
     }
-#line 119 "src/depfile_parser.cc"
+#line 131 "src/depfile_parser.cc"
 yy8:
       yych = *++p;
       goto yy4;
@@ -139,11 +151,11 @@ yy12:
       goto yy2;
 yy13:
       ++p;
-#line 37 "src/depfile_parser.in.cc"
+#line 49 "src/depfile_parser.in.cc"
       { continue; }
-#line 145 "src/depfile_parser.cc"
+#line 157 "src/depfile_parser.cc"
     }
-#line 52 "src/depfile_parser.in.cc"
+#line 64 "src/depfile_parser.in.cc"
 
   }
   return true;

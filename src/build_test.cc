@@ -486,7 +486,7 @@ TEST_F(BuildTest, DepFileParseError) {
   fs_.Create("foo.c", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o blah.h bar.h\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
-  EXPECT_EQ("foo.o.d: line 1, col 7: expected ':', got 'blah.h'", err);
+  EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got ''", err);
 }
 
 TEST_F(BuildTest, OrderOnlyDeps) {

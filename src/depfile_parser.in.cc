@@ -14,6 +14,18 @@
 
 #include "depfile_parser.h"
 
+// A note on backslashes in Makefiles, from reading the docs:
+// Backslash-newline is the line continuation character.
+// Backslash-# escapes a # (otherwise meaningful as a comment start).
+// Backslash-% escapes a % (otherwise meaningful as a special).
+// Finally, quoting the GNU manual, "Backslashes that are not in danger
+// of quoting ‘%’ characters go unmolested."
+// How do you end a line with a backslash?  The netbsd Make docs suggest
+// reading the result of a shell command echoing a backslash!
+//
+// Rather than implement the above, we do the simpler thing here.
+// If anyone actually has depfiles that rely on the more complicated
+// behavior we can adjust this.
 bool DepfileParser::Parse(const string& content, string* err) {
   const char* p = content.data();
   const char* end = content.data() + content.size();
