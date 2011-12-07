@@ -9,6 +9,15 @@ Test-driven development:
   Remember to build "all" before committing to verify the other source
   still works!
 
+Testing performance impact of changes:
+  If you have a Chrome build handy, it's a good test case.
+  Otherwise, https://github.com/martine/ninja/downloads has a copy of
+  the Chrome build files (and depfiles). You can untar that, then run
+  "ninja chrome".  I often do something like:
+    (for i in `seq 5`; do time -p ninja chrome) 2>&1 | grep real > old
+    (for i in `seq 5`; do time -p ninja-new chrome) 2>&1 | grep real > new
+  and then compare those two lists of timings either by eye or with R.
+
 Coding guidelines:
 - Function name are camelcase.
 - Member methods are camelcase, expect for trivial getters which are
