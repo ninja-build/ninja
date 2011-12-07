@@ -99,9 +99,6 @@ private:
 struct Rule {
   Rule(const string& name) : name_(name), generator_(false), restat_(false) { }
 
-  bool ParseCommand(const string& command, string* err) {
-    return command_.Parse(command, err);
-  }
   string name_;
   EvalString command_;
   EvalString description_;
