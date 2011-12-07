@@ -26,7 +26,7 @@ TEST_F(GraphTest, MissingImplicit) {
   fs_.Create("in", 1, "");
   fs_.Create("out", 1, "");
 
-  Edge* edge = GetNode("out")->in_edge_;
+  Edge* edge = GetNode("out")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -44,7 +44,7 @@ TEST_F(GraphTest, ModifiedImplicit) {
   fs_.Create("out", 1, "");
   fs_.Create("implicit", 2, "");
 
-  Edge* edge = GetNode("out")->in_edge_;
+  Edge* edge = GetNode("out")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -64,7 +64,7 @@ TEST_F(GraphTest, FunkyMakefilePath) {
   fs_.Create("out.o.d", 1, "out.o: ./foo/../implicit.h\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -87,7 +87,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
   fs_.Create("out.o.d", 1, "out.o: implicit.h\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -108,7 +108,7 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
   fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);

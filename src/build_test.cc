@@ -221,7 +221,7 @@ void BuildTest::Dirty(const string& path) {
 
   // If it's an input file, mark that we've already stat()ed it and
   // it's missing.
-  if (!node->in_edge_)
+  if (!node->in_edge())
     node->MarkMissing();
 }
 

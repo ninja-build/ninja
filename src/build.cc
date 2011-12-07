@@ -190,7 +190,7 @@ bool Plan::AddTarget(Node* node, string* err) {
 }
 
 bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
-  Edge* edge = node->in_edge_;
+  Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
       string referenced;
@@ -201,7 +201,6 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
     }
     return false;
   }
-  assert(edge);
 
   if (CheckDependencyCycle(node, stack, err))
     return false;
@@ -455,7 +454,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 
 bool Builder::AddTarget(Node* node, string* err) {
   node->StatIfNecessary(disk_interface_);
-  if (Edge* in_edge = node->in_edge_) {
+  if (Edge* in_edge = node->in_edge()) {
     if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;
     if (in_edge->outputs_ready())

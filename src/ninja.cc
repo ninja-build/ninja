@@ -203,10 +203,10 @@ int CmdQuery(State* state, int argc, char* argv[]) {
     Node* node = state->LookupNode(argv[i]);
     if (node) {
       printf("%s:\n", argv[i]);
-      if (node->in_edge_) {
-        printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
-        for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
-             in != node->in_edge_->inputs_.end(); ++in) {
+      if (node->in_edge()) {
+        printf("  input: %s\n", node->in_edge()->rule_->name_.c_str());
+        for (vector<Node*>::iterator in = node->in_edge()->inputs_.begin();
+             in != node->in_edge()->inputs_.end(); ++in) {
           printf("    %s\n", (*in)->path().c_str());
         }
       }
@@ -258,10 +258,10 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
     for (int i = 0; i < indent; ++i)
       printf("  ");
     const char* target = (*n)->path().c_str();
-    if ((*n)->in_edge_) {
-      printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
+    if ((*n)->in_edge()) {
+      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name_.c_str());
       if (depth > 1 || depth <= 0)
-        CmdTargetsList((*n)->in_edge_->inputs_, depth - 1, indent + 1);
+        CmdTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
       printf("%s\n", target);
     }
@@ -280,7 +280,7 @@ int CmdTargetsSourceList(State* state) {
     for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
          inps != (*e)->inputs_.end();
          ++inps)
-      if (!(*inps)->in_edge_)
+      if (!(*inps)->in_edge())
         printf("%s\n", (*inps)->path().c_str());
   return 0;
 }
@@ -383,7 +383,7 @@ void PrintCommands(Edge* edge, set<Edge*>* seen) {
 
   for (vector<Node*>::iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in)
-    PrintCommands((*in)->in_edge_, seen);
+    PrintCommands((*in)->in_edge(), seen);
 
   if (!edge->is_phony())
     puts(edge->EvaluateCommand().c_str());
@@ -399,7 +399,7 @@ int CmdCommands(State* state, int argc, char* argv[]) {
 
   set<Edge*> seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge_, &seen);
+    PrintCommands((*in)->in_edge(), &seen);
 
   return 0;
 }

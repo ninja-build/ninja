@@ -119,10 +119,10 @@ int Cleaner::CleanAll(bool generator) {
 }
 
 void Cleaner::DoCleanTarget(Node* target) {
-  if (target->in_edge_) {
+  if (target->in_edge()) {
     Remove(target->path());
-    for (vector<Node*>::iterator n = target->in_edge_->inputs_.begin();
-         n != target->in_edge_->inputs_.end();
+    for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
+         n != target->in_edge()->inputs_.end();
          ++n) {
       DoCleanTarget(*n);
     }

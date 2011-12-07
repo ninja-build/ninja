@@ -42,7 +42,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   time_t most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->StatIfNecessary(disk_interface)) {
-      if (Edge* edge = (*i)->in_edge_) {
+      if (Edge* edge = (*i)->in_edge()) {
         if (!edge->RecomputeDirty(state, disk_interface, err))
           return false;
       } else {
@@ -52,7 +52,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
 
     // If an input is not ready, neither are our outputs.
-    if (Edge* edge = (*i)->in_edge_) {
+    if (Edge* edge = (*i)->in_edge()) {
       if (!edge->outputs_ready_)
         outputs_ready_ = false;
     }
@@ -146,7 +146,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
 bool Edge::AllInputsReady() const {
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end(); ++i) {
-    if ((*i)->in_edge_ && !(*i)->in_edge_->outputs_ready())
+    if ((*i)->in_edge() && !(*i)->in_edge()->outputs_ready())
       return false;
   }
   return true;
@@ -239,9 +239,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     // If we don't have a edge that generates this input already,
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
-    if (!node->in_edge_) {
+    if (!node->in_edge()) {
       Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
-      node->in_edge_ = phony_edge;
+      node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
       // RecomputeDirty might not be called for phony_edge if a previous call

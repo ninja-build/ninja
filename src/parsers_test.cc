@@ -441,7 +441,7 @@ TEST_F(ParserTest, Implicit) {
 "rule cat\n  command = cat $in > $out\n"
 "build foo: cat bar | baz\n"));
 
-  Edge* edge = state.LookupNode("foo")->in_edge_;
+  Edge* edge = state.LookupNode("foo")->in_edge();
   ASSERT_TRUE(edge->is_implicit(1));
 }
 
@@ -450,7 +450,7 @@ TEST_F(ParserTest, OrderOnly) {
 "rule cat\n  command = cat $in > $out\n"
 "build foo: cat bar || baz\n"));
 
-  Edge* edge = state.LookupNode("foo")->in_edge_;
+  Edge* edge = state.LookupNode("foo")->in_edge();
   ASSERT_TRUE(edge->is_order_only(1));
 }
 

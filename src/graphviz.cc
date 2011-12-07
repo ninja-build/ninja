@@ -25,13 +25,13 @@ void GraphViz::AddTarget(Node* node) {
   printf("\"%p\" [label=\"%s\"]\n", node, node->path().c_str());
   visited_.insert(node);
 
-  if (!node->in_edge_) {
+  Edge* edge = node->in_edge();
+
+  if (!edge) {
     // Leaf node.
     // Draw as a rect?
     return;
   }
-
-  Edge* edge = node->in_edge_;
 
   if (edge->inputs_.size() == 1 && edge->outputs_.size() == 1) {
     // Can draw simply.

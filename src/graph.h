@@ -68,6 +68,9 @@ struct Node {
   void set_dirty(bool dirty) { dirty_ = dirty; }
   void MarkDirty() { dirty_ = true; }
 
+  Edge* in_edge() const { return in_edge_; }
+  void set_in_edge(Edge* edge) { in_edge_ = edge; }
+
 private:
   string path_;
   /// Possible values of mtime_:
@@ -81,10 +84,13 @@ private:
   /// edges to build.
   bool dirty_;
 
+  /// The Edge that produces this Node, or NULL when there is no
+  /// known edge to produce it.
+  Edge* in_edge_;
+
   // TODO: make these private as well.  But don't just blindly add
   // setters/getters, instead pay attention to the proper API.
 public:
-  Edge* in_edge_;
   vector<Edge*> out_edges_;
 };
 
