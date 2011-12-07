@@ -192,7 +192,7 @@ bool Plan::AddTarget(Node* node, string* err) {
 bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   Edge* edge = node->in_edge_;
   if (!edge) {  // Leaf node.
-    if (node->dirty_) {
+    if (node->dirty()) {
       string referenced;
       if (!stack->empty())
         referenced = ", needed by '" + stack->back()->path() + "',";
@@ -307,7 +307,7 @@ void Plan::NodeFinished(Node* node) {
 }
 
 void Plan::CleanNode(BuildLog* build_log, Node* node) {
-  node->dirty_ = false;
+  node->set_dirty(false);
 
   for (vector<Edge*>::iterator ei = node->out_edges_.begin();
        ei != node->out_edges_.end(); ++ei) {
@@ -332,12 +332,12 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
       bool all_outputs_clean = true;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
            ni != (*ei)->outputs_.end(); ++ni) {
-        if (!(*ni)->dirty_)
+        if (!(*ni)->dirty())
           continue;
 
         if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, command,
                                         *ni)) {
-          (*ni)->dirty_ = true;
+          (*ni)->MarkDirty();
           all_outputs_clean = false;
         } else {
           CleanNode(build_log, *ni);

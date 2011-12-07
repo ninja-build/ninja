@@ -34,7 +34,7 @@ TEST_F(GraphTest, MissingImplicit) {
   // A missing implicit dep *should* make the output dirty.
   // (In fact, a build will fail.)
   // This is a change from prior semantics of ninja.
-  EXPECT_TRUE(GetNode("out")->dirty_);
+  EXPECT_TRUE(GetNode("out")->dirty());
 }
 
 TEST_F(GraphTest, ModifiedImplicit) {
@@ -50,7 +50,7 @@ TEST_F(GraphTest, ModifiedImplicit) {
   ASSERT_EQ("", err);
 
   // A modified implicit dep should make the output dirty.
-  EXPECT_TRUE(GetNode("out")->dirty_);
+  EXPECT_TRUE(GetNode("out")->dirty());
 }
 
 TEST_F(GraphTest, FunkyMakefilePath) {
@@ -71,7 +71,7 @@ TEST_F(GraphTest, FunkyMakefilePath) {
 
   // implicit.h has changed, though our depfile refers to it with a
   // non-canonical path; we should still find it.
-  EXPECT_TRUE(GetNode("out.o")->dirty_);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, ExplicitImplicit) {
@@ -95,7 +95,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
   // We have both an implicit and an explicit dep on implicit.h.
   // The implicit dep should "win" (in the sense that it should cause
   // the output to be dirty).
-  EXPECT_TRUE(GetNode("out.o")->dirty_);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, PathWithCurrentDirectory) {
@@ -113,7 +113,7 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(GetNode("out.o")->dirty_);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, RootNodes) {

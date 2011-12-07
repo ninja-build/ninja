@@ -65,19 +65,25 @@ struct Node {
   time_t mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
+  void set_dirty(bool dirty) { dirty_ = dirty; }
+  void MarkDirty() { dirty_ = true; }
 
 private:
   string path_;
-  // Possible values of mtime_:
-  //   -1: file hasn't been examined
-  //   0:  we looked, and file doesn't exist
-  //   >0: actual file's mtime
+  /// Possible values of mtime_:
+  ///   -1: file hasn't been examined
+  ///   0:  we looked, and file doesn't exist
+  ///   >0: actual file's mtime
   time_t mtime_;
+
+  /// Dirty is true when the underlying file is out-of-date.
+  /// But note that Edge::outputs_ready_ is also used in judging which
+  /// edges to build.
+  bool dirty_;
 
   // TODO: make these private as well.  But don't just blindly add
   // setters/getters, instead pay attention to the proper API.
 public:
-  bool dirty_;
   Edge* in_edge_;
   vector<Edge*> out_edges_;
 };

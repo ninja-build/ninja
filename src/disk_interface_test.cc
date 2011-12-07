@@ -214,9 +214,9 @@ TEST_F(StatTest, TwoStep) {
   edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
-  ASSERT_TRUE(GetNode("out")->dirty_);
+  ASSERT_TRUE(GetNode("out")->dirty());
   ASSERT_EQ("mid",  stats_[1]);
-  ASSERT_TRUE(GetNode("mid")->dirty_);
+  ASSERT_TRUE(GetNode("mid")->dirty());
   ASSERT_EQ("in",  stats_[2]);
 }
 
@@ -233,7 +233,7 @@ TEST_F(StatTest, Tree) {
   edge->RecomputeDirty(NULL, this, NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
-  ASSERT_TRUE(GetNode("mid1")->dirty_);
+  ASSERT_TRUE(GetNode("mid1")->dirty());
   ASSERT_EQ("in11", stats_[2]);
 }
 
@@ -251,9 +251,9 @@ TEST_F(StatTest, Middle) {
   ASSERT_EQ(1u, stats_.size());
   Edge* edge = out->in_edge_;
   edge->RecomputeDirty(NULL, this, NULL);
-  ASSERT_FALSE(GetNode("in")->dirty_);
-  ASSERT_TRUE(GetNode("mid")->dirty_);
-  ASSERT_TRUE(GetNode("out")->dirty_);
+  ASSERT_FALSE(GetNode("in")->dirty());
+  ASSERT_TRUE(GetNode("mid")->dirty());
+  ASSERT_TRUE(GetNode("out")->dirty());
 }
 
 }  // namespace

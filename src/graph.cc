@@ -47,7 +47,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
           return false;
       } else {
         // This input has no in-edge; it is dirty if it is missing.
-        (*i)->dirty_ = !(*i)->exists();
+        (*i)->set_dirty(!(*i)->exists());
       }
     }
 
@@ -60,7 +60,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     if (!is_order_only(i - inputs_.begin())) {
       // If a regular input is dirty (or missing), we're dirty.
       // Otherwise consider mtime.
-      if ((*i)->dirty_) {
+      if ((*i)->dirty()) {
         dirty = true;
       } else {
         if ((*i)->mtime() > most_recent_input)
@@ -90,7 +90,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
     (*i)->StatIfNecessary(disk_interface);
     if (dirty)
-      (*i)->dirty_ = true;
+      (*i)->MarkDirty();
   }
 
   // If we're dirty, our outputs are not ready.  (It's possible to be

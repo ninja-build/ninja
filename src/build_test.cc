@@ -29,8 +29,8 @@ TEST_F(PlanTest, Basic) {
   AssertParse(&state_,
 "build out: cat mid\n"
 "build mid: cat in\n");
-  GetNode("mid")->dirty_ = true;
-  GetNode("out")->dirty_ = true;
+  GetNode("mid")->MarkDirty();
+  GetNode("out")->MarkDirty();
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -62,9 +62,9 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   AssertParse(&state_,
 "build out: cat mid1 mid2\n"
 "build mid1 mid2: cat in\n");
-  GetNode("mid1")->dirty_ = true;
-  GetNode("mid2")->dirty_ = true;
-  GetNode("out")->dirty_ = true;
+  GetNode("mid1")->MarkDirty();
+  GetNode("mid2")->MarkDirty();
+  GetNode("out")->MarkDirty();
 
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
@@ -91,11 +91,11 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
 "build b1: cat a1\n"
 "build b2: cat a2\n"
 "build a1 a2: cat in\n");
-  GetNode("a1")->dirty_ = true;
-  GetNode("a2")->dirty_ = true;
-  GetNode("b1")->dirty_ = true;
-  GetNode("b2")->dirty_ = true;
-  GetNode("out")->dirty_ = true;
+  GetNode("a1")->MarkDirty();
+  GetNode("a2")->MarkDirty();
+  GetNode("b1")->MarkDirty();
+  GetNode("b2")->MarkDirty();
+  GetNode("out")->MarkDirty();
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
@@ -129,10 +129,10 @@ TEST_F(PlanTest, DoubleDependent) {
 "build a1: cat mid\n"
 "build a2: cat mid\n"
 "build mid: cat in\n");
-  GetNode("mid")->dirty_ = true;
-  GetNode("a1")->dirty_ = true;
-  GetNode("a2")->dirty_ = true;
-  GetNode("out")->dirty_ = true;
+  GetNode("mid")->MarkDirty();
+  GetNode("a1")->MarkDirty();
+  GetNode("a2")->MarkDirty();
+  GetNode("out")->MarkDirty();
 
   string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
@@ -166,10 +166,10 @@ TEST_F(PlanTest, DependencyCycle) {
 "build mid: cat in\n"
 "build in: cat pre\n"
 "build pre: cat out\n");
-  GetNode("out")->dirty_ = true;
-  GetNode("mid")->dirty_ = true;
-  GetNode("in")->dirty_ = true;
-  GetNode("pre")->dirty_ = true;
+  GetNode("out")->MarkDirty();
+  GetNode("mid")->MarkDirty();
+  GetNode("in")->MarkDirty();
+  GetNode("pre")->MarkDirty();
 
   string err;
   EXPECT_FALSE(plan_.AddTarget(GetNode("out"), &err));
@@ -217,7 +217,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
 
 void BuildTest::Dirty(const string& path) {
   Node* node = GetNode(path);
-  node->dirty_ = true;
+  node->MarkDirty();
 
   // If it's an input file, mark that we've already stat()ed it and
   // it's missing.
@@ -461,7 +461,7 @@ TEST_F(BuildTest, DepFileOK) {
   Edge* edge = state_.edges_.back();
 
   fs_.Create("foo.c", now_, "");
-  GetNode("bar.h")->dirty_ = true;  // Mark bar.h as missing.
+  GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
