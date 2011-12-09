@@ -39,6 +39,7 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildFinished();
 
  private:
   void PrintStatus(Edge* edge);
@@ -52,6 +53,8 @@ struct BuildStatus {
 
   int started_edges_, finished_edges_, total_edges_;
 
+  bool have_blank_line_;
+
   /// Map of running edge to time the edge started running.
   typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
@@ -64,7 +67,8 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
-      started_edges_(0), finished_edges_(0), total_edges_(0) {
+      started_edges_(0), finished_edges_(0), total_edges_(0),
+      have_blank_line_(true) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -115,10 +119,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     PrintStatus(edge);
 
   if (success && output.empty()) {
-    if (smart_terminal_) {
-      if (finished_edges_ == total_edges_)
-        printf("\n");
-    } else {
+    if (!smart_terminal_) {
       if (total_time > 5*1000) {
         printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
                finished_edges_, total_edges_);
@@ -153,7 +154,14 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
     if (!final_output.empty())
       printf("%s", final_output.c_str());
+
+    have_blank_line_ = true;
   }
+}
+
+void BuildStatus::BuildFinished() {
+  if (smart_terminal_ && !have_blank_line_)
+    printf("\n");
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
@@ -195,6 +203,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (smart_terminal_ && !force_full_command) {
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
+    have_blank_line_ = false;
   } else {
     printf("\n");
   }
@@ -507,8 +516,10 @@ bool Builder::Build(string* err) {
     // See if we can start any more commands.
     if (command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
-        if (!StartEdge(edge, err))
+        if (!StartEdge(edge, err)) {
+          status_->BuildFinished();
           return false;
+        }
 
         if (edge->is_phony())
           FinishEdge(edge, true, "");
@@ -545,11 +556,13 @@ bool Builder::Build(string* err) {
 
     // If we get here, we can neither enqueue new commands nor are any running.
     if (pending_commands) {
+      status_->BuildFinished();
       *err = "stuck: pending commands but none to wait for? [this is a bug]";
       return false;
     }
 
     // If we get here, we cannot make any more progress.
+    status_->BuildFinished();
     if (failures_allowed < config_.swallow_failures) {
       *err = "cannot make progress due to previous errors";
       return false;
@@ -559,6 +572,7 @@ bool Builder::Build(string* err) {
     }
   }
 
+  status_->BuildFinished();
   return true;
 }
 
