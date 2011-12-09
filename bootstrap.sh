@@ -34,10 +34,10 @@ mkdir -p build
 
 case "$SYSTEMNAME" in
   MINGW32*)
-    srcs=$(ls src/*.cc | grep -v test | egrep -v 'browse.cc|subprocess.cc')
+    srcs=$(ls src/*.cc | grep -v 'test\.cc$\|\.in\.cc$\|/browse\.cc$\|/subprocess\.cc$')
     ;;
   *)
-    srcs=$(ls src/*.cc | grep -v test | grep -v subprocess-win32.cc)
+    srcs=$(ls src/*.cc | grep -v 'test\.cc$\|\.in\.cc$\|-win32\.cc$')
     ;;
 esac
 
