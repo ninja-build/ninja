@@ -28,7 +28,7 @@ State::State() : build_log_(NULL) {
 }
 
 void State::AddRule(const Rule* rule) {
-  assert(LookupRule(rule->name_) == NULL);
+  assert(LookupRule(rule->name()) == NULL);
   rules_[rule->name()] = rule;
 }
 

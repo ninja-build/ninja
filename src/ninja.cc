@@ -565,7 +565,7 @@ reload:
     if (tool == "clean")
       return CmdClean(&state, argc+1, argv-1, config);
     if (tool == "list")
-      return CmdClean(&state, argc+1, argv-1, config);
+      return CmdList(&state, argc, argv);
 
     const char* suggestion = SpellcheckString(tool,
         "graph", "query", "browse", "targets", "rules", "commands", "clean",
