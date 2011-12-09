@@ -32,14 +32,16 @@ echo "Building ninja manually..."
 mkdir -p build
 ./src/inline.sh kBrowsePy < src/browse.py > build/browse_py.h
 
+pattern='test\.cc$\|\.in\.cc$'
 case "$SYSTEMNAME" in
   MINGW32*)
-    srcs=$(ls src/*.cc | grep -v test | egrep -v 'browse.cc|subprocess.cc')
+    pattern="$pattern"'\|/browse\.cc$\|/subprocess\.cc$'
     ;;
   *)
-    srcs=$(ls src/*.cc | grep -v test | grep -v subprocess-win32.cc)
+    pattern="$pattern"'\|-win32\.cc$'
     ;;
 esac
+srcs=$(ls src/*.cc | grep -v "$pattern")
 
 ${CXX:-g++} -Wno-deprecated ${CFLAGS} ${LDFLAGS} -o ninja.bootstrap $srcs
 
