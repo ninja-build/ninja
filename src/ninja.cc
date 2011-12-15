@@ -526,6 +526,10 @@ int main(int argc, char** argv) {
   argc -= optind;
 
   if (working_dir) {
+    // The formatting of this string, complete with funny quotes, is
+    // so Emacs can properly identify that the cwd has changed for
+    // subsequent commands.
+    printf("ninja: Entering directory `%s'\n", working_dir);
 #ifdef _WIN32
     if (_chdir(working_dir) < 0) {
 #else
