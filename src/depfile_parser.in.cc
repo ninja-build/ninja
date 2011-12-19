@@ -48,12 +48,19 @@ bool DepfileParser::Parse(const string& content, string* err) {
 
     '\\\n' { continue; }
     [ \n]* { continue; }
-    [a-zA-Z0-9+,/_:.-]+ {
+    [a-zA-Z0-9+,/\\_:.-]+ {
       // Got a filename.
-      if (p[-1] == ':') {
-        out_ = StringPiece(start, p - start - 1);
+      int len = p - start;;
+      if (start[len] == ':')
+        len--;  // Strip off trailing colon, if any.
+
+      if (len == 0)
+        continue;  // Drop isolated colons.
+
+      if (!out_.str_) {
+        out_ = StringPiece(start, len);
       } else {
-        ins_.push_back(StringPiece(start, p - start));
+        ins_.push_back(StringPiece(start, len));
       }
       continue;
     }

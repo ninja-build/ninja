@@ -48,3 +48,19 @@ TEST(DepfileParser, Continuation) {
   EXPECT_EQ("foo.o", parser.out_.AsString());
   EXPECT_EQ(2u, parser.ins_.size());
 }
+
+TEST(DepfileParser, BackSlashes) {
+  DepfileParser parser;
+  string err;
+  EXPECT_TRUE(parser.Parse(
+"Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
+"  Dir\\Library\\Foo.rc \\\n"
+"  Dir\\Library\\Version\\Bar.h \\\n"
+"  Dir\\Library\\Foo.ico \\\n"
+"  Project\\Thing\\Bar.tlb \\\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
+            parser.out_.AsString());
+  EXPECT_EQ(4u, parser.ins_.size());
+}

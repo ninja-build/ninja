@@ -143,7 +143,7 @@ if platform != 'mingw':
 
 n.comment('the depfile parser is generated using re2c.')
 n.rule('re2c',
-       command='re2c -b --no-generation-date -o $out $in',
+       command='re2c -b -i --no-generation-date -o $out $in',
        description='RE2C $out')
 # Generate the .cc file in the source directory so we can check it in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
