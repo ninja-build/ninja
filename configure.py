@@ -189,6 +189,7 @@ objs = []
 for name in ['build_log_test',
              'build_test',
              'clean_test',
+             'depfile_parser_test',
              'disk_interface_test',
              'edit_distance_test',
              'eval_env_test',

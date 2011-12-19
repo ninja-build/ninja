@@ -16,7 +16,6 @@
 
 #include <gtest/gtest.h>
 
-#include "depfile_parser.h"
 #include "graph.h"
 #include "state.h"
 
@@ -486,37 +485,4 @@ TEST_F(ParserTest, DefaultStatements) {
   EXPECT_EQ("a", nodes[0]->path());
   EXPECT_EQ("b", nodes[1]->path());
   EXPECT_EQ("c", nodes[2]->path());
-}
-
-TEST(DepfileParser, Basic) {
-  DepfileParser parser;
-  string err;
-  EXPECT_TRUE(parser.Parse(
-"build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
-      &err));
-  ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser.out_.AsString());
-  EXPECT_EQ(4u, parser.ins_.size());
-}
-
-TEST(DepfileParser, EarlyNewlineAndWhitespace) {
-  DepfileParser parser;
-  string err;
-  EXPECT_TRUE(parser.Parse(
-" \\\n"
-"  out: in\n",
-      &err));
-  ASSERT_EQ("", err);
-}
-
-TEST(DepfileParser, Continuation) {
-  DepfileParser parser;
-  string err;
-  EXPECT_TRUE(parser.Parse(
-"foo.o: \\\n"
-"  bar.h baz.h\n",
-      &err));
-  ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser.out_.AsString());
-  EXPECT_EQ(2u, parser.ins_.size());
 }
