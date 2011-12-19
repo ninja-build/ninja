@@ -484,9 +484,10 @@ TEST_F(BuildTest, DepFileParseError) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   fs_.Create("foo.c", now_, "");
-  fs_.Create("foo.o.d", now_, "foo.o blah.h bar.h\n");
+  fs_.Create("foo.o.d", now_, "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
-  EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got ''", err);
+  EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got 'randomtext'",
+            err);
 }
 
 TEST_F(BuildTest, OrderOnlyDeps) {
