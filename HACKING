@@ -43,14 +43,10 @@ Generating the manual:
   ./ninja manual
 
 Windows development on Linux (this is kind of hacky right now):
+- Get the gtest source, unpack it into your source dir
 - sudo apt-get install gcc-mingw32 wine
 - export CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++ AR=i586-mingw32msvc-ar
-- ./configure.py --platform=mingw --host=linux
-- Build gtest:
-  - unpack it into your source dir
-  - ./configure
-  - to work around missing _TlsAlloc I had to hack the libtool script to
-    append -lmingw32 -lkernel32 at the *end* of the link line
+- ./configure.py --platform=mingw --host=linux --with-gtest=gtest-1.6.0
 - Build ninja: /path/to/linux/ninja
 - Run: ./ninja.exe  (implicitly runs through wine(!))
 

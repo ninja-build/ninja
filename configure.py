@@ -41,7 +41,7 @@ parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
 parser.add_option('--with-gtest', metavar='PATH',
-                  help='use gtest built in directory PATH')
+                  help='use gtest unpacked in directory PATH')
 (options, args) = parser.parse_args()
 
 platform = options.platform
@@ -74,6 +74,10 @@ def doc(filename):
     return os.path.join('doc', filename)
 def cxx(name, **kwargs):
     return n.build(built(name + '.o'), 'cxx', src(name + '.cc'), **kwargs)
+def binary(name):
+    if platform == 'mingw':
+        return name + '.exe'
+    return name
 
 n.variable('builddir', 'build')
 n.variable('cxx', os.environ.get('CXX', 'g++'))
@@ -91,8 +95,6 @@ libs = []
 
 if platform == 'mingw':
     cflags.remove('-fvisibility=hidden');
-    cflags.append('-Igtest-1.6.0/include')
-    ldflags.append('-Lgtest-1.6.0/lib/.libs')
     ldflags.append('-static')
 else:
     if options.profile == 'gmon':
@@ -169,11 +171,8 @@ libs.append('-lninja')
 
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
-binary = 'ninja'
-if platform == 'mingw':
-    binary = 'ninja.exe'
-n.build(binary, 'link', objs, implicit=ninja_lib,
-        variables=[('libs', libs)])
+ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
+                variables=[('libs', libs)])
 n.newline()
 
 n.comment('Tests all build into ninja_test executable.')
@@ -181,15 +180,23 @@ n.comment('Tests all build into ninja_test executable.')
 variables = []
 test_cflags = None
 test_ldflags = None
+test_libs = libs
+objs = []
 if options.with_gtest:
     path = options.with_gtest
-    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
-    test_libs = libs + [os.path.join(path, 'lib/.libs/lib%s.a' % lib)
-                        for lib in ['gtest_main', 'gtest']]
-else:
-    test_libs = libs + ['-lgtest_main', '-lgtest']
 
-objs = []
+    gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
+    objs += n.build(built('gtest-all.o'), 'cxx',
+                    os.path.join(path, 'src/gtest-all.cc'),
+                    variables=[('cflags', gtest_all_incs)])
+    objs += n.build(built('gtest_main.o'), 'cxx',
+                    os.path.join(path, 'src/gtest_main.cc'),
+                    variables=[('cflags', gtest_all_incs)])
+
+    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+else:
+    test_libs.extend(['-lgtest_main', '-lgtest'])
+
 for name in ['build_log_test',
              'build_test',
              'clean_test',
@@ -207,14 +214,14 @@ for name in ['build_log_test',
 
 if platform != 'mingw':
     test_libs.append('-lpthread')
-n.build('ninja_test', 'link', objs, implicit=ninja_lib,
+n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
         variables=[('ldflags', test_ldflags),
                    ('libs', test_libs)])
 n.newline()
 
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
-n.build('parser_perftest', 'link', objs, implicit=ninja_lib,
+n.build(binary('parser_perftest'), 'link', objs, implicit=ninja_lib,
         variables=[('libs', '-L$builddir -lninja')])
 n.newline()
 
@@ -252,7 +259,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if platform != 'mingw':
+if host != 'mingw':
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='./configure.py $configure_args',
@@ -262,6 +269,6 @@ if platform != 'mingw':
     n.newline()
 
 n.comment('Build only the main binary by default.')
-n.default(binary)
+n.default(ninja)
 
 print 'wrote %s.' % BUILD_FILENAME
