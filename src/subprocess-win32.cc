@@ -23,21 +23,7 @@
 namespace {
 
 void Win32Fatal(const char* function) {
-  DWORD err = GetLastError();
-
-  char* msg_buf;
-  FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        err,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (char*)&msg_buf,
-        0,
-        NULL);
-  Fatal("%s: %s", function, msg_buf);
-  LocalFree(msg_buf);
+  Fatal("%s: %s", function, GetLastErrorString().c_str());
 }
 
 }  // anonymous namespace

@@ -57,6 +57,9 @@ const char* SpellcheckString(const string& text, ...);
 
 #ifdef _WIN32
 #define snprintf _snprintf
+
+/// Convert the value returned by GetLastError() into a string.
+string GetLastErrorString();
 #endif
 
 #endif  // NINJA_UTIL_H_

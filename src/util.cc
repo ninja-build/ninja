@@ -210,3 +210,24 @@ const char* SpellcheckString(const string& text, ...) {
   va_end(ap);
   return result;
 }
+
+#ifdef WIN32
+string GetLastErrorString() {
+  DWORD err = GetLastError();
+
+  char* msg_buf;
+  FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        err,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (char*)&msg_buf,
+        0,
+        NULL);
+  string msg = msg_buf;
+  LocalFree(msg_buf);
+  return msg;
+}
+#endif
