@@ -42,6 +42,9 @@ parser.add_option('--profile', metavar='TYPE',
                   help='enable profiling (' + '/'.join(profilers) + ')',)
 parser.add_option('--with-gtest', metavar='PATH',
                   help='use gtest built in directory PATH')
+parser.add_option('--with-python', metavar='EXE',
+                  help='use EXE as the Python interpreter',
+                  default=os.path.basename(sys.executable))
 (options, args) = parser.parse_args()
 
 platform = options.platform
@@ -83,7 +86,8 @@ cflags = ['-g', '-Wall', '-Wextra',
           '-Wno-deprecated',
           '-Wno-unused-parameter',
           '-fno-exceptions',
-          '-fvisibility=hidden', '-pipe']
+          '-fvisibility=hidden', '-pipe',
+          "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
 if not options.debug:
     cflags += ['-O2', '-DNDEBUG']
 ldflags = ['-L$builddir']
@@ -255,7 +259,7 @@ n.newline()
 if platform != 'mingw':
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command='./configure.py $configure_args',
+           command=options.with_python + ' configure.py $configure_args',
            generator=True)
     n.build('build.ninja', 'configure',
             implicit=['configure.py', 'misc/ninja_syntax.py'])

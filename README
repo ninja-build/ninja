@@ -5,7 +5,7 @@ See the manual -- http://martine.github.com/ninja/manual.html or
 doc/manual.asciidoc included in the distribution -- for background
 and more details.
 
-To build, run ./bootstrap.sh.  It first blindly compiles all non-test
+To build, run ./bootstrap.py.  It first blindly compiles all non-test
 source files together, then re-builds Ninja using itself.  You should
 end up with a 'ninja' binary in the source root.  Run './ninja -h' for
 help.
