@@ -107,16 +107,21 @@ class DiskInterfaceTest : public testing::Test {
   RealDiskInterface disk_;
 };
 
-TEST_F(DiskInterfaceTest, Stat) {
+TEST_F(DiskInterfaceTest, StatMissingFile) {
   EXPECT_EQ(0, disk_.Stat("nosuchfile"));
+}
 
+TEST_F(DiskInterfaceTest, StatBadPath) {
 #ifdef _WIN32
-  // TODO: find something that stat fails on for Windows.
+  string bad_path = "cc:\\foo";
+  EXPECT_EQ(-1, disk_.Stat(bad_path));
 #else
   string too_long_name(512, 'x');
   EXPECT_EQ(-1, disk_.Stat(too_long_name));
 #endif
+}
 
+TEST_F(DiskInterfaceTest, StatExistingFile) {
 #ifdef _WIN32
   ASSERT_EQ(0, system("cmd.exe /c echo hi > file"));
 #else

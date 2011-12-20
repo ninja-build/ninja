@@ -19,6 +19,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include "util.h"
 
 namespace {
@@ -62,17 +66,34 @@ bool DiskInterface::MakeDirs(const std::string& path) {
 // RealDiskInterface -----------------------------------------------------------
 
 int RealDiskInterface::Stat(const std::string& path) {
+#ifdef WIN32
+  WIN32_FILE_ATTRIBUTE_DATA attrs;
+  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
+    if (GetLastError() == ERROR_FILE_NOT_FOUND)
+      return 0;
+    Error("GetFileAttributesEx(%s): %s", path.c_str(),
+          GetLastErrorString().c_str());
+    return -1;
+  }
+  const FILETIME& filetime = attrs.ftLastWriteTime;
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return mtime;
+#else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT) {
+    if (errno == ENOENT)
       return 0;
-    } else {
-      Error("stat(%s): %s", path.c_str(), strerror(errno));
-      return -1;
-    }
+    Error("stat(%s): %s", path.c_str(), strerror(errno));
+    return -1;
   }
-
   return st.st_mtime;
+#endif
 }
 
 bool RealDiskInterface::MakeDir(const std::string& path) {
