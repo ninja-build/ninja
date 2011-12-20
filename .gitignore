@@ -1,4 +1,5 @@
 *.pyc
+*.exe
 TAGS
 /build
 /build.ninja
