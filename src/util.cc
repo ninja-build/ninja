@@ -60,7 +60,7 @@ void Warning(const char* msg, ...) {
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: error: ");
+  fprintf(stderr, "ninja: ERROR: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
