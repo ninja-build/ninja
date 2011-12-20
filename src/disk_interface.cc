@@ -73,7 +73,6 @@ int RealDiskInterface::Stat(const std::string& path) {
   }
 
   return st.st_mtime;
-  return true;
 }
 
 bool RealDiskInterface::MakeDir(const std::string& path) {
