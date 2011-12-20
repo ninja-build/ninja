@@ -32,6 +32,9 @@ profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
                   choices=platforms)
+parser.add_option('--host',
+                  help='host platform (' + '/'.join(platforms) + ')',
+                  choices=platforms)
 parser.add_option('--debug', action='store_true',
                   help='enable debugging flags',)
 parser.add_option('--profile', metavar='TYPE',
@@ -50,6 +53,7 @@ if platform is None:
         platform = 'freebsd'
     elif platform.startswith('mingw') or platform.startswith('win'):
         platform = 'mingw'
+host = options.host or platform
 
 BUILD_FILENAME = 'build.ninja'
 buildfile = open(BUILD_FILENAME, 'w')
@@ -89,7 +93,7 @@ if platform == 'mingw':
     cflags.remove('-fvisibility=hidden');
     cflags.append('-Igtest-1.6.0/include')
     ldflags.append('-Lgtest-1.6.0/lib/.libs')
-    ldflags.extend(['-static'])
+    ldflags.append('-static')
 else:
     if options.profile == 'gmon':
         cflags.append('-pg')
@@ -111,7 +115,7 @@ n.rule('cxx',
        description='CXX $out')
 n.newline()
 
-if platform != 'mingw':
+if host != 'mingw':
     n.rule('ar',
            command='rm -f $out && $ar crs $out $in',
            description='AR $out')
