@@ -416,11 +416,51 @@ A file is a series of declarations.  A declaration can be one of:
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
 
+Lexical syntax
+~~~~~~~~~~~~~~
+
 Comments begin with `#` and extend to the end of the line.
 
-Newlines are significant, but they can be escaped by putting a `$`
-before them.  To produce a literal `$` in a path or variable value use
-`$$`.
+Newlines are significant.  Statements like `build foo bar` are a set
+of space-separated tokens that end at the newline.  Newlines and
+spaces within a token must be escaped.
+
+There is only one escape character, `$`, and it has the following
+behaviors:
+
+[horizontal]
+`$` followed by a newline:: escape the newline (continue the current line
+across a line break).
+
+`$` followed by text:: a variable reference.
+
+`${varname}`:: alternate syntax for `$varname`.
+
+`$` followed by space:: a space.
+
+`$$`:: a literal `$`.
+
+A `build` or `default` statement is first parsed as a space-separated
+list of filenames and then each name is expanded.  This means that
+spaces within a variable will result in spaces in the expanded
+filename.
+
+----
+spaced = foo bar
+build $spaced/baz other$ file: ...
+# The above build line has two outputs: "foo bar/baz" and "other file".
+----
+
+In a `name = value` statement, whitespace at the beginning of a value
+is always stripped.  Whitespace at the beginning of a line after a
+line continuation is also stripped.
+
+----
+two_words_with_one_space = foo $
+    bar
+one_word_with_no_space = foo$
+    bar
+----
 
 Other whitespace is only significant if it's at the beginning of a
 line.  If a line is intended more than the previous one, it's
@@ -548,37 +588,14 @@ lookup order for a variable referenced in a rule is:
 Variable expansion
 ~~~~~~~~~~~~~~~~~~
 
-Variables are expanded in three cases: in the right side of a `name =
-value` statement, in paths in a `build` statement and in paths in
-a `default` statement.
+Variables are expanded in paths (in a `build` or `default` statement)
+and on the right side of a `name = value` statement.
 
 When a `name = value` statement is evaluated, its right-hand side is
 expanded once (according to the above scoping rules) immediately, and
 from then on `$name` expands to the static string as the result of the
 expansion.  It is never the case that you'll need to "double-escape" a
-variable with some syntax like `$$foo`.
-
-A `build` or `default` statement is first parsed as a space-separated
-list of filenames and then each name is expanded.  This means that
-spaces within a variable will result in spaces in the expanded
-filename.
-
-----
-spaced = foo bar
-build $spaced/baz other: ...
-# The above build line has two outputs: "foo bar/baz" and "other".
-----
-
-In a `name = value` statement, whitespace at the beginning of a value
-is always stripped.  Whitespace at the beginning of a line after a
-line continuation is also stripped.
-
-----
-two_words_with_one_space = foo $
-    bar
-one_word_with_no_space = foo$
-    bar
-----
+value to prevent it from getting expanded twice.
 
 
 Future work
