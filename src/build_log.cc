@@ -35,10 +35,14 @@ namespace {
 const char kFileSignature[] = "# ninja log v%d\n";
 const int kCurrentVersion = 3;
 
-}
+}  // namespace
 
 BuildLog::BuildLog()
   : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
+
+BuildLog::~BuildLog() {
+  Close();
+}
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
   if (config_ && config_->dry_run)
@@ -144,7 +148,7 @@ bool BuildLog::Load(const string& path, string* err) {
       end_time = atoi(start);
       start = end + 1;
     }
-    
+
     if (log_version >= 3) {
       // In v3 we log the restat mtime.
       char* end = strchr(start, ' ');

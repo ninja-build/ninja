@@ -34,7 +34,7 @@ struct Edge;
 ///    from it
 struct BuildLog {
   BuildLog();
-  ~BuildLog() { Close(); }
+  ~BuildLog();
 
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
@@ -69,6 +69,7 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
+ private:
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
   FILE* log_file_;
