@@ -156,9 +156,18 @@ n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
-for name in ['build', 'build_log', 'clean', 'edit_distance', 'eval_env',
-             'graph', 'graphviz', 'parsers', 'util', 'depfile_parser',
-             'disk_interface', 'state']:
+for name in ['build',
+             'build_log',
+             'clean',
+             'depfile_parser',
+             'disk_interface',
+             'edit_distance',
+             'eval_env',
+             'graph',
+             'graphviz',
+             'parsers',
+             'state',
+             'util']:
     objs += cxx(name)
 if platform == 'mingw':
     objs += cxx('subprocess-win32')
