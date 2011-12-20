@@ -156,9 +156,9 @@ TEST_F(ParserTest, EscapeSpaces) {
 "build foo$ bar: has$ spaces $$one two$$$ three\n"
 ));
   EXPECT_TRUE(state.LookupNode("foo bar"));
-  EXPECT_EQ(state.edges_[0]->outputs_[0]->file_->path_, "foo bar");
-  EXPECT_EQ(state.edges_[0]->inputs_[0]->file_->path_, "$one");
-  EXPECT_EQ(state.edges_[0]->inputs_[1]->file_->path_, "two$ three");
+  EXPECT_EQ(state.edges_[0]->outputs_[0]->path(), "foo bar");
+  EXPECT_EQ(state.edges_[0]->inputs_[0]->path(), "$one");
+  EXPECT_EQ(state.edges_[0]->inputs_[1]->path(), "two$ three");
   EXPECT_EQ(state.edges_[0]->EvaluateCommand(), "something");
 }
 
