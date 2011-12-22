@@ -66,5 +66,50 @@ class TestLineWordWrap(unittest.TestCase):
 ''',
                          self.out.getvalue())
 
+    def test_leading_space(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['', '-bar', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = -bar $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_embedded_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=15)  # force wrapping
+        self.n.variable('foo', ['a$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_two_embedded_dollar_dollars(self):
+        self.n = ninja_syntax.Writer(self.out, width=17)  # force wrapping
+        self.n.variable('foo', ['a$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_leading_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = $$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_trailing_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['a$$', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$ $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
 if __name__ == '__main__':
     unittest.main()
