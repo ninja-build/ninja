@@ -51,7 +51,7 @@ bool DepfileParser::Parse(const string& content, string* err) {
     [a-zA-Z0-9+,/\\_:.-]+ {
       // Got a filename.
       int len = p - start;;
-      if (start[len] == ':')
+      if (start[len - 1] == ':')
         len--;  // Strip off trailing colon, if any.
 
       if (len == 0)
