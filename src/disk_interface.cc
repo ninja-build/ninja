@@ -69,7 +69,8 @@ int RealDiskInterface::Stat(const std::string& path) {
 #ifdef WIN32
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
-    if (GetLastError() == ERROR_FILE_NOT_FOUND)
+    DWORD err = GetLastError();
+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
       return 0;
     Error("GetFileAttributesEx(%s): %s", path.c_str(),
           GetLastErrorString().c_str());
