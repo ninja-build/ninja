@@ -69,6 +69,8 @@ struct BuildLog {
   bool Recompact(const string& path, string* err);
 
  private:
+  friend class BuildLogTest;
+
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
   FILE* log_file_;
