@@ -602,7 +602,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
             restat_mtime = input_mtime;
         }
 
-        if (restat_mtime != 0 && !edge->rule().depfile_.empty()) {
+        if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
           time_t depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
           if (depfile_mtime == 0)
             restat_mtime = 0;

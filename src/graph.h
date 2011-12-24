@@ -104,21 +104,23 @@ struct Rule {
   bool generator() const { return generator_; }
   bool restat() const { return restat_; }
 
-private:
-  string name_;
+  const EvalString& command() const { return command_; }
+  const EvalString& description() const { return description_; }
+  const EvalString& depfile() const { return depfile_; }
 
-  // TODO: make these private.  But various tests want to reach into them...
-public:
-  EvalString command_;
-  EvalString description_;
-  EvalString depfile_;
-
-private:
-  bool generator_, restat_;
-
+ private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend class ManifestParser;
   friend class ParserTest;
+
+  string name_;
+
+  bool generator_;
+  bool restat_;
+
+  EvalString command_;
+  EvalString description_;
+  EvalString depfile_;
 };
 
 struct BuildLog;
@@ -130,9 +132,9 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
            order_only_deps_(0) {}
 
-  /// Examine inputs, outputs, and command lines to judge whether this edge needs
-  /// to be re-run, and update outputs_ready_ and each outputs' dirty_ state
-  /// accordingly.
+  /// Examine inputs, outputs, and command lines to judge whether this edge
+  /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
+  /// state accordingly.
   /// Returns false on failure.
   bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
 

@@ -34,7 +34,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   bool dirty = false;
   outputs_ready_ = true;
 
-  if (!rule_->depfile_.empty()) {
+  if (!rule_->depfile().empty()) {
     if (!LoadDepFile(state, disk_interface, err))
       return false;
   }
@@ -196,17 +196,17 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
 
 string Edge::EvaluateCommand() {
   EdgeEnv env(this);
-  return rule_->command_.Evaluate(&env);
+  return rule_->command().Evaluate(&env);
 }
 
 string Edge::EvaluateDepFile() {
   EdgeEnv env(this);
-  return rule_->depfile_.Evaluate(&env);
+  return rule_->depfile().Evaluate(&env);
 }
 
 string Edge::GetDescription() {
   EdgeEnv env(this);
-  return rule_->description_.Evaluate(&env);
+  return rule_->description().Evaluate(&env);
 }
 
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
