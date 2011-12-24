@@ -15,7 +15,6 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <map>
 #include <string>
 using namespace std;
 
@@ -69,10 +68,9 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
-  // TODO: make these private.
+ private:
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
-private:
   FILE* log_file_;
   BuildConfig* config_;
   bool needs_recompaction_;
