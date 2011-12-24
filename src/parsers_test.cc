@@ -61,7 +61,7 @@ TEST_F(ParserTest, Rules) {
   ASSERT_EQ(3u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name());
-  EXPECT_EQ("cat $in > $out", rule->command_.unparsed());
+  EXPECT_EQ("cat $in > $out", rule->command().unparsed());
 }
 
 TEST_F(ParserTest, Variables) {
@@ -118,7 +118,7 @@ TEST_F(ParserTest, Continuation) {
   ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("link", rule->name());
-  EXPECT_EQ("foo bar baz", rule->command_.unparsed());
+  EXPECT_EQ("foo bar baz", rule->command().unparsed());
 }
 
 TEST_F(ParserTest, Backslash) {

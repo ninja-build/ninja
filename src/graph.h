@@ -105,6 +105,7 @@ struct Rule {
   bool restat() const { return restat_; }
 
   const EvalString& command() const { return command_; }
+  EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
 
