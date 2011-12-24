@@ -364,12 +364,12 @@ int CmdTargets(State* state, int argc, char* argv[]) {
 int CmdRules(State* state, int argc, char* /* argv */[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
        i != state->rules_.end(); ++i) {
-    if (i->second->description_.unparsed_.empty()) {
+    if (i->second->description().unparsed_.empty()) {
       printf("%s\n", i->first.c_str());
     } else {
       printf("%s: %s\n",
              i->first.c_str(),
-             i->second->description_.unparsed_.c_str());
+             i->second->description().unparsed_.c_str());
     }
   }
   return 0;
