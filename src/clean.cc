@@ -111,7 +111,7 @@ int Cleaner::CleanAll(bool generator) {
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
     }
-    if (!(*e)->rule().depfile_.empty())
+    if (!(*e)->rule().depfile().empty())
       Remove((*e)->EvaluateDepFile());
   }
   PrintFooter();
