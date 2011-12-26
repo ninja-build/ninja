@@ -64,3 +64,16 @@ TEST(DepfileParser, BackSlashes) {
             parser.out_);
   EXPECT_EQ(4u, parser.ins_.size());
 }
+
+TEST(DepfileParser, Spaces) {
+  DepfileParser parser;
+  string err;
+  EXPECT_TRUE(parser.Parse(
+"build/ninja\\ test.o: ninja\\ test.cc ninja.h\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("build/ninja test.o", parser.out_);
+  EXPECT_EQ(2u, parser.ins_.size());
+  EXPECT_EQ("ninja test.cc", parser.ins_.front());
+  EXPECT_EQ("ninja.h", parser.ins_.back());
+}
