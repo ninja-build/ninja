@@ -23,7 +23,7 @@ TEST(State, Basic) {
   State state;
   Rule* rule = new Rule("cat");
   string err;
-  EXPECT_TRUE(rule->command_.Parse("cat $in > $out", &err));
+  EXPECT_TRUE(rule->command().Parse("cat $in > $out", &err));
   ASSERT_EQ("", err);
   state.AddRule(rule);
   Edge* edge = state.AddEdge(rule);
