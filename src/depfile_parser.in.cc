@@ -28,6 +28,7 @@
 // behavior we can adjust this.
 bool DepfileParser::Parse(const string& content, string* err) {
   const char* p = content.data();
+  const char* q = p;
   const char* end = content.data() + content.size();
   for (;;) {
     const char* start = p;
@@ -47,7 +48,7 @@ bool DepfileParser::Parse(const string& content, string* err) {
     re2c:yych:emit = 0;
 
     '\\\n' { continue; }
-    [ \n]* { continue; }
+    [ \n]+ { continue; }
     [a-zA-Z0-9+,/\\_:.-]+ {
       // Got a filename.
       int len = p - start;;
