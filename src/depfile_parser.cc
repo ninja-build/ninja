@@ -109,10 +109,10 @@ yy4:
       if (len == 0)
         continue;  // Drop isolated colons.
 
-      if (!out_.str_) {
-        out_ = StringPiece(start, len);
+      if (out_.empty()) {
+        out_ = string(start, len);
       } else {
-        ins_.push_back(StringPiece(start, len));
+        ins_.push_back(string(start, len));
       }
       continue;
     }

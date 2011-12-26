@@ -23,7 +23,7 @@ TEST(DepfileParser, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser.out_.AsString());
+  EXPECT_EQ("build/ninja.o", parser.out_);
   EXPECT_EQ(4u, parser.ins_.size());
 }
 
@@ -45,7 +45,7 @@ TEST(DepfileParser, Continuation) {
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser.out_.AsString());
+  EXPECT_EQ("foo.o", parser.out_);
   EXPECT_EQ(2u, parser.ins_.size());
 }
 
@@ -61,6 +61,6 @@ TEST(DepfileParser, BackSlashes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
-            parser.out_.AsString());
+            parser.out_);
   EXPECT_EQ(4u, parser.ins_.size());
 }

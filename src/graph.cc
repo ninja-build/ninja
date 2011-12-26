@@ -226,10 +226,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   }
 
   // Check that this depfile matches our output.
-  StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != depfile.out_) {
+  if (outputs_[0]->path() != depfile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
+      outputs_[0]->path() + "', got '" + depfile.out_ + "'";
     return false;
   }
 
@@ -239,9 +238,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     inputs_.end() - order_only_deps_ - depfile.ins_.size();
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
+  for (vector<string>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    string path(i->str_, i->len_);
+    string path = *i;
     if (!CanonicalizePath(&path, err))
       return false;
 
