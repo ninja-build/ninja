@@ -21,6 +21,6 @@ using namespace std;
 struct DepfileParser {
   bool Parse(const string& content, string* err);
 
-  StringPiece out_;
-  vector<StringPiece> ins_;
+  string out_;
+  vector<string> ins_;
 };
