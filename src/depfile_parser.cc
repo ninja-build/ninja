@@ -24,34 +24,45 @@
 // How do you end a line with a backslash?  The netbsd Make docs suggest
 // reading the result of a shell command echoing a backslash!
 //
-// Rather than implement the above, we do the simpler thing here.
+// Rather than implement all of above, we do a simpler thing here:
+// Backslashes escape a set of characters (see "escapes" defined below),
+// otherwise they are passed through verbatim.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
 bool DepfileParser::Parse(string* content, string* err) {
-  char* p = &(*content)[0];
-  char* end = p + content->size();
-  for (;;) {
-    const char* start = p;
-    char yych;
-    
+  // in: current parser input point.
+  // end: end of input.
+  char* in = &(*content)[0];
+  char* end = in + content->size();
+  while (in < end) {
+    // out: current output point (typically same as in, but can fall behind
+    // as we de-escape backslashes).
+    char* out = in;
+    // filename: start of the current parsed filename.
+    char* filename = out;
+    for (;;) {
+      // start: beginning of the current parsed span.
+      const char* start = in;
+      char yych;
+      
     {
       static const unsigned char yybm[] = {
           0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0, 128,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
-        128,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0,  64,  64,  64,  64,  64, 
-         64,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,   0,   0,   0,   0,   0, 
-          0,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,   0,  64,   0,   0,  64, 
-          0,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,  64,  64,  64,  64,  64, 
-         64,  64,  64,   0,   0,   0,   0,   0, 
+          0,   0,   0,   0,   0,   0,   0,   0, 
+          0,   0,   0,   0,   0,   0,   0,   0, 
+          0,   0,   0, 128, 128, 128, 128, 128, 
+        128, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128,   0,   0,   0,   0,   0, 
+          0, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128,   0,   0,   0,   0, 128, 
+          0, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128, 128, 128, 128, 128, 128, 
+        128, 128, 128,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -70,86 +81,108 @@ bool DepfileParser::Parse(string* content, string* err) {
           0,   0,   0,   0,   0,   0,   0,   0, 
       };
 
-      if ((end - p) < 2) break;
-      yych = *p;
-      if (yych <= '@') {
-        if (yych <= 0x1F) {
-          if (yych == '\n') goto yy4;
-          goto yy7;
+      yych = *in;
+      if (yych <= '[') {
+        if (yych <= ':') {
+          if (yych <= '*') goto yy6;
+          goto yy4;
         } else {
-          if (yych <= ' ') goto yy4;
-          if (yych <= '*') goto yy7;
-          if (yych <= ':') goto yy6;
-          goto yy7;
+          if (yych <= '@') goto yy6;
+          if (yych <= 'Z') goto yy4;
+          goto yy6;
         }
       } else {
-        if (yych <= '^') {
-          if (yych <= 'Z') goto yy6;
-          if (yych != '\\') goto yy7;
+        if (yych <= '_') {
+          if (yych <= '\\') goto yy2;
+          if (yych <= '^') goto yy6;
+          goto yy4;
         } else {
-          if (yych == '`') goto yy7;
-          if (yych <= 'z') goto yy6;
-          goto yy7;
+          if (yych <= '`') goto yy6;
+          if (yych <= 'z') goto yy4;
+          goto yy6;
         }
       }
-      ++p;
-      if ((yych = *p) == '\n') goto yy13;
-      goto yy10;
+yy2:
+      ++in;
+      if ((yych = *in) <= '$') {
+        if (yych <= 0x1F) {
+          if (yych != '\n') goto yy9;
+        } else {
+          if (yych <= ' ') goto yy11;
+          if (yych <= '"') goto yy9;
+          goto yy11;
+        }
+      } else {
+        if (yych <= 'Z') {
+          if (yych == '*') goto yy11;
+          goto yy9;
+        } else {
+          if (yych <= '\\') goto yy11;
+          if (yych == '|') goto yy11;
+          goto yy9;
+        }
+      }
 yy3:
       {
-      // Got a filename.
-      int len = p - start;
-      if (start[len - 1] == ':')
-        len--;  // Strip off trailing colon, if any.
-
-      if (len == 0)
-        continue;  // Drop isolated colons.
-
-      if (!out_.str_) {
-        out_ = StringPiece(start, len);
-      } else {
-        ins_.push_back(StringPiece(start, len));
+        // For any other character (e.g. whitespace), swallow it here,
+        // allowing the outer logic to loop around again.
+        break;
       }
-      continue;
-    }
 yy4:
-      ++p;
-      yych = *p;
-      goto yy12;
+      ++in;
+      yych = *in;
+      goto yy8;
 yy5:
-      { continue; }
-yy6:
-      yych = *++p;
-      goto yy10;
-yy7:
-      ++p;
       {
-      *err = "BUG: depfile lexer encountered unknown state";
-      return false;
-    }
-yy9:
-      ++p;
-      if (end <= p) break;
-      yych = *p;
-yy10:
-      if (yybm[0+yych] & 64) {
-        goto yy9;
+        // Got a span of plain text.  Copy it to out if necessary.
+        int len = in - start;
+        if (out < start)
+          memmove(out, start, len);
+        out += len;
+        continue;
       }
+yy6:
+      yych = *++in;
       goto yy3;
-yy11:
-      ++p;
-      if (end <= p) break;
-      yych = *p;
-yy12:
+yy7:
+      ++in;
+      yych = *in;
+yy8:
       if (yybm[0+yych] & 128) {
-        goto yy11;
+        goto yy7;
       }
       goto yy5;
-yy13:
-      ++p;
-      { continue; }
+yy9:
+      ++in;
+      {
+        // Let backslash before other characters through verbatim.
+        *out++ = '\\';
+        *out++ = yych;
+        continue;
+      }
+yy11:
+      ++in;
+      {
+        // De-escape backslashed character.
+        *out++ = yych;
+        continue;
+      }
     }
 
+    }
+
+    int len = out - filename;
+    if (len > 0 && filename[len - 1] == ':')
+      len--;  // Strip off trailing colon, if any.
+
+    if (len == 0)
+      continue;
+
+    if (!out_.str_) {
+      out_ = StringPiece(filename, len);
+    } else {
+      ins_.push_back(StringPiece(filename, len));
+    }
   }
   return true;
 }

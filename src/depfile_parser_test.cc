@@ -73,15 +73,32 @@ TEST_F(DepfileParserTest, BackSlashes) {
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 
-TEST_F(DepfileParserTest, DISABLED_Spaces) {
+TEST_F(DepfileParserTest, Spaces) {
   string err;
   EXPECT_TRUE(Parse(
-"foo\\ bar: a\\ b a b",
+"a\\ bc\\ def:   a\\ b c d",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo bar",
+  EXPECT_EQ("a bc def",
             parser_.out_.AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
   EXPECT_EQ("a b",
             parser_.ins_[0].AsString());
+  EXPECT_EQ("c",
+            parser_.ins_[1].AsString());
+  EXPECT_EQ("d",
+            parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, Escapes) {
+  // Put backslashes before a variety of characters, see which ones make
+  // it through.
+  string err;
+  EXPECT_TRUE(Parse(
+"\\!\\@\\#\\$\\%\\^\\&\\\\",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\",
+            parser_.out_.AsString());
+  ASSERT_EQ(0u, parser_.ins_.size());
 }

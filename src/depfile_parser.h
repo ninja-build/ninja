@@ -20,8 +20,9 @@ using namespace std;
 
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
-  /// Parse an input file.  Warning: may mutate the content in-place
-  /// and parsed StringPieces are pointers within it.
+  /// Parse an input file.  Input must be NUL-terminated.
+  /// Warning: may mutate the content in-place and parsed StringPieces are
+  /// pointers within it.
   bool Parse(string* content, string* err);
 
   StringPiece out_;
