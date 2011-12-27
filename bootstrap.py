@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 import sys
 import os
 import glob
@@ -28,38 +27,43 @@ def run(*args, **kwargs):
 
 # Compute system-specific CFLAGS/LDFLAGS as used in both in the below
 # g++ call as well as in the later configure.py.
-cflags = os.environ.get('CFLAGS', '')
-ldflags = os.environ.get('LDFLAGS', '')
+cflags = os.environ.get('CFLAGS', '').split()
+ldflags = os.environ.get('LDFLAGS', '').split()
 if sys.platform.startswith('freebsd'):
-    cflags += ' -I/usr/local/include'
-    ldflags += ' -L/usr/local/lib'
+    cflags.append('-I/usr/local/include')
+    ldflags.append('-L/usr/local/lib')
 
 print 'Building ninja manually...'
 
 try:
-	os.mkdir('build')
+    os.mkdir('build')
 except OSError, e:
-	if e.errno != errno.EEXIST:
-		raise
+    if e.errno != errno.EEXIST:
+        raise
 
 with open('src/browse.py') as browse_py:
     with open('build/browse_py.h', 'w') as browse_py_h:
         run(['./src/inline.sh', 'kBrowsePy'],
             stdin=browse_py, stdout=browse_py_h)
 
-pattern = r'test\.cc$|\.in\.cc$'
+sources = []
+for src in glob.glob('src/*.cc'):
+    if src.endswith('test.cc') or src.endswith('.in.cc'):
+        continue
 
-if sys.platform.startswith('win32'):
-    pattern += r'|/browse\.cc$|/subprocess\.cc$'
-else:
-    pattern += r'|-win32\.cc$'
+    if sys.platform.startswith('win32'):
+        if src.endswith('/browse.cc') or src.endswith('/subprocess.cc'):
+            continue
+    else:
+        if src.endswith('-win32.cc'):
+            continue
 
-sources = [src for src in glob.glob('src/*.cc') if not re.search(pattern, src)]
+    sources.append(src)
 
 args = [os.environ.get('CXX', 'g++'), '-Wno-deprecated',
         '-DNINJA_PYTHON="' + sys.executable + '"']
-args.extend(cflags.split())
-args.extend(ldflags.split())
+args.extend(cflags)
+args.extend(ldflags)
 args.extend(['-o', 'ninja.bootstrap'])
 args.extend(sources)
 run(args)
