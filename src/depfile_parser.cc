@@ -74,10 +74,10 @@ bool DepfileParser::Parse(const string& content, string* err) {
       yych = *p;
       if (yych <= '@') {
         if (yych <= 0x1F) {
-          if (yych == '\n') goto yy5;
+          if (yych == '\n') goto yy4;
           goto yy7;
         } else {
-          if (yych <= ' ') goto yy5;
+          if (yych <= ' ') goto yy4;
           if (yych <= '*') goto yy7;
           if (yych <= ':') goto yy6;
           goto yy7;
@@ -85,21 +85,17 @@ bool DepfileParser::Parse(const string& content, string* err) {
       } else {
         if (yych <= '^') {
           if (yych <= 'Z') goto yy6;
-          if (yych == '\\') goto yy3;
-          goto yy7;
+          if (yych != '\\') goto yy7;
         } else {
           if (yych == '`') goto yy7;
           if (yych <= 'z') goto yy6;
           goto yy7;
         }
       }
-yy2:
-      { continue; }
-yy3:
       ++p;
       if ((yych = *p) == '\n') goto yy13;
       goto yy10;
-yy4:
+yy3:
       {
       // Got a filename.
       int len = p - start;;
@@ -116,9 +112,12 @@ yy4:
       }
       continue;
     }
-yy5:
-      yych = *++p;
+yy4:
+      ++p;
+      yych = *p;
       goto yy12;
+yy5:
+      { continue; }
 yy6:
       yych = *++p;
       goto yy10;
@@ -136,7 +135,7 @@ yy10:
       if (yybm[0+yych] & 64) {
         goto yy9;
       }
-      goto yy4;
+      goto yy3;
 yy11:
       ++p;
       if (end <= p) break;
@@ -145,7 +144,7 @@ yy12:
       if (yybm[0+yych] & 128) {
         goto yy11;
       }
-      goto yy2;
+      goto yy5;
 yy13:
       ++p;
       { continue; }
