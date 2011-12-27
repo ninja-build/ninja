@@ -26,16 +26,15 @@
 // Rather than implement the above, we do the simpler thing here.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(const string& content, string* err) {
-  const char* p = content.data();
-  const char* end = content.data() + content.size();
+bool DepfileParser::Parse(string* content, string* err) {
+  char* p = &(*content)[0];
+  char* end = p + content->size();
   for (;;) {
     const char* start = p;
     char yych;
     /*!re2c
-    re2c:define:YYCTYPE = "const char";
+    re2c:define:YYCTYPE = "char";
     re2c:define:YYCURSOR = p;
-    re2c:define:YYMARKER = q;
     re2c:define:YYLIMIT = end;
 
     re2c:yyfill:parameter = 0;
@@ -50,7 +49,7 @@ bool DepfileParser::Parse(const string& content, string* err) {
     [ \n]+ { continue; }
     [a-zA-Z0-9+,/\\_:.-]+ {
       // Got a filename.
-      int len = p - start;;
+      int len = p - start;
       if (start[len - 1] == ':')
         len--;  // Strip off trailing colon, if any.
 

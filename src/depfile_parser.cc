@@ -27,9 +27,9 @@
 // Rather than implement the above, we do the simpler thing here.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(const string& content, string* err) {
-  const char* p = content.data();
-  const char* end = content.data() + content.size();
+bool DepfileParser::Parse(string* content, string* err) {
+  char* p = &(*content)[0];
+  char* end = p + content->size();
   for (;;) {
     const char* start = p;
     char yych;
@@ -98,7 +98,7 @@ bool DepfileParser::Parse(const string& content, string* err) {
 yy3:
       {
       // Got a filename.
-      int len = p - start;;
+      int len = p - start;
       if (start[len - 1] == ':')
         len--;  // Strip off trailing colon, if any.
 

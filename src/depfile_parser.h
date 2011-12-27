@@ -18,8 +18,11 @@ using namespace std;
 
 #include "string_piece.h"
 
+/// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
-  bool Parse(const string& content, string* err);
+  /// Parse an input file.  Warning: may mutate the content in-place
+  /// and parsed StringPieces are pointers within it.
+  bool Parse(string* content, string* err);
 
   StringPiece out_;
   vector<StringPiece> ins_;

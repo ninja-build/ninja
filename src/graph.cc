@@ -220,7 +220,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
 
   DepfileParser depfile;
   string depfile_err;
-  if (!depfile.Parse(content, &depfile_err)) {
+  if (!depfile.Parse(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;
     return false;
   }

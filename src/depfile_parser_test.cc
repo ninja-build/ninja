@@ -16,43 +16,51 @@
 
 #include <gtest/gtest.h>
 
-TEST(DepfileParser, Basic) {
-  DepfileParser parser;
+struct DepfileParserTest : public testing::Test {
+  bool Parse(const char* input, string* err);
+
+  DepfileParser parser_;
+  string input_;
+};
+
+bool DepfileParserTest::Parse(const char* input, string* err) {
+  input_ = input;
+  return parser_.Parse(&input_, err);
+}
+
+TEST_F(DepfileParserTest, Basic) {
   string err;
-  EXPECT_TRUE(parser.Parse(
+  EXPECT_TRUE(Parse(
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser.out_.AsString());
-  EXPECT_EQ(4u, parser.ins_.size());
+  EXPECT_EQ("build/ninja.o", parser_.out_.AsString());
+  EXPECT_EQ(4u, parser_.ins_.size());
 }
 
-TEST(DepfileParser, EarlyNewlineAndWhitespace) {
-  DepfileParser parser;
+TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
   string err;
-  EXPECT_TRUE(parser.Parse(
+  EXPECT_TRUE(Parse(
 " \\\n"
 "  out: in\n",
       &err));
   ASSERT_EQ("", err);
 }
 
-TEST(DepfileParser, Continuation) {
-  DepfileParser parser;
+TEST_F(DepfileParserTest, Continuation) {
   string err;
-  EXPECT_TRUE(parser.Parse(
+  EXPECT_TRUE(Parse(
 "foo.o: \\\n"
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser.out_.AsString());
-  EXPECT_EQ(2u, parser.ins_.size());
+  EXPECT_EQ("foo.o", parser_.out_.AsString());
+  EXPECT_EQ(2u, parser_.ins_.size());
 }
 
-TEST(DepfileParser, BackSlashes) {
-  DepfileParser parser;
+TEST_F(DepfileParserTest, BackSlashes) {
   string err;
-  EXPECT_TRUE(parser.Parse(
+  EXPECT_TRUE(Parse(
 "Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
 "  Dir\\Library\\Foo.rc \\\n"
 "  Dir\\Library\\Version\\Bar.h \\\n"
@@ -61,6 +69,6 @@ TEST(DepfileParser, BackSlashes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
-            parser.out_.AsString());
-  EXPECT_EQ(4u, parser.ins_.size());
+            parser_.out_.AsString());
+  EXPECT_EQ(4u, parser_.ins_.size());
 }
