@@ -72,3 +72,16 @@ TEST_F(DepfileParserTest, BackSlashes) {
             parser_.out_.AsString());
   EXPECT_EQ(4u, parser_.ins_.size());
 }
+
+TEST_F(DepfileParserTest, DISABLED_Spaces) {
+  string err;
+  EXPECT_TRUE(Parse(
+"foo\\ bar: a\\ b a b",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("foo bar",
+            parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("a b",
+            parser_.ins_[0].AsString());
+}
