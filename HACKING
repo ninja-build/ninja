@@ -18,6 +18,9 @@ Testing performance impact of changes:
     (for i in `seq 5`; do time -p ninja-new chrome) 2>&1 | grep real > new
   and then compare those two lists of timings either by eye or with R.
 
+  For changing the depfile parser, you can also build 'parser_perftest'
+  and run that directly on some representative input files.
+
 Coding guidelines:
 - Function name are camelcase.
 - Member methods are camelcase, expect for trivial getters which are
