@@ -450,16 +450,16 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
 
 /// Print out a list of tools.
 int CmdList(State* state, int argc, char* argv[]) {
-  printf("subtools:\n"
-"             clean    clean built files\n"
+  printf("ninja subtools:\n"
+"  clean    clean built files\n"
 "\n"
-"             browse   browse dependency graph in a web browser\n"
-"             graph    output graphviz dot file for targets\n"
-"             query    show inputs/outputs for a path\n"
+"  browse   browse dependency graph in a web browser\n"
+"  graph    output graphviz dot file for targets\n"
+"  query    show inputs/outputs for a path\n"
 "\n"
-"             targets  list targets by their rule or depth in the DAG\n"
-"             rules    list all rules\n"
-"             commands list all commands required to rebuild given targets\n"
+"  targets  list targets by their rule or depth in the DAG\n"
+"  rules    list all rules\n"
+"  commands list all commands required to rebuild given targets\n"
          );
   return 0;
 }
