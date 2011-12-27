@@ -1,5 +1,5 @@
 Adjusting build flags:
-  CFLAGS=-O3 ./configure
+  CFLAGS=-O3 ./configure.py
   and rebuild.
 
 Test-driven development:
@@ -52,7 +52,7 @@ Windows development on Linux (this is kind of hacky right now):
 
 Windows development on Windows:
 - install mingw, msys, and python
-- in the mingw shell, put Python in your path, and: sh bootstrap.sh
+- in the mingw shell, put Python in your path, and: python bootstrap.py
 - to reconfigure, run 'python configure.py'
 - remember to strip the resulting executable if size matters to you
 - you'll need to rename ninja.exe into my-ninja.exe during development,
