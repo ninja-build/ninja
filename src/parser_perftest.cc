@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         }
 
         DepfileParser parser;
-        if (!parser.Parse(buf, &err)) {
+        if (!parser.Parse(&buf, &err)) {
           printf("%s: %s\n", filename, err.c_str());
           return 1;
         }
