@@ -18,6 +18,10 @@ files and whose other build systems (including one built from custom
 non-recursive Makefiles) can take ten seconds to start building after
 changing one file.  Ninja is under a second.
 
+This manual describes how to generate Ninja build files.  If you are
+just attempting to use Ninja to build an existing project (or are
+considering using Ninja to build your project), see
+http://martine.github.com/ninja/[the home page] for more background.
 
 Philosophical overview
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -132,15 +136,9 @@ but they are not part of make itself.)
   produced the failure.
 
 
-Getting started
----------------
+Tutorial-style syntax walkthrough
+---------------------------------
 
-Start by downloading the code from
-https://github.com/martine/ninja[the github repo].
-The included `README` describes the build and install process.
-
-Writing .ninja files
---------------------
 Here's a basic `.ninja` file that demonstrates most of the syntax.
 It will be used as an example for the following sections.
 
@@ -245,6 +243,8 @@ If the top-level Ninja file is specified as an output of any build
 statement and it is out of date, Ninja will rebuild and reload it
 before building the targets requested by the user.
 
+More details
+------------
 
 The `phony` rule
 ~~~~~~~~~~~~~~~~
@@ -306,8 +306,8 @@ If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
 
 
-Generating Ninja files
-----------------------
+Generating Ninja files from code
+--------------------------------
 
 `misc/ninja_syntax.py` in the Ninja distribution is a tiny Python
 module to facilitate generating Ninja files.  It allows you to make
@@ -315,24 +315,6 @@ Python calls like `ninja.rule(name='foo', command='bar',
 depfile='$out.d')` and it will generate the appropriate syntax.  Feel
 free to just inline it into your project's build system if it's
 useful.
-
-Integration with other build systems
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-gyp:: http://gyp.googlecode.com[gyp, the system used to generate build
-files for the Chromium browser] can generate ninja files for Linux.
-See http://code.google.com/p/chromium/wiki/NinjaBuild[the Chromium
-Ninja documentation] for details.
-
-CMake::  Various people have worked on generating Ninja files from
-CMake.  Currently, it sounds like
-https://github.com/pcc/CMake/tree/ninja-generator[pcc's branch] is the
-one to try.
-
-Autotools:: In theory, you could coax Automake into producing .ninja
-files as well, but I haven't tried it.  It may very well be the case
-that most projects use too much Makefile syntax in their `.am` files
-for this to work.
 
 Extra tools
 -----------
@@ -597,25 +579,3 @@ expanded once (according to the above scoping rules) immediately, and
 from then on `$name` expands to the static string as the result of the
 expansion.  It is never the case that you'll need to "double-escape" a
 value to prevent it from getting expanded twice.
-
-
-Future work
------------
-
-Some pieces I'd like to add:
-
-_inotify_.  I had originally intended to make Ninja be memory-resident
-and to use `inotify` to keep the build state hot at all times.  But
-upon writing the code I found it was fast enough to run from scratch
-each time.  Perhaps a slower computer would still benefit from
-inotify; the data structures are set up such that using inotify
-shouldn't be hard.
-
-_build estimation and analysis_.  As part of build correctness, Ninja
-keeps a log of the time spent on each build statement.  This log
-format could be adjusted to instead store timing information across
-multiple runs.  From that, the total time necessary to build could be
-estimated, allowing Ninja to print status like "3 minutes until
-complete" when building.  Additionally, a tool could output which
-commands are the slowest or which directories take the most time
-to build.
