@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 
 #ifdef WIN32
+#include "win32port.h"
 #include <windows.h>
 #endif
 

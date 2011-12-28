@@ -14,6 +14,7 @@
 
 #include "test.h"
 
+#include <algorithm>
 #include "parsers.h"
 
 StateTestWithBuiltinRules::StateTestWithBuiltinRules() {

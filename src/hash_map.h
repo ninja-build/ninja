@@ -21,6 +21,13 @@
 #include <hash_map>
 
 using stdext::hash_map;
+using stdext::hash_compare;
+
+struct ExternalStringCmp {
+  bool operator()(const char* a, const char* b) const {
+    return strcmp(a, b) < 0;
+  }
+};
 
 #else
 
@@ -37,7 +44,6 @@ struct hash<std::string> {
 };
 }
 
-#endif
 
 /// Equality binary predicate for const char*.
 struct ExternalStringEq {
@@ -49,13 +55,10 @@ struct ExternalStringEq {
 /// Hash functor for const char*.
 struct ExternalStringHash {
   size_t operator()(const char* key) const {
-#ifdef _MSC_VER
-    return stdext::hash<const char*>()(key);
-#else
     return __gnu_cxx::hash<const char*>()(key);
-#endif
   }
 };
+#endif
 
 /// A template for hash_maps keyed by a const char* that is maintained within
 /// the values.  Use like:
@@ -63,7 +66,11 @@ struct ExternalStringHash {
 /// to make foos into a hash mapping const char* => Foo*.
 template<typename V>
 struct ExternalStringHashMap {
+#ifdef _MSC_VER
+  typedef hash_map<const char*, V, hash_compare<const char *,ExternalStringCmp> > Type;
+#else
   typedef hash_map<const char*, V, ExternalStringHash, ExternalStringEq> Type;
+#endif
 };
 
 #endif // NINJA_MAP_H_
