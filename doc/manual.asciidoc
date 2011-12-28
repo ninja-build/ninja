@@ -11,11 +11,12 @@ interdependencies of files (typically source code and output
 executables) and orchestrates building them, _quickly_.
 
 Ninja joins a sea of other build systems.  Its distinguishing goal is
-to be fast.  It is born from my work on the Chromium browser project,
-which has over 30,000 source files and whose other build systems
-(including one built from custom non-recursive Makefiles) can take ten
-seconds to start building after changing one file.  Ninja is under a
-second.
+to be fast.  It is born from
+http://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
+work on the Chromium browser project], which has over 30,000 source
+files and whose other build systems (including one built from custom
+non-recursive Makefiles) can take ten seconds to start building after
+changing one file.  Ninja is under a second.
 
 
 Philosophical overview
