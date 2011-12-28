@@ -182,11 +182,14 @@ n.newline()
 
 libs.append('-lninja')
 
+all_targets = []
+
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 n.newline()
+all_targets += ninja
 
 n.comment('Tests all build into ninja_test executable.')
 
@@ -227,16 +230,19 @@ for name in ['build_log_test',
 
 if platform != 'mingw':
     test_libs.append('-lpthread')
-n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-        variables=[('ldflags', test_ldflags),
-                   ('libs', test_libs)])
+ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
+                     variables=[('ldflags', test_ldflags),
+                                ('libs', test_libs)])
 n.newline()
+all_targets += ninja_test
 
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
-n.build(binary('parser_perftest'), 'link', objs, implicit=ninja_lib,
-        variables=[('libs', '-L$builddir -lninja')])
+parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
+                          implicit=ninja_lib,
+                          variables=[('libs', '-L$builddir -lninja')])
 n.newline()
+all_targets += parser_perftest
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
@@ -283,5 +289,8 @@ if host != 'mingw':
 
 n.comment('Build only the main binary by default.')
 n.default(ninja)
+n.newline()
+
+n.build('all', 'phony', all_targets)
 
 print 'wrote %s.' % BUILD_FILENAME
