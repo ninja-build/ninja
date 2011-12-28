@@ -33,7 +33,7 @@ class Writer(object):
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False):
+             generator=False, restat=False):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
@@ -42,6 +42,8 @@ class Writer(object):
             self.variable('depfile', depfile, indent=1)
         if generator:
             self.variable('generator', '1', indent=1)
+        if restat:
+            self.variable('restat', '1', indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
