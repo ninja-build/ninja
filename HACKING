@@ -13,10 +13,12 @@ Testing performance impact of changes:
   If you have a Chrome build handy, it's a good test case.
   Otherwise, https://github.com/martine/ninja/downloads has a copy of
   the Chrome build files (and depfiles). You can untar that, then run
-  "ninja chrome".  I often do something like:
-    (for i in `seq 5`; do time -p ninja chrome) 2>&1 | grep real > old
-    (for i in `seq 5`; do time -p ninja-new chrome) 2>&1 | grep real > new
-  and then compare those two lists of timings either by eye or with R.
+    path/to/my/ninja chrome
+  and compare that against a baseline Ninja.
+
+  There's a script at misc/measure.py that repeatedly runs a command like
+  the above (to address variance) and summarizes its runtime.  E.g.
+    path/to/misc/measure.py path/to/my/ninja chrome
 
   For changing the depfile parser, you can also build 'parser_perftest'
   and run that directly on some representative input files.
