@@ -55,6 +55,7 @@ bool DepfileParser::Parse(string* content, string* err) {
 
       re2c:yych:emit = 0;
 
+      nul = "\000";
       escape = [ \\#*$[|];
 
       '\\' escape {
@@ -62,7 +63,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = yych;
         continue;
       }
-      '\\'. {
+      '\\'[^\000\n] {
         // Let backslash before other characters through verbatim.
         *out++ = '\\';
         *out++ = yych;
@@ -75,6 +76,9 @@ bool DepfileParser::Parse(string* content, string* err) {
           memmove(out, start, len);
         out += len;
         continue;
+      }
+      nul {
+        break;
       }
       [^] {
         // For any other character (e.g. whitespace), swallow it here,

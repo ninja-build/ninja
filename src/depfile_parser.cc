@@ -84,42 +84,44 @@ bool DepfileParser::Parse(string* content, string* err) {
       yych = *in;
       if (yych <= '[') {
         if (yych <= ':') {
-          if (yych <= '*') goto yy6;
+          if (yych <= 0x00) goto yy6;
+          if (yych <= '*') goto yy8;
           goto yy4;
         } else {
-          if (yych <= '@') goto yy6;
+          if (yych <= '@') goto yy8;
           if (yych <= 'Z') goto yy4;
-          goto yy6;
+          goto yy8;
         }
       } else {
         if (yych <= '_') {
           if (yych <= '\\') goto yy2;
-          if (yych <= '^') goto yy6;
+          if (yych <= '^') goto yy8;
           goto yy4;
         } else {
-          if (yych <= '`') goto yy6;
+          if (yych <= '`') goto yy8;
           if (yych <= 'z') goto yy4;
-          goto yy6;
+          goto yy8;
         }
       }
 yy2:
       ++in;
       if ((yych = *in) <= '$') {
-        if (yych <= 0x1F) {
-          if (yych != '\n') goto yy9;
+        if (yych <= '\n') {
+          if (yych <= 0x00) goto yy3;
+          if (yych <= '\t') goto yy11;
         } else {
-          if (yych <= ' ') goto yy11;
-          if (yych <= '"') goto yy9;
-          goto yy11;
+          if (yych == ' ') goto yy13;
+          if (yych <= '"') goto yy11;
+          goto yy13;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych == '*') goto yy11;
-          goto yy9;
+          if (yych == '*') goto yy13;
+          goto yy11;
         } else {
-          if (yych <= '\\') goto yy11;
-          if (yych == '|') goto yy11;
-          goto yy9;
+          if (yych <= '\\') goto yy13;
+          if (yych == '|') goto yy13;
+          goto yy11;
         }
       }
 yy3:
@@ -131,7 +133,7 @@ yy3:
 yy4:
       ++in;
       yych = *in;
-      goto yy8;
+      goto yy10;
 yy5:
       {
         // Got a span of plain text.  Copy it to out if necessary.
@@ -142,17 +144,22 @@ yy5:
         continue;
       }
 yy6:
+      ++in;
+      {
+        break;
+      }
+yy8:
       yych = *++in;
       goto yy3;
-yy7:
+yy9:
       ++in;
       yych = *in;
-yy8:
+yy10:
       if (yybm[0+yych] & 128) {
-        goto yy7;
+        goto yy9;
       }
       goto yy5;
-yy9:
+yy11:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -160,7 +167,7 @@ yy9:
         *out++ = yych;
         continue;
       }
-yy11:
+yy13:
       ++in;
       {
         // De-escape backslashed character.
