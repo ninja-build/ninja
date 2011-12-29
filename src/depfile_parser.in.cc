@@ -42,7 +42,6 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
-      char yych;
       /*!re2c
       re2c:define:YYCTYPE = "char";
       re2c:define:YYCURSOR = in;
@@ -53,8 +52,6 @@ bool DepfileParser::Parse(string* content, string* err) {
       re2c:indent:top = 2;
       re2c:indent:string = "  ";
 
-      re2c:yych:emit = 0;
-
       nul = "\000";
       escape = [ \\#*$[|];
 
@@ -63,15 +60,16 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = yych;
         continue;
       }
-      '\\'[^\000\n] {
+      '\\' [^\000\n] {
         // Let backslash before other characters through verbatim.
         *out++ = '\\';
         *out++ = yych;
         continue;
       }
       [a-zA-Z0-9+,/_:.-]+ {
-        // Got a span of plain text.  Copy it to out if necessary.
+        // Got a span of plain text.
         int len = in - start;
+        // Need to shift it over if we're overwriting backslashes.
         if (out < start)
           memmove(out, start, len);
         out += len;

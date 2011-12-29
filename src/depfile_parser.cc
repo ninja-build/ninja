@@ -43,9 +43,9 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
-      char yych;
       
     {
+      char yych;
       static const unsigned char yybm[] = {
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -136,8 +136,9 @@ yy4:
       goto yy10;
 yy5:
       {
-        // Got a span of plain text.  Copy it to out if necessary.
+        // Got a span of plain text.
         int len = in - start;
+        // Need to shift it over if we're overwriting backslashes.
         if (out < start)
           memmove(out, start, len);
         out += len;
