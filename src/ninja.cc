@@ -364,12 +364,15 @@ int CmdTargets(State* state, int argc, char* argv[]) {
 int CmdRules(State* state, int argc, char* /* argv */[]) {
   for (map<string, const Rule*>::iterator i = state->rules_.begin();
        i != state->rules_.end(); ++i) {
-    if (i->second->description().unparsed_.empty()) {
+    if (i->second->description().empty()) {
       printf("%s\n", i->first.c_str());
     } else {
       printf("%s: %s\n",
              i->first.c_str(),
-             i->second->description().unparsed_.c_str());
+             // XXX I changed it such that we don't have an easy way
+             // to get the source text anymore, so this output is
+             // unsatisfactory.  How useful is this command, anyway?
+             i->second->description().Serialize().c_str());
     }
   }
   return 0;
@@ -547,7 +550,10 @@ reload:
   ManifestParser parser(&state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
-    Error("loading '%s': %s", input_file, err.c_str());
+    // The pattern in Ninja for errors is to return a one-line string,
+    // but parse errors are special in that they are multiline with
+    // context.  Just report it verbatim.
+    fprintf(stderr, "%s", err.c_str());
     return 1;
   }
 

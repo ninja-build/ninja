@@ -151,12 +151,13 @@ if platform != 'mingw':
     objs += cxx('browse', order_only=built('browse_py.h'))
     n.newline()
 
-n.comment('the depfile parser is generated using re2c.')
+n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
        description='RE2C $out')
-# Generate the .cc file in the source directory so we can check it in.
+# Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
@@ -169,6 +170,7 @@ for name in ['build',
              'eval_env',
              'graph',
              'graphviz',
+             'lexer',
              'parsers',
              'state',
              'util']:
@@ -219,8 +221,8 @@ for name in ['build_log_test',
              'depfile_parser_test',
              'disk_interface_test',
              'edit_distance_test',
-             'eval_env_test',
              'graph_test',
+             'lexer_test',
              'parsers_test',
              'state_test',
              'subprocess_test',

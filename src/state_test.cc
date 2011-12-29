@@ -21,11 +21,14 @@ namespace {
 
 TEST(State, Basic) {
   State state;
+
   Rule* rule = new Rule("cat");
-  string err;
-  EXPECT_TRUE(rule->command().Parse("cat $in > $out", &err));
-  ASSERT_EQ("", err);
+  rule->command_.Add(EvalString::RAW, "cat ");
+  rule->command_.Add(EvalString::SPECIAL, "in");
+  rule->command_.Add(EvalString::RAW, " > ");
+  rule->command_.Add(EvalString::SPECIAL, "out");
   state.AddRule(rule);
+
   Edge* edge = state.AddEdge(rule);
   state.AddIn(edge, "in1");
   state.AddIn(edge, "in2");

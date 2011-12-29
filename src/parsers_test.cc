@@ -24,7 +24,7 @@ struct ParserTest : public testing::Test,
   void AssertParse(const char* input) {
     ManifestParser parser(&state, this);
     string err;
-    ASSERT_TRUE(parser.Parse(input, &err)) << err;
+    ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
     ASSERT_EQ("", err);
   }
 
@@ -61,7 +61,7 @@ TEST_F(ParserTest, Rules) {
   ASSERT_EQ(3u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name());
-  EXPECT_EQ("cat $in > $out", rule->command().unparsed());
+  EXPECT_EQ("[cat ][$in][ > ][$out]", rule->command().Serialize());
 }
 
 TEST_F(ParserTest, Variables) {
@@ -118,7 +118,7 @@ TEST_F(ParserTest, Continuation) {
   ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("link", rule->name());
-  EXPECT_EQ("foo bar baz", rule->command().unparsed());
+  EXPECT_EQ("[foo bar baz]", rule->command().Serialize());
 }
 
 TEST_F(ParserTest, Backslash) {
@@ -151,9 +151,9 @@ TEST_F(ParserTest, Dollars) {
 
 TEST_F(ParserTest, EscapeSpaces) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
-"rule has$ spaces\n"
+"rule spaces\n"
 "  command = something\n"
-"build foo$ bar: has$ spaces $$one two$$$ three\n"
+"build foo$ bar: spaces $$one two$$$ three\n"
 ));
   EXPECT_TRUE(state.LookupNode("foo bar"));
   EXPECT_EQ(state.edges_[0]->outputs_[0]->path(), "foo bar");
@@ -211,98 +211,131 @@ TEST_F(ParserTest, Errors) {
   {
     ManifestParser parser(NULL, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("foobar", &err));
-    EXPECT_EQ("line 1, col 7: expected '=', got eof", err);
+    EXPECT_FALSE(parser.ParseTest("foobar", &err));
+    EXPECT_EQ("input:1: expected '=', got eof\n"
+              "foobar\n"
+              "      ^ near here\n"
+              , err);
   }
 
   {
     ManifestParser parser(NULL, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x 3", &err));
-    EXPECT_EQ("line 1, col 3: expected '=', got '3'", err);
+    EXPECT_FALSE(parser.ParseTest("x 3", &err));
+    EXPECT_EQ("input:1: expected '=', got identifier\n"
+              "x 3\n"
+              "  ^ near here\n"
+              , err);
   }
 
   {
     ManifestParser parser(NULL, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = 3", &err));
-    EXPECT_EQ("line 1, col 6: expected newline, got eof", err);
+    EXPECT_FALSE(parser.ParseTest("x = 3", &err));
+    EXPECT_EQ("input:1: unexpected EOF\n"
+              "x = 3\n"
+              "     ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = 3\ny 2", &err));
-    EXPECT_EQ("line 2, col 3: expected '=', got '2'", err);
+    EXPECT_FALSE(parser.ParseTest("x = 3\ny 2", &err));
+    EXPECT_EQ("input:2: expected '=', got identifier\n"
+              "y 2\n"
+              "  ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = $", &err));
-    EXPECT_EQ("line 1, col 3: unexpected eof", err);
+    EXPECT_FALSE(parser.ParseTest("x = $", &err));
+    EXPECT_EQ("input:1: bad $-escape (literal $ must be written as $$)\n"
+              "x = $\n"
+              "    ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = $\n $[\n", &err));
-    EXPECT_EQ("line 2, col 3: expected variable after $", err);
+    EXPECT_FALSE(parser.ParseTest("x = $\n $[\n", &err));
+    EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
+              " $[\n"
+              " ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("x = a$\n b$\n $\n", &err));
-    EXPECT_EQ("line 4, col 1: expected newline, got eof", err);
+    EXPECT_FALSE(parser.ParseTest("x = a$\n b$\n $\n", &err));
+    EXPECT_EQ("input:4: unexpected EOF\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("build x: y z\n", &err));
-    EXPECT_EQ("line 1, col 10: unknown build rule 'y'", err);
+    EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
+    EXPECT_EQ("input:1: unknown build rule 'y'\n"
+              "build x: y z\n"
+              "       ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("build x:: y z\n", &err));
-    EXPECT_EQ("line 1, col 9: expected build command name, got ':'", err);
+    EXPECT_FALSE(parser.ParseTest("build x:: y z\n", &err));
+    EXPECT_EQ("input:1: expected build command name\n"
+              "build x:: y z\n"
+              "       ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n  command = cat ok\n"
-                              "build x: cat $\n :\n",
-                              &err));
-    EXPECT_EQ("line 4, col 2: expected newline, got ':'", err);
+    EXPECT_FALSE(parser.ParseTest("rule cat\n  command = cat ok\n"
+                                  "build x: cat $\n :\n",
+                                  &err));
+    EXPECT_EQ("input:4: expected newline, got ':'\n"
+              " :\n"
+              " ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n",
-                              &err));
-    EXPECT_EQ("line 2, col 1: expected 'command =' line", err);
+    EXPECT_FALSE(parser.ParseTest("rule cat\n",
+                                  &err));
+    EXPECT_EQ("input:2: expected 'command =' line\n", err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n  command = ${fafsd\n  foo = bar\n",
-                              &err));
-    EXPECT_EQ("line 2, col 20: expected closing curly after ${", err);
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = ${fafsd\n"
+                                  "foo = bar\n",
+                                  &err));
+    EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
+              "  command = ${fafsd\n"
+              "            ^ near here\n"
+              , err);
   }
 
 
@@ -310,87 +343,110 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cat\n  command = cat\nbuild $: cat foo\n",
-                              &err));
-    // XXX EXPECT_EQ("line 3, col 7: expected variable after $", err);
-    EXPECT_EQ("line 4, col 1: expected variable after $", err);
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = cat\nbuild $: cat foo\n",
+                                  &err));
+    EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
+              "build $: cat foo\n"
+              "      ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule %foo\n",
-                              &err));
-    EXPECT_EQ("line 1, col 6: expected rule name, got unknown '%'", err);
+    EXPECT_FALSE(parser.ParseTest("rule %foo\n",
+                                  &err));
+    EXPECT_EQ("input:1: expected rule name\n", err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n  othervar = bar\n",
-                              &err));
-    EXPECT_EQ("line 3, col 3: unexpected variable 'othervar'", err);
+    EXPECT_FALSE(parser.ParseTest("rule cc\n"
+                                  "  command = foo\n"
+                                  "  othervar = bar\n",
+                                  &err));
+    EXPECT_EQ("input:3: unexpected variable 'othervar'\n"
+              "  othervar = bar\n"
+              "                ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule cc\n  command = foo\n"
-                              "build $: cc bar.cc\n",
-                              &err));
-    EXPECT_EQ("line 4, col 1: expected variable after $", err);
+    EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
+                                  "build $: cc bar.cc\n",
+                                  &err));
+    EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
+              "build $: cc bar.cc\n"
+              "      ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("default\n",
-                              &err));
-    EXPECT_EQ("line 1, col 8: expected target name, got newline", err);
+    EXPECT_FALSE(parser.ParseTest("default\n",
+                                  &err));
+    EXPECT_EQ("input:1: expected target name\n"
+              "default\n"
+              "       ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("default nonexistent\n",
-                              &err));
-    EXPECT_EQ("line 1, col 9: unknown target 'nonexistent'", err);
+    EXPECT_FALSE(parser.ParseTest("default nonexistent\n",
+                                  &err));
+    EXPECT_EQ("input:1: unknown target 'nonexistent'\n"
+              "default nonexistent\n"
+              "                   ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule r\n  command = r\n"
-                              "build b: r\n"
-                              "default b:\n",
-                              &err));
-    EXPECT_EQ("line 4, col 10: expected newline, got ':'", err);
+    EXPECT_FALSE(parser.ParseTest("rule r\n  command = r\n"
+                                  "build b: r\n"
+                                  "default b:\n",
+                                  &err));
+    EXPECT_EQ("input:4: expected newline, got ':'\n"
+              "default b:\n"
+              "         ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("default $a\n", &err));
-    EXPECT_EQ("line 1, col 9: empty path", err);
+    EXPECT_FALSE(parser.ParseTest("default $a\n", &err));
+    EXPECT_EQ("input:1: empty path\n"
+              "default $a\n"
+              "          ^ near here\n"
+              , err);
   }
 
   {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.Parse("rule r\n"
-                              "  command = r\n"
-                              "build $a: r $c\n", &err));
+    EXPECT_FALSE(parser.ParseTest("rule r\n"
+                                  "  command = r\n"
+                                  "build $a: r $c\n", &err));
     // XXX the line number is wrong; we should evaluate paths in ParseEdge
     // as we see them, not after we've read them all!
-    EXPECT_EQ("line 4, col 1: empty path", err);
+    EXPECT_EQ("input:4: empty path\n", err);
   }
 }
 
@@ -399,9 +455,9 @@ TEST_F(ParserTest, MultipleOutputs)
   State state;
   ManifestParser parser(&state, NULL);
   string err;
-  EXPECT_TRUE(parser.Parse("rule cc\n  command = foo\n  depfile = bar\n"
-                            "build a.o b.o: cc c.cc\n",
-                            &err));
+  EXPECT_TRUE(parser.ParseTest("rule cc\n  command = foo\n  depfile = bar\n"
+                               "build a.o b.o: cc c.cc\n",
+                               &err));
   EXPECT_EQ("", err);
 }
 
@@ -433,9 +489,11 @@ TEST_F(ParserTest, SubNinja) {
 TEST_F(ParserTest, MissingSubNinja) {
   ManifestParser parser(&state, this);
   string err;
-  EXPECT_FALSE(parser.Parse("subninja foo.ninja\n", &err));
-  EXPECT_EQ("line 1, col 10: loading foo.ninja: No such file or directory",
-            err);
+  EXPECT_FALSE(parser.ParseTest("subninja foo.ninja\n", &err));
+  EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
+            "subninja foo.ninja\n"
+            "                  ^ near here\n"
+            , err);
 }
 
 TEST_F(ParserTest, Include) {
@@ -451,7 +509,8 @@ TEST_F(ParserTest, Include) {
 
 TEST_F(ParserTest, Implicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
-"rule cat\n  command = cat $in > $out\n"
+"rule cat\n"
+"  command = cat $in > $out\n"
 "build foo: cat bar | baz\n"));
 
   Edge* edge = state.LookupNode("foo")->in_edge();

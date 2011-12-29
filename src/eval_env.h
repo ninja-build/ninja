@@ -20,6 +20,8 @@
 #include <vector>
 using namespace std;
 
+#include "string_piece.h"
+
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
   virtual ~Env() {}
@@ -41,14 +43,18 @@ struct BindingEnv : public Env {
 /// A tokenized string that contains variable references.
 /// Can be evaluated relative to an Env.
 struct EvalString {
-  bool Parse(const string& input, string* err, size_t* err_index=NULL);
   string Evaluate(Env* env) const;
 
-  const string& unparsed() const { return unparsed_; }
-  bool empty() const { return unparsed_.empty(); }
+  void Clear() { parsed_.clear(); }
+  bool empty() const { return parsed_.empty(); }
 
-  string unparsed_;
   enum TokenType { RAW, SPECIAL };
+  void Add(TokenType type, StringPiece text);
+
+  /// Construct a human-readable representation of the parsed state,
+  /// for use in tests.
+  string Serialize() const;
+
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
 };
