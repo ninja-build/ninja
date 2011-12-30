@@ -14,6 +14,8 @@
 
 #include "lexer.h"
 
+#include <stdio.h>
+
 #include "eval_env.h"
 
 bool Lexer::Error(const string& message, string* err) {
