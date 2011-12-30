@@ -480,9 +480,10 @@ TEST_F(BuildTest, DepFileOK) {
 
 TEST_F(BuildTest, DepFileParseError) {
   string err;
+  string input("rule cc\n  command = cc $in\n  depfile = $out.d\n"
+               "build foo.o: cc foo.c\n");
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule cc\n  command = cc $in\n  depfile = $out.d\n"
-"build foo.o: cc foo.c\n"));
+               input.c_str()));
   fs_.Create("foo.c", now_, "");
   fs_.Create("foo.o.d", now_, "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));

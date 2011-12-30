@@ -16,7 +16,11 @@
 #define NINJA_UTIL_H_
 #pragma once
 
+#ifdef WIN32
+#include "win32port.h"
+#else
 #include <stdint.h>
+#endif
 
 #include <string>
 using namespace std;
