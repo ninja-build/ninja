@@ -180,7 +180,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     start = p;
     /*!re2c
     [^$ :\n|\000]+ {
-      eval->Add(EvalString::RAW, StringPiece(start, p - start));
+      eval->AddText(StringPiece(start, p - start));
       continue;
     }
     [ :|\n] {
@@ -190,27 +190,27 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
       } else {
         if (*start == '\n')
           break;
-        eval->Add(EvalString::RAW, StringPiece(start, 1));
+        eval->AddText(StringPiece(start, 1));
         continue;
       }
     }
     "$$" {
-      eval->Add(EvalString::RAW, StringPiece("$", 1));
+      eval->AddText(StringPiece("$", 1));
       continue;
     }
     "$ " {
-      eval->Add(EvalString::RAW, StringPiece(" ", 1));
+      eval->AddText(StringPiece(" ", 1));
       continue;
     }
     "$\n"[ ]* {
       continue;
     }
     "${"varname"}" {
-      eval->Add(EvalString::SPECIAL, StringPiece(start + 2, p - start - 3));
+      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
       continue;
     }
     "$"simple_varname {
-      eval->Add(EvalString::SPECIAL, StringPiece(start + 1, p - start - 1));
+      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
       continue;
     }
     "$". {

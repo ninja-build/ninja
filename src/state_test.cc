@@ -23,10 +23,10 @@ TEST(State, Basic) {
   State state;
 
   Rule* rule = new Rule("cat");
-  rule->command_.Add(EvalString::RAW, "cat ");
-  rule->command_.Add(EvalString::SPECIAL, "in");
-  rule->command_.Add(EvalString::RAW, " > ");
-  rule->command_.Add(EvalString::SPECIAL, "out");
+  rule->command_.AddText("cat ");
+  rule->command_.AddSpecial("in");
+  rule->command_.AddText(" > ");
+  rule->command_.AddSpecial("out");
   state.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);

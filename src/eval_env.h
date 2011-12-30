@@ -48,13 +48,15 @@ struct EvalString {
   void Clear() { parsed_.clear(); }
   bool empty() const { return parsed_.empty(); }
 
-  enum TokenType { RAW, SPECIAL };
-  void Add(TokenType type, StringPiece text);
+  void AddText(StringPiece text);
+  void AddSpecial(StringPiece text);
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.
   string Serialize() const;
 
+private:
+  enum TokenType { RAW, SPECIAL };
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
 };

@@ -38,13 +38,16 @@ string EvalString::Evaluate(Env* env) const {
   return result;
 }
 
-void EvalString::Add(TokenType type, StringPiece text) {
+void EvalString::AddText(StringPiece text) {
   // Add it to the end of an existing RAW token if possible.
-  if (type == RAW && !parsed_.empty() && parsed_.back().second == RAW) {
+  if (!parsed_.empty() && parsed_.back().second == RAW) {
     parsed_.back().first.append(text.str_, text.len_);
   } else {
-    parsed_.push_back(make_pair(text.AsString(), type));
+    parsed_.push_back(make_pair(text.AsString(), RAW));
   }
+}
+void EvalString::AddSpecial(StringPiece text) {
+  parsed_.push_back(make_pair(text.AsString(), SPECIAL));
 }
 
 string EvalString::Serialize() const {

@@ -592,7 +592,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 	goto yy117;
 yy90:
 	{
-      eval->Add(EvalString::RAW, StringPiece(start, p - start));
+      eval->AddText(StringPiece(start, p - start));
       continue;
     }
 yy91:
@@ -604,7 +604,7 @@ yy91:
       } else {
         if (*start == '\n')
           break;
-        eval->Add(EvalString::RAW, StringPiece(start, 1));
+        eval->AddText(StringPiece(start, 1));
         continue;
       }
     }
@@ -653,13 +653,13 @@ yy98:
 yy99:
 	++p;
 	{
-      eval->Add(EvalString::RAW, StringPiece(" ", 1));
+      eval->AddText(StringPiece(" ", 1));
       continue;
     }
 yy101:
 	++p;
 	{
-      eval->Add(EvalString::RAW, StringPiece("$", 1));
+      eval->AddText(StringPiece("$", 1));
       continue;
     }
 yy103:
@@ -668,7 +668,7 @@ yy103:
 	goto yy115;
 yy104:
 	{
-      eval->Add(EvalString::SPECIAL, StringPiece(start + 1, p - start - 1));
+      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
       continue;
     }
 yy105:
@@ -698,7 +698,7 @@ yy109:
 yy112:
 	++p;
 	{
-      eval->Add(EvalString::SPECIAL, StringPiece(start + 2, p - start - 3));
+      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
       continue;
     }
 yy114:
