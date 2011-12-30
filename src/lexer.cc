@@ -109,7 +109,7 @@ Lexer::Token Lexer::ReadToken() {
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		192, 128, 128, 128, 128, 128, 128, 128, 
-		128, 128, 128, 128, 128, 128, 160, 128, 
+		128, 128, 128, 128, 128, 160, 160, 128, 
 		160, 160, 160, 160, 160, 160, 160, 160, 
 		160, 160, 128, 128, 128, 128, 128, 128, 
 		128, 160, 160, 160, 160, 160, 160, 160, 
@@ -140,7 +140,7 @@ Lexer::Token Lexer::ReadToken() {
 
 	yych = *p;
 	if (yych <= 'Z') {
-		if (yych <= '-') {
+		if (yych <= ',') {
 			if (yych <= 0x1F) {
 				if (yych <= 0x00) goto yy21;
 				if (yych == '\n') goto yy4;
@@ -455,7 +455,7 @@ bool Lexer::ReadIdent(string* out) {
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
-		  0,   0,   0,   0,   0,   0, 128,   0, 
+		  0,   0,   0,   0,   0, 128, 128,   0, 
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		128, 128,   0,   0,   0,   0,   0,   0, 
 		  0, 128, 128, 128, 128, 128, 128, 128, 
@@ -486,7 +486,7 @@ bool Lexer::ReadIdent(string* out) {
 	yych = *p;
 	if (yych <= '@') {
 		if (yych <= '.') {
-			if (yych <= '-') goto yy83;
+			if (yych <= ',') goto yy83;
 		} else {
 			if (yych <= '/') goto yy83;
 			if (yych >= ':') goto yy83;
@@ -543,7 +543,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		 16, 128, 128, 128,   0, 128, 128, 128, 
-		128, 128, 128, 128, 128, 128, 160, 128, 
+		128, 128, 128, 128, 128, 224, 160, 128, 
 		224, 224, 224, 224, 224, 224, 224, 224, 
 		224, 224,   0, 128, 128, 128, 128, 128, 
 		128, 224, 224, 224, 224, 224, 224, 224, 
@@ -610,27 +610,35 @@ yy91:
     }
 yy93:
 	++p;
-	if ((yych = *p) <= '9') {
+	if ((yych = *p) <= '/') {
 		if (yych <= ' ') {
 			if (yych == '\n') goto yy106;
 			if (yych <= 0x1F) goto yy97;
 			goto yy99;
 		} else {
-			if (yych == '$') goto yy101;
-			if (yych <= '/') goto yy97;
-			goto yy103;
+			if (yych <= '$') {
+				if (yych <= '#') goto yy97;
+				goto yy101;
+			} else {
+				if (yych == '-') goto yy103;
+				goto yy97;
+			}
 		}
 	} else {
-		if (yych <= '_') {
+		if (yych <= '^') {
+			if (yych <= '9') goto yy103;
 			if (yych <= '@') goto yy97;
 			if (yych <= 'Z') goto yy103;
-			if (yych <= '^') goto yy97;
-			goto yy103;
-		} else {
-			if (yych <= '`') goto yy97;
-			if (yych <= 'z') goto yy103;
-			if (yych <= '{') goto yy105;
 			goto yy97;
+		} else {
+			if (yych <= '`') {
+				if (yych <= '_') goto yy103;
+				goto yy97;
+			} else {
+				if (yych <= 'z') goto yy103;
+				if (yych <= '{') goto yy105;
+				goto yy97;
+			}
 		}
 	}
 	{

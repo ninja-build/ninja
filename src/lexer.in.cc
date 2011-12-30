@@ -106,8 +106,8 @@ Lexer::Token Lexer::ReadToken() {
     re2c:yyfill:enable = 0;
 
     nul = "\000";
-    simple_varname = [a-zA-Z0-9_]+;
-    varname = [a-zA-Z0-9_.]+;
+    simple_varname = [a-zA-Z0-9_-]+;
+    varname = [a-zA-Z0-9_.-]+;
 
     "#"[^\000\n]*"\n" { continue; }
     [\n]       { token = NEWLINE;  break; }

@@ -39,7 +39,7 @@ TEST(Lexer, ReadEvalStringEscapes) {
 }
 
 TEST(Lexer, ReadIdent) {
-  Lexer lexer("foo baR baz_123 blah.dots");
+  Lexer lexer("foo baR baz_123 foo-bar");
   string ident;
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo", ident);
@@ -47,6 +47,8 @@ TEST(Lexer, ReadIdent) {
   EXPECT_EQ("baR", ident);
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("baz_123", ident);
+  EXPECT_TRUE(lexer.ReadIdent(&ident));
+  EXPECT_EQ("foo-bar", ident);
 }
 
 TEST(Lexer, ReadIdentCurlies) {
