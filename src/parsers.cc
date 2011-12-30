@@ -243,8 +243,7 @@ bool ManifestParser::ParseEdge(string* err) {
   // But create and fill a nested env if there are variables in scope.
   if (lexer_.PeekToken(Lexer::INDENT)) {
     // XXX scoped_ptr to handle error case.
-    env = new BindingEnv;
-    env->parent_ = env_;
+    env = new BindingEnv(env_);
     do {
       string key;
       EvalString val;
@@ -290,8 +289,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
   ManifestParser subparser(state_, file_reader_);
   if (new_scope) {
-    subparser.env_ = new BindingEnv;
-    subparser.env_->parent_ = env_;
+    subparser.env_ = new BindingEnv(env_);
   } else {
     subparser.env_ = env_;
   }

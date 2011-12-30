@@ -32,10 +32,12 @@ struct Env {
 /// as well as a pointer to a parent scope.
 struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
+  explicit BindingEnv(Env* parent) : parent_(parent) {}
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
   void AddBinding(const string& key, const string& val);
 
+private:
   map<string, string> bindings_;
   Env* parent_;
 };
