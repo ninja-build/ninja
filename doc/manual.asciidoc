@@ -446,7 +446,7 @@ one_word_with_no_space = foo$
 ----
 
 Other whitespace is only significant if it's at the beginning of a
-line.  If a line is intended more than the previous one, it's
+line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
 
