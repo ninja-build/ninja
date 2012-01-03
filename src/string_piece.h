@@ -43,7 +43,7 @@ struct StringPiece {
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
   string AsString() const {
-    return string(str_, len_);
+    return len_ ? string(str_, len_) : string();
   }
 
   const char* str_;
