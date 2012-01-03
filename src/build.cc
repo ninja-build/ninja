@@ -370,11 +370,9 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(bool* success, string* output);
-  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const
-  {
-        plan->CleanNode(log_, node);
+  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const {
+    plan->CleanNode(log_, node);
   }
-
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;

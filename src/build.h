@@ -126,8 +126,7 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.pop();
     return edge;
   }
-  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const
-  {
+  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const {
     //no-op for dry run
   }
   queue<Edge*> finished_;

@@ -750,8 +750,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
 }
 
 struct BuildDryRun : public BuildWithLogTest {
-  void CleanNode(Plan* plan, BuildLog* log, Node *node) const
-  {
+  void CleanNode(Plan* plan, BuildLog* log, Node *node) const {
     DryRunCommandRunner runner;
     runner.CleanNode(plan, log, node);
   }
