@@ -370,6 +370,11 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(bool* success, string* output);
+  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const
+  {
+        plan->CleanNode(log_, node);
+  }
+
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
@@ -407,28 +412,6 @@ Edge* RealCommandRunner::WaitForCommand(bool* success, string* output) {
   delete subproc;
   return edge;
 }
-
-/// A CommandRunner that doesn't actually run the commands.
-struct DryRunCommandRunner : public CommandRunner {
-  virtual ~DryRunCommandRunner() {}
-  virtual bool CanRunMore() {
-    return true;
-  }
-  virtual bool StartCommand(Edge* edge) {
-    finished_.push(edge);
-    return true;
-  }
-  virtual Edge* WaitForCommand(bool* success, string* output) {
-    if (finished_.empty())
-      return NULL;
-    *success = true;
-    Edge* edge = finished_.front();
-    finished_.pop();
-    return edge;
-  }
-
-  queue<Edge*> finished_;
-};
 
 Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
@@ -582,7 +565,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           if ((*i)->mtime() == new_mtime) {
             // The rule command did not change the output.  Propagate the clean
             // state through the build graph.
-            plan_.CleanNode(log_, *i);
+            command_runner_->CleanNode(&plan_, log_, *i);
             node_cleaned = true;
           }
         }
