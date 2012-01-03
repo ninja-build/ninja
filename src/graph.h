@@ -112,7 +112,7 @@ struct Rule {
   // TODO: private:
 
   // Allow the parsers to reach into this object and fill out its fields.
-  friend class ManifestParser;
+  friend struct ManifestParser;
 
   string name_;
 
