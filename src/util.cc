@@ -46,7 +46,15 @@ void Fatal(const char* msg, ...) {
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
+#ifdef WIN32
+  //on Windows, if running under a distribution system which adds extra threads,
+  //possibly with kernel locks or pending IO, exit may hang
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
   exit(1);
+#endif
 }
 
 void Warning(const char* msg, ...) {
