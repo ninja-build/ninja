@@ -46,7 +46,15 @@ void Fatal(const char* msg, ...) {
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
+#ifdef WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
   exit(1);
+#endif
 }
 
 void Warning(const char* msg, ...) {
