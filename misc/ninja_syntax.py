@@ -66,7 +66,12 @@ class Writer(object):
                                         ' '.join(all_inputs)))
 
         if variables:
-            for key, val in variables:
+            if isinstance(variables, dict):
+                iterator = variables.iteritems()
+            else:
+                iterator = iter(variables)
+
+            for key, val in iterator:
                 self.variable(key, val, indent=1)
 
         return outputs
