@@ -45,6 +45,16 @@
 
 namespace {
 
+/// Global information passed into subtools.
+struct Globals {
+  /// Command line used to run Ninja.
+  const char* ninja_command;
+  /// Build configuration (e.g. parallelism).
+  BuildConfig config;
+  /// Loaded state (rules, nodes).
+  State state;
+};
+
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
@@ -177,10 +187,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   return true;
 }
 
-int CmdGraph(State* state, int argc, char* argv[]) {
+int ToolGraph(Globals* globals, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
+  if (!CollectTargetsFromArgs(&globals->state, argc, argv, &nodes, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
@@ -194,13 +204,13 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdQuery(State* state, int argc, char* argv[]) {
+int ToolQuery(Globals* globals, int argc, char* argv[]) {
   if (argc == 0) {
     Error("expected a target to query");
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = state->LookupNode(argv[i]);
+    Node* node = globals->state.LookupNode(argv[i]);
     if (node) {
       printf("%s:\n", argv[i]);
       if (node->in_edge()) {
@@ -219,7 +229,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
         }
       }
     } else {
-      Node* suggestion = state->SpellcheckNode(argv[i]);
+      Node* suggestion = globals->state.SpellcheckNode(argv[i]);
       if (suggestion) {
         printf("%s unknown, did you mean %s?\n",
                argv[i], suggestion->path().c_str());
@@ -232,26 +242,19 @@ int CmdQuery(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdBrowse(State* state, const char* ninja_command,
-              int argc, char* argv[]) {
 #if !defined(WIN32) && !defined(NINJA_BOOTSTRAP)
+int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
   }
-  RunBrowsePython(state, ninja_command, argv[0]);
-#else
-  NINJA_UNUSED_ARG(state);
-  NINJA_UNUSED_ARG(ninja_command);
-  NINJA_UNUSED_ARG(argc);
-  NINJA_UNUSED_ARG(argv);
-  Error("browse mode not yet supported on Windows");
-#endif
+  RunBrowsePython(&globals->state, globals->ninja_command, argv[0]);
   // If we get here, the browse failed.
   return 1;
 }
+#endif  // WIN32
 
-int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
@@ -261,7 +264,7 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
     if ((*n)->in_edge()) {
       printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
       if (depth > 1 || depth <= 0)
-        CmdTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
+        ToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
       printf("%s\n", target);
     }
@@ -269,23 +272,19 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   return 0;
 }
 
-int CmdTargetsList(const vector<Node*>& nodes, int depth) {
-  return CmdTargetsList(nodes, depth, 0);
-}
-
-int CmdTargetsSourceList(State* state) {
+int ToolTargetsSourceList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
+       e != state->edges_.end(); ++e) {
     for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
-         inps != (*e)->inputs_.end();
-         ++inps)
+         inps != (*e)->inputs_.end(); ++inps) {
       if (!(*inps)->in_edge())
         printf("%s\n", (*inps)->path().c_str());
+    }
+  }
   return 0;
 }
 
-int CmdTargetsList(State* state, const string& rule_name) {
+int ToolTargetsList(State* state, const string& rule_name) {
   set<string> rules;
 
   // Gather the outputs.
@@ -308,7 +307,7 @@ int CmdTargetsList(State* state, const string& rule_name) {
   return 0;
 }
 
-int CmdTargetsList(State* state) {
+int ToolTargetsList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
        e != state->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
@@ -321,7 +320,7 @@ int CmdTargetsList(State* state) {
   return 0;
 }
 
-int CmdTargets(State* state, int argc, char* argv[]) {
+int ToolTargets(Globals* globals, int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
     string mode = argv[0];
@@ -330,14 +329,14 @@ int CmdTargets(State* state, int argc, char* argv[]) {
       if (argc > 1)
         rule = argv[1];
       if (rule.empty())
-        return CmdTargetsSourceList(state);
+        return ToolTargetsSourceList(&globals->state);
       else
-        return CmdTargetsList(state, rule);
+        return ToolTargetsList(&globals->state, rule);
     } else if (mode == "depth") {
       if (argc > 1)
         depth = atoi(argv[1]);
     } else if (mode == "all") {
-      return CmdTargetsList(state);
+      return ToolTargetsList(&globals->state);
     } else {
       const char* suggestion =
           SpellcheckString(mode, "rule", "depth", "all", NULL);
@@ -352,18 +351,18 @@ int CmdTargets(State* state, int argc, char* argv[]) {
   }
 
   string err;
-  vector<Node*> root_nodes = state->RootNodes(&err);
+  vector<Node*> root_nodes = globals->state.RootNodes(&err);
   if (err.empty()) {
-    return CmdTargetsList(root_nodes, depth);
+    return ToolTargetsList(root_nodes, depth, 0);
   } else {
     Error("%s", err.c_str());
     return 1;
   }
 }
 
-int CmdRules(State* state, int argc, char* /* argv */[]) {
-  for (map<string, const Rule*>::iterator i = state->rules_.begin();
-       i != state->rules_.end(); ++i) {
+int ToolRules(Globals* globals, int argc, char* /* argv */[]) {
+  for (map<string, const Rule*>::iterator i = globals->state.rules_.begin();
+       i != globals->state.rules_.end(); ++i) {
     if (i->second->description().empty()) {
       printf("%s\n", i->first.c_str());
     } else {
@@ -392,10 +391,10 @@ void PrintCommands(Edge* edge, set<Edge*>* seen) {
     puts(edge->EvaluateCommand().c_str());
 }
 
-int CmdCommands(State* state, int argc, char* argv[]) {
+int ToolCommands(Globals* globals, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
+  if (!CollectTargetsFromArgs(&globals->state, argc, argv, &nodes, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
@@ -407,7 +406,12 @@ int CmdCommands(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
+int ToolClean(Globals* globals, int argc, char* argv[]) {
+  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "clean".
+  argc++;
+  argv--;
+
   bool generator = false;
   bool clean_rules = false;
 
@@ -440,7 +444,7 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
     return 1;
   }
 
-  Cleaner cleaner(state, config);
+  Cleaner cleaner(&globals->state, globals->config);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -451,34 +455,68 @@ int CmdClean(State* state, int argc, char* argv[], const BuildConfig& config) {
   }
 }
 
-/// Print out a list of tools.
-int CmdList(State* state, int argc, char* argv[]) {
-  printf("ninja subtools:\n"
-"  clean    clean built files\n"
-"\n"
-"  browse   browse dependency graph in a web browser\n"
-"  graph    output graphviz dot file for targets\n"
-"  query    show inputs/outputs for a path\n"
-"\n"
-"  targets  list targets by their rule or depth in the DAG\n"
-"  rules    list all rules\n"
-"  commands list all commands required to rebuild given targets\n"
-         );
-  return 0;
+int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
+  typedef int (*ToolFunc)(Globals*, int, char**);
+  struct Tool {
+    const char* name;
+    const char* desc;
+    ToolFunc func;
+  } tools[] = {
+#if !defined(WIN32) && !defined(NINJA_BOOTSTRAP)
+    { "browse", "browse dependency graph in a web browser",
+      ToolBrowse },
+#endif
+    { "clean", "clean built files",
+      ToolClean },
+    { "commands", "list all commands required to rebuild given targets",
+      ToolCommands },
+    { "graph", "output graphviz dot file for targets",
+      ToolGraph },
+    { "query", "show inputs/outputs for a path",
+      ToolQuery },
+    { "rules",    "list all rules",
+      ToolRules },
+    { "targets",  "list targets by their rule or depth in the DAG",
+      ToolTargets },
+    { NULL, NULL, NULL }
+  };
+
+  if (tool == "list") {
+    printf("ninja subtools:\n");
+    for (int i = 0; tools[i].name; ++i) {
+      printf("%10s  %s\n", tools[i].name, tools[i].desc);
+    }
+    return 0;
+  }
+
+  for (int i = 0; tools[i].name; ++i) {
+    if (tool == tools[i].name)
+      return tools[i].func(globals, argc, argv);
+  }
+
+  const char* suggestion = SpellcheckString(tool,
+      "graph", "query", "browse", "targets", "rules", "commands", "clean",
+      "list", NULL);
+  if (suggestion) {
+    Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
+  } else {
+    Error("unknown tool '%s'", tool.c_str());
+  }
+  return 1;
 }
 
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
-  const char* ninja_command = argv[0];
-  BuildConfig config;
+  Globals globals;
+  globals.ninja_command = argv[0];
   const char* input_file = "build.ninja";
-  const char* working_dir = 0;
+  const char* working_dir = NULL;
   string tool;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-  config.parallelism = GuessParallelism();
+  globals.config.parallelism = GuessParallelism();
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
@@ -494,7 +532,7 @@ int main(int argc, char** argv) {
         input_file = optarg;
         break;
       case 'j':
-        config.parallelism = atoi(optarg);
+        globals.config.parallelism = atoi(optarg);
         break;
       case 'k': {
         char* end;
@@ -504,14 +542,14 @@ int main(int argc, char** argv) {
 
         // We want to go until N jobs fail, which means we should ignore
         // the first N-1 that fail and then stop.
-        config.swallow_failures = value - 1;
+        globals.config.swallow_failures = value - 1;
         break;
       }
       case 'n':
-        config.dry_run = true;
+        globals.config.dry_run = true;
         break;
       case 'v':
-        config.verbosity = BuildConfig::VERBOSE;
+        globals.config.verbosity = BuildConfig::VERBOSE;
         break;
       case 't':
         tool = optarg;
@@ -521,7 +559,7 @@ int main(int argc, char** argv) {
         break;
       case 'h':
       default:
-        Usage(config);
+        Usage(globals.config);
         return 1;
     }
   }
@@ -545,9 +583,8 @@ int main(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
-  State state;
   RealFileReader file_reader;
-  ManifestParser parser(&state, &file_reader);
+  ManifestParser parser(&globals.state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
     // The pattern in Ninja for errors is to return a one-line string,
@@ -557,42 +594,14 @@ reload:
     return 1;
   }
 
-  if (!tool.empty()) {
-    if (tool == "graph")
-      return CmdGraph(&state, argc, argv);
-    if (tool == "query")
-      return CmdQuery(&state, argc, argv);
-    if (tool == "browse")
-      return CmdBrowse(&state, ninja_command, argc, argv);
-    if (tool == "targets")
-      return CmdTargets(&state, argc, argv);
-    if (tool == "rules")
-      return CmdRules(&state, argc, argv);
-    if (tool == "commands")
-      return CmdCommands(&state, argc, argv);
-    // The clean tool uses getopt, and expects argv[0] to contain the name of
-    // the tool, i.e. "clean".
-    if (tool == "clean")
-      return CmdClean(&state, argc+1, argv-1, config);
-    if (tool == "list")
-      return CmdList(&state, argc, argv);
-
-    const char* suggestion = SpellcheckString(tool,
-        "graph", "query", "browse", "targets", "rules", "commands", "clean",
-        "list", NULL);
-    if (suggestion) {
-      Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
-    } else {
-      Error("unknown tool '%s'", tool.c_str());
-    }
-    return 1;
-  }
+  if (!tool.empty())
+    return RunTool(tool, &globals, argc, argv);
 
   BuildLog build_log;
-  build_log.SetConfig(&config);
-  state.build_log_ = &build_log;
+  build_log.SetConfig(&globals.config);
+  globals.state.build_log_ = &build_log;
 
-  const string build_dir = state.bindings_.LookupVariable("builddir");
+  const string build_dir = globals.state.bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
@@ -617,7 +626,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    if (RebuildManifest(&state, config, input_file, &err)) {
+    if (RebuildManifest(&globals.state, globals.config, input_file, &err)) {
       rebuilt_manifest = true;
       goto reload;
     } else if (!err.empty()) {
@@ -627,12 +636,12 @@ reload:
   }
 
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(&state, argc, argv, &targets, &err)) {
+  if (!CollectTargetsFromArgs(&globals.state, argc, argv, &targets, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
 
-  Builder builder(&state, config);
+  Builder builder(&globals.state, globals.config);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
