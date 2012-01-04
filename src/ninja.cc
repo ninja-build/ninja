@@ -494,9 +494,10 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       return tools[i].func(globals, argc, argv);
   }
 
-  const char* suggestion = SpellcheckString(tool,
-      "graph", "query", "browse", "targets", "rules", "commands", "clean",
-      "list", NULL);
+  vector<const char*> words;
+  for (int i = 0; tools[i].name; ++i)
+    words.push_back(tools[i].name);
+  const char* suggestion = SpellcheckStringV(tool, words);
   if (suggestion) {
     Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
   } else {
