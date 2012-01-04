@@ -234,7 +234,7 @@ int CmdQuery(State* state, int argc, char* argv[]) {
 
 int CmdBrowse(State* state, const char* ninja_command,
               int argc, char* argv[]) {
-#ifndef WIN32
+#if !defined(WIN32) && !defined(NINJA_BOOTSTRAP)
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
