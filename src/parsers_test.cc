@@ -448,6 +448,13 @@ TEST_F(ParserTest, Errors) {
     // as we see them, not after we've read them all!
     EXPECT_EQ("input:4: empty path\n", err);
   }
+
+  {
+    ManifestParser parser(NULL, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(" # bad indented comment\n", &err));
+    EXPECT_EQ("input:1: unexpected indent\n", err);
+  }
 }
 
 TEST_F(ParserTest, MultipleOutputs)

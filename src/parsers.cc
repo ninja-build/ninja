@@ -78,7 +78,7 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::NEWLINE:
       break;
     default:
-      return lexer_.Error(string("unexpected") + Lexer::TokenName(token),
+      return lexer_.Error(string("unexpected ") + Lexer::TokenName(token),
                           err);
     }
   }
