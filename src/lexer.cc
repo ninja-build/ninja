@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include "eval_env.h"
+#include "util.h"
 
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.

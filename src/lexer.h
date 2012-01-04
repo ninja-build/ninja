@@ -14,6 +14,11 @@
 
 #include "string_piece.h"
 
+// Windows may #define ERROR.
+#ifdef ERROR
+#undef ERROR
+#endif
+
 struct EvalString;
 
 struct Lexer {

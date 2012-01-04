@@ -140,7 +140,7 @@ n.newline()
 
 if platform == 'windows':
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo $out',
+        command='$cxx $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out')
 else:
