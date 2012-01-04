@@ -189,7 +189,14 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
       result.push_back(' ');
-    result.append((*i)->path());
+    const string& path = (*i)->path();
+    if (path.find(" ") != string::npos) {
+      result.append("\"");
+      result.append(path);
+      result.append("\"");
+    } else {
+      result.append(path);
+    }
   }
   return result;
 }

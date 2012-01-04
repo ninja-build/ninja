@@ -131,3 +131,12 @@ TEST_F(GraphTest, RootNodes) {
     EXPECT_EQ("out", name.substr(0, 3));
   }
 }
+
+TEST_F(GraphTest, VarInOutQuoteSpaces) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a$ b: cat nospace with$ space nospace2\n"));
+
+  Edge* edge = GetNode("a b")->in_edge();
+  EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
+      edge->EvaluateCommand());
+}
