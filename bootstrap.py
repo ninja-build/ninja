@@ -64,13 +64,16 @@ args = [os.environ.get('CXX', 'g++'), '-Wno-deprecated',
         '-DNINJA_PYTHON="' + sys.executable + '"']
 args.extend(cflags)
 args.extend(ldflags)
-args.extend(['-o', 'ninja.bootstrap'])
+binary = 'ninja.bootstrap'
+if sys.platform.startswith('win32'):
+    binary = 'ninja.bootstrap.exe'
+args.extend(['-o', binary])
 args.extend(sources)
 run(args)
 
 print 'Building ninja using itself...'
 run([sys.executable, 'configure.py'] + sys.argv[1:])
-run(['./ninja.bootstrap'])
-os.unlink('ninja.bootstrap')
+run(['./' + binary])
+os.unlink(binary)
 
 print 'Done!'

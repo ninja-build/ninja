@@ -91,6 +91,10 @@ gpietsch@comcast.net
 #include "getopt.h"
 #endif
 
+#ifdef _WIN32
+#pragma warning(disable: 4701)
+#endif
+
 /* macros */
 
 /* types */

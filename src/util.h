@@ -61,6 +61,8 @@ const char* SpellcheckString(const string& text, ...);
 
 #ifdef _WIN32
 #define snprintf _snprintf
+#define fileno _fileno
+#define unlink _unlink
 
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();

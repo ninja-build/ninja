@@ -84,7 +84,7 @@ int RealDiskInterface::Stat(const std::string& path) {
     ((uint64_t)filetime.dwLowDateTime);
   mtime /= 1000000000LL / 100; // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return mtime;
+  return (int)mtime;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {

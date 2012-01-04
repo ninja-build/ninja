@@ -27,7 +27,7 @@ sys.path.insert(0, 'misc')
 import ninja_syntax
 
 parser = OptionParser()
-platforms = ['linux', 'freebsd', 'mingw']
+platforms = ['linux', 'freebsd', 'mingw', 'windows']
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
@@ -54,8 +54,10 @@ if platform is None:
         platform = 'linux'
     elif platform.startswith('freebsd'):
         platform = 'freebsd'
-    elif platform.startswith('mingw') or platform.startswith('win'):
+    elif platform.startswith('mingw'):
         platform = 'mingw'
+    elif platform.startswith('win'):
+        platform = 'windows'
 host = options.host or platform
 
 BUILD_FILENAME = 'build.ninja'
@@ -69,37 +71,58 @@ n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
 n.newline()
 
+objext = '.o'
+if platform == 'windows':
+    objext = '.obj'
+
 def src(filename):
     return os.path.join('src', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
     return os.path.join('doc', filename)
+def cc(name, **kwargs):
+    return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
-    return n.build(built(name + '.o'), 'cxx', src(name + '.cc'), **kwargs)
+    return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
-    if platform == 'mingw':
+    if platform in ('mingw', 'windows'):
         return name + '.exe'
     return name
 
 n.variable('builddir', 'build')
-n.variable('cxx', os.environ.get('CXX', 'g++'))
-n.variable('ar', os.environ.get('AR', 'ar'))
+if platform == 'windows':
+    n.variable('cxx', 'cl')
+    n.variable('ar', 'link')
+else:
+    n.variable('cxx', os.environ.get('CXX', 'g++'))
+    n.variable('ar', os.environ.get('AR', 'ar'))
 
-cflags = ['-g', '-Wall', '-Wextra',
-          '-Wno-deprecated',
-          '-Wno-unused-parameter',
-          '-fno-exceptions',
-          '-fvisibility=hidden', '-pipe',
-          "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
-if not options.debug:
-    cflags += ['-O2', '-DNDEBUG']
-ldflags = ['-L$builddir']
+if platform == 'windows':
+    cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
+              '/wd4512', '/wd4800',
+              '/D_CRT_SECURE_NO_WARNINGS', '/DWIN32',
+              "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
+    if not options.debug:
+        cflags += ['/Ox', '/DNDEBUG']
+    ldflags = ['/libpath:$builddir']
+else:
+    cflags = ['-g', '-Wall', '-Wextra',
+              '-Wno-deprecated',
+              '-Wno-unused-parameter',
+              '-fno-exceptions',
+              '-fvisibility=hidden', '-pipe',
+              "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
+    if not options.debug:
+        cflags += ['-O2', '-DNDEBUG']
+    ldflags = ['-L$builddir']
 libs = []
 
 if platform == 'mingw':
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
+elif platform == 'windows':
+    pass
 else:
     if options.profile == 'gmon':
         cflags.append('-pg')
@@ -115,30 +138,45 @@ if 'LDFLAGS' in os.environ:
 n.variable('ldflags', ' '.join(ldflags))
 n.newline()
 
-n.rule('cxx',
-       command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
-       depfile='$out.d',
-       description='CXX $out')
+if platform == 'windows':
+    n.rule('cxx',
+        command='$cxx $cflags -c $in /Fo $out',
+        depfile='$out.d',
+        description='CXX $out')
+else:
+    n.rule('cxx',
+        command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
+        depfile='$out.d',
+        description='CXX $out')
 n.newline()
 
-if host != 'mingw':
+if host == 'windows':
     n.rule('ar',
-           command='rm -f $out && $ar crs $out $in',
-           description='AR $out')
-else:
+           command='lib /nologo /out:$out $in',
+           description='LIB $out')
+elif host == 'mingw':
     n.rule('ar',
            command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
            description='AR $out')
+else:
+    n.rule('ar',
+           command='rm -f $out && $ar crs $out $in',
+           description='AR $out')
 n.newline()
 
-n.rule('link',
-       command='$cxx $ldflags -o $out $in $libs',
-       description='LINK $out')
+if platform == 'windows':
+    n.rule('link',
+        command='$cxx $in $libs /nologo /link $ldflags /out:$out',
+        description='LINK $out')
+else:
+    n.rule('link',
+        command='$cxx $ldflags -o $out $in $libs',
+        description='LINK $out')
 n.newline()
 
 objs = []
 
-if platform != 'mingw':
+if platform not in ('mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -175,14 +213,21 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
-if platform == 'mingw':
+if platform == 'mingw' or platform == 'windows':
     objs += cxx('subprocess-win32')
+    objs += cc('getopt')
 else:
     objs += cxx('subprocess')
-ninja_lib = n.build(built('libninja.a'), 'ar', objs)
+if platform == 'windows':
+    ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
+else:
+    ninja_lib = n.build(built('libninja.a'), 'ar', objs)
 n.newline()
 
-libs.append('-lninja')
+if platform == 'windows':
+    libs.append('ninja.lib')
+else:
+    libs.append('-lninja')
 
 all_targets = []
 
