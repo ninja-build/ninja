@@ -66,7 +66,7 @@ class Writer(object):
                                         ' '.join(all_inputs)))
 
         if variables:
-            for key, val in variables.iteritems():
+            for key, val in variables:
                 self.variable(key, val, indent=1)
 
         return outputs
