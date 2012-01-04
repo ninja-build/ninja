@@ -18,6 +18,10 @@
 #include "graph.h"
 #include "test.h"
 
+#ifdef _WIN32
+#pragma warning(disable:4800)
+#endif
+
 /// Fixture for tests involving Plan.
 // Though Plan doesn't use State, it's useful to have one around
 // to create Nodes and Edges.

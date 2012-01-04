@@ -33,7 +33,11 @@ struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
   }
   virtual void TearDown() {
+#ifdef _WIN32
+    _unlink(kTestFilename);
+#else
     unlink(kTestFilename);
+#endif
   }
 };
 

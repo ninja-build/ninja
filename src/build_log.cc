@@ -237,7 +237,11 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   fclose(f);
+#ifdef _WIN32
+  if (_unlink(path.c_str()) < 0) {
+#else
   if (unlink(path.c_str()) < 0) {
+#endif
     *err = strerror(errno);
     return false;
   }
