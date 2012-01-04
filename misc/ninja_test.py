@@ -111,5 +111,18 @@ foo = a$$ $
 ''',
                          self.out.getvalue())
 
+class TestBuild(unittest.TestCase):
+    def setUp(self):
+        self.out = StringIO()
+        self.n = ninja_syntax.Writer(self.out)
+
+    def test_variables(self):
+        self.n.build('out', 'cc', 'in', variables={'name': 'value'})
+        self.assertEqual('''\
+build out: cc in
+  name = value
+''',
+                         self.out.getvalue())
+
 if __name__ == '__main__':
     unittest.main()
