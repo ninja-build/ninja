@@ -175,7 +175,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
-    printf("\e[K");  // Clear to end of line.
+    printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
   } else {
     printf("\n");
