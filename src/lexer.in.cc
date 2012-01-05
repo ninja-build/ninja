@@ -110,7 +110,7 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    "#"[^\000\n]*"\n" { continue; }
+    [ ]*"#"[^\000\n]*"\n" { continue; }
     [\n]       { token = NEWLINE;  break; }
     [ ]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
