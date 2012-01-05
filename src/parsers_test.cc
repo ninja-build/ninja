@@ -64,6 +64,24 @@ TEST_F(ParserTest, Rules) {
   EXPECT_EQ("[cat ][$in][ > ][$out]", rule->command().Serialize());
 }
 
+TEST_F(ParserTest, IgnoreIndentedComments) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"  #indented comment\n"
+"rule cat\n"
+"  command = cat $in > $out\n"
+"  #generator = 1\n"
+"  restat = 1 # comment\n"
+"  #comment\n"
+"build result: cat in_1.cc in-2.O\n"
+"  #comment\n"));
+
+  ASSERT_EQ(2u, state.rules_.size());
+  const Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("cat", rule->name());
+  EXPECT_TRUE(rule->restat());
+  EXPECT_FALSE(rule->generator());
+}
+
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "l = one-letter-test\n"
@@ -447,13 +465,6 @@ TEST_F(ParserTest, Errors) {
     // XXX the line number is wrong; we should evaluate paths in ParseEdge
     // as we see them, not after we've read them all!
     EXPECT_EQ("input:4: empty path\n", err);
-  }
-
-  {
-    ManifestParser parser(NULL, NULL);
-    string err;
-    EXPECT_FALSE(parser.ParseTest(" # bad indented comment\n", &err));
-    EXPECT_EQ("input:1: unexpected indent\n", err);
   }
 }
 
