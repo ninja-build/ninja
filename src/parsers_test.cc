@@ -468,8 +468,15 @@ TEST_F(ParserTest, Errors) {
   }
 }
 
-TEST_F(ParserTest, MultipleOutputs)
-{
+TEST_F(ParserTest, MissingInput) {
+  State state;
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.Load("build.ninja", &err));
+  EXPECT_EQ("loading 'build.ninja': No such file or directory", err);
+}
+
+TEST_F(ParserTest, MultipleOutputs) {
   State state;
   ManifestParser parser(&state, NULL);
   string err;

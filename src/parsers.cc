@@ -29,8 +29,11 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
 }
 bool ManifestParser::Load(const string& filename, string* err) {
   string contents;
-  if (!file_reader_->ReadFile(filename, &contents, err))
+  string read_err;
+  if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
+    *err = "loading '" + filename + "': " + read_err;
     return false;
+  }
   contents.resize(contents.size() + 10);
   return Parse(filename, contents, err);
 }
