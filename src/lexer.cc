@@ -53,7 +53,7 @@ bool Lexer::Error(const string& message, string* err) {
       *err += "...";
     *err += "\n";
     *err += string(col, ' ');
-    *err += "^ near here\n";
+    *err += "^ near here";
   }
 
   return false;

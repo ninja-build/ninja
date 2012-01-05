@@ -588,10 +588,7 @@ reload:
   ManifestParser parser(&globals.state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
-    // The pattern in Ninja for errors is to return a one-line string,
-    // but parse errors are special in that they are multiline with
-    // context.  Just report it verbatim.
-    fprintf(stderr, "%s", err.c_str());
+    Error("%s", err.c_str());
     return 1;
   }
 

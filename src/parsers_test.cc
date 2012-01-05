@@ -232,7 +232,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
               "foobar\n"
-              "      ^ near here\n"
+              "      ^ near here"
               , err);
   }
 
@@ -242,7 +242,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("x 3", &err));
     EXPECT_EQ("input:1: expected '=', got identifier\n"
               "x 3\n"
-              "  ^ near here\n"
+              "  ^ near here"
               , err);
   }
 
@@ -252,7 +252,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("x = 3", &err));
     EXPECT_EQ("input:1: unexpected EOF\n"
               "x = 3\n"
-              "     ^ near here\n"
+              "     ^ near here"
               , err);
   }
 
@@ -263,7 +263,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("x = 3\ny 2", &err));
     EXPECT_EQ("input:2: expected '=', got identifier\n"
               "y 2\n"
-              "  ^ near here\n"
+              "  ^ near here"
               , err);
   }
 
@@ -274,7 +274,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("x = $", &err));
     EXPECT_EQ("input:1: bad $-escape (literal $ must be written as $$)\n"
               "x = $\n"
-              "    ^ near here\n"
+              "    ^ near here"
               , err);
   }
 
@@ -285,7 +285,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("x = $\n $[\n", &err));
     EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
               " $[\n"
-              " ^ near here\n"
+              " ^ near here"
               , err);
   }
 
@@ -305,7 +305,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
     EXPECT_EQ("input:1: unknown build rule 'y'\n"
               "build x: y z\n"
-              "       ^ near here\n"
+              "       ^ near here"
               , err);
   }
 
@@ -316,7 +316,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("build x:: y z\n", &err));
     EXPECT_EQ("input:1: expected build command name\n"
               "build x:: y z\n"
-              "       ^ near here\n"
+              "       ^ near here"
               , err);
   }
 
@@ -329,7 +329,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:4: expected newline, got ':'\n"
               " :\n"
-              " ^ near here\n"
+              " ^ near here"
               , err);
   }
 
@@ -352,7 +352,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
               "  command = ${fafsd\n"
-              "            ^ near here\n"
+              "            ^ near here"
               , err);
   }
 
@@ -366,7 +366,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
               "build $: cat foo\n"
-              "      ^ near here\n"
+              "      ^ near here"
               , err);
   }
 
@@ -389,7 +389,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:3: unexpected variable 'othervar'\n"
               "  othervar = bar\n"
-              "                ^ near here\n"
+              "                ^ near here"
               , err);
   }
 
@@ -402,7 +402,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
               "build $: cc bar.cc\n"
-              "      ^ near here\n"
+              "      ^ near here"
               , err);
   }
 
@@ -414,7 +414,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:1: expected target name\n"
               "default\n"
-              "       ^ near here\n"
+              "       ^ near here"
               , err);
   }
 
@@ -426,7 +426,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:1: unknown target 'nonexistent'\n"
               "default nonexistent\n"
-              "                   ^ near here\n"
+              "                   ^ near here"
               , err);
   }
 
@@ -440,7 +440,7 @@ TEST_F(ParserTest, Errors) {
                                   &err));
     EXPECT_EQ("input:4: expected newline, got ':'\n"
               "default b:\n"
-              "         ^ near here\n"
+              "         ^ near here"
               , err);
   }
 
@@ -451,7 +451,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("default $a\n", &err));
     EXPECT_EQ("input:1: empty path\n"
               "default $a\n"
-              "          ^ near here\n"
+              "          ^ near here"
               , err);
   }
 
@@ -510,7 +510,7 @@ TEST_F(ParserTest, MissingSubNinja) {
   EXPECT_FALSE(parser.ParseTest("subninja foo.ninja\n", &err));
   EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
             "subninja foo.ninja\n"
-            "                  ^ near here\n"
+            "                  ^ near here"
             , err);
 }
 

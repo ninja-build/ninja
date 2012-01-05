@@ -74,7 +74,7 @@ TEST(Lexer, Error) {
   ASSERT_FALSE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
             "bad $\n"
-            "    ^ near here\n"
+            "    ^ near here"
             , err);
 }
 
