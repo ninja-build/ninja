@@ -212,6 +212,7 @@ for name in ['build',
              'graph',
              'graphviz',
              'lexer',
+             'metrics',
              'parsers',
              'state',
              'util']:

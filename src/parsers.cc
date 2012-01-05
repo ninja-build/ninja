@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "graph.h"
+#include "metrics.h"
 #include "state.h"
 #include "util.h"
 
@@ -40,6 +41,7 @@ bool ManifestParser::Load(const string& filename, string* err) {
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
+  METRIC_RECORD(".ninja parse");
   lexer_.Start(filename, input);
 
   for (;;) {

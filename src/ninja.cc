@@ -39,6 +39,7 @@
 #include "edit_distance.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "metrics.h"
 #include "parsers.h"
 #include "state.h"
 #include "util.h"
@@ -85,6 +86,7 @@ void Usage(const BuildConfig& config) {
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
 "\n"
+"  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool\n"
 "    use '-t list' to list subtools.\n"
 "    terminates toplevel options; further flags are passed to the tool.\n",
@@ -517,6 +519,23 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   return 1;
 }
 
+/// Enable a debugging mode.  Returns false if Ninja should exit instead
+/// of continuing.
+bool DebugEnable(const string& name, Globals* globals) {
+  if (name == "list") {
+    printf("debugging modes:\n"
+"  stats  print operation counts/timing info\n");
+//"multiple modes can be enabled via -d FOO -d BAR\n");
+    return false;
+  } else if (name == "stats") {
+    g_metrics = new Metrics;
+    return true;
+  } else {
+    printf("ninja: unknown debug setting '%s'\n", name.c_str());
+    return false;
+  }
+}
+
 int RunBuild(Globals* globals, int argc, char** argv) {
   string err;
   vector<Node*> targets;
@@ -551,7 +570,6 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   return 0;
 }
 
-
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -572,9 +590,13 @@ int main(int argc, char** argv) {
 
   int opt;
   while (tool.empty() &&
-         (opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:hj:k:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
+      case 'd':
+        if (!DebugEnable(optarg, &globals))
+          return 1;
+        break;
       case 'f':
         input_file = optarg;
         break;
@@ -680,5 +702,8 @@ reload:
     }
   }
 
-  return RunBuild(&globals, argc, argv);
+  int result = RunBuild(&globals, argc, argv);
+  if (g_metrics)
+    g_metrics->Report();
+  return result;
 }

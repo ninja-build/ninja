@@ -20,11 +20,13 @@
 #include "build_log.h"
 #include "depfile_parser.h"
 #include "disk_interface.h"
+#include "metrics.h"
 #include "parsers.h"
 #include "state.h"
 #include "util.h"
 
 bool Node::Stat(DiskInterface* disk_interface) {
+  METRIC_RECORD("node stat");
   mtime_ = disk_interface->Stat(path_);
   return mtime_ > 0;
 }
@@ -219,6 +221,7 @@ string Edge::GetDescription() {
 
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
                        string* err) {
+  METRIC_RECORD("depfile load");
   string path = EvaluateDepFile();
   string content = disk_interface->ReadFile(path, err);
   if (!err->empty())
