@@ -517,6 +517,41 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   return 1;
 }
 
+int RunBuild(Globals* globals, int argc, char** argv) {
+  string err;
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  Builder builder(globals->state, globals->config);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
+      if (!err.empty()) {
+        Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  if (builder.AlreadyUpToDate()) {
+    printf("ninja: no work to do.\n");
+    return 0;
+  }
+
+  if (!builder.Build(&err)) {
+    printf("ninja: build stopped: %s.\n", err.c_str());
+    return 1;
+  }
+
+  return 0;
+}
+
+
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -645,34 +680,5 @@ reload:
     }
   }
 
-  vector<Node*> targets;
-  if (!CollectTargetsFromArgs(globals.state, argc, argv, &targets, &err)) {
-    Error("%s", err.c_str());
-    return 1;
-  }
-
-  Builder builder(globals.state, globals.config);
-  for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
-    }
-  }
-
-  if (builder.AlreadyUpToDate()) {
-    printf("ninja: no work to do.\n");
-    return 0;
-  }
-
-  if (!builder.Build(&err)) {
-    printf("ninja: build stopped: %s.\n", err.c_str());
-    return 1;
-  }
-
-  return 0;
+  return RunBuild(&globals, argc, argv);
 }
