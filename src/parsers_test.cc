@@ -82,6 +82,21 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
   EXPECT_FALSE(rule->generator());
 }
 
+TEST_F(ParserTest, IgnoreIndentedBlankLines) {
+  // the indented blanks used to cause parse errors
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"  \n"
+"rule cat\n"
+"  command = cat $in > $out\n"
+"  \n"
+"build result: cat in_1.cc in-2.O\n"
+"  \n"
+"variable=1\n"));
+
+  // the variable must be in the top level environment
+  EXPECT_EQ("1", state.bindings_.LookupVariable("variable"));
+}
+
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "l = one-letter-test\n"
@@ -465,6 +480,19 @@ TEST_F(ParserTest, Errors) {
     // XXX the line number is wrong; we should evaluate paths in ParseEdge
     // as we see them, not after we've read them all!
     EXPECT_EQ("input:4: empty path\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    // the indented blank line must terminate the rule
+    // this also verifies that "unexpected (token)" errors are correct
+    EXPECT_FALSE(parser.ParseTest("rule r\n"
+                                  "  command = r\n"
+                                  "  \n"
+                                  "  generator = 1\n", &err));
+    EXPECT_EQ("input:4: unexpected indent\n", err);
   }
 }
 
