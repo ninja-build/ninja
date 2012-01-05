@@ -67,8 +67,9 @@ TEST_F(BuildLogTest, WriteRead) {
 
 TEST_F(BuildLogTest, DoubleEntry) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "0 out command abc\n");
-  fprintf(f, "0 out command def\n");
+  fprintf(f, "# ninja log v3\n");
+  fprintf(f, "0 1 2 out command abc\n");
+  fprintf(f, "3 4 5 out command def\n");
   fclose(f);
 
   string err;
@@ -116,10 +117,10 @@ TEST_F(BuildLogTest, Truncate) {
   }
 }
 
-TEST_F(BuildLogTest, UpgradeV2) {
+TEST_F(BuildLogTest, UpgradeV3) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v2\n");
-  fprintf(f, "123 456 out command\n");
+  fprintf(f, "# ninja log v3\n");
+  fprintf(f, "123 456 0 out command\n");
   fclose(f);
 
   string err;

@@ -138,14 +138,14 @@ bool BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    char* end = strchr(start, field_separator);
+    end = strchr(start, field_separator);
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    char* end = strchr(start, field_separator);
+    end = strchr(start, field_separator);
     if (!end)
       continue;
     *end = 0;
