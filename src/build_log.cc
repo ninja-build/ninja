@@ -135,32 +135,22 @@ bool BuildLog::Load(const string& path, string* err) {
     int start_time = 0, end_time = 0;
     time_t restat_mtime = 0;
 
-    if (log_version == 1) {
-      // In v1 we logged how long the command took; we don't use this info.
-      // int time_ms = atoi(start);
-      start = end + 1;
-    } else {
-      // In v2 we log the start time and the end time.
-      start_time = atoi(start);
-      start = end + 1;
+    start_time = atoi(start);
+    start = end + 1;
 
-      char* end = strchr(start, field_separator);
-      if (!end)
-        continue;
-      *end = 0;
-      end_time = atoi(start);
-      start = end + 1;
-    }
+    char* end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    end_time = atoi(start);
+    start = end + 1;
 
-    if (log_version >= 3) {
-      // In v3 we log the restat mtime.
-      char* end = strchr(start, field_separator);
-      if (!end)
-        continue;
-      *end = 0;
-      restat_mtime = atol(start);
-      start = end + 1;
-    }
+    char* end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    restat_mtime = atol(start);
+    start = end + 1;
 
     end = strchr(start, field_separator);
     if (!end)
