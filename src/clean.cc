@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "build_log.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "state.h"
@@ -170,6 +171,24 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   }
   PrintFooter();
   return status_;
+}
+
+int Cleaner::CleanTrash(BuildLog *log) {
+  log->MarkSeen(state_);
+
+  if (log->trash().empty())
+    return 0;
+
+  Reset();
+  PrintHeader();
+  for (vector<string>::const_iterator i = log->trash().begin();
+       i != log->trash().end(); ++i) {
+    if (IsVerbose())
+      printf("Target %s\n", i->c_str());
+    Remove(*i);
+  }
+  PrintFooter();
+  return 0;
 }
 
 void Cleaner::DoCleanRule(const Rule* rule) {
