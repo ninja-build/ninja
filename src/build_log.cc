@@ -33,7 +33,7 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kCurrentVersion = 3;
+const int kCurrentVersion = 4;
 
 }  // namespace
 
@@ -123,8 +123,11 @@ bool BuildLog::Load(const string& path, string* err) {
       if (sscanf(buf, kFileSignature, &log_version) > 0)
         continue;
     }
+
+    char field_separator = log_version >= 4 ? '\t' : ' ';
+
     char* start = buf;
-    char* end = strchr(start, ' ');
+    char* end = strchr(start, field_separator);
     if (!end)
       continue;
     *end = 0;
@@ -141,7 +144,7 @@ bool BuildLog::Load(const string& path, string* err) {
       start_time = atoi(start);
       start = end + 1;
 
-      char* end = strchr(start, ' ');
+      char* end = strchr(start, field_separator);
       if (!end)
         continue;
       *end = 0;
@@ -151,7 +154,7 @@ bool BuildLog::Load(const string& path, string* err) {
 
     if (log_version >= 3) {
       // In v3 we log the restat mtime.
-      char* end = strchr(start, ' ');
+      char* end = strchr(start, field_separator);
       if (!end)
         continue;
       *end = 0;
@@ -159,7 +162,7 @@ bool BuildLog::Load(const string& path, string* err) {
       start = end + 1;
     }
 
-    end = strchr(start, ' ');
+    end = strchr(start, field_separator);
     if (!end)
       continue;
     string output = string(start, end - start);
@@ -212,7 +215,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d %d %ld %s %s\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
           entry.start_time, entry.end_time, (long) entry.restat_mtime,
           entry.output.c_str(), entry.command.c_str());
 }
