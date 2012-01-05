@@ -577,14 +577,13 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
-        if ((*i)->exists()) {
-          TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
-          if ((*i)->mtime() == new_mtime) {
-            // The rule command did not change the output.  Propagate the clean
-            // state through the build graph.
-            plan_.CleanNode(log_, *i);
-            node_cleaned = true;
-          }
+        TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+        if ((*i)->mtime() == new_mtime) {
+          // The rule command did not change the output.  Propagate the clean
+          // state through the build graph.
+          // Note that this also applies to nonexistent outputs (mtime == 0).
+          plan_.CleanNode(log_, *i);
+          node_cleaned = true;
         }
       }
 
