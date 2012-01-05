@@ -198,6 +198,9 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(bool* success, string* output);
+  virtual void CleanNode(Plan* plan, BuildLog* log, Node *node) const {
+    plan->CleanNode(log, node);
+  }
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -744,4 +747,61 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(2u, commands_ran_.size());
+}
+
+struct BuildDryRun : public BuildWithLogTest {
+  void CleanNode(Plan* plan, BuildLog* log, Node *node) const {
+    DryRunCommandRunner runner;
+    runner.CleanNode(plan, log, node);
+  }
+
+  bool StartCommand(Edge* edge) {
+    assert(!last_command_);
+    commands_ran_.push_back(edge->EvaluateCommand());
+    if (edge->rule_->name() == "cat" || edge->rule_->name() == "cc" ||
+        edge->rule_->name() == "touch") {
+      for (vector<Node*>::iterator out = edge->outputs_.begin();
+           out != edge->outputs_.end(); ++out) {
+      // No-op : Don't do anything.
+      }
+    } else if (edge->rule_->name() == "true" ||
+             edge->rule_->name() == "fail") {
+      // Don't do anything.
+    } else {
+      printf("unknown command\n");
+      return false;
+    }
+
+    last_command_ = edge;
+    return true;
+  }
+};
+
+TEST_F(BuildDryRun, RestatTest) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"
+"  restat = 1\n"
+"rule cc\n"
+"  command = cc\n"
+"  restat = 1\n"
+"build out1: cc in\n"
+"build out2: true out1\n"
+"build out3: cat out2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  fs_.Create("out3", now_, "");
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // "cc" touches out1, so we should build out2.  But because "true" does not
+  // touch out2, we should cancel the build of out3.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(3u, commands_ran_.size());
 }

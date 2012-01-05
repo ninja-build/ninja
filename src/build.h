@@ -79,17 +79,6 @@ private:
   int wanted_edges_;
 };
 
-/// CommandRunner is an interface that wraps running the build
-/// subcommands.  This allows tests to abstract out running commands.
-/// RealCommandRunner is an implementation that actually runs commands.
-struct CommandRunner {
-  virtual ~CommandRunner() {}
-  virtual bool CanRunMore() = 0;
-  virtual bool StartCommand(Edge* edge) = 0;
-  /// Wait for a command to complete.
-  virtual Edge* WaitForCommand(bool* success, string* output) = 0;
-};
-
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
   BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
@@ -104,6 +93,43 @@ struct BuildConfig {
   bool dry_run;
   int parallelism;
   int swallow_failures;
+};
+
+
+/// CommandRunner is an interface that wraps running the build
+/// subcommands.  This allows tests to abstract out running commands.
+/// RealCommandRunner is an implementation that actually runs commands.
+struct CommandRunner {
+  virtual ~CommandRunner() {}
+  virtual bool CanRunMore() = 0;
+  virtual bool StartCommand(Edge* edge) = 0;
+  /// Wait for a command to complete.
+  virtual Edge* WaitForCommand(bool* success, string* output) = 0;
+  virtual void CleanNode(Plan* plan, BuildLog* log, Node* node) const = 0;
+};
+
+/// A CommandRunner that doesn't actually run the commands.
+struct DryRunCommandRunner : public CommandRunner { 
+  virtual ~DryRunCommandRunner() {}
+  virtual bool CanRunMore() {
+    return true;
+  }
+  virtual bool StartCommand(Edge* edge) {
+    finished_.push(edge);
+    return true;
+  }
+  virtual Edge* WaitForCommand(bool* success, string* output) {
+    if (finished_.empty())
+      return NULL;
+    *success = true;
+    Edge* edge = finished_.front();
+    finished_.pop();
+    return edge;
+  }
+  virtual void CleanNode(Plan* plan, BuildLog* log_, Node *node) const {
+    //no-op for dry run
+  }
+  queue<Edge*> finished_;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
