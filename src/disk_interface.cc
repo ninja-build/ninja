@@ -27,16 +27,16 @@
 
 namespace {
 
-std::string DirName(const std::string& path) {
+string DirName(const string& path) {
 #ifdef WIN32
   const char kPathSeparator = '\\';
 #else
   const char kPathSeparator = '/';
 #endif
 
-  std::string::size_type slash_pos = path.rfind(kPathSeparator);
-  if (slash_pos == std::string::npos)
-    return std::string();  // Nothing to do.
+  string::size_type slash_pos = path.rfind(kPathSeparator);
+  if (slash_pos == string::npos)
+    return string();  // Nothing to do.
   while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
     --slash_pos;
   return path.substr(0, slash_pos);
@@ -46,8 +46,8 @@ std::string DirName(const std::string& path) {
 
 // DiskInterface ---------------------------------------------------------------
 
-bool DiskInterface::MakeDirs(const std::string& path) {
-  std::string dir = DirName(path);
+bool DiskInterface::MakeDirs(const string& path) {
+  string dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   TimeStamp mtime = Stat(dir);
@@ -65,7 +65,7 @@ bool DiskInterface::MakeDirs(const std::string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const std::string& path) {
+TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef WIN32
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
@@ -97,7 +97,7 @@ TimeStamp RealDiskInterface::Stat(const std::string& path) {
 #endif
 }
 
-bool RealDiskInterface::MakeDir(const std::string& path) {
+bool RealDiskInterface::MakeDir(const string& path) {
   if (::MakeDir(path) < 0) {
     Error("mkdir(%s): %s", path.c_str(), strerror(errno));
     return false;
@@ -105,9 +105,8 @@ bool RealDiskInterface::MakeDir(const std::string& path) {
   return true;
 }
 
-std::string RealDiskInterface::ReadFile(const std::string& path,
-                                        std::string* err) {
-  std::string contents;
+string RealDiskInterface::ReadFile(const string& path, string* err) {
+  string contents;
   int ret = ::ReadFile(path, &contents, err);
   if (ret == -ENOENT) {
     // Swallow ENOENT.
@@ -116,7 +115,7 @@ std::string RealDiskInterface::ReadFile(const std::string& path,
   return contents;
 }
 
-int RealDiskInterface::RemoveFile(const std::string& path) {
+int RealDiskInterface::RemoveFile(const string& path) {
   if (remove(path.c_str()) < 0) {
     switch (errno) {
       case ENOENT:
