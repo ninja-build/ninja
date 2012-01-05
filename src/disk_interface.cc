@@ -50,7 +50,7 @@ bool DiskInterface::MakeDirs(const std::string& path) {
   std::string dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
-  int mtime = Stat(dir);
+  TimeStamp mtime = Stat(dir);
   if (mtime < 0)
     return false;  // Error.
   if (mtime > 0)
@@ -65,7 +65,7 @@ bool DiskInterface::MakeDirs(const std::string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-int RealDiskInterface::Stat(const std::string& path) {
+TimeStamp RealDiskInterface::Stat(const std::string& path) {
 #ifdef WIN32
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
@@ -84,7 +84,7 @@ int RealDiskInterface::Stat(const std::string& path) {
     ((uint64_t)filetime.dwLowDateTime);
   mtime /= 1000000000LL / 100; // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (int)mtime;
+  return (TimeStamp)mtime;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {

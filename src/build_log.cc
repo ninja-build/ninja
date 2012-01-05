@@ -73,7 +73,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 }
 
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             time_t restat_mtime) {
+                             TimeStamp restat_mtime) {
   const string command = edge->EvaluateCommand();
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
@@ -133,7 +133,7 @@ bool BuildLog::Load(const string& path, string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    time_t restat_mtime = 0;
+    TimeStamp restat_mtime = 0;
 
     start_time = atoi(start);
     start = end + 1;

@@ -40,7 +40,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
-  time_t most_recent_input = 1;
+  TimeStamp most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
     if ((*i)->StatIfNecessary(disk_interface)) {
       if (Edge* edge = (*i)->in_edge()) {
@@ -103,11 +103,12 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   return true;
 }
 
-bool Edge::RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+bool Edge::RecomputeOutputDirty(BuildLog* build_log,
+                                TimeStamp most_recent_input,
                                 const string& command, Node* output) {
   if (is_phony()) {
-    // Phony edges don't write any output.
-    // Outputs are only dirty if there are no inputs and we're missing the output.
+    // Phony edges don't write any output.  Outputs are only dirty if
+    // there are no inputs and we're missing the output.
     return inputs_.empty() && !output->exists();
   }
 

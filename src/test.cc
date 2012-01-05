@@ -41,7 +41,7 @@ void VirtualFileSystem::Create(const string& path, int time,
   files_[path].contents = contents;
 }
 
-int VirtualFileSystem::Stat(const string& path) {
+TimeStamp VirtualFileSystem::Stat(const string& path) {
   FileMap::iterator i = files_.find(path);
   if (i != files_.end())
     return i->second.mtime;
