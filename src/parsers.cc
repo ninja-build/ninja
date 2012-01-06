@@ -132,6 +132,8 @@ bool ManifestParser::ParseRule(string* err) {
 
   if (rule->command_.empty())
     return lexer_.Error("expected 'command =' line", err);
+  if (!rule->depfile_.empty() && !rule->deplist_.empty())
+    return lexer_.Error("cannot specify both deplist and depfile", err);
 
   state_->AddRule(rule);
   return true;
