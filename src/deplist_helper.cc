@@ -14,10 +14,17 @@
 
 #include "depfile_parser.h"
 
+#include <errno.h>
 #include <stdio.h>
 
 #include "deplist.h"
 #include "util.h"
+
+#ifdef WIN32
+#include "getopt.h"
+#else
+#include <getopt.h>
+#endif
 
 namespace {
 
@@ -35,32 +42,56 @@ void Usage() {
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
+  const char* output_filename = NULL;
+
+  const option kLongOptions[] = {
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+  };
+  int opt;
+  while ((opt = getopt_long(argc, argv, "o:h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+      case 'o':
+        output_filename = optarg;
+        break;
+      case 'h':
+      default:
+        Usage();
+        return 0;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  if (argc < 1) {
     Usage();
     return 1;
   }
 
-  const char* infile = argv[1];
+  const char* input_filename = argv[0];
 
+  // Read and parse input file.
   DepfileParser parser;
   string content;
   string err;
-  if (ReadFile(infile, &content, &err) < 0)
-    Fatal("loading %s: %s", infile, err.c_str());
+  if (ReadFile(input_filename, &content, &err) < 0)
+    Fatal("loading %s: %s", input_filename, err.c_str());
   if (!parser.Parse(&content, &err))
-    Fatal("parsing %s: %s", infile, err.c_str());
+    Fatal("parsing %s: %s", input_filename, err.c_str());
 
+  // Open/write/close output file.
   FILE* output = stdout;
-  /*
-  FILE* f = fopen(filename.c_str(), "wb");
-  if (!f) {
-    *err = "opening " + filename + ": " + strerror(errno);
-    return false;
+  if (output_filename) {
+    output = fopen(output_filename, "wb");
+    if (!output)
+      Fatal("opening %s: %s", output_filename, strerror(errno));
   }
-  */
-
   if (!Deplist::Write(output, parser.ins_))
     Fatal("error writing %s");
+  if (output_filename) {
+    if (fclose(output) < 0)
+      Fatal("fclose(%s): %s", output_filename, strerror(errno));
+  }
 
   return 0;
 }
