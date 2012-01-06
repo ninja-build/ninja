@@ -64,6 +64,17 @@ TEST_F(ParserTest, Rules) {
   EXPECT_EQ("[cat ][$in][ > ][$out]", rule->command().Serialize());
 }
 
+TEST_F(ParserTest, RuleAttributes) {
+  // Check that all of the allowed rule attributes are parsed ok.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = a\n"
+"  depfile = a\n"
+"  description = a\n"
+"  generator = a\n"
+"  restat = a\n"));
+}
+
 TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "  #indented comment\n"
