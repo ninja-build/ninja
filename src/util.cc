@@ -38,6 +38,7 @@
 #endif
 
 #include "edit_distance.h"
+#include "metrics.h"
 
 void Fatal(const char* msg, ...) {
   va_list ap;
@@ -78,6 +79,7 @@ void Error(const char* msg, ...) {
 bool CanonicalizePath(string* path, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
+  METRIC_RECORD("canonicalize path");
 
   if (path->empty()) {
     *err = "empty path";
