@@ -152,7 +152,10 @@ struct Edge {
   string EvaluateCommand();  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  /// Get/create a Node for an input as discovered through a depfile/deplist.
+  Node* GetDepNode(State* state, StringPiece path);
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
+  bool LoadDepList(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump();
 
