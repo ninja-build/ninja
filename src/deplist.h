@@ -22,11 +22,9 @@ struct StringPiece;
 /// extra inputs quickly.  See the .cc file for a description of the format.
 struct Deplist {
 
-  /// Write out a list of strings to \a filename.
-  /// Returns false and fills in \a err on error.
-  static bool Write(const string& filename,
-                    const vector<StringPiece>& entries,
-                    string* err);
+  /// Write out a list of strings to \a file.
+  /// Returns false on error.
+  static bool Write(FILE* file, const vector<StringPiece>& entries);
 
   /// Parse a list of strings from \a input.  Returned entries are
   /// pointers within \a input.

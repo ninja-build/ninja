@@ -47,12 +47,15 @@ TEST_F(DeplistTest, WriteRead) {
   entries.push_back("a");
   entries.push_back("b");
 
-  string err;
-  EXPECT_TRUE(Deplist::Write("deplist", entries, &err));
-  ASSERT_EQ("", err);
+  const char* filename = "deplist";
+  FILE* f = fopen(filename, "wb");
+  ASSERT_TRUE(f != NULL);
+  ASSERT_TRUE(Deplist::Write(f, entries));
+  ASSERT_EQ(0, fclose(f));
 
   string contents;
-  ASSERT_EQ(0, ::ReadFile("deplist", &contents, &err));
+  string err;
+  ASSERT_EQ(0, ::ReadFile(filename, &contents, &err));
   vector<StringPiece> entries2;
   EXPECT_TRUE(Deplist::Load(contents, &entries2, &err));
   ASSERT_EQ("", err);

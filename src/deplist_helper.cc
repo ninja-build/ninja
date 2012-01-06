@@ -50,8 +50,17 @@ int main(int argc, char** argv) {
   if (!parser.Parse(&content, &err))
     Fatal("parsing %s: %s", infile, err.c_str());
 
-  if (!Deplist::Write("out", parser.ins_, &err))
-    Fatal("writing %s: %s", err.c_str());
+  FILE* output = stdout;
+  /*
+  FILE* f = fopen(filename.c_str(), "wb");
+  if (!f) {
+    *err = "opening " + filename + ": " + strerror(errno);
+    return false;
+  }
+  */
+
+  if (!Deplist::Write(output, parser.ins_))
+    Fatal("error writing %s");
 
   return 0;
 }

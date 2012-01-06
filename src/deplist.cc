@@ -40,43 +40,25 @@ int16_t ReadInt16(const char** in) {
 }  // anonymous namespace
 
 // static
-bool Deplist::Write(const string& filename, const vector<StringPiece>& entries,
-                    string* err) {
-  FILE* f = fopen(filename.c_str(), "wb");
-  if (!f) {
-    *err = "opening " + filename + ": " + strerror(errno);
-    return false;
-  }
-
-  bool success = false;
-
+bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
   int16_t version = kVersion;
   int16_t count = entries.size();
-  if (fwrite(&version, 2, 1, f) < 1)
-    goto out;
-   if (fwrite(&count, 2, 1, f) < 1)
-    goto out;
+  if (fwrite(&version, 2, 1, file) < 1)
+    return false;
+   if (fwrite(&count, 2, 1, file) < 1)
+    return false;
 
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i) {
     int16_t length = i->len_;
-    if (fwrite(&length, 2, 1, f) < 1)
-      goto out;
+    if (fwrite(&length, 2, 1, file) < 1)
+      return false;
   }
 
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i) {
-    if (fwrite(i->str_, i->len_, 1, f) < 1)
-      goto out;
-  }
-
-  success = true;
-
- out:
-  fclose(f);
-  if (!success) {
-    *err = "error writing file";
-    return false;
+    if (fwrite(i->str_, i->len_, 1, file) < 1)
+      return false;
   }
   return true;
 }
