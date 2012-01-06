@@ -96,13 +96,20 @@ Metric* Metrics::NewMetric(const string& name) {
 }
 
 void Metrics::Report() {
-  printf("%-10s\t%-6s\t%9s\t%s\n",
+  int width = 0;
+  for (vector<Metric*>::iterator i = metrics_.begin();
+       i != metrics_.end(); ++i) {
+    width = max((int)(*i)->name.size(), width);
+  }
+
+  printf("%-*s\t%-6s\t%9s\t%s\n", width,
          "metric", "count", "total (ms)" , "avg (us)");
-  for (vector<Metric*>::iterator i = metrics_.begin(); i != metrics_.end(); ++i) {
+  for (vector<Metric*>::iterator i = metrics_.begin();
+       i != metrics_.end(); ++i) {
     Metric* metric = *i;
     double total = metric->sum / (double)1000;
     double avg = metric->sum / (double)metric->count;
-    printf("%-10s\t%-6d\t%-8.1f\t%.1f\n", metric->name.c_str(),
+    printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", width, metric->name.c_str(),
            metric->count, total, avg);
   }
 }
