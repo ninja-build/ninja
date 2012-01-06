@@ -115,6 +115,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->command_ = value;
     } else if (key == "depfile") {
       rule->depfile_ = value;
+    } else if (key == "deplist") {
+      rule->deplist_ = value;
     } else if (key == "description") {
       rule->description_ = value;
     } else if (key == "generator") {

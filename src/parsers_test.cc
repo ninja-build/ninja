@@ -70,6 +70,7 @@ TEST_F(ParserTest, RuleAttributes) {
 "rule cat\n"
 "  command = a\n"
 "  depfile = a\n"
+"  deplist = a\n"
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"));
