@@ -289,6 +289,14 @@ ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
 n.newline()
 all_targets += ninja_test
 
+n.comment('Deplist helper.')
+objs = cxx('deplist_helper')
+deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
+                         implicit=ninja_lib,
+                         variables=[('libs', '-L$builddir -lninja')])
+n.newline()
+all_targets += deplist_helper
+
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
 parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
@@ -340,8 +348,8 @@ if host != 'mingw':
             implicit=['configure.py', 'misc/ninja_syntax.py'])
     n.newline()
 
-n.comment('Build only the main binary by default.')
-n.default(ninja)
+n.comment('Build only the user-facing binaries by default.')
+n.default(ninja + deplist_helper)
 n.newline()
 
 n.build('all', 'phony', all_targets)
