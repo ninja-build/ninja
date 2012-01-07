@@ -686,7 +686,7 @@ reload:
   }
 
   {
-    Cleaner cleaner(&state, config);
+    Cleaner cleaner(globals.state, globals.config);
     cleaner.CleanTrash(&build_log);
   }
 
