@@ -175,7 +175,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
-    printf("\e[K");  // Clear to end of line.
+    printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
   } else {
     printf("\n");
@@ -321,7 +321,7 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
                             end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input and command.
-      time_t most_recent_input = 1;
+      TimeStamp most_recent_input = 1;
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
         if ((*ni)->mtime() > most_recent_input)
           most_recent_input = (*ni)->mtime();
@@ -569,7 +569,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-  time_t restat_mtime = 0;
+  TimeStamp restat_mtime = 0;
 
   if (success) {
     if (edge->rule().restat()) {
@@ -577,14 +577,13 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
-        if ((*i)->exists()) {
-          time_t new_mtime = disk_interface_->Stat((*i)->path());
-          if ((*i)->mtime() == new_mtime) {
-            // The rule command did not change the output.  Propagate the clean
-            // state through the build graph.
-            plan_.CleanNode(log_, *i);
-            node_cleaned = true;
-          }
+        TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+        if ((*i)->mtime() == new_mtime) {
+          // The rule command did not change the output.  Propagate the clean
+          // state through the build graph.
+          // Note that this also applies to nonexistent outputs (mtime == 0).
+          plan_.CleanNode(log_, *i);
+          node_cleaned = true;
         }
       }
 
@@ -593,7 +592,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         // (existing) non-order-only input or the depfile.
         for (vector<Node*>::iterator i = edge->inputs_.begin();
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-          time_t input_mtime = disk_interface_->Stat((*i)->path());
+          TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
           if (input_mtime == 0) {
             restat_mtime = 0;
             break;
@@ -603,7 +602,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         }
 
         if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
-          time_t depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
+          TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
           if (depfile_mtime == 0)
             restat_mtime = 0;
           else if (depfile_mtime > restat_mtime)

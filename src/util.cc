@@ -46,7 +46,15 @@ void Fatal(const char* msg, ...) {
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
+#ifdef WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
   exit(1);
+#endif
 }
 
 void Warning(const char* msg, ...) {
@@ -188,27 +196,33 @@ int64_t GetTimeMillis() {
 #endif
 }
 
-const char* SpellcheckString(const string& text, ...) {
+const char* SpellcheckStringV(const string& text,
+                              const vector<const char*>& words) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
-  va_list ap;
-  va_start(ap, text);
-  const char* correct_spelling;
-
   int min_distance = kMaxValidEditDistance + 1;
   const char* result = NULL;
-  while ((correct_spelling = va_arg(ap, const char*))) {
-    int distance = EditDistance(
-        correct_spelling, text, kAllowReplacements, kMaxValidEditDistance);
+  for (vector<const char*>::const_iterator i = words.begin();
+       i != words.end(); ++i) {
+    int distance = EditDistance(*i, text, kAllowReplacements,
+                                kMaxValidEditDistance);
     if (distance < min_distance) {
       min_distance = distance;
-      result = correct_spelling;
+      result = *i;
     }
   }
-
-  va_end(ap);
   return result;
+}
+
+const char* SpellcheckString(const string& text, ...) {
+  va_list ap;
+  va_start(ap, text);
+  vector<const char*> words;
+  const char* word;
+  while ((word = va_arg(ap, const char*)))
+    words.push_back(word);
+  return SpellcheckStringV(text, words);
 }
 
 #ifdef WIN32

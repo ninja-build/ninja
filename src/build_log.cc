@@ -34,7 +34,7 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kCurrentVersion = 3;
+const int kCurrentVersion = 4;
 
 }  // namespace
 
@@ -74,7 +74,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 }
 
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             time_t restat_mtime) {
+                             TimeStamp restat_mtime) {
   const string command = edge->EvaluateCommand();
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
@@ -125,43 +125,36 @@ bool BuildLog::Load(const string& path, string* err) {
       if (sscanf(buf, kFileSignature, &log_version) > 0)
         continue;
     }
+
+    char field_separator = log_version >= 4 ? '\t' : ' ';
+
     char* start = buf;
-    char* end = strchr(start, ' ');
+    char* end = strchr(start, field_separator);
     if (!end)
       continue;
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    time_t restat_mtime = 0;
+    TimeStamp restat_mtime = 0;
 
-    if (log_version == 1) {
-      // In v1 we logged how long the command took; we don't use this info.
-      // int time_ms = atoi(start);
-      start = end + 1;
-    } else {
-      // In v2 we log the start time and the end time.
-      start_time = atoi(start);
-      start = end + 1;
+    start_time = atoi(start);
+    start = end + 1;
 
-      char* end = strchr(start, ' ');
-      if (!end)
-        continue;
-      *end = 0;
-      end_time = atoi(start);
-      start = end + 1;
-    }
+    end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    end_time = atoi(start);
+    start = end + 1;
 
-    if (log_version >= 3) {
-      // In v3 we log the restat mtime.
-      char* end = strchr(start, ' ');
-      if (!end)
-        continue;
-      *end = 0;
-      restat_mtime = atol(start);
-      start = end + 1;
-    }
+    end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    restat_mtime = atol(start);
+    start = end + 1;
 
-    end = strchr(start, ' ');
+    end = strchr(start, field_separator);
     if (!end)
       continue;
     string output = string(start, end - start);
@@ -215,7 +208,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d %d %ld %s %s\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
           entry.start_time, entry.end_time, (long) entry.restat_mtime,
           entry.output.c_str(), entry.command.c_str());
 }

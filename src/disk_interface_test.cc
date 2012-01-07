@@ -168,7 +168,7 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
-  virtual int Stat(const string& path);
+  virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path) {
     assert(false);
     return false;
@@ -182,13 +182,13 @@ struct StatTest : public StateTestWithBuiltinRules,
     return 0;
   }
 
-  map<string, time_t> mtimes_;
+  map<string, TimeStamp> mtimes_;
   vector<string> stats_;
 };
 
-int StatTest::Stat(const string& path) {
+TimeStamp StatTest::Stat(const string& path) {
   stats_.push_back(path);
-  map<string, time_t>::iterator i = mtimes_.find(path);
+  map<string, TimeStamp>::iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
     return 0;  // File not found.
   return i->second;

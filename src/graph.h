@@ -20,9 +20,9 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "timestamp.h"
 
 struct DiskInterface;
-
 struct Edge;
 
 /// Information about a node in the dependency graph: the file, whether
@@ -62,7 +62,7 @@ struct Node {
   }
 
   const string& path() const { return path_; }
-  time_t mtime() const { return mtime_; }
+  TimeStamp mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
@@ -80,7 +80,7 @@ private:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist
   ///   >0: actual file's mtime
-  time_t mtime_;
+  TimeStamp mtime_;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
@@ -141,7 +141,7 @@ struct Edge {
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(BuildLog* build_log, time_t most_recent_input,
+  bool RecomputeOutputDirty(BuildLog* build_log, TimeStamp most_recent_input,
                             const string& command, Node* output);
 
   /// Return true if all inputs' in-edges are ready.

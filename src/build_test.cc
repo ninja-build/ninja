@@ -745,3 +745,30 @@ TEST_F(BuildWithLogTest, RestatTest) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(2u, commands_ran_.size());
 }
+
+TEST_F(BuildWithLogTest, RestatMissingFile) {
+  // If a restat rule doesn't create its output, and the output didn't
+  // exist before the rule was run, consider that behavior equivalent
+  // to a rule that doesn't modify its existent output file.
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"
+"  restat = 1\n"
+"rule cc\n"
+"  command = cc\n"
+"build out1: true in\n"
+"build out2: cc out1\n"));
+
+  fs_.Create("in", now_, "");
+  fs_.Create("out2", now_, "");
+
+  // Run a build, expect only the first command to run.
+  // It doesn't touch its output (due to being the "true" command), so
+  // we shouldn't run the dependent build.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(1u, commands_ran_.size());
+}

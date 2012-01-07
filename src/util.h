@@ -23,6 +23,7 @@
 #endif
 
 #include <string>
+#include <vector>
 using namespace std;
 
 #define NINJA_UNUSED_ARG(arg_name) (void)arg_name;
@@ -55,8 +56,11 @@ void SetCloseOnExec(int fd);
 /// time.
 int64_t GetTimeMillis();
 
-/// Given a misspelled string and a NULL-terminatd list of correct spellings,
-/// returns the closest match or NULL if there is no close enough match.
+/// Given a misspelled string and a list of correct spellings, returns
+/// the closest match or NULL if there is no close enough match.
+const char* SpellcheckStringV(const string& text, const vector<const char*>& words);
+
+/// Like SpellcheckStringV, but takes a NULL-terminated list.
 const char* SpellcheckString(const string& text, ...);
 
 #ifdef _WIN32

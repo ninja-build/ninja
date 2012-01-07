@@ -46,6 +46,9 @@ parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
 (options, args) = parser.parse_args()
+if args:
+    print 'ERROR: extra unparsed command-line arguments:', args
+    sys.exit(1)
 
 platform = options.platform
 if platform is None:
@@ -140,7 +143,7 @@ n.newline()
 
 if platform == 'windows':
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo $out',
+        command='$cxx $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out')
 else:
@@ -209,6 +212,7 @@ for name in ['build',
              'graph',
              'graphviz',
              'lexer',
+             'metrics',
              'parsers',
              'state',
              'util']:

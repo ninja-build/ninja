@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "graph.h"
+#include "metrics.h"
 #include "state.h"
 #include "util.h"
 
@@ -29,14 +30,18 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
 }
 bool ManifestParser::Load(const string& filename, string* err) {
   string contents;
-  if (!file_reader_->ReadFile(filename, &contents, err))
+  string read_err;
+  if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
+    *err = "loading '" + filename + "': " + read_err;
     return false;
+  }
   contents.resize(contents.size() + 10);
   return Parse(filename, contents, err);
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
+  METRIC_RECORD(".ninja parse");
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -78,7 +83,7 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::NEWLINE:
       break;
     default:
-      return lexer_.Error(string("unexpected") + Lexer::TokenName(token),
+      return lexer_.Error(string("unexpected ") + Lexer::TokenName(token),
                           err);
     }
   }

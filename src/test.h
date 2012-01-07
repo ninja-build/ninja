@@ -43,7 +43,7 @@ struct VirtualFileSystem : public DiskInterface {
   void Create(const string& path, int time, const string& contents);
 
   // DiskInterface
-  virtual int Stat(const string& path);
+  virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
   virtual int RemoveFile(const string& path);

@@ -41,18 +41,17 @@ except OSError, e:
     if e.errno != errno.EEXIST:
         raise
 
-with open('src/browse.py') as browse_py:
-    with open('build/browse_py.h', 'w') as browse_py_h:
-        run(['./src/inline.sh', 'kBrowsePy'],
-            stdin=browse_py, stdout=browse_py_h)
-
 sources = []
 for src in glob.glob('src/*.cc'):
     if src.endswith('test.cc') or src.endswith('.in.cc'):
         continue
 
+    filename = os.path.basename(src)
+    if filename == 'browse.cc':  # Depends on generated header.
+        continue
+
     if sys.platform.startswith('win32'):
-        if src.endswith('/browse.cc') or src.endswith('/subprocess.cc'):
+        if filename == 'subprocess.cc':
             continue
     else:
         if src.endswith('-win32.cc'):
@@ -60,15 +59,26 @@ for src in glob.glob('src/*.cc'):
 
     sources.append(src)
 
-args = [os.environ.get('CXX', 'g++'), '-Wno-deprecated',
-        '-DNINJA_PYTHON="' + sys.executable + '"']
+if sys.platform.startswith('win32'):
+    sources.append('src/getopt.c')
+
+vcdir = os.environ.get('VCINSTALLDIR')
+if vcdir:
+    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DWIN32']
+else:
+    args = [os.environ.get('CXX', 'g++'), '-Wno-deprecated',
+            '-DNINJA_PYTHON="' + sys.executable + '"',
+            '-DNINJA_BOOTSTRAP']
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
 if sys.platform.startswith('win32'):
     binary = 'ninja.bootstrap.exe'
-args.extend(['-o', binary])
 args.extend(sources)
+if vcdir:
+    args.extend(['/link', '/out:' + binary])
+else:
+    args.extend(['-o', binary])
 run(args)
 
 print 'Building ninja using itself...'

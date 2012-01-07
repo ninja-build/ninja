@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "eval_env.h"
+#include "util.h"
 
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
@@ -51,7 +52,7 @@ bool Lexer::Error(const string& message, string* err) {
       *err += "...";
     *err += "\n";
     *err += string(col, ' ');
-    *err += "^ near here\n";
+    *err += "^ near here";
   }
 
   return false;
@@ -109,8 +110,8 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    "#"[^\000\n]*"\n" { continue; }
-    [\n]       { token = NEWLINE;  break; }
+    [ ]*"#"[^\000\n]*"\n" { continue; }
+    [ ]*[\n]   { token = NEWLINE;  break; }
     [ ]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
     "rule"     { token = RULE;     break; }

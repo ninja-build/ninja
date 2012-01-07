@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "hash_map.h"
+#include "timestamp.h"
 
 struct BuildConfig;
 struct Edge;
@@ -40,7 +41,7 @@ struct BuildLog {
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
   void RecordCommand(Edge* edge, int start_time, int end_time,
-                     time_t restat_mtime = 0);
+                     TimeStamp restat_mtime = 0);
   void Close();
 
   /// Load the on-disk log.
@@ -51,7 +52,7 @@ struct BuildLog {
     string command;
     int start_time;
     int end_time;
-    time_t restat_mtime;
+    TimeStamp restat_mtime;
     bool seen;
 
     // Used by tests.

@@ -16,6 +16,9 @@
 #define NINJA_DISK_INTERFACE_H_
 
 #include <string>
+using namespace std;
+
+#include "timestamp.h"
 
 /// Interface for accessing the disk.
 ///
@@ -26,33 +29,33 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual int Stat(const std::string& path) = 0;
+  virtual TimeStamp Stat(const string& path) = 0;
 
   /// Create a directory, returning false on failure.
-  virtual bool MakeDir(const std::string& path) = 0;
+  virtual bool MakeDir(const string& path) = 0;
 
   /// Read a file to a string.  Fill in |err| on error.
-  virtual std::string ReadFile(const std::string& path, std::string* err) = 0;
+  virtual string ReadFile(const string& path, string* err) = 0;
 
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
   ///          1 if the file does not exist, and
   ///          -1 if an error occurs.
-  virtual int RemoveFile(const std::string& path) = 0;
+  virtual int RemoveFile(const string& path) = 0;
 
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
-  bool MakeDirs(const std::string& path);
+  bool MakeDirs(const string& path);
 };
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   virtual ~RealDiskInterface() {}
-  virtual int Stat(const std::string& path);
-  virtual bool MakeDir(const std::string& path);
-  virtual std::string ReadFile(const std::string& path, std::string* err);
-  virtual int RemoveFile(const std::string& path);
+  virtual TimeStamp Stat(const string& path);
+  virtual bool MakeDir(const string& path);
+  virtual string ReadFile(const string& path, string* err);
+  virtual int RemoveFile(const string& path);
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_
