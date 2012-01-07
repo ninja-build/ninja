@@ -142,7 +142,9 @@ int MakeDir(const string& path) {
 int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
-    err->assign(strerror(errno));
+    err->assign("error: " + path + ": ");
+    err->append(strerror(errno));
+    err->append("\n");
     return -errno;
   }
 
@@ -152,7 +154,9 @@ int ReadFile(const string& path, string* contents, string* err) {
     contents->append(buf, len);
   }
   if (ferror(f)) {
-    err->assign(strerror(errno));  // XXX errno?
+    err->assign("error: " + path + ": ");
+    err->append(strerror(errno));  // XXX errno?
+    err->append("\n");
     contents->clear();
     fclose(f);
     return -errno;
