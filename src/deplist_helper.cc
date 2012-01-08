@@ -82,18 +82,24 @@ int main(int argc, char** argv) {
   argv += optind;
   argc -= optind;
 
-  if (argc < 1) {
-    Usage();
-    return 1;
+  FILE* input = stdin;
+  const char* input_filename = argc > 0 ? argv[0] : NULL;
+  if (input_filename) {
+    input = fopen(input_filename, "rb");
+    if (!input)
+      Fatal("opening %s: %s", input_filename, strerror(errno));
   }
-
-  const char* input_filename = argv[0];
 
   // Read and parse input file.
   string content;
   string err;
-  if (ReadFile(input_filename, &content, &err) < 0)
+  if (!ReadFile(input, &content, &err))
     Fatal("loading %s: %s", input_filename, err.c_str());
+
+  if (input_filename) {
+    if (fclose(input) < 0)
+      Fatal("fclose(%s): %s", input_filename, strerror(errno));
+  }
 
   StringPiece target;
   vector<StringPiece> inputs;

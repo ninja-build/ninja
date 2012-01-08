@@ -155,7 +155,13 @@ int ReadFile(const string& path, string* contents, string* err) {
     err->assign(strerror(errno));
     return -errno;
   }
+  if (ReadFile(f, contents, err))
+    return -errno;
+  fclose(f);
+  return 0;
+}
 
+bool ReadFile(FILE* f, string* contents, string* err) {
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
@@ -164,11 +170,9 @@ int ReadFile(const string& path, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
-    return -errno;
+    return false;
   }
-  fclose(f);
-  return 0;
+  return true;
 }
 
 void SetCloseOnExec(int fd) {
