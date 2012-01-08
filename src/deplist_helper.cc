@@ -90,19 +90,20 @@ int main(int argc, char** argv) {
   const char* input_filename = argv[0];
 
   // Read and parse input file.
-  DepfileParser parser;
   string content;
   string err;
   if (ReadFile(input_filename, &content, &err) < 0)
     Fatal("loading %s: %s", input_filename, err.c_str());
 
+  StringPiece target;
+  vector<StringPiece> inputs;
   switch (input_format) {
   case INPUT_DEPFILE:
-    if (!parser.Parse(&content, &err))
+    if (!DepfileParser::Parse(&content, &target, &inputs, &err))
       Fatal("parsing %s: %s", input_filename, err.c_str());
     break;
   case INPUT_SHOW_INCLUDES:
-    string text = ShowIncludes::Filter(content, NULL);
+    string text = ShowIncludes::Filter(content, &inputs);
     printf("%s", text.c_str());
     break;
   }
@@ -114,7 +115,7 @@ int main(int argc, char** argv) {
     if (!output)
       Fatal("opening %s: %s", output_filename, strerror(errno));
   }
-  if (!Deplist::Write(output, parser.ins_))
+  if (!Deplist::Write(output, inputs))
     Fatal("error writing %s");
   if (output_filename) {
     if (fclose(output) < 0)

@@ -257,29 +257,30 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   if (content.empty())
     return true;
 
-  DepfileParser depfile;
+  StringPiece target;
+  vector<StringPiece> inputs;
   string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
+  if (!DepfileParser::Parse(&content, &target, &inputs, &depfile_err)) {
     *err = path + ": " + depfile_err;
     return false;
   }
 
   // Check that this depfile matches our output.
   StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != depfile.out_) {
+  if (opath != target) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
+      outputs_[0]->path() + "', got '" + target.AsString() + "'";
     return false;
   }
 
-  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins_.size(), 0);
-  implicit_deps_ += depfile.ins_.size();
+  inputs_.insert(inputs_.end() - order_only_deps_, inputs.size(), 0);
+  implicit_deps_ += inputs.size();
   vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - depfile.ins_.size();
+    inputs_.end() - order_only_deps_ - inputs.size();
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+  for (vector<StringPiece>::iterator i = inputs.begin();
+       i != inputs.end(); ++i, ++implicit_dep) {
     string path(i->str_, i->len_);
     if (!CanonicalizePath(&path, err))
       return false;

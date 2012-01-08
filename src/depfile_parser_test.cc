@@ -21,11 +21,13 @@ struct DepfileParserTest : public testing::Test {
 
   DepfileParser parser_;
   string input_;
+  StringPiece target_;
+  vector<StringPiece> inputs_;
 };
 
 bool DepfileParserTest::Parse(const char* input, string* err) {
   input_ = input;
-  return parser_.Parse(&input_, err);
+  return parser_.Parse(&input_, &target_, &inputs_, err);
 }
 
 TEST_F(DepfileParserTest, Basic) {
@@ -34,8 +36,8 @@ TEST_F(DepfileParserTest, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser_.out_.AsString());
-  EXPECT_EQ(4u, parser_.ins_.size());
+  EXPECT_EQ("build/ninja.o", target_.AsString());
+  EXPECT_EQ(4u, inputs_.size());
 }
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
@@ -54,8 +56,8 @@ TEST_F(DepfileParserTest, Continuation) {
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser_.out_.AsString());
-  EXPECT_EQ(2u, parser_.ins_.size());
+  EXPECT_EQ("foo.o", target_.AsString());
+  EXPECT_EQ(2u, inputs_.size());
 }
 
 TEST_F(DepfileParserTest, BackSlashes) {
@@ -69,8 +71,8 @@ TEST_F(DepfileParserTest, BackSlashes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
-            parser_.out_.AsString());
-  EXPECT_EQ(4u, parser_.ins_.size());
+            target_.AsString());
+  EXPECT_EQ(4u, inputs_.size());
 }
 
 TEST_F(DepfileParserTest, Spaces) {
@@ -80,14 +82,14 @@ TEST_F(DepfileParserTest, Spaces) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("a bc def",
-            parser_.out_.AsString());
-  ASSERT_EQ(3u, parser_.ins_.size());
+            target_.AsString());
+  ASSERT_EQ(3u, inputs_.size());
   EXPECT_EQ("a b",
-            parser_.ins_[0].AsString());
+            inputs_[0].AsString());
   EXPECT_EQ("c",
-            parser_.ins_[1].AsString());
+            inputs_[1].AsString());
   EXPECT_EQ("d",
-            parser_.ins_[2].AsString());
+            inputs_[2].AsString());
 }
 
 TEST_F(DepfileParserTest, Escapes) {
@@ -99,6 +101,6 @@ TEST_F(DepfileParserTest, Escapes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("\\!\\@#$\\%\\^\\&\\",
-            parser_.out_.AsString());
-  ASSERT_EQ(0u, parser_.ins_.size());
+            target_.AsString());
+  ASSERT_EQ(0u, inputs_.size());
 }
