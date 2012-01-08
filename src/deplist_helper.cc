@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "depfile_parser.h"
+#include "deplist.h"
 
 #include <errno.h>
 #include <stdio.h>
 
-#include "deplist.h"
+#include "depfile_parser.h"
+#include "showincludes_parser.h"
 #include "util.h"
 
 #ifdef WIN32
@@ -32,25 +33,43 @@ void Usage() {
   printf(
 "ninja-deplist-helper: convert dependency output into ninja deplist format.\n"
 "\n"
-"usage: ninja-deplist-helper [options] infile\n"
+"usage: ninja-deplist-helper [options] [infile]\n"
 "options:\n"
-//"  -f FORMAT  specify input format
+"  -f FORMAT  specify input format; formats are\n"
+"               gcc  gcc Makefile-like output\n"
+"               cl   MSVC cl.exe /showIncludes output\n"
 "  -o FILE  write output to FILE (default: stdout)\n"
          );
 }
+
+enum InputFormat {
+  INPUT_DEPFILE,
+  INPUT_SHOW_INCLUDES
+};
 
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
+  InputFormat input_format = INPUT_DEPFILE;
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "o:h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
+      case 'f': {
+        string format = optarg;
+        if (format == "gcc")
+          input_format = INPUT_DEPFILE;
+        else if (format == "cl")
+          input_format = INPUT_SHOW_INCLUDES;
+        else
+          Fatal("unknown input format '%s'", format.c_str());
+        break;
+      }
       case 'o':
         output_filename = optarg;
         break;
@@ -76,8 +95,17 @@ int main(int argc, char** argv) {
   string err;
   if (ReadFile(input_filename, &content, &err) < 0)
     Fatal("loading %s: %s", input_filename, err.c_str());
-  if (!parser.Parse(&content, &err))
-    Fatal("parsing %s: %s", input_filename, err.c_str());
+
+  switch (input_format) {
+  case INPUT_DEPFILE:
+    if (!parser.Parse(&content, &err))
+      Fatal("parsing %s: %s", input_filename, err.c_str());
+    break;
+  case INPUT_SHOW_INCLUDES:
+    string text = ShowIncludes::Filter(content, NULL);
+    printf("%s", text.c_str());
+    break;
+  }
 
   // Open/write/close output file.
   FILE* output = stdout;
