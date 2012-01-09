@@ -77,11 +77,18 @@ void Error(const char* msg, ...) {
 }
 
 bool CanonicalizePath(string* path, string* err) {
+  int len = path->size();
+  if (!CanonicalizePath(&(*path)[0], &len, err))
+    return false;
+  path->resize(len);
+  return true;
+}
+
+bool CanonicalizePath(char* path, int* len, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");
-
-  if (path->empty()) {
+  if (*len == 0) {
     *err = "empty path";
     return false;
   }
@@ -90,10 +97,10 @@ bool CanonicalizePath(string* path, string* err) {
   char* components[kMaxPathComponents];
   int component_count = 0;
 
-  char* start = &(*path)[0];
+  char* start = path;
   char* dst = start;
   const char* src = start;
-  const char* end = start + path->size();
+  const char* end = start + *len;
 
   if (*src == '/') {
     ++src;
@@ -137,7 +144,7 @@ bool CanonicalizePath(string* path, string* err) {
     src = sep + 1;
   }
 
-  path->resize(dst - path->c_str() - 1);
+  *len = dst - start - 1;
   return true;
 }
 
