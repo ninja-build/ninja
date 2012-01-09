@@ -52,7 +52,7 @@ unsigned int MurmurHash2(const void* key, int len, unsigned int seed) {
   return h;
 }
 
-static size_t StlHash(StringPiece str) {
+static inline size_t StlHash(StringPiece str) {
   const char* p = str.str_;
   int len = str.len_;
   size_t hash = 0;
@@ -86,15 +86,15 @@ struct hash<std::string> {
     return hash<const char*>()(s.c_str());
   }
 };
-}
 
-
-/// Hash functor for StringPiece.
-struct ExternalStringHash {
+template<>
+struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
-    return StlHash(key);
+    return MurmurHash2(key.str_, key.len_, kSeed);
   }
 };
+
+}
 #endif
 
 /// A template for hash_maps keyed by a StringPiece whose string is
@@ -106,7 +106,7 @@ struct ExternalStringHashMap {
 #ifdef _MSC_VER
   typedef hash_map<const char*, V, hash_compare<const char *,ExternalStringCmp> > Type;
 #else
-  typedef hash_map<StringPiece, V, ExternalStringHash> Type;
+  typedef hash_map<StringPiece, V> Type;
 #endif
 };
 
