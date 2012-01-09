@@ -52,12 +52,12 @@ Node* State::GetNode(const string& path) {
   if (node)
     return node;
   node = new Node(path);
-  paths_[node->path().c_str()] = node;
+  paths_[node->path()] = node;
   return node;
 }
 
 Node* State::LookupNode(const string& path) {
-  Paths::iterator i = paths_.find(path.c_str());
+  Paths::iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
   return NULL;

@@ -15,7 +15,42 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
-#include <string.h>
+#include "string_piece.h"
+
+static const unsigned int kSeed = 0xDECAFBAD;
+// MurmurHash2, by Austin Appleby
+static
+unsigned int MurmurHash2(const void* key, int len, unsigned int seed) {
+  const unsigned int m = 0x5bd1e995;
+  const int r = 24;
+  unsigned int h = seed ^ len;
+  const unsigned char * data = (const unsigned char *)key;
+  while(len >= 4) {
+    unsigned int k = *(unsigned int *)data;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h *= m;
+    h ^= k;
+
+    data += 4;
+    len -= 4;
+  }
+  switch(len) {
+  case 3: h ^= data[2] << 16;
+  case 2: h ^= data[1] << 8;
+  case 1: h ^= data[0];
+    h *= m;
+  };
+
+  h ^= h >> 13;
+  h *= m;
+  h ^= h >> 15;
+
+  return h;
+}
 
 #ifdef _MSC_VER
 #include <hash_map>
@@ -45,31 +80,24 @@ struct hash<std::string> {
 }
 
 
-/// Equality binary predicate for const char*.
-struct ExternalStringEq {
-  bool operator()(const char* a, const char* b) {
-    return strcmp(a, b) == 0;
-  }
-};
-
-/// Hash functor for const char*.
+/// Hash functor for StringPiece.
 struct ExternalStringHash {
-  size_t operator()(const char* key) const {
-    return __gnu_cxx::hash<const char*>()(key);
+  size_t operator()(StringPiece key) const {
+    return MurmurHash2(key.str_, key.len_, kSeed);
   }
 };
 #endif
 
-/// A template for hash_maps keyed by a const char* that is maintained within
-/// the values.  Use like:
-///   ExternalStringHash<Foo*>::Type foos;
-/// to make foos into a hash mapping const char* => Foo*.
+/// A template for hash_maps keyed by a StringPiece whose string is
+/// owned externally (typically by the values).  Use like:
+/// ExternalStringHash<Foo*>::Type foos; to make foos into a hash
+/// mapping StringPiece => Foo*.
 template<typename V>
 struct ExternalStringHashMap {
 #ifdef _MSC_VER
   typedef hash_map<const char*, V, hash_compare<const char *,ExternalStringCmp> > Type;
 #else
-  typedef hash_map<const char*, V, ExternalStringHash, ExternalStringEq> Type;
+  typedef hash_map<StringPiece, V, ExternalStringHash> Type;
 #endif
 };
 
