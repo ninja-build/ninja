@@ -155,7 +155,7 @@ int ReadFile(const string& path, string* contents, string* err) {
     err->assign(strerror(errno));
     return -errno;
   }
-  if (ReadFile(f, contents, err))
+  if (!ReadFile(f, contents, err))
     return -errno;
   fclose(f);
   return 0;
