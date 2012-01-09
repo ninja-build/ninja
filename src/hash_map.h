@@ -19,7 +19,7 @@
 
 static const unsigned int kSeed = 0xDECAFBAD;
 // MurmurHash2, by Austin Appleby
-static
+static inline
 unsigned int MurmurHash2(const void* key, int len, unsigned int seed) {
   const unsigned int m = 0x5bd1e995;
   const int r = 24;

@@ -44,9 +44,9 @@ struct State {
   Node* LookupNode(StringPiece path);
   Node* SpellcheckNode(const string& path);
 
-  void AddIn(Edge* edge, const string& path);
-  void AddOut(Edge* edge, const string& path);
-  bool AddDefault(const string& path, string* error);
+  void AddIn(Edge* edge, StringPiece path);
+  void AddOut(Edge* edge, StringPiece path);
+  bool AddDefault(StringPiece path, string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
