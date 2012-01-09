@@ -52,6 +52,15 @@ unsigned int MurmurHash2(const void* key, int len, unsigned int seed) {
   return h;
 }
 
+static size_t StlHash(StringPiece str) {
+  const char* p = str.str_;
+  int len = str.len_;
+  size_t hash = 0;
+  while (len--)
+    hash = 5 * hash + *p++;
+  return hash;
+}
+
 #ifdef _MSC_VER
 #include <hash_map>
 
@@ -83,7 +92,7 @@ struct hash<std::string> {
 /// Hash functor for StringPiece.
 struct ExternalStringHash {
   size_t operator()(StringPiece key) const {
-    return MurmurHash2(key.str_, key.len_, kSeed);
+    return StlHash(key);
   }
 };
 #endif
