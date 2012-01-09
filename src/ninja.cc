@@ -703,7 +703,14 @@ reload:
   }
 
   int result = RunBuild(&globals, argc, argv);
-  if (g_metrics)
+  if (g_metrics) {
     g_metrics->Report();
+
+    printf("\n");
+    int count = (int)globals.state->paths_.size();
+    int buckets = (int)globals.state->paths_.bucket_count();
+    printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+           count / (double) buckets, count, buckets);
+  }
   return result;
 }
