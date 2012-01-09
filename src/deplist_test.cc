@@ -62,5 +62,5 @@ TEST_F(DeplistTest, WriteRead) {
 
   ASSERT_EQ(entries.size(), entries2.size());
   for (int i = 0; i < (int)entries.size(); ++i)
-    EXPECT_EQ(entries[i], entries2[i]);
+    EXPECT_EQ(entries[i].AsString(), entries2[i].AsString());
 }
