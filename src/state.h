@@ -40,8 +40,8 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(const string& path);
-  Node* LookupNode(const string& path);
+  Node* GetNode(StringPiece path);
+  Node* LookupNode(StringPiece path);
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, const string& path);

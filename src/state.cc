@@ -47,16 +47,16 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(const string& path) {
+Node* State::GetNode(StringPiece path) {
   Node* node = LookupNode(path);
   if (node)
     return node;
-  node = new Node(path);
+  node = new Node(path.AsString());
   paths_[node->path()] = node;
   return node;
 }
 
-Node* State::LookupNode(const string& path) {
+Node* State::LookupNode(StringPiece path) {
   Paths::iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
