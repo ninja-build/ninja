@@ -21,6 +21,10 @@
 #include "parsers.h"
 #include "util.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace {
 
 #ifdef _WIN32
