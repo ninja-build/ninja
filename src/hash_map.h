@@ -67,9 +67,19 @@ static inline size_t StlHash(StringPiece str) {
 using stdext::hash_map;
 using stdext::hash_compare;
 
-struct ExternalStringCmp {
-  bool operator()(const char* a, const char* b) const {
-    return strcmp(a, b) < 0;
+struct StringPieceCmp : public hash_compare<StringPiece> {
+  size_t operator()(const StringPiece& key) const {
+    return MurmurHash2(key.str_, key.len_, kSeed);
+  }
+  bool operator()(const StringPiece& a, const StringPiece& b) const {
+    int cmp = strncmp(a.str_, b.str_, min(a.len_, b.len_));
+    if (cmp < 0) {
+      return true;
+    } else if (cmp > 0) {
+      return false;
+    } else {
+      return a.len_ < b.len_;
+    }
   }
 };
 
@@ -104,7 +114,7 @@ struct hash<StringPiece> {
 template<typename V>
 struct ExternalStringHashMap {
 #ifdef _MSC_VER
-  typedef hash_map<const char*, V, hash_compare<const char *,ExternalStringCmp> > Type;
+  typedef hash_map<StringPiece, V, StringPieceCmp> Type;
 #else
   typedef hash_map<StringPiece, V> Type;
 #endif
