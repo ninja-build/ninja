@@ -708,7 +708,12 @@ reload:
 
     printf("\n");
     int count = (int)globals.state->paths_.size();
-    int buckets = (int)globals.state->paths_.bucket_count();
+    int buckets =
+#ifdef _WIN32
+        (int)globals.state->paths_.comp.bucket_size;
+#else
+        (int)globals.state->paths_.bucket_count();
+#endif
     printf("path->node hash load %.2f (%d entries / %d buckets)\n",
            count / (double) buckets, count, buckets);
   }
