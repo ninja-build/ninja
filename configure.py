@@ -253,12 +253,13 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
+    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all.o'), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
-                    variables=[('cflags', gtest_all_incs)])
+                    variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main.o'), 'cxx',
                     os.path.join(path, 'src/gtest_main.cc'),
-                    variables=[('cflags', gtest_all_incs)])
+                    variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
 else:
