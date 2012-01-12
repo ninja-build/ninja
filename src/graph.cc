@@ -252,11 +252,10 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    string path(i->str_, i->len_);
-    if (!CanonicalizePath(&path, err))
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
 
-    Node* node = state->GetNode(path);
+    Node* node = state->GetNode(*i);
     *implicit_dep = node;
     node->AddOutEdge(this);
 

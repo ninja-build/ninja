@@ -40,6 +40,8 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
+bool CanonicalizePath(char* path, int* len, string* err);
+
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.
 int MakeDir(const string& path);
