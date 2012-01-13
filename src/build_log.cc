@@ -85,7 +85,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     } else {
       log_entry = new LogEntry;
       log_entry->output = path;
-      log_.insert(make_pair(log_entry->output.c_str(), log_entry));
+      log_.insert(Log::value_type(log_entry->output, log_entry));
     }
     log_entry->command = command;
     log_entry->start_time = start_time;
@@ -169,7 +169,7 @@ bool BuildLog::Load(const string& path, string* err) {
     } else {
       entry = new LogEntry;
       entry->output = output;
-      log_.insert(make_pair(entry->output, entry));
+      log_.insert(Log::value_type(entry->output, entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
