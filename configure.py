@@ -116,7 +116,9 @@ else:
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
-    if not options.debug:
+    if options.debug:
+        cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+    else:
         cflags += ['-O2', '-DNDEBUG']
     ldflags = ['-L$builddir']
 libs = []
