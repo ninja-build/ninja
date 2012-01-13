@@ -262,6 +262,8 @@ if options.with_gtest:
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+elif platform == 'windows':
+    test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
     test_libs.extend(['-lgtest_main', '-lgtest'])
 
@@ -280,7 +282,7 @@ for name in ['build_log_test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
 
-if platform != 'mingw':
+if platform != 'mingw' and platform != 'windows':
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
