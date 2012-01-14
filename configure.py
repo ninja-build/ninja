@@ -103,12 +103,13 @@ else:
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800',
+              '/wd4512', '/wd4800', '/wd4702',
               '/D_CRT_SECURE_NO_WARNINGS', '/DWIN32',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
+    ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
-        cflags += ['/Ox', '/DNDEBUG']
-    ldflags = ['/libpath:$builddir']
+        cflags += ['/Ox', '/DNDEBUG', '/GL']
+        ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
@@ -157,7 +158,7 @@ n.newline()
 
 if host == 'windows':
     n.rule('ar',
-           command='lib /nologo /out:$out $in',
+           command='lib /nologo /ltcg /out:$out $in',
            description='LIB $out')
 elif host == 'mingw':
     n.rule('ar',
