@@ -19,6 +19,7 @@
 
 #include "disk_interface.h"
 #include "state.h"
+#include "util.h"
 
 // Support utilites for tests.
 
