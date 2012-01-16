@@ -572,7 +572,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   TimeStamp restat_mtime = 0;
 
   if (success) {
-    if (edge->rule().restat()) {
+    if (edge->rule().restat() && !config_.dry_run) {
       bool node_cleaned = false;
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();

@@ -772,3 +772,39 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(1u, commands_ran_.size());
 }
+
+struct BuildDryRun : public BuildWithLogTest {
+  BuildDryRun() {
+    config_.dry_run = true;
+  }
+};
+
+TEST_F(BuildDryRun, AllCommandsShown) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"
+"  restat = 1\n"
+"rule cc\n"
+"  command = cc\n"
+"  restat = 1\n"
+"build out1: cc in\n"
+"build out2: true out1\n"
+"build out3: cat out2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  fs_.Create("out3", now_, "");
+
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  // "cc" touches out1, so we should build out2.  But because "true" does not
+  // touch out2, we should cancel the build of out3.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(3u, commands_ran_.size());
+}
+
