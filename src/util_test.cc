@@ -73,3 +73,20 @@ TEST(CanonicalizePath, AbsolutePath) {
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("/usr/include/stdio.h", path);
 }
+
+TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
+  string stripped = StripAnsiEscapeCodes("foo\33");
+  EXPECT_EQ("foo", stripped);
+
+  stripped = StripAnsiEscapeCodes("foo\33[");
+  EXPECT_EQ("foo", stripped);
+}
+
+TEST(StripAnsiEscapeCodes, StripColors) {
+  // An actual clang warning.
+  string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
+                 "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
+  string stripped = StripAnsiEscapeCodes(input);
+  EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
+            stripped);
+}
