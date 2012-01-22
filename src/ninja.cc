@@ -24,7 +24,7 @@
 #include <sys/sysinfo.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
 #include <windows.h>
@@ -107,7 +107,7 @@ int GuessParallelism() {
              NULL, 0) < 0) {
     processors = 1;
   }
-#elif defined(WIN32)
+#elif defined(_WIN32)
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   processors = info.dwNumberOfProcessors;
@@ -255,7 +255,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-#if !defined(WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
 int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
@@ -265,7 +265,7 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   // If we get here, the browse failed.
   return 1;
 }
-#endif  // WIN32
+#endif  // _WIN32
 
 int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
@@ -475,7 +475,7 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
     const char* desc;
     ToolFunc func;
   } tools[] = {
-#if !defined(WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
       ToolBrowse },
 #endif

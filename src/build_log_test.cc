@@ -16,7 +16,7 @@
 
 #include "test.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <fcntl.h>
 #include <share.h>
 #endif
@@ -102,7 +102,7 @@ TEST_F(BuildLogTest, Truncate) {
   // For all possible truncations of the input file, assert that we don't
   // crash or report an error when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
-#ifndef WIN32
+#ifndef _WIN32
     ASSERT_EQ(0, truncate(kTestFilename, size));
 #else
     int fh;

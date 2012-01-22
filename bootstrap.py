@@ -65,7 +65,7 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DWIN32']
+    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     args.extend(['-Wno-deprecated',

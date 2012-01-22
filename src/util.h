@@ -16,7 +16,7 @@
 #define NINJA_UTIL_H_
 #pragma once
 
-#ifdef WIN32
+#ifdef _WIN32
 #include "win32port.h"
 #else
 #include <stdint.h>

@@ -47,7 +47,7 @@ void Fatal(const char* msg, ...) {
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
-#ifdef WIN32
+#ifdef _WIN32
   // On Windows, some tools may inject extra threads.
   // exit() may block on locks held by those threads, so forcibly exit.
   fflush(stderr);
@@ -235,7 +235,7 @@ const char* SpellcheckString(const string& text, ...) {
   return SpellcheckStringV(text, words);
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 string GetLastErrorString() {
   DWORD err = GetLastError();
 

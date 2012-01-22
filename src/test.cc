@@ -54,7 +54,7 @@ char* mkdtemp(char* name_template) {
 
   return name_template;
 }
-#endif  // WIN32
+#endif  // _WIN32
 
 string GetSystemTempDir() {
 #ifdef _WIN32

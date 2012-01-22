@@ -65,7 +65,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
       started_edges_(0), finished_edges_(0), total_edges_(0) {
-#ifndef WIN32
+#ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
@@ -171,7 +171,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 
   int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
 
-#ifndef WIN32
+#ifndef _WIN32
   if (smart_terminal_ && !force_full_command) {
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.

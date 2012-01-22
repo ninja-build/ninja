@@ -19,7 +19,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -28,7 +28,7 @@
 namespace {
 
 string DirName(const string& path) {
-#ifdef WIN32
+#ifdef _WIN32
   const char kPathSeparator = '\\';
 #else
   const char kPathSeparator = '/';
@@ -66,8 +66,8 @@ bool DiskInterface::MakeDirs(const string& path) {
 // RealDiskInterface -----------------------------------------------------------
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
-#ifdef WIN32
-  WIN32_FILE_ATTRIBUTE_DATA attrs;
+#ifdef _WIN32
+  _WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)

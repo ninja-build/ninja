@@ -418,7 +418,7 @@ TEST_F(BuildTest, MissingTarget) {
 TEST_F(BuildTest, MakeDirs) {
   string err;
 
-#ifdef WIN32
+#ifdef _WIN32
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build subdir\\dir2\\file: cat in1\n"));
   EXPECT_TRUE(builder_.AddTarget("subdir\\dir2\\file", &err));
 #else
@@ -432,7 +432,7 @@ TEST_F(BuildTest, MakeDirs) {
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
-#ifdef WIN32
+#ifdef _WIN32
   EXPECT_EQ("subdir\\dir2", fs_.directories_made_[1]);
 #else
   EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
