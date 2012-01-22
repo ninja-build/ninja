@@ -68,12 +68,14 @@ const char* SpellcheckString(const string& text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
 #define unlink _unlink
 #define chdir _chdir
+#endif
 
+#ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
 #endif
