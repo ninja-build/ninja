@@ -64,6 +64,7 @@ if(UNIX AND windows)
     if(NOT compiler)
         set(compiler i586-mingw32msvc)
     endif()
+    set(CMAKE_C_COMPILER ${compiler}-cc)
     set(CMAKE_CXX_COMPILER ${compiler}-c++)
     set(CMAKE_RC_COMPILER ${compiler}-windres)
     set(CMAKE_FIND_ROOT_PATH /usr/${compiler})
@@ -129,13 +130,13 @@ set(ninja_lib
         ${srcdir}/state.cc
         ${srcdir}/util.cc)
 
-if(UNIX)
+if(linux)
     list(APPEND  ninja_lib ${srcdir}/subprocess.cc)
-elseif(WIN32)
+elseif(windows)
     list(APPEND ninja_lib ${srcdir}/getopt.c ${srcdir}/subprocess-win32.cc)
 endif()
 
-if(UNIX)
+if(linux)
     set(inline ${CMAKE_BINARY_DIR}/concrete_inline.sh)
     file(WRITE ${inline}
     "mkdir -p ${CMAKE_BINARY_DIR}/build
