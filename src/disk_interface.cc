@@ -73,7 +73,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     Error("Stat(%s): Filename longer than %i characters", path.c_str(), MAX_PATH);
     return -1;
   }
-  _WIN32_FILE_ATTRIBUTE_DATA attrs;
+  WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
