@@ -23,87 +23,20 @@
 #include "graph.h"
 #include "test.h"
 
-using namespace std;
-
 namespace {
-
-#ifdef _WIN32
-#ifndef _mktemp_s
-/// mingw has no mktemp.  Implement one with the same type as the one
-/// found in the Windows API.
-int _mktemp_s(char* templ) {
-  char* ofs = strchr(templ, 'X');
-  sprintf(ofs, "%d", rand() % 1000000);
-  return 0;
-}
-#endif
-
-/// Windows has no mkdtemp.  Implement it in terms of _mktemp_s.
-char* mkdtemp(char* name_template) {
-  int err = _mktemp_s(name_template);
-  if (err < 0) {
-    perror("_mktemp_s");
-    return NULL;
-  }
-
-  err = _mkdir(name_template);
-  if (err < 0) {
-    perror("mkdir");
-    return NULL;
-  }
-
-  return name_template;
-}
-#endif
 
 class DiskInterfaceTest : public testing::Test {
  public:
   virtual void SetUp() {
-    // Because we do real disk accesses, we create a temp dir within
-    // the system temporary directory.
-
-    // First change into the system temp dir and save it for cleanup.
-    start_dir_ = GetSystemTempDir();
-    ASSERT_EQ(0, chdir(start_dir_.c_str()));
-
-    // Then create and change into a temporary subdirectory of that.
-    temp_dir_name_ = MakeTempDir();
-    ASSERT_FALSE(temp_dir_name_.empty());
-    ASSERT_EQ(0, chdir(temp_dir_name_.c_str()));
+    // These tests do real disk accesses, so create a temp dir.
+    temp_dir_.CreateAndEnter("Ninja-DiskInterfaceTest");
   }
 
   virtual void TearDown() {
-    // Move out of the directory we're about to clobber.
-    ASSERT_EQ(0, chdir(start_dir_.c_str()));
-#ifdef _WIN32
-    ASSERT_EQ(0, system(("rmdir /s /q " + temp_dir_name_).c_str()));
-#else
-    ASSERT_EQ(0, system(("rm -rf " + temp_dir_name_).c_str()));
-#endif
+    temp_dir_.Cleanup();
   }
 
-  string GetSystemTempDir() {
-#ifdef _WIN32
-    char buf[1024];
-    if (!GetTempPath(sizeof(buf), buf))
-      return "";
-    return buf;
-#else
-    const char* tempdir = getenv("TMPDIR");
-    if (tempdir)
-      return tempdir;
-    return "/tmp";
-#endif
-  }
-
-  string MakeTempDir() {
-    char name_template[] = "DiskInterfaceTest-XXXXXX";
-    char* name = mkdtemp(name_template);
-    return name ? name : "";
-  }
-
-  string start_dir_;
-  string temp_dir_name_;
+  ScopedTempDir temp_dir_;
   RealDiskInterface disk_;
 };
 

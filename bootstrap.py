@@ -17,6 +17,7 @@ import sys
 import os
 import glob
 import errno
+import shlex
 import subprocess
 
 def run(*args, **kwargs):
@@ -64,11 +65,12 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DWIN32']
+    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc']
 else:
-    args = [os.environ.get('CXX', 'g++'), '-Wno-deprecated',
-            '-DNINJA_PYTHON="' + sys.executable + '"',
-            '-DNINJA_BOOTSTRAP']
+    args = shlex.split(os.environ.get('CXX', 'g++'))
+    args.extend(['-Wno-deprecated',
+                 '-DNINJA_PYTHON="' + sys.executable + '"',
+                 '-DNINJA_BOOTSTRAP'])
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'

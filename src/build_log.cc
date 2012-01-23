@@ -79,7 +79,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
-    Log::iterator i = log_.find(path.c_str());
+    Log::iterator i = log_.find(path);
     LogEntry* log_entry;
     if (i != log_.end()) {
       log_entry = i->second;
@@ -87,7 +87,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
       log_entry = new LogEntry;
       log_entry->output = path;
       log_entry->seen = true;
-      log_.insert(make_pair(log_entry->output.c_str(), log_entry));
+      log_.insert(Log::value_type(log_entry->output, log_entry));
     }
     log_entry->command = command;
     log_entry->start_time = start_time;
@@ -165,14 +165,14 @@ bool BuildLog::Load(const string& path, string* err) {
       continue;
 
     LogEntry* entry;
-    Log::iterator i = log_.find(output.c_str());
+    Log::iterator i = log_.find(output);
     if (i != log_.end()) {
       entry = i->second;
     } else {
       entry = new LogEntry;
       entry->output = output;
       entry->seen = false;
-      log_.insert(make_pair(entry->output.c_str(), entry));
+      log_.insert(Log::value_type(entry->output, entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -201,7 +201,7 @@ bool BuildLog::Load(const string& path, string* err) {
 }
 
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
-  Log::iterator i = log_.find(path.c_str());
+  Log::iterator i = log_.find(path);
   if (i != log_.end())
     return i->second;
   return NULL;
@@ -267,7 +267,7 @@ void BuildLog::MarkSeen(State* state) {
   trash_.clear();
   for (BuildLog::Log::iterator i = log_.begin(); i != log_.end(); ++i) {
     if (!(i->second->seen)) {
-      trash_.push_back(i->first);
+      trash_.push_back(i->first.AsString());
     }
   }
 }

@@ -103,12 +103,13 @@ else:
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800',
-              '/D_CRT_SECURE_NO_WARNINGS', '/DWIN32',
+              '/wd4512', '/wd4800', '/wd4702',
+              '/D_CRT_SECURE_NO_WARNINGS',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
+    ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
-        cflags += ['/Ox', '/DNDEBUG']
-    ldflags = ['/libpath:$builddir']
+        cflags += ['/Ox', '/DNDEBUG', '/GL']
+        ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
@@ -116,7 +117,9 @@ else:
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
-    if not options.debug:
+    if options.debug:
+        cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+    else:
         cflags += ['-O2', '-DNDEBUG']
     ldflags = ['-L$builddir']
 libs = []
@@ -155,7 +158,7 @@ n.newline()
 
 if host == 'windows':
     n.rule('ar',
-           command='lib /nologo /out:$out $in',
+           command='lib /nologo /ltcg /out:$out $in',
            description='LIB $out')
 elif host == 'mingw':
     n.rule('ar',
@@ -253,14 +256,17 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
+    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all.o'), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
-                    variables=[('cflags', gtest_all_incs)])
+                    variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main.o'), 'cxx',
                     os.path.join(path, 'src/gtest_main.cc'),
-                    variables=[('cflags', gtest_all_incs)])
+                    variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+elif platform == 'windows':
+    test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
     test_libs.extend(['-lgtest_main', '-lgtest'])
 
@@ -279,7 +285,7 @@ for name in ['build_log_test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
 
-if platform != 'mingw':
+if platform != 'mingw' and platform != 'windows':
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),

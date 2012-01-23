@@ -19,6 +19,7 @@
 
 #include "disk_interface.h"
 #include "state.h"
+#include "util.h"
 
 // Support utilites for tests.
 
@@ -59,6 +60,19 @@ struct VirtualFileSystem : public DiskInterface {
   typedef map<string, Entry> FileMap;
   FileMap files_;
   set<string> files_removed_;
+};
+
+struct ScopedTempDir {
+  /// Create a temporary directory and chdir into it.
+  void CreateAndEnter(const string& name);
+
+  /// Clean up the temporary directory.
+  void Cleanup();
+
+  /// The temp directory containing our dir.
+  string start_dir_;
+  /// The subdirectory name for our dir, or empty if it hasn't been set up.
+  string temp_dir_name_;
 };
 
 #endif // NINJA_TEST_H_
