@@ -79,7 +79,10 @@ void Error(const char* msg, ...) {
 bool CanonicalizePath(string* path, string* err) {
   METRIC_RECORD("canonicalize str");
   int len = path->size();
-  if (!CanonicalizePath(&(*path)[0], &len, err))
+  char* str = 0;
+  if (len > 0)
+    str = &(*path)[0];
+  if (!CanonicalizePath(str, &len, err))
     return false;
   path->resize(len);
   return true;
