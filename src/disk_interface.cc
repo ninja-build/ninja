@@ -67,6 +67,12 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef _WIN32
+  // MSDN: "Naming Files, Paths, and Namespaces"
+  // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+    Error("Stat(%s): Filename longer than %i characters", path.c_str(), MAX_PATH);
+    return -1;
+  }
   _WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD err = GetLastError();
