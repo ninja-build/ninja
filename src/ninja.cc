@@ -709,7 +709,7 @@ reload:
     printf("\n");
     int count = (int)globals.state->paths_.size();
     int buckets =
-#ifdef _WIN32
+#ifdef _MSC_VER
         (int)globals.state->paths_.comp.bucket_size;
 #else
         (int)globals.state->paths_.bucket_count();
