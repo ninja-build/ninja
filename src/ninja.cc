@@ -224,24 +224,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
   }
   for (int i = 0; i < argc; ++i) {
     Node* node = globals->state->LookupNode(argv[i]);
-    if (node) {
-      printf("%s:\n", argv[i]);
-      if (node->in_edge()) {
-        printf("  input: %s\n", node->in_edge()->rule_->name().c_str());
-        for (vector<Node*>::iterator in = node->in_edge()->inputs_.begin();
-             in != node->in_edge()->inputs_.end(); ++in) {
-          printf("    %s\n", (*in)->path().c_str());
-        }
-      }
-      for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
-           edge != node->out_edges().end(); ++edge) {
-        printf("  output: %s\n", (*edge)->rule_->name().c_str());
-        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
-             out != (*edge)->outputs_.end(); ++out) {
-          printf("    %s\n", (*out)->path().c_str());
-        }
-      }
-    } else {
+    if (!node) {
       Node* suggestion = globals->state->SpellcheckNode(argv[i]);
       if (suggestion) {
         printf("%s unknown, did you mean %s?\n",
@@ -250,6 +233,27 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
         printf("%s unknown\n", argv[i]);
       }
       return 1;
+    }
+
+    printf("%s:\n", argv[i]);
+    if (Edge* edge = node->in_edge()) {
+      printf("  input: %s\n", edge->rule_->name().c_str());
+      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+        const char* label = "";
+        if (edge->is_implicit(in))
+          label = "| ";
+        else if (edge->is_order_only(in))
+          label = "|| ";
+        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+      }
+    }
+    printf("  outputs:\n");
+    for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+         edge != node->out_edges().end(); ++edge) {
+      for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+           out != (*edge)->outputs_.end(); ++out) {
+        printf("    %s\n", (*out)->path().c_str());
+      }
     }
   }
   return 0;
