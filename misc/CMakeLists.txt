@@ -73,7 +73,6 @@ endif()
 if(compiler STREQUAL clang)
     set(CMAKE_C_COMPILER clang)
     set(CMAKE_CXX_COMPILER clang++)
-    set(cflags "-pthread")
 endif()
 
 # this triggers  the compiler detection
@@ -181,16 +180,21 @@ target_link_libraries(ninja ninja_lib ${platformlibs})
 if(gtest)
     enable_testing()
 
+    macro(set_test_cflags target)
+        set(tflags "-DGTEST_HAS_PTHREAD=0 -I${gtest}/include")
+        set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${tflags} -I${gtest}/include ${ARGN}")
+    endmacro()
+
     # build gtest, test.cc only once
     add_library(testlib ${srcdir}/test.cc ${gtest}/src/gtest-all.cc ${gtest}/src/gtest_main.cc)
-    set_target_properties(testlib PROPERTIES COMPILE_FLAGS "-I${gtest} -I${gtest}/include")
+    set_test_cflags(testlib -I${gtest})
 
     # building a test is always the same
     macro(add_ninja_test test_name)
         set(test_sources ${ARGN})
         add_executable(${test_name} ${test_sources} ${ninja_h})
         target_link_libraries(${test_name} testlib ninja_lib ${platformlibs})
-        set_target_properties(${test_name} PROPERTIES COMPILE_FLAGS "-I${gtest}/include")
+        set_test_cflags(${test_name})
         message(STATUS "Adding test '${test_name}'.")
     endmacro()
 
