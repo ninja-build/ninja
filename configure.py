@@ -256,13 +256,16 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all.o'), 'cxx',
+    if platform == 'windows':
+        gtest_cflags = '/EHsc ' + gtest_all_incs
+    else:
+        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
+    objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
-                    variables=[('cflags', gtest_cflags)])
-    objs += n.build(built('gtest_main.o'), 'cxx',
+                    variables=[('cflags', cflags + [gtest_cflags])])
+    objs += n.build(built('gtest_main' + objext), 'cxx',
                     os.path.join(path, 'src/gtest_main.cc'),
-                    variables=[('cflags', gtest_cflags)])
+                    variables=[('cflags', cflags + [gtest_cflags])])
 
     test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
 elif platform == 'windows':
