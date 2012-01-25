@@ -38,7 +38,7 @@ macro(ninja_option_list)
 endmacro()
 
 ninja_option(platform        "target platform (linux/windows)"       OFF)
-ninja_option(compiler        "cross-compiler (default/clang)"        OFF)
+ninja_option(compiler        "compiler (default/clang)"              OFF)
 ninja_option(debug           "enable debugging flags"                OFF)
 ninja_option(verbose         "verbose output while building"         OFF)
 ninja_option(gtest           "use gtest unpacked in given directory" OFF)
@@ -142,16 +142,24 @@ elseif(windows)
     list(APPEND ninja_lib ${srcdir}/getopt.c ${srcdir}/subprocess-win32.cc)
 endif()
 
-if(linux)
-    set(inline ${CMAKE_BINARY_DIR}/concrete_inline.sh)
-    file(WRITE ${inline}
-    "mkdir -p ${CMAKE_BINARY_DIR}/build
-     ${srcdir}/inline.sh kBrowsePy < ${srcdir}/browse.py > ${CMAKE_BINARY_DIR}/build/browse_py.h\n")
-    list(APPEND  ninja_lib ${srcdir}/browse.cc)
-    execute_process(COMMAND sh ${inline})
-    include_directories(${CMAKE_BINARY_DIR}/build)
-    #TODO FindPtyhon
-    add_definitions(-DNINJA_PYTHON="python")
+
+find_package(PythonInterp)
+if(PYTHONINTERP_FOUND)
+    if(linux)
+        set(inline ${CMAKE_BINARY_DIR}/concrete_inline.sh)
+        file(WRITE ${inline}
+        "mkdir -p ${CMAKE_BINARY_DIR}/build
+         ${srcdir}/inline.sh kBrowsePy < ${srcdir}/browse.py > ${CMAKE_BINARY_DIR}/build/browse_py.h\n")
+        set(browser 1)
+    endif()
+    if(browser)
+        message(STATUS "Building dependency browser")
+        message(STATUS)
+        add_definitions(-DNINJA_PYTHON="${PYTHON_EXECUTABLE}")
+        list(APPEND ninja_lib ${srcdir}/browse.cc)
+        execute_process(COMMAND sh ${inline})
+        include_directories(${CMAKE_BINARY_DIR}/build)
+    endif()
 endif()
 
 # find all headers
