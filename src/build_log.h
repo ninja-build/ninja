@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <stdio.h>
 using namespace std;
 
 #include "hash_map.h"
