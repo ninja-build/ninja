@@ -377,11 +377,27 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
-                                  "  command = cat\nbuild $: cat foo\n",
+                                  "  command = cat\n"
+                                  "build $.: cat foo\n",
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
-              "build $: cat foo\n"
+              "build $.: cat foo\n"
               "      ^ near here"
+              , err);
+  }
+
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = cat\n"
+                                  "build $: cat foo\n",
+                                  &err));
+    EXPECT_EQ("input:3: expected ':', got newline ($ also escapes ':')\n"
+              "build $: cat foo\n"
+              "                ^ near here"
               , err);
   }
 
@@ -413,11 +429,24 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
-                                  "build $: cc bar.cc\n",
+                                  "build $.: cc bar.cc\n",
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
-              "build $: cc bar.cc\n"
+              "build $.: cc bar.cc\n"
               "      ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
+                                  "build $: cc bar.cc\n",
+                                  &err));
+    EXPECT_EQ("input:3: expected ':', got newline ($ also escapes ':')\n"
+              "build $: cc bar.cc\n"
+              "                  ^ near here"
               , err);
   }
 
