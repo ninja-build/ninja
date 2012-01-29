@@ -89,6 +89,26 @@ const char* Lexer::TokenName(Token t) {
   return NULL;  // not reached
 }
 
+const char* Lexer::TokenErrorHint(Token t) {
+  switch (t) {
+  case ERROR:    return "";
+  case BUILD:    return "";
+  case COLON:    return " ($ also escapes ':')";
+  case DEFAULT:  return "";
+  case EQUALS:   return "";
+  case IDENT:    return "";
+  case INCLUDE:  return "";
+  case INDENT:   return "";
+  case NEWLINE:  return "";
+  case PIPE2:    return "";
+  case PIPE:     return "";
+  case RULE:     return "";
+  case SUBNINJA: return "";
+  case TEOF:     return "";
+  }
+  return "";
+}
+
 void Lexer::UnreadToken() {
   ofs_ = last_token_;
 }
