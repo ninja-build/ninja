@@ -95,7 +95,18 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
                       /* inherit handles */ TRUE, 0,
                       NULL, NULL,
                       &startup_info, &process_info)) {
-    Win32Fatal("CreateProcess");
+    DWORD error = GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND) { // file (program) not found error is treated as a normal build action failure
+      if (child_pipe)
+        CloseHandle(child_pipe);
+      CloseHandle(pipe_);
+      pipe_ = NULL;
+      // child_ is already NULL;
+      buf_ = "CreateProcess failed: The system cannot find the file specified.\n";
+      return true;
+    } else {
+      Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal
+    }
   }
 
   // Close pipe channel only used by the child.
@@ -139,6 +150,10 @@ void Subprocess::OnPipeReady() {
 }
 
 bool Subprocess::Finish() {
+  if (! child_) {
+    return false;
+  }
+
   // TODO: add error handling for all of these.
   WaitForSingleObject(child_, INFINITE);
 
@@ -170,7 +185,10 @@ SubprocessSet::~SubprocessSet() {
 }
 
 void SubprocessSet::Add(Subprocess* subprocess) {
-  running_.push_back(subprocess);
+  if (subprocess->child_)
+    running_.push_back(subprocess);
+  else
+    finished_.push(subprocess);
 }
 
 void SubprocessSet::DoWork() {

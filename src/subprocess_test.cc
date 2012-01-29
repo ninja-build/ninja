@@ -45,6 +45,24 @@ TEST_F(SubprocessTest, BadCommandStderr) {
   EXPECT_NE("", subproc->GetOutput());
 }
 
+// Run a command that does not exist
+TEST_F(SubprocessTest, NoSuchCommand) {
+  Subprocess* subproc = new Subprocess;
+  EXPECT_TRUE(subproc->Start(&subprocs_, "ninja_no_such_command"));
+  subprocs_.Add(subproc);
+
+  while (!subproc->Done()) {
+    // Pretend we discovered that stderr was ready for writing.
+    subprocs_.DoWork();
+  }
+
+  EXPECT_FALSE(subproc->Finish());
+  EXPECT_NE("", subproc->GetOutput());
+#ifdef _WIN32
+  ASSERT_EQ("CreateProcess failed: The system cannot find the file specified.\n", subproc->GetOutput());
+#endif
+}
+
 TEST_F(SubprocessTest, SetWithSingle) {
   Subprocess* subproc = new Subprocess;
   EXPECT_TRUE(subproc->Start(&subprocs_, kSimpleCommand));
