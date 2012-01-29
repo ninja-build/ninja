@@ -606,7 +606,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 	}
 	++p;
 	yych = *p;
-	goto yy118;
+	goto yy120;
 yy91:
 	{
       eval->AddText(StringPiece(start, p - start));
@@ -629,7 +629,7 @@ yy94:
 	++p;
 	if ((yych = *p) <= '/') {
 		if (yych <= ' ') {
-			if (yych == '\n') goto yy107;
+			if (yych == '\n') goto yy109;
 			if (yych <= 0x1F) goto yy98;
 			goto yy100;
 		} else {
@@ -643,17 +643,21 @@ yy94:
 		}
 	} else {
 		if (yych <= '^') {
-			if (yych <= '9') goto yy104;
-			if (yych <= '@') goto yy98;
-			if (yych <= 'Z') goto yy104;
-			goto yy98;
+			if (yych <= ':') {
+				if (yych <= '9') goto yy104;
+				goto yy106;
+			} else {
+				if (yych <= '@') goto yy98;
+				if (yych <= 'Z') goto yy104;
+				goto yy98;
+			}
 		} else {
 			if (yych <= '`') {
 				if (yych <= '_') goto yy104;
 				goto yy98;
 			} else {
 				if (yych <= 'z') goto yy104;
-				if (yych <= '{') goto yy106;
+				if (yych <= '{') goto yy108;
 				goto yy98;
 			}
 		}
@@ -690,56 +694,62 @@ yy102:
 yy104:
 	++p;
 	yych = *p;
-	goto yy116;
+	goto yy118;
 yy105:
 	{
       eval->AddSpecial(StringPiece(start + 1, p - start - 1));
       continue;
     }
 yy106:
+	++p;
+	{
+      eval->AddText(StringPiece(":", 1));
+      continue;
+    }
+yy108:
 	yych = *(q = ++p);
 	if (yybm[0+yych] & 32) {
-		goto yy110;
+		goto yy112;
 	}
 	goto yy99;
-yy107:
+yy109:
 	++p;
 	yych = *p;
 	if (yybm[0+yych] & 16) {
-		goto yy107;
+		goto yy109;
 	}
 	{
       continue;
     }
-yy110:
+yy112:
 	++p;
 	yych = *p;
 	if (yybm[0+yych] & 32) {
-		goto yy110;
+		goto yy112;
 	}
-	if (yych == '}') goto yy113;
+	if (yych == '}') goto yy115;
 	p = q;
 	goto yy99;
-yy113:
+yy115:
 	++p;
 	{
       eval->AddSpecial(StringPiece(start + 2, p - start - 3));
       continue;
     }
-yy115:
-	++p;
-	yych = *p;
-yy116:
-	if (yybm[0+yych] & 64) {
-		goto yy115;
-	}
-	goto yy105;
 yy117:
 	++p;
 	yych = *p;
 yy118:
-	if (yybm[0+yych] & 128) {
+	if (yybm[0+yych] & 64) {
 		goto yy117;
+	}
+	goto yy105;
+yy119:
+	++p;
+	yych = *p;
+yy120:
+	if (yybm[0+yych] & 128) {
+		goto yy119;
 	}
 	goto yy91;
 }
