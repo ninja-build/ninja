@@ -576,10 +576,9 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       return false;
   }
 
-  // Compute command and start it.
-  string command = edge->EvaluateCommand();
+  // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
-    err->assign("command '" + command + "' failed.");
+    err->assign("command '" + edge->EvaluateCommand() + "' failed.");
     return false;
   }
 
