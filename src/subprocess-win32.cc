@@ -28,7 +28,7 @@ void Win32Fatal(const char* function) {
 
 }  // anonymous namespace
 
-Subprocess::Subprocess() : child_(NULL) , overlapped_() {
+Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
 }
 
 Subprocess::~Subprocess() {
@@ -130,10 +130,11 @@ void Subprocess::OnPipeReady() {
     Win32Fatal("GetOverlappedResult");
   }
 
-  if (bytes)
+  if (is_reading_ && bytes)
     buf_.append(overlapped_buf_, bytes);
 
   memset(&overlapped_, 0, sizeof(overlapped_));
+  is_reading_ = true;
   if (!::ReadFile(pipe_, overlapped_buf_, sizeof(overlapped_buf_),
                   &bytes, &overlapped_)) {
     if (GetLastError() == ERROR_BROKEN_PIPE) {

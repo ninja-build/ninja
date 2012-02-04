@@ -52,6 +52,7 @@ struct Subprocess {
   HANDLE pipe_;
   OVERLAPPED overlapped_;
   char overlapped_buf_[4 << 10];
+  bool is_reading_;
 #else
   int fd_;
   pid_t pid_;
