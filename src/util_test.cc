@@ -54,6 +54,10 @@ TEST(CanonicalizePath, PathSamples) {
   path = "./x/../foo/../../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../bar.h", path);
+
+  path = ".";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ(".", path);
 }
 
 TEST(CanonicalizePath, UpDir) {
