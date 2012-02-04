@@ -97,6 +97,10 @@ bool CanonicalizePath(char* path, int* len, string* err) {
     return false;
   }
 
+  // nothing we can do, f.i. path == "."
+  if (*len == 1)
+    return true;
+
   const int kMaxPathComponents = 30;
   char* components[kMaxPathComponents];
   int component_count = 0;
