@@ -26,6 +26,7 @@
 #include <sys/wait.h>
 
 #include "util.h"
+#include "disk_interface.h"
 
 Subprocess::Subprocess() : fd_(-1), pid_(-1) {
 }
@@ -35,6 +36,10 @@ Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
+  // cleanup
+  for(size_t i = 0; i < rsp_files_.size(); i++) {
+    RealDiskInterface().RemoveFile(rsp_files_[i]);
+  }
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {

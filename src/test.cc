@@ -72,10 +72,12 @@ string GetSystemTempDir() {
 
 }  // anonymous namespace
 
-StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
-  AssertParse(&state_,
-"rule cat\n"
-"  command = cat $in > $out\n");
+StateTestWithBuiltinRules::StateTestWithBuiltinRules(bool plain) : plain_(plain) {
+  if (!plain_) {
+    AssertParse(&state_,
+  "rule cat\n"
+  "  command = cat $in > $out\n");
+  }
 }
 
 Node* StateTestWithBuiltinRules::GetNode(const string& path) {

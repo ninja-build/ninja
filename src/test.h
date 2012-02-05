@@ -28,9 +28,10 @@ struct Node;
 /// A base test fixture that includes a State object with a
 /// builtin "cat" rule.
 struct StateTestWithBuiltinRules : public testing::Test {
-  StateTestWithBuiltinRules();
+  StateTestWithBuiltinRules(bool plain = false);
   Node* GetNode(const string& path);
 
+  bool plain_;
   State state_;
 };
 

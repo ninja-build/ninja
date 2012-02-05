@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "util.h"
+#include "disk_interface.h"
 
 namespace {
 
@@ -35,6 +36,11 @@ Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (child_)
     Finish();
+
+  // cleanup
+  for(size_t i = 0; i < rsp_files_.size(); i++) {
+    RealDiskInterface().RemoveFile(rsp_files_[i]);
+  }
 }
 
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
@@ -222,3 +228,4 @@ Subprocess* SubprocessSet::NextFinished() {
   finished_.pop();
   return subproc;
 }
+

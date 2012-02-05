@@ -50,6 +50,15 @@ int MakeDir(const string& path);
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
+struct FileInfo {
+  FileInfo() : fd(-1) {}
+  string path;
+  int fd;
+};
+int WriteFile(const FileInfo& info, const string& contents, string* err);
+
+const FileInfo TempFilename(string* err);
+
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 

@@ -84,6 +84,7 @@ const char* Lexer::TokenName(Token t) {
   case PIPE:     return "'|'";
   case RULE:     return "'rule'";
   case SUBNINJA: return "'subninja'";
+  case SPLITTER: return "splitter";
   case TEOF:     return "eof";
   }
   return NULL;  // not reached
@@ -104,6 +105,7 @@ const char* Lexer::TokenErrorHint(Token t) {
   case PIPE:     return "";
   case RULE:     return "";
   case SUBNINJA: return "";
+  case SPLITTER: return "";
   case TEOF:     return "";
   }
   return "";
@@ -129,6 +131,7 @@ Lexer::Token Lexer::ReadToken() {
     nul = "\000";
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
+    splitter = "&&";
 
     [ ]*"#"[^\000\n]*"\n" { continue; }
     [ ]*[\n]   { token = NEWLINE;  break; }
@@ -143,6 +146,7 @@ Lexer::Token Lexer::ReadToken() {
     "include"  { token = INCLUDE;  break; }
     "subninja" { token = SUBNINJA; break; }
     varname    { token = IDENT;    break; }
+    splitter   { token = SPLITTER; break; }
     nul        { token = TEOF;     break; }
     [^]        { token = ERROR;    break; }
     */
@@ -200,6 +204,10 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
   for (;;) {
     start = p;
     /*!re2c
+    ""splitter"" {
+      eval->AddSplitter(StringPiece(start, p - start));
+      continue;
+    }
     [^$ :\n|\000]+ {
       eval->AddText(StringPiece(start, p - start));
       continue;

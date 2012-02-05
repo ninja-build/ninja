@@ -121,6 +121,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->generator_ = true;
     } else if (key == "restat") {
       rule->restat_ = true;
+    } else if (key == "rspopt") {
+      rule->rspopt_ = value;
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
