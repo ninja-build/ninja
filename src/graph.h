@@ -108,6 +108,7 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
+  const EvalString& rspopt() const { return rspopt_; }
 
   // TODO: private:
 
@@ -122,6 +123,9 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+
+private:
+  EvalString rspopt_;
 };
 
 struct BuildLog;
@@ -147,7 +151,17 @@ struct Edge {
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
+  /*
+  TODO
+  struct CommandInfo {
+    string cmd;
+    vector<string> rsp_files_;
+  };
+  CommandInfo EvaluateCommand();  
+  */
   string EvaluateCommand();  // XXX move to env, take env ptr
+  vector<string> rsp_files_;
+
   string EvaluateDepFile();
   string GetDescription();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);

@@ -26,6 +26,10 @@ using namespace std;
 struct Env {
   virtual ~Env() {}
   virtual string LookupVariable(const string& var) = 0;
+
+  string rspopt_;
+  string current_rsp_file_;
+  vector<string> rsp_files_;
 };
 
 /// An Env which contains a mapping of variables to values
@@ -52,15 +56,22 @@ struct EvalString {
 
   void AddText(StringPiece text);
   void AddSpecial(StringPiece text);
+  void AddSplitter(StringPiece text);
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.
   string Serialize() const;
 
 private:
-  enum TokenType { RAW, SPECIAL };
-  typedef vector<pair<string, TokenType> > TokenList;
+  enum TokenType { RAW, SPECIAL, SPLITTER };
+  typedef pair<string, TokenType> Token;
+  typedef vector<Token> TokenList;
   TokenList parsed_;
+
+  // chaining/argfile
+  vector<TokenList> splitChainedCommand() const;
+  string PlainEvaluate(Env* env, const TokenList& list) const;
+  string checkForArgumentFile(Env* env, const string& cmdstr, const TokenList& tokens) const;
 };
 
 #endif  // NINJA_EVAL_ENV_H_

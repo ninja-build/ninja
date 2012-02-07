@@ -401,6 +401,7 @@ bool RealCommandRunner::CanRunMore() {
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
   Subprocess* subproc = new Subprocess;
+  subproc->rsp_files_ = edge->rsp_files_;
   subproc_to_edge_.insert(make_pair(subproc, edge));
   if (!subproc->Start(&subprocs_, command))
     return false;

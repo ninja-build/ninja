@@ -40,6 +40,8 @@ struct Subprocess {
 
   const string& GetOutput() const;
 
+  vector<string> rsp_files_;
+
  private:
   string buf_;
 

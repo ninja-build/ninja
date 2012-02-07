@@ -178,6 +178,8 @@ string EdgeEnv::LookupVariable(const string& var) {
   } else if (var == "out") {
     return MakePathList(edge_->outputs_.begin(),
                         edge_->outputs_.end());
+  } else if (var == "rsp") {
+      return current_rsp_file_;
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
@@ -206,7 +208,10 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
 
 string Edge::EvaluateCommand() {
   EdgeEnv env(this);
-  return rule_->command().Evaluate(&env);
+  env.rspopt_ = rule_->rspopt().Evaluate(&env);
+  string cmd = rule_->command().Evaluate(&env);
+  rsp_files_ = env.rsp_files_;
+  return cmd;
 }
 
 string Edge::EvaluateDepFile() {

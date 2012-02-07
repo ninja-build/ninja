@@ -40,6 +40,7 @@ struct Lexer {
     PIPE2,
     RULE,
     SUBNINJA,
+    SPLITTER,
     TEOF,
   };
 

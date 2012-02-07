@@ -16,6 +16,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#define fdopen _fdopen
 #endif
 
 #include <errno.h>
@@ -186,6 +187,61 @@ int ReadFile(const string& path, string* contents, string* err) {
   fclose(f);
   return 0;
 }
+
+int WriteFile(const FileInfo& info, const string& contents, string* err) {
+  FILE* f;
+  if (info.fd != -1)
+    f = fdopen(info.fd, "w");
+  else
+    f = fopen(info.path.c_str(), "w");
+
+  if (!f) {
+    err->assign(strerror(errno));
+    return -errno;
+  }
+
+  fputs(contents.c_str(), f);
+
+  if (ferror(f)) {
+    err->assign(strerror(errno));  // XXX errno?
+    fclose(f);
+    return -errno;
+  }
+  fclose(f);
+  return 0;
+}
+
+const FileInfo TempFilename(string *err)
+{
+  FileInfo info;
+#ifdef _WIN32
+    TCHAR tmp_dir[MAX_PATH];
+    DWORD ret = GetTempPath(MAX_PATH, tmp_dir);
+    if (ret > MAX_PATH || (ret == 0)) {
+        if (err)
+          *err = "GetTempPath failed";
+        return info;
+    }
+
+    TCHAR tmp_file[MAX_PATH];
+    ret = GetTempFileName(tmp_dir, "nja", 0, tmp_file);
+    if (ret == 0) {
+      if (err)
+        *err = "GetTempFileName failed";
+      return info;
+    }
+  info.fd = -1;
+  info.path = std::string(tmp_file);
+  return info;
+#else
+  char tmp_file[20];
+  strcpy(tmp_file, "/tmp/ninja_XXXXXX");
+  info.fd = mkstemp(tmp_file);
+  info.path = std::string(tmp_file);
+  return info;
+#endif
+}
+
 
 void SetCloseOnExec(int fd) {
 #ifndef _WIN32

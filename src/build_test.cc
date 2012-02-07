@@ -178,17 +178,19 @@ TEST_F(PlanTest, DependencyCycle) {
 
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
-  BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),
-                last_command_(NULL) {
+  BuildTest(bool plain = false) : StateTestWithBuiltinRules(plain), plain_(plain), config_(MakeConfig()),
+                builder_(&state_, config_), now_(1), last_command_(NULL) {
     builder_.disk_interface_ = &fs_;
     builder_.command_runner_ = this;
-    AssertParse(&state_,
+    if (!plain_) {
+      AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
 "build cat12: cat cat1 cat2\n");
 
-    fs_.Create("in1", now_, "");
-    fs_.Create("in2", now_, "");
+      fs_.Create("in1", now_, "");
+      fs_.Create("in2", now_, "");
+    }
   }
 
   // Mark a path dirty.
@@ -205,6 +207,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
     return config;
   }
 
+  bool plain_;
   BuildConfig config_;
   Builder builder_;
   int now_;
@@ -234,7 +237,7 @@ bool BuildTest::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule().name() == "cat" || edge->rule_->name() == "cc" ||
-      edge->rule().name() == "touch") {
+      edge->rule().name() == "touch" || edge->rule().name() == "cmd") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->path(), now_, "");
@@ -246,7 +249,6 @@ bool BuildTest::StartCommand(Edge* edge) {
     printf("unknown command\n");
     return false;
   }
-
   last_command_ = edge;
   return true;
 }
@@ -808,3 +810,33 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   ASSERT_EQ(3u, commands_ran_.size());
 }
 
+
+struct PlainBuildTest : BuildTest
+{
+  PlainBuildTest() : BuildTest(true) {}
+};
+
+TEST_F(PlainBuildTest, Splitter) {
+  string script =
+    "rule cmd\n"
+    "  command = cd . &&  cc xyz $rsp $in  && cd .\n"
+    "  rspopt = @\n"
+    "build out: cmd foo ";
+  for (int i = 0; i < 110000/4; i++) {
+    script += "foo ";
+  }
+  script += "\n";
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, script.c_str()));
+
+  fs_.Create("cc", now_, "");
+  now_++;
+  fs_.Create("foo", now_, "");
+  now_++;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(1u, commands_ran_.size());
+}
