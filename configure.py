@@ -127,6 +127,8 @@ libs = []
 if platform == 'mingw':
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
+elif platform == 'sunos5':
+    cflags.remove('-fvisibility=hidden')
 elif platform == 'windows':
     pass
 else:
