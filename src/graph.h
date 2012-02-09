@@ -122,6 +122,8 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString rspfile_;
+  EvalString rspfile_content_;
 };
 
 struct BuildLog;
@@ -147,9 +149,12 @@ struct Edge {
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
-  string EvaluateCommand();  // XXX move to env, take env ptr
+  string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  bool HasRspFile();
+  string GetRspFile();
+  string GetRspFileContent();
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump();

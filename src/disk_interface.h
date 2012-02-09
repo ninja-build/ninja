@@ -34,6 +34,10 @@ struct DiskInterface {
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
 
+  /// Create a file, with the specified name and contens
+  /// Returns true on success, false on failure
+  virtual bool WriteFile(const string & path, const string & contetns) = 0;
+
   /// Read a file to a string.  Fill in |err| on error.
   virtual string ReadFile(const string& path, string* err) = 0;
 
@@ -54,6 +58,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
+  virtual bool WriteFile(const string & path, const string & contens);
   virtual string ReadFile(const string& path, string* err);
   virtual int RemoveFile(const string& path);
 };

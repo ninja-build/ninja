@@ -233,7 +233,9 @@ bool BuildTest::CanRunMore() {
 bool BuildTest::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
-  if (edge->rule().name() == "cat" || edge->rule_->name() == "cc" ||
+  if (edge->rule().name() == "cat"  ||
+      edge->rule().name() == "cat_rsp" ||
+      edge->rule().name() == "cc" ||
       edge->rule().name() == "touch") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
@@ -808,3 +810,129 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   ASSERT_EQ(3u, commands_ran_.size());
 }
 
+// Test that RSP files are created when & where appropriate and deleted after
+// succesful execution.
+TEST_F(BuildTest, RspFileSuccess)
+{
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cat_rsp\n"
+    "  command = cat $rspfile > $out\n"
+    "  rspfile = $rspfile\n"
+    "  rspfile_content = $long_command\n"
+    "build out1: cat in\n"
+    "build out2: cat_rsp in\n"
+    "  rspfile = out2.rsp\n"
+    "  long_command = Some very long command\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  fs_.Create("out3", now_, "");
+    
+  now_++;
+
+  fs_.Create("in", now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+
+  size_t files_created = fs_.files_created_.size();
+  size_t files_removed = fs_.files_removed_.size();
+
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2, commands_ran_.size()); // cat + cat_rsp
+    
+  // The RSP file was created
+  ASSERT_EQ(files_created + 1, fs_.files_created_.size());
+  ASSERT_EQ(1, fs_.files_created_.count("out2.rsp"));
+    
+  // The RSP file was removed
+  ASSERT_EQ(files_removed + 1, fs_.files_removed_.size());
+  ASSERT_EQ(1, fs_.files_removed_.count("out2.rsp"));
+}
+
+// Test that RSP file is created but not removed for commands, which fail
+TEST_F(BuildTest, RspFileFailure) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule fail\n"
+    "  command = fail\n"
+    "  rspfile = $rspfile\n"
+    "  rspfile_content = $long_command\n"
+    "build out: fail in\n"
+    "  rspfile = out.rsp\n"
+    "  long_command = Another very long command\n"));
+
+  fs_.Create("out", now_, "");
+  now_++;
+  fs_.Create("in", now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  size_t files_created = fs_.files_created_.size();
+  size_t files_removed = fs_.files_removed_.size();
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1, commands_ran_.size());
+
+  // The RSP file was created
+  ASSERT_EQ(files_created + 1, fs_.files_created_.size());
+  ASSERT_EQ(1, fs_.files_created_.count("out.rsp"));
+
+  // The RSP file was NOT removed
+  ASSERT_EQ(files_removed, fs_.files_removed_.size());
+  ASSERT_EQ(0, fs_.files_removed_.count("out.rsp"));
+
+  // The RSP file contains what it should
+  ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
+}
+
+// Test that contens of the RSP file behaves like a regular part of 
+// command line, i.e. triggers a rebuild if changed
+TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cat_rsp\n"
+    "  command = cat $rspfile > $out\n"
+    "  rspfile = $rspfile\n"
+    "  rspfile_content = $long_command\n"
+    "build out: cat_rsp in\n"
+    "  rspfile = out.rsp\n"
+    "  long_command = Original very long command\n"));
+
+  fs_.Create("out", now_, "");
+  now_++;
+  fs_.Create("in", now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  // 1. Build for the 1st time (-> populate log)
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(1, commands_ran_.size());
+
+  // 2. Build again (no change)
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+  ASSERT_TRUE(builder_.AlreadyUpToDate());
+
+  // 3. Alter the entry in the logfile 
+  // (to simulate a change in the command line between 2 builds)
+  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ("cat out.rsp > out;rspfile=Original very long command", log_entry->command);
+  log_entry->command = "cat out.rsp > out;rspfile=Altered very long command";
+  // Now expect the target to be rebuilt
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(1, commands_ran_.size());
+}
