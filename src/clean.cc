@@ -106,7 +106,7 @@ int Cleaner::CleanAll(bool generator) {
       continue;
     // Do not remove generator's files unless generator specified.
     if (!generator && (*e)->rule().generator())
-      continue;    
+      continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
