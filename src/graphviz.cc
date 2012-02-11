@@ -63,6 +63,7 @@ void GraphViz::AddTarget(Node* node) {
 
 void GraphViz::Start() {
   printf("digraph ninja {\n");
+  printf("rankdir=\"LR\"\n");
   printf("node [fontsize=10, shape=box, height=0.25]\n");
   printf("edge [fontsize=10]\n");
 }
