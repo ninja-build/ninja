@@ -42,6 +42,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
+  // fd_ may be a member of the pselect set in SubprocessSet::DoWork.  Check
+  // that it falls below the system limit.
+  if (fd_ >= FD_SETSIZE)
+    Fatal("pipe: %s", strerror(EMFILE));
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -54,6 +58,14 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
+      if (setpgid(0, 0) < 0)
+        break;
+
+      if (sigaction(SIGINT, &set->old_act_, 0) < 0)
+        break;
+      if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
+        break;
+
       // Open /dev/null over stdin.
       int devnull = open("/dev/null", O_WRONLY);
       if (devnull < 0)
@@ -100,7 +112,7 @@ void Subprocess::OnPipeReady() {
   }
 }
 
-bool Subprocess::Finish() {
+ExitStatus Subprocess::Finish() {
   assert(pid_ != -1);
   int status;
   if (waitpid(pid_, &status, 0) < 0)
@@ -110,9 +122,12 @@ bool Subprocess::Finish() {
   if (WIFEXITED(status)) {
     int exit = WEXITSTATUS(status);
     if (exit == 0)
-      return true;
+      return ExitSuccess;
+  } else if (WIFSIGNALED(status)) {
+    if (WTERMSIG(status) == SIGINT)
+      return ExitInterrupted;
   }
-  return false;
+  return ExitFailure;
 }
 
 bool Subprocess::Done() const {
@@ -123,48 +138,89 @@ const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
-SubprocessSet::SubprocessSet() {}
-SubprocessSet::~SubprocessSet() {}
+bool SubprocessSet::interrupted_;
 
-void SubprocessSet::Add(Subprocess* subprocess) {
-  running_.push_back(subprocess);
+void SubprocessSet::SetInterruptedFlag(int signum) {
+  (void) signum;
+  interrupted_ = true;
 }
 
-void SubprocessSet::DoWork() {
-  vector<pollfd> fds;
+SubprocessSet::SubprocessSet() {
+  interrupted_ = false;
 
-  map<int, Subprocess*> fd_to_subprocess;
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGINT);
+  if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
+    Fatal("sigprocmask: %s", strerror(errno));
+
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = SetInterruptedFlag;
+  if (sigaction(SIGINT, &act, &old_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+}
+
+SubprocessSet::~SubprocessSet() {
+  Clear();
+
+  if (sigaction(SIGINT, &old_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
+    Fatal("sigprocmask: %s", strerror(errno));
+}
+
+Subprocess *SubprocessSet::Add(const string &command) {
+  Subprocess *subprocess = new Subprocess;
+  if (!subprocess->Start(this, command)) {
+    delete subprocess;
+    return 0;
+  }
+  running_.push_back(subprocess);
+  return subprocess;
+}
+
+bool SubprocessSet::DoWork() {
+  fd_set set;
+  int nfds = 0;
+  FD_ZERO(&set);
+
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     int fd = (*i)->fd_;
     if (fd >= 0) {
-      fd_to_subprocess[fd] = *i;
-      fds.resize(fds.size() + 1);
-      pollfd* newfd = &fds.back();
-      newfd->fd = fd;
-      newfd->events = POLLIN;
-      newfd->revents = 0;
+      FD_SET(fd, &set);
+      if (nfds < fd+1)
+        nfds = fd+1;
     }
   }
 
-  int ret = poll(&fds.front(), fds.size(), -1);
+  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
   if (ret == -1) {
-    if (errno != EINTR)
-      perror("ninja: poll");
-    return;
+    if (errno != EINTR) {
+      perror("ninja: pselect");
+      return false;
+    }
+    bool interrupted = interrupted_;
+    interrupted_ = false;
+    return interrupted;
   }
 
-  for (size_t i = 0; i < fds.size(); ++i) {
-    if (fds[i].revents) {
-      Subprocess* subproc = fd_to_subprocess[fds[i].fd];
-      subproc->OnPipeReady();
-      if (subproc->Done()) {
-        finished_.push(subproc);
-        std::remove(running_.begin(), running_.end(), subproc);
-        running_.resize(running_.size() - 1);
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ) {
+    int fd = (*i)->fd_;
+    if (fd >= 0 && FD_ISSET(fd, &set)) {
+      (*i)->OnPipeReady();
+      if ((*i)->Done()) {
+        finished_.push(*i);
+        running_.erase(i);
+        continue;
       }
     }
+    ++i;
   }
+
+  return false;
 }
 
 Subprocess* SubprocessSet::NextFinished() {
@@ -173,4 +229,14 @@ Subprocess* SubprocessSet::NextFinished() {
   Subprocess* subproc = finished_.front();
   finished_.pop();
   return subproc;
+}
+
+void SubprocessSet::Clear() {
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i)
+    kill(-(*i)->pid_, SIGINT);
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i)
+    delete *i;
+  running_.clear();
 }
