@@ -77,6 +77,7 @@ string StripAnsiEscapeCodes(const string& in);
 #define fileno _fileno
 #define unlink _unlink
 #define chdir _chdir
+typedef short int16_t;
 #endif
 
 #ifdef _WIN32

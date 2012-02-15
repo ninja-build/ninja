@@ -14,7 +14,11 @@
 
 #include "deplist.h"
 
+#ifndef _MSC_VER
 #include <stdint.h>
+#else
+#include "util.h"
+#endif
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
