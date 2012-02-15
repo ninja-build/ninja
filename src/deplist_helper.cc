@@ -101,15 +101,15 @@ int main(int argc, char** argv) {
       Fatal("fclose(%s): %s", input_filename, strerror(errno));
   }
 
-  StringPiece target;
-  vector<StringPiece> inputs;
+  DepfileParser depfile;
+  string depfile_err;
   switch (input_format) {
   case INPUT_DEPFILE:
-    if (!DepfileParser::Parse(&content, &target, &inputs, &err))
+    if (!depfile.Parse(&content, &depfile_err))
       Fatal("parsing %s: %s", input_filename, err.c_str());
     break;
   case INPUT_SHOW_INCLUDES:
-    string text = ShowIncludes::Filter(content, &inputs);
+    string text = ShowIncludes::Filter(content, &depfile.ins_);
     printf("%s", text.c_str());
     break;
   }
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     if (!output)
       Fatal("opening %s: %s", output_filename, strerror(errno));
   }
-  if (!Deplist::Write(output, inputs))
+  if (!Deplist::Write(output, depfile.ins_))
     Fatal("error writing %s");
   if (output_filename) {
     if (fclose(output) < 0)

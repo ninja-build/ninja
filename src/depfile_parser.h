@@ -23,6 +23,8 @@ struct DepfileParser {
   /// Parse an input file.  Input must be NUL-terminated.
   /// Warning: may mutate the content in-place and parsed StringPieces are
   /// pointers within it.
-  static bool Parse(string* content, StringPiece* target,
-                    vector<StringPiece>* inputs, string* err);
+  bool Parse(string* content, string* err);
+
+  StringPiece out_;
+  vector<StringPiece> ins_;
 };
