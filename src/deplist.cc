@@ -46,7 +46,7 @@ int16_t ReadInt16(const char** in) {
 // static
 bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
   int16_t version = kVersion;
-  int16_t count = entries.size();
+  uint16_t count = static_cast<uint16_t>(entries.size());
   if (fwrite(&version, 2, 1, file) < 1)
     return false;
    if (fwrite(&count, 2, 1, file) < 1)
@@ -54,7 +54,7 @@ bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
 
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i) {
-    int16_t length = i->len_;
+    int16_t length = static_cast<int16_t>(i->len_);
     if (fwrite(&length, 2, 1, file) < 1)
       return false;
   }
