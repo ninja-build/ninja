@@ -254,7 +254,7 @@ n.comment('Tests all build into ninja_test executable.')
 variables = []
 test_cflags = None
 test_ldflags = None
-test_libs = libs
+test_libs = libs[:]
 objs = []
 if options.with_gtest:
     path = options.with_gtest
@@ -303,7 +303,7 @@ n.comment('Deplist helper.')
 objs = cxx('deplist_helper')
 deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
                          implicit=ninja_lib,
-                         variables=[('libs', '-L$builddir -lninja')])
+                         variables=[('libs', libs)])
 n.newline()
 all_targets += deplist_helper
 
