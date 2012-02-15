@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/time.h>
 #else
 #include <windows.h>
@@ -30,7 +30,7 @@ Metrics* g_metrics = NULL;
 
 namespace {
 
-#ifndef WIN32
+#ifndef _WIN32
 /// Compute a platform-specific high-res timer value that fits into an int64.
 int64_t HighResTimer() {
   timeval tv;

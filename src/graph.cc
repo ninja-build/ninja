@@ -257,34 +257,52 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   if (content.empty())
     return true;
 
-  StringPiece target;
-  vector<StringPiece> inputs;
+  DepfileParser depfile;
   string depfile_err;
-  if (!DepfileParser::Parse(&content, &target, &inputs, &depfile_err)) {
+  if (!depfile.Parse(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;
     return false;
   }
 
   // Check that this depfile matches our output.
   StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != target) {
+  if (opath != depfile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + target.AsString() + "'";
+      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
     return false;
   }
 
-  inputs_.insert(inputs_.end() - order_only_deps_, inputs.size(), 0);
-  implicit_deps_ += inputs.size();
+  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins_.size(), 0);
+  implicit_deps_ += depfile.ins_.size();
   vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - inputs.size();
+    inputs_.end() - order_only_deps_ - depfile.ins_.size();
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = inputs.begin();
-       i != inputs.end(); ++i, ++implicit_dep) {
-    string path(i->str_, i->len_);
-    if (!CanonicalizePath(&path, err))
+  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
+       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
-    *implicit_dep = GetDepNode(state, path);
+
+    Node* node = state->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(this);
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge()) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->set_in_edge(phony_edge);
+      phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
+    }
   }
 
   return true;

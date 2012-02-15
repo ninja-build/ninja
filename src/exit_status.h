@@ -12,23 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_GRAPHVIZ_H_
-#define NINJA_GRAPHVIZ_H_
+#ifndef NINJA_EXIT_STATUS_H_
+#define NINJA_EXIT_STATUS_H_
 
-#include <set>
-using namespace std;
-
-struct Node;
-struct Edge;
-
-/// Runs the process of creating GraphViz .dot file output.
-struct GraphViz {
-  void Start();
-  void AddTarget(Node* node);
-  void Finish();
-
-  set<Node*> visited_nodes_;
-  set<Edge*> visited_edges_;
+enum ExitStatus {
+  ExitSuccess,
+  ExitFailure,
+  ExitInterrupted
 };
 
-#endif  // NINJA_GRAPHVIZ_H_
+#endif  // NINJA_EXIT_STATUS_H_

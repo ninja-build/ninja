@@ -49,8 +49,8 @@ class Writer(object):
               variables=None):
         outputs = self._as_list(outputs)
         all_inputs = self._as_list(inputs)[:]
-        out_outputs = map(escape_spaces, outputs)
-        all_inputs = map(escape_spaces, all_inputs)
+        out_outputs = list(map(escape_spaces, outputs))
+        all_inputs = list(map(escape_spaces, all_inputs))
 
         if implicit:
             implicit = map(escape_spaces, self._as_list(implicit))

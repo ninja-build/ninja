@@ -19,6 +19,7 @@
 
 #include "edit_distance.h"
 #include "graph.h"
+#include "metrics.h"
 #include "util.h"
 
 const Rule State::kPhonyRule("phony");
@@ -47,17 +48,18 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(const string& path) {
+Node* State::GetNode(StringPiece path) {
   Node* node = LookupNode(path);
   if (node)
     return node;
-  node = new Node(path);
-  paths_[node->path().c_str()] = node;
+  node = new Node(path.AsString());
+  paths_[node->path()] = node;
   return node;
 }
 
-Node* State::LookupNode(const string& path) {
-  Paths::iterator i = paths_.find(path.c_str());
+Node* State::LookupNode(StringPiece path) {
+  METRIC_RECORD("lookup node");
+  Paths::iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
   return NULL;
@@ -80,26 +82,27 @@ Node* State::SpellcheckNode(const string& path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, const string& path) {
+void State::AddIn(Edge* edge, StringPiece path) {
   Node* node = GetNode(path);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
 
-void State::AddOut(Edge* edge, const string& path) {
+void State::AddOut(Edge* edge, StringPiece path) {
   Node* node = GetNode(path);
   edge->outputs_.push_back(node);
   if (node->in_edge()) {
     Warning("multiple rules generate %s. "
-            "build will not be correct; continuing anyway", path.c_str());
+            "build will not be correct; continuing anyway",
+            path.AsString().c_str());
   }
   node->set_in_edge(edge);
 }
 
-bool State::AddDefault(const string& path, string* err) {
+bool State::AddDefault(StringPiece path, string* err) {
   Node* node = LookupNode(path);
   if (!node) {
-    *err = "unknown target '" + path + "'";
+    *err = "unknown target '" + path.AsString() + "'";
     return false;
   }
   defaults_.push_back(node);

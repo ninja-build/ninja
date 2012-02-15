@@ -28,10 +28,14 @@ void Win32Fatal(const char* function) {
 
 }  // anonymous namespace
 
-Subprocess::Subprocess() : child_(NULL) , overlapped_() {
+Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
 }
 
 Subprocess::~Subprocess() {
+  if (pipe_) {
+    if (!CloseHandle(pipe_))
+      Win32Fatal("CloseHandle");
+  }
   // Reap child if forgotten.
   if (child_)
     Finish();
@@ -92,10 +96,21 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
-                      /* inherit handles */ TRUE, 0,
+                      /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
                       NULL, NULL,
                       &startup_info, &process_info)) {
-    Win32Fatal("CreateProcess");
+    DWORD error = GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND) { // file (program) not found error is treated as a normal build action failure
+      if (child_pipe)
+        CloseHandle(child_pipe);
+      CloseHandle(pipe_);
+      pipe_ = NULL;
+      // child_ is already NULL;
+      buf_ = "CreateProcess failed: The system cannot find the file specified.\n";
+      return true;
+    } else {
+      Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal
+    }
   }
 
   // Close pipe channel only used by the child.
@@ -119,10 +134,11 @@ void Subprocess::OnPipeReady() {
     Win32Fatal("GetOverlappedResult");
   }
 
-  if (bytes)
+  if (is_reading_ && bytes)
     buf_.append(overlapped_buf_, bytes);
 
   memset(&overlapped_, 0, sizeof(overlapped_));
+  is_reading_ = true;
   if (!::ReadFile(pipe_, overlapped_buf_, sizeof(overlapped_buf_),
                   &bytes, &overlapped_)) {
     if (GetLastError() == ERROR_BROKEN_PIPE) {
@@ -138,7 +154,10 @@ void Subprocess::OnPipeReady() {
   // function again later and get them at that point.
 }
 
-bool Subprocess::Finish() {
+ExitStatus Subprocess::Finish() {
+  if (!child_)
+    return ExitFailure;
+
   // TODO: add error handling for all of these.
   WaitForSingleObject(child_, INFINITE);
 
@@ -148,7 +167,9 @@ bool Subprocess::Finish() {
   CloseHandle(child_);
   child_ = NULL;
 
-  return exit_code == 0;
+  return exit_code == 0              ? ExitSuccess :
+         exit_code == CONTROL_C_EXIT ? ExitInterrupted :
+                                       ExitFailure;
 }
 
 bool Subprocess::Done() const {
@@ -159,21 +180,47 @@ const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
+HANDLE SubprocessSet::ioport_;
+
 SubprocessSet::SubprocessSet() {
   ioport_ = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if (!ioport_)
     Win32Fatal("CreateIoCompletionPort");
+  if (!SetConsoleCtrlHandler(NotifyInterrupted, TRUE))
+    Win32Fatal("SetConsoleCtrlHandler");
 }
 
 SubprocessSet::~SubprocessSet() {
+  Clear();
+
+  SetConsoleCtrlHandler(NotifyInterrupted, FALSE);
   CloseHandle(ioport_);
 }
 
-void SubprocessSet::Add(Subprocess* subprocess) {
-  running_.push_back(subprocess);
+BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
+  if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
+    if (!PostQueuedCompletionStatus(ioport_, 0, 0, NULL))
+      Win32Fatal("PostQueuedCompletionStatus");
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
-void SubprocessSet::DoWork() {
+Subprocess *SubprocessSet::Add(const string &command) {
+  Subprocess *subprocess = new Subprocess;
+  if (!subprocess->Start(this, command)) {
+    delete subprocess;
+    return 0;
+  }
+  if (subprocess->child_)
+    running_.push_back(subprocess);
+  else
+    finished_.push(subprocess);
+  return subprocess;
+}
+
+bool SubprocessSet::DoWork() {
   DWORD bytes_read;
   Subprocess* subproc;
   OVERLAPPED* overlapped;
@@ -183,6 +230,10 @@ void SubprocessSet::DoWork() {
     if (GetLastError() != ERROR_BROKEN_PIPE)
       Win32Fatal("GetQueuedCompletionStatus");
   }
+
+  if (!subproc) // A NULL subproc indicates that we were interrupted and is
+                // delivered by NotifyInterrupted above.
+    return true;
 
   subproc->OnPipeReady();
 
@@ -194,6 +245,8 @@ void SubprocessSet::DoWork() {
       running_.resize(end - running_.begin());
     }
   }
+
+  return false;
 }
 
 Subprocess* SubprocessSet::NextFinished() {
@@ -202,4 +255,17 @@ Subprocess* SubprocessSet::NextFinished() {
   Subprocess* subproc = finished_.front();
   finished_.pop();
   return subproc;
+}
+
+void SubprocessSet::Clear() {
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i) {
+    if ((*i)->child_)
+      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, GetProcessId((*i)->child_)))
+        Win32Fatal("GenerateConsoleCtrlEvent");
+  }
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i)
+    delete *i;
+  running_.clear();
 }

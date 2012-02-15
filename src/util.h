@@ -16,7 +16,7 @@
 #define NINJA_UTIL_H_
 #pragma once
 
-#ifdef WIN32
+#ifdef _WIN32
 #include "win32port.h"
 #else
 #include <stdint.h>
@@ -39,6 +39,8 @@ void Error(const char* msg, ...);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
+
+bool CanonicalizePath(char* path, int* len, string* err);
 
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.
@@ -67,11 +69,17 @@ const char* SpellcheckStringV(const string& text, const vector<const char*>& wor
 /// Like SpellcheckStringV, but takes a NULL-terminated list.
 const char* SpellcheckString(const string& text, ...);
 
-#ifdef _WIN32
+/// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
+string StripAnsiEscapeCodes(const string& in);
+
+#ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
 #define unlink _unlink
+#define chdir _chdir
+#endif
 
+#ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
 #endif

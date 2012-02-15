@@ -54,6 +54,23 @@ TEST(CanonicalizePath, PathSamples) {
   path = "./x/../foo/../../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../bar.h", path);
+
+  path = "foo/./.";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("foo", path);
+}
+
+TEST(CanonicalizePath, EmptyResult) {
+  string path;
+  string err;
+
+  path = ".";
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("path canonicalizes to the empty path", err);
+
+  path = "./.";
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("path canonicalizes to the empty path", err);
 }
 
 TEST(CanonicalizePath, UpDir) {
@@ -72,4 +89,21 @@ TEST(CanonicalizePath, AbsolutePath) {
   string err;
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("/usr/include/stdio.h", path);
+}
+
+TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
+  string stripped = StripAnsiEscapeCodes("foo\33");
+  EXPECT_EQ("foo", stripped);
+
+  stripped = StripAnsiEscapeCodes("foo\33[");
+  EXPECT_EQ("foo", stripped);
+}
+
+TEST(StripAnsiEscapeCodes, StripColors) {
+  // An actual clang warning.
+  string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
+                 "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
+  string stripped = StripAnsiEscapeCodes(input);
+  EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
+            stripped);
 }
