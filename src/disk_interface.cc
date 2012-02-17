@@ -28,24 +28,18 @@
 namespace {
 
 string DirName(const string& path) {
-  const char kPathSeparator = '/';
 #ifdef _WIN32
   // Support either path separator on Windows.
-  const char kAltPathSeparator = '\\';
+  const string kPathSeparators("/\\");
+#else
+  const string kPathSeparators("/");
 #endif
-  string::size_type slash_pos = path.rfind(kPathSeparator);
-  if (slash_pos == string::npos) {
-#ifdef _WIN32
-    slash_pos = path.rfind(kAltPathSeparator);
-    if (slash_pos == string::npos)
-#endif
+
+  string::size_type slash_pos = path.find_last_of(kPathSeparators);
+  if (slash_pos == string::npos)
       return string();  // Nothing to do.
-  }
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator
-#ifdef _WIN32
-      || path[slash_pos - 1] == kAltPathSeparator
-#endif
-      )
+  while (slash_pos > 0 &&
+         kPathSeparators.find(path[slash_pos - 1]) != string::npos)
     --slash_pos;
   return path.substr(0, slash_pos);
 }

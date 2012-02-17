@@ -84,6 +84,18 @@ TEST_F(DiskInterfaceTest, MakeDirs) {
   EXPECT_TRUE(disk_.MakeDirs("path/with/double//slash/"));
 }
 
+TEST_F(DiskInterfaceTest, MakeDirsSeparators) {
+  disk_.MakeDirs("path/with\\both\\slash/types");
+
+  // On posix, the \ should either fail or create an ugly name.
+#ifdef _WIN32
+  ASSERT_TRUE
+#else
+  ASSERT_FALSE
+#endif
+      (disk_.Stat("path/with/both/slash/types"));
+}
+
 TEST_F(DiskInterfaceTest, RemoveFile) {
   const char* kFileName = "file-to-remove";
 #ifdef _WIN32
