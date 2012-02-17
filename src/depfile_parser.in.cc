@@ -28,9 +28,7 @@
 // otherwise they are passed through verbatim.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-// static
-bool DepfileParser::Parse(string* content, StringPiece* target,
-                          vector<StringPiece>* inputs, string* err) {
+bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
   char* in = &(*content)[0];
@@ -95,10 +93,10 @@ bool DepfileParser::Parse(string* content, StringPiece* target,
     if (len == 0)
       continue;
 
-    if (!target->str_) {
-      *target = StringPiece(filename, len);
+    if (!out_.str_) {
+      out_ = StringPiece(filename, len);
     } else {
-      inputs->push_back(StringPiece(filename, len));
+      ins_.push_back(StringPiece(filename, len));
     }
   }
   return true;

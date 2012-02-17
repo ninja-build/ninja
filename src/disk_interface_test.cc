@@ -89,11 +89,10 @@ TEST_F(DiskInterfaceTest, MakeDirsSeparators) {
 
   // On posix, the \ should either fail or create an ugly name.
 #ifdef _WIN32
-  ASSERT_TRUE
+  EXPECT_TRUE(disk_.Stat("path/with/both/slash"));
 #else
-  ASSERT_FALSE
+  EXPECT_FALSE(disk_.Stat("path/with/both/slash"));
 #endif
-      (disk_.Stat("path/with/both/slash/types"));
 }
 
 TEST_F(DiskInterfaceTest, RemoveFile) {
