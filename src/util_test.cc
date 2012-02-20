@@ -64,6 +64,9 @@ TEST(CanonicalizePath, EmptyResult) {
   string path;
   string err;
 
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("empty path", err);
+
   path = ".";
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("path canonicalizes to the empty path", err);
