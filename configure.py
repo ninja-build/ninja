@@ -47,7 +47,7 @@ parser.add_option('--with-python', metavar='EXE',
                   default=os.path.basename(sys.executable))
 (options, args) = parser.parse_args()
 if args:
-    sys.stdout.write( 'ERROR: extra unparsed command-line arguments: %\n' % args )
+    sys.stdout.write('ERROR: extra unparsed command-line arguments: %\n' % args)
     sys.exit(1)
 
 platform = options.platform
@@ -352,4 +352,4 @@ n.newline()
 
 n.build('all', 'phony', all_targets)
 
-sys.stdout.write( 'wrote %s.' % BUILD_FILENAME )
+sys.stdout.write('wrote %s.' % BUILD_FILENAME)

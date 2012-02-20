@@ -34,7 +34,7 @@ if sys.platform.startswith('freebsd'):
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
-sys.stdout.write( 'Building ninja manually...\n' )
+sys.stdout.write('Building ninja manually...\n')
 
 try:
     os.mkdir('build')
@@ -83,9 +83,9 @@ else:
     args.extend(['-o', binary])
 run(args)
 
-sys.stdout.write( 'Building ninja using itself...\n' )
+sys.stdout.write('Building ninja using itself...\n')
 run([sys.executable, 'configure.py'] + sys.argv[1:])
 run(['./' + binary])
 os.unlink(binary)
 
-sys.stdout.write( 'Done!\n' )
+sys.stdout.write('Done!\n')
