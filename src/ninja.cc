@@ -150,7 +150,12 @@ bool RebuildManifest(State* state, const BuildConfig& config,
 
   if (manifest_builder.AlreadyUpToDate())
     return false;  // Not an error, but we didn't rebuild.
-  return manifest_builder.Build(err);
+  if (!manifest_builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  return node->dirty();
 }
 
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
