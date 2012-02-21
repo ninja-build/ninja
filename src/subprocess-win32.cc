@@ -28,7 +28,7 @@ void Win32Fatal(const char* function) {
 
 }  // anonymous namespace
 
-Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
+Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false), pipe_(NULL) {
 }
 
 Subprocess::~Subprocess() {
@@ -77,7 +77,15 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command_in) {
+  std::string command;
+  if (command.empty()) {
+    // TODO this is waste of time, but ninja produces empty calls (also under Linux)
+    command = "cmd.exe /c";
+  } else {
+    command = command_in;
+  }
+
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   STARTUPINFOA startup_info;
