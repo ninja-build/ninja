@@ -497,7 +497,7 @@ Builder::~Builder() {
       for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
            ni != (*i)->outputs_.end(); ++ni)
         disk_interface_->RemoveFile((*ni)->path());
-      if (!(*i)->rule_->depfile_.empty())
+      if (!(*i)->rule_->depfile().empty())
         disk_interface_->RemoveFile((*i)->EvaluateDepFile());
     }
   }

@@ -109,8 +109,7 @@ struct Rule {
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
 
-  // TODO: private:
-
+ private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
 
