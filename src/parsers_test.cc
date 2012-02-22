@@ -97,6 +97,24 @@ TEST_F(ParserTest, IgnoreIndentedBlankLines) {
   EXPECT_EQ("1", state.bindings_.LookupVariable("variable"));
 }
 
+TEST_F(ParserTest, ResponseFiles) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat_rsp\n"
+"  command = cat $rspfile > $out\n"
+"  rspfile = $rspfile\n"
+"  rspfile_content = $in\n"
+"\n"
+"build out: cat_rsp in\n"
+"  rspfile=out.rsp\n"));
+
+  ASSERT_EQ(2u, state.rules_.size());
+  const Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("cat_rsp", rule->name());
+  EXPECT_EQ("[cat ][$rspfile][ > ][$out]", rule->command().Serialize());
+  EXPECT_EQ("[$rspfile]", rule->rspfile_.Serialize());
+  EXPECT_EQ("[$in]", rule->rspfile_content_.Serialize());
+}
+
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "l = one-letter-test\n"

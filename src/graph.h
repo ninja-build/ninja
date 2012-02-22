@@ -121,6 +121,8 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString rspfile_;
+  EvalString rspfile_content_;
 };
 
 struct BuildLog;
@@ -146,9 +148,22 @@ struct Edge {
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
-  string EvaluateCommand();  // XXX move to env, take env ptr
+  /// Expand all variables in a command and return it as a string.
+  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// full contents of a response file (if applicable)
+  string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  
+  /// Does the edge use a response file?
+  bool HasRspFile();
+  
+  /// Get the path to the response file
+  string GetRspFile();
+
+  /// Get the contents of the response file
+  string GetRspFileContent();
+
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump();
