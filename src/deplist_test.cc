@@ -55,7 +55,34 @@ TEST_F(DeplistTest, WriteRead) {
 
   string contents;
   string err;
-  ASSERT_EQ(0, ::ReadFile(filename, &contents, &err));
+  ASSERT_EQ(0, ::ReadFile(filename, &contents, &err, true));
+  vector<StringPiece> entries2;
+  EXPECT_TRUE(Deplist::Load(contents, &entries2, &err));
+  ASSERT_EQ("", err);
+
+  ASSERT_EQ(entries.size(), entries2.size());
+  for (int i = 0; i < (int)entries.size(); ++i)
+    EXPECT_EQ(entries[i].AsString(), entries2[i].AsString());
+}
+
+TEST_F(DeplistTest, BinaryMode) {
+  vector<StringPiece> entries;
+  // We don't really care about weird characters in file names, but
+  // it's easier to test there than trying to make \r and Ctrl-Z happen in the
+  // headers of the file.
+  entries.push_back("a");
+  entries.push_back("abc\r\n\032def");
+  entries.push_back("b");
+
+  const char* filename = "deplist";
+  FILE* f = fopen(filename, "wb");
+  ASSERT_TRUE(f != NULL);
+  ASSERT_TRUE(Deplist::Write(f, entries));
+  ASSERT_EQ(0, fclose(f));
+
+  string contents;
+  string err;
+  ASSERT_EQ(0, ::ReadFile(filename, &contents, &err, true));
   vector<StringPiece> entries2;
   EXPECT_TRUE(Deplist::Load(contents, &entries2, &err));
   ASSERT_EQ("", err);

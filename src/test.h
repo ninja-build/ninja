@@ -46,7 +46,7 @@ struct VirtualFileSystem : public DiskInterface {
   // DiskInterface
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
+  virtual string ReadFile(const string& path, string* err, bool binary);
   virtual int RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.

@@ -315,7 +315,7 @@ bool Edge::LoadDepList(State* state, DiskInterface* disk_interface,
   EdgeEnv env(this);
   string path = rule_->deplist().Evaluate(&env);
 
-  string content = disk_interface->ReadFile(path, err);
+  string content = disk_interface->ReadFile(path, err, true);
   if (!err->empty())
     return false;
   if (content.empty())

@@ -52,7 +52,7 @@ bool ReadFile(FILE* f, string* contents, string* err);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+int ReadFile(const string& path, string* contents, string* err, bool binary = false);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);

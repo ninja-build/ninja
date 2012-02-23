@@ -113,9 +113,9 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-string RealDiskInterface::ReadFile(const string& path, string* err) {
+string RealDiskInterface::ReadFile(const string& path, string* err, bool binary) {
   string contents;
-  int ret = ::ReadFile(path, &contents, err);
+  int ret = ::ReadFile(path, &contents, err, binary);
   if (ret == -ENOENT) {
     // Swallow ENOENT.
     err->clear();
