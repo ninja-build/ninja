@@ -111,8 +111,8 @@ TEST_F(ParserTest, ResponseFiles) {
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$rspfile][ > ][$out]", rule->command().Serialize());
-  EXPECT_EQ("[$rspfile]", rule->rspfile_.Serialize());
-  EXPECT_EQ("[$in]", rule->rspfile_content_.Serialize());
+  EXPECT_EQ("[$rspfile]", rule->rspfile().Serialize());
+  EXPECT_EQ("[$in]", rule->rspfile_content().Serialize());
 }
 
 TEST_F(ParserTest, Variables) {

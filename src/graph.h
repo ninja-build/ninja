@@ -108,6 +108,8 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
+  const EvalString& rspfile() const { return rspfile_; }
+  const EvalString& rspfile_content() const { return rspfile_content_; }
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.

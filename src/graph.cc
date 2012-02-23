@@ -223,17 +223,17 @@ string Edge::GetDescription() {
 }
 
 bool Edge::HasRspFile() {
-  return !rule_->rspfile_.empty();
+  return !rule_->rspfile().empty();
 }
 
 string Edge::GetRspFile() {
   EdgeEnv env(this);
-  return rule_->rspfile_.Evaluate(&env);
+  return rule_->rspfile().Evaluate(&env);
 }
 
 string Edge::GetRspFileContent() {
   EdgeEnv env(this);
-  return rule_->rspfile_content_.Evaluate(&env);
+  return rule_->rspfile_content().Evaluate(&env);
 }
 
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
