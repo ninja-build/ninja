@@ -103,6 +103,26 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 #endif
 }
 
+bool RealDiskInterface::WriteFile(const string & path, const string & contents) {
+  FILE * fp = fopen(path.c_str(), "w");
+  if (fp == NULL) {
+    Error("WriteFile(%s): Unable to create file. %s", path.c_str(), strerror(errno));
+    return false;
+  }
+ 
+  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
+    Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(), strerror(errno));
+    return false;
+  }
+
+  if (fclose(fp) == EOF) {
+    Error("WriteFile(%s): Unable to close the file. %s", path.c_str(), strerror(errno));
+    return false;
+  }
+
+  return true;
+}
+
 bool RealDiskInterface::MakeDir(const string& path) {
   if (::MakeDir(path) < 0) {
     Error("mkdir(%s): %s", path.c_str(), strerror(errno));
