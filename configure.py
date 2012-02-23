@@ -104,7 +104,7 @@ else:
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
-              '/D_CRT_SECURE_NO_WARNINGS',
+              '/D_CRT_SECURE_NO_WARNINGS' '/D_WIN32_WINNT=0x0501',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
@@ -115,8 +115,11 @@ else:
               '-Wno-deprecated',
               '-Wno-unused-parameter',
               '-fno-exceptions',
-              '-fvisibility=hidden', '-pipe',
-              "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
+              '-fvisibility=hidden', '-pipe']
+    if platform == 'mingw':
+        cflags.append("-DNINJA_PYTHON=\"%s\"" % (options.with_python,))
+    else:
+        cflags.append("'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,))
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
@@ -125,6 +128,7 @@ else:
 libs = []
 
 if platform == 'mingw':
+    cflags.append('-D_WIN32_WINNT=0x0501')
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform == 'sunos5':

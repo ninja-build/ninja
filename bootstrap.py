@@ -34,6 +34,9 @@ if sys.platform.startswith('freebsd'):
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
+if sys.platform.startswith('win32'):
+    cflags.append('-D_WIN32_WINNT=0x0501')
+
 print 'Building ninja manually...'
 
 try:
