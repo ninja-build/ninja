@@ -116,9 +116,12 @@ int main(int argc, char** argv) {
     break;
   case INPUT_SHOW_INCLUDES:
     if (quiet) {
-      size_t at = content.find("\n");
-      if (at != string::npos)
-        content = content.substr(at + 1);
+      size_t at;
+      if ((at = content.find(".c\n")) != string::npos ||
+          (at = content.find(".cc\n")) != string::npos ||
+          (at = content.find(".cpp\n")) != string::npos) {
+        content = content.substr(content.find("\n", at) + 1);
+      }
     }
     string text = ShowIncludes::Filter(content, &depfile.ins_);
     printf("%s", text.c_str());
