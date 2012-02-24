@@ -38,7 +38,9 @@ void Usage() {
 "  -f FORMAT  specify input format; formats are\n"
 "               gcc  gcc Makefile-like output\n"
 "               cl   MSVC cl.exe /showIncludes output\n"
-"  -o FILE  write output to FILE (default: stdout)\n"
+"  -q         suppress first line of output in cl mode. this will be the file\n"
+"             being compiled when /nologo is used.\n"
+"  -o FILE    write output to FILE (default: stdout)\n"
          );
 }
 
@@ -52,13 +54,14 @@ enum InputFormat {
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
   InputFormat input_format = INPUT_DEPFILE;
+  bool quiet = false;
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:o:h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:hq", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         string format = optarg;
@@ -72,6 +75,9 @@ int main(int argc, char** argv) {
       }
       case 'o':
         output_filename = optarg;
+        break;
+      case 'q':
+        quiet = true;
         break;
       case 'h':
       default:
@@ -109,6 +115,11 @@ int main(int argc, char** argv) {
       Fatal("parsing %s: %s", input_filename, err.c_str());
     break;
   case INPUT_SHOW_INCLUDES:
+    if (quiet) {
+      size_t at = content.find("\n");
+      if (at != string::npos)
+        content = content.substr(at + 1);
+    }
     string text = ShowIncludes::Filter(content, &depfile.ins_);
     printf("%s", text.c_str());
     break;
