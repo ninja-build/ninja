@@ -244,7 +244,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
     printf("%s:\n", argv[i]);
     if (Edge* edge = node->in_edge()) {
       printf("  input: %s\n", edge->rule_->name().c_str());
-      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+      for (int in = 0; in < static_cast<int>(edge->inputs_.size()); ++in) {
         const char* label = "";
         if (edge->is_implicit(in))
           label = "| ";
@@ -718,12 +718,12 @@ reload:
     g_metrics->Report();
 
     printf("\n");
-    int count = (int)globals.state->paths_.size();
+    int count = static_cast<int>(globals.state->paths_.size());
     int buckets =
 #ifdef _MSC_VER
-        (int)globals.state->paths_.comp.bucket_size;
+        static_cast<int>(globals.state->paths_.comp.bucket_size);
 #else
-        (int)globals.state->paths_.bucket_count();
+        static_cast<int>(globals.state->paths_.bucket_count());
 #endif
     printf("path->node hash load %.2f (%d entries / %d buckets)\n",
            count / (double) buckets, count, buckets);
