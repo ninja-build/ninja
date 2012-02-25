@@ -212,8 +212,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
     }
 #else
     const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
-    if (to_print.size() + kMargin > static_cast<size_t>(csbi.dwSize.Y)) {
-      int elide_size = (csbi.dwSize.X - kMargin) / 2;
+    // Don't use the full width or console with move to next line.
+    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    if (to_print.size() + kMargin > width) {
+      int elide_size = (width - kMargin) / 2;
       to_print = to_print.substr(0, elide_size)
         + "..."
         + to_print.substr(to_print.size() - elide_size, elide_size);
@@ -231,9 +233,8 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #else
     // Clear to end of line.
     GetConsoleScreenBufferInfo(console_, &csbi);
-    for (int i = csbi.dwCursorPosition.X; i < csbi.dwSize.X - 1; ++i) {
-      printf(" ");
-    }
+    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
+    printf("%*s", num_spaces, "");
     have_blank_line_ = false;
 #endif
   } else {
