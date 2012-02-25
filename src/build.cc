@@ -77,13 +77,14 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
-  smart_terminal_ = true;
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
   setvbuf(stdout, NULL, _IONBF, 0);
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
   // Don't do anything fancy in verbose mode.
@@ -212,7 +213,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #else
     const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
     if (to_print.size() + kMargin > static_cast<size_t>(csbi.dwSize.Y)) {
-      int elide_size = (csbi.dwSize.Y - kMargin) / 2;
+      int elide_size = (csbi.dwSize.X - kMargin) / 2;
       to_print = to_print.substr(0, elide_size)
         + "..."
         + to_print.substr(to_print.size() - elide_size, elide_size);
