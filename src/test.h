@@ -45,6 +45,7 @@ struct VirtualFileSystem : public DiskInterface {
 
   // DiskInterface
   virtual TimeStamp Stat(const string& path);
+  virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err, bool binary);
   virtual int RemoveFile(const string& path);
@@ -60,6 +61,7 @@ struct VirtualFileSystem : public DiskInterface {
   typedef map<string, Entry> FileMap;
   FileMap files_;
   set<string> files_removed_;
+  set<string> files_created_;
 };
 
 struct ScopedTempDir {

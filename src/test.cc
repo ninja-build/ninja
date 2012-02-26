@@ -93,6 +93,7 @@ void VirtualFileSystem::Create(const string& path, int time,
                                const string& contents) {
   files_[path].mtime = time;
   files_[path].contents = contents;
+  files_created_.insert(path);
 }
 
 TimeStamp VirtualFileSystem::Stat(const string& path) {
@@ -100,6 +101,11 @@ TimeStamp VirtualFileSystem::Stat(const string& path) {
   if (i != files_.end())
     return i->second.mtime;
   return 0;
+}
+
+bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
+  Create(path, 0, contents);
+  return true;
 }
 
 bool VirtualFileSystem::MakeDir(const string& path) {

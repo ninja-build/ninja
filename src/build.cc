@@ -385,8 +385,8 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
         if ((*ni)->mtime() > most_recent_input)
           most_recent_input = (*ni)->mtime();
-      string command = (*ei)->EvaluateCommand();
-
+      string command = (*ei)->EvaluateCommand(true);
+      
       // Now, recompute the dirty state of each output.
       bool all_outputs_clean = true;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
@@ -530,7 +530,7 @@ Builder::~Builder() {
       for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
            ni != (*i)->outputs_.end(); ++ni)
         disk_interface_->RemoveFile((*ni)->path());
-      if (!(*i)->rule_->depfile_.empty())
+      if (!(*i)->rule_->depfile().empty())
         disk_interface_->RemoveFile((*i)->EvaluateDepFile());
     }
   }
@@ -663,6 +663,13 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*i)->path()))
       return false;
   }
+  
+  // Create response file, if needed
+  // XXX: this may also block; do we care?
+  if (edge->HasRspFile()) {
+    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent())) 
+      return false;
+  }
 
   // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
@@ -719,6 +726,10 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         status_->PlanHasTotalEdges(plan_.command_edge_count());
       }
     }
+
+    // delete the response file on success (if exists)
+    if (edge->HasRspFile()) 
+      disk_interface_->RemoveFile(edge->GetRspFile());
 
     plan_.EdgeFinished(edge);
   }

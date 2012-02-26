@@ -111,8 +111,12 @@ int Cleaner::CleanAll(bool generator) {
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
     }
+    // Remove the depfile
     if (!(*e)->rule().depfile().empty())
       Remove((*e)->EvaluateDepFile());
+    // Remove the response file
+    if ((*e)->HasRspFile()) 
+      Remove((*e)->GetRspFile());      
   }
   PrintFooter();
   return status_;
@@ -121,6 +125,8 @@ int Cleaner::CleanAll(bool generator) {
 void Cleaner::DoCleanTarget(Node* target) {
   if (target->in_edge()) {
     Remove(target->path());
+    if (target->in_edge()->HasRspFile())
+      Remove(target->in_edge()->GetRspFile());
     for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
          n != target->in_edge()->inputs_.end();
          ++n) {
@@ -181,6 +187,8 @@ void Cleaner::DoCleanRule(const Rule* rule) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
+        if ((*e)->HasRspFile()) 
+          Remove((*e)->GetRspFile());
       }
     }
   }
