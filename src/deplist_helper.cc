@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
       size_t at;
       if ((at = content.find(".c\n")) != string::npos ||
           (at = content.find(".cc\n")) != string::npos ||
+          (at = content.find(".cxx\n")) != string::npos ||
           (at = content.find(".cpp\n")) != string::npos) {
         content = content.substr(content.find("\n", at) + 1);
       }
