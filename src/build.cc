@@ -479,10 +479,6 @@ struct DryRunCommandRunner : public CommandRunner {
 Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
-  if (config.dry_run)
-    command_runner_.reset(new DryRunCommandRunner);
-  else
-    command_runner_.reset(new RealCommandRunner(config));
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
 }
@@ -539,6 +535,14 @@ bool Builder::Build(string* err) {
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
   int failures_allowed = config_.failures_allowed;
+
+  // Set up the command runner if we haven't done so already.
+  if (!command_runner_.get()) {
+    if (config_.dry_run)
+      command_runner_.reset(new DryRunCommandRunner);
+    else
+      command_runner_.reset(new RealCommandRunner(config_));
+  }
 
   // This main loop runs the entire build process.
   // It is structured like this:
