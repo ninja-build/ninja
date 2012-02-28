@@ -61,6 +61,10 @@ struct BuildStatus {
 
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
+
+#ifdef _WIN32
+  HANDLE console_;
+#endif
 };
 
 BuildStatus::BuildStatus(const BuildConfig& config)
@@ -73,12 +77,14 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
-  smart_terminal_ = false;
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
   setvbuf(stdout, NULL, _IONBF, 0);
+  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
   // Don't do anything fancy in verbose mode.
@@ -174,13 +180,24 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (to_print.empty() || force_full_command)
     to_print = edge->EvaluateCommand();
 
-  if (smart_terminal_)
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  GetConsoleScreenBufferInfo(console_, &csbi);
+#endif
+
+  if (smart_terminal_) {
+#ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
+#else
+    csbi.dwCursorPosition.X = 0;
+    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
+#endif
+  }
 
   int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
 
-#ifndef _WIN32
   if (smart_terminal_ && !force_full_command) {
+#ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
@@ -193,17 +210,33 @@ void BuildStatus::PrintStatus(Edge* edge) {
           + to_print.substr(to_print.size() - elide_size, elide_size);
       }
     }
-  }
 #else
-  NINJA_UNUSED_ARG(progress_chars);
+    const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
+    // Don't use the full width or console with move to next line.
+    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    if (to_print.size() + kMargin > width) {
+      int elide_size = (width - kMargin) / 2;
+      to_print = to_print.substr(0, elide_size)
+        + "..."
+        + to_print.substr(to_print.size() - elide_size, elide_size);
+    }
 #endif
+  }
 
   printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
+#ifndef _WIN32
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
     have_blank_line_ = false;
+#else
+    // Clear to end of line.
+    GetConsoleScreenBufferInfo(console_, &csbi);
+    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
+    printf("%*s", num_spaces, "");
+    have_blank_line_ = false;
+#endif
   } else {
     printf("\n");
   }
