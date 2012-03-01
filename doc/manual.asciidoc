@@ -498,6 +498,26 @@ aborting due to a missing input.
  This may cause the output's reverse dependencies to be removed from the
  list of pending build actions.
 
+`rspfile`
+`rspfile_content`:: if present (both), Ninja will use a response file
+  for the given command, i.e. write the selected string (`rspfile_content`)
+  to the given file (`rspfile`) before calling the command and delete
+  the file after successful execution of the command.
++
+This is particularly useful on Windows OS, where the maximal length of 
+a command line is limited and response files must be used instead.
++
+Use it like in the following example:
++
+----
+rule link
+  command = link.exe /OUT$out [usual link flags here] @$out.rsp
+  rspfile = $out.rsp
+  rspfile_content = $in
+  
+build myapp.exe: link a.obj b.obj [possibly many other .obj files]
+----
+
 Additionally, the special `$in` and `$out` variables expand to the
 space-separated list of files provided to the `build` line referencing
 this `rule`.

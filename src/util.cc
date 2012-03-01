@@ -148,6 +148,11 @@ bool CanonicalizePath(char* path, int* len, string* err) {
     src = sep + 1;
   }
 
+  if (dst == start) {
+    *err = "path canonicalizes to the empty path";
+    return false;
+  }
+
   *len = dst - start - 1;
   return true;
 }

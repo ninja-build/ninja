@@ -20,7 +20,10 @@
 #include <string>
 #include <queue>
 #include <vector>
+#include <memory>
 using namespace std;
+
+#include "exit_status.h"
 
 struct BuildLog;
 struct Edge;
@@ -87,13 +90,15 @@ struct CommandRunner {
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
   /// Wait for a command to complete.
-  virtual Edge* WaitForCommand(bool* success, string* output) = 0;
+  virtual Edge* WaitForCommand(ExitStatus* status, string* output) = 0;
+  virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
+  virtual void Abort() {}
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
   BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  swallow_failures(0) {}
+                  failures_allowed(1) {}
 
   enum Verbosity {
     NORMAL,
@@ -103,12 +108,13 @@ struct BuildConfig {
   Verbosity verbosity;
   bool dry_run;
   int parallelism;
-  int swallow_failures;
+  int failures_allowed;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config);
+  ~Builder();
 
   Node* AddTarget(const string& name, string* err);
 
@@ -130,9 +136,14 @@ struct Builder {
   const BuildConfig& config_;
   Plan plan_;
   DiskInterface* disk_interface_;
-  CommandRunner* command_runner_;
+  auto_ptr<CommandRunner> command_runner_;
   struct BuildStatus* status_;
   struct BuildLog* log_;
+
+private:
+  // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
+  Builder(const Builder &other);        // DO NOT IMPLEMENT
+  void operator=(const Builder &other); // DO NOT IMPLEMENT
 };
 
 #endif  // NINJA_BUILD_H_

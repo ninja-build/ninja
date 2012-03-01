@@ -23,10 +23,10 @@ TEST(State, Basic) {
   State state;
 
   Rule* rule = new Rule("cat");
-  rule->command_.AddText("cat ");
-  rule->command_.AddSpecial("in");
-  rule->command_.AddText(" > ");
-  rule->command_.AddSpecial("out");
+  rule->command().AddText("cat ");
+  rule->command().AddSpecial("in");
+  rule->command().AddText(" > ");
+  rule->command().AddSpecial("out");
   state.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);

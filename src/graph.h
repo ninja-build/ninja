@@ -108,9 +108,10 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
+  const EvalString& rspfile() const { return rspfile_; }
+  const EvalString& rspfile_content() const { return rspfile_content_; }
 
-  // TODO: private:
-
+ private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
 
@@ -122,6 +123,8 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString rspfile_;
+  EvalString rspfile_content_;
 };
 
 struct BuildLog;
@@ -147,9 +150,22 @@ struct Edge {
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
-  string EvaluateCommand();  // XXX move to env, take env ptr
+  /// Expand all variables in a command and return it as a string.
+  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// full contents of a response file (if applicable)
+  string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  
+  /// Does the edge use a response file?
+  bool HasRspFile();
+  
+  /// Get the path to the response file
+  string GetRspFile();
+
+  /// Get the contents of the response file
+  string GetRspFileContent();
+
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump();

@@ -97,6 +97,24 @@ TEST_F(ParserTest, IgnoreIndentedBlankLines) {
   EXPECT_EQ("1", state.bindings_.LookupVariable("variable"));
 }
 
+TEST_F(ParserTest, ResponseFiles) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat_rsp\n"
+"  command = cat $rspfile > $out\n"
+"  rspfile = $rspfile\n"
+"  rspfile_content = $in\n"
+"\n"
+"build out: cat_rsp in\n"
+"  rspfile=out.rsp\n"));
+
+  ASSERT_EQ(2u, state.rules_.size());
+  const Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("cat_rsp", rule->name());
+  EXPECT_EQ("[cat ][$rspfile][ > ][$out]", rule->command().Serialize());
+  EXPECT_EQ("[$rspfile]", rule->rspfile().Serialize());
+  EXPECT_EQ("[$in]", rule->rspfile_content().Serialize());
+}
+
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "l = one-letter-test\n"
@@ -377,11 +395,27 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
-                                  "  command = cat\nbuild $: cat foo\n",
+                                  "  command = cat\n"
+                                  "build $.: cat foo\n",
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
-              "build $: cat foo\n"
+              "build $.: cat foo\n"
               "      ^ near here"
+              , err);
+  }
+
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = cat\n"
+                                  "build $: cat foo\n",
+                                  &err));
+    EXPECT_EQ("input:3: expected ':', got newline ($ also escapes ':')\n"
+              "build $: cat foo\n"
+              "                ^ near here"
               , err);
   }
 
@@ -413,11 +447,24 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
-                                  "build $: cc bar.cc\n",
+                                  "build $.: cc bar.cc\n",
                                   &err));
     EXPECT_EQ("input:3: bad $-escape (literal $ must be written as $$)\n"
-              "build $: cc bar.cc\n"
+              "build $.: cc bar.cc\n"
               "      ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
+                                  "build $: cc bar.cc\n",
+                                  &err));
+    EXPECT_EQ("input:3: expected ':', got newline ($ also escapes ':')\n"
+              "build $: cc bar.cc\n"
+              "                  ^ near here"
               , err);
   }
 

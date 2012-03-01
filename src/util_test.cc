@@ -54,6 +54,26 @@ TEST(CanonicalizePath, PathSamples) {
   path = "./x/../foo/../../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../bar.h", path);
+
+  path = "foo/./.";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("foo", path);
+}
+
+TEST(CanonicalizePath, EmptyResult) {
+  string path;
+  string err;
+
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("empty path", err);
+
+  path = ".";
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("path canonicalizes to the empty path", err);
+
+  path = "./.";
+  EXPECT_FALSE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("path canonicalizes to the empty path", err);
 }
 
 TEST(CanonicalizePath, UpDir) {

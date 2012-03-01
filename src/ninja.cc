@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -149,7 +150,12 @@ bool RebuildManifest(State* state, const BuildConfig& config,
 
   if (manifest_builder.AlreadyUpToDate())
     return false;  // Not an error, but we didn't rebuild.
-  return manifest_builder.Build(err);
+  if (!manifest_builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  return node->dirty();
 }
 
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
@@ -224,24 +230,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
   }
   for (int i = 0; i < argc; ++i) {
     Node* node = globals->state->LookupNode(argv[i]);
-    if (node) {
-      printf("%s:\n", argv[i]);
-      if (node->in_edge()) {
-        printf("  input: %s\n", node->in_edge()->rule_->name().c_str());
-        for (vector<Node*>::iterator in = node->in_edge()->inputs_.begin();
-             in != node->in_edge()->inputs_.end(); ++in) {
-          printf("    %s\n", (*in)->path().c_str());
-        }
-      }
-      for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
-           edge != node->out_edges().end(); ++edge) {
-        printf("  output: %s\n", (*edge)->rule_->name().c_str());
-        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
-             out != (*edge)->outputs_.end(); ++out) {
-          printf("    %s\n", (*out)->path().c_str());
-        }
-      }
-    } else {
+    if (!node) {
       Node* suggestion = globals->state->SpellcheckNode(argv[i]);
       if (suggestion) {
         printf("%s unknown, did you mean %s?\n",
@@ -250,6 +239,27 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
         printf("%s unknown\n", argv[i]);
       }
       return 1;
+    }
+
+    printf("%s:\n", argv[i]);
+    if (Edge* edge = node->in_edge()) {
+      printf("  input: %s\n", edge->rule_->name().c_str());
+      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+        const char* label = "";
+        if (edge->is_implicit(in))
+          label = "| ";
+        else if (edge->is_order_only(in))
+          label = "|| ";
+        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+      }
+    }
+    printf("  outputs:\n");
+    for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+         edge != node->out_edges().end(); ++edge) {
+      for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+           out != (*edge)->outputs_.end(); ++out) {
+        printf("    %s\n", (*out)->path().c_str());
+      }
     }
   }
   return 0;
@@ -609,9 +619,10 @@ int main(int argc, char** argv) {
         if (*end != 0)
           Fatal("-k parameter not numeric; did you mean -k0?");
 
-        // We want to go until N jobs fail, which means we should ignore
-        // the first N-1 that fail and then stop.
-        globals.config.swallow_failures = value - 1;
+        // We want to go until N jobs fail, which means we should allow
+        // N failures and then stop.  For N <= 0, INT_MAX is close enough
+        // to infinite for most sane builds.
+        globals.config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'n':

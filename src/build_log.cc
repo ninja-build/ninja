@@ -15,7 +15,6 @@
 #include "build_log.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -75,7 +74,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
-  const string command = edge->EvaluateCommand();
+  string command = edge->EvaluateCommand(true);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();

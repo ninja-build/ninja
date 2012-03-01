@@ -22,25 +22,32 @@ using namespace std;
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <signal.h>
 #endif
+
+#include "exit_status.h"
 
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
 /// is true.
 struct Subprocess {
-  Subprocess();
   ~Subprocess();
-  bool Start(struct SubprocessSet* set, const string& command);
-  void OnPipeReady();
-  /// Returns true on successful process exit.
-  bool Finish();
+
+  /// Returns ExitSuccess on successful process exit, ExitInterrupted if
+  /// the process was interrupted, ExitFailure if it otherwise failed.
+  ExitStatus Finish();
 
   bool Done() const;
 
   const string& GetOutput() const;
 
  private:
+  Subprocess();
+  bool Start(struct SubprocessSet* set, const string& command);
+  void OnPipeReady();
+
   string buf_;
 
 #ifdef _WIN32
@@ -52,6 +59,7 @@ struct Subprocess {
   HANDLE pipe_;
   OVERLAPPED overlapped_;
   char overlapped_buf_[4 << 10];
+  bool is_reading_;
 #else
   int fd_;
   pid_t pid_;
@@ -60,22 +68,30 @@ struct Subprocess {
   friend struct SubprocessSet;
 };
 
-/// SubprocessSet runs a poll() loop around a set of Subprocesses.
+/// SubprocessSet runs a pselect() loop around a set of Subprocesses.
 /// DoWork() waits for any state change in subprocesses; finished_
 /// is a queue of subprocesses as they finish.
 struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  void Add(Subprocess* subprocess);
-  void DoWork();
+  Subprocess *Add(const string &command);
+  bool DoWork();
   Subprocess* NextFinished();
+  void Clear();
 
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 
 #ifdef _WIN32
-  HANDLE ioport_;
+  static BOOL WINAPI NotifyInterrupted(DWORD dwCtrlType);
+  static HANDLE ioport_;
+#else
+  static void SetInterruptedFlag(int signum);
+  static bool interrupted_;
+
+  struct sigaction old_act_;
+  sigset_t old_mask_;
 #endif
 };
 

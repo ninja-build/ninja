@@ -121,12 +121,19 @@ bool ManifestParser::ParseRule(string* err) {
       rule->generator_ = true;
     } else if (key == "restat") {
       rule->restat_ = true;
+    } else if (key == "rspfile") {
+      rule->rspfile_ = value;
+    } else if (key == "rspfile_content") {
+      rule->rspfile_content_ = value;
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
       return lexer_.Error("unexpected variable '" + key + "'", err);
     }
   }
+
+  if (rule->rspfile_.empty() != rule->rspfile_content_.empty())
+    return lexer_.Error("rspfile and rspfile_content need to be both specified", err);
 
   if (rule->command_.empty())
     return lexer_.Error("expected 'command =' line", err);
@@ -313,6 +320,7 @@ bool ManifestParser::ExpectToken(Lexer::Token expected, string* err) {
   if (token != expected) {
     string message = string("expected ") + Lexer::TokenName(expected);
     message += string(", got ") + Lexer::TokenName(token);
+    message += Lexer::TokenErrorHint(expected);
     return lexer_.Error(message, err);
   }
   return true;

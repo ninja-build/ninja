@@ -19,11 +19,11 @@
 #include "graph.h"
 
 void GraphViz::AddTarget(Node* node) {
-  if (visited_.find(node) != visited_.end())
+  if (visited_nodes_.find(node) != visited_nodes_.end())
     return;
 
   printf("\"%p\" [label=\"%s\"]\n", node, node->path().c_str());
-  visited_.insert(node);
+  visited_nodes_.insert(node);
 
   Edge* edge = node->in_edge();
 
@@ -32,6 +32,10 @@ void GraphViz::AddTarget(Node* node) {
     // Draw as a rect?
     return;
   }
+
+  if (visited_edges_.find(edge) != visited_edges_.end())
+    return;
+  visited_edges_.insert(edge);
 
   if (edge->inputs_.size() == 1 && edge->outputs_.size() == 1) {
     // Can draw simply.
@@ -63,6 +67,7 @@ void GraphViz::AddTarget(Node* node) {
 
 void GraphViz::Start() {
   printf("digraph ninja {\n");
+  printf("rankdir=\"LR\"\n");
   printf("node [fontsize=10, shape=box, height=0.25]\n");
   printf("edge [fontsize=10]\n");
 }
