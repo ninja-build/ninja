@@ -521,16 +521,31 @@ Builder::Builder(State* state, const BuildConfig& config)
 }
 
 Builder::~Builder() {
+  Cleanup();
+}
+
+void Builder::Cleanup() {
   if (command_runner_.get()) {
     vector<Edge*> active_edges = command_runner_->GetActiveEdges();
     command_runner_->Abort();
 
     for (vector<Edge*>::iterator i = active_edges.begin();
          i != active_edges.end(); ++i) {
+      bool has_depfile = !(*i)->rule_->depfile().empty();
       for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
-           ni != (*i)->outputs_.end(); ++ni)
-        disk_interface_->RemoveFile((*ni)->path());
-      if (!(*i)->rule_->depfile().empty())
+           ni != (*i)->outputs_.end(); ++ni) {
+        // Only delete this output if it was actually modified.  This is
+        // important for things like the generator where we don't want to
+        // delete the manifest file if we can avoid it.  But if the rule
+        // uses a depfile, always delete.  (Consider the case where we
+        // need to rebuild an output because of a modified header file
+        // mentioned in a depfile, and the command touches its depfile
+        // but is interrupted before it touches its output file.)
+        if (has_depfile ||
+            (*ni)->mtime() != disk_interface_->Stat((*ni)->path()))
+          disk_interface_->RemoveFile((*ni)->path());
+      }
+      if (has_depfile)
         disk_interface_->RemoveFile((*i)->EvaluateDepFile());
     }
   }
