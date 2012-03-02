@@ -202,6 +202,8 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual vector<Edge*> GetActiveEdges(); 
+  virtual void Abort(); 
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -240,13 +242,15 @@ bool BuildTest::StartCommand(Edge* edge) {
   if (edge->rule().name() == "cat"  ||
       edge->rule().name() == "cat_rsp" ||
       edge->rule().name() == "cc" ||
-      edge->rule().name() == "touch") {
+      edge->rule().name() == "touch" ||
+      edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->path(), now_, "");
     }
   } else if (edge->rule().name() == "true" ||
-             edge->rule().name() == "fail") {
+             edge->rule().name() == "fail" ||
+             edge->rule().name() == "interrupt") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -259,6 +263,12 @@ bool BuildTest::StartCommand(Edge* edge) {
 
 Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   if (Edge* edge = last_command_) {
+    if (edge->rule().name() == "interrupt" ||
+        edge->rule().name() == "touch-interrupt") {
+      *status = ExitInterrupted;
+      return NULL;
+    }
+
     if (edge->rule().name() == "fail")
       *status = ExitFailure;
     else
@@ -268,6 +278,17 @@ Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   }
   *status = ExitFailure;
   return NULL;
+}
+
+vector<Edge*> BuildTest::GetActiveEdges() {
+  vector<Edge*> edges;
+  if (last_command_)
+    edges.push_back(last_command_);
+  return edges;
+}
+
+void BuildTest::Abort() {
+  last_command_ = NULL;
 }
 
 TEST_F(BuildTest, NoWork) {
@@ -940,4 +961,38 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ(1, commands_ran_.size());
+}
+
+TEST_F(BuildTest, InterruptCleanup) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule interrupt\n"
+"  command = interrupt\n"
+"rule touch-interrupt\n"
+"  command = touch-interrupt\n"
+"build out1: interrupt in1\n"
+"build out2: touch-interrupt in2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  now_++;
+  fs_.Create("in1", now_, "");
+  fs_.Create("in2", now_, "");
+
+  // An untouched output of an interrupted command should be retained.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("interrupted by user", err);
+  builder_.Cleanup();
+  EXPECT_EQ(now_-1, fs_.Stat("out1"));
+  err = "";
+
+  // A touched output of an interrupted command should be deleted.
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("interrupted by user", err);
+  builder_.Cleanup();
+  EXPECT_EQ(0, fs_.Stat("out2"));
 }
