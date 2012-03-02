@@ -20,6 +20,7 @@
 
 #include "build.h"
 #include "graph.h"
+#include "state.h"
 #include "util.h"
 
 // Implementation details:
@@ -47,7 +48,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   if (config_ && config_->dry_run)
     return true;  // Do nothing, report success.
 
-  if (needs_recompaction_) {
+  if (needs_recompaction_ || !trash_.empty()) {
     Close();
     if (!Recompact(path, err))
       return false;
@@ -84,6 +85,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     } else {
       log_entry = new LogEntry;
       log_entry->output = path;
+      log_entry->seen = true;
       log_.insert(Log::value_type(log_entry->output, log_entry));
     }
     log_entry->command = command;
@@ -168,6 +170,7 @@ bool BuildLog::Load(const string& path, string* err) {
     } else {
       entry = new LogEntry;
       entry->output = output;
+      entry->seen = false;
       log_.insert(Log::value_type(entry->output, entry));
       ++unique_entry_count;
     }
@@ -212,6 +215,11 @@ void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
 bool BuildLog::Recompact(const string& path, string* err) {
   printf("Recompacting log...\n");
 
+  for (vector<string>::const_iterator i = trash().begin();
+       i != trash().end(); ++i) {
+    log_.erase(log_.find(i->c_str()));
+  }
+
   string temp_path = path + ".recompact";
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
@@ -239,5 +247,26 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
+  trash_.clear();
   return true;
+}
+
+void BuildLog::MarkSeen(State* state) {
+  for (vector<Edge*>::iterator i = state->edges_.begin();
+       i != state->edges_.end(); ++i) {
+    for (vector<Node*>::iterator n = (*i)->outputs_.begin();
+         n != (*i)->outputs_.end(); ++n) {
+      LogEntry *entry = LookupByOutput((*n)->path());
+      if (entry) {
+        entry->seen = true;
+      }
+    }
+  }
+
+  trash_.clear();
+  for (BuildLog::Log::iterator i = log_.begin(); i != log_.end(); ++i) {
+    if (!(i->second->seen)) {
+      trash_.push_back(i->first.AsString());
+    }
+  }
 }

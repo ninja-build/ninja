@@ -25,6 +25,7 @@ using namespace std;
 
 struct BuildConfig;
 struct Edge;
+struct State;
 
 /// Store a log of every command ran for every build.
 /// It has a few uses:
@@ -53,6 +54,7 @@ struct BuildLog {
     int start_time;
     int end_time;
     TimeStamp restat_mtime;
+    bool seen;
 
     // Used by tests.
     bool operator==(const LogEntry& o) {
@@ -71,6 +73,10 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
+  void MarkSeen(State* state);
+
+  const vector<string>& trash() const { return trash_; }
+
   // TODO: make these private.
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
   Log log_;
@@ -78,6 +84,7 @@ private:
   FILE* log_file_;
   BuildConfig* config_;
   bool needs_recompaction_;
+  vector<string> trash_;
 };
 
 #endif // NINJA_BUILD_LOG_H_

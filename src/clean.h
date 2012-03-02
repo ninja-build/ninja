@@ -27,6 +27,7 @@ struct State;
 struct Node;
 struct Rule;
 struct DiskInterface;
+struct BuildLog;
 
 class Cleaner {
  public:
@@ -48,6 +49,10 @@ class Cleaner {
   /// Clean the given target @a targets.
   /// @return non-zero if an error occurs.
   int CleanTargets(int target_count, char* targets[]);
+
+  /// Cleans abandoned targets from the build log
+  /// @return non-zero if an error occurs.
+  int CleanTrash(BuildLog *log);
 
   /// Clean all built files, except for files created by generator rules.
   /// @param generator If set, also clean files created by generator rules.

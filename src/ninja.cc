@@ -724,6 +724,11 @@ reload:
     return 1;
   }
 
+  {
+    Cleaner cleaner(globals.state, globals.config);
+    cleaner.CleanTrash(&build_log);
+  }
+
   if (!build_log.OpenForWrite(log_path.c_str(), &err)) {
     Error("opening build log: %s", err.c_str());
     return 1;
