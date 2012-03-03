@@ -479,6 +479,18 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex();
+  return 0;
+}
+
+int ToolDeps(Globals* globals, int argc, char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    globals->state->depdb_->DumpDeps(argv[i]);
+  }
+  return 0;
+}
+
 int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   typedef int (*ToolFunc)(Globals*, int, char**);
   struct Tool {
@@ -494,6 +506,10 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       ToolCommands },
+    { "depindex", "list all files indexed in the depdb",
+      ToolDepIndex },
+    { "deps", "list dependencies stored in the depdb for given files",
+      ToolDeps },
     { "graph", "output graphviz dot file for targets",
       ToolGraph },
     { "query", "show inputs/outputs for a path",
@@ -672,9 +688,6 @@ reload:
     return 1;
   }
 
-  if (!tool.empty())
-    return RunTool(tool, &globals, argc, argv);
-
   BuildLog build_log;
   build_log.SetConfig(&globals.config);
   globals.state->build_log_ = &build_log;
@@ -708,6 +721,10 @@ reload:
     depdb_path = build_dir + "/" + kDepDbPath;
   }
   DepDatabase depdb(depdb_path, true);
+  globals.state->depdb_ = &depdb;
+
+  if (!tool.empty())
+    return RunTool(tool, &globals, argc, argv);
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.

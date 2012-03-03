@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "dep_database.h"
 #include "string_piece.h"
 
 namespace {
@@ -46,10 +47,6 @@ int16_t ReadInt16(const char** in) {
 void WriteUint16(char **out, uint16_t value) {
   memcpy(*out, &value, 2);
   *out += 2;
-}
-
-void EnsureCanonicalized(const string& filename) {
-  // TODO(scottmg)
 }
 
 }  // anonymous namespace
@@ -80,9 +77,10 @@ bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
 
 #ifdef _WIN32
 // static
-const char *Deplist::WriteServer(const string& filename,
-                          const vector<StringPiece>& entries) {
-#ifdef DEBUG
+const char *Deplist::WriteDatabase(DepDatabase& depdb,
+                                   const string& filename,
+                                   const vector<StringPiece>& entries) {
+#if 0 // TODO
   EnsureCanonicalized(filename);
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i) {
@@ -90,17 +88,8 @@ const char *Deplist::WriteServer(const string& filename,
   }
 #endif
 
-  const char* pipe_name = "\\\\.\\pipe\\ninjadeps";
-  HANDLE pipe = CreateFile(pipe_name, GENERIC_READ | GENERIC_WRITE,
-                           0, NULL, OPEN_EXISTING, 0, NULL);
-  if (pipe == INVALID_HANDLE_VALUE)
-    return "CreateFile";
-
-  DWORD mode = PIPE_READMODE_MESSAGE;
-  if (!SetNamedPipeHandleState(pipe, &mode, NULL, NULL))
-    return "SetNamedPipeHandleState";
-
-  size_t data_size = 4;
+  // Serialize to memory.
+  size_t data_size = 2;
   data_size += entries.size() * 2;
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i)
@@ -108,7 +97,6 @@ const char *Deplist::WriteServer(const string& filename,
 
   char* data = new char[data_size];
   char* out = data;
-  WriteUint16(&out, kVersion); // Probably unnecessary, but makes Load simpler.
   WriteUint16(&out, static_cast<uint16_t>(entries.size()));
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i) {
@@ -120,14 +108,24 @@ const char *Deplist::WriteServer(const string& filename,
     out += i->len_;
   }
 
-  DWORD num_written = 0;
-  BOOL success = WriteFile(pipe, data, data_size, &num_written, NULL);
+  depdb.InsertOrUpdateDepData(filename, data, data_size);
   delete[] data;
-  if (!success || num_written != data_size)
-    return "WriteFile";
-
-  CloseHandle(pipe);
   return 0;
+}
+//
+// static
+bool Deplist::Load2(StringPiece input, vector<StringPiece>* entries,
+                   string* err) {
+  const char* in = input.str_;
+  int16_t count = ReadInt16(&in);
+  const char* strings = in + (count * 2);
+  entries->resize(count);
+  for (int i = 0; i < count; ++i) {
+    int16_t len = ReadInt16(&in);
+    (*entries)[i] = StringPiece(strings, len);
+    strings += len;
+  }
+  return true;
 }
 #endif
 
@@ -138,7 +136,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   const char* end = input.str_ + input.len_;
 
   if (end - in < 2 * 2) {
-    *err = "unexpected EOF";
+    *err = "unexpected EOF 0";
     return false;
   }
 
@@ -150,7 +148,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   int16_t count = ReadInt16(&in);
 
   if (end - in < count * 2) {
-    *err = "unexpected EOF";
+    *err = "unexpected EOF 1";
     return false;
   }
   const char* strings = in + (count * 2);
@@ -163,7 +161,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   }
 
   if (strings > end) {
-    *err = "unexpected EOF";
+    *err = "unexpected EOF 2";
     return false;
   }
 

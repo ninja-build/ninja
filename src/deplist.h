@@ -17,6 +17,7 @@
 using namespace std;
 
 struct StringPiece;
+struct DepDatabase;
 
 /// Deplists are a fast serialization of lists of files, used for tracking
 /// extra inputs quickly.  See the .cc file for a description of the format.
@@ -27,10 +28,14 @@ struct Deplist {
   static bool Write(FILE* file, const vector<StringPiece>& entries);
 
 #ifdef _WIN32
-  /// Write a list of string to the pipe server that parent ninja process
-  /// maintains. Returns error string on error, on NULL on success.
-  static const char *WriteServer(const string& filename,
-                                 const vector<StringPiece>& entries);
+  /// Write a list of strings to the DepDatabase.
+  /// Returns error string on error, on NULL on success.
+  static const char *WriteDatabase(DepDatabase& depdb,
+                                   const string& filename,
+                                   const vector<StringPiece>& entries);
+
+  static bool Load2(StringPiece input, vector<StringPiece>* entries,
+                    string* err);
 #endif
 
   /// Parse a list of strings from \a input.  Returned entries are

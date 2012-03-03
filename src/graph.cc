@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "dep_database.h"
 #include "depfile_parser.h"
 #include "deplist.h"
 #include "disk_interface.h"
@@ -42,6 +43,9 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       return false;
   } else if (!rule_->deplist().empty()) {
     if (!LoadDepList(state, disk_interface, err))
+      return false;
+  } else if (!rule_->depdb().empty()) {
+    if (!LoadDepDb(state, err))
       return false;
   }
 
@@ -340,6 +344,32 @@ bool Edge::LoadDepList(State* state, DiskInterface* disk_interface,
 
   vector<StringPiece> deps;
   if (!Deplist::Load(content, &deps, err))
+    return false;
+
+  inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);
+  implicit_deps_ += deps.size();
+  vector<Node*>::iterator implicit_dep =
+    inputs_.end() - order_only_deps_ - deps.size();
+
+  // Add all its in-edges.
+  for (vector<StringPiece>::iterator i = deps.begin();
+       i != deps.end(); ++i, ++implicit_dep) {
+    *implicit_dep = GetDepNode(state, *i);
+  }
+
+  return true;
+}
+
+bool Edge::LoadDepDb(State* state, string* err) {
+  METRIC_RECORD("depdb load");
+
+  EdgeEnv env(this);
+  string path = rule_->depdb().Evaluate(&env);
+  const char* data = state->depdb_->FindDepData(path);
+  if (!data) // Empty.
+    return true;
+  vector<StringPiece> deps;
+  if (!Deplist::Load2(data, &deps, err))
     return false;
 
   inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);

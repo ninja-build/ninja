@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include "dep_database.h"
 #include "depfile_parser.h"
 #include "showincludes_parser.h"
 #include "util.h"
@@ -40,7 +41,7 @@ void Usage() {
 "               cl   MSVC cl.exe /showIncludes output\n"
 "  -q         suppress first line of output in cl mode. this will be the file\n"
 "             being compiled when /nologo is used.\n"
-"  -s         write to ninja pipe server instead of to file (default: false)\n"
+"  -d FILE    write to database FILE instead of individual file\n"
 "             requires -o to specify target index name\n"
 "  -o FILE    write output to FILE (default: stdout)\n"
          );
@@ -55,16 +56,16 @@ enum InputFormat {
 
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
+  const char* db_filename = NULL;
   InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
-  bool server = false;
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:o:hqs", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:hqd:", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         string format = optarg;
@@ -82,8 +83,8 @@ int main(int argc, char** argv) {
       case 'q':
         quiet = true;
         break;
-      case 's':
-        server = true;
+      case 'd':
+        db_filename = optarg;
         break;
       case 'h':
       default:
@@ -135,14 +136,11 @@ int main(int argc, char** argv) {
     break;
   }
 
-  if (server) {
-    if (!output_filename) {
-      Fatal("-s requires -o");
-    }
-    const char* err = Deplist::WriteServer(output_filename, depfile.ins_);
-    if (err) {
-      Fatal("writing to pipe server (%s).\n", err);
-    }
+  if (db_filename) {
+    if (!output_filename)
+      Fatal("-d requires -o");
+    DepDatabase depdb(db_filename, false);
+    Deplist::WriteDatabase(depdb, output_filename, depfile.ins_);
   } else {
     // Open/write/close output file.
     FILE* output = stdout;

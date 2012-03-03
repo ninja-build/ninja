@@ -109,6 +109,7 @@ struct Rule {
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
   const EvalString& deplist() const { return deplist_; }
+  const EvalString& depdb() const { return depdb_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
 
@@ -125,6 +126,7 @@ struct Rule {
   EvalString description_;
   EvalString depfile_;
   EvalString deplist_;
+  EvalString depdb_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };
@@ -172,6 +174,7 @@ struct Edge {
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
   bool LoadDepList(State* state, DiskInterface* disk_interface, string* err);
+  bool LoadDepDb(State* state, string* err);
 
   void Dump();
 

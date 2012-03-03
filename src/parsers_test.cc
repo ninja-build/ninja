@@ -82,6 +82,15 @@ TEST_F(ParserTest, RuleAttributes) {
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"));
+
+  // The same, with s/depfile/deplist/.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat3\n"
+"  command = a\n"
+"  depdb = a\n"
+"  description = a\n"
+"  generator = a\n"
+"  restat = a\n"));
 }
 
 TEST_F(ParserTest, IgnoreIndentedComments) {
@@ -404,7 +413,7 @@ TEST_F(ParserTest, Errors) {
                                   "  depfile = a\n"
                                   "  deplist = b\n",
                                   &err));
-    EXPECT_EQ("input:5: cannot specify both deplist and depfile\n", err);
+    EXPECT_EQ("input:5: can only specify one of depfile, deplist, or depdb\n", err);
   }
 
   {
