@@ -163,7 +163,7 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
     DbData* view = GetView();
     DepIndex* end = &view->index[view->index_entries];
     DepIndex value;
-    strcpy(value.path, filename.c_str());
+    strcpy(value.path, file.c_str());
     DepIndex* i = lower_bound(view->index, end, value, PathCompare);
     bool changed = false;
     if (i == end ||
@@ -190,7 +190,7 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         // We're inserting, not updating. Add to the index.
         DepIndex* elem = &view->index[view->index_entries++];
         // TODO: max entries
-        strcpy(elem->path, filename.c_str());
+        strcpy(elem->path, file.c_str());
         elem->offset = inserted_offset;
 
         // TODO: defer sort until necessary (next lookup?)
