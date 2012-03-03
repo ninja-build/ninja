@@ -71,10 +71,11 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
-  // TODO: make these private.
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
+  Log log() const { return log_; }
+
+ private:
   Log log_;
-private:
   FILE* log_file_;
   BuildConfig* config_;
   bool needs_recompaction_;
