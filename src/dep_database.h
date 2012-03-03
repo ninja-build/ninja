@@ -49,6 +49,7 @@ private:
   DbData* GetView() const;
   char* GetDataAt(int offset) const;
   
+  void IncreaseFileSize();
   void SetEmptyData();
 
   // Global mutex for entire structure.
@@ -57,4 +58,5 @@ private:
   HANDLE file_;
   HANDLE file_mapping_;
   void* view_;
+  int size_;
 };

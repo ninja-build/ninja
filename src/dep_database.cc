@@ -72,6 +72,8 @@ struct DbData {
 };
 #pragma pack(pop)
 
+enum { kInitialSize = 50000000 };
+
 DepDatabase::DepDatabase(const string& filename, bool create) {
   static const char* const mutex_name = "ninja_dep_database_mutex";
   if (create)
@@ -92,16 +94,11 @@ DepDatabase::DepDatabase(const string& filename, bool create) {
   if (file_ == INVALID_HANDLE_VALUE)
     Fatal("Couldn't CreateFile (%d)", GetLastError());
 
-  DWORD size = GetFileSize(file_, NULL);
+  size_ = static_cast<int>(GetFileSize(file_, NULL));
   bool initialize = false;
-  if (size == 0) {
-    // TODO random size
-    if (SetFilePointer(file_, 100000000, NULL, FILE_BEGIN) ==
-        INVALID_SET_FILE_POINTER)
-      Fatal("SetFilePointer (%d)", GetLastError());
-    if (!SetEndOfFile(file_))
-      Fatal("SetEndOfFile (%d)", GetLastError());
+  if (size_ == 0) {
     initialize = true;
+    IncreaseFileSize();
   }
 
   file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
@@ -111,9 +108,8 @@ DepDatabase::DepDatabase(const string& filename, bool create) {
   if (!view_)
     Fatal("Couldn't MapViewOfFile (%d)", GetLastError());
 
-  if (initialize) {
+  if (initialize)
     SetEmptyData();
-  }
 
   // On CreateMutex, we acquire initial ownership so we can create the empty
   // file if necessary.
@@ -178,6 +174,9 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         (changed = memcmp(GetDataAt(i->offset), data, size)) != 0) {
       // Don't already have it, or the deps have changed.
 
+      while (view->dep_insert_offset + size > size_) {
+        IncreaseFileSize();
+      }
       // Append the new data.
       int inserted_offset = view->dep_insert_offset;
       char* insert_at = GetDataAt(view->dep_insert_offset);
@@ -188,6 +187,9 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         // Updating, just point the old entry at the new data.
         i->offset = inserted_offset;
       } else {
+        if (view->index_entries >= view->max_index_entries) {
+          Fatal("need to grow index: %d entries", view->index_entries);
+        }
         // We're inserting, not updating. Add to the index.
         DepIndex* elem = &view->index[view->index_entries++];
         // TODO: max entries
@@ -218,6 +220,18 @@ DbData* DepDatabase::GetView() const {
 
 char* DepDatabase::GetDataAt(int offset) const {
   return reinterpret_cast<char*>(view_) + offset;
+}
+
+void DepDatabase::IncreaseFileSize() {
+  int target_size = size_ == 0 ? kInitialSize : size_ * 2;
+  if (SetFilePointer(file_, target_size, NULL, FILE_BEGIN) ==
+      INVALID_SET_FILE_POINTER)
+    Fatal("SetFilePointer (%d)", GetLastError());
+  if (!SetEndOfFile(file_))
+    Fatal("SetEndOfFile (%d)", GetLastError());
+  size_ = static_cast<int>(GetFileSize(file_, NULL));
+  if (size_ != target_size)
+    Fatal("deps database file resize failed");
 }
 
 void DepDatabase::SetEmptyData() {
