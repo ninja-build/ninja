@@ -40,6 +40,8 @@ void Usage() {
 "               cl   MSVC cl.exe /showIncludes output\n"
 "  -q         suppress first line of output in cl mode. this will be the file\n"
 "             being compiled when /nologo is used.\n"
+"  -s         write to ninja pipe server instead of to file (default: false)\n"
+"             requires -o to specify target index name\n"
 "  -o FILE    write output to FILE (default: stdout)\n"
          );
 }
@@ -55,13 +57,14 @@ int main(int argc, char** argv) {
   const char* output_filename = NULL;
   InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
+  bool server = false;
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:o:hq", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:hqs", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         string format = optarg;
@@ -78,6 +81,9 @@ int main(int argc, char** argv) {
         break;
       case 'q':
         quiet = true;
+        break;
+      case 's':
+        server = true;
         break;
       case 'h':
       default:
@@ -129,18 +135,28 @@ int main(int argc, char** argv) {
     break;
   }
 
-  // Open/write/close output file.
-  FILE* output = stdout;
-  if (output_filename) {
-    output = fopen(output_filename, "wb");
-    if (!output)
-      Fatal("opening %s: %s", output_filename, strerror(errno));
-  }
-  if (!Deplist::Write(output, depfile.ins_))
-    Fatal("error writing %s");
-  if (output_filename) {
-    if (fclose(output) < 0)
-      Fatal("fclose(%s): %s", output_filename, strerror(errno));
+  if (server) {
+    if (!output_filename) {
+      Fatal("-s requires -o");
+    }
+    const char* err = Deplist::WriteServer(output_filename, depfile.ins_);
+    if (err) {
+      Fatal("writing to pipe server (%s).\n", err);
+    }
+  } else {
+    // Open/write/close output file.
+    FILE* output = stdout;
+    if (output_filename) {
+      output = fopen(output_filename, "wb");
+      if (!output)
+        Fatal("opening %s: %s", output_filename, strerror(errno));
+    }
+    if (!Deplist::Write(output, depfile.ins_))
+      Fatal("error writing %s");
+    if (output_filename) {
+      if (fclose(output) < 0)
+        Fatal("fclose(%s): %s", output_filename, strerror(errno));
+    }
   }
 
   return 0;

@@ -17,6 +17,7 @@
 #ifndef _MSC_VER
 #include <stdint.h>
 #else
+#include <windows.h>
 #include "util.h"
 #endif
 #include <stdio.h>
@@ -39,6 +40,16 @@ int16_t ReadInt16(const char** in) {
   memcpy(&out, *in, 2);
   *in += 2;
   return out;
+}
+
+/// Write a 16-bit native-byte-order integer to *out and advance *out past it.
+void WriteUint16(char **out, uint16_t value) {
+  memcpy(*out, &value, 2);
+  *out += 2;
+}
+
+void EnsureCanonicalized(const string& filename) {
+  // TODO(scottmg)
 }
 
 }  // anonymous namespace
@@ -66,6 +77,59 @@ bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
   }
   return true;
 }
+
+#ifdef _WIN32
+// static
+const char *Deplist::WriteServer(const string& filename,
+                          const vector<StringPiece>& entries) {
+#ifdef DEBUG
+  EnsureCanonicalized(filename);
+  for (vector<StringPiece>::const_iterator i = entries.begin();
+       i != entries.end(); ++i) {
+    EnsureCanonicalized(string(i->str_, i->len_));
+  }
+#endif
+
+  const char* pipe_name = "\\\\.\\pipe\\ninjadeps";
+  HANDLE pipe = CreateFile(pipe_name, GENERIC_READ | GENERIC_WRITE,
+                           0, NULL, OPEN_EXISTING, 0, NULL);
+  if (pipe == INVALID_HANDLE_VALUE)
+    return "CreateFile";
+
+  DWORD mode = PIPE_READMODE_MESSAGE;
+  if (!SetNamedPipeHandleState(pipe, &mode, NULL, NULL))
+    return "SetNamedPipeHandleState";
+
+  size_t data_size = 4;
+  data_size += entries.size() * 2;
+  for (vector<StringPiece>::const_iterator i = entries.begin();
+       i != entries.end(); ++i)
+    data_size += i->len_;
+
+  char* data = new char[data_size];
+  char* out = data;
+  WriteUint16(&out, kVersion); // Probably unnecessary, but makes Load simpler.
+  WriteUint16(&out, static_cast<uint16_t>(entries.size()));
+  for (vector<StringPiece>::const_iterator i = entries.begin();
+       i != entries.end(); ++i) {
+    WriteUint16(&out, static_cast<uint16_t>(i->len_));
+  }
+  for (vector<StringPiece>::const_iterator i = entries.begin();
+       i != entries.end(); ++i) {
+    memcpy(out, i->str_, i->len_);
+    out += i->len_;
+  }
+
+  DWORD num_written = 0;
+  BOOL success = WriteFile(pipe, data, data_size, &num_written, NULL);
+  delete[] data;
+  if (!success || num_written != data_size)
+    return "WriteFile";
+
+  CloseHandle(pipe);
+  return 0;
+}
+#endif
 
 // static
 bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,

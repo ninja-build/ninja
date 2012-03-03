@@ -26,6 +26,13 @@ struct Deplist {
   /// Returns false on error.
   static bool Write(FILE* file, const vector<StringPiece>& entries);
 
+#ifdef _WIN32
+  /// Write a list of string to the pipe server that parent ninja process
+  /// maintains. Returns error string on error, on NULL on success.
+  static const char *WriteServer(const string& filename,
+                                 const vector<StringPiece>& entries);
+#endif
+
   /// Parse a list of strings from \a input.  Returned entries are
   /// pointers within \a input.
   /// Returns false and fills in \a err on error.

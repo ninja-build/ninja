@@ -37,6 +37,7 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "dep_database.h"
 #include "edit_distance.h"
 #include "graph.h"
 #include "graphviz.h"
@@ -700,6 +701,13 @@ reload:
     Error("opening build log: %s", err.c_str());
     return 1;
   }
+
+  const char* kDepDbPath = ".ninja_depdb";
+  string depdb_path = kDepDbPath;
+  if (!build_dir.empty()) {
+    depdb_path = build_dir + "/" + kDepDbPath;
+  }
+  DepDatabase depdb(depdb_path, true);
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
