@@ -49,6 +49,7 @@
 
 #include "dep_database.h"
 #include "deplist.h"
+#include "metrics.h"
 #include "string_piece.h"
 #include "util.h"
 
@@ -74,7 +75,9 @@ struct DbData {
 
 enum { kInitialSize = 50000000 };
 
-DepDatabase::DepDatabase(const string& filename, bool create) {
+DepDatabase::DepDatabase(const string& filename, bool create) :
+    view_(0),
+    file_mapping_(0) {
   static const char* const mutex_name = "ninja_dep_database_mutex";
   if (create)
     lock_ = CreateMutex(NULL, TRUE, mutex_name);
@@ -101,12 +104,7 @@ DepDatabase::DepDatabase(const string& filename, bool create) {
     IncreaseFileSize();
   }
 
-  file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
-  if (!file_mapping_)
-    Fatal("Couldn't CreateFileMapping (%d)", GetLastError());
-  view_ = MapViewOfFile(file_mapping_, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
-  if (!view_)
-    Fatal("Couldn't MapViewOfFile (%d)", GetLastError());
+  MapFile();
 
   if (initialize)
     SetEmptyData();
@@ -118,8 +116,7 @@ DepDatabase::DepDatabase(const string& filename, bool create) {
 }
 
 DepDatabase::~DepDatabase() {
-  UnmapViewOfFile(view_);
-  CloseHandle(file_mapping_);
+  UnmapFile();
   CloseHandle(file_);
   CloseHandle(lock_);
 }
@@ -223,6 +220,7 @@ char* DepDatabase::GetDataAt(int offset) const {
 }
 
 void DepDatabase::IncreaseFileSize() {
+  UnmapFile();
   int target_size = size_ == 0 ? kInitialSize : size_ * 2;
   if (SetFilePointer(file_, target_size, NULL, FILE_BEGIN) ==
       INVALID_SET_FILE_POINTER)
@@ -232,6 +230,23 @@ void DepDatabase::IncreaseFileSize() {
   size_ = static_cast<int>(GetFileSize(file_, NULL));
   if (size_ != target_size)
     Fatal("deps database file resize failed");
+  MapFile();
+}
+
+void DepDatabase::UnmapFile() {
+  if (view_)
+    UnmapViewOfFile(view_);
+  if (file_mapping_)
+    CloseHandle(file_mapping_);
+}
+
+void DepDatabase::MapFile() {
+  file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
+  if (!file_mapping_)
+    Fatal("Couldn't CreateFileMapping (%d)", GetLastError());
+  view_ = MapViewOfFile(file_mapping_, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
+  if (!view_)
+    Fatal("Couldn't MapViewOfFile (%d)", GetLastError());
 }
 
 void DepDatabase::SetEmptyData() {

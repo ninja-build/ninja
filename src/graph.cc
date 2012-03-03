@@ -231,7 +231,7 @@ string Edge::GetDescription() {
 }
 
 Node* Edge::GetDepNode(State* state, StringPiece path) {
-  Node* node = state->GetNode(path.AsString());  // XXX remove conversion
+  Node* node = state->GetNode(path);  // XXX remove conversion
   node->AddOutEdge(this);
 
   // If we don't have a edge that generates this input already,
@@ -354,7 +354,26 @@ bool Edge::LoadDepList(State* state, DiskInterface* disk_interface,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = deps.begin();
        i != deps.end(); ++i, ++implicit_dep) {
-    *implicit_dep = GetDepNode(state, *i);
+    Node* node = state->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(this);
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge()) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->set_in_edge(phony_edge);
+      phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
+    }
   }
 
   return true;
@@ -377,10 +396,31 @@ bool Edge::LoadDepDb(State* state, string* err) {
   vector<Node*>::iterator implicit_dep =
     inputs_.end() - order_only_deps_ - deps.size();
 
+  { METRIC_RECORD("depdb add in-edges");
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = deps.begin();
        i != deps.end(); ++i, ++implicit_dep) {
-    *implicit_dep = GetDepNode(state, *i);
+    Node* node = state->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(this);
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge()) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->set_in_edge(phony_edge);
+      phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
+    }
+  }
   }
 
   return true;

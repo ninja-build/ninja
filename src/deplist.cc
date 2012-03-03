@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "dep_database.h"
+#include "metrics.h"
 #include "string_piece.h"
 
 namespace {

@@ -51,6 +51,8 @@ private:
   
   void IncreaseFileSize();
   void SetEmptyData();
+  void UnmapFile();
+  void MapFile();
 
   // Global mutex for entire structure.
   HANDLE lock_;
