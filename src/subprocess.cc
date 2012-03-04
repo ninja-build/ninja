@@ -42,12 +42,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
-#if !defined(OS_LINUX)
+#if !defined(linux)
   // On linux we use ppoll in DoWork(); elsewhere we use pselect and so must
   // avoid overly-large FDs.
   if (fd_ >= FD_SETSIZE)
     Fatal("pipe: %s", strerror(EMFILE));
-#endif  // !OS_LINUX
+#endif  // !linux
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -182,10 +182,9 @@ Subprocess *SubprocessSet::Add(const string &command) {
   return subprocess;
 }
 
-#ifdef OS_LINUX
+#ifdef linux
 bool SubprocessSet::DoWork() {
-  struct pollfd* fds = new pollfd[running_.size()]();  // XXX: scoped_array?
-  memset(fds, 0, running_.size() * sizeof(struct pollfd));
+  vector<pollfd> fds;
   nfds_t nfds = 0;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
@@ -193,12 +192,12 @@ bool SubprocessSet::DoWork() {
     int fd = (*i)->fd_;
     if (fd < 0)
       continue;
-    fds[nfds].fd = fd;
-    fds[nfds].events = POLLIN | POLLPRI | POLLRDHUP;
+    pollfd pfd = { fd, POLLIN | POLLPRI | POLLRDHUP, 0 };
+    fds.push_back(pfd);
     ++nfds;
   }
 
-  int ret = ppoll(fds, nfds, NULL, &old_mask_);
+  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
@@ -230,7 +229,7 @@ bool SubprocessSet::DoWork() {
   return false;
 }
 
-#else  // OS_LINUX
+#else  // linux
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
@@ -273,7 +272,7 @@ bool SubprocessSet::DoWork() {
 
   return false;
 }
-#endif  // OS_LINUX
+#endif  // linux
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())

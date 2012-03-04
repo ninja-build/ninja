@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2012 Google Inc. All Rights Reserved.
+# Copyright 2001 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -117,8 +117,6 @@ else:
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
-    if platform == 'linux':
-        cflags += ['-DOS_LINUX']
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
