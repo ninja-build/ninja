@@ -195,9 +195,13 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
       } else {
         *err = "unknown target '" + path + "'";
 
-        Node* suggestion = state->SpellcheckNode(path);
-        if (suggestion) {
-          *err += ", did you mean '" + suggestion->path() + "'?";
+        if (path == "clean") {
+          *err += ", did you mean 'ninja -t clean'?";
+        } else {
+          Node* suggestion = state->SpellcheckNode(path);
+          if (suggestion) {
+            *err += ", did you mean '" + suggestion->path() + "'?";
+          }
         }
         return false;
       }
