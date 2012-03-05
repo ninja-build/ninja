@@ -94,7 +94,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT)
+    if (errno == ENOENT || errno == ENOTDIR)
       return 0;
     Error("stat(%s): %s", path.c_str(), strerror(errno));
     return -1;

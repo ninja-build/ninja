@@ -36,6 +36,13 @@ class DiskInterfaceTest : public testing::Test {
     temp_dir_.Cleanup();
   }
 
+  bool Touch(const char* path) {
+    FILE *f = fopen(path, "w");
+    if (!f)
+      return false;
+    return fclose(f) == 0;
+  }
+
   ScopedTempDir temp_dir_;
   RealDiskInterface disk_;
 };
@@ -46,6 +53,11 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
   // On Windows, the errno for a file in a nonexistent directory
   // is different.
   EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile"));
+
+  // On POSIX systems, the errno is different if a component of the
+  // path prefix is not a directory.
+  ASSERT_TRUE(Touch("notadir"));
+  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile"));
 }
 
 TEST_F(DiskInterfaceTest, StatBadPath) {
@@ -56,11 +68,7 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
 }
 
 TEST_F(DiskInterfaceTest, StatExistingFile) {
-#ifdef _WIN32
-  ASSERT_EQ(0, system("cmd.exe /c echo hi > file"));
-#else
-  ASSERT_EQ(0, system("touch file"));
-#endif
+  ASSERT_TRUE(Touch("file"));
   EXPECT_GT(disk_.Stat("file"), 1);
 }
 
@@ -86,13 +94,7 @@ TEST_F(DiskInterfaceTest, MakeDirs) {
 
 TEST_F(DiskInterfaceTest, RemoveFile) {
   const char* kFileName = "file-to-remove";
-#ifdef _WIN32
-  string cmd = "cmd /c echo hi > ";
-#else
-  string cmd = "touch ";
-#endif
-  cmd += kFileName;
-  ASSERT_EQ(0, system(cmd.c_str()));
+  ASSERT_TRUE(Touch(kFileName));
   EXPECT_EQ(0, disk_.RemoveFile(kFileName));
   EXPECT_EQ(1, disk_.RemoveFile(kFileName));
   EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
