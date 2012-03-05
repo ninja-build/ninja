@@ -996,3 +996,29 @@ TEST_F(BuildTest, InterruptCleanup) {
   builder_.Cleanup();
   EXPECT_EQ(0, fs_.Stat("out2"));
 }
+
+TEST_F(BuildTest, PhonyWithNoInputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build nonexistent: phony\n"
+"build out1: cat || nonexistent\n"
+"build out2: cat nonexistent\n"));
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+
+  // out1 should be up to date even though its input is dirty, because its
+  // order-only dependency has nothing to do.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // out2 should still be out of date though, because its input is dirty.
+  err.clear();
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+}

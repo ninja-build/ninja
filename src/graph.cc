@@ -96,10 +96,10 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       (*i)->MarkDirty();
   }
 
-  // If we're dirty, our outputs are not ready.  (It's possible to be
-  // clean but still have not be ready in the presence of order-only
-  // inputs.)
-  if (dirty)
+  // If we're dirty, our outputs are normally not ready.  (It's possible to be
+  // clean but still not be ready in the presence of order-only inputs.)
+  // But phony edges with no inputs have nothing to do, so are always ready.
+  if (dirty && !(is_phony() && inputs_.empty()))
     outputs_ready_ = false;
 
   return true;
