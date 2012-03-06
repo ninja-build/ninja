@@ -114,6 +114,7 @@ else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
+              '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
