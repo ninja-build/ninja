@@ -72,7 +72,7 @@ struct BuildLog {
   bool Recompact(const string& path, string* err);
 
   typedef ExternalStringHashMap<LogEntry*>::Type Log;
-  Log log() const { return log_; }
+  const Log& log() const { return log_; }
 
  private:
   Log log_;
