@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <algorithm>
 
 #include "build_log.h"
 #include "depfile_parser.h"
@@ -253,11 +254,26 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     return false;
   }
 
+  // Check that there is at least one target in the depfile
+  if (depfile.outs_.size() == 0) {
+    *err = "depfile '" + path + "' has no targets defined";
+    return false;
+  }
+
+  // Remove duplicate targets -- there should be just one left in the end
+  if (depfile.outs_.size() > 1) {
+    depfile.outs_.erase(std::remove(depfile.outs_.begin() + 1, depfile.outs_.end(), depfile.outs_.front()), depfile.outs_.end());
+    if (depfile.outs_.size() > 1) {
+      *err = "depfile '" + path + "' has too many targets defined";
+      return false;
+    }
+  }
+
   // Check that this depfile matches our output.
   StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != depfile.out_) {
+  if (opath != depfile.outs_.front()) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
+      outputs_[0]->path() + "', got '" + depfile.outs_.front().AsString() + "'";
     return false;
   }
 

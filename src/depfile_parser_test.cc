@@ -34,7 +34,8 @@ TEST_F(DepfileParserTest, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser_.out_.AsString());
+  ASSERT_EQ(parser_.outs_.size(), 1);
+  EXPECT_EQ("build/ninja.o", parser_.outs_.front().AsString());
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 
@@ -54,7 +55,8 @@ TEST_F(DepfileParserTest, Continuation) {
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser_.out_.AsString());
+  ASSERT_EQ(parser_.outs_.size(), 1);
+  EXPECT_EQ("foo.o", parser_.outs_.front().AsString());
   EXPECT_EQ(2u, parser_.ins_.size());
 }
 
@@ -68,8 +70,9 @@ TEST_F(DepfileParserTest, BackSlashes) {
 "  Project\\Thing\\Bar.tlb \\\n",
       &err));
   ASSERT_EQ("", err);
+  ASSERT_EQ(parser_.outs_.size(), 1);
   EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
-            parser_.out_.AsString());
+            parser_.outs_.front().AsString());
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 
@@ -79,8 +82,9 @@ TEST_F(DepfileParserTest, Spaces) {
 "a\\ bc\\ def:   a\\ b c d",
       &err));
   ASSERT_EQ("", err);
+  ASSERT_EQ(parser_.outs_.size(), 1);
   EXPECT_EQ("a bc def",
-            parser_.out_.AsString());
+            parser_.outs_.front().AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
   EXPECT_EQ("a b",
             parser_.ins_[0].AsString());
@@ -98,7 +102,21 @@ TEST_F(DepfileParserTest, Escapes) {
 "\\!\\@\\#\\$\\%\\^\\&\\\\",
       &err));
   ASSERT_EQ("", err);
+  ASSERT_EQ(parser_.outs_.size(), 1);
   EXPECT_EQ("\\!\\@#$\\%\\^\\&\\",
-            parser_.out_.AsString());
+            parser_.outs_.front().AsString());
   ASSERT_EQ(0u, parser_.ins_.size());
+}
+
+TEST_F(DepfileParserTest, MultipleTargets) {
+  // check that multiple targets are parsed correctly
+  string err;
+  EXPECT_TRUE(Parse("foo bar: x y z", &err));
+  ASSERT_EQ(parser_.outs_.size(), 2);
+  EXPECT_EQ("foo", parser_.outs_[0].AsString());
+  EXPECT_EQ("bar", parser_.outs_[1].AsString());
+  ASSERT_EQ(parser_.ins_.size(), 3);
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
 }

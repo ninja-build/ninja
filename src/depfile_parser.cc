@@ -32,8 +32,10 @@
 bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
+  // parsing_targets: whether we are parsing targets or dependencies.
   char* in = &(*content)[0];
   char* end = in + content->size();
+  bool parsing_targets = true;
   while (in < end) {
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
@@ -180,17 +182,20 @@ yy13:
     }
 
     int len = out - filename;
-    if (len > 0 && filename[len - 1] == ':')
+    bool toggle = true;
+    if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
-
-    if (len == 0)
-      continue;
-
-    if (!out_.str_) {
-      out_ = StringPiece(filename, len);
-    } else {
-      ins_.push_back(StringPiece(filename, len));
+      toggle = false;
     }
+
+    if (len) {
+      if (parsing_targets)
+        outs_.push_back(StringPiece(filename, len));
+      else
+        ins_.push_back(StringPiece(filename, len));
+    }
+
+    parsing_targets = parsing_targets && toggle;
   }
   return true;
 }
