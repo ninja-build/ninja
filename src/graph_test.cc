@@ -140,3 +140,41 @@ TEST_F(GraphTest, VarInOutQuoteSpaces) {
   EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
       edge->EvaluateCommand());
 }
+
+TEST_F(GraphTest, UnifyDuplicateDepfileTargets) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build out.o: catdep foo.cc\n"));
+  fs_.Create("implicit.h", 2, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 1, "out.o out.o: implicit.h\n");
+  fs_.Create("out.o", 1, "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+
+  // implicit.h has changed, though our depfile refers to it with a
+  // non-canonical path; we should still find it.
+  EXPECT_TRUE(GetNode("out.o")->dirty());
+}
+
+TEST_F(GraphTest, FailWithMultipleDepfileTargets) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build out.o: catdep foo.cc\n"));
+  fs_.Create("implicit.h", 2, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 1, "out.o foobar: implicit.h\n");
+  fs_.Create("out.o", 1, "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  // should fail parsing depfile due to invalid target foobar
+  EXPECT_FALSE(edge->RecomputeDirty(&state_, &fs_, &err));
+}

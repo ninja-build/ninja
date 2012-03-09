@@ -25,6 +25,6 @@ struct DepfileParser {
   /// pointers within it.
   bool Parse(string* content, string* err);
 
-  StringPiece out_;
+  vector<StringPiece> outs_;
   vector<StringPiece> ins_;
 };
