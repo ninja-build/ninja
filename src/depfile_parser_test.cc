@@ -102,3 +102,20 @@ TEST_F(DepfileParserTest, Escapes) {
             parser_.out_.AsString());
   ASSERT_EQ(0u, parser_.ins_.size());
 }
+
+TEST_F(DepfileParserTest, UnifyMultupleOutputs) {
+  // check that multiple duplicate targets are properly unified
+  string err;
+  EXPECT_TRUE(Parse("foo foo: x y z", &err));
+  ASSERT_EQ(parser_.out_.AsString(), "foo");
+  ASSERT_EQ(parser_.ins_.size(), 3);
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
+  // check that multiple different outputs are rejected by the parser
+  string err;
+  EXPECT_FALSE(Parse("foo bar: x y z", &err));
+}
