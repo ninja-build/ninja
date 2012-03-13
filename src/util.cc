@@ -197,9 +197,10 @@ void SetCloseOnExec(int fd) {
       perror("fcntl(F_SETFD)");
   }
 #else
-  // On Windows, handles must be explicitly marked to be passed to a
-  // spawned process, so there's nothing to do here.
-  NINJA_UNUSED_ARG(fd);
+  HANDLE hd = (HANDLE) _get_osfhandle(fd);
+  if (! SetHandleInformation(hd, HANDLE_FLAG_INHERIT, 0)) {
+    fprintf(stderr, "SetHandleInformation(): %s", GetLastErrorString().c_str());
+  }
 #endif  // ! _WIN32
 }
 
