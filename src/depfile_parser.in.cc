@@ -31,8 +31,10 @@
 bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
+  // parsing_targets: whether we are parsing targets or dependencies.
   char* in = &(*content)[0];
   char* end = in + content->size();
+  bool parsing_targets = true;
   while (in < end) {
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
@@ -87,16 +89,22 @@ bool DepfileParser::Parse(string* content, string* err) {
     }
 
     int len = out - filename;
-    if (len > 0 && filename[len - 1] == ':')
+    const bool is_target = parsing_targets;
+    if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
+      parsing_targets = false;
+    }
 
     if (len == 0)
       continue;
 
-    if (!out_.str_) {
-      out_ = StringPiece(filename, len);
-    } else {
+    if (!is_target) {
       ins_.push_back(StringPiece(filename, len));
+    } else if (!out_.str_) {
+      out_ = StringPiece(filename, len);
+    } else if (out_ != StringPiece(filename, len)) {
+      *err = "depfile has multiple output paths.";
+      return false;
     }
   }
   return true;
