@@ -61,10 +61,13 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
 }
 
 TEST_F(DiskInterfaceTest, StatBadPath) {
-  // To test the error code path, use an overlong file name.
-  // Both Windows and Linux appear to object to this.
+#ifdef _WIN32
+  string bad_path("cc:\\foo");
+  EXPECT_EQ(-1, disk_.Stat(bad_path));
+#else
   string too_long_name(512, 'x');
   EXPECT_EQ(-1, disk_.Stat(too_long_name));
+#endif
 }
 
 TEST_F(DiskInterfaceTest, StatExistingFile) {
