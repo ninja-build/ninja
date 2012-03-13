@@ -221,6 +221,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
 
   if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
     *err = strerror(errno);
+    fclose(f);
     return false;
   }
 
