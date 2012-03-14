@@ -43,6 +43,7 @@
 #include "graphviz.h"
 #include "metrics.h"
 #include "parsers.h"
+#include "stat_cache.h"
 #include "state.h"
 #include "util.h"
 
@@ -737,6 +738,8 @@ reload:
       return 1;
     }
   }
+
+  StatCache::PreCache(globals.state);
 
   int result = RunBuild(&globals, argc, argv);
   if (g_metrics) {

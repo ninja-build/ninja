@@ -73,7 +73,7 @@ struct DbData {
 };
 #pragma pack(pop)
 
-enum { kInitialSize = 50000000 };
+enum { kInitialSize = 20000000 };
 
 DepDatabase::DepDatabase(const string& filename, bool create) :
     view_(0),
@@ -189,7 +189,6 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         }
         // We're inserting, not updating. Add to the index.
         DepIndex* elem = &view->index[view->index_entries++];
-        // TODO: max entries
         strcpy(elem->path, file.c_str());
         elem->offset = inserted_offset;
 
@@ -252,7 +251,7 @@ void DepDatabase::MapFile() {
 void DepDatabase::SetEmptyData() {
   DbData* data = GetView();
   data->index_entries = 0;
-  data->max_index_entries = 50000; // TODO random size
+  data->max_index_entries = 20000; // TODO random size
   data->dep_insert_offset = sizeof(DbData) + // TODO [1] too big
       sizeof(DepIndex) * data->max_index_entries;
   // TODO end of file/max size

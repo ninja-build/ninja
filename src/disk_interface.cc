@@ -30,7 +30,7 @@ namespace {
 string DirName(const string& path) {
 #ifdef _WIN32
   // Support either path separator on Windows.
-  const string kPathSeparators("/\\");
+  const string kPathSeparators("\\");
 #else
   const string kPathSeparators("/");
 #endif
@@ -84,15 +84,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
           GetLastErrorString().c_str());
     return -1;
   }
-  const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
-  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  return FiletimeToTimestamp(attrs.ftLastWriteTime);
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {

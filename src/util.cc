@@ -295,3 +295,14 @@ string StripAnsiEscapeCodes(const string& in) {
   }
   return stripped;
 }
+
+TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime;
+}

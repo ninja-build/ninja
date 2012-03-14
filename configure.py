@@ -222,6 +222,7 @@ for name in ['build',
              'metrics',
              'parsers',
              'showincludes_parser',
+             'stat_cache',
              'state',
              'util']:
     objs += cxx(name)

@@ -18,9 +18,13 @@
 
 #ifdef _WIN32
 #include "win32port.h"
+#include <windows.h>
+#undef ERROR
 #else
 #include <stdint.h>
 #endif
+
+#include "timestamp.h"
 
 #include <string>
 #include <vector>
@@ -71,6 +75,10 @@ const char* SpellcheckString(const string& text, ...);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
+
+#ifdef _WIN32
+TimeStamp FiletimeToTimestamp(const FILETIME& filetime);
+#endif
 
 #ifdef _MSC_VER
 #define snprintf _snprintf

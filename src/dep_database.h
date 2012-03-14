@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_DEP_DATABASE_H_
+#define NINJA_DEP_DATABASE_H_
+
 #include <windows.h>
 #include <string>
 using namespace std;
@@ -62,3 +65,5 @@ private:
   void* view_;
   int size_;
 };
+
+#endif  // NINJA_DEP_DATABASE_H_
