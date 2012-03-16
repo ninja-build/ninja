@@ -108,7 +108,7 @@ TEST_F(DepfileParserTest, UnifyMultupleOutputs) {
   string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
   ASSERT_EQ(parser_.out_.AsString(), "foo");
-  ASSERT_EQ(parser_.ins_.size(), 3);
+  ASSERT_EQ(parser_.ins_.size(), 3u);
   EXPECT_EQ("x", parser_.ins_[0].AsString());
   EXPECT_EQ("y", parser_.ins_[1].AsString());
   EXPECT_EQ("z", parser_.ins_[2].AsString());
