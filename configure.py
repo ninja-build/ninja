@@ -260,6 +260,8 @@ if options.with_gtest:
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
+    if platform != 'windows':
+        gtest_cflags += " -DGTEST_HAS_RTTI=0"
     objs += n.build(built('gtest-all.o'), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
@@ -268,6 +270,8 @@ if options.with_gtest:
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+    if platform != 'windows':
+        test_cflags += ["-DGTEST_HAS_RTTI=0"]
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
