@@ -276,6 +276,7 @@ elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
     test_libs.extend(['-lgtest_main', '-lgtest'])
+    test_cflags = cflags + ["-DGTEST_HAS_RTTI=0"]
 
 for name in ['build_log_test',
              'build_test',
