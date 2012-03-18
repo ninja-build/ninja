@@ -143,7 +143,7 @@ void State::Dump() {
     Node* node = i->second;
     printf("%s %s\n",
            node->path().c_str(),
-           node->status_known() ? (node->dirty() ? "dirty" : "clean")
+           node->IsVisited() ? (node->dirty() ? "dirty" : "clean")
                                 : "unknown");
   }
 }

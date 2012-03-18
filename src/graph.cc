@@ -19,16 +19,18 @@
 
 #include "build_log.h"
 #include "depfile_parser.h"
+#include "depfile_reader.h"
 #include "disk_interface.h"
 #include "metrics.h"
 #include "parsers.h"
 #include "state.h"
 #include "util.h"
 
-bool Node::Stat(DiskInterface* disk_interface) {
-  METRIC_RECORD("node stat");
-  mtime_ = disk_interface->Stat(path_);
-  return mtime_ > 0;
+void Node::Stat(DiskInterface * disk_interface) {
+  if (mtime_ == -1) {
+    METRIC_RECORD("node stat");
+    mtime_ = disk_interface->Stat(path_);
+  }
 }
 
 bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
@@ -44,7 +46,9 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Visit all inputs; we're dirty if any of the inputs are dirty.
   TimeStamp most_recent_input = 1;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->StatIfNecessary(disk_interface)) {
+    (*i)->Stat(disk_interface);
+    if (!(*i)->IsVisited()) {
+      (*i)->SetVisited();
       if (Edge* edge = (*i)->in_edge()) {
         if (!edge->RecomputeDirty(state, disk_interface, err))
           return false;
@@ -80,7 +84,8 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
     for (vector<Node*>::iterator i = outputs_.begin();
          i != outputs_.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface);
+      (*i)->Stat(disk_interface);
+      (*i)->SetVisited();
       if (RecomputeOutputDirty(build_log, most_recent_input, command, *i)) {
         dirty = true;
         break;
@@ -91,7 +96,8 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface);
+    (*i)->Stat(disk_interface);
+    (*i)->SetVisited();
     if (dirty)
       (*i)->MarkDirty();
   }
@@ -217,6 +223,11 @@ string Edge::EvaluateDepFile() {
   return rule_->depfile().Evaluate(&env);
 }
 
+string Edge::EvaluateDepFileGroup() {
+  EdgeEnv env(this);
+  return rule_->depfile_group().Evaluate(&env);
+}
+
 string Edge::GetDescription() {
   EdgeEnv env(this);
   return rule_->description().Evaluate(&env);
@@ -236,39 +247,80 @@ string Edge::GetRspFileContent() {
   return rule_->rspfile_content().Evaluate(&env);
 }
 
+bool Edge::depfile_group_up_to_date(State* state, DiskInterface* disk_interface, 
+                                    const string& depfile_group_path, string* err) {
+  // determine the most recent timestamp associated with the edge
+  TimeStamp most_recent_output = 1;      
+  for (vector<Node *>::iterator node = outputs_.begin(); node != outputs_.end(); node++) {
+    // stat the output file, but don't mark it as processed
+    (*node)->Stat(disk_interface);
+    most_recent_output = max((*node)->mtime(), most_recent_output);
+    
+    // if this is a restat rule, check the log for this output
+    if (rule_->restat() && state->build_log_) {
+      BuildLog::LogEntry* entry = state->build_log_->LookupByOutput((*node)->path());
+      if (entry) 
+        most_recent_output = max(entry->restat_mtime, most_recent_output);
+    }
+  }
+
+  // stat the grouped depfile (assuming its part of the graph)
+  Node * depfile_group = state->GetNode(depfile_group_path);
+  if (NULL == depfile_group) {
+    *err = "Unable to acquire a Node object for " + depfile_group_path;
+    return false;
+  }
+  
+  // decide which depfile to use
+  depfile_group->Stat(disk_interface);
+  if (depfile_group->exists() && depfile_group->mtime() >= most_recent_output) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
                        string* err) {
-  METRIC_RECORD("depfile load");
-  string path = EvaluateDepFile();
-  string content = disk_interface->ReadFile(path, err);
-  if (!err->empty())
+  METRIC_RECORD("depfile load");  
+  string depfile_path = EvaluateDepFile();  
+  bool usingDepFileGroup = false;
+  if (!rule_->depfile_group().empty()) {
+    // here we're using a grouped depfile, need to make sure it's up to date    
+    string depfile_group_path = EvaluateDepFileGroup();
+    usingDepFileGroup = depfile_group_up_to_date(state, disk_interface, depfile_group_path, err);   
+    if (!err->empty())
+      return false; 
+    if (usingDepFileGroup)
+      depfile_path = depfile_group_path;
+  }
+  
+  // Load the depfile (from disk or cache)
+  DepfileReader reader;
+  if (usingDepFileGroup)
+    reader.ReadGroup(depfile_path, outputs_[0]->path(), disk_interface, err);
+  else
+    reader.Read(depfile_path, outputs_[0]->path(), disk_interface, err);
+  if (!err->empty()) {
     return false;
-  if (content.empty())
+  }
+
+  // TODO a better approach?
+  if (NULL == reader.Parser()) {
+    // no parsed contents
     return true;
+  }  
 
-  DepfileParser depfile;
-  string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
-    *err = path + ": " + depfile_err;
-    return false;
-  }
+  DepfileParser & depfile = *reader.Parser(); 
 
-  // Check that this depfile matches our output.
-  StringPiece opath = StringPiece(outputs_[0]->path());
-  if (opath != depfile.out_) {
-    *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
-    return false;
-  }
-
-  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins_.size(), 0);
-  implicit_deps_ += depfile.ins_.size();
+  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins().size(), 0);
+  implicit_deps_ += depfile.ins().size();
   vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - depfile.ins_.size();
+    inputs_.end() - order_only_deps_ - depfile.ins().size();
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+  for (vector<StringPiece>::iterator i = depfile.ins().begin();
+       i != depfile.ins().end(); ++i, ++implicit_dep) {
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
 

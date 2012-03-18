@@ -29,37 +29,30 @@ struct Edge;
 /// it's dirty, mtime, etc.
 struct Node {
   Node(const string& path) : path_(path), mtime_(-1), dirty_(false),
-                             in_edge_(NULL) {}
+                             in_edge_(NULL), visited_(false) {}
 
-  /// Return true if the file exists (mtime_ got a value).
-  bool Stat(DiskInterface* disk_interface);
+  /// Retrieve the mtime from the disk (cached)
+  void Stat(DiskInterface* disk_interface);
 
-  /// Return true if we needed to stat.
-  bool StatIfNecessary(DiskInterface* disk_interface) {
-    if (status_known())
-      return false;
-    Stat(disk_interface);
-    return true;
-  }
-
-  /// Mark as not-yet-stat()ed and not dirty.
+  /// Mark as not-yet-visited and not dirty.
   void ResetState() {
     mtime_ = -1;
     dirty_ = false;
+    visited_ = false;
   }
 
-  /// Mark the Node as already-stat()ed and missing.
+  /// Mark the Node as already visited and missing.
   void MarkMissing() {
     mtime_ = 0;
+    visited_ = true;
   }
+
+  void SetVisited(bool visited = true) { visited_ = visited; }
+  bool IsVisited() const { return visited_; }
 
   bool exists() const {
     return mtime_ != 0;
-  }
-
-  bool status_known() const {
-    return mtime_ != -1;
-  }
+  } 
 
   const string& path() const { return path_; }
   TimeStamp mtime() const { return mtime_; }
@@ -93,6 +86,9 @@ private:
 
   /// All Edges that use this Node as an input.
   vector<Edge*> out_edges_;
+
+  /// The "dirtyness" of the edge is known
+  bool visited_;
 };
 
 /// An invokable build command and associated metadata (description, etc.).
@@ -108,6 +104,7 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
+  const EvalString& depfile_group() const { return depfile_group_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
 
@@ -123,6 +120,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString depfile_group_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };
@@ -155,6 +153,7 @@ struct Edge {
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
+  string EvaluateDepFileGroup();
   string GetDescription();
   
   /// Does the edge use a response file?
@@ -178,6 +177,10 @@ struct Edge {
 
   const Rule& rule() const { return *rule_; }
   bool outputs_ready() const { return outputs_ready_; }
+
+  // Checks whether a depfile_group file should be used
+  bool depfile_group_up_to_date(State* state, DiskInterface* disk_interface, 
+                                const string& depfile_group_path, string * err);
 
   // XXX There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;

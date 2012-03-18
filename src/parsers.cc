@@ -115,6 +115,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->command_ = value;
     } else if (key == "depfile") {
       rule->depfile_ = value;
+    } else if (key == "depfile_group") {
+      rule->depfile_group_ = value;
     } else if (key == "description") {
       rule->description_ = value;
     } else if (key == "generator") {
@@ -134,6 +136,9 @@ bool ManifestParser::ParseRule(string* err) {
 
   if (rule->rspfile_.empty() != rule->rspfile_content_.empty())
     return lexer_.Error("rspfile and rspfile_content need to be both specified", err);
+
+  if (!rule->depfile_group_.empty() && rule->depfile_.empty())
+    return lexer_.Error("depfile_group cannot be specified without a depfile", err);
 
   if (rule->command_.empty())
     return lexer_.Error("expected 'command =' line", err);
