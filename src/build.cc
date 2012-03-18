@@ -563,7 +563,8 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
-  node->StatIfNecessary(disk_interface_);
+  node->Stat(disk_interface_);
+  node->SetVisited();
   if (Edge* in_edge = node->in_edge()) {
     if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;

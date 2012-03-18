@@ -115,6 +115,21 @@ TEST_F(ParserTest, ResponseFiles) {
   EXPECT_EQ("[$in]", rule->rspfile_content().Serialize());
 }
 
+TEST_F(ParserTest, DepFiles) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+    "rule cat\n"
+    "  command = cat $in > $out\n"
+    "  depfile = $out.d\n"
+    "  depfile_group = group.D\n"
+    "\n"));
+
+  ASSERT_EQ(2u, state.rules_.size());
+  const Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("cat", rule->name());
+  EXPECT_EQ("[$out][.d]", rule->depfile().Serialize());
+  EXPECT_EQ("[group.D]", rule->depfile_group().Serialize());
+}
+
 TEST_F(ParserTest, Variables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "l = one-letter-test\n"
