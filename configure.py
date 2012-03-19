@@ -104,7 +104,7 @@ else:
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
-              '/D_CRT_SECURE_NO_WARNINGS',
+              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
@@ -212,6 +212,7 @@ for name in ['build',
              'build_log',
              'clean',
              'depfile_parser',
+             'depfile_reader',
              'disk_interface',
              'edit_distance',
              'eval_env',
@@ -277,6 +278,7 @@ for name in ['build_log_test',
              'build_test',
              'clean_test',
              'depfile_parser_test',
+             'depfile_reader_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
