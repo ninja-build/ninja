@@ -371,9 +371,8 @@ built for them.
 If used like +ninja -t clean -r _rules_+ it removes all files built using
 the given rules.
 +
-depfiles are not removed. Files created but not referenced in the
-graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).
+Files created but not referenced in the graph are not removed. This tool 
+takes in account the +-v+ and the +-n+ options (note that +-n+ implies +-v+).
 
 Ninja file reference
 --------------------
@@ -480,6 +479,17 @@ When loading a `depfile`, Ninja implicitly adds edges such that it is
 not an error if the listed dependency is missing.  This allows you to
 delete a depfile-discovered header file and rebuild, without the build
 aborting due to a missing input.
+
+`depfile_group`:: path to an optional file, that contains concatenated 
+  depfiles. If present (on top of a normal `depfile`), ninja will read
+  the depenency information from the `depfile_group`, using the same rules.
++
+Concatenating individual depfiles in larger groups is way to speed up
+ninja start-up time (especially on Windows, where reading lot of small 
+files may create a bottleneck). 
++
+Creating such groups should typically be done as a part of the build, 
+using a cat-like utility.
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
