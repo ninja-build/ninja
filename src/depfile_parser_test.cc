@@ -34,8 +34,8 @@ TEST_F(DepfileParserTest, Basic) {
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("build/ninja.o", parser_.out_.AsString());
-  EXPECT_EQ(4u, parser_.ins_.size());
+  EXPECT_EQ("build/ninja.o", parser_.out().AsString());
+  EXPECT_EQ(4u, parser_.ins().size());
 }
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
@@ -54,8 +54,8 @@ TEST_F(DepfileParserTest, Continuation) {
 "  bar.h baz.h\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("foo.o", parser_.out_.AsString());
-  EXPECT_EQ(2u, parser_.ins_.size());
+  EXPECT_EQ("foo.o", parser_.out().AsString());
+  EXPECT_EQ(2u, parser_.ins().size());
 }
 
 TEST_F(DepfileParserTest, BackSlashes) {
@@ -69,8 +69,8 @@ TEST_F(DepfileParserTest, BackSlashes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
-            parser_.out_.AsString());
-  EXPECT_EQ(4u, parser_.ins_.size());
+            parser_.out().AsString());
+  EXPECT_EQ(4u, parser_.ins().size());
 }
 
 TEST_F(DepfileParserTest, Spaces) {
@@ -80,14 +80,14 @@ TEST_F(DepfileParserTest, Spaces) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("a bc def",
-            parser_.out_.AsString());
-  ASSERT_EQ(3u, parser_.ins_.size());
+            parser_.out().AsString());
+  ASSERT_EQ(3u, parser_.ins().size());
   EXPECT_EQ("a b",
-            parser_.ins_[0].AsString());
+            parser_.ins()[0].AsString());
   EXPECT_EQ("c",
-            parser_.ins_[1].AsString());
+            parser_.ins()[1].AsString());
   EXPECT_EQ("d",
-            parser_.ins_[2].AsString());
+            parser_.ins()[2].AsString());
 }
 
 TEST_F(DepfileParserTest, Escapes) {
@@ -99,19 +99,19 @@ TEST_F(DepfileParserTest, Escapes) {
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("\\!\\@#$\\%\\^\\&\\",
-            parser_.out_.AsString());
-  ASSERT_EQ(0u, parser_.ins_.size());
+            parser_.out().AsString());
+  ASSERT_EQ(0u, parser_.ins().size());
 }
 
 TEST_F(DepfileParserTest, UnifyMultupleOutputs) {
   // check that multiple duplicate targets are properly unified
   string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
-  ASSERT_EQ(parser_.out_.AsString(), "foo");
-  ASSERT_EQ(parser_.ins_.size(), 3);
-  EXPECT_EQ("x", parser_.ins_[0].AsString());
-  EXPECT_EQ("y", parser_.ins_[1].AsString());
-  EXPECT_EQ("z", parser_.ins_[2].AsString());
+  ASSERT_EQ(parser_.out().AsString(), "foo");
+  ASSERT_EQ(parser_.ins().size(), 3);
+  EXPECT_EQ("x", parser_.ins()[0].AsString());
+  EXPECT_EQ("y", parser_.ins()[1].AsString());
+  EXPECT_EQ("z", parser_.ins()[2].AsString());
 }
 
 TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
