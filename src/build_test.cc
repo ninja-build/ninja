@@ -528,6 +528,7 @@ TEST_F(BuildTest, DepFileGroup) {
     "  depfile_group = group.D\n"
     "build foo.o: cc foo.c\n"));
   fs_.Create("foo.c", now_, "");
+  fs_.Create("foo.o", now_, "");
   fs_.Create("foo.o.d", now_, "foo.o: old and wrong dependencies\n");
 
   // The .D file is more recent than the .d file
@@ -553,8 +554,12 @@ TEST_F(BuildTest, DepFileFallback) {
   fs_.Create("fallback.D", now_, "foo.o: old and wrong dependencies\n");
   
   // The actual .o file is more recent than the .D file
+  // This simulates the case, where a single .d file was regenerated, but 
+  // its contents was not yet included in a groupped depfile, e.g. 
+  // because the build failed or was interrupted.
   now_++;
-  fs_.Create("foo.o", now_, "foo.o: corect dependencies\n");
+  fs_.Create("foo.o", now_, "");
+  fs_.Create("foo.o.d", now_, "foo.o: corect dependencies\n");
 
   // dependency information from foo.o.d is used
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
