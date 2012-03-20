@@ -23,9 +23,10 @@ DepfileReader::~DepfileReader() {
   delete parser_;
 }
 
-bool DepfileReader::Init(const string& contents, string* error) {
-  // init and take a private copy of the string
-  contents_ = new string(contents); 
+bool DepfileReader::Init(string& contents, string* error) {
+  // init and take ownership of the string
+  contents_ = new string();
+  contents_->swap(contents);
   if (contents_->empty())    
     return true;
 
@@ -61,18 +62,18 @@ bool DepfileReader::loadIntoCache(DiskInterface* disk_interface,
       DepfileReader reader;
 
       // Parse the depfile (to get the filename)
+      // Note: depfile_contents gets cleared here
       string depfile_err;  
       if (!reader.Init(depfile_contents, &depfile_err)) {
         *err = depfile_path + ": " + depfile_err;  
         return false;  
       }
       
-      // Save it in cache       
-      const string filename = reader.parser_->out().AsString();
-      swap(fileMap[filename], reader);
-
-      // Reset
-      depfile_contents.clear();
+      // Save it in cache
+      if (NULL != reader.parser_) {
+        const string filename = reader.parser_->out().AsString();
+        swap(fileMap[filename], reader);
+      }   
     }
   }
 
@@ -114,7 +115,7 @@ bool DepfileReader::Read(const string& depfile_path,
                          const string& output_name,
                          DiskInterface * disk_interface, 
                          string* err) {
-  const string contents = disk_interface->ReadFile(depfile_path, err);
+  string contents = disk_interface->ReadFile(depfile_path, err);
   if (!err->empty())    
     return false;  
 

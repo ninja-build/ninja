@@ -49,8 +49,13 @@ struct DepfileReader {
 private:
   typedef map<string, map<string, DepfileReader> > DepfileCache;
   static DepfileCache cache;  
-  static bool loadIntoCache(DiskInterface* disk_interface, const string& depfile_path, string* err);
-  bool Init(const string& contents, string* error);
+  static bool loadIntoCache(DiskInterface* disk_interface, 
+                            const string& depfile_path, string* err);  
+  // Take and parse the given string. Returns false and fills in error,
+  // if the string can't get parsed.
+  // Note: the parameter contents will be cleared after returning 
+  // from this method
+  bool Init(string& contents, string* error); 
 
   friend struct DepfileReaderTest; // needs access to cache
 
