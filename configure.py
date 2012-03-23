@@ -154,7 +154,7 @@ if platform == 'windows':
         description='CXX $out')
 else:
     n.rule('cxx',
-        command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
+        command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
         depfile='$out.d',
         description='CXX $out')
 n.newline()
