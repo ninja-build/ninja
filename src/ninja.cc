@@ -31,6 +31,7 @@
 #include <windows.h>
 #else
 #include <getopt.h>
+#include <unistd.h>
 #endif
 
 #include "browse.h"
