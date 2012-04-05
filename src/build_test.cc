@@ -518,6 +518,56 @@ TEST_F(BuildTest, DepFileParseError) {
             err);
 }
 
+// Make sure a depfile_group attribute is correctly used
+TEST_F(BuildTest, DepFileGroup) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cc\n"
+    "  command = cc $in\n "
+    "  depfile = $out.d\n"
+    "  depfile_group = group.D\n"
+    "build foo.o: cc foo.c\n"));
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("foo.o", now_, "");
+  fs_.Create("foo.o.d", now_, "foo.o: old and wrong dependencies\n");
+
+  // The .D file is more recent than the .d file
+  now_++;
+  fs_.Create("group.D", now_, "foo.o: corect dependencies\n");
+
+  // dependency information from foo.o.d is used
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, fs_.files_read_.size());
+  EXPECT_EQ("group.D", fs_.files_read_[0]);
+}
+
+// Make sure a depfile_group file is not used, if it is out of date
+TEST_F(BuildTest, DepFileFallback) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n "
+"  depfile = $out.d\n"
+"  depfile_group = fallback.D\n"
+"build foo.o: cc foo.c\n"));
+  fs_.Create("foo.c", now_, "");
+  fs_.Create("fallback.D", now_, "foo.o: old and wrong dependencies\n");
+  
+  // The actual .o file is more recent than the .D file
+  // This simulates the case, where a single .d file was regenerated, but 
+  // its contents was not yet included in a groupped depfile, e.g. 
+  // because the build failed or was interrupted.
+  now_++;
+  fs_.Create("foo.o", now_, "");
+  fs_.Create("foo.o.d", now_, "foo.o: corect dependencies\n");
+
+  // dependency information from foo.o.d is used
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, fs_.files_read_.size());
+  EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
+}
+
 TEST_F(BuildTest, OrderOnlyDeps) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
