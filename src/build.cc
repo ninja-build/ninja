@@ -452,7 +452,9 @@ void RealCommandRunner::Abort() {
 }
 
 bool RealCommandRunner::CanRunMore() {
-  return ((int)subprocs_.running_.size()) < config_.parallelism;
+  return ((int)subprocs_.running_.size()) < config_.parallelism
+    && ((subprocs_.running_.size() == 0 || config_.max_load_average <= 0.0f)
+        || GetLoadAverage() < config_.max_load_average);
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {

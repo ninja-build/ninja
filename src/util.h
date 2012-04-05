@@ -68,6 +68,10 @@ const char* SpellcheckString(const string& text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
+/// @return the load average of the machine. A negative value is returned
+/// on error.
+double GetLoadAverage();
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
