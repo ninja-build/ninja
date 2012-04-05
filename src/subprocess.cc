@@ -45,7 +45,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 #if !defined(linux)
   // On linux we use ppoll in DoWork(); elsewhere we use pselect and so must
   // avoid overly-large FDs.
-  if (fd_ >= FD_SETSIZE)
+  if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
 #endif  // !linux
   SetCloseOnExec(fd_);
