@@ -41,8 +41,9 @@ string ShowIncludes::Filter(const string& output,
       while (len > 0 && (in[len - 1] == '\n' || in[len - 1] == '\r'))
         --len;
       // Hack to exclude system includes.
-      if (!strstr(in, "Program Files") && 
-          !strstr(in, "Microsoft Visual Studio"))
+      string tmp = StringPiece(in, len).AsString();
+      if (!strstr(tmp.c_str(), "Program Files") && 
+          !strstr(tmp.c_str(), "Microsoft Visual Studio"))
         includes->push_back(StringPiece(in, len));
     } else {
       filtered.append(string(in, next - in));
