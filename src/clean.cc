@@ -124,12 +124,13 @@ int Cleaner::CleanAll(bool generator) {
 
 void Cleaner::DoCleanTarget(Node* target) {
   if (target->in_edge()) {
-    Remove(target->path());
-    if (target->in_edge()->HasRspFile())
-      Remove(target->in_edge()->GetRspFile());
-    for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
-         n != target->in_edge()->inputs_.end();
-         ++n) {
+    Edge* in_edge = target->in_edge();
+    if (in_edge->rule_ != &State::kPhonyRule)
+      Remove(target->path());
+    if (in_edge->HasRspFile())
+      Remove(in_edge->GetRspFile());
+    for (vector<Node*>::iterator n = in_edge->inputs_.begin();
+         n != in_edge->inputs_.end(); ++n) {
       DoCleanTarget(*n);
     }
   }
