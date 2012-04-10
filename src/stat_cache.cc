@@ -27,22 +27,25 @@
 #include <algorithm>
 #include <vector>
 
-// TODO could probably be StringPiece, they all come from Nodes
-static vector<string> gPaths;
+namespace {
+vector<StringPiece> gPaths;
 bool gHavePreCached = false;
+}
 
 void StatCache::Init() {
   gPaths.reserve(50000);
 }
 
 // static
-void StatCache::Inform(const string& path) {
+void StatCache::Inform(StringPiece path) {
 #ifdef _WIN32
   if (gHavePreCached)
     return;
-  size_t i = path.find_last_of("\\/");
-  if (i != string::npos)
-    gPaths.push_back(string(path.data(), i));
+  //printf("   inform: %*s\n", path.len_, path.str_);
+  StringPiece::const_reverse_iterator at =
+      std::find(path.rbegin(), path.rend(), '\\');
+  if (at != path.rend())
+    gPaths.push_back(StringPiece(path.str_, at.base() - path.str_));
 #endif
 }
 
@@ -50,18 +53,21 @@ void StatCache::Inform(const string& path) {
 void StatCache::PreCache(State* state) {
 #ifdef _WIN32
   METRIC_RECORD("statcache precache");
+  string root = ""; // We always want to search the root as well.
+  gPaths.push_back(root);
   sort(gPaths.begin(), gPaths.end());
-  vector<string>::const_iterator end = unique(gPaths.begin(), gPaths.end());
-  for (vector<string>::const_iterator i = gPaths.begin(); i != end; ++i) {
-    //printf("prestat %s\n", i->c_str());
+  vector<StringPiece>::const_iterator end = unique(gPaths.begin(), gPaths.end());
+  for (vector<StringPiece>::const_iterator i = gPaths.begin(); i != end; ++i) {
     WIN32_FIND_DATA find_data;
-    string search = *i + string("\\*");
+    string search_root = i->AsString();
+    string search = search_root + "*";
+    //printf("stating: %s\n", search.c_str());
     HANDLE handle = FindFirstFile(search.c_str(), &find_data);
     if (handle == INVALID_HANDLE_VALUE)
       continue;
     for (;;) {
       if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-        string name = *i + string("\\") + string(find_data.cFileName), err;
+        string name = search_root + string(find_data.cFileName), err;
         //if (!CanonicalizePath(&name, &err))
           //continue;
         Node* node = state->LookupNode(name);

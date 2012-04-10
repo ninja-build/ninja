@@ -218,6 +218,7 @@ for name in ['build',
              'eval_env',
              'graph',
              'graphviz',
+             'includes_normalize',
              'lexer',
              'metrics',
              'parsers',
@@ -262,11 +263,15 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all.o'), 'cxx',
+    gtest_cflags = gtest_all_incs
+    if platform == 'windows':
+      gtest_cflags += ' /nologo /EHsc /Zi'
+    else:
+      gtest_cflags += ' -fvisibility=hidden'
+    objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
-    objs += n.build(built('gtest_main.o'), 'cxx',
+    objs += n.build(built('gtest_main' + objext), 'cxx',
                     os.path.join(path, 'src/gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
@@ -285,6 +290,7 @@ for name in ['build_log_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
+             'includes_normalize_test',
              'lexer_test',
              'parsers_test',
              'showincludes_parser_test',

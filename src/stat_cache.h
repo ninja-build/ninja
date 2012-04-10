@@ -16,10 +16,11 @@
 #define NINJA_STAT_CACHE_H_
 
 #include "state.h"
+#include "string_piece.h"
 
 struct StatCache {
   static void Init();
-  static void Inform(const string& path);
+  static void Inform(StringPiece path);
 
   static void PreCache(State* globals);
 };

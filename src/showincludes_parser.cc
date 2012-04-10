@@ -43,6 +43,7 @@ string ShowIncludes::Filter(const string& output,
       // Hack to exclude system includes.
       string tmp = StringPiece(in, len).AsString();
       if (!strstr(tmp.c_str(), "Program Files") && 
+          !strstr(tmp.c_str(), "program files") &&
           !strstr(tmp.c_str(), "Microsoft Visual Studio"))
         includes->push_back(StringPiece(in, len));
     } else {

@@ -15,6 +15,7 @@
 #include "graph.h"
 
 #include "test.h"
+#include "util.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
@@ -103,7 +104,7 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 "rule catdep\n"
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+"build ." DIR_SEP "out.o: catdep ." DIR_SEP "foo.cc\n"));
   fs_.Create("foo.cc", 1, "");
   fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
   fs_.Create("out.o", 1, "");

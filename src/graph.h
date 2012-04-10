@@ -31,7 +31,7 @@ struct Edge;
 struct Node {
   Node(const string& path) : path_(path), mtime_(-1), precache_mtime_(0),
                              dirty_(false), in_edge_(NULL) {
-    StatCache::Inform(path);
+    StatCache::Inform(path_);
   }
 
   /// Return true if the file exists (mtime_ got a value).

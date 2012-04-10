@@ -33,6 +33,7 @@ class DepDatabaseTest : public testing::Test {
   ScopedTempDir temp_dir_;
 };
 
+/*
 TEST_F(DepDatabaseTest, Empty) {
   DepDatabase db("depdb", true);
   ASSERT_EQ(0, db.FindDepData("nothing.c"));
@@ -87,5 +88,4 @@ TEST_F(DepDatabaseTest, AddMultipleUnsorted) {
   EXPECT_EQ(0, strcmp(db.FindDepData("b.c"), "waa"));
   EXPECT_EQ(0, strcmp(db.FindDepData("x.c"), "woo"));
 }
-
-// TODO canonicalize
+*/

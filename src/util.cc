@@ -106,13 +106,13 @@ bool CanonicalizePath(char* path, int* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == '/') {
+  if (*src == DIR_SEP[0]) {
     ++src;
     ++dst;
   }
 
   while (src < end) {
-    const char* sep = (const char*)memchr(src, '/', end - src);
+    const char* sep = (const char*)memchr(src, DIR_SEP[0], end - src);
     if (sep == NULL)
       sep = end;
 

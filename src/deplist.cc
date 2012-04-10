@@ -137,7 +137,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   const char* end = input.str_ + input.len_;
 
   if (end - in < 2 * 2) {
-    *err = "unexpected EOF 0";
+    *err = "unexpected EOF";
     return false;
   }
 
@@ -149,7 +149,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   int16_t count = ReadInt16(&in);
 
   if (end - in < count * 2) {
-    *err = "unexpected EOF 1";
+    *err = "unexpected EOF";
     return false;
   }
   const char* strings = in + (count * 2);
@@ -162,7 +162,7 @@ bool Deplist::Load(StringPiece input, vector<StringPiece>* entries,
   }
 
   if (strings > end) {
-    *err = "unexpected EOF 2";
+    *err = "unexpected EOF";
     return false;
   }
 

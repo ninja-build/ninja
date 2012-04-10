@@ -28,13 +28,7 @@
 namespace {
 
 string DirName(const string& path) {
-#ifdef _WIN32
-  // Support either path separator on Windows.
-  const string kPathSeparators("\\");
-#else
-  const string kPathSeparators("/");
-#endif
-
+  const string kPathSeparators(DIR_SEP);
   string::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == string::npos)
       return string();  // Nothing to do.
@@ -69,6 +63,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef _WIN32
+  printf("real stat: %s\n", path.c_str());
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {

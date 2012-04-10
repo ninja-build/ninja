@@ -28,18 +28,18 @@ TEST(ShowIncludesTest, Empty) {
 
 TEST(ShowIncludesTest, Simple) {
   vector<StringPiece> entries;
-  string out = ShowIncludes::Filter(
+  string input = string(
 "Sample compiler output\r\n"
-"Note: including file: c:\\Program Files\\foobar.h\r\n"
+"Note: including file: c:\\Some Files\\foobar.h\r\n"
 "another text line\r\n"
-"Note: including file:   c:\\initspaces.h\r\n",
-&entries);
+"Note: including file:   c:\\initspaces.h\r\n");
+  string out = ShowIncludes::Filter(input, &entries);
 
   EXPECT_EQ(
 "Sample compiler output\r\n"
 "another text line\r\n",
 out);
   ASSERT_EQ(2u, entries.size());
-  EXPECT_EQ("c:\\Program Files\\foobar.h", entries[0].AsString());
+  EXPECT_EQ("c:\\Some Files\\foobar.h", entries[0].AsString());
   EXPECT_EQ("c:\\initspaces.h", entries[1].AsString());
 }

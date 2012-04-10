@@ -14,11 +14,13 @@
 
 #include "deplist.h"
 
+#include <algorithm>
 #include <errno.h>
 #include <stdio.h>
 
 #include "dep_database.h"
 #include "depfile_parser.h"
+#include "includes_normalize.h"
 #include "showincludes_parser.h"
 #include "util.h"
 
@@ -43,6 +45,7 @@ void Usage() {
 "             being compiled when /nologo is used.\n"
 "  -d FILE    write to database FILE instead of individual file\n"
 "             requires -o to specify target index name\n"
+"  -r BASE    normalize paths and make relative to BASE before outputting\n"
 "  -o FILE    write output to FILE (default: stdout)\n"
          );
 }
@@ -57,6 +60,7 @@ enum InputFormat {
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
   const char* db_filename = NULL;
+  const char* relative_to = NULL;
   InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
 
@@ -65,7 +69,7 @@ int main(int argc, char** argv) {
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:o:hqd:", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:hqd:r:", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         string format = optarg;
@@ -82,6 +86,9 @@ int main(int argc, char** argv) {
         break;
       case 'q':
         quiet = true;
+        break;
+      case 'r':
+        relative_to = optarg;
         break;
       case 'd':
         db_filename = optarg;
@@ -115,6 +122,8 @@ int main(int argc, char** argv) {
   }
 
   DepfileParser depfile;
+  vector<StringPiece> includes;
+  vector<string> normalized;
   string depfile_err;
   switch (input_format) {
   case INPUT_DEPFILE:
@@ -131,7 +140,10 @@ int main(int argc, char** argv) {
         content = content.substr(content.find("\n", at) + 1);
       }
     }
-    string text = ShowIncludes::Filter(content, &depfile.ins_);
+    string text = ShowIncludes::Filter(content, &includes);
+    for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i) {
+      normalized.push_back(IncludesNormalize::Normalize(*i, relative_to));
+    }
     printf("%s", text.c_str());
     break;
   }

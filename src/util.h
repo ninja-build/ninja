@@ -94,4 +94,11 @@ typedef unsigned short uint16_t;
 string GetLastErrorString();
 #endif
 
+#ifdef _WIN32
+  #define DIR_SEP "\\"
+#else
+  #define DIR_SEP "/"
+#endif
+
+
 #endif  // NINJA_UTIL_H_
