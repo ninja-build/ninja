@@ -23,7 +23,7 @@ import subprocess
 def run(*args, **kwargs):
     try:
         subprocess.check_call(*args, **kwargs)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         sys.exit(e.returncode)
 
 # Compute system-specific CFLAGS/LDFLAGS as used in both in the below
@@ -34,11 +34,11 @@ if sys.platform.startswith('freebsd'):
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
-print 'Building ninja manually...'
+sys.stdout.write('Building ninja manually...\n')
 
 try:
     os.mkdir('build')
-except OSError, e:
+except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
@@ -83,9 +83,9 @@ else:
     args.extend(['-o', binary])
 run(args)
 
-print 'Building ninja using itself...'
+sys.stdout.write('Building ninja using itself...\n')
 run([sys.executable, 'configure.py'] + sys.argv[1:])
 run(['./' + binary])
 os.unlink(binary)
 
-print 'Done!'
+sys.stdout.write('Done!\n')
