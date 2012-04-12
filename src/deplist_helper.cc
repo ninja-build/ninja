@@ -143,6 +143,7 @@ int main(int argc, char** argv) {
     string text = ShowIncludes::Filter(content, &includes);
     for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i) {
       normalized.push_back(IncludesNormalize::Normalize(*i, relative_to));
+      depfile.ins_.push_back(normalized.back());
     }
     printf("%s", text.c_str());
     break;
