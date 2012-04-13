@@ -32,8 +32,10 @@
 bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
+  // parsing_targets: whether we are parsing targets or dependencies.
   char* in = &(*content)[0];
   char* end = in + content->size();
+  bool parsing_targets = true;
   while (in < end) {
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
@@ -62,7 +64,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           0, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0,   0,   0,   0, 
+        128, 128, 128,   0,   0,   0, 128,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -82,7 +84,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= '[') {
+      if (yych <= '\\') {
         if (yych <= ':') {
           if (yych <= 0x00) goto yy6;
           if (yych <= '*') goto yy8;
@@ -90,20 +92,18 @@ bool DepfileParser::Parse(string* content, string* err) {
         } else {
           if (yych <= '@') goto yy8;
           if (yych <= 'Z') goto yy4;
-          goto yy8;
+          if (yych <= '[') goto yy8;
         }
       } else {
-        if (yych <= '_') {
-          if (yych <= '\\') goto yy2;
-          if (yych <= '^') goto yy8;
-          goto yy4;
+        if (yych <= '`') {
+          if (yych == '_') goto yy4;
+          goto yy8;
         } else {
-          if (yych <= '`') goto yy8;
           if (yych <= 'z') goto yy4;
+          if (yych == '~') goto yy4;
           goto yy8;
         }
       }
-yy2:
       ++in;
       if ((yych = *in) <= '$') {
         if (yych <= '\n') {
@@ -180,16 +180,22 @@ yy13:
     }
 
     int len = out - filename;
-    if (len > 0 && filename[len - 1] == ':')
+    const bool is_target = parsing_targets;
+    if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
+      parsing_targets = false;
+    }
 
     if (len == 0)
       continue;
 
-    if (!out_.str_) {
-      out_ = StringPiece(filename, len);
-    } else {
+    if (!is_target) {
       ins_.push_back(StringPiece(filename, len));
+    } else if (!out_.str_) {
+      out_ = StringPiece(filename, len);
+    } else if (out_ != StringPiece(filename, len)) {
+      *err = "depfile has multiple output paths.";
+      return false;
     }
   }
   return true;

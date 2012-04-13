@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,10 +42,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
-  // fd_ may be a member of the pselect set in SubprocessSet::DoWork.  Check
-  // that it falls below the system limit.
-  if (fd_ >= FD_SETSIZE)
+#if !defined(linux)
+  // On linux we use ppoll in DoWork(); elsewhere we use pselect and so must
+  // avoid overly-large FDs.
+  if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
+#endif  // !linux
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -180,6 +182,54 @@ Subprocess *SubprocessSet::Add(const string &command) {
   return subprocess;
 }
 
+#ifdef linux
+bool SubprocessSet::DoWork() {
+  vector<pollfd> fds;
+  nfds_t nfds = 0;
+
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ++i) {
+    int fd = (*i)->fd_;
+    if (fd < 0)
+      continue;
+    pollfd pfd = { fd, POLLIN | POLLPRI | POLLRDHUP, 0 };
+    fds.push_back(pfd);
+    ++nfds;
+  }
+
+  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  if (ret == -1) {
+    if (errno != EINTR) {
+      perror("ninja: ppoll");
+      return false;
+    }
+    bool interrupted = interrupted_;
+    interrupted_ = false;
+    return interrupted;
+  }
+
+  nfds_t cur_nfd = 0;
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end(); ) {
+    int fd = (*i)->fd_;
+    if (fd < 0)
+      continue;
+    assert(fd == fds[cur_nfd].fd);
+    if (fds[cur_nfd++].revents) {
+      (*i)->OnPipeReady();
+      if ((*i)->Done()) {
+        finished_.push(*i);
+        i = running_.erase(i);
+        continue;
+      }
+    }
+    ++i;
+  }
+
+  return false;
+}
+
+#else  // linux
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
@@ -213,7 +263,7 @@ bool SubprocessSet::DoWork() {
       (*i)->OnPipeReady();
       if ((*i)->Done()) {
         finished_.push(*i);
-        running_.erase(i);
+        i = running_.erase(i);
         continue;
       }
     }
@@ -222,6 +272,7 @@ bool SubprocessSet::DoWork() {
 
   return false;
 }
+#endif  // linux
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())

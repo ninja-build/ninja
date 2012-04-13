@@ -116,6 +116,9 @@ struct Builder {
   Builder(State* state, const BuildConfig& config);
   ~Builder();
 
+  /// Clean up after interrupted commands by deleting output files.
+  void Cleanup();
+
   Node* AddTarget(const string& name, string* err);
 
   /// Add a target to the build, scanning dependencies.

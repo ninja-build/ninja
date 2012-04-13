@@ -202,6 +202,8 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual vector<Edge*> GetActiveEdges(); 
+  virtual void Abort(); 
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -240,13 +242,15 @@ bool BuildTest::StartCommand(Edge* edge) {
   if (edge->rule().name() == "cat"  ||
       edge->rule().name() == "cat_rsp" ||
       edge->rule().name() == "cc" ||
-      edge->rule().name() == "touch") {
+      edge->rule().name() == "touch" ||
+      edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_.Create((*out)->path(), now_, "");
     }
   } else if (edge->rule().name() == "true" ||
-             edge->rule().name() == "fail") {
+             edge->rule().name() == "fail" ||
+             edge->rule().name() == "interrupt") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -259,6 +263,12 @@ bool BuildTest::StartCommand(Edge* edge) {
 
 Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   if (Edge* edge = last_command_) {
+    if (edge->rule().name() == "interrupt" ||
+        edge->rule().name() == "touch-interrupt") {
+      *status = ExitInterrupted;
+      return NULL;
+    }
+
     if (edge->rule().name() == "fail")
       *status = ExitFailure;
     else
@@ -268,6 +278,17 @@ Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   }
   *status = ExitFailure;
   return NULL;
+}
+
+vector<Edge*> BuildTest::GetActiveEdges() {
+  vector<Edge*> edges;
+  if (last_command_)
+    edges.push_back(last_command_);
+  return edges;
+}
+
+void BuildTest::Abort() {
+  last_command_ = NULL;
 }
 
 TEST_F(BuildTest, NoWork) {
@@ -847,15 +868,15 @@ TEST_F(BuildTest, RspFileSuccess)
   size_t files_removed = fs_.files_removed_.size();
 
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2, commands_ran_.size()); // cat + cat_rsp
+  ASSERT_EQ(2u, commands_ran_.size()); // cat + cat_rsp
     
   // The RSP file was created
   ASSERT_EQ(files_created + 1, fs_.files_created_.size());
-  ASSERT_EQ(1, fs_.files_created_.count("out2.rsp"));
+  ASSERT_EQ(1u, fs_.files_created_.count("out2.rsp"));
     
   // The RSP file was removed
   ASSERT_EQ(files_removed + 1, fs_.files_removed_.size());
-  ASSERT_EQ(1, fs_.files_removed_.count("out2.rsp"));
+  ASSERT_EQ(1u, fs_.files_removed_.count("out2.rsp"));
 }
 
 // Test that RSP file is created but not removed for commands, which fail
@@ -882,15 +903,15 @@ TEST_F(BuildTest, RspFileFailure) {
 
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ("subcommand failed", err);
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
 
   // The RSP file was created
   ASSERT_EQ(files_created + 1, fs_.files_created_.size());
-  ASSERT_EQ(1, fs_.files_created_.count("out.rsp"));
+  ASSERT_EQ(1u, fs_.files_created_.count("out.rsp"));
 
   // The RSP file was NOT removed
   ASSERT_EQ(files_removed, fs_.files_removed_.size());
-  ASSERT_EQ(0, fs_.files_removed_.count("out.rsp"));
+  ASSERT_EQ(0u, fs_.files_removed_.count("out.rsp"));
 
   // The RSP file contains what it should
   ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
@@ -918,7 +939,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
 
   // 1. Build for the 1st time (-> populate log)
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(1, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());
 
   // 2. Build again (no change)
   commands_ran_.clear();
@@ -939,5 +960,65 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ(1, commands_ran_.size());
+  EXPECT_EQ(1u, commands_ran_.size());
+}
+
+TEST_F(BuildTest, InterruptCleanup) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule interrupt\n"
+"  command = interrupt\n"
+"rule touch-interrupt\n"
+"  command = touch-interrupt\n"
+"build out1: interrupt in1\n"
+"build out2: touch-interrupt in2\n"));
+
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+  now_++;
+  fs_.Create("in1", now_, "");
+  fs_.Create("in2", now_, "");
+
+  // An untouched output of an interrupted command should be retained.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("interrupted by user", err);
+  builder_.Cleanup();
+  EXPECT_EQ(now_-1, fs_.Stat("out1"));
+  err = "";
+
+  // A touched output of an interrupted command should be deleted.
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("interrupted by user", err);
+  builder_.Cleanup();
+  EXPECT_EQ(0, fs_.Stat("out2"));
+}
+
+TEST_F(BuildTest, PhonyWithNoInputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build nonexistent: phony\n"
+"build out1: cat || nonexistent\n"
+"build out2: cat nonexistent\n"));
+  fs_.Create("out1", now_, "");
+  fs_.Create("out2", now_, "");
+
+  // out1 should be up to date even though its input is dirty, because its
+  // order-only dependency has nothing to do.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // out2 should still be out of date though, because its input is dirty.
+  err.clear();
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, commands_ran_.size());
 }

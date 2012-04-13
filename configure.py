@@ -104,7 +104,7 @@ else:
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
-              '/D_CRT_SECURE_NO_WARNINGS',
+              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
@@ -114,6 +114,7 @@ else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
+              '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
@@ -153,7 +154,7 @@ if platform == 'windows':
         description='CXX $out')
 else:
     n.rule('cxx',
-        command='$cxx -MMD -MF $out.d $cflags -c $in -o $out',
+        command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
         depfile='$out.d',
         description='CXX $out')
 n.newline()

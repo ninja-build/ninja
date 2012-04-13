@@ -83,7 +83,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT)
+    if (errno == ENOENT || errno == ENOTDIR)
       return 0;
     Error("stat(%s): %s", path.c_str(), strerror(errno));
     return -1;
@@ -98,9 +98,10 @@ bool RealDiskInterface::WriteFile(const string & path, const string & contents) 
     Error("WriteFile(%s): Unable to create file. %s", path.c_str(), strerror(errno));
     return false;
   }
- 
+
   if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
     Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(), strerror(errno));
+    fclose(fp);
     return false;
   }
 

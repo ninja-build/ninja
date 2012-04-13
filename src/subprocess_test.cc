@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -142,3 +142,31 @@ TEST_F(SubprocessTest, SetWithMulti) {
   }
 }
 
+#ifdef linux
+TEST_F(SubprocessTest, SetWithLots) {
+  // Arbitrary big number; needs to be over 1024 to confirm we're no longer
+  // hostage to pselect.
+  const size_t kNumProcs = 1025;
+
+  // Make sure [ulimit -n] isn't going to stop us from working.
+  rlimit rlim;
+  ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlim));
+  ASSERT_GT(rlim.rlim_cur, kNumProcs)
+      << "Raise [ulimit -n] well above " << kNumProcs
+      << " to make this test go";
+
+  vector<Subprocess*> procs;
+  for (size_t i = 0; i < kNumProcs; ++i) {
+    Subprocess* subproc = subprocs_.Add("/bin/echo");
+    ASSERT_NE((Subprocess *) 0, subproc);
+    procs.push_back(subproc);
+  }
+  while (!subprocs_.running_.empty())
+    subprocs_.DoWork();
+  for (size_t i = 0; i < procs.size(); ++i) {
+    ASSERT_EQ(ExitSuccess, procs[i]->Finish());
+    ASSERT_NE("", procs[i]->GetOutput());
+  }
+  ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
+}
+#endif  // linux

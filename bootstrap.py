@@ -13,12 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from optparse import OptionParser
 import sys
 import os
 import glob
 import errno
 import shlex
 import subprocess
+
+parser = OptionParser()
+parser.add_option('--verbose', action='store_true',
+                  help='enable verbose build',)
+(options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
     try:
@@ -68,7 +74,7 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc']
+    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     args.extend(['-Wno-deprecated',
@@ -84,11 +90,19 @@ if vcdir:
     args.extend(['/link', '/out:' + binary])
 else:
     args.extend(['-o', binary])
+
+if options.verbose:
+    print ' '.join(args)
+
 run(args)
 
+verbose = []
+if options.verbose:
+    verbose = ['-v']
+
 print 'Building ninja using itself...'
-run([sys.executable, 'configure.py'] + sys.argv[1:])
-run(['./' + binary])
+run([sys.executable, 'configure.py'] + conf_args)
+run(['./' + binary] + verbose)
 os.unlink(binary)
 
 print 'Done!'

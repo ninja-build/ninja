@@ -104,10 +104,10 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
       (*i)->MarkDirty();
   }
 
-  // If we're dirty, our outputs are not ready.  (It's possible to be
-  // clean but still have not be ready in the presence of order-only
-  // inputs.)
-  if (dirty)
+  // If we're dirty, our outputs are normally not ready.  (It's possible to be
+  // clean but still not be ready in the presence of order-only inputs.)
+  // But phony edges with no inputs have nothing to do, so are always ready.
+  if (dirty && !(is_phony() && inputs_.empty()))
     outputs_ready_ = false;
 
   return true;
@@ -172,20 +172,25 @@ struct EdgeEnv : public Env {
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.  XXX here is where shell-escaping of e.g spaces should happen.
   string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end);
+                      vector<Node*>::iterator end,
+                      char sep);
 
   Edge* edge_;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {
-  if (var == "in") {
+  if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
+    // Don't use \n for in_newline, because the build log uses that to
+    // separate entries.
     return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count);
+                        edge_->inputs_.begin() + explicit_deps_count,
+                        var == "in" ? ' ' : '\r');
   } else if (var == "out") {
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end());
+                        edge_->outputs_.end(),
+                        ' ');
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
@@ -195,11 +200,12 @@ string EdgeEnv::LookupVariable(const string& var) {
 }
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end) {
+                             vector<Node*>::iterator end,
+                             char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
-      result.push_back(' ');
+      result.push_back(sep);
     const string& path = (*i)->path();
     if (path.find(" ") != string::npos) {
       result.append("\"");

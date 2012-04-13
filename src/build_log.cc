@@ -106,7 +106,7 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::Load(const string& path, string* err) {
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = fopen(path.c_str(), "rb");
   if (!file) {
     if (errno == ENOENT)
       return true;
@@ -224,6 +224,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
 
   if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
     *err = strerror(errno);
+    fclose(f);
     return false;
   }
 

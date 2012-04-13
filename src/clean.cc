@@ -125,6 +125,8 @@ int Cleaner::CleanAll(bool generator) {
 void Cleaner::DoCleanTarget(Node* target) {
   if (target->in_edge()) {
     Remove(target->path());
+    if (!target->in_edge()->rule().depfile().empty())
+      Remove(target->in_edge()->EvaluateDepFile());
     if (target->in_edge()->HasRspFile())
       Remove(target->in_edge()->GetRspFile());
     for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
@@ -187,6 +189,8 @@ void Cleaner::DoCleanRule(const Rule* rule) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
+        if (!(*e)->rule().depfile().empty())
+          Remove((*e)->EvaluateDepFile());
         if ((*e)->HasRspFile()) 
           Remove((*e)->GetRspFile());
       }
