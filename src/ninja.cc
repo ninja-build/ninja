@@ -495,6 +495,7 @@ int ToolDeps(Globals* globals, int argc, char* argv[]) {
     globals->state->depdb_->DumpDeps(argv[i]);
   }
   return 0;
+}
 
 void ToolUrtle() {
   // RLE encoded.
