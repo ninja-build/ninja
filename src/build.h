@@ -26,6 +26,7 @@ using namespace std;
 #include "exit_status.h"
 
 struct BuildLog;
+struct BuildStatus;
 struct Edge;
 struct DiskInterface;
 struct Node;
@@ -140,8 +141,8 @@ struct Builder {
   Plan plan_;
   DiskInterface* disk_interface_;
   auto_ptr<CommandRunner> command_runner_;
-  struct BuildStatus* status_;
-  struct BuildLog* log_;
+  BuildStatus* status_;
+  BuildLog* log_;
 
 private:
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
