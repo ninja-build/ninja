@@ -86,6 +86,16 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+
+  if (!smart_terminal_) {
+    int length;
+    char term[5];
+    if ((length = GetEnvironmentVariable("TERM", term, 5)) &&
+        (length > 5 || string(term) != "dumb")) {
+      console_ = NULL;
+      smart_terminal_ = true;
+    }
+  }
 #endif
 
   // Don't do anything fancy in verbose mode.
@@ -183,15 +193,20 @@ void BuildStatus::PrintStatus(Edge* edge) {
 
 #ifdef _WIN32
   CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(console_, &csbi);
+  csbi.dwSize.X = 80;
+  if (console_)
+    GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
   if (smart_terminal_) {
 #ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
 #else
-    csbi.dwCursorPosition.X = 0;
-    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
+    if (console_) {
+      csbi.dwCursorPosition.X = 0;
+      SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
+    } else
+      printf("\r");  // Print over previous line, if any.
 #endif
   }
 
@@ -233,10 +248,13 @@ void BuildStatus::PrintStatus(Edge* edge) {
     have_blank_line_ = false;
 #else
     // Clear to end of line.
-    GetConsoleScreenBufferInfo(console_, &csbi);
-    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
-    printf("%*s", num_spaces, "");
-    have_blank_line_ = false;
+    if (console_) {
+      GetConsoleScreenBufferInfo(console_, &csbi);
+      int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
+      printf("%*s", num_spaces, "");
+      have_blank_line_ = false;
+    } else
+      printf("\x1B[K");  // Clear to end of line.
 #endif
   } else {
     printf("\n");
