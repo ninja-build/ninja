@@ -17,7 +17,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "build.h"
 #include "graph.h"
@@ -104,7 +106,7 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::Load(const string& path, string* err) {
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = fopen(path.c_str(), "rb");
   if (!file) {
     if (errno == ENOENT)
       return true;

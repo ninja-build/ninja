@@ -28,16 +28,12 @@
 namespace {
 
 string DirName(const string& path) {
-#ifdef _WIN32
-  const char kPathSeparator = '\\';
-#else
-  const char kPathSeparator = '/';
-#endif
-
-  string::size_type slash_pos = path.rfind(kPathSeparator);
+  const string kPathSeparators(DIR_SEP);
+  string::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == string::npos)
-    return string();  // Nothing to do.
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
+      return string();  // Nothing to do.
+  while (slash_pos > 0 &&
+         kPathSeparators.find(path[slash_pos - 1]) != string::npos)
     --slash_pos;
   return path.substr(0, slash_pos);
 }
@@ -67,6 +63,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef _WIN32
+  //printf("real stat: %s\n", path.c_str());
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
@@ -82,15 +79,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
           GetLastErrorString().c_str());
     return -1;
   }
-  const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
-  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  return FiletimeToTimestamp(attrs.ftLastWriteTime);
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
@@ -132,9 +121,9 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-string RealDiskInterface::ReadFile(const string& path, string* err) {
+string RealDiskInterface::ReadFile(const string& path, string* err, bool binary) {
   string contents;
-  int ret = ::ReadFile(path, &contents, err);
+  int ret = ::ReadFile(path, &contents, err, binary);
   if (ret == -ENOENT) {
     // Swallow ENOENT.
     err->clear();

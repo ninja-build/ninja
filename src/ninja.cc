@@ -38,11 +38,13 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "dep_database.h"
 #include "edit_distance.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "metrics.h"
 #include "parsers.h"
+#include "stat_cache.h"
 #include "state.h"
 #include "util.h"
 
@@ -483,6 +485,18 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex();
+  return 0;
+}
+
+int ToolDeps(Globals* globals, int argc, char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    globals->state->depdb_->DumpDeps(argv[i]);
+  }
+  return 0;
+}
+
 void ToolUrtle() {
   // RLE encoded.
   const char* urtle =
@@ -523,6 +537,10 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       ToolCommands },
+    { "depindex", "list all files indexed in the depdb",
+      ToolDepIndex },
+    { "deps", "list dependencies stored in the depdb for given files",
+      ToolDeps },
     { "graph", "output graphviz dot file for targets",
       ToolGraph },
     { "query", "show inputs/outputs for a path",
@@ -704,9 +722,6 @@ reload:
     return 1;
   }
 
-  if (!tool.empty())
-    return RunTool(tool, &globals, argc, argv);
-
   BuildLog build_log;
   build_log.SetConfig(&globals.config);
   globals.state->build_log_ = &build_log;
@@ -734,6 +749,17 @@ reload:
     return 1;
   }
 
+  const char* kDepDbPath = ".ninja_depdb";
+  string depdb_path = kDepDbPath;
+  if (!build_dir.empty()) {
+    depdb_path = build_dir + "/" + kDepDbPath;
+  }
+  DepDatabase depdb(depdb_path, true);
+  globals.state->depdb_ = &depdb;
+
+  if (!tool.empty())
+    return RunTool(tool, &globals, argc, argv);
+
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
     if (RebuildManifest(globals.state, globals.config, input_file, &err)) {
@@ -745,6 +771,8 @@ reload:
       return 1;
     }
   }
+
+  StatCache::PreCache(globals.state);
 
   int result = RunBuild(&globals, argc, argv);
   if (g_metrics) {

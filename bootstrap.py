@@ -64,6 +64,9 @@ for src in glob.glob('src/*.cc'):
         if src.endswith('-win32.cc'):
             continue
 
+    if filename == 'deplist_helper.cc':
+        continue
+
     sources.append(src)
 
 if sys.platform.startswith('win32'):

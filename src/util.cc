@@ -107,13 +107,13 @@ bool CanonicalizePath(char* path, int* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == '/') {
+  if (*src == DIR_SEP[0]) {
     ++src;
     ++dst;
   }
 
   while (src < end) {
-    const char* sep = (const char*)memchr(src, '/', end - src);
+    const char* sep = (const char*)memchr(src, DIR_SEP[0], end - src);
     if (sep == NULL)
       sep = end;
 
@@ -166,13 +166,19 @@ int MakeDir(const string& path) {
 #endif
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
+int ReadFile(const string& path, string* contents, string* err, bool binary) {
+  FILE* f = fopen(path.c_str(), binary ? "rb" : "r");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
   }
+  if (!ReadFile(f, contents, err))
+    return -errno;
+  fclose(f);
+  return 0;
+}
 
+bool ReadFile(FILE* f, string* contents, string* err) {
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
@@ -181,11 +187,9 @@ int ReadFile(const string& path, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
-    return -errno;
+    return false;
   }
-  fclose(f);
-  return 0;
+  return true;
 }
 
 void SetCloseOnExec(int fd) {
@@ -292,4 +296,15 @@ string StripAnsiEscapeCodes(const string& in) {
       ++i;
   }
   return stripped;
+}
+
+TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime;
 }

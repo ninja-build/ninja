@@ -115,6 +115,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->command_ = value;
     } else if (key == "depfile") {
       rule->depfile_ = value;
+    } else if (key == "deplist") {
+      rule->deplist_ = value;
     } else if (key == "description") {
       rule->description_ = value;
     } else if (key == "generator") {
@@ -137,6 +139,11 @@ bool ManifestParser::ParseRule(string* err) {
 
   if (rule->command_.empty())
     return lexer_.Error("expected 'command =' line", err);
+  int count = 0;
+  if (!rule->depfile_.empty()) ++count;
+  if (!rule->deplist_.empty()) ++count;
+  if (count > 1)
+    return lexer_.Error("can only specify one of depfile or deplist", err);
 
   state_->AddRule(rule);
   return true;

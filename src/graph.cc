@@ -18,7 +18,9 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "dep_database.h"
 #include "depfile_parser.h"
+#include "deplist.h"
 #include "disk_interface.h"
 #include "metrics.h"
 #include "parsers.h"
@@ -38,6 +40,9 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   if (!rule_->depfile().empty()) {
     if (!LoadDepFile(state, disk_interface, err))
+      return false;
+  } else if (!rule_->deplist().empty()) {
+    if (!LoadDepDb(state, err))
       return false;
   }
 
@@ -164,20 +169,25 @@ struct EdgeEnv : public Env {
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.  XXX here is where shell-escaping of e.g spaces should happen.
   string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end);
+                      vector<Node*>::iterator end,
+                      char sep);
 
   Edge* edge_;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {
-  if (var == "in") {
+  if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
+    // Don't use \n for in_newline, because the build log uses that to
+    // separate entries.
     return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count);
+                        edge_->inputs_.begin() + explicit_deps_count,
+                        var == "in" ? ' ' : '\r');
   } else if (var == "out") {
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end());
+                        edge_->outputs_.end(),
+                        ' ');
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
@@ -187,11 +197,12 @@ string EdgeEnv::LookupVariable(const string& var) {
 }
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end) {
+                             vector<Node*>::iterator end,
+                             char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
-      result.push_back(' ');
+      result.push_back(sep);
     const string& path = (*i)->path();
     if (path.find(" ") != string::npos) {
       result.append("\"");
@@ -220,6 +231,30 @@ string Edge::EvaluateDepFile() {
 string Edge::GetDescription() {
   EdgeEnv env(this);
   return rule_->description().Evaluate(&env);
+}
+
+Node* Edge::GetDepNode(State* state, StringPiece path) {
+  Node* node = state->GetNode(path);  // XXX remove conversion
+  node->AddOutEdge(this);
+
+  // If we don't have a edge that generates this input already,
+  // create one; this makes us not abort if the input is missing,
+  // but instead will rebuild in that circumstance.
+  if (!node->in_edge()) {
+    Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+    node->set_in_edge(phony_edge);
+    phony_edge->outputs_.push_back(node);
+
+    // RecomputeDirty might not be called for phony_edge if a previous call
+    // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+    // invocations of RecomputeDirty would have seen this node without an
+    // input edge (and therefore ready), we have to set outputs_ready_ to true
+    // to avoid a potential stuck build.  If we do call RecomputeDirty for
+    // this node, it will simply set outputs_ready_ to the correct value.
+    phony_edge->outputs_ready_ = true;
+  }
+
+  return node;
 }
 
 bool Edge::HasRspFile() {
@@ -292,6 +327,103 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
       // this node, it will simply set outputs_ready_ to the correct value.
       phony_edge->outputs_ready_ = true;
     }
+  }
+
+  return true;
+}
+
+bool Edge::LoadDepList(State* state, DiskInterface* disk_interface,
+                       string* err) {
+  METRIC_RECORD("deplist load");
+
+  EdgeEnv env(this);
+  string path = rule_->deplist().Evaluate(&env);
+
+  string content = disk_interface->ReadFile(path, err, true);
+  if (!err->empty())
+    return false;
+  if (content.empty())
+    return true;
+
+  vector<StringPiece> deps;
+  if (!Deplist::Load(content, &deps, err))
+    return false;
+
+  inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);
+  implicit_deps_ += deps.size();
+  vector<Node*>::iterator implicit_dep =
+    inputs_.end() - order_only_deps_ - deps.size();
+
+  // Add all its in-edges.
+  for (vector<StringPiece>::iterator i = deps.begin();
+       i != deps.end(); ++i, ++implicit_dep) {
+    Node* node = state->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(this);
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge()) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->set_in_edge(phony_edge);
+      phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
+    }
+  }
+
+  return true;
+}
+
+bool Edge::LoadDepDb(State* state, string* err) {
+  METRIC_RECORD("depdb load");
+
+  EdgeEnv env(this);
+  string path = rule_->deplist().Evaluate(&env);
+  const char* data = state->depdb_->FindDepData(path);
+  if (!data) // Empty.
+    return true;
+  vector<StringPiece> deps;
+  if (!Deplist::Load2(data, &deps, err))
+    return false;
+
+  inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);
+  implicit_deps_ += deps.size();
+  vector<Node*>::iterator implicit_dep =
+    inputs_.end() - order_only_deps_ - deps.size();
+
+  { METRIC_RECORD("depdb add in-edges");
+  // Add all its in-edges.
+  for (vector<StringPiece>::iterator i = deps.begin();
+       i != deps.end(); ++i, ++implicit_dep) {
+    Node* node = state->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(this);
+
+    // If we don't have a edge that generates this input already,
+    // create one; this makes us not abort if the input is missing,
+    // but instead will rebuild in that circumstance.
+    if (!node->in_edge()) {
+      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      node->set_in_edge(phony_edge);
+      phony_edge->outputs_.push_back(node);
+
+      // RecomputeDirty might not be called for phony_edge if a previous call
+      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+      // invocations of RecomputeDirty would have seen this node without an
+      // input edge (and therefore ready), we have to set outputs_ready_ to true
+      // to avoid a potential stuck build.  If we do call RecomputeDirty for
+      // this node, it will simply set outputs_ready_ to the correct value.
+      phony_edge->outputs_ready_ = true;
+    }
+  }
   }
 
   return true;

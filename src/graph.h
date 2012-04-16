@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "stat_cache.h"
 #include "timestamp.h"
 
 struct DiskInterface;
@@ -28,14 +29,21 @@ struct Edge;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const string& path) : path_(path), mtime_(-1), dirty_(false),
-                             in_edge_(NULL) {}
+  Node(const string& path) : path_(path), mtime_(-1), precache_mtime_(0),
+                             dirty_(false), in_edge_(NULL) {
+    StatCache::Inform(path_);
+  }
 
   /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
 
   /// Return true if we needed to stat.
   bool StatIfNecessary(DiskInterface* disk_interface) {
+    if (precache_mtime_) {
+      mtime_ = precache_mtime_;
+      precache_mtime_ = 0;
+      return true;
+    }
     if (status_known())
       return false;
     Stat(disk_interface);
@@ -63,6 +71,7 @@ struct Node {
 
   const string& path() const { return path_; }
   TimeStamp mtime() const { return mtime_; }
+  void set_mtime(TimeStamp mtime) { precache_mtime_ = mtime; }
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
@@ -81,6 +90,7 @@ private:
   ///   0:  we looked, and file doesn't exist
   ///   >0: actual file's mtime
   TimeStamp mtime_;
+  TimeStamp precache_mtime_;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
@@ -108,6 +118,7 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
+  const EvalString& deplist() const { return deplist_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
 
@@ -123,6 +134,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString deplist_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };
@@ -156,6 +168,8 @@ struct Edge {
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  /// Get/create a Node for an input as discovered through a depfile/deplist.
+  Node* GetDepNode(State* state, StringPiece path);
   
   /// Does the edge use a response file?
   bool HasRspFile();
@@ -167,6 +181,8 @@ struct Edge {
   string GetRspFileContent();
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
+  bool LoadDepList(State* state, DiskInterface* disk_interface, string* err);
+  bool LoadDepDb(State* state, string* err);
 
   void Dump();
 

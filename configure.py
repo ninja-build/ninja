@@ -211,15 +211,20 @@ n.comment('Core source files all build into ninja library.')
 for name in ['build',
              'build_log',
              'clean',
+             'dep_database',
              'depfile_parser',
+             'deplist',
              'disk_interface',
              'edit_distance',
              'eval_env',
              'graph',
              'graphviz',
+             'includes_normalize',
              'lexer',
              'metrics',
              'parsers',
+             'showincludes_parser',
+             'stat_cache',
              'state',
              'util']:
     objs += cxx(name)
@@ -253,17 +258,21 @@ n.comment('Tests all build into ninja_test executable.')
 variables = []
 test_cflags = None
 test_ldflags = None
-test_libs = libs
+test_libs = libs[:]
 objs = []
 if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all.o'), 'cxx',
+    gtest_cflags = gtest_all_incs
+    if platform == 'windows':
+      gtest_cflags += ' /nologo /EHsc /Zi'
+    else:
+      gtest_cflags += ' -fvisibility=hidden'
+    objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
-    objs += n.build(built('gtest_main.o'), 'cxx',
+    objs += n.build(built('gtest_main' + objext), 'cxx',
                     os.path.join(path, 'src/gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
@@ -276,12 +285,16 @@ else:
 for name in ['build_log_test',
              'build_test',
              'clean_test',
+             'dep_database_test',
              'depfile_parser_test',
+             'deplist_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
+             'includes_normalize_test',
              'lexer_test',
              'parsers_test',
+             'showincludes_parser_test',
              'state_test',
              'subprocess_test',
              'test',
@@ -295,6 +308,14 @@ ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                                 ('libs', test_libs)])
 n.newline()
 all_targets += ninja_test
+
+n.comment('Deplist helper.')
+objs = cxx('deplist_helper')
+deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
+                         implicit=ninja_lib,
+                         variables=[('libs', libs)])
+n.newline()
+all_targets += deplist_helper
 
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
@@ -347,8 +368,8 @@ if host != 'mingw':
             implicit=['configure.py', 'misc/ninja_syntax.py'])
     n.newline()
 
-n.comment('Build only the main binary by default.')
-n.default(ninja)
+n.comment('Build only the user-facing binaries by default.')
+n.default(ninja + deplist_helper)
 n.newline()
 
 n.build('all', 'phony', all_targets)
