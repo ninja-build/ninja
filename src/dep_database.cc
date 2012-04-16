@@ -117,8 +117,10 @@ DepDatabase::DepDatabase(const string& filename, bool create) :
 
 DepDatabase::~DepDatabase() {
   UnmapFile();
-  CloseHandle(file_);
-  CloseHandle(lock_);
+  if (!CloseHandle(file_))
+    Fatal("CloseHandle: file_");
+  if (!CloseHandle(lock_))
+    Fatal("CloseHandle: lock_");
 }
 
 bool PathCompare(const DepIndex& a, const DepIndex& b) {
@@ -234,12 +236,18 @@ void DepDatabase::IncreaseFileSize() {
 
 void DepDatabase::UnmapFile() {
   if (view_)
-    UnmapViewOfFile(view_);
+    if (!UnmapViewOfFile(view_))
+      Fatal("UnmapViewOfFile");
+  view_ = 0;
   if (file_mapping_)
-    CloseHandle(file_mapping_);
+    if (!CloseHandle(file_mapping_))
+      Fatal("CloseHandle: file_mapping_");
+  file_mapping_ = 0;
 }
 
 void DepDatabase::MapFile() {
+  if (file_mapping_)
+    return;
   file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
   if (!file_mapping_)
     Fatal("Couldn't CreateFileMapping (%d)", GetLastError());
