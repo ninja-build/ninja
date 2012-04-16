@@ -16,6 +16,7 @@
 
 #include "graph.h"
 #include "hash_map.h"
+#include "includes_normalize.h"
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
@@ -59,7 +60,7 @@ void StatCache::PreCache(State* state) {
   vector<StringPiece>::const_iterator end = unique(gPaths.begin(), gPaths.end());
   for (vector<StringPiece>::const_iterator i = gPaths.begin(); i != end; ++i) {
     WIN32_FIND_DATA find_data;
-    string search_root = i->AsString();
+    string search_root = IncludesNormalize::ToLower(i->AsString());
     string search = search_root + "*";
     //printf("stating: %s\n", search.c_str());
     HANDLE handle = FindFirstFile(search.c_str(), &find_data);
