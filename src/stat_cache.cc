@@ -68,10 +68,13 @@ void StatCache::PreCache(State* state) {
       continue;
     for (;;) {
       if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-        string name = search_root + string(find_data.cFileName), err;
+        string name = search_root +
+                      IncludesNormalize::ToLower(find_data.cFileName);
+        //string err;
         //if (!CanonicalizePath(&name, &err))
           //continue;
         Node* node = state->LookupNode(name);
+        //printf("  cache for %s: %p\n", name.c_str(), node);
         if (node)
           node->set_mtime(FiletimeToTimestamp(find_data.ftLastWriteTime));
       }
