@@ -1,9 +1,11 @@
 *.pyc
+*.exe
 TAGS
 /build
 /build.ninja
 /ninja
 /ninja_test
+/ninja-deplist-helper
 /parser_perftest
 /graph.png
 /doc/manual.html

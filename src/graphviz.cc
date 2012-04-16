@@ -19,29 +19,33 @@
 #include "graph.h"
 
 void GraphViz::AddTarget(Node* node) {
-  if (visited_.find(node) != visited_.end())
+  if (visited_nodes_.find(node) != visited_nodes_.end())
     return;
 
-  printf("\"%p\" [label=\"%s\"]\n", node, node->file_->path_.c_str());
-  visited_.insert(node);
+  printf("\"%p\" [label=\"%s\"]\n", node, node->path().c_str());
+  visited_nodes_.insert(node);
 
-  if (!node->in_edge_) {
+  Edge* edge = node->in_edge();
+
+  if (!edge) {
     // Leaf node.
     // Draw as a rect?
     return;
   }
 
-  Edge* edge = node->in_edge_;
+  if (visited_edges_.find(edge) != visited_edges_.end())
+    return;
+  visited_edges_.insert(edge);
 
   if (edge->inputs_.size() == 1 && edge->outputs_.size() == 1) {
     // Can draw simply.
     // Note extra space before label text -- this is cosmetic and feels
     // like a graphviz bug.
     printf("\"%p\" -> \"%p\" [label=\" %s\"]\n",
-           edge->inputs_[0], edge->outputs_[0], edge->rule_->name_.c_str());
+           edge->inputs_[0], edge->outputs_[0], edge->rule_->name().c_str());
   } else {
     printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
-           edge, edge->rule_->name_.c_str());
+           edge, edge->rule_->name().c_str());
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       printf("\"%p\" -> \"%p\"\n", edge, *out);
@@ -63,6 +67,7 @@ void GraphViz::AddTarget(Node* node) {
 
 void GraphViz::Start() {
   printf("digraph ninja {\n");
+  printf("rankdir=\"LR\"\n");
   printf("node [fontsize=10, shape=box, height=0.25]\n");
   printf("edge [fontsize=10]\n");
 }

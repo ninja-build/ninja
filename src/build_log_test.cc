@@ -54,8 +54,8 @@ TEST_F(BuildLogTest, WriteRead) {
   EXPECT_TRUE(log2.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(2u, log1.log_.size());
-  ASSERT_EQ(2u, log2.log_.size());
+  ASSERT_EQ(2u, log1.log().size());
+  ASSERT_EQ(2u, log2.log().size());
   BuildLog::LogEntry* e1 = log1.LookupByOutput("out");
   ASSERT_TRUE(e1);
   BuildLog::LogEntry* e2 = log2.LookupByOutput("out");
@@ -67,8 +67,9 @@ TEST_F(BuildLogTest, WriteRead) {
 
 TEST_F(BuildLogTest, DoubleEntry) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "0 out command abc\n");
-  fprintf(f, "0 out command def\n");
+  fprintf(f, "# ninja log v3\n");
+  fprintf(f, "0 1 2 out command abc\n");
+  fprintf(f, "3 4 5 out command def\n");
   fclose(f);
 
   string err;
@@ -114,4 +115,61 @@ TEST_F(BuildLogTest, Truncate) {
     EXPECT_TRUE(log2.Load(kTestFilename, &err));
     ASSERT_EQ("", err);
   }
+}
+
+TEST_F(BuildLogTest, UpgradeV3) {
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v3\n");
+  fprintf(f, "123 456 0 out command\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(123, e->start_time);
+  ASSERT_EQ(456, e->end_time);
+  ASSERT_EQ(0, e->restat_mtime);
+  ASSERT_EQ("command", e->command);
+}
+
+TEST_F(BuildLogTest, SpacesInOutputV4) {
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "123\t456\t456\tout with space\tcommand\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out with space");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(123, e->start_time);
+  ASSERT_EQ(456, e->end_time);
+  ASSERT_EQ(456, e->restat_mtime);
+  ASSERT_EQ("command", e->command);
+}
+
+TEST_F(BuildLogTest, CarriageReturnInCommandV4) {
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "123\t456\t456\tout with space\tcommand\rcontains\rCR\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out with space");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(123, e->start_time);
+  ASSERT_EQ(456, e->end_time);
+  ASSERT_EQ(456, e->restat_mtime);
+  ASSERT_EQ("command\rcontains\rCR", e->command);
 }

@@ -14,37 +14,35 @@
 
 #include "clean.h"
 
-#include "graph.h"
-#include "ninja.h"
-#include "util.h"
-#include "build.h"
-
-#include <stdio.h>
+#include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <assert.h>
+
+#include "disk_interface.h"
+#include "graph.h"
+#include "state.h"
+#include "util.h"
 
 Cleaner::Cleaner(State* state, const BuildConfig& config)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(new RealDiskInterface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(new RealDiskInterface),
+    status_(0) {
 }
 
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state)
-  , config_(config)
-  , removed_()
-  , cleaned_files_count_(0)
-  , disk_interface_(disk_interface)
-  , status_(0)
-{
+  : state_(state),
+    config_(config),
+    removed_(),
+    cleaned_files_count_(0),
+    disk_interface_(disk_interface),
+    status_(0) {
 }
 
 int Cleaner::RemoveFile(const string& path) {
@@ -98,7 +96,7 @@ void Cleaner::PrintFooter() {
   printf("%d files.\n", cleaned_files_count_);
 }
 
-int Cleaner::CleanAll() {
+int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
@@ -106,20 +104,33 @@ int Cleaner::CleanAll() {
     // Do not try to remove phony targets
     if ((*e)->rule_ == &State::kPhonyRule)
       continue;
+    // Do not remove generator's files unless generator specified.
+    if (!generator && (*e)->rule().generator())
+      continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
-      Remove((*out_node)->file_->path_);
+      Remove((*out_node)->path());
     }
+    // Remove the depfile
+    if (!(*e)->rule().depfile().empty())
+      Remove((*e)->EvaluateDepFile());
+    // Remove the response file
+    if ((*e)->HasRspFile()) 
+      Remove((*e)->GetRspFile());      
   }
   PrintFooter();
   return status_;
 }
 
 void Cleaner::DoCleanTarget(Node* target) {
-  if (target->in_edge_) {
-    Remove(target->file_->path_);
-    for (vector<Node*>::iterator n = target->in_edge_->inputs_.begin();
-         n != target->in_edge_->inputs_.end();
+  if (target->in_edge()) {
+    Remove(target->path());
+    if (!target->in_edge()->rule().depfile().empty())
+      Remove(target->in_edge()->EvaluateDepFile());
+    if (target->in_edge()->HasRspFile())
+      Remove(target->in_edge()->GetRspFile());
+    for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
+         n != target->in_edge()->inputs_.end();
          ++n) {
       DoCleanTarget(*n);
     }
@@ -173,13 +184,18 @@ void Cleaner::DoCleanRule(const Rule* rule) {
   assert(rule);
 
   for (vector<Edge*>::iterator e = state_->edges_.begin();
-       e != state_->edges_.end();
-       ++e)
-    if ((*e)->rule_->name_ == rule->name_)
+       e != state_->edges_.end(); ++e) {
+    if ((*e)->rule().name() == rule->name()) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-           out_node != (*e)->outputs_.end();
-           ++out_node)
-        Remove((*out_node)->file_->path_);
+           out_node != (*e)->outputs_.end(); ++out_node) {
+        Remove((*out_node)->path());
+        if (!(*e)->rule().depfile().empty())
+          Remove((*e)->EvaluateDepFile());
+        if ((*e)->HasRspFile()) 
+          Remove((*e)->GetRspFile());
+      }
+    }
+  }
 }
 
 int Cleaner::CleanRule(const Rule* rule) {

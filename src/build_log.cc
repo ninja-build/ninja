@@ -15,13 +15,15 @@
 #include "build_log.h"
 
 #include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include "build.h"
 #include "graph.h"
-#include "ninja.h"
+#include "util.h"
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -32,29 +34,17 @@
 
 namespace {
 
-const char kFileSignature[] = "# ninja log v2\n";
-const int kCurrentVersion = 2;
+const char kFileSignature[] = "# ninja log v%d\n";
+const int kCurrentVersion = 4;
 
-void SetCloseOnExec(FILE* file) {
-#ifndef _WIN32
-  int flags = fcntl(fileno(file), F_GETFD);
-  if (flags < 0) {
-    perror("fcntl(F_GETFD)");
-  } else {
-    if (fcntl(fileno(file), F_SETFD, flags | FD_CLOEXEC) < 0)
-      perror("fcntl(F_SETFD)");
-  }
-#else
-  // On Windows, handles must be explicitly marked to be passed to a
-  // spawned process, so there's nothing to do here.
-  (void)file;
-#endif  // WIN32
-}
-
-}
+}  // namespace
 
 BuildLog::BuildLog()
   : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
+
+BuildLog::~BuildLog() {
+  Close();
+}
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
   if (config_ && config_->dry_run)
@@ -72,10 +62,10 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     return false;
   }
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
-  SetCloseOnExec(log_file_);
+  SetCloseOnExec(fileno(log_file_));
 
   if (ftell(log_file_) == 0) {
-    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, log_file_) < 1) {
+    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
       *err = strerror(errno);
       return false;
     }
@@ -84,28 +74,28 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   return true;
 }
 
-void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time) {
-  if (!log_file_)
-    return;
-
-  const string command = edge->EvaluateCommand();
+void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
+                             TimeStamp restat_mtime) {
+  string command = edge->EvaluateCommand(true);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->file_->path_;
+    const string& path = (*out)->path();
     Log::iterator i = log_.find(path);
     LogEntry* log_entry;
     if (i != log_.end()) {
       log_entry = i->second;
     } else {
       log_entry = new LogEntry;
-      log_.insert(make_pair(path, log_entry));
+      log_entry->output = path;
+      log_.insert(Log::value_type(log_entry->output, log_entry));
     }
-    log_entry->output = path;
     log_entry->command = command;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
+    log_entry->restat_mtime = restat_mtime;
 
-    WriteEntry(log_file_, *log_entry);
+    if (log_file_)
+      WriteEntry(log_file_, *log_entry);
   }
 }
 
@@ -116,7 +106,7 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::Load(const string& path, string* err) {
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = fopen(path.c_str(), "rb");
   if (!file) {
     if (errno == ENOENT)
       return true;
@@ -132,36 +122,39 @@ bool BuildLog::Load(const string& path, string* err) {
   while (fgets(buf, sizeof(buf), file)) {
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (strcmp(buf, kFileSignature) == 0) {
-        log_version = 2;
+      if (sscanf(buf, kFileSignature, &log_version) > 0)
         continue;
-      }
     }
+
+    char field_separator = log_version >= 4 ? '\t' : ' ';
+
     char* start = buf;
-    char* end = strchr(start, ' ');
+    char* end = strchr(start, field_separator);
     if (!end)
       continue;
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    if (log_version == 1) {
-      // In v1 we logged how long the command took; we don't use this info.
-      // int time_ms = atoi(start);
-      start = end + 1;
-    } else {
-      // In v2 we log the start time and the end time.
-      start_time = atoi(start);
-      start = end + 1;
+    TimeStamp restat_mtime = 0;
 
-      char* end = strchr(start, ' ');
-      if (!end)
-        continue;
-      *end = 0;
-      end_time = atoi(start);
-      start = end + 1;
-    }
+    start_time = atoi(start);
+    start = end + 1;
 
-    end = strchr(start, ' ');
+    end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    end_time = atoi(start);
+    start = end + 1;
+
+    end = strchr(start, field_separator);
+    if (!end)
+      continue;
+    *end = 0;
+    restat_mtime = atol(start);
+    start = end + 1;
+
+    end = strchr(start, field_separator);
     if (!end)
       continue;
     string output = string(start, end - start);
@@ -177,14 +170,15 @@ bool BuildLog::Load(const string& path, string* err) {
       entry = i->second;
     } else {
       entry = new LogEntry;
-      log_.insert(make_pair(output, entry));
+      entry->output = output;
+      log_.insert(Log::value_type(entry->output, entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
 
-    entry->output = output;
     entry->start_time = start_time;
     entry->end_time = end_time;
+    entry->restat_mtime = restat_mtime;
     entry->command = string(start, end - start);
   }
 
@@ -213,8 +207,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d %d %s %s\n",
-          entry.start_time, entry.end_time,
+  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
+          entry.start_time, entry.end_time, (long) entry.restat_mtime,
           entry.output.c_str(), entry.command.c_str());
 }
 
@@ -228,8 +222,9 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
-  if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, f) < 1) {
+  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
     *err = strerror(errno);
+    fclose(f);
     return false;
   }
 

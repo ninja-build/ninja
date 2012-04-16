@@ -15,10 +15,10 @@
 #include "browse.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "../build/browse_py.h"
-#include "ninja.h"
 
 void RunBrowsePython(State* state, const char* ninja_command,
                      const char* initial_target) {
@@ -46,7 +46,7 @@ void RunBrowsePython(State* state, const char* ninja_command,
 
       // exec Python, telling it to run the program from stdin.
       const char* command[] = {
-        "python", "-", ninja_command, initial_target, NULL
+        NINJA_PYTHON, "-", ninja_command, initial_target, NULL
       };
       execvp(command[0], (char**)command);
       perror("ninja: execvp");

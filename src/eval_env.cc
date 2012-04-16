@@ -27,61 +27,6 @@ void BindingEnv::AddBinding(const string& key, const string& val) {
   bindings_[key] = val;
 }
 
-bool EvalString::Parse(const string& input, string* err, size_t* err_index) {
-  unparsed_ = input;
-
-  string::size_type start, end;
-  start = 0;
-  do {
-    end = input.find('$', start);
-    if (end == string::npos) {
-      end = input.size();
-      break;
-    }
-    if (end > start)
-      parsed_.push_back(make_pair(input.substr(start, end - start), RAW));
-    start = end + 1;
-    if (start < input.size() && input[start] == '{') {
-      ++start;
-      for (end = start + 1; end < input.size(); ++end) {
-        if (input[end] == '}')
-          break;
-      }
-      if (end >= input.size()) {
-        *err = "expected closing curly after ${";
-        if (err_index)
-          *err_index = end;
-        return false;
-      }
-      parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
-      ++end;
-    } else if (start < input.size() && input[start] == '$') {
-      parsed_.push_back(make_pair("$", RAW));
-      end = start + 1;
-    } else {
-      for (end = start; end < input.size(); ++end) {
-        char c = input[end];
-        if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
-              ('0' <= c && c <= '9') || c == '_')) {
-          break;
-        }
-      }
-      if (end == start) {
-        *err = "expected variable after $";
-        if (err_index)
-          *err_index = start;
-        return false;
-      }
-      parsed_.push_back(make_pair(input.substr(start, end - start), SPECIAL));
-    }
-    start = end;
-  } while (end < input.size());
-  if (end > start)
-    parsed_.push_back(make_pair(input.substr(start, end - start), RAW));
-
-  return true;
-}
-
 string EvalString::Evaluate(Env* env) const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
@@ -89,6 +34,31 @@ string EvalString::Evaluate(Env* env) const {
       result.append(i->first);
     else
       result.append(env->LookupVariable(i->first));
+  }
+  return result;
+}
+
+void EvalString::AddText(StringPiece text) {
+  // Add it to the end of an existing RAW token if possible.
+  if (!parsed_.empty() && parsed_.back().second == RAW) {
+    parsed_.back().first.append(text.str_, text.len_);
+  } else {
+    parsed_.push_back(make_pair(text.AsString(), RAW));
+  }
+}
+void EvalString::AddSpecial(StringPiece text) {
+  parsed_.push_back(make_pair(text.AsString(), SPECIAL));
+}
+
+string EvalString::Serialize() const {
+  string result;
+  for (TokenList::const_iterator i = parsed_.begin();
+       i != parsed_.end(); ++i) {
+    result.append("[");
+    if (i->second == SPECIAL)
+      result.append("$");
+    result.append(i->first);
+    result.append("]");
   }
   return result;
 }

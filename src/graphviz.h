@@ -19,6 +19,7 @@
 using namespace std;
 
 struct Node;
+struct Edge;
 
 /// Runs the process of creating GraphViz .dot file output.
 struct GraphViz {
@@ -26,7 +27,8 @@ struct GraphViz {
   void AddTarget(Node* node);
   void Finish();
 
-  set<Node*> visited_;
+  set<Node*> visited_nodes_;
+  set<Edge*> visited_edges_;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_

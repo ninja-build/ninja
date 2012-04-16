@@ -91,8 +91,8 @@ gpietsch@comcast.net
 #include "getopt.h"
 #endif
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4701) /* potentially uninitialized local variable 'cp' used */
+#ifdef _WIN32
+#pragma warning(disable: 4701)
 #endif
 
 /* macros */
@@ -397,16 +397,16 @@ getopt (int argc, char **argv, char *optstring)
 
 int
 getopt_long (int argc, char **argv, const char *shortopts,
-             GETOPT_LONG_OPTION_T * longopts, int *longind)
+             const GETOPT_LONG_OPTION_T * longopts, int *longind)
 {
-  return getopt_internal (argc, argv, shortopts, longopts, longind, 0);
+  return getopt_internal (argc, argv, (char*)shortopts, (GETOPT_LONG_OPTION_T*)longopts, longind, 0);
 }
 
 int
 getopt_long_only (int argc, char **argv, const char *shortopts,
-                  GETOPT_LONG_OPTION_T * longopts, int *longind)
+                  const GETOPT_LONG_OPTION_T * longopts, int *longind)
 {
-  return getopt_internal (argc, argv, shortopts, longopts, longind, 1);
+  return getopt_internal (argc, argv, (char*)shortopts, (GETOPT_LONG_OPTION_T*)longopts, longind, 1);
 }
 
 /* end of file GETOPT.C */

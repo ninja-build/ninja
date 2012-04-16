@@ -17,7 +17,9 @@
 
 #include <gtest/gtest.h>
 
-#include "ninja.h"
+#include "disk_interface.h"
+#include "state.h"
+#include "util.h"
 
 // Support utilites for tests.
 
@@ -42,9 +44,10 @@ struct VirtualFileSystem : public DiskInterface {
   void Create(const string& path, int time, const string& contents);
 
   // DiskInterface
-  virtual int Stat(const string& path);
+  virtual TimeStamp Stat(const string& path);
+  virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
+  virtual string ReadFile(const string& path, string* err, bool binary);
   virtual int RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.
@@ -58,6 +61,20 @@ struct VirtualFileSystem : public DiskInterface {
   typedef map<string, Entry> FileMap;
   FileMap files_;
   set<string> files_removed_;
+  set<string> files_created_;
+};
+
+struct ScopedTempDir {
+  /// Create a temporary directory and chdir into it.
+  void CreateAndEnter(const string& name);
+
+  /// Clean up the temporary directory.
+  void Cleanup();
+
+  /// The temp directory containing our dir.
+  string start_dir_;
+  /// The subdirectory name for our dir, or empty if it hasn't been set up.
+  string temp_dir_name_;
 };
 
 #endif // NINJA_TEST_H_

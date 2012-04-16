@@ -12,26 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_NINJA_H_
-#define NINJA_NINJA_H_
+#ifndef NINJA_DISK_INTERFACE_H_
+#define NINJA_DISK_INTERFACE_H_
 
-#include <assert.h>
-
-#include <algorithm>
-#include <queue>
-#include <set>
 #include <string>
-#include <vector>
-
-#include "eval_env.h"
-#include "stat_cache.h"
-
 using namespace std;
 
-struct Edge;
-struct FileStat;
-struct Node;
-struct Rule;
+#include "timestamp.h"
 
 /// Interface for accessing the disk.
 ///
@@ -42,11 +29,18 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual int Stat(const string& path) = 0;
+  virtual TimeStamp Stat(const string& path) = 0;
+
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
+
+  /// Create a file, with the specified name and contents
+  /// Returns true on success, false on failure
+  virtual bool WriteFile(const string & path, const string & contents) = 0;
+
   /// Read a file to a string.  Fill in |err| on error.
-  virtual string ReadFile(const string& path, string* err) = 0;
+  virtual string ReadFile(const string& path, string* err, bool binary = false) = 0;
+
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
@@ -62,38 +56,11 @@ struct DiskInterface {
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   virtual ~RealDiskInterface() {}
-  virtual int Stat(const string& path);
+  virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
+  virtual bool WriteFile(const string & path, const string & contents);
+  virtual string ReadFile(const string& path, string* err, bool binary = false);
   virtual int RemoveFile(const string& path);
 };
 
-/// Global state (file status, loaded rules) for a single run.
-struct State {
-  State();
-
-  StatCache* stat_cache() { return &stat_cache_; }
-
-  void AddRule(const Rule* rule);
-  const Rule* LookupRule(const string& rule_name);
-  Edge* AddEdge(const Rule* rule);
-  Node* GetNode(const string& path);
-  Node* LookupNode(const string& path);
-  void AddIn(Edge* edge, const string& path);
-  void AddOut(Edge* edge, const string& path);
-  /// @return the root node(s) of the graph. (Root nodes have no output edges).
-  /// @param error where to write the error message if somethings went wrong.
-  vector<Node*> RootNodes(string* error);
-
-  StatCache stat_cache_;
-  /// All the rules used in the graph.
-  map<string, const Rule*> rules_;
-  /// All the edges of the graph.
-  vector<Edge*> edges_;
-  BindingEnv bindings_;
-  struct BuildLog* build_log_;
-
-  static const Rule kPhonyRule;
-};
-
-#endif  // NINJA_NINJA_H_
+#endif  // NINJA_DISK_INTERFACE_H_

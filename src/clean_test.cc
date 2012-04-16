@@ -212,6 +212,134 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
+TEST_F(CleanTest, CleanRuleGenerator) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule regen\n"
+"  command = cat $in > $out\n"
+"  generator = 1\n"
+"build out1: cat in1\n"
+"build out2: regen in2\n"));
+  fs_.Create("out1", 1, "");
+  fs_.Create("out2", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(1, cleaner.cleaned_files_count());
+  EXPECT_EQ(1u, fs_.files_removed_.size());
+
+  fs_.Create("out1", 1, "");
+
+  EXPECT_EQ(0, cleaner.CleanAll(/*generator=*/true));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
+TEST_F(CleanTest, CleanDepFile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc $in > $out\n"
+"  depfile = $out.d\n"
+"build out1: cc in1\n"));
+  fs_.Create("out1", 1, "");
+  fs_.Create("out1.d", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
+TEST_F(CleanTest, CleanDepFileOnCleanTarget) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc $in > $out\n"
+"  depfile = $out.d\n"
+"build out1: cc in1\n"));
+  fs_.Create("out1", 1, "");
+  fs_.Create("out1.d", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
+TEST_F(CleanTest, CleanDepFileOnCleanRule) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc $in > $out\n"
+"  depfile = $out.d\n"
+"build out1: cc in1\n"));
+  fs_.Create("out1", 1, "");
+  fs_.Create("out1.d", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanRule("cc"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
+TEST_F(CleanTest, CleanRspFile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc $in > $out\n"
+"  rspfile = $rspfile\n"
+"  rspfile_content=$in\n"
+"build out1: cc in1\n"
+"  rspfile = cc1.rsp\n"
+"  rspfile_content=$in\n"));
+  fs_.Create("out1", 1, "");
+  fs_.Create("cc1.rsp", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
+TEST_F(CleanTest, CleanRsp) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cat_rsp \n"
+"  command = cat $rspfile > $out\n"
+"  rspfile = $rspfile\n"
+"  rspfile_content = $in\n"
+"build in1: cat src1\n"
+"build out1: cat in1\n"
+"build in2: cat_rsp src2\n"
+"  rspfile=in2.rsp\n"
+"  rspfile_content=$in\n"
+"build out2: cat_rsp in2\n"
+"  rspfile=out2.rsp\n"
+"  rspfile_content=$in\n"));
+  fs_.Create("in1", 1, "");
+  fs_.Create("out1", 1, "");
+  fs_.Create("in2.rsp", 1, "");
+  fs_.Create("out2.rsp", 1, "");
+  fs_.Create("in2", 1, "");
+  fs_.Create("out2", 1, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count()); 
+  ASSERT_EQ(0, cleaner.CleanTarget("in2"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  ASSERT_EQ(0, cleaner.CleanRule("cat_rsp"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+
+  EXPECT_EQ(6u, fs_.files_removed_.size());
+
+  // Check they are removed.
+  EXPECT_EQ(0, fs_.Stat("in1"));
+  EXPECT_EQ(0, fs_.Stat("out1"));
+  EXPECT_EQ(0, fs_.Stat("in2"));
+  EXPECT_EQ(0, fs_.Stat("out2"));
+  EXPECT_EQ(0, fs_.Stat("in2.rsp"));
+  EXPECT_EQ(0, fs_.Stat("out2.rsp"));
+
+  fs_.files_removed_.clear();
+}
+
 TEST_F(CleanTest, CleanFailure) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build dir: cat src1\n"));

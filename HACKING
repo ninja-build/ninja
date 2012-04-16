@@ -1,5 +1,5 @@
 Adjusting build flags:
-  CFLAGS=-O3 ./configure
+  CFLAGS=-O3 ./configure.py
   and rebuild.
 
 Test-driven development:
@@ -8,6 +8,20 @@ Test-driven development:
   now you can repeatedly run that while developing until the tests pass.
   Remember to build "all" before committing to verify the other source
   still works!
+
+Testing performance impact of changes:
+  If you have a Chrome build handy, it's a good test case.
+  Otherwise, https://github.com/martine/ninja/downloads has a copy of
+  the Chrome build files (and depfiles). You can untar that, then run
+    path/to/my/ninja chrome
+  and compare that against a baseline Ninja.
+
+  There's a script at misc/measure.py that repeatedly runs a command like
+  the above (to address variance) and summarizes its runtime.  E.g.
+    path/to/misc/measure.py path/to/my/ninja chrome
+
+  For changing the depfile parser, you can also build 'parser_perftest'
+  and run that directly on some representative input files.
 
 Coding guidelines:
 - Function name are camelcase.
@@ -34,15 +48,20 @@ Generating the manual:
   ./ninja manual
 
 Windows development on Linux (this is kind of hacky right now):
+- Get the gtest source, unpack it into your source dir
 - sudo apt-get install gcc-mingw32 wine
-- ./configure.py --platform=mingw
-- Build gtest:
-  - unpack it into your source dir
-  - ./configure CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++
-  - to work around missing _TlsAlloc I had to hack the libtool script to
-    append -lmingw32 -lkernel32 at the *end* of the link line
-- Build ninja: /path/to/linux/ninja ninja
-- Run: ./ninja  (implicitly runs through wine(!))
+- export CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++ AR=i586-mingw32msvc-ar
+- ./configure.py --platform=mingw --host=linux --with-gtest=gtest-1.6.0
+- Build ninja: /path/to/linux/ninja
+- Run: ./ninja.exe  (implicitly runs through wine(!))
+
+Windows development on Windows:
+- install mingw, msys, and python
+- in the mingw shell, put Python in your path, and: python bootstrap.py
+- to reconfigure, run 'python configure.py'
+- remember to strip the resulting executable if size matters to you
+- you'll need to rename ninja.exe into my-ninja.exe during development,
+  otherwise ninja won't be able to overwrite itself when building
 
 Using clang:
 - Enable colors manually:

@@ -14,7 +14,63 @@
 
 #include "test.h"
 
+#include <algorithm>
+
+#include <errno.h>
+
 #include "parsers.h"
+#include "util.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+namespace {
+
+#ifdef _WIN32
+#ifndef _mktemp_s
+/// mingw has no mktemp.  Implement one with the same type as the one
+/// found in the Windows API.
+int _mktemp_s(char* templ) {
+  char* ofs = strchr(templ, 'X');
+  sprintf(ofs, "%d", rand() % 1000000);
+  return 0;
+}
+#endif
+
+/// Windows has no mkdtemp.  Implement it in terms of _mktemp_s.
+char* mkdtemp(char* name_template) {
+  int err = _mktemp_s(name_template);
+  if (err < 0) {
+    perror("_mktemp_s");
+    return NULL;
+  }
+
+  err = _mkdir(name_template);
+  if (err < 0) {
+    perror("mkdir");
+    return NULL;
+  }
+
+  return name_template;
+}
+#endif  // _WIN32
+
+string GetSystemTempDir() {
+#ifdef _WIN32
+  char buf[1024];
+  if (!GetTempPath(sizeof(buf), buf))
+    return "";
+  return buf;
+#else
+  const char* tempdir = getenv("TMPDIR");
+  if (tempdir)
+    return tempdir;
+  return "/tmp";
+#endif
+}
+
+}  // anonymous namespace
 
 StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
   AssertParse(&state_,
@@ -29,7 +85,7 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
 void AssertParse(State* state, const char* input) {
   ManifestParser parser(state, NULL);
   string err;
-  ASSERT_TRUE(parser.Parse(input, &err)) << err;
+  ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
   ASSERT_EQ("", err);
 }
 
@@ -37,13 +93,19 @@ void VirtualFileSystem::Create(const string& path, int time,
                                const string& contents) {
   files_[path].mtime = time;
   files_[path].contents = contents;
+  files_created_.insert(path);
 }
 
-int VirtualFileSystem::Stat(const string& path) {
+TimeStamp VirtualFileSystem::Stat(const string& path) {
   FileMap::iterator i = files_.find(path);
   if (i != files_.end())
     return i->second.mtime;
   return 0;
+}
+
+bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
+  Create(path, 0, contents);
+  return true;
 }
 
 bool VirtualFileSystem::MakeDir(const string& path) {
@@ -51,7 +113,7 @@ bool VirtualFileSystem::MakeDir(const string& path) {
   return true;  // success
 }
 
-string VirtualFileSystem::ReadFile(const string& path, string* err) {
+string VirtualFileSystem::ReadFile(const string& path, string* err, bool binary) {
   files_read_.push_back(path);
   FileMap::iterator i = files_.find(path);
   if (i != files_.end())
@@ -71,4 +133,45 @@ int VirtualFileSystem::RemoveFile(const string& path) {
   } else {
     return 1;
   }
+}
+
+void ScopedTempDir::CreateAndEnter(const string& name) {
+  // First change into the system temp dir and save it for cleanup.
+  start_dir_ = GetSystemTempDir();
+  if (start_dir_.empty())
+    Fatal("couldn't get system temp dir");
+  if (chdir(start_dir_.c_str()) < 0)
+    Fatal("chdir: %s", strerror(errno));
+
+  // Create a temporary subdirectory of that.
+  char name_template[1024];
+  strcpy(name_template, name.c_str());
+  strcat(name_template, "-XXXXXX");
+  char* tempname = mkdtemp(name_template);
+  if (!tempname)
+    Fatal("mkdtemp: %s", strerror(errno));
+  temp_dir_name_ = tempname;
+
+  // chdir into the new temporary directory.
+  if (chdir(temp_dir_name_.c_str()) < 0)
+    Fatal("chdir: %s", strerror(errno));
+}
+
+void ScopedTempDir::Cleanup() {
+  if (temp_dir_name_.empty())
+    return;  // Something went wrong earlier.
+
+  // Move out of the directory we're about to clobber.
+  if (chdir(start_dir_.c_str()) < 0)
+    Fatal("chdir: %s", strerror(errno));
+
+#ifdef _WIN32
+  string command = "rmdir /s /q " + temp_dir_name_;
+#else
+  string command = "rm -rf " + temp_dir_name_;
+#endif
+  if (system(command.c_str()) < 0)
+    Fatal("system: %s", strerror(errno));
+
+  temp_dir_name_.clear();
 }

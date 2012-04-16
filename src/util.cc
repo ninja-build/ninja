@@ -16,9 +16,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +38,9 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "edit_distance.h"
+#include "metrics.h"
+
 void Fatal(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: FATAL: ");
@@ -43,7 +48,15 @@ void Fatal(const char* msg, ...) {
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
+#ifdef _WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
   exit(1);
+#endif
 }
 
 void Warning(const char* msg, ...) {
@@ -57,7 +70,7 @@ void Warning(const char* msg, ...) {
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: error: ");
+  fprintf(stderr, "ninja: ERROR: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -65,90 +78,83 @@ void Error(const char* msg, ...) {
 }
 
 bool CanonicalizePath(string* path, string* err) {
+  METRIC_RECORD("canonicalize str");
+  int len = path->size();
+  char* str = 0;
+  if (len > 0)
+    str = &(*path)[0];
+  if (!CanonicalizePath(str, &len, err))
+    return false;
+  path->resize(len);
+  return true;
+}
+
+bool CanonicalizePath(char* path, int* len, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
-
-  // We don't want to allocate memory if necessary; a previous version
-  // of this function modified |path| as it went, which meant we
-  // needed to keep a copy of it around for including in a potential
-  // error message.
-  //
-  // Instead, we find all path components within the path, then fix
-  // them up to eliminate "foo/.." pairs and "." components.  Finally,
-  // we overwrite path with these new substrings (since the path only
-  // ever gets shorter, we can just use memmove within it).
-
-  const int kMaxPathComponents = 30;
-  const char* starts[kMaxPathComponents];  // Starts of path components.
-  int lens[kMaxPathComponents];  // Lengths of path components.
-
-  int parts_count = 0;  // Number of entries in starts/lens.
-  int slash_count = 0;  // Number of components in the original path.
-  for (string::size_type start = 0; start < path->size(); ++start) {
-    string::size_type end = path->find('/', start);
-    if (end == string::npos)
-      end = path->size();
-    if (end == 0 || end > start) {
-      if (parts_count == kMaxPathComponents) {
-        *err = "can't canonicalize path '" + *path + "'; too many "
-            "path components";
-        return false;
-      }
-      starts[parts_count] = path->data() + start;
-      lens[parts_count] = end - start;
-      ++parts_count;
-    }
-    ++slash_count;
-    start = end;
+  METRIC_RECORD("canonicalize path");
+  if (*len == 0) {
+    *err = "empty path";
+    return false;
   }
 
-  int i = 0;
-  while (i < parts_count) {
-    const char* start = starts[i];
-    int len = lens[i];
-    if (start[0] == '.') {
-      int strip_components = 0;
-      if (len == 1) {
-        // "."; strip this component.
-        strip_components = 1;
-      } else if (len == 2 && start[1] == '.') {
-        // ".."; strip this and the previous component.
-        if (i == 0) {
-          *err = "can't canonicalize path '" + *path + "' that reaches "
-            "above its directory";
-          return false;
-        }
-        strip_components = 2;
-        --i;
-      }
+  const int kMaxPathComponents = 30;
+  char* components[kMaxPathComponents];
+  int component_count = 0;
 
-      if (strip_components) {
-        // Shift arrays backwards to remove bad path components.
-        int entries_to_move = parts_count - i - strip_components;
-        memmove(starts + i, starts + i + strip_components,
-                sizeof(starts[0]) * entries_to_move);
-        memmove(lens + i, lens + i + strip_components,
-                sizeof(lens[0]) * entries_to_move);
-        parts_count -= strip_components;
+  char* start = path;
+  char* dst = start;
+  const char* src = start;
+  const char* end = start + *len;
+
+  if (*src == DIR_SEP[0]) {
+    ++src;
+    ++dst;
+  }
+
+  while (src < end) {
+    const char* sep = (const char*)memchr(src, DIR_SEP[0], end - src);
+    if (sep == NULL)
+      sep = end;
+
+    if (*src == '.') {
+      if (sep - src == 1) {
+        // '.' component; eliminate.
+        src += 2;
+        continue;
+      } else if (sep - src == 2 && src[1] == '.') {
+        // '..' component.  Back up if possible.
+        if (component_count > 0) {
+          dst = components[component_count - 1];
+          src += 3;
+          --component_count;
+        } else {
+          while (src <= sep)
+            *dst++ = *src++;
+        }
         continue;
       }
     }
-    ++i;
+
+    if (sep > src) {
+      if (component_count == kMaxPathComponents)
+        Fatal("path has too many components");
+      components[component_count] = dst;
+      ++component_count;
+      while (src <= sep) {
+        *dst++ = *src++;
+      }
+    }
+
+    src = sep + 1;
   }
 
-  if (parts_count == slash_count)
-    return true;  // Nothing to do.
-
-  char* p = (char*)path->data();
-  for (i = 0; i < parts_count; ++i) {
-    if (p > path->data())
-      *p++ = '/';
-    int len = lens[i];
-    memmove(p, starts[i], len);
-    p += len;
+  if (dst == start) {
+    *err = "path canonicalizes to the empty path";
+    return false;
   }
-  path->resize(p - path->data());
 
+  *len = dst - start - 1;
   return true;
 }
 
@@ -160,13 +166,19 @@ int MakeDir(const string& path) {
 #endif
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
+int ReadFile(const string& path, string* contents, string* err, bool binary) {
+  FILE* f = fopen(path.c_str(), binary ? "rb" : "r");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
   }
+  if (!ReadFile(f, contents, err))
+    return -errno;
+  fclose(f);
+  return 0;
+}
 
+bool ReadFile(FILE* f, string* contents, string* err) {
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
@@ -175,11 +187,26 @@ int ReadFile(const string& path, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
-    return -errno;
+    return false;
   }
-  fclose(f);
-  return 0;
+  return true;
+}
+
+void SetCloseOnExec(int fd) {
+#ifndef _WIN32
+  int flags = fcntl(fd, F_GETFD);
+  if (flags < 0) {
+    perror("fcntl(F_GETFD)");
+  } else {
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0)
+      perror("fcntl(F_SETFD)");
+  }
+#else
+  HANDLE hd = (HANDLE) _get_osfhandle(fd);
+  if (! SetHandleInformation(hd, HANDLE_FLAG_INHERIT, 0)) {
+    fprintf(stderr, "SetHandleInformation(): %s", GetLastErrorString().c_str());
+  }
+#endif  // ! _WIN32
 }
 
 int64_t GetTimeMillis() {
@@ -191,4 +218,93 @@ int64_t GetTimeMillis() {
   gettimeofday(&now, NULL);
   return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
 #endif
+}
+
+const char* SpellcheckStringV(const string& text,
+                              const vector<const char*>& words) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  const char* result = NULL;
+  for (vector<const char*>::const_iterator i = words.begin();
+       i != words.end(); ++i) {
+    int distance = EditDistance(*i, text, kAllowReplacements,
+                                kMaxValidEditDistance);
+    if (distance < min_distance) {
+      min_distance = distance;
+      result = *i;
+    }
+  }
+  return result;
+}
+
+const char* SpellcheckString(const string& text, ...) {
+  va_list ap;
+  va_start(ap, text);
+  vector<const char*> words;
+  const char* word;
+  while ((word = va_arg(ap, const char*)))
+    words.push_back(word);
+  return SpellcheckStringV(text, words);
+}
+
+#ifdef _WIN32
+string GetLastErrorString() {
+  DWORD err = GetLastError();
+
+  char* msg_buf;
+  FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        err,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (char*)&msg_buf,
+        0,
+        NULL);
+  string msg = msg_buf;
+  LocalFree(msg_buf);
+  return msg;
+}
+#endif
+
+static bool islatinalpha(int c) {
+  // isalpha() is locale-dependent.
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+string StripAnsiEscapeCodes(const string& in) {
+  string stripped;
+  stripped.reserve(in.size());
+
+  for (size_t i = 0; i < in.size(); ++i) {
+    if (in[i] != '\33') {
+      // Not an escape code.
+      stripped.push_back(in[i]);
+      continue;
+    }
+
+    // Only strip CSIs for now.
+    if (i + 1 >= in.size()) break;
+    if (in[i + 1] != '[') continue;  // Not a CSI.
+    i += 2;
+
+    // Skip everything up to and including the next [a-zA-Z].
+    while (i < in.size() && !islatinalpha(in[i]))
+      ++i;
+  }
+  return stripped;
+}
+
+TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime;
 }

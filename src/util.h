@@ -16,14 +16,21 @@
 #define NINJA_UTIL_H_
 #pragma once
 
-#ifdef _MSC_VER
-    typedef long long int64_t;
+#ifdef _WIN32
+#include "win32port.h"
+#include <windows.h>
+#undef ERROR
 #else
-    #include <stdint.h>
+#include <stdint.h>
 #endif
 
+#include "timestamp.h"
+
 #include <string>
+#include <vector>
 using namespace std;
+
+#define NINJA_UNUSED_ARG(arg_name) (void)arg_name;
 
 /// Log a fatal message and exit.
 void Fatal(const char* msg, ...);
@@ -37,21 +44,61 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
+bool CanonicalizePath(char* path, int* len, string* err);
+
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.
 int MakeDir(const string& path);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+bool ReadFile(FILE* f, string* contents, string* err);
+
+/// Read a file to a string.
+/// Returns -errno and fills in \a err on error.
+int ReadFile(const string& path, string* contents, string* err, bool binary = false);
+
+/// Mark a file descriptor to not be inherited on exec()s.
+void SetCloseOnExec(int fd);
 
 /// Get the current time as relative to some epoch.
 /// Epoch varies between platforms; only useful for measuring elapsed
 /// time.
 int64_t GetTimeMillis();
 
+/// Given a misspelled string and a list of correct spellings, returns
+/// the closest match or NULL if there is no close enough match.
+const char* SpellcheckStringV(const string& text, const vector<const char*>& words);
+
+/// Like SpellcheckStringV, but takes a NULL-terminated list.
+const char* SpellcheckString(const string& text, ...);
+
+/// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
+string StripAnsiEscapeCodes(const string& in);
+
 #ifdef _WIN32
-#define snprintf _snprintf
+TimeStamp FiletimeToTimestamp(const FILETIME& filetime);
 #endif
+
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#define fileno _fileno
+#define unlink _unlink
+#define chdir _chdir
+typedef short int16_t;
+typedef unsigned short uint16_t;
+#endif
+
+#ifdef _WIN32
+/// Convert the value returned by GetLastError() into a string.
+string GetLastErrorString();
+#endif
+
+#ifdef _WIN32
+  #define DIR_SEP "\\"
+#else
+  #define DIR_SEP "/"
+#endif
+
 
 #endif  // NINJA_UTIL_H_

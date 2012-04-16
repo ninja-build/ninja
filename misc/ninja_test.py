@@ -17,15 +17,16 @@
 import unittest
 from StringIO import StringIO
 
-import ninja
+import ninja_syntax
 
 LONGWORD = 'a' * 10
+LONGWORDWITHSPACES = 'a'*5 + '$ ' + 'a'*5
 INDENT = '    '
 
 class TestLineWordWrap(unittest.TestCase):
     def setUp(self):
         self.out = StringIO()
-        self.n = ninja.Writer(self.out, width=8)
+        self.n = ninja_syntax.Writer(self.out, width=8)
 
     def test_single_long_word(self):
         # We shouldn't wrap a single long word.
@@ -46,6 +47,89 @@ class TestLineWordWrap(unittest.TestCase):
         self.assertEqual(' $\n'.join(['  ' + 'x',
                                       '  ' + INDENT + LONGWORD,
                                       '  ' + INDENT + 'y']) + '\n',
+                         self.out.getvalue())
+
+    def test_escaped_spaces(self):
+        self.n._line(' '.join(['x', LONGWORDWITHSPACES, 'y']))
+        self.assertEqual(' $\n'.join(['x',
+                                      INDENT + LONGWORDWITHSPACES,
+                                      INDENT + 'y']) + '\n',
+                         self.out.getvalue())
+
+    def test_fit_many_words(self):
+        self.n = ninja_syntax.Writer(self.out, width=78)
+        self.n._line('command = cd ../../chrome; python ../tools/grit/grit/format/repack.py ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak ../out/Debug/gen/chrome/theme_resources_large.pak', 1)
+        self.assertEqual('''\
+  command = cd ../../chrome; python ../tools/grit/grit/format/repack.py $
+      ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak $
+      ../out/Debug/gen/chrome/theme_resources_large.pak
+''',
+                         self.out.getvalue())
+
+    def test_leading_space(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['', '-bar', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = -bar $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_embedded_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=15)  # force wrapping
+        self.n.variable('foo', ['a$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_two_embedded_dollar_dollars(self):
+        self.n = ninja_syntax.Writer(self.out, width=17)  # force wrapping
+        self.n.variable('foo', ['a$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_leading_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['$$b', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = $$b $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+    def test_trailing_dollar_dollar(self):
+        self.n = ninja_syntax.Writer(self.out, width=14)  # force wrapping
+        self.n.variable('foo', ['a$$', '-somethinglong'], 0)
+        self.assertEqual('''\
+foo = a$$ $
+    -somethinglong
+''',
+                         self.out.getvalue())
+
+class TestBuild(unittest.TestCase):
+    def setUp(self):
+        self.out = StringIO()
+        self.n = ninja_syntax.Writer(self.out)
+
+    def test_variables_dict(self):
+        self.n.build('out', 'cc', 'in', variables={'name': 'value'})
+        self.assertEqual('''\
+build out: cc in
+  name = value
+''',
+                         self.out.getvalue())
+
+    def test_variables_list(self):
+        self.n.build('out', 'cc', 'in', variables=[('name', 'value')])
+        self.assertEqual('''\
+build out: cc in
+  name = value
+''',
                          self.out.getvalue())
 
 if __name__ == '__main__':

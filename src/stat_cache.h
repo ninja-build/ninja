@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +15,14 @@
 #ifndef NINJA_STAT_CACHE_H_
 #define NINJA_STAT_CACHE_H_
 
-#include <string>
+#include "state.h"
+#include "string_piece.h"
 
-#include "hash_map.h"
-
-struct FileStat;
-
-/// Mapping of path -> FileStat.
 struct StatCache {
-  FileStat* GetFile(const std::string& path);
+  static void Init();
+  static void Inform(StringPiece path);
 
-  /// Dump the mapping to stdout (useful for debugging).
-  void Dump();
-  void Reload();
-
-  typedef hash_map<std::string, FileStat*> Paths;
-  Paths paths_;
+  static void PreCache(State* globals);
 };
 
 #endif  // NINJA_STAT_CACHE_H_

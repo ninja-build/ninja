@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "parsers.h"
+#include "depfile_parser.h"
 #include "util.h"
 
 int main(int argc, char* argv[]) {
@@ -38,8 +38,9 @@ int main(int argc, char* argv[]) {
           return 1;
         }
 
-        MakefileParser parser;
-        if (!parser.Parse(buf, &err)) {
+        StringPiece target;
+        vector<StringPiece> inputs;
+        if (!DepfileParser::Parse(&buf, &target, &inputs, &err)) {
           printf("%s: %s\n", filename, err.c_str());
           return 1;
         }

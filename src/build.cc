@@ -14,19 +14,22 @@
 
 #include "build.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/termios.h>
 #endif
 
 #include "build_log.h"
+#include "disk_interface.h"
 #include "graph.h"
-#include "ninja.h"
+#include "state.h"
 #include "subprocess.h"
 #include "util.h"
 
@@ -37,6 +40,7 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildFinished();
 
  private:
   void PrintStatus(Edge* edge);
@@ -50,24 +54,38 @@ struct BuildStatus {
 
   int started_edges_, finished_edges_, total_edges_;
 
+  bool have_blank_line_;
+
   /// Map of running edge to time the edge started running.
   typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
+
+#ifdef _WIN32
+  HANDLE console_;
+#endif
 };
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
-      started_edges_(0), finished_edges_(0), total_edges_(0) {
-#ifndef WIN32
+      started_edges_(0), finished_edges_(0), total_edges_(0),
+      have_blank_line_(true) {
+#ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
-  smart_terminal_ = false;
+  // Disable output buffer.  It'd be nice to use line buffering but
+  // MSDN says: "For some systems, [_IOLBF] provides line
+  // buffering. However, for Win32, the behavior is the same as _IOFBF
+  // - Full Buffering."
+  setvbuf(stdout, NULL, _IONBF, 0);
+  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
   // Don't do anything fancy in verbose mode.
@@ -108,10 +126,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     PrintStatus(edge);
 
   if (success && output.empty()) {
-    if (smart_terminal_) {
-      if (finished_edges_ == total_edges_)
-        printf("\n");
-    } else {
+    if (!smart_terminal_) {
       if (total_time > 5*1000) {
         printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
                finished_edges_, total_edges_);
@@ -126,9 +141,34 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     if (!success)
       printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
 
-    if (!output.empty())
-      printf("%s", output.c_str());
+    // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
+    // check if the output is empty. Some compilers, e.g. clang, check
+    // isatty(stderr) to decide if they should print colored output.
+    // To make it possible to use colored output with ninja, subprocesses should
+    // be run with a flag that forces them to always print color escape codes.
+    // To make sure these escape codes don't show up in a file if ninja's output
+    // is piped to a file, ninja strips ansi escape codes again if it's not
+    // writing to a |smart_terminal_|.
+    // (Launching subprocesses in pseudo ttys doesn't work because there are
+    // only a few hundred available on some systems, and ninja can launch
+    // thousands of parallel compile commands.)
+    // TODO: There should be a flag to disable escape code stripping.
+    string final_output;
+    if (!smart_terminal_)
+      final_output = StripAnsiEscapeCodes(output);
+    else
+      final_output = output;
+
+    if (!final_output.empty())
+      printf("%s", final_output.c_str());
+
+    have_blank_line_ = true;
   }
+}
+
+void BuildStatus::BuildFinished() {
+  if (smart_terminal_ && !have_blank_line_)
+    printf("\n");
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
@@ -141,38 +181,70 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (to_print.empty() || force_full_command)
     to_print = edge->EvaluateCommand();
 
-  if (smart_terminal_)
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  GetConsoleScreenBufferInfo(console_, &csbi);
+#endif
+
+  if (smart_terminal_) {
+#ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
+#else
+    csbi.dwCursorPosition.X = 0;
+    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
+#endif
+  }
 
 #ifndef WIN32
   int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
 
   if (smart_terminal_ && !force_full_command) {
+#ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
-        int substr = std::min(to_print.size(),
-                              to_print.size() + kMargin - size.ws_col);
-        to_print = "..." + to_print.substr(substr);
+        int elide_size = (size.ws_col - kMargin) / 2;
+        to_print = to_print.substr(0, elide_size)
+          + "..."
+          + to_print.substr(to_print.size() - elide_size, elide_size);
       }
     }
-  }
+#else
+    const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
+    // Don't use the full width or console with move to next line.
+    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    if (to_print.size() + kMargin > width) {
+      int elide_size = (width - kMargin) / 2;
+      to_print = to_print.substr(0, elide_size)
+        + "..."
+        + to_print.substr(to_print.size() - elide_size, elide_size);
+    }
 #endif
+  }
 
   printf("%s", to_print.c_str());
 
   if (smart_terminal_ && !force_full_command) {
-    printf("\033[K");  // Clear to end of line.
+#ifndef _WIN32
+    printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
+    have_blank_line_ = false;
+#else
+    // Clear to end of line.
+    GetConsoleScreenBufferInfo(console_, &csbi);
+    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
+    printf("%*s", num_spaces, "");
+    have_blank_line_ = false;
+#endif
   } else {
     printf("\n");
   }
 }
 
-Plan::Plan() : command_edges_(0) {}
+Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
@@ -180,45 +252,52 @@ bool Plan::AddTarget(Node* node, string* err) {
 }
 
 bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
-  Edge* edge = node->in_edge_;
+  Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
-    if (node->dirty_) {
+    if (node->dirty()) {
       string referenced;
       if (!stack->empty())
-        referenced = ", needed by '" + stack->back()->file_->path_ + "',";
-      *err = "'" + node->file_->path_ + "'" + referenced + " missing "
+        referenced = ", needed by '" + stack->back()->path() + "',";
+      *err = "'" + node->path() + "'" + referenced + " missing "
              "and no known rule to make it";
     }
     return false;
   }
-  assert(edge);
 
   if (CheckDependencyCycle(node, stack, err))
     return false;
 
-  if (!node->dirty())
+  if (edge->outputs_ready())
     return false;  // Don't need to do anything.
-  if (want_.find(edge) != want_.end())
-    return true;  // We've already enqueued it.
-  want_.insert(edge);
-  if (!edge->is_phony())
-    ++command_edges_;
+
+  // If an entry in want_ does not already exist for edge, create an entry which
+  // maps to false, indicating that we do not want to build this entry itself.
+  pair<map<Edge*, bool>::iterator, bool> want_ins =
+    want_.insert(make_pair(edge, false));
+  bool& want = want_ins.first->second;
+
+  // If we do need to build edge and we haven't already marked it as wanted,
+  // mark it now.
+  if (node->dirty() && !want) {
+    want = true;
+    ++wanted_edges_;
+    if (edge->AllInputsReady())
+      ready_.insert(edge);
+    if (!edge->is_phony())
+      ++command_edges_;
+  }
+
+  if (!want_ins.second)
+    return true;  // We've already processed the inputs.
 
   stack->push_back(node);
-  bool awaiting_inputs = false;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (AddSubTarget(*i, stack, err)) {
-      awaiting_inputs = true;
-    } else if (!err->empty()) {
+    if (!AddSubTarget(*i, stack, err) && !err->empty())
       return false;
-    }
   }
   assert(stack->back() == node);
   stack->pop_back();
-
-  if (!awaiting_inputs)
-    ready_.insert(edge);
 
   return true;
 }
@@ -238,7 +317,7 @@ bool Plan::CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err) {
   for (vector<Node*>::iterator i = start; i != stack->end(); ++i) {
     if (i != start)
       err->append(" -> ");
-    err->append((*i)->file_->path_);
+    err->append((*i)->path());
   }
   return true;
 }
@@ -253,7 +332,12 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::EdgeFinished(Edge* edge) {
-  want_.erase(edge);
+  map<Edge*, bool>::iterator i = want_.find(edge);
+  assert(i != want_.end());
+  if (i->second)
+    --wanted_edges_;
+  want_.erase(i);
+  edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -264,28 +348,80 @@ void Plan::EdgeFinished(Edge* edge) {
 
 void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
-  for (vector<Edge*>::iterator i = node->out_edges_.begin();
-       i != node->out_edges_.end(); ++i) {
-    if (want_.find(*i) != want_.end()) {
-      // See if the edge is now ready.
-      bool ready = true;
-      for (vector<Node*>::iterator j = (*i)->inputs_.begin();
-           j != (*i)->inputs_.end(); ++j) {
-        if ((*j)->dirty()) {
-          ready = false;
-          break;
+  for (vector<Edge*>::const_iterator i = node->out_edges().begin();
+       i != node->out_edges().end(); ++i) {
+    map<Edge*, bool>::iterator want_i = want_.find(*i);
+    if (want_i == want_.end())
+      continue;
+
+    // See if the edge is now ready.
+    if ((*i)->AllInputsReady()) {
+      if (want_i->second) {
+        ready_.insert(*i);
+      } else {
+        // We do not need to build this edge, but we might need to build one of
+        // its dependents.
+        EdgeFinished(*i);
+      }
+    }
+  }
+}
+
+void Plan::CleanNode(BuildLog* build_log, Node* node) {
+  node->set_dirty(false);
+
+  for (vector<Edge*>::const_iterator ei = node->out_edges().begin();
+       ei != node->out_edges().end(); ++ei) {
+    // Don't process edges that we don't actually want.
+    map<Edge*, bool>::iterator want_i = want_.find(*ei);
+    if (want_i == want_.end() || !want_i->second)
+      continue;
+
+    // If all non-order-only inputs for this edge are now clean,
+    // we might have changed the dirty state of the outputs.
+    vector<Node*>::iterator begin = (*ei)->inputs_.begin(),
+                            end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
+    if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
+      // Recompute most_recent_input and command.
+      TimeStamp most_recent_input = 1;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
+        if ((*ni)->mtime() > most_recent_input)
+          most_recent_input = (*ni)->mtime();
+      string command = (*ei)->EvaluateCommand(true);
+      
+      // Now, recompute the dirty state of each output.
+      bool all_outputs_clean = true;
+      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
+           ni != (*ei)->outputs_.end(); ++ni) {
+        if (!(*ni)->dirty())
+          continue;
+
+        if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, command,
+                                        *ni)) {
+          (*ni)->MarkDirty();
+          all_outputs_clean = false;
+        } else {
+          CleanNode(build_log, *ni);
         }
       }
-      if (ready)
-        ready_.insert(*i);
+
+      // If we cleaned all outputs, mark the node as not wanted.
+      if (all_outputs_clean) {
+        want_i->second = false;
+        --wanted_edges_;
+        if (!(*ei)->is_phony())
+          --command_edges_;
+      }
     }
   }
 }
 
 void Plan::Dump() {
   printf("pending: %d\n", (int)want_.size());
-  for (set<Edge*>::iterator i = want_.begin(); i != want_.end(); ++i) {
-    (*i)->Dump();
+  for (map<Edge*, bool>::iterator i = want_.begin(); i != want_.end(); ++i) {
+    if (i->second)
+      printf("want ");
+    i->first->Dump();
   }
   printf("ready: %d\n", (int)ready_.size());
 }
@@ -295,12 +431,26 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(bool* success, string* output);
+  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual vector<Edge*> GetActiveEdges();
+  virtual void Abort();
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
+
+vector<Edge*> RealCommandRunner::GetActiveEdges() {
+  vector<Edge*> edges;
+  for (map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.begin();
+       i != subproc_to_edge_.end(); ++i)
+    edges.push_back(i->second);
+  return edges;
+}
+
+void RealCommandRunner::Abort() {
+  subprocs_.Clear();
+}
 
 bool RealCommandRunner::CanRunMore() {
   return ((int)subprocs_.running_.size()) < config_.parallelism;
@@ -308,22 +458,25 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = new Subprocess;
-  subproc_to_edge_.insert(make_pair(subproc, edge));
-  if (!subproc->Start(&subprocs_, command))
+  Subprocess* subproc = subprocs_.Add(command);
+  if (!subproc)
     return false;
-
-  subprocs_.Add(subproc);
+  subproc_to_edge_.insert(make_pair(subproc, edge));
+  
   return true;
 }
 
-Edge* RealCommandRunner::WaitForCommand(bool* success, string* output) {
+Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
-    subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork();
+    if (interrupted) {
+      *status = ExitInterrupted;
+      return 0;
+    }
   }
 
-  *success = subproc->Finish();
+  *status = subproc->Finish();
   *output = subproc->GetOutput();
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
@@ -344,10 +497,12 @@ struct DryRunCommandRunner : public CommandRunner {
     finished_.push(edge);
     return true;
   }
-  virtual Edge* WaitForCommand(bool* success, string* output) {
-    if (finished_.empty())
+  virtual Edge* WaitForCommand(ExitStatus* status, string* /* output */) {
+    if (finished_.empty()) {
+      *status = ExitFailure;
       return NULL;
-    *success = true;
+    }
+    *status = ExitSuccess;
     Edge* edge = finished_.front();
     finished_.pop();
     return edge;
@@ -360,11 +515,42 @@ Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
   if (config.dry_run)
-    command_runner_ = new DryRunCommandRunner;
+    command_runner_.reset(new DryRunCommandRunner);
   else
-    command_runner_ = new RealCommandRunner(config);
+    command_runner_.reset(new RealCommandRunner(config));
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
+}
+
+Builder::~Builder() {
+  Cleanup();
+}
+
+void Builder::Cleanup() {
+  if (command_runner_.get()) {
+    vector<Edge*> active_edges = command_runner_->GetActiveEdges();
+    command_runner_->Abort();
+
+    for (vector<Edge*>::iterator i = active_edges.begin();
+         i != active_edges.end(); ++i) {
+      bool has_depfile = !(*i)->rule_->depfile().empty();
+      for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
+           ni != (*i)->outputs_.end(); ++ni) {
+        // Only delete this output if it was actually modified.  This is
+        // important for things like the generator where we don't want to
+        // delete the manifest file if we can avoid it.  But if the rule
+        // uses a depfile, always delete.  (Consider the case where we
+        // need to rebuild an output because of a modified header file
+        // mentioned in a depfile, and the command touches its depfile
+        // but is interrupted before it touches its output file.)
+        if (has_depfile ||
+            (*ni)->mtime() != disk_interface_->Stat((*ni)->path()))
+          disk_interface_->RemoveFile((*ni)->path());
+      }
+      if (has_depfile)
+        disk_interface_->RemoveFile((*i)->EvaluateDepFile());
+    }
+  }
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -379,13 +565,13 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
-  node->file_->StatIfNecessary(disk_interface_);
-  if (node->in_edge_) {
-    if (!node->in_edge_->RecomputeDirty(state_, disk_interface_, err))
+  node->StatIfNecessary(disk_interface_);
+  if (Edge* in_edge = node->in_edge()) {
+    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
       return false;
+    if (in_edge->outputs_ready())
+      return true;  // Nothing to do.
   }
-  if (!node->dirty_)
-    return false;  // Intentionally no error.
 
   if (!plan_.AddTarget(node, err))
     return false;
@@ -393,15 +579,16 @@ bool Builder::AddTarget(Node* node, string* err) {
   return true;
 }
 
+bool Builder::AlreadyUpToDate() const {
+  return !plan_.more_to_do();
+}
+
 bool Builder::Build(string* err) {
-  if (!plan_.more_to_do()) {
-    *err = "no work to do";
-    return true;
-  }
+  assert(!AlreadyUpToDate());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
-  int failures_allowed = config_.swallow_failures;
+  int failures_allowed = config_.failures_allowed;
 
   // This main loop runs the entire build process.
   // It is structured like this:
@@ -412,10 +599,12 @@ bool Builder::Build(string* err) {
   // an error.
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
-    if (command_runner_->CanRunMore()) {
+    if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
-        if (!StartEdge(edge, err))
+        if (!StartEdge(edge, err)) {
+          status_->BuildFinished();
           return false;
+        }
 
         if (edge->is_phony())
           FinishEdge(edge, true, "");
@@ -429,43 +618,52 @@ bool Builder::Build(string* err) {
 
     // See if we can reap any finished commands.
     if (pending_commands) {
-      bool success;
+      ExitStatus status;
       string output;
-      Edge* edge;
-      if ((edge = command_runner_->WaitForCommand(&success, &output))) {
+      Edge* edge = command_runner_->WaitForCommand(&status, &output);
+      if (edge && status != ExitInterrupted) {
+        bool success = (status == ExitSuccess);
         --pending_commands;
         FinishEdge(edge, success, output);
         if (!success) {
-          if (--failures_allowed < 0) {
-            if (config_.swallow_failures > 0)
-              *err = "subcommands failed";
-            else
-              *err = "subcommand failed";
-            return false;
-          }
+          if (failures_allowed)
+            failures_allowed--;
         }
 
         // We made some progress; start the main loop over.
         continue;
       }
+
+      if (status == ExitInterrupted) {
+        status_->BuildFinished();
+        *err = "interrupted by user";
+        return false;
+      }
     }
 
     // If we get here, we can neither enqueue new commands nor are any running.
     if (pending_commands) {
+      status_->BuildFinished();
       *err = "stuck: pending commands but none to wait for? [this is a bug]";
       return false;
     }
 
     // If we get here, we cannot make any more progress.
-    if (failures_allowed < config_.swallow_failures) {
+    status_->BuildFinished();
+    if (failures_allowed == 0) {
+      if (config_.failures_allowed > 1)
+        *err = "subcommands failed";
+      else
+        *err = "subcommand failed";
+    } else if (failures_allowed < config_.failures_allowed)
       *err = "cannot make progress due to previous errors";
-      return false;
-    } else {
+    else 
       *err = "stuck [this is a bug]";
-      return false;
-    }
+
+    return false;
   }
 
+  status_->BuildFinished();
   return true;
 }
 
@@ -479,14 +677,22 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // XXX: this will block; do we care?
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
-    if (!disk_interface_->MakeDirs((*i)->file_->path_))
+    if (!disk_interface_->MakeDirs((*i)->path()))
+      return false;
+  }
+  
+  // Create response file, if needed
+  // XXX: this may also block; do we care?
+  if (edge->HasRspFile()) {
+    string rspfile_content = edge->GetRspFileContent();
+    replace(rspfile_content.begin(), rspfile_content.end(), '\r', '\n');
+    if (!disk_interface_->WriteFile(edge->GetRspFile(), rspfile_content))
       return false;
   }
 
-  // Compute command and start it.
-  string command = edge->EvaluateCommand();
+  // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
-    err->assign("command '" + command + "' failed.");
+    err->assign("command '" + edge->EvaluateCommand() + "' failed.");
     return false;
   }
 
@@ -494,11 +700,56 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
+  TimeStamp restat_mtime = 0;
+
   if (success) {
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      (*i)->dirty_ = false;
+    if (edge->rule().restat() && !config_.dry_run) {
+      bool node_cleaned = false;
+
+      for (vector<Node*>::iterator i = edge->outputs_.begin();
+           i != edge->outputs_.end(); ++i) {
+        TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+        if ((*i)->mtime() == new_mtime) {
+          // The rule command did not change the output.  Propagate the clean
+          // state through the build graph.
+          // Note that this also applies to nonexistent outputs (mtime == 0).
+          plan_.CleanNode(log_, *i);
+          node_cleaned = true;
+        }
+      }
+
+      if (node_cleaned) {
+        // If any output was cleaned, find the most recent mtime of any
+        // (existing) non-order-only input or the depfile.
+        for (vector<Node*>::iterator i = edge->inputs_.begin();
+             i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+          TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
+          if (input_mtime == 0) {
+            restat_mtime = 0;
+            break;
+          }
+          if (input_mtime > restat_mtime)
+            restat_mtime = input_mtime;
+        }
+
+        if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
+          TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
+          if (depfile_mtime == 0)
+            restat_mtime = 0;
+          else if (depfile_mtime > restat_mtime)
+            restat_mtime = depfile_mtime;
+        }
+
+        // The total number of edges in the plan may have changed as a result
+        // of a restat.
+        status_->PlanHasTotalEdges(plan_.command_edge_count());
+      }
     }
+
+    // delete the response file on success (if exists)
+    if (edge->HasRspFile()) 
+      disk_interface_->RemoveFile(edge->GetRspFile());
+
     plan_.EdgeFinished(edge);
   }
 
@@ -508,5 +759,5 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
   if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time);
+    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
 }

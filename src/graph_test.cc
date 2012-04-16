@@ -15,6 +15,7 @@
 #include "graph.h"
 
 #include "test.h"
+#include "util.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
@@ -26,7 +27,7 @@ TEST_F(GraphTest, MissingImplicit) {
   fs_.Create("in", 1, "");
   fs_.Create("out", 1, "");
 
-  Edge* edge = GetNode("out")->in_edge_;
+  Edge* edge = GetNode("out")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -34,7 +35,7 @@ TEST_F(GraphTest, MissingImplicit) {
   // A missing implicit dep *should* make the output dirty.
   // (In fact, a build will fail.)
   // This is a change from prior semantics of ninja.
-  EXPECT_TRUE(GetNode("out")->dirty_);
+  EXPECT_TRUE(GetNode("out")->dirty());
 }
 
 TEST_F(GraphTest, ModifiedImplicit) {
@@ -44,13 +45,13 @@ TEST_F(GraphTest, ModifiedImplicit) {
   fs_.Create("out", 1, "");
   fs_.Create("implicit", 2, "");
 
-  Edge* edge = GetNode("out")->in_edge_;
+  Edge* edge = GetNode("out")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
   // A modified implicit dep should make the output dirty.
-  EXPECT_TRUE(GetNode("out")->dirty_);
+  EXPECT_TRUE(GetNode("out")->dirty());
 }
 
 TEST_F(GraphTest, FunkyMakefilePath) {
@@ -64,14 +65,14 @@ TEST_F(GraphTest, FunkyMakefilePath) {
   fs_.Create("out.o.d", 1, "out.o: ./foo/../implicit.h\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
   // implicit.h has changed, though our depfile refers to it with a
   // non-canonical path; we should still find it.
-  EXPECT_TRUE(GetNode("out.o")->dirty_);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, ExplicitImplicit) {
@@ -87,7 +88,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
   fs_.Create("out.o.d", 1, "out.o: implicit.h\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
@@ -95,7 +96,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
   // We have both an implicit and an explicit dep on implicit.h.
   // The implicit dep should "win" (in the sense that it should cause
   // the output to be dirty).
-  EXPECT_TRUE(GetNode("out.o")->dirty_);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, PathWithCurrentDirectory) {
@@ -103,17 +104,17 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 "rule catdep\n"
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+"build ." DIR_SEP "out.o: catdep ." DIR_SEP "foo.cc\n"));
   fs_.Create("foo.cc", 1, "");
   fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
   fs_.Create("out.o", 1, "");
 
-  Edge* edge = GetNode("out.o")->in_edge_;
+  Edge* edge = GetNode("out.o")->in_edge();
   string err;
   EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(GetNode("out.o")->dirty_);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
 }
 
 TEST_F(GraphTest, RootNodes) {
@@ -127,7 +128,16 @@ TEST_F(GraphTest, RootNodes) {
   vector<Node*> root_nodes = state_.RootNodes(&err);
   EXPECT_EQ(4u, root_nodes.size());
   for (size_t i = 0; i < root_nodes.size(); ++i) {
-    string name = root_nodes[i]->file_->path_;
+    string name = root_nodes[i]->path();
     EXPECT_EQ("out", name.substr(0, 3));
   }
+}
+
+TEST_F(GraphTest, VarInOutQuoteSpaces) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a$ b: cat nospace with$ space nospace2\n"));
+
+  Edge* edge = GetNode("a b")->in_edge();
+  EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
+      edge->EvaluateCommand());
 }

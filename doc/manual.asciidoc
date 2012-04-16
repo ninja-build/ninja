@@ -11,12 +11,17 @@ interdependencies of files (typically source code and output
 executables) and orchestrates building them, _quickly_.
 
 Ninja joins a sea of other build systems.  Its distinguishing goal is
-to be fast.  It is born from my work on the Chromium browser project,
-which has over 30,000 source files and whose other build systems
-(including one built from custom non-recursive Makefiles) can take ten
-seconds to start building after changing one file.  Ninja is under a
-second.
+to be fast.  It is born from
+http://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
+work on the Chromium browser project], which has over 30,000 source
+files and whose other build systems (including one built from custom
+non-recursive Makefiles) can take ten seconds to start building after
+changing one file.  Ninja is under a second.
 
+This manual describes how to generate Ninja build files.  If you are
+just attempting to use Ninja to build an existing project (or are
+considering using Ninja to build your project), see
+http://martine.github.com/ninja/[the home page] for more background.
 
 Philosophical overview
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -131,28 +136,9 @@ but they are not part of make itself.)
   produced the failure.
 
 
-Getting started
----------------
+Tutorial-style syntax walkthrough
+---------------------------------
 
-The included `bootstrap.sh` should hopefully produce a working `ninja`
-binary, by first blindly compiling all non-test files together then
-re-building Ninja using itself.
-
-Usage is currently just
-
-----------------
-ninja target
-----------------
-
-where `target` is a known output described by `build.ninja` in the
-current directory.
-
-There is no installation step; the only files of interest to a user
-are the resulting binary and this manual.
-
-
-Creating .ninja files
----------------------
 Here's a basic `.ninja` file that demonstrates most of the syntax.
 It will be used as an example for the following sections.
 
@@ -201,9 +187,12 @@ command to run.  (In the context of a rule, the `command` variable is
 special and defines the command to run.  A full list of special
 variables is provided in <<ref_rule,the reference>>.)
 
-Within the context of a rule, two additional special variables are
+Within the context of a rule, three additional special variables are
 available: `$in` expands to the list of input files (`foo.c`) and
-`$out` to the output file (`foo.o`) for the command.
+`$out` to the output file (`foo.o`) for the command. For use with
+`rspfile_content` there is also `$in_newline`, which is the same as
+`$in`, except that multiple inputs are separated by `\n` rather than
+space.
 
 
 Build statements
@@ -253,6 +242,12 @@ statement to the rule (for example, if the rule needs "the file
 extension of the first input"), pass that through as an extra
 variable, like how `cflags` is passed above.
 
+If the top-level Ninja file is specified as an output of any build
+statement and it is out of date, Ninja will rebuild and reload it
+before building the targets requested by the user.
+
+More details
+------------
 
 The `phony` rule
 ~~~~~~~~~~~~~~~~
@@ -261,14 +256,44 @@ The special rule name `phony` can be used to create aliases for other
 targets.  For example:
 
 ----------------
-build all: phony some/file/in/a/faraway/subdir
+build foo: phony some/file/in/a/faraway/subdir/foo
 ----------------
 
-This makes `ninja all` build the other files.  Semantically, the
+This makes `ninja foo` build the longer path.  Semantically, the
 `phony` rule is equivalent to a plain rule where the `command` does
 nothing, but phony rules are handled specially in that they aren't
 printed when run, logged (see below), nor do they contribute to the
 command count printed as part of the build process.
+
+`phony' can also be used to create dummy targets for files which
+may not exist at build time.  If a phony build statement is written
+without any dependencies, the target will be considered out of date if
+it does not exist.  Without a phony build statement, Ninja will report
+an error if the file does not exist and is required by the build.
+
+
+Default target statements
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, if no targets are specified on the command line, Ninja
+will build every output that is not named as an input elsewhere.
+You can override this behavior using a default target statement.
+A default target statement causes Ninja to build only a given subset
+of output files if none are specified on the command line.
+
+Default target statements begin with the `default` keyword, and have
+the format +default _targets_+.  A default target statement must appear
+after the build statement that declares the target as an output file.
+They are cumulative, so multiple statements may be used to extend
+the list of default targets.  For example:
+
+----------------
+default foo bar
+default baz
+----------------
+
+This causes Ninja to build the `foo`, `bar` and `baz` targets by
+default.
 
 
 The Ninja log
@@ -284,39 +309,23 @@ If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
 
 
-Generating Ninja files
-----------------------
+Generating Ninja files from code
+--------------------------------
 
-The Ninja distribution includes a tiny (<100 line) Python module to
-facilitate generating Ninja files.  It allows you to make Python calls
-like `ninja.rule(name='foo', command='bar', depfile='$out.d')` and
-it will generate the appropriate syntax.
-
-Integration with other build systems
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-*gyp*  A work-in-progress patch to http://gyp.googlecode.com[gyp, the
-system used to generate build files for the Chromium browser] to
-generate ninja files for Linux is available from
-https://github.com/martine/gyp/tree/ninja[my "ninja" branch of the
-upstream gyp project].  To use it, put that branch in place of
-Chromium's gyp, set `GYP_GENERATORS=ninja` in your environment, and
-run `./build/gyp_chromium` to regenerate the build files.
-
-*CMake*.  I have heard from people who have been working on generating
-Ninja files from CMake, but I don't think it's in a working state yet.
-
-*Autotools*.  In theory, you could coax Automake into producing
-.ninja files as well, but I haven't tried it.  It may very well be the
-case that most projects use too much Makefile syntax in their `.am`
-files for this to work.
+`misc/ninja_syntax.py` in the Ninja distribution is a tiny Python
+module to facilitate generating Ninja files.  It allows you to make
+Python calls like `ninja.rule(name='foo', command='bar',
+depfile='$out.d')` and it will generate the appropriate syntax.  Feel
+free to just inline it into your project's build system if it's
+useful.
 
 Extra tools
 -----------
 
-The `-t` flag on the Ninja command line runs some tools that I have
+The `-t` flag on the Ninja command line runs some tools that we have
 found useful during Ninja's development.  The current tools are:
 
+[horizontal]
 `query`:: dump the inputs and outputs of a given target.
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
@@ -324,38 +333,50 @@ file focuses the view on that file, showing inputs and outputs.  This
 feature requires a Python installation.
 
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
-graph layout tool.  Use it like: +ninja -t graph _target_ | dot -Tpng
--ograph.png /dev/stdin+ .  In the Ninja source tree, `ninja graph`
+graph layout tool.  Use it like:
++
+----
+ninja -t graph mytarget | dot -Tpng -ograph.png
+----
++
+In the Ninja source tree, `ninja graph.png`
 generates an image for Ninja itself.  If no target is given generate a
 graph for all root targets.
 
 `targets`:: output a list of targets either by rule or by depth.  If used
-like this +ninja -t targets rule _name_+ it prints the list of targets
+like +ninja -t targets rule _name_+ it prints the list of targets
 using the given rule to be built.  If no rule is given, it prints the source
-files (the leaves of the graph).  If used like this
+files (the leaves of the graph).  If used like
 +ninja -t targets depth _digit_+ it
 prints the list of targets in a depth-first manner starting by the root
 targets (the ones with no outputs). Indentation is used to mark dependencies.
 If the depth is zero it prints all targets. If no arguments are provided
 +ninja -t targets depth 1+ is assumed. In this mode targets may be listed
 several times. If used like this +ninja -t targets all+ it
-prints all the targets available without indentation and it is way faster
-than the _depth_ mode.  It returns non-zero if an error occurs.
+prints all the targets available without indentation and it is faster
+than the _depth_ mode.
 
 `rules`:: output the list of all rules with their description if they have
 one.  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+.
 
-`clean`:: remove built files.  If used like this +ninja -t clean+ it
-removes all the built files.  If used like this
-+ninja -t clean _targets..._+ or like this
-+ninja -t clean target _targets..._+ it removes the given targets and
-recursively all files built for it.  If used like this
-+ninja -t clean rule _rules_+ it removes all files built using the given
-rules. The depfiles are not removed. Files created but not referenced in
-the graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).  It returns non-zero if an
-error occurs.
+`commands`:: given a list of targets, print a list of commands which, if
+executed in order, may be used to rebuild those targets, assuming that all
+output files are out of date.
+
+`clean`:: remove built files. By default it removes all built files
+except for those created by the generator.  Adding the `-g` flag also
+removes built files created by the generator (see <<ref_rule,the rule
+reference for the +generator+ attribute>>).  Additional arguments are
+targets, which removes the given targets and recursively all files
+built for them.
++
+If used like +ninja -t clean -r _rules_+ it removes all files built using
+the given rules.
++
+depfiles are not removed. Files created but not referenced in the
+graph are not removed. This tool takes in account the +-v+ and the
++-n+ options (note that +-n+ implies +-v+).
 
 Ninja file reference
 --------------------
@@ -375,18 +396,60 @@ A file is a series of declarations.  A declaration can be one of:
 
 3. Variable declarations, which look like +_variable_ = _value_+.
 
-4. References to more files, which look like +subninja _path_+ or
+4. Default target statements, which look like +default _target1_ _target2_+.
+
+5. References to more files, which look like +subninja _path_+ or
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
 
+Lexical syntax
+~~~~~~~~~~~~~~
+
 Comments begin with `#` and extend to the end of the line.
 
-Newlines are significant, but they can be escaped by putting a `$`
-before them.  To produce a literal `$` in a path or variable value use
-`$$`.
+Newlines are significant.  Statements like `build foo bar` are a set
+of space-separated tokens that end at the newline.  Newlines and
+spaces within a token must be escaped.
+
+There is only one escape character, `$`, and it has the following
+behaviors:
+
+[horizontal]
+`$` followed by a newline:: escape the newline (continue the current line
+across a line break).
+
+`$` followed by text:: a variable reference.
+
+`${varname}`:: alternate syntax for `$varname`.
+
+`$` followed by space:: a space.
+
+`$$`:: a literal `$`.
+
+A `build` or `default` statement is first parsed as a space-separated
+list of filenames and then each name is expanded.  This means that
+spaces within a variable will result in spaces in the expanded
+filename.
+
+----
+spaced = foo bar
+build $spaced/baz other$ file: ...
+# The above build line has two outputs: "foo bar/baz" and "other file".
+----
+
+In a `name = value` statement, whitespace at the beginning of a value
+is always stripped.  Whitespace at the beginning of a line after a
+line continuation is also stripped.
+
+----
+two_words_with_one_space = foo $
+    bar
+one_word_with_no_space = foo$
+    bar
+----
 
 Other whitespace is only significant if it's at the beginning of a
-line.  If a line is intended more than the previous one, it's
+line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
 
@@ -426,9 +489,41 @@ aborting due to a missing input.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-Additionally, the special `$in` and `$out` variables expand to the
-space-separated list of files provided to the `build` line referencing
-this `rule`.
+`generator`:: if present, specifies that this rule is used to
+  re-invoke the generator program.  Files built using `generator`
+  rules are treated specially in two ways: firstly, they will not be
+  rebuilt if the command line changes; and secondly, they are not
+  cleaned by default.
+
+`restat`:: if present, causes Ninja to re-stat the command's outputs
+  after execution of the command.  Each output whose modification time
+  the command did not change will be treated as though it had never
+  needed to be built.  This may cause the output's reverse
+  dependencies to be removed from the list of pending build actions.
+
+`rspfile`, `rspfile_content`:: if present (both), Ninja will use a
+  response file for the given command, i.e. write the selected string
+  (`rspfile_content`) to the given file (`rspfile`) before calling the
+  command and delete the file after successful execution of the
+  command.
++
+This is particularly useful on Windows OS, where the maximal length of
+a command line is limited and response files must be used instead.
++
+Use it like in the following example:
++
+----
+rule link
+  command = link.exe /OUT$out [usual link flags here] @$out.rsp
+  rspfile = $out.rsp
+  rspfile_content = $in
+
+build myapp.exe: link a.obj b.obj [possibly many other .obj files]
+----
+
+Finally, the special `$in` and `$out` variables expand to the
+shell-quoted space-separated list of files provided to the `build`
+line referencing this `rule`.
 
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
@@ -459,9 +554,9 @@ Note that dependencies as loaded through depfiles have slightly different
 semantics, as described in the <<ref_rule,rule reference>>.
 
 3. _Order-only dependencies_, expressed with the syntax +|| _dep1_
-   _dep2_+ on the end of a build line.  When these are missing, the
-   output is not rebuilt until they are built, but once they are
-   available further changes to the files do not affect the output.
+   _dep2_+ on the end of a build line.  When these are out of date, the
+   output is not rebuilt until they are built, but changes in order-only
+   dependencies alone do not cause the output to be rebuilt.
 +
 Order-only dependencies can be useful for bootstrapping dependencies
 that are only discovered during build time: for example, to generate a
@@ -499,56 +594,11 @@ lookup order for a variable referenced in a rule is:
 Variable expansion
 ~~~~~~~~~~~~~~~~~~
 
-Variables are expanded in two cases: in the right side of a `name =
-value` statement and in paths in a `build` statement.
+Variables are expanded in paths (in a `build` or `default` statement)
+and on the right side of a `name = value` statement.
 
 When a `name = value` statement is evaluated, its right-hand side is
 expanded once (according to the above scoping rules) immediately, and
 from then on `$name` expands to the static string as the result of the
 expansion.  It is never the case that you'll need to "double-escape" a
-variable with some syntax like `$$foo`.
-
-A `build` statement is first parsed as a space-separated list of
-filenames and then each name is expanded.  This means that spaces
-within a variable will result in spaces in the expanded filename.
-
-----
-spaced = foo bar
-build $spaced/baz other: ...
-# The above build line has two outputs: "foo bar/baz" and "other".
-----
-
-In a `name = value` statement, whitespace at the beginning of a value
-is always stripped.  Whitespace at the beginning of a line after a
-line continuation is also stripped.
-
-----
-two_words_with_one_space = foo $
-    bar
-one_word_with_no_space = foo$
-    bar
-----
-
-
-Future work
------------
-
-Some pieces I'd like to add:
-
-_inotify_.  I had originally intended to make Ninja be memory-resident
-and to use `inotify` to keep the build state hot at all times.  But
-upon writing the code I found it was fast enough to run from scratch
-each time.  Perhaps a slower computer would still benefit from
-inotify; the data structures are set up such that using inotify
-shouldn't be hard.
-
-_build estimation and analysis_.  As part of build correctness, Ninja
-keeps a log of the time spent on each build statement.  This log
-format could be adjusted to instead store timing information across
-multiple runs.  From that, the total time necessary to build could be
-estimated, allowing Ninja to print status like "3 minutes until
-complete" when building.  Additionally, a tool could output which
-commands are the slowest or which directories take the most time
-to build.
-
-_many others_.  See the `todo` file included in the distribution.
+value to prevent it from getting expanded twice.

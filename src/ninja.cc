@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ninja.h"
-
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -32,46 +31,73 @@
 #include <windows.h>
 #else
 #include <getopt.h>
+#include <unistd.h>
 #endif
 
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
+#include "clean.h"
+#include "dep_database.h"
+#include "edit_distance.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "metrics.h"
 #include "parsers.h"
+#include "stat_cache.h"
+#include "state.h"
 #include "util.h"
-#include "clean.h"
 
 namespace {
 
-option options[] = {
-  { "help", no_argument, NULL, 'h' },
-  { }
+/// Global information passed into subtools.
+struct Globals {
+  Globals() : state(new State()) {}
+  ~Globals() {
+    delete state;
+  }
+
+  /// Deletes and recreates state so it is empty.
+  void ResetState() {
+    delete state;
+    state = new State();
+  }
+
+  /// Command line used to run Ninja.
+  const char* ninja_command;
+  /// Build configuration (e.g. parallelism).
+  BuildConfig config;
+  /// Loaded state (rules, nodes). This is a pointer so it can be reset.
+  State* state;
 };
 
-void usage(const BuildConfig& config) {
+/// Print usage information.
+void Usage(const BuildConfig& config) {
   fprintf(stderr,
-"usage: ninja [options] target\n"
+"usage: ninja [options] [targets...]\n"
+"\n"
+"if targets are unspecified, builds the 'default' target (see manual).\n"
+"targets are paths, with additional special syntax:\n"
+"  'target^' means 'the first output that uses target'.\n"
+"  example: 'ninja foo.cc^' will likely build foo.o.\n"
 "\n"
 "options:\n"
+"  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
+"\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
-"  -v       show all command lines\n"
-"  -C DIR   change to DIR before doing anything else\n"
+"  -v       show all command lines while building\n"
 "\n"
-"  -t TOOL  run a subtool.  tools are:\n"
-"             browse  browse dependency graph in a web browser\n"
-"             graph   output graphviz dot file for targets\n"
-"             query   show inputs/outputs for a path\n"
-"             targets list targets by their rule or depth in the DAG\n"
-"             rules   list all rules\n"
-"             clean   clean built files\n",
+"  -d MODE  enable debugging (use -d list to list modes)\n"
+"  -t TOOL  run a subtool\n"
+"    use '-t list' to list subtools.\n"
+"    terminates toplevel options; further flags are passed to the tool.\n",
           config.parallelism);
 }
 
+/// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
   int processors = 0;
 
@@ -85,7 +111,7 @@ int GuessParallelism() {
              NULL, 0) < 0) {
     processors = 1;
   }
-#elif defined(WIN32)
+#elif defined(_WIN32)
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   processors = info.dwNumberOfProcessors;
@@ -110,10 +136,35 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
+/// Rebuild the build manifest, if necessary.
+/// Returns true if the manifest was rebuilt.
+bool RebuildManifest(State* state, const BuildConfig& config,
+                     const char* input_file, string* err) {
+  string path = input_file;
+  if (!CanonicalizePath(&path, err))
+    return false;
+  Node* node = state->LookupNode(path);
+  if (!node)
+    return false;
+
+  Builder manifest_builder(state, config);
+  if (!manifest_builder.AddTarget(node, err))
+    return false;
+
+  if (manifest_builder.AlreadyUpToDate())
+    return false;  // Not an error, but we didn't rebuild.
+  if (!manifest_builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  return node->dirty();
+}
+
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
-    *targets = state->RootNodes(err);
+    *targets = state->DefaultNodes(err);
     if (!err->empty())
       return false;
   } else {
@@ -121,11 +172,40 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
       string path = argv[i];
       if (!CanonicalizePath(&path, err))
         return false;
+
+      // Special syntax: "foo.cc^" means "the first output of foo.cc".
+      bool first_dependent = false;
+      if (!path.empty() && path[path.size() - 1] == '^') {
+        path.resize(path.size() - 1);
+        first_dependent = true;
+      }
+
       Node* node = state->LookupNode(path);
       if (node) {
+        if (first_dependent) {
+          if (node->out_edges().empty()) {
+            *err = "'" + path + "' has no out edge";
+            return false;
+          }
+          Edge* edge = node->out_edges()[0];
+          if (edge->outputs_.empty()) {
+            edge->Dump();
+            Fatal("edge has no outputs");
+          }
+          node = edge->outputs_[0];
+        }
         targets->push_back(node);
       } else {
         *err = "unknown target '" + path + "'";
+
+        if (path == "clean") {
+          *err += ", did you mean 'ninja -t clean'?";
+        } else {
+          Node* suggestion = state->SpellcheckNode(path);
+          if (suggestion) {
+            *err += ", did you mean '" + suggestion->path() + "'?";
+          }
+        }
         return false;
       }
     }
@@ -133,10 +213,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   return true;
 }
 
-int CmdGraph(State* state, int argc, char* argv[]) {
+int ToolGraph(Globals* globals, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
@@ -150,64 +230,71 @@ int CmdGraph(State* state, int argc, char* argv[]) {
   return 0;
 }
 
-int CmdQuery(State* state, int argc, char* argv[]) {
+int ToolQuery(Globals* globals, int argc, char* argv[]) {
   if (argc == 0) {
     Error("expected a target to query");
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = state->GetNode(argv[i]);
-    if (node) {
-      printf("%s:\n", argv[i]);
-      if (node->in_edge_) {
-        printf("  input: %s\n", node->in_edge_->rule_->name_.c_str());
-        for (vector<Node*>::iterator in = node->in_edge_->inputs_.begin();
-             in != node->in_edge_->inputs_.end(); ++in) {
-          printf("    %s\n", (*in)->file_->path_.c_str());
-        }
+    Node* node = globals->state->LookupNode(argv[i]);
+    if (!node) {
+      Node* suggestion = globals->state->SpellcheckNode(argv[i]);
+      if (suggestion) {
+        printf("%s unknown, did you mean %s?\n",
+               argv[i], suggestion->path().c_str());
+      } else {
+        printf("%s unknown\n", argv[i]);
       }
-      for (vector<Edge*>::iterator edge = node->out_edges_.begin();
-           edge != node->out_edges_.end(); ++edge) {
-        printf("  output: %s\n", (*edge)->rule_->name_.c_str());
-        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
-             out != (*edge)->outputs_.end(); ++out) {
-          printf("    %s\n", (*out)->file_->path_.c_str());
-        }
-      }
-    } else {
-      printf("%s unknown\n", argv[i]);
       return 1;
+    }
+
+    printf("%s:\n", argv[i]);
+    if (Edge* edge = node->in_edge()) {
+      printf("  input: %s\n", edge->rule_->name().c_str());
+      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+        const char* label = "";
+        if (edge->is_implicit(in))
+          label = "| ";
+        else if (edge->is_order_only(in))
+          label = "|| ";
+        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+      }
+    }
+    printf("  outputs:\n");
+    for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+         edge != node->out_edges().end(); ++edge) {
+      for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+           out != (*edge)->outputs_.end(); ++out) {
+        printf("    %s\n", (*out)->path().c_str());
+      }
     }
   }
   return 0;
 }
 
-int CmdBrowse(State* state, const char* ninja_command,
-              int argc, char* argv[]) {
-#ifndef WIN32
+#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
   }
-  RunBrowsePython(state, ninja_command, argv[0]);
-#else
-  Error("browse mode not yet supported on Windows");
-#endif
+  RunBrowsePython(globals->state, globals->ninja_command, argv[0]);
   // If we get here, the browse failed.
   return 1;
 }
+#endif  // _WIN32
 
-int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
     for (int i = 0; i < indent; ++i)
       printf("  ");
-    const char* target = (*n)->file_->path_.c_str();
-    if ((*n)->in_edge_) {
-      printf("%s: %s\n", target, (*n)->in_edge_->rule_->name_.c_str());
+    const char* target = (*n)->path().c_str();
+    if ((*n)->in_edge()) {
+      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
       if (depth > 1 || depth <= 0)
-        CmdTargetsList((*n)->in_edge_->inputs_, depth - 1, indent + 1);
+        ToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
       printf("%s\n", target);
     }
@@ -215,55 +302,55 @@ int CmdTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   return 0;
 }
 
-int CmdTargetsList(const vector<Node*>& nodes, int depth) {
-  return CmdTargetsList(nodes, depth, 0);
-}
-
-int CmdTargetsSourceList(State* state) {
+int ToolTargetsSourceList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
+       e != state->edges_.end(); ++e) {
     for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
-         inps != (*e)->inputs_.end();
-         ++inps)
-      if (!(*inps)->in_edge_)
-        printf("%s\n", (*inps)->file_->path_.c_str());
+         inps != (*e)->inputs_.end(); ++inps) {
+      if (!(*inps)->in_edge())
+        printf("%s\n", (*inps)->path().c_str());
+    }
+  }
   return 0;
 }
 
-int CmdTargetsList(State* state, const string& rule_name) {
+int ToolTargetsList(State* state, const string& rule_name) {
   set<string> rules;
+
   // Gather the outputs.
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
-    if ((*e)->rule_->name_ == rule_name)
+       e != state->edges_.end(); ++e) {
+    if ((*e)->rule_->name() == rule_name) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-           out_node != (*e)->outputs_.end();
-           ++out_node)
-        rules.insert((*out_node)->file_->path_);
+           out_node != (*e)->outputs_.end(); ++out_node) {
+        rules.insert((*out_node)->path());
+      }
+    }
+  }
+
   // Print them.
   for (set<string>::const_iterator i = rules.begin();
-       i != rules.end();
-       ++i)
+       i != rules.end(); ++i) {
     printf("%s\n", (*i).c_str());
+  }
+
   return 0;
 }
 
-int CmdTargetsList(State* state) {
+int ToolTargetsList(State* state) {
   for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end();
-       ++e)
+       e != state->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-         out_node != (*e)->outputs_.end();
-         ++out_node)
+         out_node != (*e)->outputs_.end(); ++out_node) {
       printf("%s: %s\n",
-             (*out_node)->file_->path_.c_str(),
-             (*e)->rule_->name_.c_str());
+             (*out_node)->path().c_str(),
+             (*e)->rule_->name().c_str());
+    }
+  }
   return 0;
 }
 
-int CmdTargets(State* state, int argc, char* argv[]) {
+int ToolTargets(Globals* globals, int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
     string mode = argv[0];
@@ -272,108 +359,328 @@ int CmdTargets(State* state, int argc, char* argv[]) {
       if (argc > 1)
         rule = argv[1];
       if (rule.empty())
-        return CmdTargetsSourceList(state);
+        return ToolTargetsSourceList(globals->state);
       else
-        return CmdTargetsList(state, rule);
+        return ToolTargetsList(globals->state, rule);
     } else if (mode == "depth") {
       if (argc > 1)
         depth = atoi(argv[1]);
     } else if (mode == "all") {
-      return CmdTargetsList(state);
+      return ToolTargetsList(globals->state);
     } else {
-      Error("unknown target tool mode '%s'", mode.c_str());
+      const char* suggestion =
+          SpellcheckString(mode, "rule", "depth", "all", NULL);
+      if (suggestion) {
+        Error("unknown target tool mode '%s', did you mean '%s'?",
+              mode.c_str(), suggestion);
+      } else {
+        Error("unknown target tool mode '%s'", mode.c_str());
+      }
       return 1;
     }
   }
 
   string err;
-  vector<Node*> root_nodes = state->RootNodes(&err);
+  vector<Node*> root_nodes = globals->state->RootNodes(&err);
   if (err.empty()) {
-    return CmdTargetsList(root_nodes, depth);
+    return ToolTargetsList(root_nodes, depth, 0);
   } else {
     Error("%s", err.c_str());
     return 1;
   }
 }
 
-int CmdRules(State* state, int argc, char* argv[]) {
-  for (map<string, const Rule*>::iterator i = state->rules_.begin();
-       i != state->rules_.end();
-       ++i) {
-    if (i->second->description_.unparsed_.empty())
+int ToolRules(Globals* globals, int argc, char* /* argv */[]) {
+  for (map<string, const Rule*>::iterator i = globals->state->rules_.begin();
+       i != globals->state->rules_.end(); ++i) {
+    if (i->second->description().empty()) {
       printf("%s\n", i->first.c_str());
-    else
+    } else {
       printf("%s: %s\n",
              i->first.c_str(),
-             i->second->description_.unparsed_.c_str());
+             // XXX I changed it such that we don't have an easy way
+             // to get the source text anymore, so this output is
+             // unsatisfactory.  How useful is this command, anyway?
+             i->second->description().Serialize().c_str());
+    }
   }
   return 0;
 }
 
-int CmdClean(State* state,
-             int argc,
-             char* argv[],
-             const BuildConfig& config) {
-  Cleaner cleaner(state, config);
-  if (argc >= 1)
-  {
-    string mode = argv[0];
-    if (mode == "target") {
-      if (argc >= 2) {
-        return cleaner.CleanTargets(argc - 1, &argv[1]);
-      } else {
-        Error("expected a target to clean");
-        return 1;
-      }
-    } else if (mode == "rule") {
-      if (argc >= 2) {
-        return cleaner.CleanRules(argc - 1, &argv[1]);
-      } else {
-        Error("expected a rule to clean");
-        return 1;
-      }
-    } else {
-      return cleaner.CleanTargets(argc, argv);
+void PrintCommands(Edge* edge, set<Edge*>* seen) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in)
+    PrintCommands((*in)->in_edge(), seen);
+
+  if (!edge->is_phony())
+    puts(edge->EvaluateCommand().c_str());
+}
+
+int ToolCommands(Globals* globals, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  set<Edge*> seen;
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintCommands((*in)->in_edge(), &seen);
+
+  return 0;
+}
+
+int ToolClean(Globals* globals, int argc, char* argv[]) {
+  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "clean".
+  argc++;
+  argv--;
+
+  bool generator = false;
+  bool clean_rules = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hgr"))) != -1) {
+    switch (opt) {
+    case 'g':
+      generator = true;
+      break;
+    case 'r':
+      clean_rules = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t clean [options] [targets]\n"
+"\n"
+"options:\n"
+"  -g     also clean files marked as ninja generator output\n"
+"  -r     interpret targets as a list of rules to clean instead\n"
+             );
+    return 1;
     }
   }
-  else {
-    return cleaner.CleanAll();
+  argv += optind;
+  argc -= optind;
+
+  if (clean_rules && argc == 0) {
+    Error("expected a rule to clean");
+    return 1;
   }
+
+  Cleaner cleaner(globals->state, globals->config);
+  if (argc >= 1) {
+    if (clean_rules)
+      return cleaner.CleanRules(argc, argv);
+    else
+      return cleaner.CleanTargets(argc, argv);
+  } else {
+    return cleaner.CleanAll(generator);
+  }
+}
+
+int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex();
+  return 0;
+}
+
+int ToolDeps(Globals* globals, int argc, char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    globals->state->depdb_->DumpDeps(argv[i]);
+  }
+  return 0;
+}
+
+void ToolUrtle() {
+  // RLE encoded.
+  const char* urtle =
+" 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
+",2;11!>; `. ,;!2> .e8$2\".2 \"?7$e.\n <:<8!'` 2.3,.2` ,3!' ;,(?7\";2!2'<"
+"; `?6$PF ,;,\n2 `'4!8;<!3'`2 3! ;,`'2`2'3!;4!`2.`!;2 3,2 .<!2'`).\n5 3`5"
+"'2`9 `!2 `4!><3;5! J2$b,`!>;2!:2!`,d?b`!>\n26 `'-;,(<9!> $F3 )3.:!.2 d\""
+"2 ) !>\n30 7`2'<3!- \"=-='5 .2 `2-=\",!>\n25 .ze9$er2 .,cd16$bc.'\n22 .e"
+"14$,26$.\n21 z45$c .\n20 J50$c\n20 14$P\"`?34$b\n20 14$ dbc `2\"?22$?7$c"
+"\n20 ?18$c.6 4\"8?4\" c8$P\n9 .2,.8 \"20$c.3 ._14 J9$\n .2,2c9$bec,.2 `?"
+"21$c.3`4%,3%,3 c8$P\"\n22$c2 2\"?21$bc2,.2` .2,c7$P2\",cb\n23$b bc,.2\"2"
+"?14$2F2\"5?2\",J5$P\" ,zd3$\n24$ ?$3?%3 `2\"2?12$bcucd3$P3\"2 2=7$\n23$P"
+"\" ,3;<5!>2;,. `4\"6?2\"2 ,9;, `\"?2$\n";
+  int count = 0;
+  for (const char* p = urtle; *p; p++) {
+    if ('0' <= *p && *p <= '9') {
+      count = count*10 + *p - '0';
+    } else {
+      for (int i = 0; i < std::max(count, 1); ++i)
+        printf("%c", *p);
+      count = 0;
+    }
+  }
+}
+
+int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
+  typedef int (*ToolFunc)(Globals*, int, char**);
+  struct Tool {
+    const char* name;
+    const char* desc;
+    ToolFunc func;
+  } tools[] = {
+#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+    { "browse", "browse dependency graph in a web browser",
+      ToolBrowse },
+#endif
+    { "clean", "clean built files",
+      ToolClean },
+    { "commands", "list all commands required to rebuild given targets",
+      ToolCommands },
+    { "depindex", "list all files indexed in the depdb",
+      ToolDepIndex },
+    { "deps", "list dependencies stored in the depdb for given files",
+      ToolDeps },
+    { "graph", "output graphviz dot file for targets",
+      ToolGraph },
+    { "query", "show inputs/outputs for a path",
+      ToolQuery },
+    { "rules",    "list all rules",
+      ToolRules },
+    { "targets",  "list targets by their rule or depth in the DAG",
+      ToolTargets },
+    { NULL, NULL, NULL }
+  };
+
+  if (tool == "list") {
+    printf("ninja subtools:\n");
+    for (int i = 0; tools[i].name; ++i) {
+      printf("%10s  %s\n", tools[i].name, tools[i].desc);
+    }
+    return 0;
+  } else if (tool == "urtle") {
+    ToolUrtle();
+    return 0;
+  }
+
+  for (int i = 0; tools[i].name; ++i) {
+    if (tool == tools[i].name)
+      return tools[i].func(globals, argc, argv);
+  }
+
+  vector<const char*> words;
+  for (int i = 0; tools[i].name; ++i)
+    words.push_back(tools[i].name);
+  const char* suggestion = SpellcheckStringV(tool, words);
+  if (suggestion) {
+    Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
+  } else {
+    Error("unknown tool '%s'", tool.c_str());
+  }
+  return 1;
+}
+
+/// Enable a debugging mode.  Returns false if Ninja should exit instead
+/// of continuing.
+bool DebugEnable(const string& name, Globals* globals) {
+  if (name == "list") {
+    printf("debugging modes:\n"
+"  stats  print operation counts/timing info\n");
+//"multiple modes can be enabled via -d FOO -d BAR\n");
+    return false;
+  } else if (name == "stats") {
+    g_metrics = new Metrics;
+    return true;
+  } else {
+    printf("ninja: unknown debug setting '%s'\n", name.c_str());
+    return false;
+  }
+}
+
+int RunBuild(Globals* globals, int argc, char** argv) {
+  string err;
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  Builder builder(globals->state, globals->config);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
+      if (!err.empty()) {
+        Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  if (builder.AlreadyUpToDate()) {
+    printf("ninja: no work to do.\n");
+    return 0;
+  }
+
+  if (!builder.Build(&err)) {
+    printf("ninja: build stopped: %s.\n", err.c_str());
+    return 1;
+  }
+
+  return 0;
 }
 
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
-  const char* ninja_command = argv[0];
-  BuildConfig config;
+  Globals globals;
+  globals.ninja_command = argv[0];
   const char* input_file = "build.ninja";
-  const char* working_dir = 0;
+  const char* working_dir = NULL;
   string tool;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-  config.parallelism = GuessParallelism();
+  globals.config.parallelism = GuessParallelism();
+
+  const option kLongOptions[] = {
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+  };
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:hj:k:nt:vC:", options,
+  while (tool.empty() &&
+         (opt = getopt_long(argc, argv, "d:f:hj:k:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
+      case 'd':
+        if (!DebugEnable(optarg, &globals))
+          return 1;
+        break;
       case 'f':
         input_file = optarg;
         break;
       case 'j':
-        config.parallelism = atoi(optarg);
+        globals.config.parallelism = atoi(optarg);
         break;
-      case 'k':
-        // We want to go until N jobs fail, which means we should ignore
-        // the first N-1 that fail and then stop.
-        config.swallow_failures = atoi(optarg) - 1;
+      case 'k': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0)
+          Fatal("-k parameter not numeric; did you mean -k0?");
+
+        // We want to go until N jobs fail, which means we should allow
+        // N failures and then stop.  For N <= 0, INT_MAX is close enough
+        // to infinite for most sane builds.
+        globals.config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
+      }
       case 'n':
-        config.dry_run = true;
+        globals.config.dry_run = true;
         break;
       case 'v':
-        config.verbosity = BuildConfig::VERBOSE;
+        globals.config.verbosity = BuildConfig::VERBOSE;
         break;
       case 't':
         tool = optarg;
@@ -383,7 +690,7 @@ int main(int argc, char** argv) {
         break;
       case 'h':
       default:
-        usage(config);
+        Usage(globals.config);
         return 1;
     }
   }
@@ -391,6 +698,10 @@ int main(int argc, char** argv) {
   argc -= optind;
 
   if (working_dir) {
+    // The formatting of this string, complete with funny quotes, is
+    // so Emacs can properly identify that the cwd has changed for
+    // subsequent commands.
+    printf("ninja: Entering directory `%s'\n", working_dir);
 #ifdef _WIN32
     if (_chdir(working_dir) < 0) {
 #else
@@ -400,36 +711,22 @@ int main(int argc, char** argv) {
     }
   }
 
-  State state;
+  bool rebuilt_manifest = false;
+
+reload:
   RealFileReader file_reader;
-  ManifestParser parser(&state, &file_reader);
+  ManifestParser parser(globals.state, &file_reader);
   string err;
   if (!parser.Load(input_file, &err)) {
-    Error("loading '%s': %s", input_file, err.c_str());
+    Error("%s", err.c_str());
     return 1;
   }
 
-  if (!tool.empty()) {
-    if (tool == "graph")
-      return CmdGraph(&state, argc, argv);
-    if (tool == "query")
-      return CmdQuery(&state, argc, argv);
-    if (tool == "browse")
-      return CmdBrowse(&state, ninja_command, argc, argv);
-    if (tool == "targets")
-      return CmdTargets(&state, argc, argv);
-    if (tool == "rules")
-      return CmdRules(&state, argc, argv);
-    if (tool == "clean")
-      return CmdClean(&state, argc, argv, config);
-    Error("unknown tool '%s'", tool.c_str());
-  }
-
   BuildLog build_log;
-  build_log.SetConfig(&config);
-  state.build_log_ = &build_log;
+  build_log.SetConfig(&globals.config);
+  globals.state->build_log_ = &build_log;
 
-  const string build_dir = state.bindings_.LookupVariable("builddir");
+  const string build_dir = globals.state->bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
@@ -452,29 +749,45 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  vector<Node*> targets;
-  if (!CollectTargetsFromArgs(&state, argc, argv, &targets, &err)) {
-    Error("%s", err.c_str());
-    return 1;
+  const char* kDepDbPath = ".ninja_depdb";
+  string depdb_path = kDepDbPath;
+  if (!build_dir.empty()) {
+    depdb_path = build_dir + "/" + kDepDbPath;
   }
+  DepDatabase depdb(depdb_path, true);
+  globals.state->depdb_ = &depdb;
 
-  Builder builder(&state, config);
-  for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
+  if (!tool.empty())
+    return RunTool(tool, &globals, argc, argv);
+
+  if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
+                           // target that is never up to date.
+    if (RebuildManifest(globals.state, globals.config, input_file, &err)) {
+      rebuilt_manifest = true;
+      globals.ResetState();
+      goto reload;
+    } else if (!err.empty()) {
+      Error("rebuilding '%s': %s", input_file, err.c_str());
+      return 1;
     }
   }
 
-  bool success = builder.Build(&err);
-  if (!err.empty()) {
-    printf("build stopped: %s.\n", err.c_str());
-  }
+  StatCache::PreCache(globals.state);
 
-  return success ? 0 : 1;
+  int result = RunBuild(&globals, argc, argv);
+  if (g_metrics) {
+    g_metrics->Report();
+
+    printf("\n");
+    int count = (int)globals.state->paths_.size();
+    int buckets =
+#ifdef _MSC_VER
+        (int)globals.state->paths_.comp.bucket_size;
+#else
+        (int)globals.state->paths_.bucket_count();
+#endif
+    printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+           count / (double) buckets, count, buckets);
+  }
+  return result;
 }
