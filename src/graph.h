@@ -157,7 +157,8 @@ struct Edge {
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
   bool RecomputeOutputDirty(BuildLog* build_log, TimeStamp most_recent_input,
-                            const string& command, Node* output);
+                            Node* most_recent_node, const string& command,
+                            Node* output);
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;

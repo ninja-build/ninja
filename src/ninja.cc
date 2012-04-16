@@ -40,6 +40,7 @@
 #include "clean.h"
 #include "dep_database.h"
 #include "edit_distance.h"
+#include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "metrics.h"
@@ -585,11 +586,15 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
 bool DebugEnable(const string& name, Globals* globals) {
   if (name == "list") {
     printf("debugging modes:\n"
-"  stats  print operation counts/timing info\n");
-//"multiple modes can be enabled via -d FOO -d BAR\n");
+"  stats    print operation counts/timing info\n"
+"  explain  explain what caused a command to execute\n"
+"multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
     g_metrics = new Metrics;
+    return true;
+  } else if (name == "explain") {
+    g_explaining = true;
     return true;
   } else {
     printf("ninja: unknown debug setting '%s'\n", name.c_str());
