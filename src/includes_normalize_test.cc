@@ -38,7 +38,7 @@ string GetCurDir() {
 }  // namespace
 
 TEST(IncludesNormalize, WithRelative) {
-  string currentdir = GetCurDir();
+  string currentdir = IncludesNormalize::ToLower(GetCurDir());
   EXPECT_EQ("c", IncludesNormalize::Normalize("a/b/c", "a/b"));
   EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"), NULL));
   EXPECT_EQ(string("..\\") + currentdir + string("\\a"),
@@ -47,6 +47,15 @@ TEST(IncludesNormalize, WithRelative) {
             IncludesNormalize::Normalize("a/b", "../c"));
   EXPECT_EQ("..\\..\\a", IncludesNormalize::Normalize("a", "b/c"));
   EXPECT_EQ(".", IncludesNormalize::Normalize("a", "a"));
+}
+
+TEST(IncludesNormalize, Case) {
+  EXPECT_EQ("b", IncludesNormalize::Normalize("Abc\\..\\b", NULL));
+  EXPECT_EQ("bdef", IncludesNormalize::Normalize("Abc\\..\\BdEf", NULL));
+  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\.\\b", NULL));
+  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\./b", NULL));
+  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\.\\B", NULL));
+  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\./B", NULL));
 }
 
 TEST(IncludesNormalize, Join) {

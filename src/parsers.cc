@@ -113,8 +113,6 @@ bool ManifestParser::ParseRule(string* err) {
 
     if (key == "command") {
       rule->command_ = value;
-    } else if (key == "depdb") {
-      rule->depdb_ = value;
     } else if (key == "depfile") {
       rule->depfile_ = value;
     } else if (key == "deplist") {
@@ -144,9 +142,8 @@ bool ManifestParser::ParseRule(string* err) {
   int count = 0;
   if (!rule->depfile_.empty()) ++count;
   if (!rule->deplist_.empty()) ++count;
-  if (!rule->depdb_.empty()) ++count;
   if (count > 1)
-    return lexer_.Error("can only specify one of depfile, deplist, or depdb", err);
+    return lexer_.Error("can only specify one of depfile or deplist", err);
 
   state_->AddRule(rule);
   return true;

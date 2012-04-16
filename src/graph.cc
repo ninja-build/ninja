@@ -42,9 +42,6 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     if (!LoadDepFile(state, disk_interface, err))
       return false;
   } else if (!rule_->deplist().empty()) {
-    if (!LoadDepList(state, disk_interface, err))
-      return false;
-  } else if (!rule_->depdb().empty()) {
     if (!LoadDepDb(state, err))
       return false;
   }
@@ -389,7 +386,7 @@ bool Edge::LoadDepDb(State* state, string* err) {
   METRIC_RECORD("depdb load");
 
   EdgeEnv env(this);
-  string path = rule_->depdb().Evaluate(&env);
+  string path = rule_->deplist().Evaluate(&env);
   const char* data = state->depdb_->FindDepData(path);
   if (!data) // Empty.
     return true;

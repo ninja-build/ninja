@@ -88,6 +88,6 @@ string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) 
     curdir = AbsPath(".");
     relative_to = curdir.c_str();
   }
-  return Relativize(StringPiece(copy, len), relative_to);
+  return ToLower(Relativize(StringPiece(copy, len), relative_to));
 }
 #endif

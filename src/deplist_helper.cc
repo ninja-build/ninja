@@ -59,7 +59,6 @@ enum InputFormat {
 
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
-  const char* db_filename = NULL;
   const char* relative_to = NULL;
   InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
@@ -89,9 +88,6 @@ int main(int argc, char** argv) {
         break;
       case 'r':
         relative_to = optarg;
-        break;
-      case 'd':
-        db_filename = optarg;
         break;
       case 'h':
       default:
@@ -149,6 +145,7 @@ int main(int argc, char** argv) {
     break;
   }
 
+  const char* db_filename = ".ninja_depdb";
   if (db_filename) {
     if (!output_filename)
       Fatal("-d requires -o");
