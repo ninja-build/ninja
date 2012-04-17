@@ -89,9 +89,9 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 
   if (!smart_terminal_) {
     int length;
-    char term[5];
-    if ((length = GetEnvironmentVariable("TERM", term, 5)) &&
-        (length > 5 || string(term) != "dumb")) {
+    char output_type[6];
+    if ((length = GetEnvironmentVariable("NINJA_OUTPUT", output_type, 6)) &&
+        (length < 6 && string(output_type) == "smart")) {
       console_ = NULL;
       smart_terminal_ = true;
     }
