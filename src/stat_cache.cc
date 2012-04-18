@@ -169,6 +169,7 @@ void StatCache::FinishBuild() {
     interesting_paths_.StartAdditions();
     for (vector<string>::iterator i(gFailedLookupPaths.begin());
         i != gFailedLookupPaths.end(); ++i) {
+      printf("  %s\n", i->c_str());
       interesting_paths_.Add(*i);
     }
     interesting_paths_.FinishAdditions();
@@ -185,7 +186,7 @@ bool StatCache::IsInteresting(DWORDLONG parent_index) {
   return interesting_paths_.IsPathInteresting(parent_index);
 }
 
-void StatCache::NotifyChange(DWORDLONG parent_index, const string& path) {
+void StatCache::NotifyChange(const string& path) {
   TimeStamp mtime = StatPath(path);
   StatCacheData* data = GetView();
 
@@ -220,9 +221,12 @@ void StatCache::FinishProcessingChanges() {
   interesting_paths_.FinishLookups();
 }
 
-void StatCache::CheckForInterestingPathsDirtied() {
-  // If interesting_paths has been modified, restat the contents of all
-  // folders here. TODO: need frn->path, so put in daemon code instead.
+bool StatCache::InterestingPathsDirtied(int* num_entries, DWORDLONG** entries) {
+  return interesting_paths_.IsDirty(num_entries, entries);
+}
+
+void StatCache::ClearInterestingPathsDirtyFlag() {
+  interesting_paths_.ClearDirty();
 }
 
 StatCacheData* StatCache::GetView() {

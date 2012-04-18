@@ -377,7 +377,7 @@ if host != 'mingw':
            command=options.with_python + ' configure.py $configure_args',
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['configure.py', 'misc/ninja_syntax.py'])
+            implicit=['configure.py', os.path.normpath('misc/ninja_syntax.py')])
     n.newline()
 
 n.comment('Build only the user-facing binaries by default.')

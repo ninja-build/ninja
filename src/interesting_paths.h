@@ -28,6 +28,8 @@ struct InterestingPaths {
 
   void StartLookups();
   bool IsPathInteresting(DWORDLONG index);
+  bool IsDirty(int* num_entries, DWORDLONG** entries);
+  void ClearDirty();
   void FinishLookups();
 private:
   struct InterestingPathsData* GetView();

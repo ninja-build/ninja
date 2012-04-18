@@ -109,6 +109,18 @@ bool InterestingPaths::IsPathInteresting(DWORDLONG index) {
   return i != end && *i == index;
 }
 
+bool InterestingPaths::IsDirty(int* num_entries, DWORDLONG** entries) {
+  InterestingPathsData* data = GetView();
+  *num_entries = data->num_entries;
+  *entries = data->entries;
+  return data->dirty;
+}
+
+void InterestingPaths::ClearDirty() {
+  InterestingPathsData* data = GetView();
+  data->dirty = false;
+}
+
 void InterestingPaths::FinishLookups() {
   data_.Release();
 }

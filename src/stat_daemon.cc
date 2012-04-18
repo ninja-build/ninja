@@ -87,7 +87,7 @@ struct PathDb {
   void Add(DWORDLONG index, const string& name, DWORDLONG parent_index, bool defer_sort);
   string Get(DWORDLONG index, bool* err);
   bool Change(DWORDLONG index, const string& name, DWORDLONG parent_index);
-  bool Delete(DWORDLONG index, bool defer_sort);
+  bool Delete(DWORDLONG index);
   void Populate(struct ChangeJournal& cj);
 
   char DriveLetter();
@@ -110,6 +110,8 @@ struct ChangeJournal {
   const string& DriveLetter() const;
   char DriveLetterChar() const;
   HANDLE SyncHandle() const { return cj_; }
+  void CheckForDirtyPaths();
+  void PopulateStatFromDir(const string& path);
   void ProcessAvailableRecords();
   void WaitForMoreData();
 
@@ -221,13 +223,29 @@ string PathDb::Get(DWORDLONG index, bool* err) {
 }
 
 bool PathDb::Change(DWORDLONG index, const string& name, DWORDLONG parent_index) {
-  Log("TODO: Change");
-  return false;
+  PathDbData* data = GetView();
+  PathDbEntry* end = &data->entries[data->num_entries];
+  PathDbEntry value;
+  value.index = index;
+  PathDbEntry* i = lower_bound(data->entries, end, value, FrnCompare);
+  if (i == end || i->index != index)
+    return false;
+  strcpy(i->name, name.c_str());
+  i->parent_index = parent_index;
+  return true;
 }
 
-bool PathDb::Delete(DWORDLONG index, bool defer_sort) {
-  Log("TODO: Delete");
-  return false;
+bool PathDb::Delete(DWORDLONG index) {
+  PathDbData* data = GetView();
+  PathDbEntry* end = &data->entries[data->num_entries];
+  PathDbEntry value;
+  value.index = index;
+  PathDbEntry* i = lower_bound(data->entries, end, value, FrnCompare);
+  if (i == end || i->index != index)
+    return false;
+  *i = data->entries[--data->num_entries];
+  Sort();
+  return true;
 }
 
 void PathDb::Sort() {
@@ -437,10 +455,55 @@ bool ChangeJournal::SetUpNotification() {
   return !success && GetLastError() != ERROR_IO_PENDING;
 }
 
+void ChangeJournal::PopulateStatFromDir(const string& path) {
+  Log("populate %s", path.c_str());
+  string search_root = path + "\\";
+  if (search_root == ".\\")
+    search_root = "";
+  string search = search_root + "*";
+  WIN32_FIND_DATA find_data;
+  HANDLE handle = FindFirstFile(search.c_str(), &find_data);
+  if (handle == INVALID_HANDLE_VALUE)
+    return;
+  for (;;) {
+    if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+      string name = search_root +
+                    IncludesNormalize::ToLower(find_data.cFileName);
+      stat_cache_.NotifyChange(name);
+    }
+    BOOL success = FindNextFile(handle, &find_data);
+    if (!success)
+      break;
+  }
+  FindClose(handle);
+
+}
+
+void ChangeJournal::CheckForDirtyPaths() {
+  int num_entries;
+  DWORDLONG* entries;
+  stat_cache_.StartProcessingChanges();
+  if (stat_cache_.InterestingPathsDirtied(&num_entries, &entries)) {
+    pathdb_.data_.Acquire();
+
+    // TODO: Refresh!
+    for (int i = 0; i < num_entries; ++i) {
+      bool err = false;
+      string dirname = pathdb_.Get(entries[i], &err);
+      if (!err)
+        PopulateStatFromDir(IncludesNormalize::Normalize(dirname, gBuildRoot.c_str()));
+    }
+
+    stat_cache_.ClearInterestingPathsDirtyFlag();
+    pathdb_.data_.Release();
+  }
+  stat_cache_.FinishProcessingChanges();
+}
+
 void ChangeJournal::ProcessAvailableRecords() {
   for (;;) {
-    pathdb_.data_.Acquire();
     stat_cache_.StartProcessingChanges();
+    pathdb_.data_.Acquire();
 
     USN_RECORD* record;
     bool err = false;
@@ -458,7 +521,7 @@ void ChangeJournal::ProcessAvailableRecords() {
         if (record->Reason & USN_REASON_RENAME_NEW_NAME)
           pathdb_.Change(record->FileReferenceNumber, name, record->ParentFileReferenceNumber);
         if (record->Reason & USN_REASON_FILE_DELETE)
-          pathdb_.Delete(record->FileReferenceNumber, true);
+          pathdb_.Delete(record->FileReferenceNumber);
       }
 
       // TODO We're almost definitely doing too much work here (e.g.
@@ -466,7 +529,7 @@ void ChangeJournal::ProcessAvailableRecords() {
       // sufficient). Stay conservative for now, which just means
       // extra _stats in our case.
 
-      if (name.back() != '~' &&
+      if (name.back() != '~' && // Ignore backup files, probably shouldn't.
           stat_cache_.IsInteresting(record->ParentFileReferenceNumber)) {
         bool err = false;
         string path = pathdb_.Get(record->ParentFileReferenceNumber, &err);
@@ -474,15 +537,15 @@ void ChangeJournal::ProcessAvailableRecords() {
           string full_name = path + "\\" + name;
           string rel = IncludesNormalize::Normalize(full_name, gBuildRoot.c_str());
           //Log("%llx, %s: %s", record->Usn, rel.c_str(), GetReasonString(record->Reason).c_str());
-          stat_cache_.NotifyChange(record->ParentFileReferenceNumber, rel);
+          stat_cache_.NotifyChange(rel);
         }
       } else {
         //Log("ignoring %llx", record->Usn);
       }
       pathdb_.GetView()->cur_usn = record->Usn;
     }
-    stat_cache_.FinishProcessingChanges();
     pathdb_.data_.Release();
+    stat_cache_.FinishProcessingChanges();
 
     if (err)
       Win32Fatal("Next");
@@ -547,6 +610,7 @@ int main(int argc, char** argv) {
   Log("starting");
   ChangeJournal cj('C');
   while (!gShutdown) {
+    cj.CheckForDirtyPaths();
     cj.ProcessAvailableRecords();
     cj.WaitForMoreData();
     // Wait a little to get some batch processing if there's a lot happening.
