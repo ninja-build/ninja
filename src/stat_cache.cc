@@ -101,9 +101,26 @@ void StatCache::EnsureDaemonRunning() {
 void StatCache::Dump() {
   StatCache stat_cache(false);
   stat_cache.StartBuild();
+  // TODO: dump interesting_paths_ here too. we only have FRN in this process
+  // though.
   StatCacheData* data = stat_cache.GetView();
   for (int i = 0; i < data->num_entries; ++i) {
     printf("%d: %s -> %d\n", i, data->entries[i].path, data->entries[i].mtime);
+  }
+  stat_cache.FinishBuild();
+}
+
+// static
+void StatCache::ValidateAgainstDisk() {
+  StatCache stat_cache(false);
+  stat_cache.StartBuild();
+  StatCacheData* data = stat_cache.GetView();
+  for (int i = 0; i < data->num_entries; ++i) {
+    int on_disk = StatPath(data->entries[i].path);
+    if (data->entries[i].mtime != on_disk) {
+      printf("%s differs: %d vs %d\n",
+          data->entries[i].path, data->entries[i].mtime, on_disk);
+    }
   }
   stat_cache.FinishBuild();
 }

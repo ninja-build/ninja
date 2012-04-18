@@ -43,6 +43,7 @@ struct StatCache {
 
   static void EnsureDaemonRunning();
   static void Dump();
+  static void ValidateAgainstDisk();
 
   //
   // From daemon side

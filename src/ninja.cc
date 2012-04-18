@@ -528,6 +528,11 @@ int ToolStatCache(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
+int ToolStatCacheCheck(Globals* globals, int argc, char* argv[]) {
+  StatCache::ValidateAgainstDisk();
+  return 0;
+}
+
 int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   typedef int (*ToolFunc)(Globals*, int, char**);
   struct Tool {
@@ -555,6 +560,8 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolQuery },
     { "statcache", "list files in statcache and interesting (watched) paths",
       ToolStatCache },
+    { "statcachecheck", "Validate statcache against on-disk mtimes",
+      ToolStatCacheCheck },
     { "targets",  "list targets by their rule or depth in the DAG",
       ToolTargets },
     { NULL, NULL, NULL }
