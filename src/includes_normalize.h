@@ -24,7 +24,7 @@ struct IncludesNormalize {
   static vector<string> Split(const string& input, char sep);
   static string ToLower(const string& s);
   static string AbsPath(StringPiece s);
-  static string IncludesNormalize::Relativize(StringPiece path, const string& start);
+  static string Relativize(StringPiece path, const string& start);
 
   // Normalize by fixing slashes style, fixing redundant .. and . and makes the
   // path relative to |relative_to|. Case is normalized to lowercase on

@@ -22,14 +22,14 @@ using namespace std;
 struct StringPiece;
 struct DbData;
 
+#include "lockable_mapped_file.h"
+
 // DepDatabase is persistent faster storage for the equivalent of .d files.
 // See the .cc for a description of the format and operation.
 struct DepDatabase {
   // Create or open the DepDatabase with the given filename. If create is
   // true, will create the given file, if necessary.
   DepDatabase(const string& filename, bool create);
-
-  ~DepDatabase();
 
   // Find the dependency information for a given file, or null if not
   // contained in the database.
@@ -43,27 +43,12 @@ struct DepDatabase {
   void DumpDeps(const string& filename);
 
 private:
-  // Acquire exclusive access.
-  void Acquire();
-
-  // Release exclusive access.
-  void Release();
-
   DbData* GetView() const;
   char* GetDataAt(int offset) const;
-  
-  void IncreaseFileSize();
+
   void SetEmptyData();
-  void UnmapFile();
-  void MapFile();
 
-  // Global mutex for entire structure.
-  HANDLE lock_;
-
-  HANDLE file_;
-  HANDLE file_mapping_;
-  void* view_;
-  int size_;
+  LockableMappedFile data_;
 };
 
 #endif  // NINJA_DEP_DATABASE_H_

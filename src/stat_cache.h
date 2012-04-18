@@ -15,14 +15,55 @@
 #ifndef NINJA_STAT_CACHE_H_
 #define NINJA_STAT_CACHE_H_
 
+#include "interesting_paths.h"
+#include "lockable_mapped_file.h"
 #include "state.h"
 #include "string_piece.h"
+#include "util.h"
 
 struct StatCache {
-  static void Init();
-  static void Inform(StringPiece path);
+  StatCache(bool create);
 
-  static void PreCache(State* globals);
+  //
+  // From ninja side
+  //
+
+  // Acquires lock (stops daemon from updating), and makes GetMtime valid.
+  // Must be paired with EndBuild.
+  void StartBuild();
+
+  // Retrieve cached time stamp for given path. -1 is "unavailable", 0 is
+  // "does not exist", > 0 is timestamp. -1s are considered failures, and
+  // they'll be added to the interesting-paths-set for the daemon.
+  TimeStamp GetMtime(const string& path);
+
+  // Updates roots based on paths it was Inform'd about, releases lock so
+  // daemon can resume timestamp updates.
+  void FinishBuild();
+
+  static void EnsureDaemonRunning();
+  static void Dump();
+
+  //
+  // From daemon side
+  //
+
+  void StartProcessingChanges();
+
+  bool IsInteresting(DWORDLONG parent_index);
+  void NotifyChange(DWORDLONG parent_index, const string& path);
+
+  void FinishProcessingChanges();
+
+  void CheckForInterestingPathsDirtied();
+
+
+
+private:
+  struct StatCacheData* GetView();
+
+  InterestingPaths interesting_paths_;
+  LockableMappedFile data_;
 };
 
 #endif  // NINJA_STAT_CACHE_H_

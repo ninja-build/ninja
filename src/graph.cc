@@ -51,7 +51,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   TimeStamp most_recent_input = 1;
   Node* most_recent_node = NULL;
   for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->StatIfNecessary(disk_interface)) {
+    if ((*i)->StatIfNecessary(disk_interface, state)) {
       if (Edge* edge = (*i)->in_edge()) {
         if (!edge->RecomputeDirty(state, disk_interface, err))
           return false;
@@ -92,7 +92,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
     for (vector<Node*>::iterator i = outputs_.begin();
          i != outputs_.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface);
+      (*i)->StatIfNecessary(disk_interface, state);
       if (RecomputeOutputDirty(build_log, most_recent_input, most_recent_node, command, *i)) {
         dirty = true;
         break;
@@ -103,7 +103,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
   for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface);
+    (*i)->StatIfNecessary(disk_interface, state);
     if (dirty)
       (*i)->MarkDirty();
   }
@@ -418,7 +418,7 @@ bool Edge::LoadDepDb(State* state, string* err) {
   vector<Node*>::iterator implicit_dep =
     inputs_.end() - order_only_deps_ - deps.size();
 
-  { METRIC_RECORD("depdb add in-edges");
+  //{ METRIC_RECORD("depdb add in-edges");
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = deps.begin();
        i != deps.end(); ++i, ++implicit_dep) {
@@ -443,7 +443,7 @@ bool Edge::LoadDepDb(State* state, string* err) {
       phony_edge->outputs_ready_ = true;
     }
   }
-  }
+  //}
 
   return true;
 }

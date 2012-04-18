@@ -49,13 +49,10 @@
 
 #include "dep_database.h"
 #include "deplist.h"
+#include "lockable_mapped_file.h"
 #include "metrics.h"
 #include "string_piece.h"
 #include "util.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 #include <algorithm>
 
@@ -73,54 +70,11 @@ struct DbData {
 };
 #pragma pack(pop)
 
-enum { kInitialSize = 20000000 };
-
 DepDatabase::DepDatabase(const string& filename, bool create) :
-    view_(0),
-    file_mapping_(0) {
-  static const char* const mutex_name = "ninja_dep_database_mutex";
-  if (create)
-    lock_ = CreateMutex(NULL, TRUE, mutex_name);
-  else
-    lock_ = OpenMutex(MUTEX_ALL_ACCESS, FALSE, mutex_name);
-  if (lock_ == NULL)
-    Fatal("Couldn't Create/OpenMutex (%d)", GetLastError());
-
-  if (create)
-    file_ = CreateFile(filename.c_str(), GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                        CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (!create || file_ == INVALID_HANDLE_VALUE)
-    file_ = CreateFile(filename.c_str(), GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (file_ == INVALID_HANDLE_VALUE)
-    Fatal("Couldn't CreateFile (%d)", GetLastError());
-
-  size_ = static_cast<int>(GetFileSize(file_, NULL));
-  bool initialize = false;
-  if (size_ == 0) {
-    initialize = true;
-    IncreaseFileSize();
-  }
-
-  MapFile();
-
-  if (initialize)
+    data_(filename, create) {
+  if (data_.ShouldInitialize()) {
     SetEmptyData();
-
-  // On CreateMutex, we acquire initial ownership so we can create the empty
-  // file if necessary.
-  if (create)
-    Release();
-}
-
-DepDatabase::~DepDatabase() {
-  UnmapFile();
-  if (!CloseHandle(file_))
-    Fatal("CloseHandle: file_");
-  if (!CloseHandle(lock_))
-    Fatal("CloseHandle: lock_");
+  }
 }
 
 bool PathCompare(const DepIndex& a, const DepIndex& b) {
@@ -135,7 +89,7 @@ const char* DepDatabase::FindDepData(const string& filename) {
   CanonicalizePath(&file, &err); // TODO: assert this here, rather than doing it?
 
   const char* return_value = 0;
-  Acquire();
+  data_.Acquire();
   {
     DbData* view = GetView();
     DepIndex* end = &view->index[view->index_entries];
@@ -146,7 +100,7 @@ const char* DepDatabase::FindDepData(const string& filename) {
       return_value = GetDataAt(i->offset);
     }
   }
-  Release();
+  data_.Release();
   return return_value;
 }
 
@@ -160,7 +114,7 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
   // TODO: parse and assert dependent paths? Causes dependency on deplist, a
   // little annoying for tests.
 
-  Acquire();
+  data_.Acquire();
   {
     DbData* view = GetView();
     DepIndex* end = &view->index[view->index_entries];
@@ -173,9 +127,10 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         (changed = memcmp(GetDataAt(i->offset), data, size)) != 0) {
       // Don't already have it, or the deps have changed.
 
-      while (view->dep_insert_offset + size > size_) {
-        IncreaseFileSize();
+      while (view->dep_insert_offset + size > data_.Size()) {
+        data_.IncreaseFileSize();
       }
+      view = GetView();
       // Append the new data.
       int inserted_offset = view->dep_insert_offset;
       char* insert_at = GetDataAt(view->dep_insert_offset);
@@ -200,84 +155,41 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
     }
     // Otherwise, it's already there and hasn't changed.
   }
-  Release();
-}
-
-void DepDatabase::Acquire() {
-  if (WaitForSingleObject(lock_, INFINITE) != 0)
-    Fatal("WaitForSingleObject (%d)", GetLastError());
-}
-
-void DepDatabase::Release() {
-  ReleaseMutex(lock_);
+  data_.Release();
 }
 
 DbData* DepDatabase::GetView() const {
-  return reinterpret_cast<DbData*>(view_);
+  return reinterpret_cast<DbData*>(data_.View());
 }
 
 char* DepDatabase::GetDataAt(int offset) const {
-  return reinterpret_cast<char*>(view_) + offset;
-}
-
-void DepDatabase::IncreaseFileSize() {
-  UnmapFile();
-  int target_size = size_ == 0 ? kInitialSize : size_ * 2;
-  if (SetFilePointer(file_, target_size, NULL, FILE_BEGIN) ==
-      INVALID_SET_FILE_POINTER)
-    Fatal("SetFilePointer (%d)", GetLastError());
-  if (!SetEndOfFile(file_))
-    Fatal("SetEndOfFile (%d)", GetLastError());
-  size_ = static_cast<int>(GetFileSize(file_, NULL));
-  if (size_ != target_size)
-    Fatal("deps database file resize failed");
-  MapFile();
-}
-
-void DepDatabase::UnmapFile() {
-  if (view_)
-    if (!UnmapViewOfFile(view_))
-      Fatal("UnmapViewOfFile");
-  view_ = 0;
-  if (file_mapping_)
-    if (!CloseHandle(file_mapping_))
-      Fatal("CloseHandle: file_mapping_");
-  file_mapping_ = 0;
-}
-
-void DepDatabase::MapFile() {
-  if (file_mapping_)
-    return;
-  file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
-  if (!file_mapping_)
-    Fatal("Couldn't CreateFileMapping (%d)", GetLastError());
-  view_ = MapViewOfFile(file_mapping_, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
-  if (!view_)
-    Fatal("Couldn't MapViewOfFile (%d)", GetLastError());
+  return reinterpret_cast<char*>(data_.View()) + offset;
 }
 
 void DepDatabase::SetEmptyData() {
+  data_.Acquire();
   DbData* data = GetView();
   data->index_entries = 0;
   data->max_index_entries = 20000; // TODO random size
   data->dep_insert_offset = sizeof(DbData) + // TODO [1] too big
       sizeof(DepIndex) * data->max_index_entries;
   // TODO end of file/max size
+  data_.Release();
 }
 
 void DepDatabase::DumpIndex() {
-  Acquire();
+  data_.Acquire();
   {
     DbData* view = GetView();
     for (int i = 0; i < view->index_entries; ++i) {
       printf("%d: %s @ %d\n", i, view->index[i].path, view->index[i].offset);
     }
   }
-  Release();
+  data_.Release();
 }
 
 void DepDatabase::DumpDeps(const string& filename) {
-  Acquire();
+  data_.Acquire();
   {
     const char* data = FindDepData(filename);
     if (data == 0) {
@@ -297,5 +209,5 @@ void DepDatabase::DumpDeps(const string& filename) {
       printf("  %s\n", tmp.c_str());
     }
   }
-  Release();
+  data_.Release();
 }

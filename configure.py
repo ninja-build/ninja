@@ -105,6 +105,7 @@ if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
+              '/D_WIN32_WINNT=0x0501', '/DWINVER=0x0501',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
@@ -221,7 +222,9 @@ for name in ['build',
              'graph',
              'graphviz',
              'includes_normalize',
+             'interesting_paths',
              'lexer',
+             'lockable_mapped_file',
              'metrics',
              'parsers',
              'showincludes_parser',
@@ -318,6 +321,14 @@ deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
 n.newline()
 all_targets += deplist_helper
 
+n.comment('Stat daemon.')
+objs = cxx('stat_daemon')
+stat_daemon = n.build(binary('ninja-stat-daemon'), 'link', objs,
+                      implicit=ninja_lib,
+                      variables=[('libs', libs)])
+n.newline()
+all_targets += stat_daemon
+
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
 parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
@@ -370,7 +381,7 @@ if host != 'mingw':
     n.newline()
 
 n.comment('Build only the user-facing binaries by default.')
-n.default(ninja + deplist_helper)
+n.default(ninja + deplist_helper + stat_daemon)
 n.newline()
 
 n.build('all', 'phony', all_targets)

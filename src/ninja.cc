@@ -523,6 +523,11 @@ void ToolUrtle() {
   }
 }
 
+int ToolStatCache(Globals* globals, int argc, char* argv[]) {
+  StatCache::Dump();
+  return 0;
+}
+
 int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   typedef int (*ToolFunc)(Globals*, int, char**);
   struct Tool {
@@ -547,7 +552,9 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
     { "query", "show inputs/outputs for a path",
       ToolQuery },
     { "rules",    "list all rules",
-      ToolRules },
+      ToolQuery },
+    { "statcache", "list files in statcache and interesting (watched) paths",
+      ToolStatCache },
     { "targets",  "list targets by their rule or depth in the DAG",
       ToolTargets },
     { NULL, NULL, NULL }
@@ -716,6 +723,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  StatCache::EnsureDaemonRunning();
+
   bool rebuilt_manifest = false;
 
 reload:
@@ -762,6 +771,9 @@ reload:
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
 
+  StatCache stat_cache(false);
+  globals.state->stat_cache_ = &stat_cache;
+
   if (!tool.empty())
     return RunTool(tool, &globals, argc, argv);
 
@@ -777,7 +789,7 @@ reload:
     }
   }
 
-  StatCache::PreCache(globals.state);
+  stat_cache.StartBuild();
 
   int result = RunBuild(&globals, argc, argv);
   if (g_metrics) {
@@ -794,5 +806,6 @@ reload:
     printf("path->node hash load %.2f (%d entries / %d buckets)\n",
            count / (double) buckets, count, buckets);
   }
+  stat_cache.FinishBuild();
   return result;
 }
