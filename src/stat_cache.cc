@@ -169,7 +169,6 @@ void StatCache::FinishBuild() {
     interesting_paths_.StartAdditions();
     for (vector<string>::iterator i(gFailedLookupPaths.begin());
         i != gFailedLookupPaths.end(); ++i) {
-      printf("  %s\n", i->c_str());
       interesting_paths_.Add(*i);
     }
     interesting_paths_.FinishAdditions();
@@ -186,8 +185,9 @@ bool StatCache::IsInteresting(DWORDLONG parent_index) {
   return interesting_paths_.IsPathInteresting(parent_index);
 }
 
-void StatCache::NotifyChange(const string& path) {
-  TimeStamp mtime = StatPath(path);
+void StatCache::NotifyChange(const string& path, TimeStamp mtime, bool defer_sort) {
+  if (mtime == -1)
+    mtime = StatPath(path);
   StatCacheData* data = GetView();
 
   // Look up previous entry. If found, then update timestamp.
@@ -212,8 +212,13 @@ void StatCache::NotifyChange(const string& path) {
   i = &data->entries[data->num_entries++];
   strcpy(i->path, path.c_str());
   i->mtime = mtime;
+  if (!defer_sort)
+    Sort();
+}
+
+void StatCache::Sort() {
+  StatCacheData* data = GetView();
   sort(data->entries, &data->entries[data->num_entries], StatCachePathCompare);
-  //Dump();
 }
 
 void StatCache::FinishProcessingChanges() {

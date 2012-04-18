@@ -196,10 +196,8 @@ void BuildStatus::PrintStatus(Edge* edge) {
   }
 
   int running_edges = started_edges_ - finished_edges_;
-  int unstarted_edges = total_edges_ - started_edges_;
-  int progress_chars = printf("[%d/%d u%d r%d f%d] ",
-      started_edges_, total_edges_,
-      unstarted_edges, running_edges, finished_edges_);
+  int progress_chars = printf("[%d/%d ~%d] ",
+      started_edges_, total_edges_, running_edges);
 
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32

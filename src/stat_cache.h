@@ -51,7 +51,8 @@ struct StatCache {
   void StartProcessingChanges();
 
   bool IsInteresting(DWORDLONG parent_index);
-  void NotifyChange(const string& path);
+  void NotifyChange(const string& path, TimeStamp timestamp, bool defer_sort);
+  void Sort();
   bool InterestingPathsDirtied(int* num_entries, DWORDLONG** entries);
   void ClearInterestingPathsDirtyFlag();
 

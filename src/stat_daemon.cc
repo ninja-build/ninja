@@ -469,7 +469,9 @@ void ChangeJournal::PopulateStatFromDir(const string& path) {
     if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
       string name = search_root +
                     IncludesNormalize::ToLower(find_data.cFileName);
-      stat_cache_.NotifyChange(name);
+      stat_cache_.NotifyChange(name,
+                               FiletimeToTimestamp(find_data.ftLastWriteTime),
+                               true);
     }
     BOOL success = FindNextFile(handle, &find_data);
     if (!success)
@@ -486,13 +488,14 @@ void ChangeJournal::CheckForDirtyPaths() {
   if (stat_cache_.InterestingPathsDirtied(&num_entries, &entries)) {
     pathdb_.data_.Acquire();
 
-    // TODO: Refresh!
     for (int i = 0; i < num_entries; ++i) {
       bool err = false;
       string dirname = pathdb_.Get(entries[i], &err);
       if (!err)
         PopulateStatFromDir(IncludesNormalize::Normalize(dirname, gBuildRoot.c_str()));
     }
+
+    stat_cache_.Sort();
 
     stat_cache_.ClearInterestingPathsDirtyFlag();
     pathdb_.data_.Release();
@@ -536,8 +539,8 @@ void ChangeJournal::ProcessAvailableRecords() {
         if (!err) {
           string full_name = path + "\\" + name;
           string rel = IncludesNormalize::Normalize(full_name, gBuildRoot.c_str());
-          //Log("%llx, %s: %s", record->Usn, rel.c_str(), GetReasonString(record->Reason).c_str());
-          stat_cache_.NotifyChange(rel);
+          Log("%llx, %s: %s", record->Usn, rel.c_str(), GetReasonString(record->Reason).c_str());
+          stat_cache_.NotifyChange(rel, -1, false);
         }
       } else {
         //Log("ignoring %llx", record->Usn);
