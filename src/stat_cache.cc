@@ -13,26 +13,6 @@
 // limitations under the License.
 
 // Windows-only (currently) timestamp cache.
-//
-// Stores data in 2 files, .ninja_stat_roots, and .ninja_stat_cache.
-//
-// ninaj_stat_roots list all the directories we care about (for which
-// timestamps should be cached). Format of file is 
-//
-//   int num_roots;
-//   char paths[num_roots][_MAX_PATH];
-//
-// When the roots are modified, the stat_cache will be cleared (and must be
-// fully repopulated). So, roots is useful just as a filter for change events
-// from the OS.
-//
-// ninja_stat_cache is conceptually map<path, TimeStamp>, stored as a sorted
-// array.
-//
-//   int num_entries;
-//   struct { char path[_MAX_PATH]; int timestamp; } entries;
-//
-// 
 
 #include "stat_cache.h"
 
