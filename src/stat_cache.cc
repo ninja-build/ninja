@@ -37,6 +37,7 @@
 #include "stat_cache.h"
 
 #include "interesting_paths.h"
+#include "metrics.h"
 
 #include <algorithm>
 
@@ -147,6 +148,7 @@ static bool PathCompare(const StatCacheEntry& a, const StatCacheEntry& b) {
 }
 
 TimeStamp StatCache::GetMtime(const string& path) {
+  METRIC_RECORD("cached stat");
   StatCacheData* data = GetView();
 
   StatCacheEntry value;
