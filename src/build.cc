@@ -387,7 +387,7 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if ((*ni)->mtime() > most_recent_input)
           most_recent_input = (*ni)->mtime();
       string command = (*ei)->EvaluateCommand(true);
-      
+
       // Now, recompute the dirty state of each output.
       bool all_outputs_clean = true;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
@@ -461,7 +461,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
-  
+
   return true;
 }
 
@@ -656,7 +656,7 @@ bool Builder::Build(string* err) {
         *err = "subcommand failed";
     } else if (failures_allowed < config_.failures_allowed)
       *err = "cannot make progress due to previous errors";
-    else 
+    else
       *err = "stuck [this is a bug]";
 
     return false;
@@ -679,11 +679,11 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*i)->path()))
       return false;
   }
-  
+
   // Create response file, if needed
   // XXX: this may also block; do we care?
   if (edge->HasRspFile()) {
-    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent())) 
+    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent()))
       return false;
   }
 
@@ -744,7 +744,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
     }
 
     // delete the response file on success (if exists)
-    if (edge->HasRspFile()) 
+    if (edge->HasRspFile())
       disk_interface_->RemoveFile(edge->GetRspFile());
 
     plan_.EdgeFinished(edge);

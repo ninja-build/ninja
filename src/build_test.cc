@@ -202,8 +202,8 @@ struct BuildTest : public StateTestWithBuiltinRules,
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual Edge* WaitForCommand(ExitStatus* status, string* output);
-  virtual vector<Edge*> GetActiveEdges(); 
-  virtual void Abort(); 
+  virtual vector<Edge*> GetActiveEdges();
+  virtual void Abort();
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -853,7 +853,7 @@ TEST_F(BuildTest, RspFileSuccess)
   fs_.Create("out1", now_, "");
   fs_.Create("out2", now_, "");
   fs_.Create("out3", now_, "");
-    
+
   now_++;
 
   fs_.Create("in", now_, "");
@@ -869,11 +869,11 @@ TEST_F(BuildTest, RspFileSuccess)
 
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(2u, commands_ran_.size()); // cat + cat_rsp
-    
+
   // The RSP file was created
   ASSERT_EQ(files_created + 1, fs_.files_created_.size());
   ASSERT_EQ(1u, fs_.files_created_.count("out2.rsp"));
-    
+
   // The RSP file was removed
   ASSERT_EQ(files_removed + 1, fs_.files_removed_.size());
   ASSERT_EQ(1u, fs_.files_removed_.count("out2.rsp"));
@@ -917,7 +917,7 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
 }
 
-// Test that contens of the RSP file behaves like a regular part of 
+// Test that contens of the RSP file behaves like a regular part of
 // command line, i.e. triggers a rebuild if changed
 TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -948,7 +948,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   EXPECT_EQ("", err);
   ASSERT_TRUE(builder_.AlreadyUpToDate());
 
-  // 3. Alter the entry in the logfile 
+  // 3. Alter the entry in the logfile
   // (to simulate a change in the command line between 2 builds)
   BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out");
   ASSERT_TRUE(NULL != log_entry);
