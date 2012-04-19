@@ -352,5 +352,12 @@ n.default(ninja)
 n.newline()
 
 n.build('all', 'phony', all_targets)
+n.newline()
+
+n.comment('Print all primary targets available.')
+n.rule('help',
+       command='ninja -t targets',
+       description='All primary targets available:')
+n.build('help', 'help')
 
 print 'wrote %s.' % BUILD_FILENAME
