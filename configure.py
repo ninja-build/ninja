@@ -352,5 +352,12 @@ n.default(ninja)
 n.newline()
 
 n.build('all', 'phony', all_targets)
+n.newline()
+
+n.comment('Clean ninja built files.')
+n.rule('clean',
+       command='ninja -t clean',
+       description='Cleaning all built files...')
+n.build('clean', 'clean')
 
 print 'wrote %s.' % BUILD_FILENAME
