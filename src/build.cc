@@ -44,6 +44,14 @@ struct BuildStatus {
 
  private:
   void PrintStatus(Edge* edge);
+  /// Print the progress status.
+  ///
+  /// Get the status from the NINJA_STATUS environment variable if defined.
+  /// See the user manual for more information about the available
+  /// placeholders.
+  ///
+  /// @return The number of printed characters.
+  int PrintProgressStatus() const;
 
   const BuildConfig& config_;
 
@@ -63,6 +71,9 @@ struct BuildStatus {
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
 
+  /// The custom progress status format to use.
+  const char* progress_status_format_;
+
 #ifdef _WIN32
   HANDLE console_;
 #endif
@@ -73,7 +84,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true) {
+      have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -91,6 +102,10 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     smart_terminal_ = false;
+
+  progress_status_format_ = getenv("NINJA_STATUS");
+  if (progress_status_format_ == NULL)
+    progress_status_format_ = "[%s/%t] ";
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -171,6 +186,68 @@ void BuildStatus::BuildFinished() {
     printf("\n");
 }
 
+int BuildStatus::PrintProgressStatus() const {
+  // Print the custom status.
+  const int kBUFF_SIZE = 1024;
+  char buff[kBUFF_SIZE] = { '\0' };
+  int i = 0;
+  for (const char* s = progress_status_format_;
+       *s != '\0' && i < kBUFF_SIZE;
+       ++s) {
+    if (*s == '%') {
+      ++s;
+      switch(*s) {
+        case '%':
+          buff[i] = '%';
+          ++i;
+          break;
+
+          // Started edges.
+        case 's':
+          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", started_edges_);
+          break;
+
+          // Total edges.
+        case 't':
+          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", total_edges_);
+          break;
+
+          // Running edges.
+        case 'r':
+          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d",
+                        started_edges_ - finished_edges_);
+          break;
+
+          // Unstarted edges.
+        case 'u':
+          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d",
+                        total_edges_ - started_edges_);
+          break;
+
+          // Finished edges.
+        case 'f':
+          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", finished_edges_);
+          break;
+
+        default:
+          return printf("!! unknown placeholders '%c' in NINJA_STATUS !! ",
+                        *s);
+          break;
+      }
+    } else {
+      buff[i] = *s;
+      ++i;
+    }
+  }
+  if (i >= kBUFF_SIZE)
+    return printf("!! custom NINJA_STATUS exceed buffer size %d !! ",
+                  kBUFF_SIZE);
+  else {
+    buff[i] = '\0';
+    return printf("%s", buff);
+  }
+}
+
 void BuildStatus::PrintStatus(Edge* edge) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
@@ -195,7 +272,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
-  int progress_chars = printf("[%d/%d] ", started_edges_, total_edges_);
+  int progress_chars = PrintProgressStatus();
 
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
