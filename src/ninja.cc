@@ -704,8 +704,8 @@ int main(int argc, char** argv) {
         globals.config.verbosity = BuildConfig::VERBOSE;
         break;
       case 'V':
-        printf("version: %s\n", kVersionString);
-        break;
+        printf("ninja version %s\n", kVersionString);
+        return 0;
       case 't':
         tool = optarg;
         break;
