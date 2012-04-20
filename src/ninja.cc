@@ -48,6 +48,7 @@
 #include "stat_cache.h"
 #include "state.h"
 #include "util.h"
+#include "version.h"
 
 namespace {
 
@@ -90,12 +91,13 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  -V       show version string (%s)\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool\n"
 "    use '-t list' to list subtools.\n"
 "    terminates toplevel options; further flags are passed to the tool.\n",
-          config.parallelism);
+          config.parallelism, kVersionString);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -670,7 +672,7 @@ int main(int argc, char** argv) {
 
   int opt;
   while (tool.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:nt:vC:", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:hj:k:nt:vVC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -700,6 +702,9 @@ int main(int argc, char** argv) {
         break;
       case 'v':
         globals.config.verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'V':
+        printf("version: %s\n", kVersionString);
         break;
       case 't':
         tool = optarg;

@@ -386,4 +386,12 @@ n.newline()
 
 n.build('all', 'phony', all_targets)
 
+import subprocess
+p = subprocess.Popen(['git', 'describe', '--always'], shell=True,
+                     stdout=subprocess.PIPE)
+version = p.communicate()[0].strip()
+f = open('src/version.h', 'w')
+print >>f, 'const char* kVersionString = "ninja-%s";' % version
+f.close()
+
 print 'wrote %s.' % BUILD_FILENAME
