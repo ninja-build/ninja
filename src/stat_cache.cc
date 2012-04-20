@@ -63,6 +63,19 @@ struct StatCacheData {
 static const char* kStatCacheFileName = ".ninja_stat_cache";
 
 // static
+int StatCache::is_active_ = -1;
+
+// static
+bool StatCache::Active() {
+  if (is_active_ < 0) {
+    char* env = getenv("NINJA_STAT_DAEMON");
+    if (env)
+      is_active_ = atoi(env);
+  }
+  return is_active_ > 0;
+}
+
+// static
 void StatCache::EnsureDaemonRunning() {
   if (LockableMappedFile::IsAvailable(kStatCacheFileName))
     return;
@@ -165,10 +178,16 @@ void StatCache::FinishBuild() {
   int count = gFailedLookupPaths.end() - gFailedLookupPaths.begin();
   if (count > 0) {
     printf("ninja: %d stat cache misses, adding to daemon.\n", count);
+    int printed = 0;
     interesting_paths_.StartAdditions();
     for (vector<string>::iterator i(gFailedLookupPaths.begin());
         i != gFailedLookupPaths.end(); ++i) {
       interesting_paths_.Add(*i);
+      if (printed < 10)
+        printf("ninja:  %s\n", i->c_str());
+      else if (printed == 10)
+        printf("ninja:  ... more paths elided\n", i->c_str());
+      ++printed;
     }
     interesting_paths_.FinishAdditions();
   }

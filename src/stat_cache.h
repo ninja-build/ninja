@@ -24,6 +24,9 @@
 struct StatCache {
   StatCache(bool create);
 
+  // Has the stat cache been globally enabled (via NINJA_STAT_DAEMON env var)?
+  static bool Active();
+
   //
   // From ninja side
   //
@@ -68,6 +71,8 @@ private:
 
   InterestingPaths interesting_paths_;
   LockableMappedFile data_;
+
+  static int is_active_;
 };
 
 #endif  // NINJA_STAT_CACHE_H_

@@ -532,18 +532,24 @@ void ChangeJournal::ProcessAvailableRecords() {
       // sufficient). Stay conservative for now, which just means
       // extra _stats in our case.
 
-      if (name.back() != '~' && // Ignore backup files, probably shouldn't.
-          stat_cache_.IsInteresting(record->ParentFileReferenceNumber)) {
+      bool ignore = name.back() == '~' || // Ignore backup files, probably shouldn't.
+          !stat_cache_.IsInteresting(record->ParentFileReferenceNumber);
+      if (!ignore) {
         bool err = false;
         string path = pathdb_.Get(record->ParentFileReferenceNumber, &err);
         if (!err) {
           string full_name = path + "\\" + name;
           string rel = IncludesNormalize::Normalize(full_name, gBuildRoot.c_str());
-          Log("%llx, %s: %s", record->Usn, rel.c_str(), GetReasonString(record->Reason).c_str());
           stat_cache_.NotifyChange(rel, -1, false);
+          //Log("%llx, %s: %s", record->Usn, rel.c_str(),
+              //GetReasonString(record->Reason).c_str());
+        } else {
+          // Can happen if the parent directory is removed before we
+          // process this record, if we don't have access to it, etc.
+          //Log("error for %llx\n", record->ParentFileReferenceNumber);
         }
       } else {
-        //Log("ignoring %llx", record->Usn);
+        //Log("%llx ignored");
       }
       pathdb_.GetView()->cur_usn = record->Usn;
     }

@@ -40,7 +40,8 @@ struct Node {
   bool StatIfNecessary(DiskInterface* disk_interface, State* state) {
     if (status_known())
       return false;
-    if ((mtime_ = state->stat_cache_->GetMtime(path_)) >= 0)
+    if (state->stat_cache_ &&
+        (mtime_ = state->stat_cache_->GetMtime(path_)) >= 0)
       return true;
     Stat(disk_interface);
     return true;
@@ -176,7 +177,6 @@ struct Edge {
   string GetRspFileContent();
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
-  bool LoadDepList(State* state, DiskInterface* disk_interface, string* err);
   bool LoadDepDb(State* state, string* err);
 
   void Dump();

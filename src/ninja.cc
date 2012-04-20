@@ -730,7 +730,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  StatCache::EnsureDaemonRunning();
+  if (StatCache::Active())
+    StatCache::EnsureDaemonRunning();
 
   bool rebuilt_manifest = false;
 
@@ -778,8 +779,9 @@ reload:
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
 
-  StatCache stat_cache(false);
-  globals.state->stat_cache_ = &stat_cache;
+  if (StatCache::Active()) {
+    globals.state->stat_cache_ = new StatCache(false);
+  }
 
   if (!tool.empty())
     return RunTool(tool, &globals, argc, argv);
@@ -796,7 +798,8 @@ reload:
     }
   }
 
-  stat_cache.StartBuild();
+  if (globals.state->stat_cache_)
+    globals.state->stat_cache_->StartBuild();
 
   int result = RunBuild(&globals, argc, argv);
   if (g_metrics) {
@@ -813,6 +816,9 @@ reload:
     printf("path->node hash load %.2f (%d entries / %d buckets)\n",
            count / (double) buckets, count, buckets);
   }
-  stat_cache.FinishBuild();
+  if (globals.state->stat_cache_) {
+    globals.state->stat_cache_->FinishBuild();
+    delete globals.state->stat_cache_;
+  }
   return result;
 }
