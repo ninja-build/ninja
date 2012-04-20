@@ -145,7 +145,10 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
     if (rule_->restat() && build_log &&
         (entry = build_log->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_input) {
-        EXPLAIN("restat of output %s older than inputs", output->path().c_str());
+        EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
+            output->path().c_str(),
+            most_recent_node ? most_recent_node->path().c_str() : "",
+            entry->restat_mtime, most_recent_input);
         return true;
       }
     } else {
@@ -326,56 +329,6 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
 
-    Node* node = state->GetNode(*i);
-    *implicit_dep = node;
-    node->AddOutEdge(this);
-
-    // If we don't have a edge that generates this input already,
-    // create one; this makes us not abort if the input is missing,
-    // but instead will rebuild in that circumstance.
-    if (!node->in_edge()) {
-      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
-      node->set_in_edge(phony_edge);
-      phony_edge->outputs_.push_back(node);
-
-      // RecomputeDirty might not be called for phony_edge if a previous call
-      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
-      // invocations of RecomputeDirty would have seen this node without an
-      // input edge (and therefore ready), we have to set outputs_ready_ to true
-      // to avoid a potential stuck build.  If we do call RecomputeDirty for
-      // this node, it will simply set outputs_ready_ to the correct value.
-      phony_edge->outputs_ready_ = true;
-    }
-  }
-
-  return true;
-}
-
-bool Edge::LoadDepList(State* state, DiskInterface* disk_interface,
-                       string* err) {
-  METRIC_RECORD("deplist load");
-
-  EdgeEnv env(this);
-  string path = rule_->deplist().Evaluate(&env);
-
-  string content = disk_interface->ReadFile(path, err, true);
-  if (!err->empty())
-    return false;
-  if (content.empty())
-    return true;
-
-  vector<StringPiece> deps;
-  if (!Deplist::Load(content, &deps, err))
-    return false;
-
-  inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);
-  implicit_deps_ += deps.size();
-  vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - deps.size();
-
-  // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = deps.begin();
-       i != deps.end(); ++i, ++implicit_dep) {
     Node* node = state->GetNode(*i);
     *implicit_dep = node;
     node->AddOutEdge(this);
