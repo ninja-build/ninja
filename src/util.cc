@@ -49,7 +49,7 @@ void Fatal(const char* msg, ...) {
   va_end(ap);
   fprintf(stderr, "\n");
 #ifdef _WIN32
-  __debugbreak();
+  //__debugbreak();
 #endif
   exit(1);
 }
