@@ -389,6 +389,7 @@ for name in ['build_log_test',
              'lexer_test',
              'parsers_test',
              'showincludes_parser_test',
+             'stat_cache_test',
              'state_test',
              'subprocess_test',
              'test',
@@ -476,12 +477,7 @@ n.newline()
 
 n.build('all', 'phony', all_targets)
 
-import subprocess
-p = subprocess.Popen(['git', 'describe', '--always'], shell=True,
-                     stdout=subprocess.PIPE)
-version = p.communicate()[0].strip()
-f = open('src/version.h', 'w')
-print >>f, 'const char kVersionString[] = "%s";' % version
-f.close()
+import sys
+os.system(sys.executable + " extract_version.py")
 
 print 'wrote %s.' % BUILD_FILENAME

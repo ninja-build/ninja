@@ -44,6 +44,7 @@ struct StatCache {
   // daemon can resume timestamp updates.
   void FinishBuild();
 
+  // Some utilities that should probably be in ninja proper instead.
   static void EnsureDaemonRunning();
   static void Dump();
   static void ValidateAgainstDisk();
