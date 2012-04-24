@@ -149,4 +149,62 @@ private:
   void operator=(const Builder &other); // DO NOT IMPLEMENT
 };
 
+/// Tracks the status of a build: completion fraction, printing updates.
+struct BuildStatus {
+  BuildStatus(const BuildConfig& config);
+  void PlanHasTotalEdges(int total);
+  void BuildEdgeStarted(Edge* edge);
+  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+                         int* start_time, int* end_time);
+  void BuildFinished();
+
+  /// Format the progress status string by replacing the placeholders.
+  /// See the user manual for more information about the available
+  /// placeholders.
+  /// @param progress_status_format_ The format of the progress status.
+  /// @param buffer The buffer where is stored the formatted progress status.
+  /// @param buffer_size The size of the given @a buffer.
+  /// @param err The error message if -1 is returned.
+  /// @return The number of characters inserted in @a buffer and -1 on error.
+  int FormatProgressStatus(const char* progress_status_format,
+                           char* buffer,
+                           const int buffer_size,
+                           string* err) const;
+
+ private:
+  void PrintStatus(Edge* edge);
+
+  /// Print the progress status.
+  ///
+  /// Get the status from the NINJA_STATUS environment variable if defined.
+  ///
+  /// @return The number of printed characters.
+  int PrintProgressStatus() const;
+
+  const BuildConfig& config_;
+
+  /// Time the build started.
+  int64_t start_time_millis_;
+  /// Time we last printed an update.
+  int64_t last_update_millis_;
+
+  int started_edges_, finished_edges_, total_edges_;
+
+  bool have_blank_line_;
+
+  /// Map of running edge to time the edge started running.
+  typedef map<Edge*, int> RunningEdgeMap;
+  RunningEdgeMap running_edges_;
+
+  /// Whether we can do fancy terminal control codes.
+  bool smart_terminal_;
+
+  /// The custom progress status format to use.
+  const char* progress_status_format_;
+
+#ifdef _WIN32
+  HANDLE console_;
+#endif
+};
+
 #endif  // NINJA_BUILD_H_

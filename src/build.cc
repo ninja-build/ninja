@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,52 +33,6 @@
 #include "state.h"
 #include "subprocess.h"
 #include "util.h"
-
-/// Tracks the status of a build: completion fraction, printing updates.
-struct BuildStatus {
-  BuildStatus(const BuildConfig& config);
-  void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
-                         int* start_time, int* end_time);
-  void BuildFinished();
-
- private:
-  void PrintStatus(Edge* edge);
-  /// Print the progress status.
-  ///
-  /// Get the status from the NINJA_STATUS environment variable if defined.
-  /// See the user manual for more information about the available
-  /// placeholders.
-  ///
-  /// @return The number of printed characters.
-  int PrintProgressStatus() const;
-
-  const BuildConfig& config_;
-
-  /// Time the build started.
-  int64_t start_time_millis_;
-  /// Time we last printed an update.
-  int64_t last_update_millis_;
-
-  int started_edges_, finished_edges_, total_edges_;
-
-  bool have_blank_line_;
-
-  /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
-  RunningEdgeMap running_edges_;
-
-  /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
-
-  /// The custom progress status format to use.
-  const char* progress_status_format_;
-
-#ifdef _WIN32
-  HANDLE console_;
-#endif
-};
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
@@ -186,66 +141,89 @@ void BuildStatus::BuildFinished() {
     printf("\n");
 }
 
-int BuildStatus::PrintProgressStatus() const {
-  // Print the custom status.
-  const int kBUFF_SIZE = 1024;
-  char buff[kBUFF_SIZE] = { '\0' };
+int BuildStatus::FormatProgressStatus(const char* progress_status_format,
+                                      char* buffer,
+                                      const int buffer_size,
+                                      string* err) const {
   int i = 0;
-  for (const char* s = progress_status_format_;
-       *s != '\0' && i < kBUFF_SIZE;
+  for (const char* s = progress_status_format;
+       *s != '\0' && i < buffer_size;
        ++s) {
     if (*s == '%') {
       ++s;
       switch(*s) {
         case '%':
-          buff[i] = '%';
+          buffer[i] = '%';
           ++i;
           break;
 
           // Started edges.
         case 's':
-          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", started_edges_);
+          i += snprintf(&buffer[i], buffer_size - i, "%d", started_edges_);
           break;
 
           // Total edges.
         case 't':
-          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", total_edges_);
+          i += snprintf(&buffer[i], buffer_size - i, "%d", total_edges_);
           break;
 
           // Running edges.
         case 'r':
-          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d",
+          i += snprintf(&buffer[i], buffer_size - i, "%d",
                         started_edges_ - finished_edges_);
           break;
 
           // Unstarted edges.
         case 'u':
-          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d",
+          i += snprintf(&buffer[i], buffer_size - i, "%d",
                         total_edges_ - started_edges_);
           break;
 
           // Finished edges.
         case 'f':
-          i += snprintf(&buff[i], kBUFF_SIZE - i, "%d", finished_edges_);
+          i += snprintf(&buffer[i], buffer_size - i, "%d", finished_edges_);
           break;
 
         default:
-          return printf("!! unknown placeholders '%c' in NINJA_STATUS !! ",
-                        *s);
-          break;
+          if (err != NULL) {
+            ostringstream oss;
+            oss << "unknown placeholders '%" << *s << "' in NINJA_STATUS";
+            *err = oss.str();
+          }
+          return -1;
       }
     } else {
-      buff[i] = *s;
+      buffer[i] = *s;
       ++i;
     }
   }
-  if (i >= kBUFF_SIZE)
-    return printf("!! custom NINJA_STATUS exceed buffer size %d !! ",
-                  kBUFF_SIZE);
-  else {
-    buff[i] = '\0';
-    return printf("%s", buff);
+  if (i >= buffer_size) {
+    if (err != NULL) {
+      ostringstream oss;
+      oss << "custom NINJA_STATUS exceed buffer size " << buffer_size;
+      *err = oss.str();
+    }
+    return -1;
+  } else {
+    buffer[i] = '\0';
+    if (err != NULL)
+      *err = "";
+    return i;
   }
+}
+
+int BuildStatus::PrintProgressStatus() const {
+  const int kBUFF_SIZE = 1024;
+  char buff[kBUFF_SIZE] = { '\0' };
+  string err;
+  int progress_chars = FormatProgressStatus(progress_status_format_,
+                                            buff,
+                                            kBUFF_SIZE,
+                                            &err);
+  if (progress_chars < 0)
+    return printf("!! %s !! ", err.c_str());
+  else
+    return printf("%s", buff);
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
