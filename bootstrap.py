@@ -57,11 +57,12 @@ for src in glob.glob('src/*.cc'):
     if filename == 'browse.cc':  # Depends on generated header.
         continue
 
+    non_main = ['stat_daemon.cc']
     if sys.platform.startswith('win32'):
-        if filename == 'subprocess.cc':
+        if filename == 'subprocess.cc' or filename in non_main:
             continue
     else:
-        if src.endswith('-win32.cc'):
+        if src.endswith('-win32.cc') or filename in non_main:
             continue
 
     if filename == 'deplist_helper.cc':

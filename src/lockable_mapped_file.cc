@@ -16,12 +16,15 @@
 
 #include "util.h"
 
+#include <assert.h>
+
 static const char* kMutexSuffix = "_ninja_mutex";
 
 LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
     view_(0),
     file_mapping_(0),
-    should_initialize_(false) {
+    should_initialize_(false),
+    DEBUG_is_acquired_(create) {
   string mutex_name = filename + kMutexSuffix;
   if (create)
     lock_ = CreateMutex(NULL, TRUE, mutex_name.c_str());
@@ -67,6 +70,7 @@ bool LockableMappedFile::IsAvailable(const string& filename) {
 
 
 LockableMappedFile::~LockableMappedFile() {
+  Acquire();
   UnmapFile();
   if (!CloseHandle(file_))
     Fatal("CloseHandle: file_");
@@ -75,16 +79,21 @@ LockableMappedFile::~LockableMappedFile() {
 }
 
 void LockableMappedFile::Acquire() {
+  assert(!DEBUG_is_acquired_);
   DWORD ret = WaitForSingleObject(lock_, INFINITE);
+  DEBUG_is_acquired_ = true;
   if (ret != 0)
     Fatal("WaitForSingleObject (%d)", GetLastError());
 }
 
 void LockableMappedFile::Release() {
+  assert(DEBUG_is_acquired_);
   ReleaseMutex(lock_);
+  DEBUG_is_acquired_ = false;
 }
 
 void LockableMappedFile::UnmapFile() {
+  assert(DEBUG_is_acquired_);
   if (view_)
     if (!UnmapViewOfFile(view_))
       Fatal("UnmapViewOfFile");
@@ -96,6 +105,7 @@ void LockableMappedFile::UnmapFile() {
 }
 
 void LockableMappedFile::MapFile() {
+  assert(DEBUG_is_acquired_);
   if (file_mapping_)
     return;
   file_mapping_ = CreateFileMapping(file_, NULL, PAGE_READWRITE, 0, 0, NULL);
@@ -109,6 +119,7 @@ void LockableMappedFile::MapFile() {
 enum { kInitialSize = 20000000 };
 
 void LockableMappedFile::IncreaseFileSize() {
+  assert(DEBUG_is_acquired_);
   UnmapFile();
   int target_size = size_ == 0 ? kInitialSize : size_ * 2;
   if (SetFilePointer(file_, target_size, NULL, FILE_BEGIN) ==

@@ -18,6 +18,8 @@
 #include <string>
 using namespace std;
 
+#include <assert.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -33,7 +35,7 @@ struct LockableMappedFile {
   void Release();
   void IncreaseFileSize();
   int Size() { return size_; }
-  void* View() const { return view_; }
+  void* View() const { assert(DEBUG_is_acquired_); return view_; }
   bool ShouldInitialize() { return should_initialize_; }
 
 private:
@@ -46,6 +48,7 @@ private:
   void* view_;
   int size_;
   bool should_initialize_;
+  bool DEBUG_is_acquired_;
 };
 
 #endif  // NINJA_LOCKABLE_MAPPED_FILE_H

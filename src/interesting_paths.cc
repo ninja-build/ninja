@@ -40,7 +40,7 @@ InterestingPaths::InterestingPaths(bool create) :
 }
 
 void InterestingPaths::SetMaxEntries(InterestingPathsData* view) {
-  view->max_entries = (data_.Size() - sizeof(InterestingPathsData)) / 
+  view->max_entries = (data_.Size() - sizeof(InterestingPathsData)) /
                        sizeof(DWORDLONG);
 }
 
@@ -52,7 +52,7 @@ void InterestingPaths::StartAdditions() {
 void InterestingPaths::FinishAdditions() {
   InterestingPathsData* data = GetView();
   sort(data->entries, &data->entries[data->num_entries]);
-  DWORDLONG* new_end = unique(data->entries, &data->entries[data->num_entries] + 1);
+  DWORDLONG* new_end = unique(data->entries, &data->entries[data->num_entries]);
   data->num_entries = new_end - data->entries;
   assert(data->num_entries >= num_entries_at_start_of_additions_);
   data->dirty = data->num_entries > num_entries_at_start_of_additions_;
@@ -86,6 +86,11 @@ void InterestingPaths::Add(const string& path) {
   //printf("  dirname: %s\n", dirname);
   HANDLE dir_handle = CreateFile(dirname, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
       NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+  if (dir_handle == INVALID_HANDLE_VALUE) {
+    // Directory couldn't be opened. Doesn't exist, or can't access. There's
+    // not much useful we can do, so just ignore it.
+    return;
+  }
   BY_HANDLE_FILE_INFORMATION fi;
   GetFileInformationByHandle(dir_handle, &fi);
   CloseHandle(dir_handle);

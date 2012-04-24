@@ -749,6 +749,7 @@ reload:
     return 1;
   }
 
+
   BuildLog build_log;
   build_log.SetConfig(&globals.config);
   globals.state->build_log_ = &build_log;
@@ -784,8 +785,10 @@ reload:
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
 
+  InterestingPaths *interesting_paths = 0;
   if (StatCache::Active()) {
-    globals.state->stat_cache_ = new StatCache(false);
+    interesting_paths = new InterestingPaths(false);
+    globals.state->stat_cache_ = new StatCache(false, *interesting_paths);
   }
 
   if (!tool.empty())
@@ -824,6 +827,7 @@ reload:
   if (globals.state->stat_cache_) {
     globals.state->stat_cache_->FinishBuild();
     delete globals.state->stat_cache_;
+    delete interesting_paths;
   }
   return result;
 }

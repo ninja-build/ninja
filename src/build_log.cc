@@ -23,6 +23,7 @@
 
 #include "build.h"
 #include "graph.h"
+#include "metrics.h"
 #include "util.h"
 
 // Implementation details:
@@ -106,6 +107,7 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::Load(const string& path, string* err) {
+  METRIC_RECORD("build log load");
   FILE* file = fopen(path.c_str(), "rb");
   if (!file) {
     if (errno == ENOENT)

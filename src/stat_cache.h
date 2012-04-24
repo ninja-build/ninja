@@ -22,7 +22,7 @@
 #include "util.h"
 
 struct StatCache {
-  StatCache(bool create);
+  StatCache(bool create, InterestingPaths& interesting_paths);
 
   // Has the stat cache been globally enabled (via NINJA_STAT_DAEMON env var)?
   static bool Active();
@@ -55,6 +55,7 @@ struct StatCache {
   void StartProcessingChanges();
 
   bool IsInteresting(DWORDLONG parent_index);
+  void EmptyCache();
   void NotifyChange(const string& path, TimeStamp timestamp, bool defer_sort);
   void Sort();
   bool InterestingPathsDirtied(int* num_entries, DWORDLONG** entries);
@@ -69,7 +70,7 @@ struct StatCache {
 private:
   struct StatCacheData* GetView();
 
-  InterestingPaths interesting_paths_;
+  InterestingPaths& interesting_paths_;
   LockableMappedFile data_;
 
   static int is_active_;

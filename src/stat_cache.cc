@@ -112,7 +112,8 @@ void StatCache::EnsureDaemonRunning() {
 
 // static
 void StatCache::Dump() {
-  StatCache stat_cache(false);
+  InterestingPaths interesting_paths(false);
+  StatCache stat_cache(false, interesting_paths);
   stat_cache.StartBuild();
   // TODO: dump interesting_paths_ here too. we only have FRN in this process
   // though.
@@ -125,7 +126,8 @@ void StatCache::Dump() {
 
 // static
 void StatCache::ValidateAgainstDisk() {
-  StatCache stat_cache(false);
+  InterestingPaths interesting_paths(false);
+  StatCache stat_cache(false, interesting_paths);
   stat_cache.StartBuild();
   StatCacheData* data = stat_cache.GetView();
   for (int i = 0; i < data->num_entries; ++i) {
@@ -138,9 +140,9 @@ void StatCache::ValidateAgainstDisk() {
   stat_cache.FinishBuild();
 }
 
-StatCache::StatCache(bool create) :
+StatCache::StatCache(bool create, InterestingPaths& interesting_paths) :
     data_(kStatCacheFileName, create),
-    interesting_paths_(create) {
+    interesting_paths_(interesting_paths) {
   if (data_.ShouldInitialize()) {
     StatCacheData* data = GetView();
     data->num_entries = 0;
@@ -191,6 +193,8 @@ void StatCache::FinishBuild() {
     }
     interesting_paths_.FinishAdditions();
   }
+
+  gFailedLookupPaths.resize(0);
 }
 
 
@@ -201,6 +205,11 @@ void StatCache::StartProcessingChanges() {
 
 bool StatCache::IsInteresting(DWORDLONG parent_index) {
   return interesting_paths_.IsPathInteresting(parent_index);
+}
+
+void StatCache::EmptyCache() {
+  StatCacheData* data = GetView();
+  data->num_entries = 0;
 }
 
 void StatCache::NotifyChange(const string& path, TimeStamp mtime, bool defer_sort) {

@@ -40,7 +40,7 @@ struct Node {
   bool StatIfNecessary(DiskInterface* disk_interface, State* state) {
     if (status_known())
       return false;
-    if (state->stat_cache_ &&
+    if (state && state->stat_cache_ &&
         (mtime_ = state->stat_cache_->GetMtime(path_)) >= 0)
       return true;
     Stat(disk_interface);
