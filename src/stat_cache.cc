@@ -144,10 +144,12 @@ StatCache::StatCache(bool create, InterestingPaths& interesting_paths) :
     data_(kStatCacheFileName, create),
     interesting_paths_(interesting_paths) {
   if (data_.ShouldInitialize()) {
+    data_.Acquire();
     StatCacheData* data = GetView();
     data->num_entries = 0;
     data->max_entries = (data_.Size() - sizeof(StatCacheData)) /
                         sizeof(StatCacheEntry);
+    data_.Release();
   }
 }
 
