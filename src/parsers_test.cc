@@ -127,7 +127,7 @@ TEST_F(ParserTest, IgnoreIndentedBlankLines) {
 "variable=1\n"));
 
   // the variable must be in the top level environment
-  EXPECT_EQ("1", state.bindings_.LookupVariable("variable"));
+  EXPECT_EQ("1", state.bindings_.LookupVariable("variable", false));
 }
 
 TEST_F(ParserTest, ResponseFiles) {
@@ -166,7 +166,7 @@ TEST_F(ParserTest, Variables) {
   Edge* edge = state.edges_[0];
   EXPECT_EQ("ld one-letter-test -pthread -under -o a b c",
             edge->EvaluateCommand());
-  EXPECT_EQ("1/2", state.bindings_.LookupVariable("nested2"));
+  EXPECT_EQ("1/2", state.bindings_.LookupVariable("nested2", false));
 
   edge = state.edges_[1];
   EXPECT_EQ("ld one-letter-test 1/2/3 -under -o supernested x",
@@ -210,15 +210,15 @@ TEST_F(ParserTest, Backslash) {
 "foo = bar\\baz\n"
 "foo2 = bar\\ baz\n"
 ));
-  EXPECT_EQ("bar\\baz", state.bindings_.LookupVariable("foo"));
-  EXPECT_EQ("bar\\ baz", state.bindings_.LookupVariable("foo2"));
+  EXPECT_EQ("bar\\baz", state.bindings_.LookupVariable("foo", false));
+  EXPECT_EQ("bar\\ baz", state.bindings_.LookupVariable("foo2", false));
 }
 
 TEST_F(ParserTest, Comment) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "# this is a comment\n"
 "foo = not # a comment\n"));
-  EXPECT_EQ("not # a comment", state.bindings_.LookupVariable("foo"));
+  EXPECT_EQ("not # a comment", state.bindings_.LookupVariable("foo", false));
 }
 
 TEST_F(ParserTest, Dollars) {
@@ -229,7 +229,7 @@ TEST_F(ParserTest, Dollars) {
 "x = $$dollar\n"
 "build $x: foo y\n"
 ));
-  EXPECT_EQ("$dollar", state.bindings_.LookupVariable("x"));
+  EXPECT_EQ("$dollar", state.bindings_.LookupVariable("x", false));
   EXPECT_EQ("$dollarbar$baz$blah", state.edges_[0]->EvaluateCommand());
 }
 
@@ -649,7 +649,7 @@ TEST_F(ParserTest, Include) {
 
   ASSERT_EQ(1u, files_read_.size());
   EXPECT_EQ("include.ninja", files_read_[0]);
-  EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
+  EXPECT_EQ("inner", state.bindings_.LookupVariable("var", false));
 }
 
 TEST_F(ParserTest, Implicit) {
