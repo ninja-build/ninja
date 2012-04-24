@@ -15,6 +15,8 @@
 #include "change_journal.h"
 
 #include "includes_normalize.h"
+#include "interesting_paths.h"
+#include "stat_cache.h"
 #include "stat_daemon_util.h"
 
 #include <algorithm>
@@ -22,9 +24,11 @@
 #include <windows.h>
 #include <winioctl.h>
 
-ChangeJournal::ChangeJournal(char drive_letter, StatCache& stat_cache) :
-    pathdb_(drive_letter),
-    stat_cache_(stat_cache) {
+ChangeJournal::ChangeJournal(char drive_letter, StatCache& stat_cache,
+                             InterestingPaths& interesting_paths)
+    : pathdb_(drive_letter),
+      stat_cache_(stat_cache),
+      interesting_paths_(interesting_paths) {
   assert(toupper(drive_letter) == drive_letter);
   drive_letter_ = string() + drive_letter;
   cj_ = Open(drive_letter_, false);
@@ -176,7 +180,8 @@ void ChangeJournal::CheckForDirtyPaths() {
   int num_entries;
   DWORDLONG* entries;
   stat_cache_.StartProcessingChanges();
-  if (stat_cache_.InterestingPathsDirtied(&num_entries, &entries)) {
+  interesting_paths_.StartLookups();
+  if (interesting_paths_.IsDirty(&num_entries, &entries)) {
     pathdb_.data_.Acquire();
 
     stat_cache_.EmptyCache();
@@ -191,9 +196,10 @@ void ChangeJournal::CheckForDirtyPaths() {
 
     stat_cache_.Sort();
 
-    stat_cache_.ClearInterestingPathsDirtyFlag();
+    interesting_paths_.ClearDirty();
     pathdb_.data_.Release();
   }
+  interesting_paths_.FinishLookups();
   stat_cache_.FinishProcessingChanges();
 }
 
@@ -201,6 +207,7 @@ bool ChangeJournal::ProcessAvailableRecords() {
   for (;;) {
     stat_cache_.StartProcessingChanges();
     pathdb_.data_.Acquire();
+    interesting_paths_.StartLookups();
 
     USN_RECORD* record;
     bool err = false;
@@ -254,7 +261,7 @@ bool ChangeJournal::ProcessAvailableRecords() {
       // extra _stats in our case.
 
       bool ignore = name.back() == '~' || // Ignore backup files, probably shouldn't.
-          !stat_cache_.IsInteresting(record->ParentFileReferenceNumber);
+          !interesting_paths_.IsInteresting(record->ParentFileReferenceNumber);
       if (!ignore) {
         bool err = false;
         string path = pathdb_.Get(record->ParentFileReferenceNumber, &err);
@@ -274,6 +281,7 @@ bool ChangeJournal::ProcessAvailableRecords() {
       }
       pathdb_.GetView()->cur_usn = record->Usn;
     }
+    interesting_paths_.FinishLookups();
     pathdb_.data_.Release();
     stat_cache_.FinishProcessingChanges();
 

@@ -15,14 +15,19 @@
 #ifndef NINJA_STAT_CACHE_H_
 #define NINJA_STAT_CACHE_H_
 
-#include "interesting_paths.h"
 #include "lockable_mapped_file.h"
 #include "state.h"
 #include "string_piece.h"
 #include "util.h"
 
+#include <vector>
+#include <string>
+
+struct DiskInterface;
+
 struct StatCache {
-  StatCache(bool create, InterestingPaths& interesting_paths);
+  StatCache(bool create,
+            DiskInterface* disk_interface);
 
   // Has the stat cache been globally enabled (via NINJA_STAT_DAEMON env var)?
   static bool Active();
@@ -40,39 +45,32 @@ struct StatCache {
   // they'll be added to the interesting-paths-set for the daemon.
   TimeStamp GetMtime(const string& path);
 
-  // Updates roots based on paths it was Inform'd about, releases lock so
-  // daemon can resume timestamp updates.
-  void FinishBuild();
+  // Releases lock, returns list of paths that should be added to interesting
+  // paths (paths to watch).
+  vector<string> FinishBuild(bool quiet = false);
 
   // Some utilities that should probably be in ninja proper instead.
   static void EnsureDaemonRunning();
   static void Dump();
-  static void ValidateAgainstDisk();
+  static void ValidateAgainstDisk(DiskInterface& disk_interface);
 
   //
   // From daemon side
   //
 
   void StartProcessingChanges();
-
-  bool IsInteresting(DWORDLONG parent_index);
   void EmptyCache();
   void NotifyChange(const string& path, TimeStamp timestamp, bool defer_sort);
   void Sort();
-  bool InterestingPathsDirtied(int* num_entries, DWORDLONG** entries);
-  void ClearInterestingPathsDirtyFlag();
 
   void FinishProcessingChanges();
-
-  void CheckForInterestingPathsDirtied();
-
-
 
 private:
   struct StatCacheData* GetView();
 
-  InterestingPaths& interesting_paths_;
   LockableMappedFile data_;
+  DiskInterface* disk_interface_;
+  vector<string> failed_lookup_paths_;
 
   static int is_active_;
 };

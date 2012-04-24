@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #include "change_journal.h"
+#include "disk_interface.h"
+#include "interesting_paths.h"
 #include "pathdb.h"
+#include "stat_cache.h"
 #include "stat_daemon_util.h"
 #include "util.h"
 
@@ -50,8 +53,9 @@ int main(int argc, char** argv) {
   gShutdown = false;
   Log("starting");
   InterestingPaths interesting_paths(true);
-  StatCache stat_cache(true, interesting_paths);
-  ChangeJournal cj('C', stat_cache);
+  RealDiskInterface disk_interface;
+  StatCache stat_cache(true, &disk_interface);
+  ChangeJournal cj('C', stat_cache, interesting_paths);
   while (!gShutdown) {
     cj.CheckForDirtyPaths();
     if (!cj.ProcessAvailableRecords())

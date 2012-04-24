@@ -18,11 +18,15 @@
 #include <windows.h>
 
 #include "pathdb.h"
-#include "stat_cache.h"
+
+struct InterestingPaths;
+struct StatCache;
 
 // Accessor of raw USN data.
 struct ChangeJournal {
-  ChangeJournal(char drive_letter, StatCache& stat_cache);
+  ChangeJournal(char drive_letter,
+                StatCache& stat_cache,
+                InterestingPaths& interesting_paths);
   ~ChangeJournal();
 
   void CheckForDirtyPaths();
@@ -46,6 +50,7 @@ private:
   bool SetUpNotification();
   PathDb pathdb_;
   StatCache& stat_cache_;
+  InterestingPaths& interesting_paths_;
   USN_RECORD* Next(bool* err);
   string drive_letter_;
 

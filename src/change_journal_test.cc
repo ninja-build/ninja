@@ -15,6 +15,8 @@
 #include <gtest/gtest.h>
 
 #include "change_journal.h"
+#include "interesting_paths.h"
+#include "stat_cache.h"
 #include "test.h"
 
 #include <windows.h>
@@ -44,8 +46,8 @@ class ChangeJournalTest : public testing::Test {
 
 TEST_F(ChangeJournalTest, Create) {
   InterestingPaths interesting_paths(true);
-  StatCache cache(true, interesting_paths);
-  ChangeJournal cj('C', cache);
+  StatCache cache(true, NULL);
+  ChangeJournal cj('C', cache, interesting_paths);
   EXPECT_EQ(cj.DriveLetter(), "C");
   EXPECT_EQ(cj.DriveLetterChar(), 'C');
 

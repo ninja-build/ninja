@@ -16,14 +16,12 @@
 
 #include "stat_cache.h"
 
-#include "interesting_paths.h"
+#include "disk_interface.h"
 #include "metrics.h"
 
 #include <algorithm>
 
 namespace {
-
-vector<string> gFailedLookupPaths;
 
 TimeStamp StatPath(const string& path) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
@@ -112,11 +110,8 @@ void StatCache::EnsureDaemonRunning() {
 
 // static
 void StatCache::Dump() {
-  InterestingPaths interesting_paths(false);
-  StatCache stat_cache(false, interesting_paths);
+  StatCache stat_cache(false, NULL);
   stat_cache.StartBuild();
-  // TODO: dump interesting_paths_ here too. we only have FRN in this process
-  // though.
   StatCacheData* data = stat_cache.GetView();
   for (int i = 0; i < data->num_entries; ++i) {
     printf("%d: %s -> %d\n", i, data->entries[i].path, data->entries[i].mtime);
@@ -125,13 +120,12 @@ void StatCache::Dump() {
 }
 
 // static
-void StatCache::ValidateAgainstDisk() {
-  InterestingPaths interesting_paths(false);
-  StatCache stat_cache(false, interesting_paths);
+void StatCache::ValidateAgainstDisk(DiskInterface& disk_interface) {
+  StatCache stat_cache(false, NULL);
   stat_cache.StartBuild();
   StatCacheData* data = stat_cache.GetView();
   for (int i = 0; i < data->num_entries; ++i) {
-    int on_disk = StatPath(data->entries[i].path);
+    int on_disk = disk_interface.Stat(data->entries[i].path);
     if (data->entries[i].mtime != on_disk) {
       printf("%s differs: %d vs %d\n",
           data->entries[i].path, data->entries[i].mtime, on_disk);
@@ -140,9 +134,9 @@ void StatCache::ValidateAgainstDisk() {
   stat_cache.FinishBuild();
 }
 
-StatCache::StatCache(bool create, InterestingPaths& interesting_paths) :
-    data_(kStatCacheFileName, create),
-    interesting_paths_(interesting_paths) {
+StatCache::StatCache(bool create, DiskInterface* disk_interface)
+    : data_(kStatCacheFileName, create),
+      disk_interface_(disk_interface) {
   if (data_.ShouldInitialize()) {
     data_.Acquire();
     StatCacheData* data = GetView();
@@ -170,43 +164,47 @@ TimeStamp StatCache::GetMtime(const string& path) {
   StatCacheEntry* end = &data->entries[data->num_entries];
   StatCacheEntry* i = lower_bound(data->entries, end, value, PathCompare);
   if (i == end || strcmp(i->path, path.c_str()) != 0) {
-    gFailedLookupPaths.push_back(path);
+    failed_lookup_paths_.push_back(path);
     return -1;
   }
   return i->mtime;
 }
 
-void StatCache::FinishBuild() {
+vector<string> StatCache::FinishBuild(bool quiet) {
   data_.Release();
 
-  int count = gFailedLookupPaths.end() - gFailedLookupPaths.begin();
+  vector<string> failed_paths_copy = failed_lookup_paths_;
+  failed_lookup_paths_.resize(0);
+  return failed_paths_copy;
+  /*
+  int count = failed_lookup_paths_.end() - failed_lookup_paths_.begin();
   if (count > 0) {
-    printf("ninja: %d stat cache misses, adding to daemon.\n", count);
+    if (!quiet)
+      printf("ninja: %d stat cache misses, adding to daemon.\n", count);
     int printed = 0;
     interesting_paths_.StartAdditions();
-    for (vector<string>::iterator i(gFailedLookupPaths.begin());
-        i != gFailedLookupPaths.end(); ++i) {
+    for (vector<string>::iterator i(failed_lookup_paths_.begin());
+        i != failed_lookup_paths_.end(); ++i) {
       interesting_paths_.Add(*i);
-      if (printed < 10)
-        printf("ninja:  %s\n", i->c_str());
-      else if (printed == 10)
-        printf("ninja:  ... more paths elided\n", i->c_str());
+      if (printed < 10) {
+        if (!quiet)
+          printf("ninja:  %s\n", i->c_str());
+      } else if (printed == 10) {
+        if (!quiet)
+          printf("ninja:  ... more paths elided\n", i->c_str());
+      }
       ++printed;
     }
     interesting_paths_.FinishAdditions();
   }
 
-  gFailedLookupPaths.resize(0);
+  failed_lookup_paths_.resize(0);
+  */
 }
 
 
 void StatCache::StartProcessingChanges() {
   data_.Acquire();
-  interesting_paths_.StartLookups();
-}
-
-bool StatCache::IsInteresting(DWORDLONG parent_index) {
-  return interesting_paths_.IsPathInteresting(parent_index);
 }
 
 void StatCache::EmptyCache() {
@@ -215,8 +213,10 @@ void StatCache::EmptyCache() {
 }
 
 void StatCache::NotifyChange(const string& path, TimeStamp mtime, bool defer_sort) {
-  if (mtime == -1)
-    mtime = StatPath(path);
+  if (mtime == -1) {
+    assert(disk_interface_);
+    mtime = disk_interface_->Stat(path);
+  }
   StatCacheData* data = GetView();
 
   // Look up previous entry. If found, then update timestamp.
@@ -252,15 +252,6 @@ void StatCache::Sort() {
 
 void StatCache::FinishProcessingChanges() {
   data_.Release();
-  interesting_paths_.FinishLookups();
-}
-
-bool StatCache::InterestingPathsDirtied(int* num_entries, DWORDLONG** entries) {
-  return interesting_paths_.IsDirty(num_entries, entries);
-}
-
-void StatCache::ClearInterestingPathsDirtyFlag() {
-  interesting_paths_.ClearDirty();
 }
 
 StatCacheData* StatCache::GetView() {

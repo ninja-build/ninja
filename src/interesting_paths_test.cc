@@ -41,7 +41,7 @@ TEST_F(InterestingPathsTest, CreateAndDirty) {
   DWORDLONG* entries;
   ips.StartLookups();
   EXPECT_EQ(false, ips.IsDirty(&num_entries, &entries));
-  EXPECT_EQ(false, ips.IsPathInteresting(0));
+  EXPECT_EQ(false, ips.IsInteresting(0));
   ips.FinishLookups();
 
   ips.StartAdditions();
@@ -84,6 +84,26 @@ TEST_F(InterestingPathsTest, CreateAndDirty) {
   ips.StartLookups();
   EXPECT_EQ(true, ips.IsDirty(&num_entries, &entries));
   EXPECT_EQ(5, num_entries); // ., x, a, d, g. Note that 'f' isn't added.
+  ips.FinishLookups();
+
+  // Batch, and duplication.
+  _mkdir("y");
+  _mkdir("z");
+  vector<string> batch;
+  batch.push_back("y\\a");
+  batch.push_back("z\\a");
+  batch.push_back("z\\b");
+  batch.push_back("z/a");
+  batch.push_back("y/a");
+  batch.push_back("y/b");
+  batch.push_back("z/a");
+  ips.StartAdditions();
+  ips.Add(batch);
+  ips.FinishAdditions();
+
+  ips.StartLookups();
+  EXPECT_EQ(true, ips.IsDirty(&num_entries, &entries));
+  EXPECT_EQ(7, num_entries);
   ips.FinishLookups();
 }
 

@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+#include "disk_interface.h"
+#include "interesting_paths.h"
 #include "stat_cache.h"
 #include "test.h"
 
@@ -42,13 +44,20 @@ class StatCacheTest : public testing::Test {
   ScopedTempDir temp_dir_;
 };
 
-TEST_F(StatCacheTest, Create) {
-  InterestingPaths interesting_paths(true);
-  StatCache cache(true, interesting_paths);
+TEST_F(StatCacheTest, PathDirtying) {
+  RealDiskInterface disk_interface;
+  StatCache cache(true, &disk_interface);
 
   cache.StartBuild();
   EXPECT_EQ(-1, cache.GetMtime("a"));
-  cache.FinishBuild();
+  vector<string> failed = cache.FinishBuild(true);
+
+  EXPECT_EQ(1, failed.size());
+  EXPECT_EQ("a", failed[0]);
+
+  cache.StartProcessingChanges();
+
+  cache.FinishProcessingChanges();
 }
 
 

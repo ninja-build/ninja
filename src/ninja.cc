@@ -39,10 +39,12 @@
 #include "build_log.h"
 #include "clean.h"
 #include "dep_database.h"
+#include "disk_interface.h"
 #include "edit_distance.h"
 #include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "interesting_paths.h"
 #include "metrics.h"
 #include "parsers.h"
 #include "stat_cache.h"
@@ -531,7 +533,8 @@ int ToolStatCache(Globals* globals, int argc, char* argv[]) {
 }
 
 int ToolStatCacheCheck(Globals* globals, int argc, char* argv[]) {
-  StatCache::ValidateAgainstDisk();
+  RealDiskInterface disk_interface;
+  StatCache::ValidateAgainstDisk(disk_interface);
   return 0;
 }
 
@@ -650,6 +653,11 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   }
 
   return 0;
+}
+
+void AddCacheMissesToInterestingPaths(const vector<string>& paths) {
+  InterestingPaths interesting_paths(false);
+  interesting_paths.Add(paths);
 }
 
 }  // anonymous namespace
@@ -785,10 +793,10 @@ reload:
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
 
-  InterestingPaths *interesting_paths = 0;
+  RealDiskInterface* disk_interface = 0;
   if (StatCache::Active()) {
-    interesting_paths = new InterestingPaths(false);
-    globals.state->stat_cache_ = new StatCache(false, *interesting_paths);
+    disk_interface = new RealDiskInterface();
+    globals.state->stat_cache_ = new StatCache(false, disk_interface);
   }
 
   if (!tool.empty())
@@ -825,9 +833,9 @@ reload:
            count / (double) buckets, count, buckets);
   }
   if (globals.state->stat_cache_) {
-    globals.state->stat_cache_->FinishBuild();
+    AddCacheMissesToInterestingPaths(globals.state->stat_cache_->FinishBuild());
     delete globals.state->stat_cache_;
-    delete interesting_paths;
+    delete disk_interface;
   }
   return result;
 }

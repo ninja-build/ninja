@@ -103,11 +103,17 @@ void InterestingPaths::Add(const string& path) {
   data->entries[data->num_entries++] = parent_index;
 }
 
+void InterestingPaths::Add(const vector<string>& paths) {
+  // TODO: could perhaps improve by uniq'ing here first.
+  for (vector<string>::const_iterator i(paths.begin()); i != paths.end(); ++i)
+    Add(*i);
+}
+
 void InterestingPaths::StartLookups() {
   data_.Acquire();
 }
 
-bool InterestingPaths::IsPathInteresting(DWORDLONG index) {
+bool InterestingPaths::IsInteresting(DWORDLONG index) {
   InterestingPathsData* data = GetView();
   DWORDLONG* end = &data->entries[data->num_entries];
   DWORDLONG* i = lower_bound(data->entries, end, index);

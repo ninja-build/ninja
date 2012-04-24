@@ -18,16 +18,18 @@
 #include "lockable_mapped_file.h"
 
 #include <string>
+#include <vector>
 using namespace std;
 
 struct InterestingPaths {
   InterestingPaths(bool create);
   void StartAdditions();
   void Add(const string& path);
+  void Add(const vector<string>& paths);
   void FinishAdditions();
 
   void StartLookups();
-  bool IsPathInteresting(DWORDLONG index);
+  bool IsInteresting(DWORDLONG index);
   bool IsDirty(int* num_entries, DWORDLONG** entries);
   void ClearDirty();
   void FinishLookups();
