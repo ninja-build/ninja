@@ -52,15 +52,25 @@ int main(int argc, char** argv) {
     Win32Fatal("SetConsoleCtrlHandler");
   gShutdown = false;
   Log("starting");
+
   InterestingPaths interesting_paths(true);
   RealDiskInterface disk_interface;
   StatCache stat_cache(true, &disk_interface);
-  ChangeJournal cj('C', stat_cache, interesting_paths);
+  ChangeJournal* cj = new ChangeJournal('C', stat_cache, interesting_paths);
+
   while (!gShutdown) {
-    cj.CheckForDirtyPaths();
-    if (!cj.ProcessAvailableRecords())
-      Fatal("ProcessAvailableRecords");
-    cj.WaitForMoreData();
+    cj->CheckForDirtyPaths();
+    if (!cj->ProcessAvailableRecords()) {
+      Log("processing USN data failed, invalidating cache");
+      cj->ClearPathDbData();
+      delete cj;
+      stat_cache.StartProcessingChanges();
+      stat_cache.EmptyCache();
+      stat_cache.FinishProcessingChanges();
+      cj = new ChangeJournal('C', stat_cache, interesting_paths);
+      continue;
+    }
+    cj->WaitForMoreData();
     // Wait a little to get some batch processing if there's a lot happening.
     Sleep(500);
   }

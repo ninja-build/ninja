@@ -35,6 +35,8 @@ struct ChangeJournal {
   const string& DriveLetter() const;
   char DriveLetterChar() const;
 
+  void ClearPathDbData();
+
 private:
   friend struct PathDb;
   void Query(USN_JOURNAL_DATA* usn);

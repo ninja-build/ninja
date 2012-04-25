@@ -54,6 +54,10 @@ ChangeJournal::~ChangeJournal() {
   CloseHandle(cj_async_overlapped_.hEvent);
 }
 
+void ChangeJournal::ClearPathDbData() {
+  pathdb_.SetEmptyData();
+}
+
 HANDLE ChangeJournal::Open(const string& drive_letter, bool async) {
   string volume_path = string("\\\\.\\") + drive_letter + ":";
   HANDLE cj = CreateFile(
@@ -240,18 +244,20 @@ bool ChangeJournal::ProcessAvailableRecords() {
           DWORD len = sizeof(name);
           wstring wide_name(full_name.begin(), full_name.end());
           HANDLE handle = FindFirstFileNameW(wide_name.c_str(), 0, &len, name);
-          if (handle == INVALID_HANDLE_VALUE)
-            return false;
-          for (;;) {
-            string narrow(name, &name[len]);
-            string rel = IncludesNormalize::Normalize(narrow, gBuildRoot.c_str());
-            stat_cache_.NotifyChange(rel, -1, false);
-            Log("hardlink: %s", rel.c_str());
-            BOOL success = FindNextFileNameW(handle, &len, name);
-            if (!success)
-              break;
+          // Not finding shouldn't be fatal. Could create/modify and then
+          // remove before we proces this record.
+          if (handle != INVALID_HANDLE_VALUE) {
+            for (;;) {
+              string narrow(name, &name[len]);
+              string rel = IncludesNormalize::Normalize(narrow, gBuildRoot.c_str());
+              stat_cache_.NotifyChange(rel, -1, false);
+              Log("hardlink: %s", rel.c_str());
+              BOOL success = FindNextFileNameW(handle, &len, name);
+              if (!success)
+                break;
+            }
+            FindClose(handle);
           }
-          FindClose(handle);
         }
       }
 
@@ -263,7 +269,7 @@ bool ChangeJournal::ProcessAvailableRecords() {
       bool ignore = name.back() == '~' || // Ignore backup files, probably shouldn't.
           !interesting_paths_.IsInteresting(record->ParentFileReferenceNumber);
       if (!ignore) {
-        bool err = false;
+        err = false;
         string path = pathdb_.Get(record->ParentFileReferenceNumber, &err);
         if (!err) {
           string full_name = path + "\\" + name;
@@ -288,6 +294,7 @@ bool ChangeJournal::ProcessAvailableRecords() {
     if (err) {
       // Something bad happened: maybe the journal overflowed, didn't exist,
       // etc. Try starting over.
+      Log("generic error from pathdb, etc.");
       return false;
     }
 
@@ -317,6 +324,13 @@ USN_RECORD* ChangeJournal::Next(bool* err) {
       // Some check has failed. Records overflow, USN deleted, etc.
       // Cache needs to be fully flushed, as we can't trust any of it
       // now.
+      DWORD failure = GetLastError();
+      // Possible errors:
+      // - ERROR_JOURNAL_DELETE_IN_PROGRESS
+      // - ERROR_JOURNAL_NOT_ACTIVE
+      // - ERROR_INVALID_PARAMETER
+      // - ERROR_JOURNAL_ENTRY_DELETED
+      Log("DeviceIoControl failed: GLE=%d", failure);
       *err = true;
     }
   } else {
