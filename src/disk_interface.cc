@@ -63,7 +63,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef _WIN32
-  //printf("real stat: %s\n", path.c_str());
+  printf("real stat: %s\n", path.c_str());
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {

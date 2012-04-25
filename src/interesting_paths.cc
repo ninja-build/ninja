@@ -14,17 +14,20 @@
 
 #include "interesting_paths.h"
 
+#include "pathdb.h" // Only used in Dump to map FRN -> path
+
 #include <algorithm>
 #include <assert.h>
 #include <windows.h>
 
 // A set of all the parent FRNs that we wish to include in the stat
 // database.
+#pragma warning(disable: 4200)
 struct InterestingPathsData {
   int num_entries;
   int max_entries;
   bool dirty;
-  DWORDLONG entries[1];
+  DWORDLONG entries[];
 };
 
 InterestingPaths::InterestingPaths(bool create) :
@@ -56,7 +59,6 @@ void InterestingPaths::FinishAdditions() {
   data->num_entries = new_end - data->entries;
   assert(data->num_entries >= num_entries_at_start_of_additions_);
   data->dirty = data->num_entries > num_entries_at_start_of_additions_;
-  //printf("now %d entries\n", data->num_entries);
   data_.Release();
 }
 
@@ -97,7 +99,7 @@ void InterestingPaths::Add(const string& path) {
   DWORDLONG parent_index = static_cast<DWORDLONG>(fi.nFileIndexHigh) << 32 |
                            static_cast<DWORDLONG>(fi.nFileIndexLow);
 
-  //printf("  = %llx\n", parent_index);
+  //printf("  = %lld (%d)\n", parent_index, data->num_entries);
 
   // Append to set. Is sorted/uniq'd in FinishAdditions.
   data->entries[data->num_entries++] = parent_index;
@@ -127,6 +129,11 @@ bool InterestingPaths::IsDirty(int* num_entries, DWORDLONG** entries) {
   return data->dirty;
 }
 
+void InterestingPaths::SetDirty() {
+  InterestingPathsData* data = GetView();
+  data->dirty = true;
+}
+
 void InterestingPaths::ClearDirty() {
   InterestingPathsData* data = GetView();
   data->dirty = false;
@@ -134,4 +141,19 @@ void InterestingPaths::ClearDirty() {
 
 void InterestingPaths::FinishLookups() {
   data_.Release();
+}
+
+// static
+void InterestingPaths::Dump() {
+  InterestingPaths interesting_paths(false);
+  PathDb pathdb('C'); // TODO
+  int num_entries;
+  DWORDLONG* entries;
+  interesting_paths.IsDirty(&num_entries, &entries);
+  vector<string> paths = pathdb.BulkGet(num_entries, entries);
+  printf("InterestingPaths\n"
+         "----------------\n");
+  for (int i = 0; i < num_entries; ++i) {
+    printf("%llx: %s\n", entries[i], paths[i].c_str());
+  }
 }

@@ -42,8 +42,12 @@ ChangeJournal::ChangeJournal(char drive_letter, StatCache& stat_cache,
   if (!cj_async_overlapped_.hEvent)
     Win32Fatal("CreateEvent");
 
-  if (pathdb_.DriveLetter() != drive_letter)
+  if (pathdb_.DriveLetter() != drive_letter) {
     pathdb_.Populate(*this);
+    interesting_paths.StartLookups();
+    interesting_paths.SetDirty();
+    interesting_paths.FinishLookups();
+  }
   SeekToUsn(pathdb_.CurUsn(), 0xffffffff, false, pathdb_.UsnJournalId());
 }
 
@@ -193,7 +197,6 @@ void ChangeJournal::CheckForDirtyPaths() {
     for (int i = 0; i < num_entries; ++i) {
       bool err = false;
       string dirname = pathdb_.Get(entries[i], &err);
-      printf("ENTRY: %d %s\n", i, dirname.c_str());
       if (!err)
         PopulateStatFromDir(IncludesNormalize::Normalize(dirname, gBuildRoot.c_str()));
     }

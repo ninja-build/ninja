@@ -52,10 +52,11 @@ bool StatCachePathCompare(const StatCacheEntry& a, const StatCacheEntry& b) {
   return strcmp(a.path, b.path) < 0;
 }
 
+#pragma warning(disable: 4200)
 struct StatCacheData {
   int num_entries;
   int max_entries;
-  StatCacheEntry entries[1];
+  StatCacheEntry entries[];
 };
 
 static const char* kStatCacheFileName = ".ninja_stat_cache";

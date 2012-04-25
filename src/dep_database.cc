@@ -56,7 +56,7 @@
 
 #include <algorithm>
 
-#pragma pack(push, 1)
+#pragma warning(disable: 4200)
 struct DepIndex {
   char path[_MAX_PATH];
   int offset;
@@ -66,9 +66,8 @@ struct DbData {
   int index_entries;
   int max_index_entries;
   int dep_insert_offset;
-  DepIndex index[1];
+  DepIndex index[];
 };
-#pragma pack(pop)
 
 DepDatabase::DepDatabase(const string& filename, bool create) :
     data_(filename, create) {
@@ -179,7 +178,7 @@ void DepDatabase::SetEmptyData() {
   DbData* data = GetView();
   data->index_entries = 0;
   data->max_index_entries = 20000; // TODO random size
-  data->dep_insert_offset = sizeof(DbData) + // TODO [1] too big
+  data->dep_insert_offset = sizeof(DbData) +
       sizeof(DepIndex) * data->max_index_entries;
   // TODO end of file/max size
   data_.Release();

@@ -54,6 +54,8 @@ int main(int argc, char** argv) {
   Log("starting");
 
   InterestingPaths interesting_paths(true);
+  interesting_paths.StartAdditions();
+  interesting_paths.FinishAdditions();
   RealDiskInterface disk_interface;
   StatCache stat_cache(true, &disk_interface);
   ChangeJournal* cj = new ChangeJournal('C', stat_cache, interesting_paths);
@@ -67,6 +69,9 @@ int main(int argc, char** argv) {
       stat_cache.StartProcessingChanges();
       stat_cache.EmptyCache();
       stat_cache.FinishProcessingChanges();
+      interesting_paths.StartLookups();
+      interesting_paths.SetDirty();
+      interesting_paths.FinishLookups();
       cj = new ChangeJournal('C', stat_cache, interesting_paths);
       continue;
     }

@@ -529,6 +529,7 @@ void ToolUrtle() {
 
 int ToolStatCache(Globals* globals, int argc, char* argv[]) {
   StatCache::Dump();
+  InterestingPaths::Dump();
   return 0;
 }
 
@@ -657,7 +658,9 @@ int RunBuild(Globals* globals, int argc, char** argv) {
 
 void AddCacheMissesToInterestingPaths(const vector<string>& paths) {
   InterestingPaths interesting_paths(false);
+  interesting_paths.StartAdditions();
   interesting_paths.Add(paths);
+  interesting_paths.FinishAdditions();
 }
 
 }  // anonymous namespace

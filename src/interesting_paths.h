@@ -31,8 +31,11 @@ struct InterestingPaths {
   void StartLookups();
   bool IsInteresting(DWORDLONG index);
   bool IsDirty(int* num_entries, DWORDLONG** entries);
+  void SetDirty();
   void ClearDirty();
   void FinishLookups();
+
+  static void Dump();
 private:
   struct InterestingPathsData* GetView();
   void SetMaxEntries(struct InterestingPathsData* view);

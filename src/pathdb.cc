@@ -119,7 +119,7 @@ void PathDb::Sort() {
 }
 
 void PathDb::Populate(ChangeJournal& cj) {
-  Log("repopulating");
+  Log("repopulating for %s:", cj.DriveLetter().c_str());
   SetEmptyData();
   USN_JOURNAL_DATA ujd;
   cj.Query(&ujd);
@@ -192,6 +192,21 @@ DWORDLONG PathDb::UsnJournalId() {
 USN PathDb::CurUsn() {
   data_.Acquire();
   USN ret = GetView()->cur_usn;
+  data_.Release();
+  return ret;
+}
+
+vector<string> PathDb::BulkGet(int num_entries, DWORDLONG* entries) {
+  vector<string> ret;
+  data_.Acquire();
+  for (int i = 0; i < num_entries; ++i) {
+    bool err;
+    string path = Get(entries[i], &err);
+    if (err)
+      ret.push_back("ERROR <unknown>");
+    else
+      ret.push_back(path);
+  }
   data_.Release();
   return ret;
 }

@@ -22,6 +22,7 @@
 #define NINJA_PATHDB_H
 
 #include <windows.h>
+#include <vector>
 
 #include "lockable_mapped_file.h"
 
@@ -31,13 +32,14 @@ struct PathDbEntry {
   DWORDLONG parent_index;
 };
 
+#pragma warning(disable: 4200)
 struct PathDbData {
   int num_entries;
   int max_entries;
   char drive_letter;
   DWORDLONG cur_journal_id;
   USN cur_usn;
-  PathDbEntry entries[1];
+  PathDbEntry entries[];
 };
 
 struct PathDb {
@@ -47,6 +49,7 @@ struct PathDb {
   bool Change(DWORDLONG index, const string& name, DWORDLONG parent_index);
   bool Delete(DWORDLONG index);
   void Populate(struct ChangeJournal& cj);
+  vector<string> BulkGet(int num_entries, DWORDLONG* entries);
 
   char DriveLetter();
   DWORDLONG UsnJournalId();
