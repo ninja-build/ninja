@@ -72,14 +72,9 @@ struct DbData {
 
 DepDatabase::DepDatabase(const string& filename, bool create) :
     data_(filename, create) {
-  printf("DepDatabase: %s %d\n", filename.c_str(), create);
   if (data_.ShouldInitialize()) {
     SetEmptyData();
   }
-}
-
-DepDatabase::~DepDatabase() {
-  printf("~DepDatabase\n");
 }
 
 bool PathCompare(const DepIndex& a, const DepIndex& b) {

@@ -31,7 +31,6 @@ struct DepDatabase {
   // Create or open the DepDatabase with the given filename. If create is
   // true, will create the given file, if necessary.
   DepDatabase(const string& filename, bool create);
-  ~DepDatabase();
 
   // Find the dependency information for a given file, or null if not
   // contained in the database.

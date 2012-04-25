@@ -75,6 +75,7 @@ LockableMappedFile::~LockableMappedFile() {
   UnmapFile();
   if (!CloseHandle(file_))
     Fatal("CloseHandle: file_");
+  Release();
   if (!CloseHandle(lock_))
     Fatal("CloseHandle: lock_");
 }
