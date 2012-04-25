@@ -72,36 +72,52 @@ struct DbData {
 
 DepDatabase::DepDatabase(const string& filename, bool create) :
     data_(filename, create) {
+  printf("DepDatabase: %s %d\n", filename.c_str(), create);
   if (data_.ShouldInitialize()) {
     SetEmptyData();
   }
+}
+
+DepDatabase::~DepDatabase() {
+  printf("~DepDatabase\n");
 }
 
 bool PathCompare(const DepIndex& a, const DepIndex& b) {
   return strcmp(a.path, b.path) < 0;
 }
 
-const char* DepDatabase::FindDepData(const string& filename) {
-  string file = filename;
-  string err;
 
-  // TODO: need to normcase too on windows
-  CanonicalizePath(&file, &err); // TODO: assert this here, rather than doing it?
 
-  const char* return_value = 0;
+  void StartLookups();
+  // deps points into moveable data; only valid until FinishLookups.
+  bool FindDepData(const string& filename, vector<StringPiece>* deps, string* err);
+  void FinishLookups();
+
+void DepDatabase::StartLookups() {
   data_.Acquire();
-  {
-    DbData* view = GetView();
-    DepIndex* end = &view->index[view->index_entries];
-    DepIndex value;
-    strcpy(value.path, file.c_str());
-    DepIndex* i = lower_bound(view->index, end, value, PathCompare);
-    if (i != end && strcmp(file.c_str(), i->path) == 0) {
-      return_value = GetDataAt(i->offset);
-    }
-  }
+}
+
+void DepDatabase::FinishLookups() {
   data_.Release();
-  return return_value;
+}
+
+bool DepDatabase::FindDepData(const string& filename,
+                              vector<StringPiece>* deps,
+                              string* err) {
+  string file = filename;
+  assert((CanonicalizePath(&file, err), file == filename));
+
+  DbData* view = GetView();
+  DepIndex* end = &view->index[view->index_entries];
+  DepIndex value;
+  strcpy(value.path, filename.c_str());
+  DepIndex* i = lower_bound(view->index, end, value, PathCompare);
+  if (i != end && strcmp(filename.c_str(), i->path) == 0) {
+    const char* data = GetDataAt(i->offset);
+    if (!Deplist::Load2(data, deps, err))
+      return false;
+  }
+  return true;
 }
 
 void DepDatabase::InsertOrUpdateDepData(const string& filename,
@@ -191,16 +207,10 @@ void DepDatabase::DumpIndex() {
 void DepDatabase::DumpDeps(const string& filename) {
   data_.Acquire();
   {
-    const char* data = FindDepData(filename);
-    if (data == 0) {
-      printf("%s not found\n", filename.c_str());
-      return;
-    }
     vector<StringPiece> entries;
     string err;
-    if (!Deplist::Load2(data, &entries, &err)) {
+    if (!FindDepData(filename, &entries, &err)) {
       printf("couldn't load deps for %s: %s\n", filename.c_str(), err.c_str());
-      return;
     }
     printf("%s:\n", filename.c_str());
     for (vector<StringPiece>::const_iterator i = entries.begin();

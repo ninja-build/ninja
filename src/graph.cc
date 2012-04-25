@@ -357,12 +357,12 @@ bool Edge::LoadDepDb(State* state, string* err) {
 
   EdgeEnv env(this);
   string path = rule_->deplist().Evaluate(&env);
-  const char* data = state->depdb_->FindDepData(path);
-  if (!data) // Empty.
-    return true;
   vector<StringPiece> deps;
-  if (!Deplist::Load2(data, &deps, err))
+  state->depdb_->StartLookups();
+  if (!state->depdb_->FindDepData(path, &deps, err)) {
+    state->depdb_->FinishLookups();
     return false;
+  }
 
   inputs_.insert(inputs_.end() - order_only_deps_, deps.size(), 0);
   implicit_deps_ += deps.size();
@@ -396,6 +396,7 @@ bool Edge::LoadDepDb(State* state, string* err) {
   }
   //}
 
+  state->depdb_->FinishLookups();
   return true;
 }
 

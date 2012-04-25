@@ -46,14 +46,15 @@ LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
 
   size_ = static_cast<int>(GetFileSize(file_, NULL));
   if (size_ == 0) {
+    assert(create);
     should_initialize_ = true;
     IncreaseFileSize();
   }
 
+  if (!create)
+    Acquire();
   MapFile();
-
-  if (create)
-    Release();
+  Release();
 }
 
 // static
@@ -83,7 +84,7 @@ void LockableMappedFile::Acquire() {
   DWORD ret = WaitForSingleObject(lock_, INFINITE);
   DEBUG_is_acquired_ = true;
   if (ret != 0)
-    Fatal("WaitForSingleObject (%d)", GetLastError());
+    Fatal("WaitForSingleObject (ret=%d, GLE=%d)", ret, GetLastError());
 }
 
 void LockableMappedFile::Release() {

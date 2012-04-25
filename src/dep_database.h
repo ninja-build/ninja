@@ -17,6 +17,7 @@
 
 #include <windows.h>
 #include <string>
+#include <vector>
 using namespace std;
 
 struct StringPiece;
@@ -30,13 +31,17 @@ struct DepDatabase {
   // Create or open the DepDatabase with the given filename. If create is
   // true, will create the given file, if necessary.
   DepDatabase(const string& filename, bool create);
+  ~DepDatabase();
 
   // Find the dependency information for a given file, or null if not
   // contained in the database.
-  const char* FindDepData(const string& filename);
+  void StartLookups();
+  // deps points into moveable data; only valid until FinishLookups.
+  bool FindDepData(const string& filename, vector<StringPiece>* deps, string* err);
+  void FinishLookups();
 
   // Add dependency information for the given filename, or replace the old
-  // data if the path was already in the database.
+  // data if the path was already in the database. Handles locking internally.
   void InsertOrUpdateDepData(const string& filename, const char* data, int size);
 
   void DumpIndex();
