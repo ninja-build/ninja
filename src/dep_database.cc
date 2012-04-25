@@ -122,9 +122,6 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
   // TODO: need to normcase too on windows
   CanonicalizePath(&file, &err); // TODO: assert rather than doing here?
 
-  // TODO: parse and assert dependent paths? Causes dependency on deplist, a
-  // little annoying for tests.
-
   data_.Acquire();
   {
     DbData* view = GetView();

@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include "deplist.h"
 #include "test.h"
 #include "util.h"
 
@@ -33,57 +34,68 @@ class DepDatabaseTest : public testing::Test {
   ScopedTempDir temp_dir_;
 };
 
+namespace {
+
+vector<string> GetDepData(DepDatabase& db, const string& name) {
+  vector<StringPiece> deps;
+  string err;
+  db.StartLookups();
+  EXPECT_EQ(true, db.FindDepData(name.c_str(), &deps, &err));
+  vector<string> result;
+  for (vector<StringPiece>::iterator i(deps.begin()); i != deps.end(); ++i) {
+    result.push_back(i->AsString());
+  }
+  db.FinishLookups();
+  return result;
+}
+
+void StoreDepData(DepDatabase& db, const string& index, const string& dep0) {
+  vector<StringPiece> entries;
+  entries.push_back(dep0);
+  Deplist::WriteDatabase(db, index, entries);
+}
+
+}
+
 TEST_F(DepDatabaseTest, Empty) {
   DepDatabase db("depdb", true);
-  ASSERT_EQ(0, db.FindDepData("nothing.c"));
+  vector<string> ret = GetDepData(db, "nothing.c");
+  ASSERT_EQ(0, ret.size());
 }
 
 TEST_F(DepDatabaseTest, AddAndRetrieve) {
   DepDatabase db("depdb", true);
-  string data = "wee";
-  db.InsertOrUpdateDepData("a.c", data.c_str(), data.size() + 1);
-  const char* ret = db.FindDepData("a.c");
-  ASSERT_NE(ret, (const char*)NULL);
-  EXPECT_EQ(0, strcmp(ret, data.c_str()));
+  StoreDepData(db, "a.c", "wee");
+  vector<string> ret = GetDepData(db, "a.c");
+  EXPECT_EQ(1, ret.size());
+  EXPECT_EQ("wee", ret[0]);
 }
 
 TEST_F(DepDatabaseTest, AddUpdateRetrieve) {
   DepDatabase db("depdb", true);
-  string data = "wee";
-  db.InsertOrUpdateDepData("a.c", data.c_str(), data.size() + 1);
-  data = "blorp";
-  db.InsertOrUpdateDepData("a.c", data.c_str(), data.size() + 1);
-  const char* ret = db.FindDepData("a.c");
-  ASSERT_NE(ret, (const char*)NULL);
-  EXPECT_EQ(0, strcmp(ret, data.c_str()));
+  StoreDepData(db, "a.c", "wee");
+  StoreDepData(db, "a.c", "blorp");
+  vector<string> ret = GetDepData(db, "a.c");
+  EXPECT_EQ(1, ret.size());
+  EXPECT_EQ("blorp", ret[0]);
 }
 
 TEST_F(DepDatabaseTest, AddMultipleSorted) {
   DepDatabase db("depdb", true);
-  string data;
-  data = "wee";
-  db.InsertOrUpdateDepData("a.c", data.c_str(), data.size() + 1);
-  data = "waa";
-  db.InsertOrUpdateDepData("b.c", data.c_str(), data.size() + 1);
-  data = "woo";
-  db.InsertOrUpdateDepData("x.c", data.c_str(), data.size() + 1);
-
-  EXPECT_EQ(0, strcmp(db.FindDepData("a.c"), "wee"));
-  EXPECT_EQ(0, strcmp(db.FindDepData("b.c"), "waa"));
-  EXPECT_EQ(0, strcmp(db.FindDepData("x.c"), "woo"));
+  StoreDepData(db, "a.c", "wee");
+  StoreDepData(db, "b.c", "waa");
+  StoreDepData(db, "x.c", "woo");
+  EXPECT_EQ("wee", GetDepData(db, "a.c")[0]);
+  EXPECT_EQ("waa", GetDepData(db, "b.c")[0]);
+  EXPECT_EQ("woo", GetDepData(db, "x.c")[0]);
 }
 
 TEST_F(DepDatabaseTest, AddMultipleUnsorted) {
   DepDatabase db("depdb", true);
-  string data;
-  data = "woo";
-  db.InsertOrUpdateDepData("x.c", data.c_str(), data.size() + 1);
-  data = "waa";
-  db.InsertOrUpdateDepData("b.c", data.c_str(), data.size() + 1);
-  data = "wee";
-  db.InsertOrUpdateDepData("a.c", data.c_str(), data.size() + 1);
-
-  EXPECT_EQ(0, strcmp(db.FindDepData("a.c"), "wee"));
-  EXPECT_EQ(0, strcmp(db.FindDepData("b.c"), "waa"));
-  EXPECT_EQ(0, strcmp(db.FindDepData("x.c"), "woo"));
+  StoreDepData(db, "x.c", "woo");
+  StoreDepData(db, "b.c", "waa");
+  StoreDepData(db, "a.c", "wee");
+  EXPECT_EQ("wee", GetDepData(db, "a.c")[0]);
+  EXPECT_EQ("waa", GetDepData(db, "b.c")[0]);
+  EXPECT_EQ("woo", GetDepData(db, "x.c")[0]);
 }
