@@ -519,6 +519,8 @@ Builder::Builder(State* state, const BuildConfig& config)
 
 Builder::~Builder() {
   Cleanup();
+  delete status_;
+  status_ = NULL;
 }
 
 void Builder::Cleanup() {
