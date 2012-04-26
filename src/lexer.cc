@@ -123,7 +123,7 @@ Lexer::Token Lexer::ReadToken() {
     start = p;
     
 {
-	char yych;
+	unsigned char yych;
 	unsigned int yyaccept = 0;
 	static const unsigned char yybm[] = {
 		  0,  64,  64,  64,  64,  64,  64,  64, 
@@ -404,7 +404,7 @@ void Lexer::EatWhitespace() {
     ofs_ = p;
     
 {
-	char yych;
+	unsigned char yych;
 	static const unsigned char yybm[] = {
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
@@ -485,7 +485,7 @@ bool Lexer::ReadIdent(string* out) {
     const char* start = p;
     
 {
-	char yych;
+	unsigned char yych;
 	static const unsigned char yybm[] = {
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
@@ -573,7 +573,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     start = p;
     
 {
-	char yych;
+	unsigned char yych;
 	static const unsigned char yybm[] = {
 		  0, 128, 128, 128, 128, 128, 128, 128, 
 		128, 128,   0, 128, 128, 128, 128, 128, 

@@ -33,47 +33,12 @@
 #include "subprocess.h"
 #include "util.h"
 
-/// Tracks the status of a build: completion fraction, printing updates.
-struct BuildStatus {
-  BuildStatus(const BuildConfig& config);
-  void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
-                         int* start_time, int* end_time);
-  void BuildFinished();
-
- private:
-  void PrintStatus(Edge* edge);
-
-  const BuildConfig& config_;
-
-  /// Time the build started.
-  int64_t start_time_millis_;
-  /// Time we last printed an update.
-  int64_t last_update_millis_;
-
-  int started_edges_, finished_edges_, total_edges_;
-
-  bool have_blank_line_;
-
-  /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
-  RunningEdgeMap running_edges_;
-
-  /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
-
-#ifdef _WIN32
-  HANDLE console_;
-#endif
-};
-
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       last_update_millis_(start_time_millis_),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true) {
+      have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -91,6 +56,10 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     smart_terminal_ = false;
+
+  progress_status_format_ = getenv("NINJA_STATUS");
+  if (!progress_status_format_)
+    progress_status_format_ = "[%s/%t] ";
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -171,6 +140,60 @@ void BuildStatus::BuildFinished() {
     printf("\n");
 }
 
+string BuildStatus::FormatProgressStatus(const char* progress_status_format) const {
+  string out;
+  char buf[32];
+  for (const char* s = progress_status_format; *s != '\0'; ++s) {
+    if (*s == '%') {
+      ++s;
+      switch (*s) {
+      case '%':
+        out.push_back('%');
+        break;
+
+        // Started edges.
+      case 's':
+        snprintf(buf, sizeof(buf), "%d", started_edges_);
+        out += buf;
+        break;
+
+        // Total edges.
+      case 't':
+        snprintf(buf, sizeof(buf), "%d", total_edges_);
+        out += buf;
+        break;
+
+        // Running edges.
+      case 'r':
+        snprintf(buf, sizeof(buf), "%d", started_edges_ - finished_edges_);
+        out += buf;
+        break;
+
+        // Unstarted edges.
+      case 'u':
+        snprintf(buf, sizeof(buf), "%d", total_edges_ - started_edges_);
+        out += buf;
+        break;
+
+        // Finished edges.
+      case 'f':
+        snprintf(buf, sizeof(buf), "%d", finished_edges_);
+        out += buf;
+        break;
+
+      default: {
+        Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
+        return "";
+      }
+      }
+    } else {
+      out.push_back(*s);
+    }
+  }
+
+  return out;
+}
+
 void BuildStatus::PrintStatus(Edge* edge) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
@@ -195,17 +218,15 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
-  int running_edges = started_edges_ - finished_edges_;
-  int progress_chars = printf("[%d/%d ~%d] ",
-      started_edges_, total_edges_, running_edges);
+  to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
+    const int kMargin = 3;  // Space for "...".
 #ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
         int elide_size = (size.ws_col - kMargin) / 2;
         to_print = to_print.substr(0, elide_size)
@@ -214,8 +235,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
       }
     }
 #else
-    const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
-    // Don't use the full width or console with move to next line.
+    // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
     if (to_print.size() + kMargin > width) {
       int elide_size = (width - kMargin) / 2;
@@ -389,7 +409,7 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if ((*ni)->mtime() > most_recent_input)
           most_recent_input = (*ni)->mtime();
       string command = (*ei)->EvaluateCommand(true);
-      
+
       // Now, recompute the dirty state of each output.
       bool all_outputs_clean = true;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
@@ -463,7 +483,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
-  
+
   return true;
 }
 
@@ -515,10 +535,6 @@ struct DryRunCommandRunner : public CommandRunner {
 Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
-  if (config.dry_run)
-    command_runner_.reset(new DryRunCommandRunner);
-  else
-    command_runner_.reset(new RealCommandRunner(config));
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
 }
@@ -591,6 +607,14 @@ bool Builder::Build(string* err) {
   int pending_commands = 0;
   int failures_allowed = config_.failures_allowed;
 
+  // Set up the command runner if we haven't done so already.
+  if (!command_runner_.get()) {
+    if (config_.dry_run)
+      command_runner_.reset(new DryRunCommandRunner);
+    else
+      command_runner_.reset(new RealCommandRunner(config_));
+  }
+
   // This main loop runs the entire build process.
   // It is structured like this:
   // First, we attempt to start as many commands as allowed by the
@@ -658,7 +682,7 @@ bool Builder::Build(string* err) {
         *err = "subcommand failed";
     } else if (failures_allowed < config_.failures_allowed)
       *err = "cannot make progress due to previous errors";
-    else 
+    else
       *err = "stuck [this is a bug]";
 
     return false;
@@ -681,12 +705,11 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*i)->path()))
       return false;
   }
-  
+
   // Create response file, if needed
   // XXX: this may also block; do we care?
   if (edge->HasRspFile()) {
-    string rspfile_content = edge->GetRspFileContent(true);
-    if (!disk_interface_->WriteFile(edge->GetRspFile(), rspfile_content))
+    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent(true)))
       return false;
   }
 
@@ -747,7 +770,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
     }
 
     // delete the response file on success (if exists)
-    if (edge->HasRspFile()) 
+    if (edge->HasRspFile())
       disk_interface_->RemoveFile(edge->GetRspFile());
 
     plan_.EdgeFinished(edge);

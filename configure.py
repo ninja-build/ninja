@@ -356,11 +356,10 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    gtest_cflags = gtest_all_incs
     if platform == 'windows':
-      gtest_cflags += ' /nologo /EHsc /Zi'
+        gtest_cflags = '/nologo /EHsc /Zi ' + gtest_all_incs
     else:
-      gtest_cflags += ' -fvisibility=hidden'
+        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])

@@ -375,6 +375,23 @@ depfiles are not removed. Files created but not referenced in the
 graph are not removed. This tool takes in account the +-v+ and the
 +-n+ options (note that +-n+ implies +-v+).
 
+Environment variables
+---------------------
+
+Ninja supports various environment variables to control its behavior.
+
+`NINJA_STATUS`:: The progress status printed before the rule being run.
+Several placeholders are available:
+* `%s`: The number of started edges.
+* `%t`: The total number of edges that must be run to complete the build.
+* `%r`: The number of currently running edges.
+* `%u`: The number of remaining edges to start.
+* `%f`: The number of finished edges.
+* `%%`: A plain `%` character.
+* The default progress status is `"[%s/%t] "` (note the trailing space
+to separate from the build rule). Another example of possible progress status
+could be `"[%u/%r/%f] "`.
+
 Ninja file reference
 --------------------
 
@@ -401,6 +418,10 @@ A file is a series of declarations.  A declaration can be one of:
 
 Lexical syntax
 ~~~~~~~~~~~~~~
+
+Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
+about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
+ISO-8859-1 input files ought to work.
 
 Comments begin with `#` and extend to the end of the line.
 
@@ -460,7 +481,9 @@ keys.
 
 `command` (_required_):: the command line to run.  This string (after
   $variables are expanded) is passed directly to `sh -c` without
-  interpretation by Ninja.
+  interpretation by Ninja. Each `rule` may have only one `command`
+  declaration. To specify multiple commands use `&&` (or similar) to
+  concatenate operations. 
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on

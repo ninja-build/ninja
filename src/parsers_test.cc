@@ -703,3 +703,10 @@ TEST_F(ParserTest, DefaultStatements) {
   EXPECT_EQ("b", nodes[1]->path());
   EXPECT_EQ("c", nodes[2]->path());
 }
+
+TEST_F(ParserTest, UTF8) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule utf8\n"
+"  command = true\n"
+"  description = compilaci\xC3\xB3\n"));
+}

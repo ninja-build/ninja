@@ -102,7 +102,7 @@ int Cleaner::CleanAll(bool generator) {
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
-    if ((*e)->rule_ == &State::kPhonyRule)
+    if ((*e)->is_phony())
       continue;
     // Do not remove generator's files unless generator specified.
     if (!generator && (*e)->rule().generator())
@@ -123,14 +123,16 @@ int Cleaner::CleanAll(bool generator) {
 }
 
 void Cleaner::DoCleanTarget(Node* target) {
-  if (target->in_edge()) {
-    Remove(target->path());
-    if (!target->in_edge()->rule().depfile().empty())
-      Remove(target->in_edge()->EvaluateDepFile());
-    if (target->in_edge()->HasRspFile())
-      Remove(target->in_edge()->GetRspFile());
-    for (vector<Node*>::iterator n = target->in_edge()->inputs_.begin();
-         n != target->in_edge()->inputs_.end();
+  if (Edge* e = target->in_edge()) {
+    // Do not try to remove phony targets
+    if (!e->is_phony()) {
+      Remove(target->path());
+      if (!target->in_edge()->rule().depfile().empty())
+        Remove(target->in_edge()->EvaluateDepFile());
+      if (e->HasRspFile())
+        Remove(e->GetRspFile());
+    }
+    for (vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
          ++n) {
       DoCleanTarget(*n);
     }

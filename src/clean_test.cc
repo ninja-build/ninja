@@ -347,3 +347,28 @@ TEST_F(CleanTest, CleanFailure) {
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_NE(0, cleaner.CleanAll());
 }
+
+TEST_F(CleanTest, CleanPhony) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build phony: phony t1 t2\n"
+"build t1: cat\n"
+"build t2: cat\n"));
+
+  fs_.Create("phony", 1, "");
+  fs_.Create("t1", 1, "");
+  fs_.Create("t2", 1, "");
+
+  // Check that CleanAll does not remove "phony".
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_NE(0, fs_.Stat("phony"));
+
+  fs_.Create("t1", 1, "");
+  fs_.Create("t2", 1, "");
+
+  // Check that CleanTarget does not remove "phony".
+  EXPECT_EQ(0, cleaner.CleanTarget("phony"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_NE(0, fs_.Stat("phony"));
+}

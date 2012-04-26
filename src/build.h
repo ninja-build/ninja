@@ -24,6 +24,7 @@
 using namespace std;
 
 #include "exit_status.h"
+#include "util.h"  // int64_t
 
 struct BuildLog;
 struct Edge;
@@ -147,6 +148,50 @@ private:
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT
+};
+
+/// Tracks the status of a build: completion fraction, printing updates.
+struct BuildStatus {
+  BuildStatus(const BuildConfig& config);
+  void PlanHasTotalEdges(int total);
+  void BuildEdgeStarted(Edge* edge);
+  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+                         int* start_time, int* end_time);
+  void BuildFinished();
+
+  /// Format the progress status string by replacing the placeholders.
+  /// See the user manual for more information about the available
+  /// placeholders.
+  /// @param progress_status_format_ The format of the progress status.
+  string FormatProgressStatus(const char* progress_status_format) const;
+
+ private:
+  void PrintStatus(Edge* edge);
+
+  const BuildConfig& config_;
+
+  /// Time the build started.
+  int64_t start_time_millis_;
+  /// Time we last printed an update.
+  int64_t last_update_millis_;
+
+  int started_edges_, finished_edges_, total_edges_;
+
+  bool have_blank_line_;
+
+  /// Map of running edge to time the edge started running.
+  typedef map<Edge*, int> RunningEdgeMap;
+  RunningEdgeMap running_edges_;
+
+  /// Whether we can do fancy terminal control codes.
+  bool smart_terminal_;
+
+  /// The custom progress status format to use.
+  const char* progress_status_format_;
+
+#ifdef _WIN32
+  HANDLE console_;
+#endif
 };
 
 #endif  // NINJA_BUILD_H_
