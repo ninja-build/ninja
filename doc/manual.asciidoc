@@ -375,6 +375,23 @@ depfiles are not removed. Files created but not referenced in the
 graph are not removed. This tool takes in account the +-v+ and the
 +-n+ options (note that +-n+ implies +-v+).
 
+Environment variables
+---------------------
+
+Ninja supports various environment variables to control its behavior.
+
+`NINJA_STATUS`:: The progress status printed before the rule being run.
+Several placeholders are available:
+* `%s`: The number of started edges.
+* `%t`: The total number of edges that must be run to complete the build.
+* `%r`: The number of currently running edges.
+* `%u`: The number of remaining edges to start.
+* `%f`: The number of finished edges.
+* `%%`: A plain `%` character.
+* The default progress status is `"[%s/%t] "` (note the trailing space
+to separate from the build rule). Another example of possible progress status
+could be `"[%u/%r/%f] "`.
+
 Ninja file reference
 --------------------
 
