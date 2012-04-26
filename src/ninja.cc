@@ -615,7 +615,7 @@ int RunBuild(Globals* globals, int argc, char** argv) {
 }  // anonymous namespace
 
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 
 /// This handler processes fatal crashes that you can't catch
 /// Test example: C++ exception in a stack-unwind-block

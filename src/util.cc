@@ -294,7 +294,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 typedef BOOL (WINAPI *MiniDumpWriteDumpFunc) (
     IN HANDLE,
     IN DWORD,
@@ -367,6 +367,6 @@ int exception_filter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
   return EXCEPTION_EXECUTE_HANDLER; 
 } 
 #else 
-  //on Linux, core dumps are created automatically, no code needed
+  //on Linux or MinGW, core dumps are created automatically, no code needed
 #endif
 
