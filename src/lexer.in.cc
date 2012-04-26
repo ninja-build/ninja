@@ -121,7 +121,7 @@ Lexer::Token Lexer::ReadToken() {
   for (;;) {
     start = p;
     /*!re2c
-    re2c:define:YYCTYPE = "char";
+    re2c:define:YYCTYPE = "unsigned char";
     re2c:define:YYCURSOR = p;
     re2c:define:YYMARKER = q;
     re2c:yyfill:enable = 0;
