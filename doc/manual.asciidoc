@@ -477,7 +477,9 @@ keys.
 
 `command` (_required_):: the command line to run.  This string (after
   $variables are expanded) is passed directly to `sh -c` without
-  interpretation by Ninja.
+  interpretation by Ninja. Each `rule` may have only one `command`
+  declaration. To specify multiple commands use `&&` (or similar) to
+  concatenate operations. 
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
