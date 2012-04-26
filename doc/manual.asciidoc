@@ -419,6 +419,10 @@ A file is a series of declarations.  A declaration can be one of:
 Lexical syntax
 ~~~~~~~~~~~~~~
 
+Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
+about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
+ISO-8859-1 input files ought to work.
+
 Comments begin with `#` and extend to the end of the line.
 
 Newlines are significant.  Statements like `build foo bar` are a set
