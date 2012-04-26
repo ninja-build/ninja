@@ -658,6 +658,15 @@ int RunBuild(Globals* globals, int argc, char** argv) {
 
 void AddCacheMissesToInterestingPaths(const vector<string>& paths) {
   InterestingPaths interesting_paths(false);
+  if (paths.size() > 0) {
+    printf("ninja: %d stat cache misses, adding to daemon.\n", paths.size());
+    for (size_t i = 0; i < paths.size() && i < 11; ++i) {
+      if (i == 10)
+        printf("ninja:  ... more paths elided\n");
+      else
+        printf("ninja:  %s\n", paths[i].c_str());
+    }
+  }
   interesting_paths.StartAdditions();
   interesting_paths.Add(paths);
   interesting_paths.FinishAdditions();

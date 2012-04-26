@@ -177,30 +177,6 @@ vector<string> StatCache::FinishBuild(bool quiet) {
   vector<string> failed_paths_copy = failed_lookup_paths_;
   failed_lookup_paths_.resize(0);
   return failed_paths_copy;
-  /*
-  int count = failed_lookup_paths_.end() - failed_lookup_paths_.begin();
-  if (count > 0) {
-    if (!quiet)
-      printf("ninja: %d stat cache misses, adding to daemon.\n", count);
-    int printed = 0;
-    interesting_paths_.StartAdditions();
-    for (vector<string>::iterator i(failed_lookup_paths_.begin());
-        i != failed_lookup_paths_.end(); ++i) {
-      interesting_paths_.Add(*i);
-      if (printed < 10) {
-        if (!quiet)
-          printf("ninja:  %s\n", i->c_str());
-      } else if (printed == 10) {
-        if (!quiet)
-          printf("ninja:  ... more paths elided\n", i->c_str());
-      }
-      ++printed;
-    }
-    interesting_paths_.FinishAdditions();
-  }
-
-  failed_lookup_paths_.resize(0);
-  */
 }
 
 
