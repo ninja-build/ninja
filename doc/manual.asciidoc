@@ -187,9 +187,12 @@ command to run.  (In the context of a rule, the `command` variable is
 special and defines the command to run.  A full list of special
 variables is provided in <<ref_rule,the reference>>.)
 
-Within the context of a rule, two additional special variables are
+Within the context of a rule, three additional special variables are
 available: `$in` expands to the list of input files (`foo.c`) and
-`$out` to the output file (`foo.o`) for the command.
+`$out` to the output file (`foo.o`) for the command. For use with
+`rspfile_content` there is also `$in_newline`, which is the same as
+`$in`, except that multiple inputs are separated by `\n` rather than
+space.
 
 
 Build statements
