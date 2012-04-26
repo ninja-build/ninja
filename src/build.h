@@ -24,6 +24,7 @@
 using namespace std;
 
 #include "exit_status.h"
+#include "util.h"  // int64_t
 
 struct BuildLog;
 struct Edge;
@@ -162,24 +163,10 @@ struct BuildStatus {
   /// See the user manual for more information about the available
   /// placeholders.
   /// @param progress_status_format_ The format of the progress status.
-  /// @param buffer The buffer where is stored the formatted progress status.
-  /// @param buffer_size The size of the given @a buffer.
-  /// @param err The error message if -1 is returned.
-  /// @return The number of characters inserted in @a buffer and -1 on error.
-  int FormatProgressStatus(const char* progress_status_format,
-                           char* buffer,
-                           const int buffer_size,
-                           string* err) const;
+  string FormatProgressStatus(const char* progress_status_format) const;
 
  private:
   void PrintStatus(Edge* edge);
-
-  /// Print the progress status.
-  ///
-  /// Get the status from the NINJA_STATUS environment variable if defined.
-  ///
-  /// @return The number of printed characters.
-  int PrintProgressStatus() const;
 
   const BuildConfig& config_;
 

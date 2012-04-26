@@ -16,7 +16,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -59,7 +58,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     smart_terminal_ = false;
 
   progress_status_format_ = getenv("NINJA_STATUS");
-  if (progress_status_format_ == NULL)
+  if (!progress_status_format_)
     progress_status_format_ = "[%s/%t] ";
 }
 
@@ -141,89 +140,58 @@ void BuildStatus::BuildFinished() {
     printf("\n");
 }
 
-int BuildStatus::FormatProgressStatus(const char* progress_status_format,
-                                      char* buffer,
-                                      const int buffer_size,
-                                      string* err) const {
-  int i = 0;
-  for (const char* s = progress_status_format;
-       *s != '\0' && i < buffer_size;
-       ++s) {
+string BuildStatus::FormatProgressStatus(const char* progress_status_format) const {
+  string out;
+  char buf[32];
+  for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
       ++s;
-      switch(*s) {
-        case '%':
-          buffer[i] = '%';
-          ++i;
-          break;
+      switch (*s) {
+      case '%':
+        out.push_back('%');
+        break;
 
-          // Started edges.
-        case 's':
-          i += snprintf(&buffer[i], buffer_size - i, "%d", started_edges_);
-          break;
+        // Started edges.
+      case 's':
+        snprintf(buf, sizeof(buf), "%d", started_edges_);
+        out += buf;
+        break;
 
-          // Total edges.
-        case 't':
-          i += snprintf(&buffer[i], buffer_size - i, "%d", total_edges_);
-          break;
+        // Total edges.
+      case 't':
+        snprintf(buf, sizeof(buf), "%d", total_edges_);
+        out += buf;
+        break;
 
-          // Running edges.
-        case 'r':
-          i += snprintf(&buffer[i], buffer_size - i, "%d",
-                        started_edges_ - finished_edges_);
-          break;
+        // Running edges.
+      case 'r':
+        snprintf(buf, sizeof(buf), "%d", started_edges_ - finished_edges_);
+        out += buf;
+        break;
 
-          // Unstarted edges.
-        case 'u':
-          i += snprintf(&buffer[i], buffer_size - i, "%d",
-                        total_edges_ - started_edges_);
-          break;
+        // Unstarted edges.
+      case 'u':
+        snprintf(buf, sizeof(buf), "%d", total_edges_ - started_edges_);
+        out += buf;
+        break;
 
-          // Finished edges.
-        case 'f':
-          i += snprintf(&buffer[i], buffer_size - i, "%d", finished_edges_);
-          break;
+        // Finished edges.
+      case 'f':
+        snprintf(buf, sizeof(buf), "%d", finished_edges_);
+        out += buf;
+        break;
 
-        default:
-          if (err != NULL) {
-            ostringstream oss;
-            oss << "unknown placeholders '%" << *s << "' in NINJA_STATUS";
-            *err = oss.str();
-          }
-          return -1;
+      default: {
+        Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
+        return "";
+      }
       }
     } else {
-      buffer[i] = *s;
-      ++i;
+      out.push_back(*s);
     }
   }
-  if (i >= buffer_size) {
-    if (err != NULL) {
-      ostringstream oss;
-      oss << "custom NINJA_STATUS exceed buffer size " << buffer_size;
-      *err = oss.str();
-    }
-    return -1;
-  } else {
-    buffer[i] = '\0';
-    if (err != NULL)
-      *err = "";
-    return i;
-  }
-}
 
-int BuildStatus::PrintProgressStatus() const {
-  const int kBUFF_SIZE = 1024;
-  char buff[kBUFF_SIZE] = { '\0' };
-  string err;
-  int progress_chars = FormatProgressStatus(progress_status_format_,
-                                            buff,
-                                            kBUFF_SIZE,
-                                            &err);
-  if (progress_chars < 0)
-    return printf("!! %s !! ", err.c_str());
-  else
-    return printf("%s", buff);
+  return out;
 }
 
 void BuildStatus::PrintStatus(Edge* edge) {
@@ -250,15 +218,15 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
-  int progress_chars = PrintProgressStatus();
+  to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
+    const int kMargin = 3;  // Space for "...".
 #ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
       if (to_print.size() + kMargin > size.ws_col) {
         int elide_size = (size.ws_col - kMargin) / 2;
         to_print = to_print.substr(0, elide_size)
@@ -267,8 +235,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
       }
     }
 #else
-    const int kMargin = progress_chars + 3;  // Space for [xx/yy] and "...".
-    // Don't use the full width or console with move to next line.
+    // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
     if (to_print.size() + kMargin > width) {
       int elide_size = (width - kMargin) / 2;
