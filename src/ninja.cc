@@ -199,6 +199,8 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
 
         if (path == "clean") {
           *err += ", did you mean 'ninja -t clean'?";
+        } else if (path == "help") {
+          *err += ", did you mean 'ninja -h'?";
         } else {
           Node* suggestion = state->SpellcheckNode(path);
           if (suggestion) {
