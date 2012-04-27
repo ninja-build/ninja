@@ -18,13 +18,11 @@ files and whose other build systems (including one built from custom
 non-recursive Makefiles) can take ten seconds to start building after
 changing one file.  Ninja is under a second.
 
-This manual describes how to generate Ninja build files.  If you are
-just attempting to use Ninja to build an existing project (or are
-considering using Ninja to build your project), see
-http://martine.github.com/ninja/[the home page] for more background.
-
 Philosophical overview
 ~~~~~~~~~~~~~~~~~~~~~~
+
+Where other build systems are high-level languages, Ninja aims to be
+an assembler.
 
 Build systems get slow when they need to make decisions.  When you are
 in a edit-compile cycle you want it to be as fast as possible -- you
@@ -33,36 +31,21 @@ what needs to be built immediately.
 
 Ninja contains the barest functionality necessary to describe
 arbitrary dependency graphs.  Its lack of syntax makes it impossible
-to express complex decisions.  Instead, Ninja is intended to be used
-with a separate program generating its input files.  The generator
-program (like the `./configure` found in autotools projects) can
-analyze system dependencies and make as many decisions as possible up
-front so that incremental builds stay fast.  Going beyond autotools,
-even build-time decisions like "which compiler flags should I use?"
-or "should I build a debug or release-mode binary?"  belong in the
-`.ninja` file generator.
+to express complex decisions.
 
-Conceptual overview
-~~~~~~~~~~~~~~~~~~~
-
-Ninja evaluates a graph of dependencies between files, and runs
-whichever commands are necessary to make your build target up to date.
-If you are familiar with Make, Ninja is very similar.
-
-A build file (default name: `build.ninja`) provides a list of _rules_
--- short names for longer commands, like how to run the compiler --
-along with a list of _build_ statements saying how to build files
-using the rules -- which rule to apply to which inputs to produce
-which outputs.
-
-Conceptually, `build` statements describe the dependency graph of your
-project, while `rule` statements describe how to generate the files
-along a given edge of the graph.
+Instead, Ninja is intended to be used with a separate program
+generating its input files.  The generator program (like the
+`./configure` found in autotools projects) can analyze system
+dependencies and make as many decisions as possible up front so that
+incremental builds stay fast.  Going beyond autotools, even build-time
+decisions like "which compiler flags should I use?"  or "should I
+build a debug or release-mode binary?"  belong in the `.ninja` file
+generator.
 
 Design goals
 ~~~~~~~~~~~~
 
-Here are some of the design goals of Ninja:
+Here are the design goals of Ninja:
 
 * very fast (i.e., instant) incremental builds, even for very large
   projects.
@@ -97,19 +80,23 @@ To restate, Ninja is faster than other build systems because it is
 painfully simple.  You must tell Ninja exactly what to do when you
 create your project's `.ninja` files.
 
-Comparison to GNU make
-~~~~~~~~~~~~~~~~~~~~~~
+Comparison to Make
+~~~~~~~~~~~~~~~~~~
 
-Ninja is closest in spirit and functionality to make.  But
-fundamentally, make has a lot of _features_: suffix rules, functions,
-built-in rules that e.g. search for RCS files when building source.
-Many projects find make alone adequate for their build problems.  In
-contrast, Ninja has almost no features; just those necessary to get
+Ninja is closest in spirit and functionality to make, relying on
+simple dependencies between file timestamps.
+
+But fundamentally, make has a lot of _features_: suffix rules,
+functions, built-in rules that e.g. search for RCS files when building
+source.  Make's language was designed to be written by humans.  Many
+projects find make alone adequate for their build problems.
+
+In contrast, Ninja has almost no features; just those necessary to get
 builds correct while punting most complexity to generation of the
 ninja input files.  Ninja by itself is unlikely to be useful for most
 projects.
 
-Here are some of the features ninja adds to make.  (These sorts of
+Here are some of the features Ninja adds to make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
 but they are not part of make itself.)
 
@@ -130,14 +117,182 @@ but they are not part of make itself.)
   you can print e.g. `CC foo.o` instead of a long command line while
   building.
 
+* Builds are always run in parallel, based by defaulton the number of
+  CPUs your system has.  Underspecified build dependencies will result
+  in incorrect builds.
+
 * Command output is always buffered.  This means commands running in
   parallel don't interleave their output, and when a command fails we
   can print its failure output next to the full command line that
   produced the failure.
 
 
-Tutorial-style syntax walkthrough
----------------------------------
+Using Ninja for your project
+----------------------------
+
+If your project is small, Ninja's speed impact is likely unnoticable.
+Some build timing numbers are included below.  (However, even for
+small projects it sometimes turns out that Ninja's limited syntax
+forces simpler build rules that result in faster builds.)  Another way
+to say this is that if you're happy with the edit-compile cycle time
+of your project already then Ninja won't help.
+
+There are many other build systems that are more user-friendly or
+featureful than Ninja itself.  For some recomendations: the Ninja
+author found http://gittup.org/tup/[the tup build system] influential
+in Ninja's design, and thinks https://github.com/apenwarr/redo[redo]'s
+design is quite clever.
+
+Ninja's benefit comes from using it in conjunction with a smarter
+meta-build system.
+
+http://code.google.com/p/gyp/[gyp]:: The meta-build system used to
+generate build files for Google Chrome.  gyp can generate Ninja files
+for Linux and Mac and is used by many Chrome developers.  See the
+http://code.google.com/p/chromium/wiki/NinjaBuild[Chromium Ninja
+documentation for more details].  gyp is relatively unpopular outside
+of the Chrome and v8 world.
+
+* For Chrome (~30k source files), Ninja reduced no-op builds from
+  around 15 seconds to under one second.
+* https://plus.sandbox.google.com/108996039294665965197/posts/SfhrFAhRyyd[A
+  Mozilla developer compares build systems]: "While chromium's full
+  build is 2.15x slower than firefox's, a nop build is 78.2x faster!
+  That is really noticeable during development. No incremental build
+  of firefox can be faster than 57.9s, which means that in practice
+  almost all of them will be over a minute."
+
+http://www.cmake.org/[CMake]:: A widely used meta-build system that
+can generate Ninja files as of version 2.8.8.
+
+* For building Blender, one user reported "Single file rebuild is 0.97
+  sec, same on makefiles was 3.7sec."
+* For building LLVM on Windows, one user reported no-op build times:
+  "ninja: 0.4s / MSBuild: 11s / jom: 53s".
+
+others:: Ninja ought to fit perfectly into other meta-build software
+like http://industriousone.com/premake[premake].  If you do this work,
+please let us know!
+
+
+Running Ninja
+~~~~~~~~~~~~~
+
+Run `ninja`.  By default, it looks for a file named `build.ninja` in
+the current directory and builds all out-of-date targets.  You can
+specify which targets (files) to build as command line arguments.
+
+`ninja -h` prints help output.  Many of Ninja's flags intentionally
+match those of Make; e.g `ninja -C build -j 20` changes into the
+`build` directory and runs 20 build commands in parallel.  (Note that
+Ninja defaults to running commands in parallel anyway, so typically
+you don't need to pass `-j`.)
+
+
+Environment variables
+~~~~~~~~~~~~~~~~~~~~~
+
+Ninja supports one environment variable to control its behavior.
+
+`NINJA_STATUS`:: The progress status printed before the rule being run.
+Several placeholders are available:
+* `%s`: The number of started edges.
+* `%t`: The total number of edges that must be run to complete the build.
+* `%r`: The number of currently running edges.
+* `%u`: The number of remaining edges to start.
+* `%f`: The number of finished edges.
+* `%%`: A plain `%` character.
+* The default progress status is `"[%s/%t] "` (note the trailing space
+to separate from the build rule). Another example of possible progress status
+could be `"[%u/%r/%f] "`.
+
+Extra tools
+~~~~~~~~~~~
+
+The `-t` flag on the Ninja command line runs some tools that we have
+found useful during Ninja's development.  The current tools are:
+
+[horizontal]
+`query`:: dump the inputs and outputs of a given target.
+
+`browse`:: browse the dependency graph in a web browser.  Clicking a
+file focuses the view on that file, showing inputs and outputs.  This
+feature requires a Python installation.
+
+`graph`:: output a file in the syntax used by `graphviz`, a automatic
+graph layout tool.  Use it like:
++
+----
+ninja -t graph mytarget | dot -Tpng -ograph.png
+----
++
+In the Ninja source tree, `ninja graph.png`
+generates an image for Ninja itself.  If no target is given generate a
+graph for all root targets.
+
+`targets`:: output a list of targets either by rule or by depth.  If used
+like +ninja -t targets rule _name_+ it prints the list of targets
+using the given rule to be built.  If no rule is given, it prints the source
+files (the leaves of the graph).  If used like
++ninja -t targets depth _digit_+ it
+prints the list of targets in a depth-first manner starting by the root
+targets (the ones with no outputs). Indentation is used to mark dependencies.
+If the depth is zero it prints all targets. If no arguments are provided
++ninja -t targets depth 1+ is assumed. In this mode targets may be listed
+several times. If used like this +ninja -t targets all+ it
+prints all the targets available without indentation and it is faster
+than the _depth_ mode.
+
+`rules`:: output the list of all rules with their description if they have
+one.  It can be used to know which rule name to pass to
++ninja -t targets rule _name_+.
+
+`commands`:: given a list of targets, print a list of commands which, if
+executed in order, may be used to rebuild those targets, assuming that all
+output files are out of date.
+
+`clean`:: remove built files. By default it removes all built files
+except for those created by the generator.  Adding the `-g` flag also
+removes built files created by the generator (see <<ref_rule,the rule
+reference for the +generator+ attribute>>).  Additional arguments are
+targets, which removes the given targets and recursively all files
+built for them.
++
+If used like +ninja -t clean -r _rules_+ it removes all files built using
+the given rules.
++
+depfiles are not removed. Files created but not referenced in the
+graph are not removed. This tool takes in account the +-v+ and the
++-n+ options (note that +-n+ implies +-v+).
+
+
+
+Writing your own Ninja files
+----------------------------
+
+The remainder of this manual is only useful if you are constructing
+Ninja files yourself: for example, if you're writing a meta-build
+system or supporting a new language.
+
+Conceptual overview
+~~~~~~~~~~~~~~~~~~~
+
+Ninja evaluates a graph of dependencies between files, and runs
+whichever commands are necessary to make your build target up to date.
+If you are familiar with Make, Ninja is very similar.
+
+A build file (default name: `build.ninja`) provides a list of _rules_
+-- short names for longer commands, like how to run the compiler --
+along with a list of _build_ statements saying how to build files
+using the rules -- which rule to apply to which inputs to produce
+which outputs.
+
+Conceptually, `build` statements describe the dependency graph of your
+project, while `rule` statements describe how to generate the files
+along a given edge of the graph.
+
+Syntax example
+~~~~~~~~~~~~~~
 
 Here's a basic `.ninja` file that demonstrates most of the syntax.
 It will be used as an example for the following sections.
@@ -243,6 +398,18 @@ If the top-level Ninja file is specified as an output of any build
 statement and it is out of date, Ninja will rebuild and reload it
 before building the targets requested by the user.
 
+
+Generating Ninja files from code
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`misc/ninja_syntax.py` in the Ninja distribution is a tiny Python
+module to facilitate generating Ninja files.  It allows you to make
+Python calls like `ninja.rule(name='foo', command='bar',
+depfile='$out.d')` and it will generate the appropriate syntax.  Feel
+free to just inline it into your project's build system if it's
+useful.
+
+
 More details
 ------------
 
@@ -262,7 +429,7 @@ nothing, but phony rules are handled specially in that they aren't
 printed when run, logged (see below), nor do they contribute to the
 command count printed as part of the build process.
 
-`phony' can also be used to create dummy targets for files which
+`phony` can also be used to create dummy targets for files which
 may not exist at build time.  If a phony build statement is written
 without any dependencies, the target will be considered out of date if
 it does not exist.  Without a phony build statement, Ninja will report
@@ -305,92 +472,6 @@ The log file is kept in the build root in a file called `.ninja_log`.
 If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
 
-
-Generating Ninja files from code
---------------------------------
-
-`misc/ninja_syntax.py` in the Ninja distribution is a tiny Python
-module to facilitate generating Ninja files.  It allows you to make
-Python calls like `ninja.rule(name='foo', command='bar',
-depfile='$out.d')` and it will generate the appropriate syntax.  Feel
-free to just inline it into your project's build system if it's
-useful.
-
-Extra tools
------------
-
-The `-t` flag on the Ninja command line runs some tools that we have
-found useful during Ninja's development.  The current tools are:
-
-[horizontal]
-`query`:: dump the inputs and outputs of a given target.
-
-`browse`:: browse the dependency graph in a web browser.  Clicking a
-file focuses the view on that file, showing inputs and outputs.  This
-feature requires a Python installation.
-
-`graph`:: output a file in the syntax used by `graphviz`, a automatic
-graph layout tool.  Use it like:
-+
-----
-ninja -t graph mytarget | dot -Tpng -ograph.png
-----
-+
-In the Ninja source tree, `ninja graph.png`
-generates an image for Ninja itself.  If no target is given generate a
-graph for all root targets.
-
-`targets`:: output a list of targets either by rule or by depth.  If used
-like +ninja -t targets rule _name_+ it prints the list of targets
-using the given rule to be built.  If no rule is given, it prints the source
-files (the leaves of the graph).  If used like
-+ninja -t targets depth _digit_+ it
-prints the list of targets in a depth-first manner starting by the root
-targets (the ones with no outputs). Indentation is used to mark dependencies.
-If the depth is zero it prints all targets. If no arguments are provided
-+ninja -t targets depth 1+ is assumed. In this mode targets may be listed
-several times. If used like this +ninja -t targets all+ it
-prints all the targets available without indentation and it is faster
-than the _depth_ mode.
-
-`rules`:: output the list of all rules with their description if they have
-one.  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+.
-
-`commands`:: given a list of targets, print a list of commands which, if
-executed in order, may be used to rebuild those targets, assuming that all
-output files are out of date.
-
-`clean`:: remove built files. By default it removes all built files
-except for those created by the generator.  Adding the `-g` flag also
-removes built files created by the generator (see <<ref_rule,the rule
-reference for the +generator+ attribute>>).  Additional arguments are
-targets, which removes the given targets and recursively all files
-built for them.
-+
-If used like +ninja -t clean -r _rules_+ it removes all files built using
-the given rules.
-+
-depfiles are not removed. Files created but not referenced in the
-graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).
-
-Environment variables
----------------------
-
-Ninja supports various environment variables to control its behavior.
-
-`NINJA_STATUS`:: The progress status printed before the rule being run.
-Several placeholders are available:
-* `%s`: The number of started edges.
-* `%t`: The total number of edges that must be run to complete the build.
-* `%r`: The number of currently running edges.
-* `%u`: The number of remaining edges to start.
-* `%f`: The number of finished edges.
-* `%%`: A plain `%` character.
-* The default progress status is `"[%s/%t] "` (note the trailing space
-to separate from the build rule). Another example of possible progress status
-could be `"[%u/%r/%f] "`.
 
 Ninja file reference
 --------------------
