@@ -155,7 +155,7 @@ of the Chrome and v8 world.
 
 * For Chrome (~30k source files), Ninja reduced no-op builds from
   around 15 seconds to under one second.
-* https://plus.sandbox.google.com/108996039294665965197/posts/SfhrFAhRyyd[A
+* https://plus.google.com/108996039294665965197/posts/SfhrFAhRyyd[A
   Mozilla developer compares build systems]: "While chromium's full
   build is 2.15x slower than firefox's, a nop build is 78.2x faster!
   That is really noticeable during development. No incremental build
