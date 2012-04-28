@@ -107,7 +107,7 @@ struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   // DiskInterface implementation.
   virtual TimeStamp Stat(const string& path);
-  virtual bool WriteFile(const string& path, const string & contents) {
+  virtual bool WriteFile(const string& path, const string& contents) {
     assert(false);
     return true;
   }

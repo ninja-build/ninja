@@ -172,7 +172,7 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string &command) {
+Subprocess *SubprocessSet::Add(const string& command) {
   Subprocess *subprocess = new Subprocess;
   if (!subprocess->Start(this, command)) {
     delete subprocess;
