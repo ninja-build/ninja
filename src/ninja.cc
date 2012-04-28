@@ -85,6 +85,7 @@ void Usage(const BuildConfig& config) {
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
+"  -l N     do not start new jobs if the load average is greater than N\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
@@ -640,7 +641,7 @@ int main(int argc, char** argv) {
 
   int opt;
   while (tool.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:nt:vC:", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -653,11 +654,19 @@ int main(int argc, char** argv) {
       case 'j':
         globals.config.parallelism = atoi(optarg);
         break;
+      case 'l': {
+        char* end;
+        double value = strtod(optarg, &end);
+        if (end == optarg)
+          Fatal("-l parameter not numeric: did you mean -l 0.0?");
+        globals.config.max_load_average = value;
+        break;
+      }
       case 'k': {
         char* end;
         int value = strtol(optarg, &end, 10);
         if (*end != 0)
-          Fatal("-k parameter not numeric; did you mean -k0?");
+          Fatal("-k parameter not numeric; did you mean -k 0?");
 
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
