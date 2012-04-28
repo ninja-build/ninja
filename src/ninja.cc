@@ -622,7 +622,42 @@ int RunBuild(Globals* globals, int argc, char** argv) {
 
 }  // anonymous namespace
 
+
+#ifdef _MSC_VER
+
+/// This handler processes fatal crashes that you can't catch
+/// Test example: C++ exception in a stack-unwind-block
+/// Real-world example: ninja launched a compiler to process a tricky C++ input file. 
+/// The compiler got itself into a state where it generated 3 GB of output and caused ninja to crash
+void ninja_terminate_fct() {
+  Create_Win32_MiniDump(NULL);
+  Fatal("terminate handler called");
+}
+
+/// main_unsafe is called from within an exception handling block
+int main_unsafe(int argc, char** argv);
+
+/// Windows main() uses SEH (Structured exception handling)
 int main(int argc, char** argv) {
+  // set a handler to catch crashes not caught by the __try..__except block (e.g. an exception in a stack-unwind-block)
+  set_terminate(ninja_terminate_fct);
+  __try {
+    // running inside __try ... __except suppresses any Windows error dialogs for errors such as bad_alloc
+    return main_unsafe(argc, argv);
+  }
+  __except(exception_filter(GetExceptionCode(), GetExceptionInformation())) {
+    // you will land here e.g. if you run out of memory, or run inside a distribution environment that fails
+    fprintf(stderr, "ninja: exception, exiting with error code 2\n");
+    // common error situations below return exitCode=1, 2 was chosen to indicate a more serious problem
+    return 2; 
+  }
+}
+
+int main_unsafe (int argc, char** argv) {
+#else
+//on Linux, we have no exception handling
+int main(int argc, char** argv) {
+#endif
   Globals globals;
   globals.ninja_command = argv[0];
   const char* input_file = "build.ninja";

@@ -35,6 +35,7 @@
 #include <vector>
 
 #ifdef _WIN32
+#include <DbgHelp.h> // for minidump
 #include <direct.h>  // _mkdir
 #endif
 
@@ -293,3 +294,80 @@ string StripAnsiEscapeCodes(const string& in) {
   }
   return stripped;
 }
+
+#ifdef _MSC_VER
+typedef BOOL (WINAPI *MiniDumpWriteDumpFunc) (
+    IN HANDLE,
+    IN DWORD,
+    IN HANDLE,
+    IN MINIDUMP_TYPE,
+    IN CONST PMINIDUMP_EXCEPTION_INFORMATION, OPTIONAL
+    IN CONST PMINIDUMP_USER_STREAM_INFORMATION, OPTIONAL
+    IN CONST PMINIDUMP_CALLBACK_INFORMATION OPTIONAL
+    );
+
+/// this function creates a windows minidump in temp folder.
+void Create_Win32_MiniDump( _EXCEPTION_POINTERS* pep ) {
+  char tempPathBuff[MAX_PATH];
+  GetTempPath(sizeof(tempPathBuff), tempPathBuff);
+  char tempFileName[MAX_PATH];
+  sprintf(tempFileName, "%s\\ninja_crash_dump_%d.dmp", tempPathBuff, GetCurrentProcessId());
+
+  //delete any previous minidump of the same name
+  DeleteFile(tempFileName);
+
+  // load DbgHelp.dll dynamically, as library is not present on all windows versions
+  HMODULE hModDbgHelp = LoadLibrary("dbghelp.dll"); 
+  if (hModDbgHelp == NULL) {
+    fprintf(stderr, "ninja: failed to create minidump, failed to load dbghelp.dll, error %s \n", 
+            GetLastErrorString().c_str());
+    return;
+  }
+
+  MiniDumpWriteDumpFunc pfnMiniDumpWriteDump = (MiniDumpWriteDumpFunc)GetProcAddress(hModDbgHelp, "MiniDumpWriteDump");
+  if (pfnMiniDumpWriteDump == NULL) {
+    fprintf(stderr, "ninja: failed to create minidump, failed on GetProcAddress('MiniDumpWriteDump'), error %s \n", 
+            GetLastErrorString().c_str());
+    return;
+  }
+
+  // Open the file 
+  HANDLE hFile = CreateFileA( tempFileName, GENERIC_READ | GENERIC_WRITE, 
+                     0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL ); 
+  if (hFile == NULL) {
+    fprintf(stderr, "ninja: failed to create minidump, failed on CreateFileA(%s), error %s \n", 
+            tempFileName, GetLastErrorString().c_str());
+    return;
+  }
+
+  // Create the mini dump 
+  MINIDUMP_EXCEPTION_INFORMATION mdei; 
+  mdei.ThreadId           = GetCurrentThreadId(); 
+  mdei.ExceptionPointers  = pep;
+  mdei.ClientPointers     = FALSE; 
+  MINIDUMP_TYPE mdt       = (MINIDUMP_TYPE) (MiniDumpWithDataSegs | MiniDumpWithHandleData);
+
+  BOOL rv = pfnMiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(), 
+                   hFile, mdt, (pep != 0) ? &mdei : 0, 0, 0 ); 
+
+  if ( !rv ) 
+    fprintf(stderr, "ninja: MiniDumpWriteDump failed. Error: %s \n", GetLastErrorString().c_str() );
+  else 
+    fprintf(stderr, "ninja: Minidump created: %s\n", tempFileName );
+
+  // Close the file 
+  CloseHandle( hFile ); 
+}
+
+/// On Windows, we want to prevent error dialogs in case of exceptions.
+/// This function handles the exception, and writes a minidump.
+int exception_filter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
+  fprintf(stderr, "ninja.exe fatal error: 0x%X \n", code);  //e.g. EXCEPTION_ACCESS_VIOLATION
+  fflush(stderr);
+  Create_Win32_MiniDump(ep);
+  return EXCEPTION_EXECUTE_HANDLER; 
+} 
+#else 
+  //on Linux or MinGW, core dumps are created automatically, no code needed
+#endif
+
