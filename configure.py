@@ -103,7 +103,7 @@ else:
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
@@ -271,7 +271,8 @@ if options.with_gtest:
                     os.path.join(path, 'src/gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
-    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
+                            '-I%s' % os.path.join(path, 'include')]
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
