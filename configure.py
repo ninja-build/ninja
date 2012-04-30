@@ -111,7 +111,7 @@ if platform == 'windows':
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
-    cflags = ['-g', '-Wall', '-Wextra',
+    cflags = ['-Wall', '-Wextra',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
               '-fno-rtti',
@@ -119,7 +119,7 @@ else:
               '-fvisibility=hidden', '-pipe',
               "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
     if options.debug:
-        cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+        cflags += ['-g', '-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
         cflags += ['-O2', '-DNDEBUG']
     ldflags = ['-L$builddir']
