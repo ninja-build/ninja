@@ -271,7 +271,8 @@ if options.with_gtest:
                     os.path.join(path, 'src/gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
-    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
+                            '-I%s' % os.path.join(path, 'include')]
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
