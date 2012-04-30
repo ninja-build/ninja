@@ -300,6 +300,9 @@ ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
 n.newline()
 all_targets += ninja_test
 
+if platform == 'windows':
+  n.build('ninja_test', 'phony', binary('ninja_test'))
+
 n.comment('Perftest executable.')
 objs = cxx('parser_perftest')
 parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
