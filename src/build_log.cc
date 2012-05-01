@@ -119,16 +119,50 @@ bool BuildLog::Load(const string& path, string* err) {
   int total_entry_count = 0;
 
   char buf[256 << 10];
-  while (fgets(buf, sizeof(buf), file)) {
+  char* line_start = buf, *line_end = NULL, *buf_end = buf;
+  int buf_pos = 0;
+  while (1) {
+
+    // Get next line.
+    if (line_start >= buf_end || !line_end) {
+//fprintf(stderr, "reading %02x, %p\n", buf_end[-1], line_end);
+      size_t size_read = fread(buf, 1, sizeof(buf), file);
+      // XXX: if running out of data, do something here
+      if (!size_read)
+        break;
+      line_start = buf;
+      buf_end = buf + size_read;
+      buf_pos = 0;
+    } else {
+//fprintf(stderr, "next line\n");
+      line_start = line_end + 1;
+      buf_pos = line_start - buf;
+    }
+
+    line_end = strchr(line_start, '\n');
+    if (!line_end) {
+//fprintf(stderr, "refilling\n");
+      size_t size_rest = sizeof(buf) - buf_pos;
+      memmove(buf, line_start, size_rest);
+      size_t read = fread(buf + size_rest, 1, buf_pos, file);
+      buf_end = buf + buf_pos + read;
+      buf_pos = 0;
+      line_start = buf;
+      line_end = strchr(line_start, '\n');
+//fprintf(stderr, "line_end: %p\n", line_end);
+      // If this is NULL again, that's handled below.
+    }
+
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (sscanf(buf, kFileSignature, &log_version) > 0)
+      if (sscanf(buf, kFileSignature, &log_version) > 0) {
         continue;
+      }
     }
 
     char field_separator = log_version >= 4 ? '\t' : ' ';
 
-    char* start = buf;
+    char* start = line_start;
     char* end = strchr(start, field_separator);
     if (!end)
       continue;
@@ -160,7 +194,7 @@ bool BuildLog::Load(const string& path, string* err) {
     string output = string(start, end - start);
 
     start = end + 1;
-    end = strchr(start, '\n');
+    end = line_end;
     if (!end)
       continue;
 
