@@ -146,7 +146,7 @@ def prep_libcmt():
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_WIN32_WINNT=0x0600', '/DWINVER=0x0600',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
@@ -342,6 +342,8 @@ n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
+if 'ninja' not in ninja:
+  n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 
@@ -367,7 +369,8 @@ if options.with_gtest:
                     os.path.join(path, 'src/gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
-    test_cflags = cflags + ['-I%s' % os.path.join(path, 'include')]
+    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
+                            '-I%s' % os.path.join(path, 'include')]
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
@@ -400,6 +403,8 @@ if platform != 'mingw' and platform != 'windows':
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
+if 'ninja_test' not in ninja_test:
+  n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 
@@ -438,7 +443,7 @@ n.newline()
 
 n.comment('Generate the manual using asciidoc.')
 n.rule('asciidoc',
-       command='asciidoc -a toc -o $out $in',
+       command='asciidoc -a toc -a max-width=45em -o $out $in',
        description='ASCIIDOC $in')
 manual = n.build(doc('manual.html'), 'asciidoc', doc('manual.asciidoc'))
 n.build('manual', 'phony',

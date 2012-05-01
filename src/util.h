@@ -80,6 +80,10 @@ string StripAnsiEscapeCodes(const string& in);
 TimeStamp FiletimeToTimestamp(const FILETIME& filetime);
 #endif
 
+/// @return the load average of the machine. A negative value is returned
+/// on error.
+double GetLoadAverage();
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
