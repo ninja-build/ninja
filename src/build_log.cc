@@ -24,6 +24,50 @@
 #include "metrics.h"
 #include "util.h"
 
+#include <assert.h>
+#include <tmmintrin.h>
+
+inline unsigned CountTrailingZeros_32(uint32_t val) {
+  return val ? __builtin_ctz(val) : 32;
+}
+
+char* memchrSSE2(char* str, int c, size_t n) {
+    // Write c as sentinel value after string. Assumes that str[n] is writeable.
+    char* start = str;
+    char old = start[n];
+    start[n] = c;
+
+    __m128i needle16 = _mm_set1_epi8(c);
+
+    // Handle unaligned start.
+    ptrdiff_t str_as_int = reinterpret_cast<ptrdiff_t>(str);
+    size_t n_unaligned = str_as_int & 15;
+    if (n_unaligned > 0) {
+        __m128i str16 = *(const __m128i*)(str_as_int & ~15);
+        __m128i hits16 = _mm_cmpeq_epi8(str16, needle16);
+        unsigned long hit_mask = _mm_movemask_epi8(hits16);
+        hit_mask &= 0xFFFFFFFF << n_unaligned;
+        if (hit_mask) {
+            start[n] = old;
+            char* r = str + CountTrailingZeros_32(hit_mask);
+            return r < start + n ? r : NULL;
+        }
+        str += 16 - n_unaligned;
+    }
+
+    for (;;) {
+        __m128i str16 = *(const __m128i*)&str[0];
+        __m128i hits16 = _mm_cmpeq_epi8(str16, needle16);
+        unsigned long hit_mask = _mm_movemask_epi8(hits16);
+        if (hit_mask) {
+            start[n] = old;
+            char* r = str + CountTrailingZeros_32(hit_mask);
+            return r < start + n ? r : NULL;
+        }
+        str += 16;
+    }
+}
+
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
@@ -135,7 +179,7 @@ bool BuildLog::Load(const string& path, string* err) {
       line_start = line_end + 1;
     }
 
-    line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
+    line_end = (char*)memchrSSE2(line_start, '\n', buf_end - line_start);
     if (!line_end) {
       // No newline. Move rest of data to start of buffer, fill rest.
       size_t watermark = line_start - buf;
@@ -145,7 +189,7 @@ bool BuildLog::Load(const string& path, string* err) {
       size_t read = fread(buf + size_rest, 1, sizeof(buf) - size_rest, file);
       buf_end = buf + size_rest + read;
       line_start = buf;
-      line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
+      line_end = (char*)memchrSSE2(line_start, '\n', buf_end - line_start);
       // If this is NULL again, the line will be skipped on the next iteration.
     }
 
