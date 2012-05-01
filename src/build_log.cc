@@ -120,39 +120,36 @@ bool BuildLog::Load(const string& path, string* err) {
 
   char buf[256 << 10];
   char* line_start = buf, *line_end = NULL, *buf_end = buf;
-  int buf_pos = 0;
   while (1) {
 
     // Get next line.
     if (line_start >= buf_end || !line_end) {
-//fprintf(stderr, "reading %02x, %p\n", buf_end[-1], line_end);
+      // Refill buffer.
       size_t size_read = fread(buf, 1, sizeof(buf), file);
-      // XXX: if running out of data, do something here
       if (!size_read)
         break;
       line_start = buf;
       buf_end = buf + size_read;
-      buf_pos = 0;
     } else {
-//fprintf(stderr, "next line\n");
+      // Advance to next line in buffer.
       line_start = line_end + 1;
-      buf_pos = line_start - buf;
     }
 
-    line_end = strchr(line_start, '\n');
+    line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
     if (!line_end) {
-//fprintf(stderr, "refilling\n");
-      size_t size_rest = sizeof(buf) - buf_pos;
+      // No newline. Move rest of data to start of buffer, fill rest.
+      size_t watermark = line_start - buf;
+      size_t size_rest = (buf_end - buf) - watermark;
       memmove(buf, line_start, size_rest);
-      size_t read = fread(buf + size_rest, 1, buf_pos, file);
-      buf_end = buf + buf_pos + read;
-      buf_pos = 0;
+
+      size_t read = fread(buf + size_rest, 1, sizeof(buf) - size_rest, file);
+      buf_end = buf + size_rest + read;
       line_start = buf;
-      line_end = strchr(line_start, '\n');
-//fprintf(stderr, "line_end: %p\n", line_end);
-      // If this is NULL again, that's handled below.
+      line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
+      // If this is NULL again, the line will be skipped on the next iteration.
     }
 
+    // Process line.
     if (!log_version) {
       log_version = 1;  // Assume by default.
       if (sscanf(buf, kFileSignature, &log_version) > 0) {
