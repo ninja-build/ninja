@@ -152,9 +152,8 @@ bool BuildLog::Load(const string& path, string* err) {
     // Process line.
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (sscanf(buf, kFileSignature, &log_version) > 0) {
+      if (sscanf(buf, kFileSignature, &log_version) > 0)
         continue;
-      }
     }
 
     char field_separator = log_version >= 4 ? '\t' : ' ';
