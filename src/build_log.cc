@@ -65,6 +65,8 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
   SetCloseOnExec(fileno(log_file_));
 
+  fseek(log_file_, 0, SEEK_END);
+
   if (ftell(log_file_) == 0) {
     if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
       *err = strerror(errno);
