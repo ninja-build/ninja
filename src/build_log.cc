@@ -17,9 +17,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
 #include <unistd.h>
-#endif
 
 #include "build.h"
 #include "graph.h"
@@ -107,8 +105,8 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::Load(const string& path, string* err) {
-  METRIC_RECORD("build log load");
-  FILE* file = fopen(path.c_str(), "rb");
+  METRIC_RECORD(".ninja_log load");
+  FILE* file = fopen(path.c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
       return true;
@@ -121,7 +119,37 @@ bool BuildLog::Load(const string& path, string* err) {
   int total_entry_count = 0;
 
   char buf[256 << 10];
-  while (fgets(buf, sizeof(buf), file)) {
+  char* line_start = buf, *line_end = NULL, *buf_end = buf;
+  while (1) {
+
+    // Get next line.
+    if (line_start >= buf_end || !line_end) {
+      // Refill buffer.
+      size_t size_read = fread(buf, 1, sizeof(buf), file);
+      if (!size_read)
+        break;
+      line_start = buf;
+      buf_end = buf + size_read;
+    } else {
+      // Advance to next line in buffer.
+      line_start = line_end + 1;
+    }
+
+    line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
+    if (!line_end) {
+      // No newline. Move rest of data to start of buffer, fill rest.
+      size_t watermark = line_start - buf;
+      size_t size_rest = (buf_end - buf) - watermark;
+      memmove(buf, line_start, size_rest);
+
+      size_t read = fread(buf + size_rest, 1, sizeof(buf) - size_rest, file);
+      buf_end = buf + size_rest + read;
+      line_start = buf;
+      line_end = (char*)memchr(line_start, '\n', buf_end - line_start);
+      // If this is NULL again, the line will be skipped on the next iteration.
+    }
+
+    // Process line.
     if (!log_version) {
       log_version = 1;  // Assume by default.
       if (sscanf(buf, kFileSignature, &log_version) > 0)
@@ -130,7 +158,7 @@ bool BuildLog::Load(const string& path, string* err) {
 
     char field_separator = log_version >= 4 ? '\t' : ' ';
 
-    char* start = buf;
+    char* start = line_start;
     char* end = strchr(start, field_separator);
     if (!end)
       continue;
@@ -162,7 +190,7 @@ bool BuildLog::Load(const string& path, string* err) {
     string output = string(start, end - start);
 
     start = end + 1;
-    end = strchr(start, '\n');
+    end = line_end;
     if (!end)
       continue;
 
@@ -235,7 +263,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   fclose(f);
-  if (_unlink(path.c_str()) < 0) {
+  if (unlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

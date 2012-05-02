@@ -302,6 +302,7 @@ TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
   mtime /= 1000000000LL / 100; // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
   return (TimeStamp)mtime;
+}
 
 #ifdef _WIN32
 static double GetLoadAverage_win32()
