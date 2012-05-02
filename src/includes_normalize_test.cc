@@ -81,3 +81,17 @@ TEST(IncludesNormalize, ToLower) {
   EXPECT_EQ("stuff 3and thin43gs", IncludesNormalize::ToLower("Stuff 3AND thIN43GS"));
 }
 
+TEST(IncludesNormalize, DifferentDrive) {
+  EXPECT_EQ("stuff.h",
+      IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "p:\\vs08"));
+  EXPECT_EQ("stuff.h",
+      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "p:\\vs08"));
+  EXPECT_EQ("P:\\vs08\\stuff.h",
+      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "c:\\vs08"));
+  EXPECT_EQ("P:\\vs08\\stuff.h",
+      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "D:\\stuff/things"));
+  EXPECT_EQ("P:\\vs08\\stuff.h",
+      IncludesNormalize::Normalize("P:/vs08\\stuff.h", "D:\\stuff/things"));
+  EXPECT_EQ("P:\\wee\\stuff.h",
+      IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h", "D:\\stuff/things"));
+}

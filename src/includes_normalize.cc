@@ -71,6 +71,22 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
   return Join(rel_list, '\\');
 }
 
+namespace {
+
+bool SameDrive(StringPiece a, StringPiece b)  {
+  char a_absolute[_MAX_PATH];
+  char b_absolute[_MAX_PATH];
+  GetFullPathName(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
+  GetFullPathName(b.AsString().c_str(), sizeof(b_absolute), b_absolute, NULL);
+  char a_drive[_MAX_DIR];
+  char b_drive[_MAX_DIR];
+  _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
+  _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
+  return _stricmp(a_drive, b_drive) == 0;
+}
+
+}
+
 #ifdef _WIN32
 string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) {
   char copy[_MAX_PATH];
@@ -88,6 +104,9 @@ string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) 
     curdir = AbsPath(".");
     relative_to = curdir.c_str();
   }
-  return ToLower(Relativize(StringPiece(copy, len), relative_to));
+  StringPiece partially_fixed(copy, len);
+  if (!SameDrive(partially_fixed, relative_to))
+    return partially_fixed.AsString();
+  return ToLower(Relativize(partially_fixed, relative_to));
 }
 #endif
