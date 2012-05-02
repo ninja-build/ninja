@@ -193,7 +193,7 @@ struct BuildStatus {
   const char* progress_status_format_;
 
 #ifdef _WIN32
-  HANDLE console_;
+  void* console_;
 #endif
 };
 
