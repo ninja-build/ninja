@@ -521,7 +521,11 @@ across a line break).
 
 `${varname}`:: alternate syntax for `$varname`.
 
-`$` followed by space:: a space.
+`$` followed by space:: a space.  (This is only necessary in lists of
+paths, where a space would otherwise separate filenames.  See below.)
+
+`$:` :: a colon.  (This is only necessary in `build` lines, where a colon
+would otherwise terminate the list of inputs.)
 
 `$$`:: a literal `$`.
 

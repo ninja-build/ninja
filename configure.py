@@ -36,7 +36,7 @@ parser.add_option('--host',
                   help='host platform (' + '/'.join(platforms) + ')',
                   choices=platforms)
 parser.add_option('--debug', action='store_true',
-                  help='enable debugging flags',)
+                  help='enable debugging extras',)
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
