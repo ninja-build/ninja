@@ -75,7 +75,7 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess *Add(const string &command);
+  Subprocess* Add(const string& command);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();

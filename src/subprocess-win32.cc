@@ -207,7 +207,7 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string &command) {
+Subprocess *SubprocessSet::Add(const string& command) {
   Subprocess *subprocess = new Subprocess;
   if (!subprocess->Start(this, command)) {
     delete subprocess;
