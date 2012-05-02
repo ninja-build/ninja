@@ -17,7 +17,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "build.h"
 #include "graph.h"
@@ -120,7 +122,7 @@ bool BuildLog::Load(const string& path, string* err) {
 
   char buf[256 << 10];
   char* line_start = buf, *line_end = NULL, *buf_end = buf;
-  while (1) {
+  for (;;) {
 
     // Get next line.
     if (line_start >= buf_end || !line_end) {
