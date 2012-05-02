@@ -41,6 +41,18 @@ class TestLineWordWrap(unittest.TestCase):
                                       INDENT + 'y']) + '\n',
                          self.out.getvalue())
 
+    def test_short_words_indented(self):
+        # Test that indent is taking into acount when breaking subsequent lines.
+        # The second line should not be '    to tree', as that's longer than the
+        # test layout width of 8.
+        self.n._line('line_one to tree')
+        self.assertEqual('''\
+line_one $
+    to $
+    tree
+''',
+                         self.out.getvalue())
+
     def test_few_long_words_indented(self):
         # Check wrapping in the presence of indenting.
         self.n._line(' '.join(['x', LONGWORD, 'y']), indent=1)
