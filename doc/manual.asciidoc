@@ -130,6 +130,13 @@ but they are not part of make itself.)
 Using Ninja for your project
 ----------------------------
 
+Ninja currently works on Unix-like systems. It's seen the most testing
+on Linux (and has the best performance there) but it runs fine on Mac
+OS X and FreeBSD.  Ninja has some preliminary Windows support but the
+full details of the implementation -- like how to get C header
+interdependencies correct and fast when using MSVC's compiler -- is
+not yet complete.
+
 If your project is small, Ninja's speed impact is likely unnoticable.
 Some build timing numbers are included below.  (However, even for
 small projects it sometimes turns out that Ninja's limited syntax
@@ -148,7 +155,8 @@ meta-build system.
 
 http://code.google.com/p/gyp/[gyp]:: The meta-build system used to
 generate build files for Google Chrome.  gyp can generate Ninja files
-for Linux and Mac and is used by many Chrome developers.  See the
+for Linux and Mac and is used by many Chrome developers; support for
+Windows is in progress.  See the
 http://code.google.com/p/chromium/wiki/NinjaBuild[Chromium Ninja
 documentation for more details].  gyp is relatively unpopular outside
 of the Chrome and v8 world.
@@ -163,7 +171,9 @@ of the Chrome and v8 world.
   almost all of them will be over a minute."
 
 http://www.cmake.org/[CMake]:: A widely used meta-build system that
-can generate Ninja files as of version 2.8.8.
+can generate Ninja files on Linux as of CMake version 2.8.8.  (There
+is some Mac and Windows support, but those platforms are not yet
+officially supported by CMake as the full test suite doesn't pass.)
 
 * For building Blender, one user reported "Single file rebuild is 0.97
   sec, same on makefiles was 3.7sec."
