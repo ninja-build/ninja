@@ -113,28 +113,29 @@ bool CanonicalizePath(char* path, int* len, string* err) {
   }
 
   while (src < end) {
-    const char* sep = (const char*)memchr(src, '/', end - src);
-    if (sep == NULL)
-      sep = end;
-
     if (*src == '.') {
-      if (sep - src == 1) {
+      if (src[1] == '/' || src[1] == '\0') {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (sep - src == 2 && src[1] == '.') {
+      } else if (src[1] == '.' && (src[2] == '/' || src[2] == '\0')) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
           src += 3;
           --component_count;
         } else {
-          while (src <= sep)
-            *dst++ = *src++;
+          *dst++ = *src++;
+          *dst++ = *src++;
+          *dst++ = *src++;
         }
         continue;
       }
     }
+
+    const char* sep = (const char*)memchr(src, '/', end - src);
+    if (sep == NULL)
+      sep = end;
 
     if (sep > src) {
       if (component_count == kMaxPathComponents)

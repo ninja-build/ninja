@@ -58,6 +58,14 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo/./.";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo", path);
+
+  path = "foo/bar/..";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("foo", path);
+
+  path = "foo/.hidden_bar";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("foo/.hidden_bar", path);
 }
 
 TEST(CanonicalizePath, EmptyResult) {
