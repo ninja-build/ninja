@@ -172,8 +172,10 @@ of the Chrome and v8 world.
 
 http://www.cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  (There
-is some Mac and Windows support, but those platforms are not yet
-officially supported by CMake as the full test suite doesn't pass.)
+is some Mac and Windows support -- http://www.reactos.org[ReactOS]
+uses Ninja on Windows for their buildbots, but those platforms are not
+yet officially supported by CMake as the full test suite doesn't
+pass.)
 
 * For building Blender, one user reported "Single file rebuild is 0.97
   sec, same on makefiles was 3.7sec."
@@ -183,7 +185,6 @@ officially supported by CMake as the full test suite doesn't pass.)
 others:: Ninja ought to fit perfectly into other meta-build software
 like http://industriousone.com/premake[premake].  If you do this work,
 please let us know!
-
 
 Running Ninja
 ~~~~~~~~~~~~~
