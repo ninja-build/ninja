@@ -114,11 +114,11 @@ bool CanonicalizePath(char* path, int* len, string* err) {
 
   while (src < end) {
     if (*src == '.') {
-      if (src[1] == '/' || src + 1 == end) {
+      if (src + 1 == end || src[1] == '/') {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src[2] == '/' || src + 2 == end)) {
+      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
