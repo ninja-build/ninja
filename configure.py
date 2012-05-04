@@ -72,6 +72,10 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
+env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
+configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
+n.variable('configure_env',
+           ' '.join([k + '=' + configure_env[k] for k in configure_env]))
 n.newline()
 
 objext = '.o'
@@ -98,8 +102,8 @@ if platform == 'windows':
     n.variable('cxx', 'cl')
     n.variable('ar', 'link')
 else:
-    n.variable('cxx', os.environ.get('CXX', 'g++'))
-    n.variable('ar', os.environ.get('AR', 'ar'))
+    n.variable('cxx', configure_env.get('CXX', 'g++'))
+    n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
@@ -139,11 +143,11 @@ else:
     elif options.profile == 'pprof':
         libs.append('-lprofiler')
 
-if 'CFLAGS' in os.environ:
-    cflags.append(os.environ['CFLAGS'])
+if 'CFLAGS' in configure_env:
+    cflags.append(configure_env['CFLAGS'])
 n.variable('cflags', ' '.join(cflags))
-if 'LDFLAGS' in os.environ:
-    ldflags.append(os.environ['LDFLAGS'])
+if 'LDFLAGS' in configure_env:
+    ldflags.append(configure_env['LDFLAGS'])
 n.variable('ldflags', ' '.join(ldflags))
 n.newline()
 
@@ -351,7 +355,8 @@ n.newline()
 if host != 'mingw':
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command=options.with_python + ' configure.py $configure_args',
+           command='$configure_env %s configure.py $configure_args' %
+               options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
             implicit=['configure.py', 'misc/ninja_syntax.py'])
