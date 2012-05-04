@@ -717,6 +717,12 @@ Command output is always buffered.  This means commands running in
 </div>
 <h2 id="_using_ninja_for_your_project">Using Ninja for your project</h2>
 <div class="sectionbody">
+<div class="paragraph"><p>Ninja currently works on Unix-like systems. It&#8217;s seen the most testing
+on Linux (and has the best performance there) but it runs fine on Mac
+OS X and FreeBSD.  Ninja has some preliminary Windows support but the
+full details of the implementation&#8201;&#8212;&#8201;like how to get C header
+interdependencies correct and fast when using MSVC&#8217;s compiler&#8201;&#8212;&#8201;is
+not yet complete.</p></div>
 <div class="paragraph"><p>If your project is small, Ninja&#8217;s speed impact is likely unnoticable.
 Some build timing numbers are included below.  (However, even for
 small projects it sometimes turns out that Ninja&#8217;s limited syntax
@@ -738,7 +744,8 @@ meta-build system.</p></div>
 <p>
 The meta-build system used to
 generate build files for Google Chrome.  gyp can generate Ninja files
-for Linux and Mac and is used by many Chrome developers.  See the
+for Linux and Mac and is used by many Chrome developers; support for
+Windows is in progress.  See the
 <a href="http://code.google.com/p/chromium/wiki/NinjaBuild">Chromium Ninja
 documentation for more details</a>.  gyp is relatively unpopular outside
 of the Chrome and v8 world.
@@ -752,7 +759,7 @@ For Chrome (~30k source files), Ninja reduced no-op builds from
 </li>
 <li>
 <p>
-<a href="https://plus.sandbox.google.com/108996039294665965197/posts/SfhrFAhRyyd">A
+<a href="https://plus.google.com/108996039294665965197/posts/SfhrFAhRyyd">A
   Mozilla developer compares build systems</a>: "While chromium&#8217;s full
   build is 2.15x slower than firefox&#8217;s, a nop build is 78.2x faster!
   That is really noticeable during development. No incremental build
@@ -768,7 +775,11 @@ For Chrome (~30k source files), Ninja reduced no-op builds from
 <dd>
 <p>
 A widely used meta-build system that
-can generate Ninja files as of version 2.8.8.
+can generate Ninja files on Linux as of CMake version 2.8.8.  (There
+is some Mac and Windows support&#8201;&#8212;&#8201;<a href="http://www.reactos.org">ReactOS</a>
+uses Ninja on Windows for their buildbots, but those platforms are not
+yet officially supported by CMake as the full test suite doesn&#8217;t
+pass.)
 </p>
 <div class="ulist"><ul>
 <li>
@@ -784,6 +795,16 @@ For building LLVM on Windows, one user reported no-op build times:
 </p>
 </li>
 </ul></div>
+</dd>
+<dt class="hdlist1">
+others
+</dt>
+<dd>
+<p>
+Ninja ought to fit perfectly into other meta-build software
+like <a href="http://industriousone.com/premake">premake</a>.  If you do this work,
+please let us know!
+</p>
 </dd>
 </dl></div>
 <h3 id="_running_ninja">Running Ninja</h3><div style="clear:left"></div>
@@ -1205,7 +1226,20 @@ alternate syntax for <tt>$varname</tt>.
 </td>
 <td class="hdlist2">
 <p style="margin-top: 0;">
-a space.
+a space.  (This is only necessary in lists of
+paths, where a space would otherwise separate filenames.  See below.)
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>$:</tt> 
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+a colon.  (This is only necessary in <tt>build</tt> lines, where a colon
+would otherwise terminate the list of inputs.)
 </p>
 </td>
 </tr>
@@ -1436,7 +1470,7 @@ value to prevent it from getting expanded twice.</p></div>
 <div id="footnotes"><hr /></div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2012-04-27 09:06:25 PDT
+Last updated 2012-05-04 16:07:25 PDT
 </div>
 </div>
 </body>
