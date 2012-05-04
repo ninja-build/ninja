@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <sstream>
+#include "util.h"
 #include "depfile_reader.h"
 
 // A static cache for already parsed, but not yet used depfiles
@@ -73,6 +74,16 @@ bool DepfileReader::loadIntoCache(DiskInterface* disk_interface,
       if (NULL != reader.parser_) {
         const string filename = reader.parser_->out().AsString();
         swap(fileMap[filename], reader);
+
+        if (reader.parser_ != NULL || reader.contents_ != NULL) {
+          Warning("Depfile for %s not unique in %s. "
+                  "Build will not be correct; continuing anyway.",
+                  filename.c_str(), depfile_path.c_str());
+
+          // prevent double-deallocation
+          reader.parser_ = NULL;
+          reader.contents_ = NULL;
+        }
       }   
     }
   }
