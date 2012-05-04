@@ -143,13 +143,9 @@ bool CanonicalizePath(char* path, int* len, string* err) {
     components[component_count] = dst;
     ++component_count;
 
-    const char* sep = (const char*)memchr(src, '/', end - src);
-    if (sep == NULL)
-      sep = end;
-    while (src <= sep) {
+    while (*src != '/' && src != end)
       *dst++ = *src++;
-    }
-    src = sep + 1;
+    *dst++ = *src++;  // Copy '/' or final \0 character as well.
   }
 
   if (dst == start) {
