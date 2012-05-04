@@ -102,46 +102,45 @@ bool CanonicalizePath(char* path, int* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == DIR_SEP[0]) {
+  if (*src == DIR_SEP_C) {
     ++src;
     ++dst;
   }
 
   while (src < end) {
-    const char* sep = (const char*)memchr(src, DIR_SEP[0], end - src);
-    if (sep == NULL)
-      sep = end;
-
     if (*src == '.') {
-      if (sep - src == 1) {
+      if (src + 1 == end || src[1] == DIR_SEP_C) {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (sep - src == 2 && src[1] == '.') {
+      } else if (src[1] == '.' && (src + 2 == end || src[2] == DIR_SEP_C)) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
           src += 3;
           --component_count;
         } else {
-          while (src <= sep)
-            *dst++ = *src++;
+          *dst++ = *src++;
+          *dst++ = *src++;
+          *dst++ = *src++;
         }
         continue;
       }
     }
 
-    if (sep > src) {
-      if (component_count == kMaxPathComponents)
-        Fatal("path has too many components");
-      components[component_count] = dst;
-      ++component_count;
-      while (src <= sep) {
-        *dst++ = *src++;
-      }
+    if (*src == DIR_SEP_C) {
+      src++;
+      continue;
     }
 
-    src = sep + 1;
+    if (component_count == kMaxPathComponents)
+      Fatal("path has too many components");
+    components[component_count] = dst;
+    ++component_count;
+
+    while (*src != DIR_SEP_C && src != end)
+      *dst++ = *src++;
+    *dst++ = *src++;  // Copy DIR_SEP_C or final \0 character as well.
   }
 
   if (dst == start) {

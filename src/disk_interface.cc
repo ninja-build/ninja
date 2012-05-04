@@ -28,7 +28,7 @@
 namespace {
 
 string DirName(const string& path) {
-  const string kPathSeparators(DIR_SEP);
+  const string kPathSeparators(DIR_SEP_S);
   string::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == string::npos)
       return string();  // Nothing to do.

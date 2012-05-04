@@ -99,9 +99,11 @@ string GetLastErrorString();
 #endif
 
 #ifdef _WIN32
-  #define DIR_SEP "\\"
+  #define DIR_SEP_S "\\"
+  #define DIR_SEP_C '\\'
 #else
-  #define DIR_SEP "/"
+  #define DIR_SEP_S "/"
+  #define DIR_SEP_C '/'
 #endif
 
 

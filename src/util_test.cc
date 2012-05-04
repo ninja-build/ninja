@@ -28,8 +28,19 @@ bool CanonPath(string* str, string* err) {
   return CanonicalizePath(str, err);
 }
 
-string SLASH(string in) {
-  for (size_t i = 0; i < in.size(); ++i)
+bool CanonPath(char* str, int* len, string* err) {
+#ifdef _WIN32
+  for (int i = 0; i < *len; ++i)
+    if (str[i] == '/')
+      str[i] = '\\';
+#endif
+  return CanonicalizePath(str, len, err);
+}
+
+string SLASH(string in, int len = -1) {
+  if (len == -1)
+    len = static_cast<int>(in.size());
+  for (int i = 0; i < len; ++i)
     if (in[i] == '/')
       in[i] = '\\';
   return in;
@@ -79,6 +90,14 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo/./.";
   EXPECT_TRUE(CanonPath(&path, &err));
   EXPECT_EQ("foo", path);
+
+  path = "foo/bar/..";
+  EXPECT_TRUE(CanonPath(&path, &err));
+  EXPECT_EQ("foo", path);
+
+  path = "foo/.hidden_bar";
+  EXPECT_TRUE(CanonPath(&path, &err));
+  EXPECT_EQ(SLASH("foo/.hidden_bar"), path);
 }
 
 TEST(CanonicalizePath, EmptyResult) {
@@ -113,6 +132,24 @@ TEST(CanonicalizePath, AbsolutePath) {
   string err;
   EXPECT_TRUE(CanonPath(&path, &err));
   EXPECT_EQ(SLASH("/usr/include/stdio.h"), path);
+}
+
+TEST(CanonicalizePath, NotNullTerminated) {
+  string path;
+  string err;
+  int len, orig_len;
+
+  path = "foo/. bar/.";
+  orig_len = len = strlen("foo/.");  // Canonicalize only the part before the space.
+  EXPECT_TRUE(CanonPath(&path[0], &len, &err));
+  EXPECT_EQ(strlen("foo"), static_cast<size_t>(len));
+  EXPECT_EQ(SLASH("foo/. bar/.", orig_len), string(path));
+
+  path = "foo/../file bar/.";
+  orig_len = len = strlen("foo/../file");
+  EXPECT_TRUE(CanonPath(&path[0], &len, &err));
+  EXPECT_EQ(strlen("file"), static_cast<size_t>(len));
+  EXPECT_EQ(SLASH("file ./file bar/.", orig_len), string(path));
 }
 
 TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
