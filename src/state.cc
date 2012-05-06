@@ -22,10 +22,13 @@
 #include "metrics.h"
 #include "util.h"
 
-const Rule State::kPhonyRule("phony");
+// static
+const Rule* State::kPhonyRule = NULL;
 
 State::State() : build_log_(NULL) {
-  AddRule(&kPhonyRule);
+  if (!kPhonyRule)
+    kPhonyRule = new Rule("phony");
+  AddRule(kPhonyRule);
 }
 
 void State::AddRule(const Rule* rule) {
