@@ -50,8 +50,14 @@ Here are the design goals of Ninja:
 * very fast (i.e., instant) incremental builds, even for very large
   projects.
 
-* very little policy about how code is built; "explicit is better than
-  implicit".
+* very little policy about how code is built.  Different projects and
+  higher-level build systems have different opinions about how code
+  should be built; for example, should built objects live alongside
+  the sources or should all build output go into a separate directory?
+  Is there an "package" rule that builds a distributable package of
+  the project?  Sidestep these decisions by trying to allow either to
+  be implemented, rather than choosing, even if that results in
+  more verbosity.
 
 * get dependencies correct, and in particular situations that are
   difficult to get right with Makefiles (e.g. outputs need an implicit
