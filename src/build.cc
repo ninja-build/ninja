@@ -537,7 +537,7 @@ struct DryRunCommandRunner : public CommandRunner {
 Builder::Builder(State* state, const BuildConfig& config)
     : state_(state), config_(config) {
   disk_interface_ = new RealDiskInterface;
-  status_ = new BuildStatus(config);
+  status_.reset(new BuildStatus(config));
   log_ = state->build_log_;
 }
 
