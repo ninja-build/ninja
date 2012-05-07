@@ -299,7 +299,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge()) {
-      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      Edge* phony_edge = state->AddEdge(State::kPhonyRule);
       node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
@@ -329,5 +329,5 @@ void Edge::Dump() {
 }
 
 bool Edge::is_phony() const {
-  return rule_ == &State::kPhonyRule;
+  return rule_ == State::kPhonyRule;
 }
