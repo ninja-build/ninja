@@ -155,7 +155,7 @@ private:
 
 /// Tracks the status of a build: completion fraction, printing updates.
 struct BuildStatus {
-  BuildStatus(const BuildConfig& config);
+  explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
