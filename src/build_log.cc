@@ -66,6 +66,10 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
   SetCloseOnExec(fileno(log_file_));
 
+  // Opening a file in append mode doesn't set the file pointer to the file's
+  // end on Windows. Do that explicitly.
+  fseek(log_file_, 0, SEEK_END);
+
   if (ftell(log_file_) == 0) {
     if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
       *err = strerror(errno);
