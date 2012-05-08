@@ -771,8 +771,8 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
       }
     }
 
-    // delete the response file on success (if exists)
-    if (edge->HasRspFile())
+    // delete the response file on success (if exists, and not in verbose mode)
+    if (edge->HasRspFile() && config_.verbosity < BuildConfig::VERBOSE)
       disk_interface_->RemoveFile(edge->GetRspFile());
 
     plan_.EdgeFinished(edge);
