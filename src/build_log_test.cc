@@ -14,6 +14,7 @@
 
 #include "build_log.h"
 
+#include "util.h"
 #include "test.h"
 
 #ifdef _WIN32
@@ -63,6 +64,36 @@ TEST_F(BuildLogTest, WriteRead) {
   ASSERT_TRUE(*e1 == *e2);
   ASSERT_EQ(15, e1->start_time);
   ASSERT_EQ("out", e1->output);
+}
+
+TEST_F(BuildLogTest, FirstWriteAddsSignature) {
+  const char kExpectedVersion[] = "# ninja log vX\n";
+  const size_t kVersionPos = strlen(kExpectedVersion) - 2;  // Points at 'X'.
+
+  BuildLog log;
+  string contents, err;
+
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  log.Close();
+
+  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ("", err);
+  if (contents.size() >= kVersionPos)
+    contents[kVersionPos] = 'X';
+  EXPECT_EQ(kExpectedVersion, contents);
+
+  // Opening the file anew shouldn't add a second version string.
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  log.Close();
+
+  contents.clear();
+  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ("", err);
+  if (contents.size() >= kVersionPos)
+    contents[kVersionPos] = 'X';
+  EXPECT_EQ(kExpectedVersion, contents);
 }
 
 TEST_F(BuildLogTest, DoubleEntry) {
