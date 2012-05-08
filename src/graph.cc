@@ -185,7 +185,7 @@ bool Edge::AllInputsReady() const {
 
 /// An Env for an Edge, providing $in and $out.
 struct EdgeEnv : public Env {
-  EdgeEnv(Edge* edge) : edge_(edge) {}
+  explicit EdgeEnv(Edge* edge) : edge_(edge) {}
   virtual string LookupVariable(const string& var, bool for_rspfile);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command

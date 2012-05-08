@@ -29,8 +29,11 @@ struct Edge;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const string& path) : path_(path), mtime_(-1),
-                             dirty_(false), in_edge_(NULL) {
+  explicit Node(const string& path)
+        : path_(path),
+          mtime_(-1),
+          dirty_(false),
+          in_edge_(NULL) {
   }
 
   /// Return true if the file exists (mtime_ got a value).
@@ -102,7 +105,8 @@ private:
 
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
-  Rule(const string& name) : name_(name), generator_(false), restat_(false) { }
+  explicit Rule(const string& name)
+      : name_(name), generator_(false), restat_(false) {}
 
   const string& name() const { return name_; }
 

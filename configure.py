@@ -80,8 +80,10 @@ n.variable('configure_env',
            ' '.join([k + '=' + configure_env[k] for k in configure_env]))
 n.newline()
 
+CXX = configure_env.get('CXX', 'g++')
 objext = '.o'
 if platform == 'windows':
+    CXX = 'cl'
     objext = '.obj'
 
 def src(filename):
@@ -106,11 +108,10 @@ def binary(name):
     return name
 
 n.variable('builddir', 'build')
+n.variable('cxx', CXX)
 if platform == 'windows':
-    n.variable('cxx', 'cl')
     n.variable('ar', 'link')
 else:
-    n.variable('cxx', configure_env.get('CXX', 'g++'))
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 def prep_libcmt():
@@ -185,6 +186,8 @@ else:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
         cflags += ['-O2', '-DNDEBUG']
+    if 'clang' in os.path.basename(CXX):
+        cflags += ['-fcolor-diagnostics']
     ldflags = ['-L$builddir']
 libs = []
 

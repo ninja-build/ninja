@@ -797,13 +797,12 @@ reload:
     log_path = build_dir + "/" + kLogPath;
   }
 
-  if (!build_log.Load(log_path.c_str(), &err)) {
-    Error("loading build log %s: %s",
-          log_path.c_str(), err.c_str());
+  if (!build_log.Load(log_path, &err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
     return 1;
   }
 
-  if (!build_log.OpenForWrite(log_path.c_str(), &err)) {
+  if (!build_log.OpenForWrite(log_path, &err)) {
     Error("opening build log: %s", err.c_str());
     return 1;
   }
