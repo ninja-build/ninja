@@ -28,7 +28,7 @@
 #include <unistd.h>
 #endif
 
-static const char kTestFilename[] = "BuildLogTest-tempfile";
+const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
