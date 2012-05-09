@@ -317,11 +317,11 @@ n.comment('Perftest executables.')
 objs = cxx('parser_perftest')
 parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
                           implicit=ninja_lib,
-                          variables=[('libs', '-L$builddir -lninja')])
+                          variables=[('libs', libs)])
 objs = cxx('build_log_perftest')
 build_log_perftest = n.build(binary('build_log_perftest'), 'link', objs,
                              implicit=ninja_lib,
-                             variables=[('libs', '-L$builddir -lninja')])
+                             variables=[('libs', libs)])
 n.newline()
 all_targets += parser_perftest + build_log_perftest
 
