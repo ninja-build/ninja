@@ -111,6 +111,28 @@ void BuildLog::Close() {
   log_file_ = NULL;
 }
 
+class LineReader {
+ public:
+  explicit LineReader(FILE* file) : file_(file) {}
+
+  // Reads a \n-terminated line from the file passed to the constructor.
+  // On return, *line_start points to the beginning of the next line, and
+  // *line_end points to the \n at the end of the line. If no newline is seen
+  // in a fixed buffer size, *line_end is set to NULL. Returns false on EOF.
+  bool ReadLine(char** line_start, char** line_end) {
+    if (!fgets(buf_, sizeof(buf_), file_))
+      return false;
+
+    *line_start = buf_;
+    *line_end = strchr(buf_, '\n');
+    return true;
+  }
+
+ private:
+  FILE* file_;
+  char buf_[256 << 10];
+};
+
 bool BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
@@ -125,18 +147,23 @@ bool BuildLog::Load(const string& path, string* err) {
   int unique_entry_count = 0;
   int total_entry_count = 0;
 
-  char buf[256 << 10];
-  while (fgets(buf, sizeof(buf), file)) {
+  LineReader reader(file);
+  char* line_start, *line_end;
+  while (reader.ReadLine(&line_start, &line_end)) {
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (sscanf(buf, kFileSignature, &log_version) > 0)
+      if (sscanf(line_start, kFileSignature, &log_version) > 0)
         continue;
     }
 
+    // If no newline was found in this chunk, read the next.
+    if (!line_end)
+      continue;
+
     char field_separator = log_version >= 4 ? '\t' : ' ';
 
-    char* start = buf;
-    char* end = strchr(start, field_separator);
+    char* start = line_start;
+    char* end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
@@ -147,29 +174,27 @@ bool BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     restat_mtime = atol(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     string output = string(start, end - start);
 
     start = end + 1;
-    end = strchr(start, '\n');
-    if (!end)
-      continue;
+    end = line_end;
 
     LogEntry* entry;
     Log::iterator i = log_.find(output);
