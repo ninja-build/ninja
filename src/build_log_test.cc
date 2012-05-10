@@ -185,3 +185,34 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   ASSERT_EQ(456, e->restat_mtime);
   ASSERT_EQ("command", e->command);
 }
+
+TEST_F(BuildLogTest, DuplicateVersionHeader) {
+  // Old versions of ninja accidentally wrote multiple version headers to the
+  // build log on Windows. This shouldn't crash, and the second version header
+  // should be ignored.
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "123\t456\t456\tout\tcommand\n");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(123, e->start_time);
+  ASSERT_EQ(456, e->end_time);
+  ASSERT_EQ(456, e->restat_mtime);
+  ASSERT_EQ("command", e->command);
+
+  e = log.LookupByOutput("out2");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(456, e->start_time);
+  ASSERT_EQ(789, e->end_time);
+  ASSERT_EQ(789, e->restat_mtime);
+  ASSERT_EQ("command2", e->command);
+}
