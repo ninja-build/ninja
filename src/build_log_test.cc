@@ -216,3 +216,31 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   ASSERT_EQ(789, e->restat_mtime);
   ASSERT_EQ("command2", e->command);
 }
+
+TEST_F(BuildLogTest, VeryLongInputLine) {
+  // Ninja's build log buffer is currently 256kB. Lines longer than that are
+  // silently ignored, but don't affect parsing of other lines.
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "123\t456\t456\tout\tcommand start");
+  for (size_t i = 0; i < (512 << 10) / strlen(" more_command"); ++i)
+    fputs(" more_command", f);
+  fprintf(f, "\n");
+  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_EQ(NULL, e);
+
+  e = log.LookupByOutput("out2");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(456, e->start_time);
+  ASSERT_EQ(789, e->end_time);
+  ASSERT_EQ(789, e->restat_mtime);
+  ASSERT_EQ("command2", e->command);
+}
