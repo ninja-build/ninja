@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//XXX #define _POSIX_C_SOURCE 200809L
+//XXX #define _BSD_SOURCE
+
 #include "disk_interface.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,15 +87,28 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     return -1;
   }
   const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
+  /* A Windows file time is a 64-bit value that represents the number of
+   * 100-nanosecond intervals that have elapsed since
+   * 12:00 midnight, January 1, 1601 A.D. (C.E.)
+   * Coordinated Universal Time (UTC). */
+
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
+
+#ifdef USE_TIME_T
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
   mtime /= 1000000000LL / 100; // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
   return (TimeStamp)mtime;
 #else
+  //FIXME: return the time as a signed quadword, but keep 100nsec pression! ck
+  return mtime;
+#endif
+
+#else
+
+#ifdef USE_TIME_T
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
@@ -100,6 +117,33 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     return -1;
   }
   return st.st_mtime;
+#else
+#ifdef __CYGWIN__
+#define stat64 stat
+#endif
+  struct stat64 st;
+  if (stat64(path.c_str(), &st) < 0) {
+    if (errno == ENOENT || errno == ENOTDIR)
+      return 0;
+    Error("stat64(%s): %s", path.c_str(), strerror(errno));
+    return -1;
+  }
+  //FIXME: use only 30 bits for nsec to prevent overflow after 2038! ck
+  //XXX return (((int64_t) st.st_mtimespec.tv_sec) << 30) + st.st_mtimespec.tv_nsec;
+  //XXX or
+  //FIXME: use 100 nsec ticks like windows
+#ifdef __APPLE__
+  return (((int64_t) st.st_mtimespec.tv_sec) * 10000000LL) + (st.st_mtimespec.tv_nsec / 100LL);
+#elif defined(_BSD_SOURCE)
+#warning "_BSD_SOURCE defined"
+  return (((int64_t) st.st_mtime) * 10000000) + (st.st_atim.tv_nsec / 100);
+#else
+#warning "NO nsec available with stat()!"
+  // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
+  return (((int64_t) st.st_mtime) * 10000000); //XXX + (st.st_mtime_nsec / 100);
+#endif
+#endif
+
 #endif
 }
 

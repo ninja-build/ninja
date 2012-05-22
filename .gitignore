@@ -1,3 +1,4 @@
+*.orig
 *.pyc
 *.exe
 TAGS
@@ -9,3 +10,4 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
+/CMakeTest/build

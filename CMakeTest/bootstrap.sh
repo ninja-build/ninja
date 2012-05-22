@@ -17,6 +17,7 @@ mkdir -p build && cd build
 #XXX gvim ../CMakeLists.txt build.ninja rules.ninja
 
 "/usr/local/CMake 2.8-8.app/Contents/bin/cmake" -G Ninja ..
+#FIXME cmake -G Ninja ..
 ninja -d explain
 #again
 ninja -d stats
@@ -35,7 +36,7 @@ sed -i.orig -e '/test.cpp$/a\
 #
 # Please see a new line in the command between a\ and new string.
 
-#XXX stat ../CMakeLists.txt *.ninja ../*.cpp | egrep '(File|Modify)'
+ls -lrt --full-time ../CMakeLists.txt ../*.cpp *.ninja test*
 
 #
 # The problem is the missing include statement!
@@ -54,7 +55,7 @@ fi
 ########################################################
 echo "FIXME: cmake must rerun again without this sleep:"
 sleep ${delay} # FIXME!
-ls -lrt ../CMakeLists.txt ../*.cpp *.ninja test*
+ls -lrt --full-time ../CMakeLists.txt ../*.cpp *.ninja test*
 ########################################################
 sed -i.orig -e '/test_not_existing_file.cpp$/d' ../CMakeLists.txt
 ninja -v -d explain

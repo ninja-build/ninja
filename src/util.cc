@@ -293,7 +293,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __CYGWIN__
 static double GetLoadAverage_win32()
 {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
@@ -315,9 +315,10 @@ static double GetLoadAverage_unix()
 
 double GetLoadAverage()
 {
-#ifdef _WIN32
+#if defined _WIN32 || defined __CYGWIN__
   return GetLoadAverage_win32();
 #else
   return GetLoadAverage_unix();
 #endif // _WIN32
 }
+
