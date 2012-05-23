@@ -50,9 +50,12 @@
 #include "stat_cache.h"
 #include "state.h"
 #include "util.h"
-#include "version.h"
 
 namespace {
+
+/// The version number of the current Ninja release.  This will always
+/// be "git" on trunk.
+const char* kVersion = "git";
 
 /// Global information passed into subtools.
 struct Globals {
@@ -88,19 +91,19 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
+"  -V       print ninja version (\"%s\")\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
-"  -V       show version string (%s)\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool\n"
 "    use '-t list' to list subtools.\n"
 "    terminates toplevel options; further flags are passed to the tool.\n",
-          config.parallelism, kVersionString);
+          kVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -695,7 +698,7 @@ int main(int argc, char** argv) {
 
   int opt;
   while (tool.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -734,15 +737,15 @@ int main(int argc, char** argv) {
       case 'v':
         globals.config.verbosity = BuildConfig::VERBOSE;
         break;
-      case 'V':
-        printf("ninja version %s\n", kVersionString);
-        return 0;
       case 't':
         tool = optarg;
         break;
       case 'C':
         working_dir = optarg;
         break;
+      case 'V':
+        printf("%s\n", kVersion);
+        return 0;
       case 'h':
       default:
         Usage(globals.config);

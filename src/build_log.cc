@@ -66,6 +66,8 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
   SetCloseOnExec(fileno(log_file_));
 
+  // Opening a file in append mode doesn't set the file pointer to the file's
+  // end on Windows. Do that explicitly.
   fseek(log_file_, 0, SEEK_END);
 
   if (ftell(log_file_) == 0) {
@@ -109,6 +111,56 @@ void BuildLog::Close() {
   log_file_ = NULL;
 }
 
+class LineReader {
+ public:
+  explicit LineReader(FILE* file)
+    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {}
+
+  // Reads a \n-terminated line from the file passed to the constructor.
+  // On return, *line_start points to the beginning of the next line, and
+  // *line_end points to the \n at the end of the line. If no newline is seen
+  // in a fixed buffer size, *line_end is set to NULL. Returns false on EOF.
+  bool ReadLine(char** line_start, char** line_end) {
+    if (line_start_ >= buf_end_ || !line_end_) {
+      // Buffer empty, refill.
+      size_t size_read = fread(buf_, 1, sizeof(buf_), file_);
+      if (!size_read)
+        return false;
+      line_start_ = buf_;
+      buf_end_ = buf_ + size_read;
+    } else {
+      // Advance to next line in buffer.
+      line_start_ = line_end_ + 1;
+    }
+
+    line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+    if (!line_end_) {
+      // No newline. Move rest of data to start of buffer, fill rest.
+      size_t already_consumed = line_start_ - buf_;
+      size_t size_rest = (buf_end_ - buf_) - already_consumed;
+      memmove(buf_, line_start_, size_rest);
+
+      size_t read = fread(buf_ + size_rest, 1, sizeof(buf_) - size_rest, file_);
+      buf_end_ = buf_ + size_rest + read;
+      line_start_ = buf_;
+      line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+    }
+
+    *line_start = line_start_;
+    *line_end = line_end_;
+    return true;
+  }
+
+ private:
+  FILE* file_;
+  char buf_[256 << 10];
+  char* buf_end_;  // Points one past the last valid byte in |buf_|.
+
+  char* line_start_;
+  // Points at the next \n in buf_ after line_start, or NULL.
+  char* line_end_;
+};
+
 bool BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
@@ -123,18 +175,23 @@ bool BuildLog::Load(const string& path, string* err) {
   int unique_entry_count = 0;
   int total_entry_count = 0;
 
-  char buf[256 << 10];
-  while (fgets(buf, sizeof(buf), file)) {
+  LineReader reader(file);
+  char* line_start, *line_end;
+  while (reader.ReadLine(&line_start, &line_end)) {
     if (!log_version) {
       log_version = 1;  // Assume by default.
-      if (sscanf(buf, kFileSignature, &log_version) > 0)
+      if (sscanf(line_start, kFileSignature, &log_version) > 0)
         continue;
     }
 
+    // If no newline was found in this chunk, read the next.
+    if (!line_end)
+      continue;
+
     char field_separator = log_version >= 4 ? '\t' : ' ';
 
-    char* start = buf;
-    char* end = strchr(start, field_separator);
+    char* start = line_start;
+    char* end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
@@ -145,29 +202,27 @@ bool BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     restat_mtime = atol(start);
     start = end + 1;
 
-    end = strchr(start, field_separator);
+    end = (char*)memchr(start, field_separator, line_end - start);
     if (!end)
       continue;
     string output = string(start, end - start);
 
     start = end + 1;
-    end = strchr(start, '\n');
-    if (!end)
-      continue;
+    end = line_end;
 
     LogEntry* entry;
     Log::iterator i = log_.find(output);

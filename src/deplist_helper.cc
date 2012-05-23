@@ -22,6 +22,7 @@
 #include "depfile_parser.h"
 #include "includes_normalize.h"
 #include "showincludes_parser.h"
+#include "subprocess.h"
 #include "util.h"
 
 #ifdef _WIN32
@@ -36,7 +37,7 @@ void Usage() {
   printf(
 "ninja-deplist-helper: convert dependency output into ninja deplist format.\n"
 "\n"
-"usage: ninja-deplist-helper [options] [infile]\n"
+"usage: ninja-deplist-helper [options] [infile|command]\n"
 "options:\n"
 "  -f FORMAT  specify input format; formats are\n"
 "               gcc  gcc Makefile-like output\n"
@@ -47,6 +48,12 @@ void Usage() {
 "             requires -o to specify target index name\n"
 "  -r BASE    normalize paths and make relative to BASE before outputting\n"
 "  -o FILE    write output to FILE (default: stdout)\n"
+#ifdef _WIN32
+"  -e ENVFILE replace KEY=value lines in ENVFILE to use as environment.\n"
+"             only applicable when -c is used\n"
+"  --command  run command via CreateProcess to get output rather than an infile\n"
+"             must be the last argument\n"
+#endif
          );
 }
 
@@ -60,15 +67,18 @@ enum InputFormat {
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
   const char* relative_to = NULL;
+  const char* envfile = NULL;
   InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
+  bool run_command = false;
 
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
+    { "command", no_argument, NULL, 'C' },
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "f:o:hqd:r:", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "f:o:hqd:r:e:", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         string format = optarg;
@@ -83,6 +93,14 @@ int main(int argc, char** argv) {
       case 'o':
         output_filename = optarg;
         break;
+#ifdef _WIN32
+      case 'e':
+        envfile = optarg;
+        break;
+      case 'C':
+        run_command = true;
+        break;
+#endif
       case 'q':
         quiet = true;
         break;
@@ -98,23 +116,50 @@ int main(int argc, char** argv) {
   argv += optind;
   argc -= optind;
 
-  FILE* input = stdin;
-  const char* input_filename = argc > 0 ? argv[0] : NULL;
-  if (input_filename) {
-    input = fopen(input_filename, "rb");
-    if (!input)
-      Fatal("opening %s: %s", input_filename, strerror(errno));
-  }
-
-  // Read and parse input file.
   string content;
   string err;
-  if (!ReadFile(input, &content, &err))
-    Fatal("loading %s: %s", input_filename, err.c_str());
+  int returncode = 0;
+  if (run_command) {
+    string env;
+    void* env_block = NULL;
+    if (envfile) {
+      if (ReadFile(envfile, &env, &err, true) != 0)
+        Fatal("couldn't open %s: %s", envfile, err.c_str());
+      env_block = const_cast<void*>(static_cast<const void*>(env.data()));
+    }
+    SubprocessSet subprocs;
+    char* command = GetCommandLine();
+    // TODO(scottmg): hack!
+    command = strstr(command, " --command ");
+    if (command)
+      command += 11;
+    puts(command);
+    puts((char*)env_block);
+    Subprocess* subproc = subprocs.Add(command, env_block);
+    if (!subproc)
+      Fatal("couldn't start: %s", command);
+    while (!subproc->Done()) {
+      subprocs.DoWork();
+    }
+    returncode = subproc->Finish();
+    content = subproc->GetOutput();
+  } else {
+    FILE* input = stdin;
+    const char* input_filename = argc > 0 ? argv[0] : NULL;
+    if (input_filename) {
+      input = fopen(input_filename, "rb");
+      if (!input)
+        Fatal("opening %s: %s", input_filename, strerror(errno));
+    }
 
-  if (input_filename) {
-    if (fclose(input) < 0)
-      Fatal("fclose(%s): %s", input_filename, strerror(errno));
+    // Read and parse input file.
+    if (!ReadFile(input, &content, &err))
+      Fatal("loading %s: %s", input_filename, err.c_str());
+
+    if (input_filename) {
+      if (fclose(input) < 0)
+        Fatal("fclose(%s): %s", input_filename, strerror(errno));
+    }
   }
 
   DepfileParser depfile;
@@ -124,15 +169,21 @@ int main(int argc, char** argv) {
   switch (input_format) {
   case INPUT_DEPFILE:
     if (!depfile.Parse(&content, &depfile_err))
-      Fatal("parsing %s: %s", input_filename, err.c_str());
+      Fatal("parsing %s", err.c_str());
     break;
   case INPUT_SHOW_INCLUDES:
     if (quiet) {
       size_t at;
-      if ((at = content.find(".c\n")) != string::npos ||
+      if (
+          (at = content.find(".c\r\n")) != string::npos ||
+          (at = content.find(".cc\r\n")) != string::npos ||
+          (at = content.find(".cxx\r\n")) != string::npos ||
+          (at = content.find(".cpp\r\n")) != string::npos ||
+          (at = content.find(".c\n")) != string::npos ||
           (at = content.find(".cc\n")) != string::npos ||
           (at = content.find(".cxx\n")) != string::npos ||
-          (at = content.find(".cpp\n")) != string::npos) {
+          (at = content.find(".cpp\n")) != string::npos
+         ) {
         content = content.substr(content.find("\n", at) + 1);
       }
     }
@@ -167,5 +218,5 @@ int main(int argc, char** argv) {
     }
   }
 
-  return 0;
+  return returncode;
 }

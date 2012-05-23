@@ -37,7 +37,9 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command,
+                       void* env_block) {
+  assert(!env_block);
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -172,9 +174,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
+Subprocess *SubprocessSet::Add(const string& command, void* env_block) {
   Subprocess *subprocess = new Subprocess;
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, env_block)) {
     delete subprocess;
     return 0;
   }

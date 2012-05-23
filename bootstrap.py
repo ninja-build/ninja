@@ -48,8 +48,6 @@ except OSError, e:
     if e.errno != errno.EEXIST:
         raise
 
-run([sys.executable, 'extract_version.py'])
-
 sources = []
 for src in glob.glob('src/*.cc'):
     if src.endswith('test.cc') or src.endswith('.in.cc'):

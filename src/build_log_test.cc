@@ -14,6 +14,7 @@
 
 #include "build_log.h"
 
+#include "util.h"
 #include "test.h"
 
 #ifdef _WIN32
@@ -27,7 +28,7 @@
 #include <unistd.h>
 #endif
 
-static const char kTestFilename[] = "BuildLogTest-tempfile";
+const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
@@ -63,6 +64,36 @@ TEST_F(BuildLogTest, WriteRead) {
   ASSERT_TRUE(*e1 == *e2);
   ASSERT_EQ(15, e1->start_time);
   ASSERT_EQ("out", e1->output);
+}
+
+TEST_F(BuildLogTest, FirstWriteAddsSignature) {
+  const char kExpectedVersion[] = "# ninja log vX\n";
+  const size_t kVersionPos = strlen(kExpectedVersion) - 2;  // Points at 'X'.
+
+  BuildLog log;
+  string contents, err;
+
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  log.Close();
+
+  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ("", err);
+  if (contents.size() >= kVersionPos)
+    contents[kVersionPos] = 'X';
+  EXPECT_EQ(kExpectedVersion, contents);
+
+  // Opening the file anew shouldn't add a second version string.
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  log.Close();
+
+  contents.clear();
+  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ("", err);
+  if (contents.size() >= kVersionPos)
+    contents[kVersionPos] = 'X';
+  EXPECT_EQ(kExpectedVersion, contents);
 }
 
 TEST_F(BuildLogTest, DoubleEntry) {
@@ -155,10 +186,15 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   ASSERT_EQ("command", e->command);
 }
 
-TEST_F(BuildLogTest, CarriageReturnInCommandV4) {
+TEST_F(BuildLogTest, DuplicateVersionHeader) {
+  // Old versions of ninja accidentally wrote multiple version headers to the
+  // build log on Windows. This shouldn't crash, and the second version header
+  // should be ignored.
   FILE* f = fopen(kTestFilename, "wb");
   fprintf(f, "# ninja log v4\n");
-  fprintf(f, "123\t456\t456\tout with space\tcommand\rcontains\rCR\n");
+  fprintf(f, "123\t456\t456\tout\tcommand\n");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
   fclose(f);
 
   string err;
@@ -166,10 +202,45 @@ TEST_F(BuildLogTest, CarriageReturnInCommandV4) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  BuildLog::LogEntry* e = log.LookupByOutput("out with space");
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
   ASSERT_EQ(456, e->restat_mtime);
-  ASSERT_EQ("command\rcontains\rCR", e->command);
+  ASSERT_EQ("command", e->command);
+
+  e = log.LookupByOutput("out2");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(456, e->start_time);
+  ASSERT_EQ(789, e->end_time);
+  ASSERT_EQ(789, e->restat_mtime);
+  ASSERT_EQ("command2", e->command);
+}
+
+TEST_F(BuildLogTest, VeryLongInputLine) {
+  // Ninja's build log buffer is currently 256kB. Lines longer than that are
+  // silently ignored, but don't affect parsing of other lines.
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "123\t456\t456\tout\tcommand start");
+  for (size_t i = 0; i < (512 << 10) / strlen(" more_command"); ++i)
+    fputs(" more_command", f);
+  fprintf(f, "\n");
+  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
+  fclose(f);
+
+  string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_EQ(NULL, e);
+
+  e = log.LookupByOutput("out2");
+  ASSERT_TRUE(e);
+  ASSERT_EQ(456, e->start_time);
+  ASSERT_EQ(789, e->end_time);
+  ASSERT_EQ(789, e->restat_mtime);
+  ASSERT_EQ("command2", e->command);
 }

@@ -77,7 +77,8 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command,
+                       void* env_block) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   SECURITY_ATTRIBUTES security_attributes = {};
@@ -103,7 +104,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   // lines greater than 8,191 chars.
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
-                      NULL, NULL,
+                      env_block, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
     if (error == ERROR_FILE_NOT_FOUND) { // file (program) not found error is treated as a normal build action failure
@@ -215,9 +216,9 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
+Subprocess *SubprocessSet::Add(const string& command, void* env_block) {
   Subprocess *subprocess = new Subprocess;
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, env_block)) {
     delete subprocess;
     return 0;
   }
