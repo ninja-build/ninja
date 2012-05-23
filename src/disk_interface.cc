@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//XXX #define _POSIX_C_SOURCE 200809L
-//XXX #define _BSD_SOURCE
+// If _GNU_SOURCE is defined all the other features are turned on! ck
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE // needed for _LARGEFILE64_SOURCE, default on unix!
+#endif
 
 #include "disk_interface.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -91,18 +92,17 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
    * 100-nanosecond intervals that have elapsed since
    * 12:00 midnight, January 1, 1601 A.D. (C.E.)
    * Coordinated Universal Time (UTC). */
-
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
 
 #ifdef USE_TIME_T
   // We don't much care about epoch correctness but we do want the
   // resulting value to fit in an integer.
-  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime /= 1000000000LL / 100LL; // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
   return (TimeStamp)mtime;
 #else
-  //FIXME: return the time as a signed quadword, but keep 100nsec pression! ck
+  // return the time as a signed quadword, but keep 100nsec pression! ck
   return mtime;
 #endif
 
@@ -128,21 +128,17 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     Error("stat64(%s): %s", path.c_str(), strerror(errno));
     return -1;
   }
-  //FIXME: use only 30 bits for nsec to prevent overflow after 2038! ck
-  //XXX return (((int64_t) st.st_mtimespec.tv_sec) << 30) + st.st_mtimespec.tv_nsec;
-  //XXX or
-  //FIXME: use 100 nsec ticks like windows
+  // use 100 nsec ticks like windows
 #ifdef __APPLE__
   return (((int64_t) st.st_mtimespec.tv_sec) * 10000000LL) + (st.st_mtimespec.tv_nsec / 100LL);
-#elif defined(_BSD_SOURCE)
-#warning "_BSD_SOURCE defined"
-  return (((int64_t) st.st_mtime) * 10000000) + (st.st_atim.tv_nsec / 100);
+#elif defined(_LARGEFILE64_SOURCE)
+  return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
 #else
-#warning "NO nsec available with stat()!"
+#warning "NO tv_nsec available with stat()!"
   // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
-  return (((int64_t) st.st_mtime) * 10000000); //XXX + (st.st_mtime_nsec / 100);
+  return (((int64_t) st.st_mtime) * 10000000LL); //XXX + (st.st_mtime_nsec / 100LL);
 #endif
-#endif
+#endif  // USE_TIME_T
 
 #endif
 }

@@ -1,7 +1,11 @@
 *.orig
+*.bak
 *.pyc
 *.exe
+*.pdb
+tags
 TAGS
+/bin
 /build
 /build.ninja
 /ninja
@@ -11,3 +15,7 @@ TAGS
 /doc/manual.html
 /doc/doxygen
 /CMakeTest/build
+.DS_Store
+.*.swp
+.*~
+*~
