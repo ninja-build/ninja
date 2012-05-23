@@ -178,27 +178,30 @@ bool Edge::AllInputsReady() const {
 /// An Env for an Edge, providing $in and $out.
 struct EdgeEnv : public Env {
   explicit EdgeEnv(Edge* edge) : edge_(edge) {}
-  virtual string LookupVariable(const string& var);
+  virtual string LookupVariable(const string& var, bool for_rspfile);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.  XXX here is where shell-escaping of e.g spaces should happen.
   string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end);
+                      vector<Node*>::iterator end,
+                      char sep);
 
   Edge* edge_;
 };
 
-string EdgeEnv::LookupVariable(const string& var) {
+string EdgeEnv::LookupVariable(const string& var, bool for_rspfile) {
   if (var == "in") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
     return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count);
+                        edge_->inputs_.begin() + explicit_deps_count,
+                        for_rspfile ? '\n' : ' ');
   } else if (var == "out") {
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end());
+                        edge_->outputs_.end(),
+                        ' ');
   } else if (edge_->env_) {
-    return edge_->env_->LookupVariable(var);
+    return edge_->env_->LookupVariable(var, for_rspfile);
   } else {
     // XXX shoudl we warn here?
     return string();
@@ -206,11 +209,12 @@ string EdgeEnv::LookupVariable(const string& var) {
 }
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end) {
+                             vector<Node*>::iterator end,
+                             char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
-      result.push_back(' ');
+      result.push_back(sep);
     const string& path = (*i)->path();
     if (path.find(" ") != string::npos) {
       result.append("\"");
@@ -227,7 +231,7 @@ string Edge::EvaluateCommand(bool incl_rsp_file) {
   EdgeEnv env(this);
   string command = rule_->command().Evaluate(&env);
   if (incl_rsp_file && HasRspFile()) 
-    command += ";rspfile=" + GetRspFileContent();
+    command += ";rspfile=" + GetRspFileContent(false);
   return command;
 }
 
@@ -250,9 +254,9 @@ string Edge::GetRspFile() {
   return rule_->rspfile().Evaluate(&env);
 }
 
-string Edge::GetRspFileContent() {
+string Edge::GetRspFileContent(bool with_newlines) {
   EdgeEnv env(this);
-  return rule_->rspfile_content().Evaluate(&env);
+  return rule_->rspfile_content().Evaluate(&env, with_newlines);
 }
 
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,

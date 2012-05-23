@@ -711,7 +711,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // Create response file, if needed
   // XXX: this may also block; do we care?
   if (edge->HasRspFile()) {
-    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent()))
+    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent(true)))
       return false;
   }
 
