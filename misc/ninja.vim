@@ -1,10 +1,10 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
-" Version: 1.0
-" Last Change: 2011/12/31
+" Version: 1.1
+" Last Change: 2012/05/13
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
-" Version 1.0 of this script is in the upstream vim repository and will be
+" Version 1.1 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
 " upstream.
 
@@ -17,6 +17,8 @@ if exists("b:current_syntax")
 endif
 
 syn case match
+
+syn match ninjaComment /#.*/
 
 " Toplevel statements are the ones listed here and
 " toplevel variable assignments (ident '=' value).
@@ -56,6 +58,7 @@ syn match   ninjaVar       "\${[a-zA-Z0-9_.-]\+}"
 " order-only dependency ||
 syn match ninjaOperator "\(=\|:\||\|||\)\ze\s"
 
+hi def link ninjaComment Comment
 hi def link ninjaKeyword Keyword
 hi def link ninjaRuleCommand Statement
 hi def link ninjaWrapLineOperator ninjaOperator

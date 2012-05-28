@@ -27,10 +27,9 @@ parser.add_option('--verbose', action='store_true',
 (options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
-    try:
-        subprocess.check_call(*args, **kwargs)
-    except subprocess.CalledProcessError, e:
-        sys.exit(e.returncode)
+    returncode = subprocess.call(*args, **kwargs)
+    if returncode != 0:
+        sys.exit(returncode)
 
 # Compute system-specific CFLAGS/LDFLAGS as used in both in the below
 # g++ call as well as in the later configure.py.
