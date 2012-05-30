@@ -262,6 +262,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   } else {
     printf("\n");
+    fflush(stdout);
   }
 }
 
