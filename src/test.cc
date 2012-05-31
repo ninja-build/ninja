@@ -89,8 +89,8 @@ void AssertParse(State* state, const char* input) {
   ASSERT_EQ("", err);
 }
 
-void AssertHash(const char* expected, unsigned actual) {
-  ASSERT_EQ(MurmurHash2(expected, strlen(expected)), actual);
+void AssertHash(const char* expected, uint64_t actual) {
+  ASSERT_EQ(MurmurHash64A(expected, strlen(expected)), actual);
 }
 
 void VirtualFileSystem::Create(const string& path, int time,

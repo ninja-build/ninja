@@ -95,7 +95,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
       log_entry->output = path;
       log_.insert(Log::value_type(log_entry->output, log_entry));
     }
-    log_entry->command_hash = MurmurHash2(command.data(), command.size());
+    log_entry->command_hash = MurmurHash64A(command.data(), command.size());
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
@@ -241,11 +241,11 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->restat_mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
-      entry->command_hash = (unsigned)atoi(start);
+      entry->command_hash = (uint64_t)strtoull(start, NULL, 10);
       *end = c;
     }
     else
-      entry->command_hash = MurmurHash2(start, end - start);
+      entry->command_hash = MurmurHash64A(start, end - start);
   }
 
   // Decide whether it's time to rebuild the log:
@@ -273,7 +273,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%u\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
           entry.start_time, entry.end_time, (long) entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }

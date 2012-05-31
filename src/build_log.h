@@ -49,7 +49,7 @@ struct BuildLog {
 
   struct LogEntry {
     string output;
-    unsigned int command_hash;  // XXX collision probability?
+    uint64_t command_hash;
     int start_time;
     int end_time;
     TimeStamp restat_mtime;
