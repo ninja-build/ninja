@@ -200,7 +200,7 @@ string EdgeEnv::LookupVariable(const string& var) {
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
-    // XXX shoudl we warn here?
+    // XXX should we warn here?
     return string();
   }
 }

@@ -517,6 +517,171 @@ void ToolUrtle() {
   }
 }
 
+string FormatLog(const char* log_format, BuildLog::LogEntry& entry, string& command) {
+  string out;
+  char buf[256 << 10];
+  for (const char* s = log_format; *s != '\0'; ++s) {
+    if (*s == '%') {
+      ++s;
+      switch (*s) {
+      case '%':
+        out.push_back('%');
+        break;
+
+        // duration
+      case 'd':
+        snprintf(buf, sizeof(buf), "%d", entry.end_time - entry.start_time);
+        out += buf;
+        break;
+
+        // output file
+      case 'o':
+        snprintf(buf, sizeof(buf), "%s", entry.output.c_str());
+        out += buf;
+        break;
+
+        // command
+      case 'c':
+        snprintf(buf, sizeof(buf), "%s", command.c_str());
+        out += buf;
+        break;
+
+      default: {
+        Fatal("unknown placeholder '%%%c' in log pattern", *s);
+        return "";
+      }
+      }
+    } else {
+      out.push_back(*s);
+    }
+  }
+
+  return out;
+}
+
+void PrintLog(BuildLog* build_log, const char* pattern,
+              Edge* edge, set<Edge*>* seen) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in)
+    PrintLog(build_log, pattern, (*in)->in_edge(), seen);
+
+  if (edge->is_phony())
+    return;
+
+  string command = edge->EvaluateCommand(true);
+  for (size_t i = 0; i < edge->outputs_.size(); ++i) {
+    // XXX set<Node>? Can output be produced by several edges?
+    // XXX maybe at least if %o isn't part of pattern?
+    Node* output = edge->outputs_[i];
+    BuildLog::LogEntry* entry = build_log->LookupByOutput(output->path());
+
+    // E.g. if a built product was checked in and never was built locally.
+    if (!entry)
+      continue;
+
+    printf("%s\n", FormatLog(pattern, *entry, command).c_str());
+  }
+}
+
+int ToolLog(Globals* globals, int argc, char* argv[]) {
+  // The log tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "log".
+  argc++;
+  argv--;
+
+  const char* pattern = NULL;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("p:h"))) != -1) {
+    switch (opt) {
+    case 'p':
+      pattern = optarg;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t log -p <pattern> [target]\n"
+"\n"
+"Dumps the build log to stdout, in format controlled by <pattern>.\n"
+"One line per executed build step.\n"
+"\n"
+"pattern (for example '%%d %%o'):\n"
+"  %%d     integer duration of a command in milliseconds seconds\n"
+"  %%o     name of the output file\n"
+"  %%c     command ran to produce the output\n"
+             );
+    return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  if (!pattern) {
+    Error("expected pattern, see -t log -h");
+    return 1;
+  }
+
+  string err;
+  // XXX extract function
+  BuildLog build_log;
+  build_log.SetConfig(&globals->config);
+  globals->state->build_log_ = &build_log;
+
+  const string build_dir = globals->state->bindings_.LookupVariable("builddir");
+  const char* kLogPath = ".ninja_log";
+  string log_path = kLogPath;
+  if (!build_dir.empty()) {
+    if (MakeDir(build_dir) < 0 && errno != EEXIST) {
+      Error("creating build directory %s: %s",
+            build_dir.c_str(), strerror(errno));
+      return 1;
+    }
+    log_path = build_dir + "/" + kLogPath;
+  }
+
+  if (!build_log.Load(log_path, &err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return 1;
+  }
+
+
+  // XXX extract function
+  vector<Node*> nodes;
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  Builder builder(globals->state, globals->config);
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    if (!builder.AddTarget(nodes[i], &err)) {
+      if (!err.empty()) {
+        Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  if (!builder.AlreadyUpToDate()) {
+    Error("Build needs to be up-to-date for -t log");
+    return 1;
+  }
+
+  set<Edge*> seen;
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintLog(globals->state->build_log_, pattern, (*in)->in_edge(), &seen);
+
+  return 0;
+}
+
 int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
   typedef int (*ToolFunc)(Globals*, int, char**);
   struct Tool {
@@ -534,6 +699,8 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolCommands },
     { "graph", "output graphviz dot file for targets",
       ToolGraph },
+    { "log", "log completed commands to stdout",
+      ToolLog },
     { "query", "show inputs/outputs for a path",
       ToolQuery },
     { "rules",    "list all rules",
