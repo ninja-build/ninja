@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,7 +24,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/termios.h>
 #endif
 
 #include "build_log.h"

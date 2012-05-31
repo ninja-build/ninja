@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_EXPLAIN_H_
+#define NINJA_EXPLAIN_H_
+
 #include <stdio.h>
 
 #define EXPLAIN(fmt, ...) {                                             \
@@ -20,3 +23,5 @@
 }
 
 extern bool g_explaining;
+
+#endif // NINJA_EXPLAIN_H_
