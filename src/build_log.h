@@ -49,14 +49,14 @@ struct BuildLog {
 
   struct LogEntry {
     string output;
-    string command;
+    unsigned int command_hash;  // XXX collision probability?
     int start_time;
     int end_time;
     TimeStamp restat_mtime;
 
     // Used by tests.
     bool operator==(const LogEntry& o) {
-      return output == o.output && command == o.command &&
+      return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
           restat_mtime == o.restat_mtime;
     }

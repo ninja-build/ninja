@@ -157,7 +157,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
   // dirty.
   if (!rule_->generator() && build_log &&
       (entry || (entry = build_log->LookupByOutput(output->path())))) {
-    if (command != entry->command) {
+    if (MurmurHash2(command.data(), command.size()) != entry->command_hash) {
       EXPLAIN("command line changed for %s", output->path().c_str());
       return true;
     }

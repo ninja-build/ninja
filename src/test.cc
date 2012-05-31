@@ -89,6 +89,10 @@ void AssertParse(State* state, const char* input) {
   ASSERT_EQ("", err);
 }
 
+void AssertHash(const char* expected, unsigned actual) {
+  ASSERT_EQ(MurmurHash2(expected, strlen(expected)), actual);
+}
+
 void VirtualFileSystem::Create(const string& path, int time,
                                const string& contents) {
   files_[path].mtime = time;
