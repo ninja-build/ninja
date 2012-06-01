@@ -36,7 +36,6 @@
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
-      last_update_millis_(start_time_millis_),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
@@ -99,7 +98,6 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       if (total_time > 5*1000) {
         printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
                finished_edges_, total_edges_);
-        last_update_millis_ = now;
       }
     }
   } else {
