@@ -84,7 +84,6 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
   *end_time = (int)(now - start_time_millis_);
-  int total_time = end_time - start_time;
   running_edges_.erase(i);
 
   if (config_.verbosity == BuildConfig::QUIET)
@@ -93,14 +92,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (smart_terminal_)
     PrintStatus(edge);
 
-  if (success && output.empty()) {
-    if (!smart_terminal_) {
-      if (total_time > 5*1000) {
-        printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
-               finished_edges_, total_edges_);
-      }
-    }
-  } else {
+  if (!success || !output.empty()) {
     if (smart_terminal_)
       printf("\n");
 
