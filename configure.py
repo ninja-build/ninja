@@ -322,8 +322,12 @@ objs = cxx('build_log_perftest')
 build_log_perftest = n.build(binary('build_log_perftest'), 'link', objs,
                              implicit=ninja_lib,
                              variables=[('libs', libs)])
+objs = cxx('canon_perftest')
+canon_perftest = n.build(binary('canon_perftest'), 'link', objs,
+                         implicit=ninja_lib,
+                         variables=[('libs', libs)])
 n.newline()
-all_targets += parser_perftest + build_log_perftest
+all_targets += parser_perftest + build_log_perftest + canon_perftest
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
