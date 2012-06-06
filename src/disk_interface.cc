@@ -27,19 +27,22 @@
 
 namespace {
 
-string DirName(const string& path) {
-#ifdef _WIN32
-  const char kPathSeparator = '\\';
-#else
-  const char kPathSeparator = '/';
-#endif
-
+string DirName(const string& path, const char kPathSeparator) {
   string::size_type slash_pos = path.rfind(kPathSeparator);
   if (slash_pos == string::npos)
     return string();  // Nothing to do.
   while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
     --slash_pos;
   return path.substr(0, slash_pos);
+}
+
+string DirName(const string& path) {
+#ifdef _WIN32
+  std::string dir = DirName(path, '\\');
+  if (!dir.empty())
+    return dir;
+#endif
+  return DirName(path, '/');
 }
 
 }  // namespace
