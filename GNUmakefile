@@ -13,10 +13,10 @@ all: ninja
 
 manual:: README.html
 README.html: README HACKING GNUmakefile
-	rst2html.py -dg $< > $@
+	$(bindir)/rst2html-2.7.py -dg $< > $@
 
-ninja: build.ninja
-	$(bindir)/ninja
+ninja: build.ninja $(bindir)/ninja
+	$(bindir)/ninja -d explain
 
 build.ninja: src/depfile_parser.cc src/lexer.cc
 	CPPFLAGS="-I$(includedir)" \
@@ -26,10 +26,10 @@ build.ninja: src/depfile_parser.cc src/lexer.cc
 	CXX='$(bindir)/ccache $(bindir)/g++' ./configure.py ###XXX --debug
 
 src/depfile_parser.cc: src/depfile_parser.in.cc
-	re2c -b -i --no-generation-date -o $@ $<
+	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
 src/lexer.cc: src/lexer.in.cc
-	re2c -b -i --no-generation-date -o $@ $<
+	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
 test: ninja_test
 	./$<
