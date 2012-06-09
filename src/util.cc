@@ -89,6 +89,7 @@ bool CanonicalizePath(string* path, string* err) {
   return true;
 }
 
+//FIXME: only posix path separator handled! ck
 bool CanonicalizePath(char* path, int* len, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.

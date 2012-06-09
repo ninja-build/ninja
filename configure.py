@@ -72,7 +72,7 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
+env_keys = set(['CXX', 'AR', 'CPPFLAGS', 'CFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 n.variable('configure_env',
            ' '.join([k + '=' + configure_env[k] for k in configure_env]))
@@ -146,6 +146,10 @@ else:
     elif options.profile == 'pprof':
         libs.append('-lprofiler')
 
+cppflags = []
+if 'CPPFLAGS' in configure_env:
+    cppflags.append(configure_env['CPPFLAGS'])
+n.variable('cppflags', ' '.join(cppflags))
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
 n.variable('cflags', ' '.join(cflags))
@@ -156,12 +160,12 @@ n.newline()
 
 if platform == 'windows':
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='$cxx $cppflags $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out')
 else:
     n.rule('cxx',
-        command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
+        command='$cxx -MMD -MT $out -MF $out.d $cppflags $cflags -c $in -o $out',
         depfile='$out.d',
         description='CXX $out')
 n.newline()

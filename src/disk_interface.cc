@@ -15,6 +15,7 @@
 // If _GNU_SOURCE is defined all the other features are turned on! ck
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // needed for _LARGEFILE64_SOURCE, default on unix!
+//XXX #define _POSIX_C_SOURCE
 #endif
 
 #include "disk_interface.h"
@@ -26,6 +27,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 #include "util.h"
@@ -118,7 +121,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   }
   return st.st_mtime;
 #else
-#ifdef __CYGWIN__
+#if defined(__CYGWIN__) || defined(_POSIX_C_SOURCE)
 #define stat64 stat
 #endif
   struct stat64 st;
@@ -129,14 +132,14 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     return -1;
   }
   // use 100 nsec ticks like windows
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
   return (((int64_t) st.st_mtimespec.tv_sec) * 10000000LL) + (st.st_mtimespec.tv_nsec / 100LL);
 #elif defined(_LARGEFILE64_SOURCE)
   return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
 #else
-#warning "NO tv_nsec available with stat()!"
+//FIXME #warning "NO tv_nsec available with stat()!"
   // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
-  return (((int64_t) st.st_mtime) * 10000000LL); //XXX + (st.st_mtime_nsec / 100LL);
+  return (((int64_t) st.st_mtime) * 10000000LL) + (st.st_mtimensec / 100LL);
 #endif
 #endif  // USE_TIME_T
 
