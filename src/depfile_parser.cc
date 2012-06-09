@@ -20,10 +20,10 @@
 // Backslash-# escapes a # (otherwise meaningful as a comment start).
 // Backslash-% escapes a % (otherwise meaningful as a special).
 // Finally, quoting the GNU manual, "Backslashes that are not in danger
-// of quoting ‘%’ characters go unmolested."
+// of quoting '%' characters go unmolested."
 // How do you end a line with a backslash?  The netbsd Make docs suggest
 // reading the result of a shell command echoing a backslash!
-//
+// see http://www.gnu.org/software/make/manual/html_node/Static-Usage.html
 // Rather than implement all of above, we do a simpler thing here:
 // Backslashes escape a set of characters (see "escapes" defined below),
 // otherwise they are passed through verbatim.
