@@ -21,6 +21,8 @@ import errno
 import shlex
 import subprocess
 
+os.chdir(os.path.dirname(sys.argv[0]))
+
 parser = OptionParser()
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
