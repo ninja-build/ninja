@@ -191,6 +191,17 @@ FILE* OpenFile(const string& path, const char* mode) {
 #endif
 }
 
+int RemoveFile(const string& path)
+{
+#ifdef _MSC_VER
+  // Invalid argument" when the path with quotes
+  string noQuotes;
+  return remove(RemoveQuotes(path, noQuotes).c_str());
+#else
+  return remove(path.c_str());
+#endif
+}
+
 int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = OpenFile(path, "r");
   if (!f) {

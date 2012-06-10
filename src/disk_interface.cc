@@ -143,7 +143,7 @@ string RealDiskInterface::ReadFile(const string& path, string* err) {
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {
-  if (remove(path.c_str()) < 0) {
+  if (::RemoveFile(path) < 0) {
     switch (errno) {
       case ENOENT:
         return 1;
