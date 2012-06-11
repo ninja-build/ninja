@@ -21,7 +21,7 @@ import errno
 import shlex
 import subprocess
 
-os.chdir(os.path.dirname(sys.argv[0]))
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = OptionParser()
 parser.add_option('--verbose', action='store_true',
