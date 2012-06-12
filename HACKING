@@ -2,6 +2,14 @@ Adjusting build flags:
   CFLAGS=-O3 ./configure.py
   and rebuild.
 
+Building tests requires gtest, to get it:
+  - On older Ubuntus you can apt-get install libgtest.
+  - On newer Ubuntus it's only distributed as source;
+    1) apt-get install libgtest-dev
+    2) ./configure --with-gtest=/usr/src/gtest
+  - Otherwise you need to download it, unpack it, and pass --with-gtest
+    as appropriate.
+
 Test-driven development:
   Set your build command to
     ./ninja ninja_test && ./ninja_test --gtest_filter=MyTest.Name
