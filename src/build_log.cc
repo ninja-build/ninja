@@ -58,7 +58,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
       return false;
   }
 
-  log_file_ = fopen(path.c_str(), "ab");
+  log_file_ = OpenFile(path, "ab");
   if (!log_file_) {
     *err = strerror(errno);
     return false;
@@ -163,7 +163,7 @@ class LineReader {
 
 bool BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = OpenFile(path, "r");
   if (!file) {
     if (errno == ENOENT)
       return true;
@@ -276,7 +276,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
   printf("Recompacting log...\n");
 
   string temp_path = path + ".recompact";
-  FILE* f = fopen(temp_path.c_str(), "wb");
+  FILE* f = OpenFile(temp_path, "wb");
   if (!f) {
     *err = strerror(errno);
     return false;

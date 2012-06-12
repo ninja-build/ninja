@@ -104,7 +104,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE * fp = fopen(path.c_str(), "w");
+  FILE * fp = OpenFile(path, "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s", path.c_str(), strerror(errno));
     return false;
@@ -143,7 +143,7 @@ string RealDiskInterface::ReadFile(const string& path, string* err) {
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {
-  if (remove(path.c_str()) < 0) {
+  if (::RemoveFile(path) < 0) {
     switch (errno) {
       case ENOENT:
         return 1;

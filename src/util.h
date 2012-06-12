@@ -46,6 +46,10 @@ bool CanonicalizePath(char* path, int* len, string* err);
 /// Portability abstraction.
 int MakeDir(const string& path);
 
+FILE* OpenFile(const string& path, const char* mode);
+
+int RemoveFile(const string& path);
+
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);

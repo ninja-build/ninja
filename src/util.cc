@@ -165,8 +165,45 @@ int MakeDir(const string& path) {
 #endif
 }
 
+// returns a reference to the untouched str or to 
+// the 'cleaned' string with quotes removed
+const string& RemoveQuotes(const string& str, string& cleaned) {
+  if (str.find("\"") != string::npos) {
+    cleaned.clear();
+    size_t size = str.size();
+    cleaned.reserve(size);
+    for (size_t i = 0; i < size; i++)
+      if (str[i] != '\"')
+        cleaned.push_back(str[i]);
+    return cleaned;
+  }
+  return str;
+}
+
+FILE* OpenFile(const string& path, const char* mode) {
+#ifdef _MSC_VER
+  // Quotes are for spaces but MSVC's fopen needs no quotes
+  // and returns "Invalid argument" when the path is quoted.
+  string noQuotes;
+  return fopen(RemoveQuotes(path, noQuotes).c_str(), mode);
+#else
+  return fopen(path.c_str(), mode);
+#endif
+}
+
+int RemoveFile(const string& path)
+{
+#ifdef _MSC_VER
+  // Invalid argument" when the path with quotes
+  string noQuotes;
+  return remove(RemoveQuotes(path, noQuotes).c_str());
+#else
+  return remove(path.c_str());
+#endif
+}
+
 int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
+  FILE* f = OpenFile(path, "r");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
