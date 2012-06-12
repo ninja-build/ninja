@@ -103,6 +103,17 @@ TEST_F(DepfileParserTest, Escapes) {
   ASSERT_EQ(0u, parser_.ins_.size());
 }
 
+TEST_F(DepfileParserTest, SpecialChars) {
+  string err;
+  EXPECT_TRUE(Parse(
+"C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h:",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
+            parser_.out_.AsString());
+  ASSERT_EQ(0u, parser_.ins_.size());
+}
+
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
   string err;
