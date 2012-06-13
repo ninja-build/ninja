@@ -137,6 +137,7 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
       while (view->dep_insert_offset + size > data_.Size()) {
         data_.IncreaseFileSize();
         view = GetView();
+        i = lower_bound(view->index, end, value, PathCompare);
       }
       // Append the new data.
       int inserted_offset = view->dep_insert_offset;

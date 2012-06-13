@@ -133,8 +133,6 @@ int main(int argc, char** argv) {
     command = strstr(command, " --command ");
     if (command)
       command += 11;
-    puts(command);
-    puts((char*)env_block);
     Subprocess* subproc = subprocs.Add(command, env_block);
     if (!subproc)
       Fatal("couldn't start: %s", command);
