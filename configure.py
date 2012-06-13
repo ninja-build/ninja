@@ -76,8 +76,9 @@ n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
 env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
-n.variable('configure_env',
-           ' '.join([k + '=' + configure_env[k] for k in configure_env]))
+if configure_env:
+    config_str = ' '.join([k + '=' + configure_env[k] for k in configure_env])
+    n.variable('configure_env', config_str + '$ ')
 n.newline()
 
 CXX = configure_env.get('CXX', 'g++')
@@ -480,7 +481,7 @@ n.newline()
 if host != 'mingw':
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command='$configure_env %s configure.py $configure_args' %
+           command='${configure_env}%s configure.py $configure_args' %
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',

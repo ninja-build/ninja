@@ -54,7 +54,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0, 128, 128, 128, 128, 128, 
+        128, 128,   0, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128,   0,   0,   0,   0,   0, 
           0, 128, 128, 128, 128, 128, 128, 128, 
@@ -84,18 +84,21 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= '\\') {
-        if (yych <= ':') {
+      if (yych <= '[') {
+        if (yych <= '*') {
           if (yych <= 0x00) goto yy6;
-          if (yych <= '*') goto yy8;
-          goto yy4;
+          if (yych <= '\'') goto yy8;
+          if (yych <= ')') goto yy4;
+          goto yy8;
         } else {
+          if (yych <= ':') goto yy4;
           if (yych <= '@') goto yy8;
           if (yych <= 'Z') goto yy4;
-          if (yych <= '[') goto yy8;
+          goto yy8;
         }
       } else {
         if (yych <= '`') {
+          if (yych <= '\\') goto yy2;
           if (yych == '_') goto yy4;
           goto yy8;
         } else {
@@ -104,6 +107,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           goto yy8;
         }
       }
+yy2:
       ++in;
       if ((yych = *in) <= '$') {
         if (yych <= '\n') {

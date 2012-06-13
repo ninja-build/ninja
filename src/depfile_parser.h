@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_DEPFILE_PARSER_H_
+#define NINJA_DEPFILE_PARSER_H_
+
 #include <string>
 #include <vector>
 using namespace std;
@@ -28,3 +31,5 @@ struct DepfileParser {
   StringPiece out_;
   vector<StringPiece> ins_;
 };
+
+#endif // NINJA_DEPFILE_PARSER_H_

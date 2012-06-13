@@ -225,7 +225,7 @@ bool ManifestParser::ParseEdge(string* err) {
     ins.push_back(in);
   }
 
-  // Add all order-only deps, counting how many as we go.
+  // Add all implicit deps, counting how many as we go.
   int implicit = 0;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
