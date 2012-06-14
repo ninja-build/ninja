@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_LEXER_H_
+#define NINJA_LEXER_H_
+
 #include "string_piece.h"
 
 // Windows may #define ERROR.
@@ -95,3 +98,4 @@ private:
   const char* last_token_;
 };
 
+#endif // NINJA_LEXER_H_

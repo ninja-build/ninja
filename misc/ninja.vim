@@ -1,10 +1,10 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
-" Version: 1.1
-" Last Change: 2012/05/13
+" Version: 1.2
+" Last Change: 2012/06/01
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
-" Version 1.1 of this script is in the upstream vim repository and will be
+" Version 1.2 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
 " upstream.
 
@@ -18,7 +18,7 @@ endif
 
 syn case match
 
-syn match ninjaComment /#.*/
+syn match ninjaComment /#.*/  contains=@Spell
 
 " Toplevel statements are the ones listed here and
 " toplevel variable assignments (ident '=' value).

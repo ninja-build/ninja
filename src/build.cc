@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <iostream>
+#include <stdlib.h>
 
 #ifdef _WIN32
 //XXX see "subprocess.h" #include <windows.h>
@@ -24,7 +25,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/termios.h>
 #endif
 
 #include "build_log.h"
@@ -37,7 +37,6 @@
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_ticks_(GetTimeMillis()),	//FIXME ms or 100ns GetCurrentTicks()
-      last_update_ticks_(start_time_ticks_),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
@@ -86,7 +85,6 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
   *end_time = (int)(now - start_time_ticks_);	//FIXME int64_t?
-  int total_time = end_time - start_time;	//FIXME int64_t?
   running_edges_.erase(i);
 
   if (config_.verbosity == BuildConfig::QUIET)
@@ -95,15 +93,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (smart_terminal_)
     PrintStatus(edge);
 
-  if (success && output.empty()) {
-    if (!smart_terminal_) {
-      if (total_time > 5*1000) {	// FIXME 100ns or ms! ck
-        printf("%.1f%% %d/%d\n", finished_edges_ * 100 / (float)total_edges_,
-               finished_edges_, total_edges_);
-        last_update_ticks_ = now;
-      }
-    }
-  } else {
+  if (!success || !output.empty()) {
     if (smart_terminal_)
       printf("\n");
 

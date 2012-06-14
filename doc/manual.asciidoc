@@ -123,7 +123,7 @@ but they are not part of make itself.)
   you can print e.g. `CC foo.o` instead of a long command line while
   building.
 
-* Builds are always run in parallel, based by defaulton the number of
+* Builds are always run in parallel, based by default on the number of
   CPUs your system has.  Underspecified build dependencies will result
   in incorrect builds.
 
@@ -143,7 +143,7 @@ full details of the implementation -- like how to get C header
 interdependencies correct and fast when using MSVC's compiler -- is
 not yet complete.
 
-If your project is small, Ninja's speed impact is likely unnoticable.
+If your project is small, Ninja's speed impact is likely unnoticeable.
 Some build timing numbers are included below.  (However, even for
 small projects it sometimes turns out that Ninja's limited syntax
 forces simpler build rules that result in faster builds.)  Another way
@@ -151,7 +151,7 @@ to say this is that if you're happy with the edit-compile cycle time
 of your project already then Ninja won't help.
 
 There are many other build systems that are more user-friendly or
-featureful than Ninja itself.  For some recomendations: the Ninja
+featureful than Ninja itself.  For some recommendations: the Ninja
 author found http://gittup.org/tup/[the tup build system] influential
 in Ninja's design, and thinks https://github.com/apenwarr/redo[redo]'s
 design is quite clever.
