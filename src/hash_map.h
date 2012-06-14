@@ -16,6 +16,7 @@
 #define NINJA_MAP_H_
 
 #include "string_piece.h"
+#include "util.h"
 
 // MurmurHash2, by Austin Appleby
 static inline
@@ -54,7 +55,7 @@ unsigned int MurmurHash2(const void* key, int len) {
 #endif // !defined(_MSC_VER)
 static inline
 uint64_t MurmurHash64A(const void* key, int len) {
-  static const uint64_t seed = 0xDECAFBADDECAFBADllu;
+  static const uint64_t seed = 0xDECAFBADDECAFBADull;
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
   uint64_t h = seed ^ (len * m);

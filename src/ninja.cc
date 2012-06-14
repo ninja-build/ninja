@@ -660,7 +660,7 @@ int ToolLog(Globals* globals, int argc, char* argv[]) {
   build_log.SetConfig(&globals->config);
   globals->state->build_log_ = &build_log;
 
-  const string build_dir = globals->state->bindings_.LookupVariable("builddir");
+  const string build_dir = globals->state->bindings_.LookupVariable("builddir", false);
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
