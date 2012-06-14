@@ -37,7 +37,7 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kCurrentVersion = 4;
+const int kCurrentVersion = 5;
 
 }  // namespace
 
@@ -95,7 +95,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
       log_entry->output = path;
       log_.insert(Log::value_type(log_entry->output, log_entry));
     }
-    log_entry->command = command;
+    log_entry->command_hash = MurmurHash64A(command.data(), command.size());
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
@@ -239,7 +239,13 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->restat_mtime = restat_mtime;
-    entry->command = string(start, end - start);
+    if (log_version >= 5) {
+      char c = *end; *end = '\0';
+      entry->command_hash = (uint64_t)strtoull(start, NULL, 10);
+      *end = c;
+    }
+    else
+      entry->command_hash = MurmurHash64A(start, end - start);
   }
 
   // Decide whether it's time to rebuild the log:
@@ -267,9 +273,9 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
           entry.start_time, entry.end_time, (long) entry.restat_mtime,
-          entry.output.c_str(), entry.command.c_str());
+          entry.output.c_str(), entry.command_hash);
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
