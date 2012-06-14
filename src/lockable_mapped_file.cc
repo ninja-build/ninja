@@ -20,12 +20,23 @@
 
 static const char* kMutexSuffix = "_ninja_mutex";
 
+string BuildMutexName(const string& filename) {
+  char full_filename[_MAX_PATH];
+  if (!GetFullPathName(filename.c_str(), sizeof(full_filename), full_filename, NULL))
+    Fatal("GetFullPathName");
+  for (char* p = full_filename; *p; ++p) {
+    if (*p == '\\')
+      *p = '_';
+  }
+  return string(full_filename) + kMutexSuffix;
+}
+
 LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
     view_(0),
     file_mapping_(0),
     should_initialize_(false),
     DEBUG_is_acquired_(create) {
-  string mutex_name = filename + kMutexSuffix;
+  string mutex_name = BuildMutexName(filename);
   if (create)
     lock_ = CreateMutex(NULL, TRUE, mutex_name.c_str());
   else
@@ -61,7 +72,7 @@ LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
 bool LockableMappedFile::IsAvailable(const string& filename) {
   // TODO: Crappy test, used to see if the other process has created the
   // data. Obviously racy and lame.
-  string mutex_name = filename + kMutexSuffix;
+  string mutex_name = BuildMutexName(filename);
   HANDLE lock = OpenMutex(MUTEX_ALL_ACCESS, FALSE, mutex_name.c_str());
   if (lock == NULL)
     return false;
