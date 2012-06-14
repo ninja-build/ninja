@@ -234,7 +234,6 @@ for name in ['build',
              'lockable_mapped_file',
              'metrics',
              'parsers',
-             'pathdb',
              'showincludes_parser',
              'state',
              'util']:
