@@ -20,7 +20,6 @@
 using namespace std;
 
 #include "eval_env.h"
-#include "stat_cache.h"
 #include "timestamp.h"
 
 struct DiskInterface;
@@ -40,12 +39,9 @@ struct Node {
   bool Stat(DiskInterface* disk_interface);
 
   /// Return true if we needed to stat.
-  bool StatIfNecessary(DiskInterface* disk_interface, State* state) {
+  bool StatIfNecessary(DiskInterface* disk_interface) {
     if (status_known())
       return false;
-    if (state && state->stat_cache_ &&
-        (mtime_ = state->stat_cache_->GetMtime(path_)) >= 0)
-      return true;
     Stat(disk_interface);
     return true;
   }

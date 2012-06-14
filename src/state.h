@@ -74,7 +74,6 @@ struct State {
   vector<Node*> defaults_;
   struct BuildLog* build_log_;
   struct DepDatabase* depdb_;
-  struct StatCache* stat_cache_;
 };
 
 #endif  // NINJA_STATE_H_

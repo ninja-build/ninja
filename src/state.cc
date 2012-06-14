@@ -24,7 +24,7 @@
 
 const Rule State::kPhonyRule("phony");
 
-State::State() : build_log_(NULL), depdb_(NULL), stat_cache_(NULL) {
+State::State() : build_log_(NULL), depdb_(NULL) {
   AddRule(&kPhonyRule);
 }
 

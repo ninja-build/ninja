@@ -44,10 +44,8 @@
 #include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
-#include "interesting_paths.h"
 #include "metrics.h"
 #include "parsers.h"
-#include "stat_cache.h"
 #include "state.h"
 #include "util.h"
 
@@ -533,18 +531,6 @@ void ToolUrtle() {
   }
 }
 
-int ToolStatCache(Globals* globals, int argc, char* argv[]) {
-  StatCache::Dump();
-  InterestingPaths::Dump();
-  return 0;
-}
-
-int ToolStatCacheCheck(Globals* globals, int argc, char* argv[]) {
-  RealDiskInterface disk_interface;
-  StatCache::ValidateAgainstDisk(disk_interface);
-  return 0;
-}
-
 string FormatLog(const char* log_format, BuildLog::LogEntry& entry, string& command) {
   string out;
   char buf[256 << 10];
@@ -737,10 +723,6 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolQuery },
     { "rules",    "list all rules",
       ToolQuery },
-    { "statcache", "list files in statcache and interesting (watched) paths",
-      ToolStatCache },
-    { "statcachecheck", "Validate statcache against on-disk mtimes",
-      ToolStatCacheCheck },
     { "targets",  "list targets by their rule or depth in the DAG",
       ToolTargets },
     { NULL, NULL, NULL }
@@ -827,22 +809,6 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   }
 
   return 0;
-}
-
-void AddCacheMissesToInterestingPaths(const vector<string>& paths) {
-  InterestingPaths interesting_paths(false);
-  if (paths.size() > 0) {
-    printf("ninja: %d stat cache misses, adding to daemon.\n", paths.size());
-    for (size_t i = 0; i < paths.size() && i < 11; ++i) {
-      if (i == 10)
-        printf("ninja:  ... more paths elided\n");
-      else
-        printf("ninja:  %s\n", paths[i].c_str());
-    }
-  }
-  interesting_paths.StartAdditions();
-  interesting_paths.Add(paths);
-  interesting_paths.FinishAdditions();
 }
 
 }  // anonymous namespace
@@ -936,9 +902,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (StatCache::Active())
-    StatCache::EnsureDaemonRunning();
-
   bool rebuilt_manifest = false;
 
 reload:
@@ -985,12 +948,6 @@ reload:
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
 
-  RealDiskInterface* disk_interface = 0;
-  if (StatCache::Active()) {
-    disk_interface = new RealDiskInterface();
-    globals.state->stat_cache_ = new StatCache(false, disk_interface);
-  }
-
   if (!tool.empty())
     return RunTool(tool, &globals, argc, argv);
 
@@ -1006,9 +963,6 @@ reload:
     }
   }
 
-  if (globals.state->stat_cache_)
-    globals.state->stat_cache_->StartBuild();
-
   int result = RunBuild(&globals, argc, argv);
   if (g_metrics) {
     g_metrics->Report();
@@ -1023,11 +977,6 @@ reload:
 #endif
     printf("path->node hash load %.2f (%d entries / %d buckets)\n",
            count / (double) buckets, count, buckets);
-  }
-  if (globals.state->stat_cache_) {
-    AddCacheMissesToInterestingPaths(globals.state->stat_cache_->FinishBuild());
-    delete globals.state->stat_cache_;
-    delete disk_interface;
   }
   return result;
 }
