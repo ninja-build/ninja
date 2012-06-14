@@ -25,7 +25,7 @@ using namespace std;
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
   virtual ~Env() {}
-  virtual string LookupVariable(const string& var, bool for_rspfile) = 0;
+  virtual string LookupVariable(const string& var) = 0;
 };
 
 /// An Env which contains a mapping of variables to values
@@ -34,7 +34,7 @@ struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
   explicit BindingEnv(Env* parent) : parent_(parent) {}
   virtual ~BindingEnv() {}
-  virtual string LookupVariable(const string& var, bool for_rspfile);
+  virtual string LookupVariable(const string& var);
   void AddBinding(const string& key, const string& val);
 
 private:
@@ -45,7 +45,7 @@ private:
 /// A tokenized string that contains variable references.
 /// Can be evaluated relative to an Env.
 struct EvalString {
-  string Evaluate(Env* env, bool for_rspfile=false) const;
+  string Evaluate(Env* env) const;
 
   void Clear() { parsed_.clear(); }
   bool empty() const { return parsed_.empty(); }
