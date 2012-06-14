@@ -390,7 +390,7 @@ if host != 'mingw':
     n.newline()
 
 n.comment('Build only the user-facing binaries by default.')
-n.default(ninja + deplist_helper + stat_daemon)
+n.default(ninja + deplist_helper)
 n.newline()
 
 n.build('all', 'phony', all_targets)
