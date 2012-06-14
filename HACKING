@@ -44,6 +44,14 @@ The build times for ninja on a **macbok pro** with 2 CPU cores are:
 +---------------------------+-----------------------+-------------------------+
 
 
+Building tests requires gtest, to get it:
+  - On older Ubuntus you can apt-get install libgtest.
+  - On newer Ubuntus it's only distributed as source;
+    1) apt-get install libgtest-dev
+    2) ./configure --with-gtest=/usr/src/gtest
+  - Otherwise you need to download it, unpack it, and pass --with-gtest
+    as appropriate.
+
 Test-driven development:
 ------------------------
 

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef NINJA_METRICS_H_
+#define NINJA_METRICS_H_
+
 #include <string>
 #include <vector>
 using namespace std;
@@ -62,3 +65,5 @@ private:
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
 extern Metrics* g_metrics;
+
+#endif // NINJA_METRICS_H_
