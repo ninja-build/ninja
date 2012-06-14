@@ -40,7 +40,7 @@ struct BuildLog {
 
   void SetConfig(BuildConfig* config) { config_ = config; }
   bool OpenForWrite(const string& path, string* err);
-  void RecordCommand(Edge* edge, int start_time, int end_time,
+  void RecordCommand(Edge* edge, int start_time, int end_time,	//FIXME int64_t?
                      TimeStamp restat_mtime = 0);
   void Close();
 
@@ -50,8 +50,8 @@ struct BuildLog {
   struct LogEntry {
     string output;
     string command;
-    int start_time;
-    int end_time;
+    int start_time;	//FIXME int64_t?
+    int end_time;	//FIXME int64_t?
     TimeStamp restat_mtime;
 
     // Used by tests.

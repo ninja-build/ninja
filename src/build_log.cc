@@ -196,10 +196,10 @@ bool BuildLog::Load(const string& path, string* err) {
       continue;
     *end = 0;
 
-    int start_time = 0, end_time = 0;
+    int start_time = 0, end_time = 0;	//FIXME int64_t?
     TimeStamp restat_mtime = 0;
 
-    start_time = atoi(start);
+    start_time = atoi(start);	//FIXME use of atoll and int64_t?
     start = end + 1;
 
     end = (char*)memchr(start, field_separator, line_end - start);
@@ -213,7 +213,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = atoll(start);	// NOTE: 100ns TimeStamp
     start = end + 1;
 
     end = (char*)memchr(start, field_separator, line_end - start);
@@ -267,8 +267,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
-          entry.start_time, entry.end_time, (long) entry.restat_mtime,
+  fprintf(f, "%d\t%d\t%lld\t%s\t%s\n",
+          entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command.c_str());
 }
 

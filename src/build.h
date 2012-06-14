@@ -174,9 +174,9 @@ struct BuildStatus {
   const BuildConfig& config_;
 
   /// Time the build started.
-  int64_t start_time_millis_;
+  int64_t start_time_ticks_;
   /// Time we last printed an update.
-  int64_t last_update_millis_;
+  int64_t last_update_ticks_;
 
   int started_edges_, finished_edges_, total_edges_;
 
