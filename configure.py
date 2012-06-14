@@ -42,8 +42,6 @@ parser.add_option('--profile', metavar='TYPE',
                   help='enable profiling (' + '/'.join(profilers) + ')',)
 parser.add_option('--with-gtest', metavar='PATH',
                   help='use gtest unpacked in directory PATH')
-parser.add_option('--with-tcmalloc', metavar='PATH',
-                  help='use tcmalloc unpacked in directory PATH')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -97,12 +95,6 @@ def cc(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
-def tcmalloc_c(name, **kwargs):
-    return n.build(built(name + objext), 'cxx',
-            os.path.join(options.with_tcmalloc, src(name + '.c')), **kwargs)
-def tcmalloc_cxx(name, **kwargs):
-    return n.build(built(name + objext), 'cxx',
-            os.path.join(options.with_tcmalloc, src(name + '.cc')), **kwargs)
 def binary(name):
     if platform in ('mingw', 'windows'):
         return name + '.exe'
@@ -115,41 +107,6 @@ if platform == 'windows':
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
-def prep_libcmt():
-    print "prepping modified libcmt.lib..."
-    import shutil
-    src = os.path.join(os.getenv('VSINSTALLDIR'), 'vc', 'lib', 'libcmt')
-    shutil.copyfile(src + '.lib', 'mylibcmt.lib')
-    shutil.copyfile(src + '.pdb', 'libcmt.pdb')
-    vspaths = [
-            #'build\\intel\\mt_obj\\',
-            'f:\\dd\\vctools\\crt_bld\\SELF_X86\\crt\\src\\build\\INTEL\\mt_obj\\'
-            ]
-    objfiles = ['malloc',
-                'free',
-                'realloc',
-                'new',
-                'delete',
-                'new2',
-                'delete2',
-                'align',
-                'msize',
-                'heapinit',
-                'expand',
-                'heapchk',
-                'heapwalk',
-                'heapmin',
-                'sbheap',
-                'calloc',
-                'recalloc',
-                'calloc_impl',
-                'new_mode',
-                'newopnt']
-    for obj in objfiles:
-        for vspath in vspaths:
-            cmd = 'lib /nologo /ignore:4006,4014,4221 /remove:%s%s.obj mylibcmt.lib' % (vspath, obj)
-            os.system(cmd)
-
 if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
@@ -157,21 +114,6 @@ if platform == 'windows':
               '/D_WIN32_WINNT=0x0600', '/DWINVER=0x0600',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
-    if options.with_tcmalloc:
-        prep_libcmt()
-        cflags += ['/DPERFTOOLS_DLL_DECL=""',
-                   '/wd4127', '/wd4310', '/wd4389', '/wd4005', '/wd4510',
-                   '/wd4245', '/wd4610', '/wd4505', '/wd4115', '/wd4565',
-                   '/wd4701',
-                   '/DWIN32_OVERRIDE_ALLOCATORS',
-                   '/D_WIN32',
-                   '/Isrc', # So that we find our config.h first.
-                   '/I' + os.path.join(options.with_tcmalloc, 'src'),
-                   '/I' + os.path.join(options.with_tcmalloc, 'src', 'windows')
-                   ]
-        ldflags += ['/NODEFAULTLIB:libcmt.lib',
-                    'mylibcmt.lib',
-                   ]
     if not options.debug:
         cflags += ['/MT', '/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
@@ -277,7 +219,6 @@ n.newline()
 n.comment('Core source files all build into ninja library.')
 for name in ['build',
              'build_log',
-             'change_journal',
              'clean',
              'dep_database',
              'depfile_parser',
@@ -289,44 +230,15 @@ for name in ['build',
              'graph',
              'graphviz',
              'includes_normalize',
-             'interesting_paths',
              'lexer',
              'lockable_mapped_file',
              'metrics',
              'parsers',
              'pathdb',
              'showincludes_parser',
-             'stat_cache',
-             'stat_daemon_util',
              'state',
              'util']:
     objs += cxx(name)
-if options.with_tcmalloc:
-    for name in ['central_freelist',
-                 'common',
-                 'heap-profile-table',
-                 'internal_logging',
-                 'base/logging',
-                 'base/low_level_alloc',
-                 'malloc_extension',
-                 'malloc_hook',
-                 'memory_region_map',
-                 'page_heap',
-                 'windows/port',
-                 'windows/override_functions',
-                 'raw_printer',
-                 'sampler',
-                 'span',
-                 'base/spinlock',
-                 'base/spinlock_internal',
-                 'stack_trace_table',
-                 'stacktrace',
-                 'static_vars',
-                 'symbolize',
-                 'base/sysinfo',
-                 'thread_cache']:
-        objs += tcmalloc_cxx(name)
-    objs += tcmalloc_c('base/dynamic_annotations')
 
 if platform == 'mingw' or platform == 'windows':
     objs += cxx('subprocess-win32')
@@ -386,7 +298,6 @@ else:
 
 for name in ['build_log_test',
              'build_test',
-             'change_journal_test',
              'clean_test',
              'dep_database_test',
              'depfile_parser_test',
@@ -395,11 +306,9 @@ for name in ['build_log_test',
              'edit_distance_test',
              'graph_test',
              'includes_normalize_test',
-             'interesting_paths_test',
              'lexer_test',
              'parsers_test',
              'showincludes_parser_test',
-             'stat_cache_test',
              'state_test',
              'subprocess_test',
              'test',
@@ -423,14 +332,6 @@ deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
                          variables=[('libs', libs)])
 n.newline()
 all_targets += deplist_helper
-
-n.comment('Stat daemon.')
-objs = cxx('stat_daemon')
-stat_daemon = n.build(binary('ninja-stat-daemon'), 'link', objs,
-                      implicit=ninja_lib,
-                      variables=[('libs', libs)])
-n.newline()
-all_targets += stat_daemon
 
 n.comment('Perftest executables.')
 objs = cxx('parser_perftest')
