@@ -12,6 +12,7 @@ gtestdir:=$(shell $(bindir)/grealpath $(CURDIR)/../gtest-1.6.0)
 ###XXX .SILENT:
 .PHONY: test manual install clean distclean help ### all
 .DEFAULT: all
+all::
 
 # bootstrap with install ninja!
 ninja: build.ninja $(bindir)/ninja
@@ -22,6 +23,8 @@ README.html: README HACKING GNUmakefile
 	$(bindir)/rst2html-2.7.py -dg $< > $@
 
 ###FIXME -Wundef not usable with gtest-1.6.0! ck
+###XXX	CPPFLAGS="-I$(includedir) -DUSE_TIME_T" \
+
 build.ninja: src/depfile_parser.cc src/lexer.cc
 	CPPFLAGS="-I$(includedir)" \
 	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual' \
@@ -51,7 +54,7 @@ help: ninja
 	./ninja -t targets
 
 clean: build.ninja
-	-$(bindir)/ninja -t clean
+	-./ninja -t clean
 
 distclean: clean
 	rm -rf CMakeTest/build build *.orig *~ tags ninja ninja_test *.exe *.pdb *.ninja doc/doxygen/html *.html

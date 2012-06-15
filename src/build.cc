@@ -723,24 +723,27 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 #endif
 
   if (success) {
-
     if (edge->rule().restat() && !config_.dry_run) {
       bool node_cleaned = false;
 
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
         TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+#ifndef USE_TIME_T
         string path = (*i)->path();
         //FIXME cerr << "\nDEBUG mtime for " << path  << " is: " << new_mtime << endl;  //TODO delete this line
+#endif
         if ((*i)->mtime() == new_mtime) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
-          //Note that this also applies to nonexistent outputs (mtime == 0).
+          // Note that this also applies to nonexistent outputs (mtime == 0).
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
+#ifndef USE_TIME_T
           if (new_mtime) {
               cerr << "\nDEBUG mtime set for cleaned node " << path << endl;    //TODO delete this line
           }
+#endif
         }
 #ifndef USE_TIME_T
         else {
@@ -761,10 +764,12 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
             break;	//FIXME why? ck
 #endif
           } else if (input_mtime > restat_mtime) {
-            string path = (*i)->path();
-            //FIXME cerr << "\nDEBUG mtime for " << path  << " is: " << input_mtime << endl;    //TODO delete this line
             restat_mtime = input_mtime;
-            break;
+            string path = (*i)->path();
+            cerr << "\nDEBUG mtime for " << path  << " is: " << input_mtime << endl;    //TODO delete this line
+#ifndef USE_TIME_T
+            break;  //TODO check this! ck
+#endif
           }
         }
 

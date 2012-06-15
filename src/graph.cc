@@ -144,8 +144,12 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
         return true;
       }
     } else {
-      //FIXME #ifdef USE_TIME_T ...
-      EXPLAIN("output %s older than most recent input %s (%016lld vs %016lld)",
+      EXPLAIN(
+#ifdef USE_TIME_T
+              "output %s older than most recent input %s (%016ld vs %016ld)",
+#else
+              "output %s older than most recent input %s (%016lld vs %016lld)",
+#endif
           output->path().c_str(),
           most_recent_node ? most_recent_node->path().c_str() : "",
           output->mtime(), most_recent_input);
