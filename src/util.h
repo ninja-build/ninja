@@ -89,10 +89,7 @@ double GetLoadAverage();
 #define fileno _fileno
 #define unlink _unlink
 #define chdir _chdir
-#define strtoull stoull
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef unsigned long long uint64_t;
+#define strtoull _strtoui64
 #endif
 
 #ifdef _WIN32

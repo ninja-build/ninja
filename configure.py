@@ -332,17 +332,20 @@ deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
 n.newline()
 all_targets += deplist_helper
 
-n.comment('Perftest executables.')
+n.comment('Ancilliary executables.')
 objs = cxx('parser_perftest')
-parser_perftest = n.build(binary('parser_perftest'), 'link', objs,
-                          implicit=ninja_lib,
-                          variables=[('libs', libs)])
+all_targets += n.build(binary('parser_perftest'), 'link', objs,
+                       implicit=ninja_lib, variables=[('libs', libs)])
 objs = cxx('build_log_perftest')
-build_log_perftest = n.build(binary('build_log_perftest'), 'link', objs,
-                             implicit=ninja_lib,
-                             variables=[('libs', libs)])
+all_targets += n.build(binary('build_log_perftest'), 'link', objs,
+                       implicit=ninja_lib, variables=[('libs', libs)])
+objs = cxx('canon_perftest')
+all_targets += n.build(binary('canon_perftest'), 'link', objs,
+                       implicit=ninja_lib, variables=[('libs', libs)])
+objs = cxx('hash_collision_bench')
+all_targets += n.build(binary('hash_collision_bench'), 'link', objs,
+                              implicit=ninja_lib, variables=[('libs', libs)])
 n.newline()
-all_targets += parser_perftest + build_log_perftest
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
