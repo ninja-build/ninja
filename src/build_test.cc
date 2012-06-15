@@ -953,8 +953,10 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   // (to simulate a change in the command line between 2 builds)
   BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ("cat out.rsp > out;rspfile=Original very long command", log_entry->command);
-  log_entry->command = "cat out.rsp > out;rspfile=Altered very long command";
+  ASSERT_NO_FATAL_FAILURE(AssertHash(
+        "cat out.rsp > out;rspfile=Original very long command",
+        log_entry->command_hash));
+  log_entry->command_hash++;  // Change the command hash to something else.
   // Now expect the target to be rebuilt
   commands_ran_.clear();
   state_.Reset();

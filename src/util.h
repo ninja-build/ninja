@@ -77,6 +77,7 @@ double GetLoadAverage();
 #define fileno _fileno
 #define unlink _unlink
 #define chdir _chdir
+#define strtoull _strtoui64
 #endif
 
 #ifdef _WIN32

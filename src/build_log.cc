@@ -37,9 +37,56 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kCurrentVersion = 4;
+const int kCurrentVersion = 5;
+
+// 64bit MurmurHash2, by Austin Appleby
+#if defined(_MSC_VER)
+#define BIG_CONSTANT(x) (x)
+#else   // defined(_MSC_VER)
+#define BIG_CONSTANT(x) (x##LLU)
+#endif // !defined(_MSC_VER)
+inline
+uint64_t MurmurHash64A(const void* key, int len) {
+  static const uint64_t seed = 0xDECAFBADDECAFBADull;
+  const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
+  const int r = 47;
+  uint64_t h = seed ^ (len * m);
+  const uint64_t * data = (const uint64_t *)key;
+  const uint64_t * end = data + (len/8);
+  while(data != end) {
+    uint64_t k = *data++;
+    k *= m; 
+    k ^= k >> r; 
+    k *= m; 
+    h ^= k;
+    h *= m; 
+  }
+  const unsigned char* data2 = (const unsigned char*)data;
+  switch(len & 7)
+  {
+  case 7: h ^= uint64_t(data2[6]) << 48;
+  case 6: h ^= uint64_t(data2[5]) << 40;
+  case 5: h ^= uint64_t(data2[4]) << 32;
+  case 4: h ^= uint64_t(data2[3]) << 24;
+  case 3: h ^= uint64_t(data2[2]) << 16;
+  case 2: h ^= uint64_t(data2[1]) << 8;
+  case 1: h ^= uint64_t(data2[0]);
+          h *= m;
+  };
+  h ^= h >> r;
+  h *= m;
+  h ^= h >> r;
+  return h;
+} 
+#undef BIG_CONSTANT
+
 
 }  // namespace
+
+// static
+uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
+  return MurmurHash64A(command.str_, command.len_);
+}
 
 BuildLog::BuildLog()
   : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
@@ -95,7 +142,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
       log_entry->output = path;
       log_.insert(Log::value_type(log_entry->output, log_entry));
     }
-    log_entry->command = command;
+    log_entry->command_hash = LogEntry::HashCommand(command);
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
@@ -239,7 +286,14 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->restat_mtime = restat_mtime;
-    entry->command = string(start, end - start);
+    if (log_version >= 5) {
+      char c = *end; *end = '\0';
+      entry->command_hash = (uint64_t)strtoull(start, NULL, 10);
+      *end = c;
+    }
+    else
+      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
+                                                              end - start));
   }
 
   // Decide whether it's time to rebuild the log:
@@ -267,9 +321,9 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%s\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
           entry.start_time, entry.end_time, (long) entry.restat_mtime,
-          entry.output.c_str(), entry.command.c_str());
+          entry.output.c_str(), entry.command_hash);
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
