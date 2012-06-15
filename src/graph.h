@@ -169,7 +169,7 @@ struct Edge {
   string GetRspFile();
 
   /// Get the contents of the response file
-  string GetRspFileContent();
+  string GetRspFileContent(bool with_newlines);
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 

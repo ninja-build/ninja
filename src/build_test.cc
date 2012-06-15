@@ -918,6 +918,33 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
 }
 
+// Test that $in is joined with newlines rather than spaces in response files.
+TEST_F(BuildTest, RspNewlineIn) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule fail\n"
+    "  command = fail\n"
+    "  rspfile = $rspfile\n"
+    "  rspfile_content = $in\n"
+    "build out1: fail in in2 in3\n"
+    "  rspfile = out1.rsp\n"));
+
+  fs_.Create("in", now_, "");
+  fs_.Create("in2", now_, "");
+  fs_.Create("in3", now_, "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+
+  // Fail so that the output rsp file isn't removed and we can inspect it.
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+
+  ASSERT_EQ("in\nin2\nin3", fs_.files_["out1.rsp"].contents);
+}
+
+
 // Test that contens of the RSP file behaves like a regular part of
 // command line, i.e. triggers a rebuild if changed
 TEST_F(BuildWithLogTest, RspFileCmdLineChange) {

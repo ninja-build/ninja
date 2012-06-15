@@ -14,12 +14,12 @@
 
 #include "eval_env.h"
 
-string BindingEnv::LookupVariable(const string& var) {
+string BindingEnv::LookupVariable(const string& var, bool for_rspfile) {
   map<string, string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
   if (parent_)
-    return parent_->LookupVariable(var);
+    return parent_->LookupVariable(var, for_rspfile);
   return "";
 }
 
@@ -27,13 +27,13 @@ void BindingEnv::AddBinding(const string& key, const string& val) {
   bindings_[key] = val;
 }
 
-string EvalString::Evaluate(Env* env) const {
+string EvalString::Evaluate(Env* env, bool for_rspfile) const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
       result.append(i->first);
     else
-      result.append(env->LookupVariable(i->first));
+      result.append(env->LookupVariable(i->first, for_rspfile));
   }
   return result;
 }
