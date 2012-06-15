@@ -157,7 +157,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
   // dirty.
   if (!rule_->generator() && build_log &&
       (entry || (entry = build_log->LookupByOutput(output->path())))) {
-    if (command != entry->command) {
+    if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
       EXPLAIN("command line changed for %s", output->path().c_str());
       return true;
     }
@@ -200,7 +200,7 @@ string EdgeEnv::LookupVariable(const string& var) {
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
-    // XXX shoudl we warn here?
+    // XXX should we warn here?
     return string();
   }
 }
