@@ -115,22 +115,21 @@ TEST_F(ParserTest, ResponseFiles) {
   EXPECT_EQ("[$in]", rule->rspfile_content().Serialize());
 }
 
-TEST_F(ParserTest, ResponseFilesInNewline) {
+TEST_F(ParserTest, InNewline) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat_rsp\n"
-"  command = cat $rspfile > $out\n"
-"  rspfile = $rspfile\n"
-"  rspfile_content = $in_newline\n"
+"  command = cat $in_newline > $out\n"
 "\n"
-"build out: cat_rsp in\n"
+"build out: cat_rsp in in2\n"
 "  rspfile=out.rsp\n"));
 
   ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
-  EXPECT_EQ("[cat ][$rspfile][ > ][$out]", rule->command().Serialize());
-  EXPECT_EQ("[$rspfile]", rule->rspfile().Serialize());
-  EXPECT_EQ("[$in_newline]", rule->rspfile_content().Serialize());
+  EXPECT_EQ("[cat ][$in_newline][ > ][$out]", rule->command().Serialize());
+
+  Edge* edge = state.edges_[0];
+  EXPECT_EQ("cat in\nin2 > out", edge->EvaluateCommand());
 }
 
 TEST_F(ParserTest, Variables) {
