@@ -118,7 +118,7 @@ int main() {
       return 1;
     }
     int64_t delta = (GetCurrentTick() - start);
-    printf("%lldus\n", delta / 10LL);	//NOTE us based on 100ns ticks! ck
+    printf("%lldms\n", delta / 10000LL);	//NOTE ms based on 100ns ticks! ck
     times.push_back(delta);
   }
 
@@ -133,8 +133,8 @@ int main() {
       max = times[i];
   }
 
-  printf("min %lldus  max %lldus  avg %.1fus\n",	//NOTE: us based on 100ns ticks! ck
-         min/10, max/10, total / 10 / times.size());
+  printf("min %lldms  max %lldms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
+         min/10000LL, max/10000LL, (total / 10000LL) / times.size());
 
   unlink(kTestFilename);
 

@@ -38,6 +38,9 @@ src/lexer.cc: src/lexer.in.cc
 test:: ninja_test
 	./$<
 
+test:: parser_perftest
+	./$< build/*.d
+
 test:: build_log_perftest
 	./$<
 
