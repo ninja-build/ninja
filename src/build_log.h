@@ -22,6 +22,7 @@ using namespace std;
 
 #include "hash_map.h"
 #include "timestamp.h"
+#include "util.h"
 
 struct BuildConfig;
 struct Edge;
@@ -49,14 +50,16 @@ struct BuildLog {
 
   struct LogEntry {
     string output;
-    string command;
+    uint64_t command_hash;
     int start_time;
     int end_time;
     TimeStamp restat_mtime;
 
+    static uint64_t HashCommand(StringPiece command);
+
     // Used by tests.
     bool operator==(const LogEntry& o) {
-      return output == o.output && command == o.command &&
+      return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
           restat_mtime == o.restat_mtime;
     }

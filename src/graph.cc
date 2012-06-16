@@ -158,7 +158,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
   // dirty.
   if (!rule_->generator() && build_log &&
       (entry || (entry = build_log->LookupByOutput(output->path())))) {
-    if (command != entry->command) {
+    if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
       EXPLAIN("command line changed for %s", output->path().c_str());
       return true;
     }
@@ -184,20 +184,23 @@ struct EdgeEnv : public Env {
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.  XXX here is where shell-escaping of e.g spaces should happen.
   string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end);
+                      vector<Node*>::iterator end,
+                      char sep);
 
   Edge* edge_;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {
-  if (var == "in") {
+  if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
     return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count);
+                        edge_->inputs_.begin() + explicit_deps_count,
+                        var == "in" ? ' ' : '\n');
   } else if (var == "out") {
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end());
+                        edge_->outputs_.end(),
+                        ' ');
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
@@ -207,11 +210,12 @@ string EdgeEnv::LookupVariable(const string& var) {
 }
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end) {
+                             vector<Node*>::iterator end,
+                             char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
-      result.push_back(' ');
+      result.push_back(sep);
     const string& path = (*i)->path();
     if (path.find(" ") != string::npos) {
       result.append("\"");

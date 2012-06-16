@@ -35,6 +35,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
 };
 
 void AssertParse(State* state, const char* input);
+void AssertHash(const char* expected, uint64_t actual);
 
 /// An implementation of DiskInterface that uses an in-memory representation
 /// of disk state.  It also logs file accesses and directory creations
