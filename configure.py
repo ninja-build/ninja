@@ -201,7 +201,8 @@ if platform not in ('mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
-           description='INLINE $out')
+           description='INLINE $out',
+           generator=True)  #XXX prevent clean of generated files
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
             implicit='src/inline.sh',
             variables=[('varname', 'kBrowsePy')])
@@ -213,7 +214,8 @@ if platform not in ('mingw', 'windows'):
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
+       description='RE2C $out',
+       generator=True)  #XXX prevent clean of generated files
 # Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))

@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -35,7 +36,7 @@
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
-      start_time_millis_(GetTimeMillis()),
+      start_time_ticks_(GetTimeMillis()),	//FIXME ms or 100ns GetCurrentTicks()
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
@@ -66,7 +67,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  int start_time = (int)(GetTimeMillis() - start_time_millis_);
+  int start_time = (int)(GetTimeMillis() - start_time_ticks_);	//FIXME int64_t?
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
@@ -83,7 +84,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
+  *end_time = (int)(now - start_time_ticks_);	//FIXME int64_t?
   running_edges_.erase(i);
 
   if (config_.verbosity == BuildConfig::QUIET)
@@ -715,7 +716,11 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-  TimeStamp restat_mtime = 0;
+#ifdef USE_TIME_T
+    TimeStamp restat_mtime = 0;
+#else
+    TimeStamp restat_mtime = GetCurrentTick();	//NOTE: init with 100ns value!
+#endif
 
   if (success) {
     if (edge->rule().restat() && !config_.dry_run) {
@@ -724,13 +729,27 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
         TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+#ifndef USE_TIME_T
+        string path = (*i)->path();
+        //FIXME cerr << "\nDEBUG mtime for " << path  << " is: " << new_mtime << endl;  //TODO delete this line
+#endif
         if ((*i)->mtime() == new_mtime) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
+#ifndef USE_TIME_T
+          if (new_mtime) {
+              cerr << "\nDEBUG mtime set for cleaned node " << path << endl;    //TODO delete this line
+          }
+#endif
         }
+#ifndef USE_TIME_T
+        else {
+            restat_mtime = new_mtime;   // TODO It is not really clear to me how it works! ck
+        }
+#endif
       }
 
       if (node_cleaned) {
@@ -740,19 +759,30 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
           TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
           if (input_mtime == 0) {
+#ifdef USE_TIME_T
             restat_mtime = 0;
-            break;
-          }
-          if (input_mtime > restat_mtime)
+            break;	//FIXME why? ck
+#endif
+          } else if (input_mtime > restat_mtime) {
             restat_mtime = input_mtime;
+            string path = (*i)->path();
+            cerr << "\nDEBUG mtime for " << path  << " is: " << input_mtime << endl;    //TODO delete this line
+#ifndef USE_TIME_T
+            break;  //TODO check this! ck
+#endif
+          }
         }
 
         if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
           TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
-          if (depfile_mtime == 0)
-            restat_mtime = 0;
-          else if (depfile_mtime > restat_mtime)
+          if (depfile_mtime == 0) {
+#ifdef USE_TIME_T
+              restat_mtime = 0;
+#endif
+          }
+          else if (depfile_mtime > restat_mtime) {
             restat_mtime = depfile_mtime;
+          }
         }
 
         // The total number of edges in the plan may have changed as a result
@@ -773,6 +803,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
-  if (success && log_)
+  if (success && log_) {
     log_->RecordCommand(edge, start_time, end_time, restat_mtime);
+  }
 }

@@ -804,7 +804,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 
 struct BuildDryRun : public BuildWithLogTest {
   BuildDryRun() {
-    config_.dry_run = true;
+    config_.dry_run = false; //FIXME not true for now to really test restat! ck
   }
 };
 
@@ -814,8 +814,9 @@ TEST_F(BuildDryRun, AllCommandsShown) {
 "  command = true\n"
 "  restat = 1\n"
 "rule cc\n"
-"  command = cc\n"
-"  restat = 1\n"
+"  command = wc $in\n"
+"# rule cat\n"
+"#  command = cat $in\n"
 "build out1: cc in\n"
 "build out2: true out1\n"
 "build out3: cat out2\n"));
@@ -834,7 +835,7 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ(2u, commands_ran_.size());	//TODO true + cc
 }
 
 // Test that RSP files are created when & where appropriate and deleted after

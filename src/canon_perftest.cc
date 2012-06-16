@@ -1,3 +1,4 @@
+#include <string.h> // for strlen, strcopy
 #include "util.h"
 
 const char kPath[] =

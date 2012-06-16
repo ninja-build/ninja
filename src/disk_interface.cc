@@ -137,7 +137,6 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 #elif defined(_LARGEFILE64_SOURCE)
   return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
 #else
-//FIXME #warning "NO tv_nsec available with stat()!"
   // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
   return (((int64_t) st.st_mtime) * 10000000LL) + (st.st_mtimensec / 100LL);
 #endif
