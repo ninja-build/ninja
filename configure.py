@@ -153,7 +153,7 @@ def shell_escape(str):
     # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
     # just returning the input string.
     if '"' in str:
-        return "'%s'" % str.replace("'", "\'")
+        return "'%s'" % str.replace("'", "\\'")
     return str
 
 if 'CFLAGS' in configure_env:
