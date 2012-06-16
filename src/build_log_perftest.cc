@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
+#include <unistd.h> // unlink
+#endif
+
 #include "build_log.h"
 #include "graph.h"
 #include "parsers.h"
@@ -89,7 +93,7 @@ bool WriteTestData(string* err) {
 }
 
 int main() {
-  vector<int> times;
+  vector<int64_t> times;
   string err;
 
   if (!WriteTestData(&err)) {
@@ -107,19 +111,19 @@ int main() {
   }
   const int kNumRepetitions = 5;
   for (int i = 0; i < kNumRepetitions; ++i) {
-    int64_t start = GetTimeMillis();
+    int64_t start = GetCurrentTick();
     BuildLog log;
     if (!log.Load(kTestFilename, &err)) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
-    int delta = (int)(GetTimeMillis() - start);
-    printf("%dms\n", delta);
+    int64_t delta = (GetCurrentTick() - start);
+    printf("%lldms\n", delta / 10000LL);	//NOTE ms based on 100ns ticks! ck
     times.push_back(delta);
   }
 
-  int min = times[0];
-  int max = times[0];
+  int64_t min = times[0];
+  int64_t max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
     total += times[i];
@@ -129,8 +133,8 @@ int main() {
       max = times[i];
   }
 
-  printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+  printf("min %lldms  max %lldms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
+         min/10000LL, max/10000LL, (total / 10000LL) / times.size());    //TODO -Wno-conversion
 
   unlink(kTestFilename);
 

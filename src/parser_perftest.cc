@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     const char* filename = argv[i];
 
     for (int limit = 1 << 10; limit < (1<<20); limit *= 2) {
-      int64_t start = GetTimeMillis();
+      int64_t start = GetTimeMillis();  //FIXME use us based on 100ns ticks! ck
       for (int rep = 0; rep < limit; ++rep) {
         string buf;
         string err;
@@ -44,11 +44,11 @@ int main(int argc, char* argv[]) {
           return 1;
         }
       }
-      int64_t end = GetTimeMillis();
+      int64_t end = GetTimeMillis();  //FIXME use us based on 100ns ticks! ck
 
       if (end - start > 100) {
         int delta = (int)(end - start);
-        float time = delta*1000 / (float)limit;
+        float time = delta*1000 / (float)limit;    //TODO -Wno-conversion
         printf("%s: %.1fus\n", filename, time);
         times.push_back(time);
         break;
@@ -68,8 +68,8 @@ int main(int argc, char* argv[]) {
         max = times[i];
     }
 
-    printf("min %.1fus  max %.1fus  avg %.1fus\n",
-           min, max, total / times.size());
+    printf("min %.1fus  max %.1fus  avg %.1fus\n",    //TODO -Wno-conversion
+           min, max, total / times.size());//FIXME use us based on 100ns ticks! ck
   }
 
   return 0;

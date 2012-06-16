@@ -44,7 +44,7 @@ Subprocess::~Subprocess() {
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetCurrentProcessId(), this);
+           "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
 
   pipe_ = ::CreateNamedPipeA(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
@@ -102,8 +102,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   PROCESS_INFORMATION process_info;
   memset(&process_info, 0, sizeof(process_info));
 
-  // Do not prepend 'cmd /c' on Windows, this breaks command
-  // lines greater than 8,191 chars.
+  // XXX: DO Not prepend 'cmd /c' on Windows, this breaks command
+  // lines greater than 8,191 chars!
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
                       NULL, NULL,

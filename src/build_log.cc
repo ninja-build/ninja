@@ -200,7 +200,7 @@ class LineReader {
 
  private:
   FILE* file_;
-  char buf_[256 << 10];
+  char buf_[256 << 10]; //FIXME: huge stack! 262144 bytes; ck
   char* buf_end_;  // Points one past the last valid byte in |buf_|.
 
   char* line_start_;
@@ -260,7 +260,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = atoll(start);	// NOTE: 100ns TimeStamp
     start = end + 1;
 
     end = (char*)memchr(start, field_separator, line_end - start);
@@ -321,8 +321,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
-          entry.start_time, entry.end_time, (long) entry.restat_mtime,
+  fprintf(f, "%d\t%d\t%lld\t%s\t%llu\n",
+          entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }
 

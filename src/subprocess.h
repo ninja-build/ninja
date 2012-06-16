@@ -21,6 +21,8 @@
 using namespace std;
 
 #ifdef _WIN32
+// from http://stackoverflow.com/questions/9643182/win32-api-functions-not-found
+#define WINVER 0x0501   // at least XP SP1 API for GetProcessId needed
 #include <windows.h>
 #else
 #include <signal.h>

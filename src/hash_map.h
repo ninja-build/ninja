@@ -71,7 +71,9 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
 
 #else
 
-#include <ext/hash_map>
+//see /opt/local/include/gcc47/c++/backward/backward_warning.h
+//TODO #include <unordered_map>
+#include <ext/hash_map> //FIXME deprecated!
 
 using __gnu_cxx::hash_map;
 
