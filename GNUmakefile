@@ -23,10 +23,10 @@ README.html: README HACKING GNUmakefile
 	$(bindir)/rst2html-2.7.py -dg $< > $@
 
 ###FIXME -Wundef not usable with gtest-1.6.0! ck
-###XXX	CPPFLAGS="-I$(includedir) -DUSE_TIME_T" \
+###XXX	CPPFLAGS="-I$(gtestdir)/include -I$(includedir) -DUSE_TIME_T" \
 
 build.ninja: src/depfile_parser.cc src/lexer.cc
-	CPPFLAGS="-I$(includedir)" \
+	CPPFLAGS="-I$(gtestdir)/include -I$(includedir)" \
 	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual' \
 	CFLAGS='-Wno-undef -Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align' \
 	LDFLAGS="-L$(libdir)" \

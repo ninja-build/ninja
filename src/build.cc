@@ -67,7 +67,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  int start_time = (int)(GetTimeMillis() - start_time_ticks_);	//FIXME int64_t?
+  int start_time = (int)(GetTimeMillis() - start_time_ticks_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
@@ -84,7 +84,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
-  *end_time = (int)(now - start_time_ticks_);	//FIXME int64_t?
+  *end_time = (int)(now - start_time_ticks_);
   running_edges_.erase(i);
 
   if (config_.verbosity == BuildConfig::QUIET)

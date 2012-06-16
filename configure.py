@@ -118,7 +118,7 @@ if platform == 'windows':
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
-              '-Wno-deprecated',
+              '-Wdeprecated',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',

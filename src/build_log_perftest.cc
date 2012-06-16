@@ -134,7 +134,7 @@ int main() {
   }
 
   printf("min %lldms  max %lldms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
-         min/10000LL, max/10000LL, (total / 10000LL) / times.size());
+         min/10000LL, max/10000LL, (total / 10000LL) / times.size());    //TODO -Wno-conversion
 
   unlink(kTestFilename);
 

@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
       if (end - start > 100) {
         int delta = (int)(end - start);
-        float time = delta*1000 / (float)limit;
+        float time = delta*1000 / (float)limit;    //TODO -Wno-conversion
         printf("%s: %.1fus\n", filename, time);
         times.push_back(time);
         break;
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
         max = times[i];
     }
 
-    printf("min %.1fus  max %.1fus  avg %.1fus\n",
+    printf("min %.1fus  max %.1fus  avg %.1fus\n",    //TODO -Wno-conversion
            min, max, total / times.size());//FIXME use us based on 100ns ticks! ck
   }
 
