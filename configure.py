@@ -72,7 +72,7 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
+env_keys = set(['CXX', 'AR', 'CPPFLAGS', 'CFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + configure_env[k] for k in configure_env])
@@ -118,7 +118,7 @@ if platform == 'windows':
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
-              '-Wno-deprecated',
+              '-std=gnu++11',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
@@ -147,6 +147,10 @@ else:
     elif options.profile == 'pprof':
         libs.append('-lprofiler')
 
+cppflags = []
+if 'CPPFLAGS' in configure_env:
+    cppflags.append(configure_env['CPPFLAGS'])
+n.variable('cppflags', ' '.join(cppflags))
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
 n.variable('cflags', ' '.join(cflags))
@@ -157,12 +161,12 @@ n.newline()
 
 if platform == 'windows':
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='$cxx $cppflags $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out')
 else:
     n.rule('cxx',
-        command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
+        command='$cxx -MMD -MT $out -MF $out.d $cppflags $cflags -c $in -o $out',
         depfile='$out.d',
         description='CXX $out')
 n.newline()
@@ -197,7 +201,8 @@ if platform not in ('mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
-           description='INLINE $out')
+           description='INLINE $out',
+           generator=True)  #XXX prevent clean of generated files
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
             implicit='src/inline.sh',
             variables=[('varname', 'kBrowsePy')])
@@ -209,7 +214,8 @@ if platform not in ('mingw', 'windows'):
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
+       description='RE2C $out',
+       generator=True)  #XXX prevent clean of generated files
 # Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))

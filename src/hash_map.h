@@ -71,17 +71,29 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
 
 #else
 
-#include <ext/hash_map>
+#if __cplusplus <= 199711L
+#define USE_DEPRECATED_HASH_MAP
+#endif
 
+#ifdef USE_DEPRECATED_HASH_MAP
+#include <ext/hash_map>
 using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
+
+//FIXME: /opt/local/include/gcc47/c++/bits/basic_string.h:3043:12: error: previous definition of 'struct std::hash<std::basic_string<char> >'
 template<>
 struct hash<std::string> {
   size_t operator()(const std::string& s) const {
     return hash<const char*>()(s.c_str());
   }
 };
+
+#else
+#include <unordered_map>
+using std::unordered_map;
+
+namespace std {
 
 template<>
 struct hash<StringPiece> {
@@ -91,7 +103,9 @@ struct hash<StringPiece> {
 };
 
 }
-#endif
+
+#endif // USE_DEPRECATED_HASH_MAP
+#endif // _MSC_VER
 
 /// A template for hash_maps keyed by a StringPiece whose string is
 /// owned externally (typically by the values).  Use like:
@@ -102,7 +116,11 @@ struct ExternalStringHashMap {
 #ifdef _MSC_VER
   typedef hash_map<StringPiece, V, StringPieceCmp> Type;
 #else
+#ifdef USE_DEPRECATED_HASH_MAP
   typedef hash_map<StringPiece, V> Type;
+#else
+  typedef unordered_map<StringPiece, V> Type;
+#endif
 #endif
 };
 

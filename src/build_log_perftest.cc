@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
+#include <unistd.h> // unlink
+#endif
+
 #include "build_log.h"
 #include "graph.h"
 #include "parsers.h"
@@ -122,7 +126,7 @@ int main() {
   int max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
-    total += times[i];
+    total += static_cast<float>(times[i]);
     if (times[i] < min)
       min = times[i];
     else if (times[i] > max)
@@ -130,9 +134,13 @@ int main() {
   }
 
   printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+         min, max, total / static_cast<float>(times.size()));
 
+#ifndef _WIN32
   unlink(kTestFilename);
+#else
+  _unlink(kTestFilename);
+#endif
 
   return 0;
 }

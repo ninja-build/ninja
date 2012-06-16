@@ -9,3 +9,11 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
+/build_log_perftest
+/canon_perftest
+/hash_collision_bench
+*.orig
+*.rej
+*.swp
+*~
+.*~
