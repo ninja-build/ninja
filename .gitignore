@@ -14,7 +14,6 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
-/CMakeTest/build
 .DS_Store
 .*.swp
 .*~
