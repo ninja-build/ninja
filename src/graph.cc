@@ -144,7 +144,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
         return true;
       }
     } else {
-      EXPLAIN("output %s older than most recent input %s (%d vs %d)",
+      EXPLAIN("output %s older than most recent input %s (%016lld vs %016lld)",
           output->path().c_str(),
           most_recent_node ? most_recent_node->path().c_str() : "",
           output->mtime(), most_recent_input);

@@ -15,10 +15,16 @@
 #ifndef NINJA_TIMESTAMP_H_
 #define NINJA_TIMESTAMP_H_
 
+#ifdef _WIN32
+#include "win32port.h"
+#else
+#include <stdint.h>
+#endif
+
 // When considering file modification times we only care to compare
 // them against one another -- we never convert them to an absolute
-// real time.  On POSIX we use time_t (seconds since epoch) and on
-// Windows we use a different value.  Both fit in an int.
-typedef int TimeStamp;
+// real time.
+
+typedef int64_t TimeStamp;  // as 100ns value!
 
 #endif  // NINJA_TIMESTAMP_H_

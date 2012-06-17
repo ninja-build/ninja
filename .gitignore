@@ -5,6 +5,13 @@
 *.exe
 *.pdb
 TAGS
+/.project
+/.cproject
+/.cproject
+/.pydevproject
+/.externalToolBuilders
+/bin
+/test
 /build
 /build.ninja
 /ninja
