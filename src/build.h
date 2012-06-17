@@ -27,8 +27,9 @@ using namespace std;
 #include "util.h"  // int64_t
 
 struct BuildLog;
-struct Edge;
+struct BuildStatus;
 struct DiskInterface;
+struct Edge;
 struct Node;
 struct State;
 
@@ -144,10 +145,10 @@ struct Builder {
   Plan plan_;
   DiskInterface* disk_interface_;
   auto_ptr<CommandRunner> command_runner_;
-  struct BuildStatus* status_;
-  struct BuildLog* log_;
+  BuildStatus* status_;
+  BuildLog* log_;
 
-private:
+ private:
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT
