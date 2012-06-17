@@ -36,7 +36,7 @@
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
-      start_time_ticks_(GetTimeMillis()),	//FIXME ms or 100ns GetCurrentTicks()
+      start_time_ticks_(GetTimeMillis()),	// ms or 100ns GetCurrentTicks()
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
@@ -734,8 +734,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           }
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
-        }
-        else {
+        } else {
           restat_mtime = new_mtime;   // TODO It is not really clear to me how it works! ck
         }
       }
