@@ -36,7 +36,7 @@
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
-      start_time_ticks_(GetTimeMillis()),	// ms or 100ns GetCurrentTicks()
+      start_time_ticks_(GetCurrentTick()),	// NOTE 100ns value
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL) {
 #ifndef _WIN32
@@ -67,7 +67,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  int start_time = (int)(GetTimeMillis() - start_time_ticks_);
+  int start_time = (int)(GetCurrentTick() - start_time_ticks_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
@@ -79,7 +79,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
                                     const string& output,
                                     int* start_time,
                                     int* end_time) {
-  int64_t now = GetTimeMillis();
+  int64_t now = GetCurrentTick();	// NOTE 100ns value
   ++finished_edges_;
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
@@ -716,7 +716,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-    TimeStamp restat_mtime = GetCurrentTick();	//NOTE: init with 100ns value!
+    TimeStamp restat_mtime = GetCurrentTick();	// NOTE: init with 100ns value!
 
   if (success) {
     if (edge->rule().restat() && !config_.dry_run) {
@@ -735,7 +735,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
         } else {
-          restat_mtime = new_mtime;   // TODO It is not really clear to me how it works! ck
+          restat_mtime = new_mtime;   // update mtime for existing files
         }
       }
 
@@ -746,6 +746,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
           TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
           if (input_mtime > restat_mtime) {
+          if (input_mtime > restat_mtime)
             restat_mtime = input_mtime;
             printf("XXX newer input '%s' of cleaned node '%s' found\n",
                     (*i)->path().c_str(), output.c_str());

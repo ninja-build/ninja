@@ -60,7 +60,7 @@ void SetCloseOnExec(int fd);
 /// time.
 int64_t GetTimeMillis();
 
-/// TODO Get the current ticks since epoch as 100ns value.
+/// Get the current ticks since epoch as 100ns value.
 /// Epoch varies between platforms; only useful for measuring elapsed
 /// time.
 int64_t GetCurrentTick();
