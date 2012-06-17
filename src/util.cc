@@ -350,4 +350,3 @@ double GetLoadAverage()
   return GetLoadAverage_unix();
 #endif // _WIN32
 }
-

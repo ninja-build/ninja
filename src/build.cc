@@ -753,7 +753,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         }
 
         // TODO what is the usecase for this code? ck
-        if ( restat_mtime != 0 && !edge->rule().depfile().empty()) {
+        if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
           TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
           if (depfile_mtime > restat_mtime) {
             printf("XXX depfile is newer than most resent input of cleaned node '%s'\n",
