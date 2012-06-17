@@ -7,7 +7,7 @@ bindir:=$(prefix)/bin
 libdir:=$(prefix)/lib
 includedir:=$(prefix)/include
 
-gtestdir:=$(shell $(bindir)/grealpath $(CURDIR)/../gtest-1.6.0)
+gtestdir:=$(shell $(bindir)/grealpath $(HOME)/Workspace/cpp/gtest-1.6.0)
 
 ###XXX .SILENT:
 .PHONY: test manual install clean distclean help ### all
@@ -19,23 +19,24 @@ ninja: build.ninja $(bindir)/ninja
 	$(bindir)/ninja -d explain
 
 manual:: README.html
-README.html: README HACKING GNUmakefile
+README.html: README HACKING GNUmakefile $(bindir)/rst2html-2.7.py
 	$(bindir)/rst2html-2.7.py -dg $< > $@
 
 ###FIXME -Wundef not usable with gtest-1.6.0! ck
 ###XXX	CPPFLAGS="-I$(gtestdir)/include -I$(includedir) -DUSE_TIME_T" \
+###TODO CXXFLAGS are not used! ck
 
 build.ninja: src/depfile_parser.cc src/lexer.cc
 	CPPFLAGS="-I$(gtestdir)/include -I$(includedir)" \
-	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual' \
+	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual -std=c++11' \
 	CFLAGS='-Wno-undef -Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align' \
 	LDFLAGS="-L$(libdir)" \
 	CXX="$(prefix)/libexec/ccache/g++" ./configure.py --debug --with-gtest=$(gtestdir)
 
-src/depfile_parser.cc: src/depfile_parser.in.cc
+src/depfile_parser.cc: src/depfile_parser.in.cc $(bindir)/re2c
 	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
-src/lexer.cc: src/lexer.in.cc
+src/lexer.cc: src/lexer.in.cc $(bindir)/re2c
 	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
 test:: ninja_test
@@ -62,7 +63,11 @@ distclean: clean
 install: ninja
 	install ninja $(bindir)
 
-GNUmakefile:
+# NoOp rules for extern dependencies
+GNUmakefile: ;
+$(bindir)/ninja: ;
+$(bindir)/re2c: ;
+$(bindir)/rst2html-2.7.py: ;
 
 # Anything we don't know how to build will use this rule.
 #
