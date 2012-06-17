@@ -72,7 +72,7 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
-  struct BuildLog* build_log_;
+  BuildLog* build_log_;
 };
 
 #endif  // NINJA_STATE_H_

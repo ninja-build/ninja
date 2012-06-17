@@ -19,6 +19,8 @@
 #ifdef _WIN32
 #include "win32port.h"
 #else
+#include <unistd.h> // unlink
+#include <string.h> // strcpy, strlen
 #include <stdint.h>
 #endif
 

@@ -118,12 +118,13 @@ if platform == 'windows':
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
+              '-std=gnu++11',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              "'-DNINJA_PYTHON=\"%s\"'" % (options.with_python,)]
+              "-DNINJA_PYTHON=\"%s\"" % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
@@ -147,16 +148,25 @@ else:
     elif options.profile == 'pprof':
         libs.append('-lprofiler')
 
+def shell_escape(str):
+    """Escape str such that it's interpreted as a single argument by the shell."""
+    # This isn't complete, but it's just enough to make NINJA_PYTHON work.
+    # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
+    # just returning the input string.
+    if '"' in str:
+        return "'%s'" % str.replace("'", "\\'")
+    return str
+
 cppflags = []
 if 'CPPFLAGS' in configure_env:
     cppflags.append(configure_env['CPPFLAGS'])
-n.variable('cppflags', ' '.join(cppflags))
+n.variable('cppflags', ' '.join(shell_escape(flag) for flag in cppflags))
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
-n.variable('cflags', ' '.join(cflags))
+n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
 if 'LDFLAGS' in configure_env:
     ldflags.append(configure_env['LDFLAGS'])
-n.variable('ldflags', ' '.join(ldflags))
+n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
 if platform == 'windows':
