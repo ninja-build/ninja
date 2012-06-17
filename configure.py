@@ -123,7 +123,7 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              '-DNINJA_PYTHON="%s"' % (options.with_python,)]
+              '-DNINJA_PYTHON=\'"%s"\'' % (options.with_python,)]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
