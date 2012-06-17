@@ -716,11 +716,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-#ifdef USE_TIME_T
-    TimeStamp restat_mtime = 0;
-#else
     TimeStamp restat_mtime = GetCurrentTick();	//NOTE: init with 100ns value!
-#endif
 
   if (success) {
     if (edge->rule().restat() && !config_.dry_run) {
@@ -729,27 +725,19 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
       for (vector<Node*>::iterator i = edge->outputs_.begin();
            i != edge->outputs_.end(); ++i) {
         TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
-#ifndef USE_TIME_T
-        string path = (*i)->path();
-        //FIXME cerr << "\nDEBUG mtime for " << path  << " is: " << new_mtime << endl;  //TODO delete this line
-#endif
         if ((*i)->mtime() == new_mtime) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
+          if (new_mtime) {
+            printf("XXX unchanged output '%s' found\n", (*i)->path().c_str());
+          }
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
-#ifndef USE_TIME_T
-          if (new_mtime) {
-              cerr << "\nDEBUG mtime set for cleaned node " << path << endl;    //TODO delete this line
-          }
-#endif
         }
-#ifndef USE_TIME_T
         else {
-            restat_mtime = new_mtime;   // TODO It is not really clear to me how it works! ck
+          restat_mtime = new_mtime;   // TODO It is not really clear to me how it works! ck
         }
-#endif
       }
 
       if (node_cleaned) {
@@ -758,29 +746,19 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         for (vector<Node*>::iterator i = edge->inputs_.begin();
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
           TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
-          if (input_mtime == 0) {
-#ifdef USE_TIME_T
-            restat_mtime = 0;
-            break;	//FIXME why? ck
-#endif
-          } else if (input_mtime > restat_mtime) {
+          if (input_mtime > restat_mtime) {
             restat_mtime = input_mtime;
-            string path = (*i)->path();
-            cerr << "\nDEBUG mtime for " << path  << " is: " << input_mtime << endl;    //TODO delete this line
-#ifndef USE_TIME_T
-            break;  //TODO check this! ck
-#endif
+            printf("XXX newer input '%s' of cleaned node '%s' found\n",
+                    (*i)->path().c_str(), output.c_str());
           }
         }
 
-        if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
+        // TODO what is the usecase for this code? ck
+        if ( restat_mtime != 0 && !edge->rule().depfile().empty()) {
           TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
-          if (depfile_mtime == 0) {
-#ifdef USE_TIME_T
-              restat_mtime = 0;
-#endif
-          }
-          else if (depfile_mtime > restat_mtime) {
+          if (depfile_mtime > restat_mtime) {
+            printf("XXX depfile is newer than most resent input of cleaned node '%s'\n",
+                    output.c_str());
             restat_mtime = depfile_mtime;
           }
         }

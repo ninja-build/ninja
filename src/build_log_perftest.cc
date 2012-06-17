@@ -126,7 +126,7 @@ int main() {
   int64_t max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
-    total += times[i];
+    total += static_cast<float>(times[i]);
     if (times[i] < min)
       min = times[i];
     else if (times[i] > max)
@@ -134,7 +134,7 @@ int main() {
   }
 
   printf("min %lldms  max %lldms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
-         min/10000LL, max/10000LL, (total / 10000LL) / times.size());    //TODO -Wno-conversion
+         min/10000LL, max/10000LL, (total / 10000LL) / static_cast<float>(times.size()));
 
   unlink(kTestFilename);
 

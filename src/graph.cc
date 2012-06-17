@@ -144,12 +144,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
         return true;
       }
     } else {
-      EXPLAIN(
-#ifdef USE_TIME_T
-              "output %s older than most recent input %s (%016ld vs %016ld)",
-#else
-              "output %s older than most recent input %s (%016lld vs %016lld)",
-#endif
+      EXPLAIN("output %s older than most recent input %s (%016lld vs %016lld)",
           output->path().c_str(),
           most_recent_node ? most_recent_node->path().c_str() : "",
           output->mtime(), most_recent_input);
@@ -168,7 +163,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
     }
   }
 
-#ifndef USE_TIME_T
+#ifdef USE_NEW_MTIME_CHECK
   // Check if most_recent_node->mtime change since last log
   if (most_recent_node && build_log &&
       (entry = build_log->LookupByOutput(most_recent_node->path()))) {

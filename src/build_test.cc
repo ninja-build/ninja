@@ -815,8 +815,6 @@ TEST_F(BuildDryRun, AllCommandsShown) {
 "  restat = 1\n"
 "rule cc\n"
 "  command = wc $in\n"
-"# rule cat\n"
-"#  command = cat $in\n"
 "build out1: cc in\n"
 "build out2: true out1\n"
 "build out3: cat out2\n"));
@@ -830,12 +828,13 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   fs_.Create("in", now_, "");
 
   // "cc" touches out1, so we should build out2.  But because "true" does not
-  // touch out2, we should cancel the build of out3.
+  // touch out2, we should cancel the build of out3. But with dry_run all
+  // commands are shown!
   string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(3u, commands_ran_.size());	//FIXME depends on dry_run!
+  ASSERT_EQ(3u, commands_ran_.size());	// Note: this depends on dry_run!
 }
 
 
@@ -846,8 +845,6 @@ TEST_F(BuildTest, RestatWorks) {
 "  restat = 1\n"
 "rule cc\n"
 "  command = wc $in\n"
-"# rule cat\n"
-"#  command = cat $in\n"
 "build out1: cc in\n"
 "build out2: true out1\n"
 "build out3: cat out2\n"));
@@ -861,7 +858,7 @@ TEST_F(BuildTest, RestatWorks) {
   fs_.Create("in", now_, "");
 
   // "cc" touches out1, so we should build out2.  But because "true" does not
-  // touch out2, we should cancel the build of out3.
+  // touch out2, we must cancel the build of out3.
   string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
@@ -870,7 +867,7 @@ TEST_F(BuildTest, RestatWorks) {
 }
 
 // Test that RSP files are created when & where appropriate and deleted after
-// Successful execution.
+// successful execution.
 TEST_F(BuildTest, RspFileSuccess)
 {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

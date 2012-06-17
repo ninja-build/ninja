@@ -2,11 +2,11 @@
 *.diff
 *.rst
 *.orig
+*.rej
 *.bak
 *.pyc
 *.exe
 *.pdb
-tags
 TAGS
 /.project
 /.cproject
@@ -19,8 +19,10 @@ TAGS
 /build.ninja
 /ninja
 /ninja_test
-/parser_perftest
 /build_log_perftest
+/canon_perftest
+/hash_collision_bench
+/parser_perftest
 /graph.png
 /doc/manual.html
 /doc/doxygen
