@@ -15,10 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef _WIN32
-#include <unistd.h> // unlink
-#endif
-
 #include "build_log.h"
 #include "graph.h"
 #include "parsers.h"
@@ -136,11 +132,7 @@ int main() {
   printf("min %dms  max %dms  avg %.1fms\n",
          min, max, total / static_cast<float>(times.size()));
 
-#ifndef _WIN32
   unlink(kTestFilename);
-#else
-  _unlink(kTestFilename);
-#endif
 
   return 0;
 }
