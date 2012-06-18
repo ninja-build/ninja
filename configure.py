@@ -118,7 +118,7 @@ if platform == 'windows':
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
-              '-std=gnu++11',
+              ###FIXME cygwin, mingw, .. fail to compile '-std=gnu++11',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
               '-fno-rtti',
