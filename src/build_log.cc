@@ -19,6 +19,8 @@
 #include <string.h>
 
 #ifndef _WIN32
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <unistd.h>
 #endif
 
@@ -325,8 +327,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
-          entry.start_time, entry.end_time, (long) entry.restat_mtime,
+  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIu64 "\n",
+          entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }
 
