@@ -223,7 +223,8 @@ bool BuildLog::Load(const string& path, string* err) {
   int total_entry_count = 0;
 
   LineReader reader(file);
-  char* line_start, *line_end;
+  char* line_start = 0;
+  char* line_end = 0;
   while (reader.ReadLine(&line_start, &line_end)) {
     if (!log_version) {
       log_version = 1;  // Assume by default.
@@ -295,6 +296,11 @@ bool BuildLog::Load(const string& path, string* err) {
       entry->command_hash = LogEntry::HashCommand(StringPiece(start,
                                                               end - start));
   }
+  fclose(file);
+
+  if (!line_start) {
+    return true; // file was empty
+  }
 
   // Decide whether it's time to rebuild the log:
   // - if we're upgrading versions
@@ -307,8 +313,6 @@ bool BuildLog::Load(const string& path, string* err) {
              total_entry_count > unique_entry_count * kCompactionRatio) {
     needs_recompaction_ = true;
   }
-
-  fclose(file);
 
   return true;
 }
