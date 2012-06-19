@@ -115,8 +115,8 @@ const char *Deplist::WriteDatabase(DepDatabase& depdb,
 }
 //
 // static
-bool Deplist::Load2(StringPiece input, vector<StringPiece>* entries,
-                   string* err) {
+bool Deplist::LoadNoHeader(
+    StringPiece input, vector<StringPiece>* entries, string* err) {
   const char* in = input.str_;
   int16_t count = ReadInt16(&in);
   const char* strings = in + (count * 2);

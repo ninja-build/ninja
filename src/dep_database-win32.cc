@@ -108,7 +108,7 @@ bool DepDatabase::FindDepData(const string& filename,
   DepIndex* i = lower_bound(view->index, end, value, PathCompare);
   if (i != end && strcmp(filename.c_str(), i->path) == 0) {
     const char* data = GetDataAt(i->offset);
-    if (!Deplist::Load2(data, deps, err))
+    if (!Deplist::LoadNoHeader(data, deps, err))
       return false;
   }
   return true;

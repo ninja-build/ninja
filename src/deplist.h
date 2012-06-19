@@ -34,8 +34,8 @@ struct Deplist {
                                    const string& filename,
                                    const vector<StringPiece>& entries);
 
-  static bool Load2(StringPiece input, vector<StringPiece>* entries,
-                    string* err);
+  static bool LoadNoHeader(
+      StringPiece input, vector<StringPiece>* entries, string* err);
 #endif
 
   /// Parse a list of strings from \a input.  Returned entries are
