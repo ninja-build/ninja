@@ -29,7 +29,7 @@ README.html: README HACKING GNUmakefile $(bindir)/rst2html-2.7.py
 build.ninja: src/depfile_parser.cc src/lexer.cc
 	CPPFLAGS="-I$(gtestdir)/include -I$(includedir)" \
 	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual -std=c++11' \
-	CFLAGS='-Wno-undef -Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align' \
+	CFLAGS='-Wundef -Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align' \
 	LDFLAGS="-L$(libdir)" \
 	CXX="$(prefix)/libexec/ccache/g++" ./configure.py --debug --with-gtest=$(gtestdir)
 

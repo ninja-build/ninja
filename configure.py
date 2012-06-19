@@ -27,7 +27,7 @@ sys.path.insert(0, 'misc')
 import ninja_syntax
 
 parser = OptionParser()
-platforms = ['linux', 'freebsd', 'mingw', 'windows']
+platforms = ['linux', 'freebsd', 'mysys', 'mingw', 'windows']
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
@@ -57,6 +57,8 @@ if platform is None:
         platform = 'linux'
     elif platform.startswith('freebsd'):
         platform = 'freebsd'
+    elif platform.startswith('mysys'):
+        platform = 'mysys'
     elif platform.startswith('mingw'):
         platform = 'mingw'
     elif platform.startswith('win'):
@@ -96,7 +98,7 @@ def cc(name, **kwargs):
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
-    if platform in ('mingw', 'windows'):
+    if platform in ('mysys', 'mingw', 'windows'):
         return name + '.exe'
     return name
 
@@ -207,11 +209,12 @@ n.newline()
 
 objs = []
 
-if platform not in ('mingw', 'windows'):
+if platform not in ('mysys', 'mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
-           description='INLINE $out')
+           description='INLINE $out',
+           generator=True)  #XXX prevent clean of generated files
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
             implicit='src/inline.sh',
             variables=[('varname', 'kBrowsePy')])
@@ -223,7 +226,8 @@ if platform not in ('mingw', 'windows'):
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
+       description='RE2C $out',
+       generator=True)  #XXX prevent clean of generated files
 # Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
@@ -246,7 +250,7 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
-if platform == 'mingw' or platform == 'windows':
+if platform in ('mysys', 'mingw', 'windows'):
     objs += cxx('subprocess-win32')
     objs += cc('getopt')
 else:
