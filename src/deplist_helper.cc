@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
     }
 
     // Read and parse input file.
-    if (!ReadFile(input, &content, &err))
+    if (ReadFile(input, &content, &err) != 0)
       Fatal("loading %s: %s", input_filename, err.c_str());
 
     if (input_filename) {
