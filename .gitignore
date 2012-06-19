@@ -4,6 +4,9 @@ TAGS
 /build
 /build.ninja
 /ninja
+/build_log_perftest
+/canon_perftest
+/hash_collision_bench
 /ninja_test
 /parser_perftest
 /graph.png
