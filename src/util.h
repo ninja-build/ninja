@@ -52,7 +52,7 @@ int MakeDir(const string& path);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
-bool ReadFile(FILE* f, string* contents, string* err);
+int ReadFile(FILE* f, string* contents, string* err);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.

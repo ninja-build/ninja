@@ -166,13 +166,13 @@ int ReadFile(const string& path, string* contents, string* err, bool binary) {
     err->assign(strerror(errno));
     return -errno;
   }
-  if (!ReadFile(f, contents, err))
+  if (ReadFile(f, contents, err) != 0)
     return -errno;
   fclose(f);
   return 0;
 }
 
-bool ReadFile(FILE* f, string* contents, string* err) {
+int ReadFile(FILE* f, string* contents, string* err) {
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
@@ -181,9 +181,11 @@ bool ReadFile(FILE* f, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    return false;
+    fclose(f);
+    return -errno;
   }
-  return true;
+  fclose(f);
+  return 0;
 }
 
 void SetCloseOnExec(int fd) {
