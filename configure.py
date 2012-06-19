@@ -291,7 +291,7 @@ if options.with_gtest:
     if platform == 'windows':
         gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
     else:
-        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
+        gtest_cflags = '-fvisibility=hidden -Wno-undef ' + gtest_all_incs   # too many warnings with gtest
     objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
