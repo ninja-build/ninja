@@ -64,6 +64,7 @@ TEST_F(BuildLogTest, WriteRead) {
   ASSERT_TRUE(*e1 == *e2);
   ASSERT_EQ(15, e1->start_time);
   ASSERT_EQ("out", e1->output);
+  log2.Close();
 }
 
 TEST_F(BuildLogTest, FirstWriteAddsSignature) {
