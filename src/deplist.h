@@ -27,17 +27,6 @@ struct Deplist {
   /// Returns false on error.
   static bool Write(FILE* file, const vector<StringPiece>& entries);
 
-#ifdef _WIN32
-  /// Write a list of strings to the DepDatabase.
-  /// Returns error string on error, on NULL on success.
-  static const char *WriteDatabase(DepDatabase& depdb,
-                                   const string& filename,
-                                   const vector<StringPiece>& entries);
-
-  static bool LoadNoHeader(
-      StringPiece input, vector<StringPiece>* entries, string* err);
-#endif
-
   /// Parse a list of strings from \a input.  Returned entries are
   /// pointers within \a input.
   /// Returns false and fills in \a err on error.
