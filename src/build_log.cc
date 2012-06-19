@@ -296,7 +296,7 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->restat_mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 10);
+      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
       *end = c;
     } else {
       entry->command_hash = LogEntry::HashCommand(StringPiece(start,
@@ -332,7 +332,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIu64 "\n",
+  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }
