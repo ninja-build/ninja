@@ -229,26 +229,26 @@ n.comment('Core source files all build into ninja library.')
 for name in ['build',
              'build_log',
              'clean',
-             'dep_database',
              'depfile_parser',
-             'deplist',
              'disk_interface',
              'edit_distance',
              'eval_env',
              'explain',
              'graph',
              'graphviz',
-             'includes_normalize',
              'lexer',
-             'lockable_mapped_file',
              'metrics',
              'parsers',
-             'showincludes_parser',
              'state',
              'util']:
     objs += cxx(name)
 
 if platform == 'mingw' or platform == 'windows':
+    objs += cxx('dep_database-win32')
+    objs += cxx('deplist-win32')
+    objs += cxx('includes_normalize-win32')
+    objs += cxx('lockable_mapped_file-win32')
+    objs += cxx('showincludes_parser-win32')
     objs += cxx('subprocess-win32')
     objs += cc('getopt')
 else:
