@@ -25,6 +25,7 @@ using namespace std;
 #include "hash_map.h"
 
 struct BuildLog;
+struct DepDatabase;
 struct Edge;
 struct Node;
 struct Rule;
