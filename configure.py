@@ -230,6 +230,7 @@ for name in ['build',
              'build_log',
              'clean',
              'depfile_parser',
+             'deplist',
              'disk_interface',
              'edit_distance',
              'eval_env',
@@ -245,7 +246,6 @@ for name in ['build',
 
 if platform == 'mingw' or platform == 'windows':
     objs += cxx('dep_database-win32')
-    objs += cxx('deplist-win32')
     objs += cxx('includes_normalize-win32')
     objs += cxx('lockable_mapped_file-win32')
     objs += cxx('showincludes_parser-win32')
