@@ -28,16 +28,10 @@
 namespace {
 
 string DirName(const string& path) {
-#ifdef _WIN32
-  const char kPathSeparator = '\\';
-#else
-  const char kPathSeparator = '/';
-#endif
-
-  string::size_type slash_pos = path.rfind(kPathSeparator);
+  string::size_type slash_pos = path.rfind(DIR_SEP_C);
   if (slash_pos == string::npos)
     return string();  // Nothing to do.
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
+  while (slash_pos > 0 && path[slash_pos - 1] == DIR_SEP_C)
     --slash_pos;
   return path.substr(0, slash_pos);
 }
@@ -132,9 +126,9 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-string RealDiskInterface::ReadFile(const string& path, string* err) {
+string RealDiskInterface::ReadFile(const string& path, string* err, bool binary) {
   string contents;
-  int ret = ::ReadFile(path, &contents, err);
+  int ret = ::ReadFile(path, &contents, err, binary);
   if (ret == -ENOENT) {
     // Swallow ENOENT.
     err->clear();

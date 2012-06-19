@@ -48,7 +48,11 @@ int MakeDir(const string& path);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+int ReadFile(FILE* f, string* contents, string* err);
+
+/// Read a file to a string.
+/// Returns -errno and fills in \a err on error.
+int ReadFile(const string& path, string* contents, string* err, bool binary = false);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
@@ -83,6 +87,14 @@ double GetLoadAverage();
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
+#endif
+
+#ifdef _WIN32
+  #define DIR_SEP_S "\\"
+  #define DIR_SEP_C '\\'
+#else
+  #define DIR_SEP_S "/"
+  #define DIR_SEP_C '/'
 #endif
 
 #endif  // NINJA_UTIL_H_
