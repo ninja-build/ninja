@@ -173,7 +173,6 @@ int ReadFile(const string& path, string* contents, string* err, bool binary) {
   }
   if (ReadFile(f, contents, err) != 0)
     return -errno;
-  fclose(f);
   return 0;
 }
 
