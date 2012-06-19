@@ -22,6 +22,7 @@ using namespace std;
 
 #include "hash_map.h"
 #include "timestamp.h"
+#include "util.h"
 
 struct BuildConfig;
 struct Edge;

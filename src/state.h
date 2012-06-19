@@ -72,8 +72,8 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
-  struct BuildLog* build_log_;
-  struct DepDatabase* depdb_;
+  BuildLog* build_log_;
+  DepDatabase* depdb_;
 };
 
 #endif  // NINJA_STATE_H_

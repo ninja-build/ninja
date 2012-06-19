@@ -53,6 +53,8 @@ sources = []
 for src in glob.glob('src/*.cc'):
     if src.endswith('test.cc') or src.endswith('.in.cc'):
         continue
+    if src.endswith('bench.cc'):
+        continue
 
     filename = os.path.basename(src)
     if filename == 'browse.cc':  # Depends on generated header.
