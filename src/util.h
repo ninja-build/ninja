@@ -76,10 +76,6 @@ const char* SpellcheckString(const string& text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
-#ifdef _WIN32
-TimeStamp FiletimeToTimestamp(const FILETIME& filetime);
-#endif
-
 /// @return the load average of the machine. A negative value is returned
 /// on error.
 double GetLoadAverage();
