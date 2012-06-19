@@ -273,7 +273,7 @@ objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 if 'ninja' not in ninja:
-  n.build('ninja', 'phony', ninja)
+    n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 

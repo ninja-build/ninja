@@ -19,7 +19,7 @@ Build Dependencies:
 Adjusting build flags and use `ccache`_ at `build.ninja`::
 
   CFLAGS=-O3 CXX='/opt/local/bin/ccache g++' ./configure.py \
-    --with-gtest=./gtest-1.6.0
+    --with-gtest=../gtest-1.6.0
 
 and rebuild.
 
@@ -36,11 +36,11 @@ The build times for ninja on a **macbok pro** with 2 CPU cores are:
 +---------------------------+-----------------------+-------------------------+
 | 1.) build without ccache  |  rebuild with ccache  |   build "no work to do" |
 +===========================+=======================+=========================+
-|    real   0m7.629s        |     real  0m0.849s    |  real 0m0.005s          |
+|    real   0m9.444s        |     real  0m0.849s    |  real 0m0.005s          |
 +---------------------------+-----------------------+-------------------------+
-|    user   0m12.180s       |     user  0m0.202s    |  user 0m0.002s          |
+|    user   0m14.492s       |     user  0m0.202s    |  user 0m0.002s          |
 +---------------------------+-----------------------+-------------------------+
-|     sys   0m1.279s        |      sys  0m0.248s    |   sys 0m0.003s          |
+|     sys   0m1.838s        |      sys  0m0.248s    |   sys 0m0.003s          |
 +---------------------------+-----------------------+-------------------------+
 
 
