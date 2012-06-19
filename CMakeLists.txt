@@ -177,13 +177,16 @@ if (RE2C_EXECUTABLE)
 endif (RE2C_EXECUTABLE)
 
 
+# FIXME: this is a HACK with needs shell utills!
+#  TODO: why generate to build dir? ck
+# see src/browse.py, src/inline.sh, .../bindir/concrete_inline.sh
 find_package(PythonInterp)
 if(PYTHONINTERP_FOUND)
     if(linux)
         set(inline ${CMAKE_BINARY_DIR}/concrete_inline.sh)
         file(WRITE ${inline}
-        "mkdir -p ${CMAKE_BINARY_DIR}/build
-         ${srcdir}/inline.sh kBrowsePy < ${srcdir}/browse.py > ${CMAKE_BINARY_DIR}/build/browse_py.h\n")
+            "mkdir -p ${CMAKE_BINARY_DIR}/build
+            ${srcdir}/inline.sh kBrowsePy < ${srcdir}/browse.py > ${CMAKE_BINARY_DIR}/build/browse_py.h\n")
         set(browser 1)
     endif()
     if(browser)

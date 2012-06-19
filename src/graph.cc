@@ -144,7 +144,6 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
         return true;
       }
     } else {
-      //FIXME #ifdef USE_TIME_T ...
       EXPLAIN("output %s older than most recent input %s (%016lld vs %016lld)",
           output->path().c_str(),
           most_recent_node ? most_recent_node->path().c_str() : "",
@@ -163,6 +162,22 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
       return true;
     }
   }
+
+#ifdef USE_NEW_MTIME_CHECK
+  // Check if most_recent_node->mtime change since last log
+  if (most_recent_node && build_log &&
+      (entry = build_log->LookupByOutput(most_recent_node->path()))) {
+    // TBD: only for generator rules? ck
+    // FIXME: The FS time may not have ns resolution, so round to sec! ck
+    if (((entry->restat_mtime / 10000000LL)) != ((most_recent_node->mtime()
+        / 10000000LL))) {
+      EXPLAIN("generator: mtime %lld != %lld of file %s changed",
+          entry->restat_mtime, most_recent_node->mtime(),
+          most_recent_node->path().c_str());
+      return true;
+      }
+    }
+#endif
 
   return false;
 }

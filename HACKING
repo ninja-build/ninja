@@ -131,9 +131,12 @@ Windows development on Linux (this is kind of hacky right now):
     #or export CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++ AR=i586-mingw32msvc-ar
 
     CC=i386-mingw32-cc CXX=i386-mingw32-c++ AR=i386-mingw32-ar \
-      ./configure.py --platform=mingw --host=linux --with-gtest=./gtest-1.6.0
+      ./configure.py --platform=mysys --with-gtest=./gtest-1.6.0
 
-- Build ninja: /path/to/linux/ninja
+- Build ninja::
+
+    /path/to/linux/ninja
+
 - Run: ./ninja.exe  (implicitly runs through `wine`_ **(!)** )
 
 Windows development on Windows:

@@ -122,7 +122,6 @@ else:
     cflags = ['-g', '-Wall', '-Wextra',
               ###FIXME cygwin, mingw, .. fail to compile '-std=gnu++11',
               '-Wno-deprecated',
-              '-std=gnu++11',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
@@ -137,7 +136,7 @@ else:
     ldflags = ['-L$builddir']
 libs = []
 
-if platform == 'mingw':
+if platform == 'mingw' or platform == 'mysys':
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform == 'sunos5':
@@ -291,6 +290,8 @@ if options.with_gtest:
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform == 'windows':
         gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
+    elif platform == 'mysys':
+        gtest_cflags = '-Wno-undef ' + gtest_all_incs   # too many warnings with gtest
     else:
         gtest_cflags = '-fvisibility=hidden -Wno-undef ' + gtest_all_incs   # too many warnings with gtest
     objs += n.build(built('gtest-all' + objext), 'cxx',
@@ -322,13 +323,13 @@ for name in ['build_log_test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
 
-if platform != 'mingw' and platform != 'windows':
+if platform not in ('mysys', 'mingw', 'windows'):
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
 if 'ninja_test' not in ninja_test:
-  n.build('ninja_test', 'phony', ninja_test)
+    n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 

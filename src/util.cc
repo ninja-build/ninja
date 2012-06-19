@@ -205,6 +205,34 @@ void SetCloseOnExec(int fd) {
 #endif  // ! _WIN32
 }
 
+int64_t GetCurrentTick() {
+#ifdef _WIN32
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);   // 100ns
+    /* A Windows file time is a 64-bit value that represents the number of
+     * 100-nanosecond intervals that have elapsed since
+     * 12:00 midnight, January 1, 1601 A.D. (C.E.)
+     * Coordinated Universal Time (UTC). */
+    int64_t nsec = ((uint64_t)ft.dwHighDateTime << 32) |
+                   ((uint64_t)ft.dwLowDateTime);
+#else   // _WIN32
+    struct timespec ts;
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+    clock_gettime(CLOCK_REALTIME, &ts);
+    int64_t nsec = ((int64_t)(ts.tv_sec * 1000LL * 1000LL * 10LL))
+	+ (ts.tv_nsec / 100LL);
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec;
+    ts.tv_nsec = tv.tv_usec * 1000;
+    int64_t nsec = ((int64_t)(ts.tv_sec * 1000LL * 1000LL * 10LL))
+	+ (ts.tv_nsec / 100LL);
+    #endif
+#endif  // _WIN32
+    return nsec;
+}
+
 int64_t GetTimeMillis() {
 #ifdef _WIN32
   // GetTickCount64 is only available on Vista or later.
@@ -322,4 +350,3 @@ double GetLoadAverage()
   return GetLoadAverage_unix();
 #endif // _WIN32
 }
-

@@ -845,8 +845,6 @@ TEST_F(BuildTest, RestatWorks) {
 "  restat = 1\n"
 "rule cc\n"
 "  command = wc $in\n"
-"# rule cat\n"  //FIXME wher is it defined? ck
-"#  command = cat $in\n"
 "build out1: cc in\n"
 "build out2: true out1\n"
 "build out3: cat out2\n"));

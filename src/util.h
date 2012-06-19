@@ -60,6 +60,11 @@ void SetCloseOnExec(int fd);
 /// time.
 int64_t GetTimeMillis();
 
+/// Get the current ticks since epoch as 100ns value.
+/// Epoch varies between platforms; only useful for measuring elapsed
+/// time.
+int64_t GetCurrentTick();
+
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
 const char* SpellcheckStringV(const string& text, const vector<const char*>& words);

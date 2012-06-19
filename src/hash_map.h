@@ -81,13 +81,21 @@ using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
 
-//FIXME: /opt/local/include/gcc47/c++/bits/basic_string.h:3043:12: error: previous definition of 'struct std::hash<std::basic_string<char> >'
 template<>
 struct hash<std::string> {
   size_t operator()(const std::string& s) const {
     return hash<const char*>()(s.c_str());
   }
 };
+
+template<>
+struct hash<StringPiece> {
+  size_t operator()(StringPiece key) const {
+    return MurmurHash2(key.str_, key.len_);
+  }
+};
+
+}
 
 #else
 #include <unordered_map>

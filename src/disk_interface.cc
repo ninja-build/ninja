@@ -97,30 +97,11 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
    * Coordinated Universal Time (UTC). */
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
-
-#ifdef USE_TIME_T
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
-  mtime /= 1000000000LL / 100LL; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
-#else
   // return the time as a signed quadword, but keep 100nsec pression! ck
   return mtime;
-#endif
 
 #else
 
-#ifdef USE_TIME_T
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT || errno == ENOTDIR)
-      return 0;
-    Error("stat(%s): %s", path.c_str(), strerror(errno));
-    return -1;
-  }
-  return st.st_mtime;
-#else
 #if defined(__CYGWIN__) || defined(_POSIX_C_SOURCE)
 #define stat64 stat
 #endif
@@ -137,11 +118,9 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 #elif defined(_LARGEFILE64_SOURCE)
   return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
 #else
-//FIXME #warning "NO tv_nsec available with stat()!"
   // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
   return (((int64_t) st.st_mtime) * 10000000LL) + (st.st_mtimensec / 100LL);
 #endif
-#endif  // USE_TIME_T
 
 #endif
 }
