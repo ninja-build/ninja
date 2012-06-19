@@ -79,7 +79,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
           GetLastErrorString().c_str());
     return -1;
   }
-  FILETIME filetime = attrs.ftLastWriteTime;
+  const FILETIME& filetime = attrs.ftLastWriteTime;
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
   // resulting value to fit in an integer.
