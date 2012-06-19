@@ -265,6 +265,7 @@ else:
     libs.append('-lninja')
 
 all_targets = []
+default_targets = []
 
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
@@ -274,6 +275,7 @@ if 'ninja' not in ninja:
   n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
+default_targets += ninja
 
 n.comment('Tests all build into ninja_test executable.')
 
@@ -333,13 +335,15 @@ if 'ninja_test' not in ninja_test:
 n.newline()
 all_targets += ninja_test
 
-n.comment('Deplist helper.')
-objs = cxx('deplist_helper')
-deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
-                         implicit=ninja_lib,
-                         variables=[('libs', libs)])
-n.newline()
-all_targets += deplist_helper
+if platform == 'windows':
+    n.comment('Deplist helper.')
+    objs = cxx('deplist_helper')
+    deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
+                            implicit=ninja_lib,
+                            variables=[('libs', libs)])
+    n.newline()
+    all_targets += deplist_helper
+    default_targets += deplist_helper
 
 n.comment('Ancilliary executables.')
 objs = cxx('parser_perftest')
@@ -401,7 +405,7 @@ if host != 'mingw':
     n.newline()
 
 n.comment('Build only the user-facing binaries by default.')
-n.default(ninja + deplist_helper)
+n.default(default_targets)
 n.newline()
 
 n.build('all', 'phony', all_targets)

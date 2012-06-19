@@ -177,7 +177,9 @@ struct Edge {
   string GetRspFileContent();
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
+#ifdef _WIN32
   bool LoadDepDb(State* state, string* err);
+#endif
 
   void Dump();
 

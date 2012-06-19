@@ -494,6 +494,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+#ifdef _WIN32
 int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
   globals->state->depdb_->DumpIndex();
   return 0;
@@ -505,6 +506,7 @@ int ToolDeps(Globals* globals, int argc, char* argv[]) {
   }
   return 0;
 }
+#endif
 
 void ToolUrtle() {
   // RLE encoded.
@@ -711,10 +713,12 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
       ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       ToolCommands },
+#ifdef _WIN32
     { "depindex", "list all files indexed in the depdb",
       ToolDepIndex },
     { "deps", "list dependencies stored in the depdb for given files",
       ToolDeps },
+#endif
     { "graph", "output graphviz dot file for targets",
       ToolGraph },
     { "log", "log completed commands to stdout",
@@ -945,8 +949,10 @@ reload:
   if (!build_dir.empty()) {
     depdb_path = build_dir + "/" + kDepDbPath;
   }
+#ifdef _WIN32
   DepDatabase depdb(depdb_path, true);
   globals.state->depdb_ = &depdb;
+#endif
 
   if (!tool.empty())
     return RunTool(tool, &globals, argc, argv);

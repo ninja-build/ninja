@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef _WIN32
+#error deplist_helper is only for Win32.
+#endif
+
 #include "deplist.h"
 
 #include <algorithm>
@@ -25,11 +29,7 @@
 #include "subprocess.h"
 #include "util.h"
 
-#ifdef _WIN32
 #include "getopt.h"
-#else
-#include <getopt.h>
-#endif
 
 namespace {
 
@@ -44,16 +44,12 @@ void Usage() {
 "               cl   MSVC cl.exe /showIncludes output\n"
 "  -q         suppress first line of output in cl mode. this will be the file\n"
 "             being compiled when /nologo is used.\n"
-"  -d FILE    write to database FILE instead of individual file\n"
-"             requires -o to specify target index name\n"
 "  -r BASE    normalize paths and make relative to BASE before outputting\n"
 "  -o FILE    write output to FILE (default: stdout)\n"
-#ifdef _WIN32
 "  -e ENVFILE replace KEY=value lines in ENVFILE to use as environment.\n"
 "             only applicable when -c is used\n"
 "  --command  run command via CreateProcess to get output rather than an infile\n"
 "             must be the last argument\n"
-#endif
          );
 }
 
@@ -93,14 +89,12 @@ int main(int argc, char** argv) {
       case 'o':
         output_filename = optarg;
         break;
-#ifdef _WIN32
       case 'e':
         envfile = optarg;
         break;
       case 'C':
         run_command = true;
         break;
-#endif
       case 'q':
         quiet = true;
         break;
@@ -195,26 +189,10 @@ int main(int argc, char** argv) {
   }
 
   const char* db_filename = ".ninja_depdb";
-  if (db_filename) {
-    if (!output_filename)
-      Fatal("-d requires -o");
-    DepDatabase depdb(db_filename, false);
-    Deplist::WriteDatabase(depdb, output_filename, depfile.ins_);
-  } else {
-    // Open/write/close output file.
-    FILE* output = stdout;
-    if (output_filename) {
-      output = fopen(output_filename, "wb");
-      if (!output)
-        Fatal("opening %s: %s", output_filename, strerror(errno));
-    }
-    if (!Deplist::Write(output, depfile.ins_))
-      Fatal("error writing %s");
-    if (output_filename) {
-      if (fclose(output) < 0)
-        Fatal("fclose(%s): %s", output_filename, strerror(errno));
-    }
-  }
+  if (!output_filename)
+      Fatal("-o required");
+  DepDatabase depdb(db_filename, false);
+  Deplist::WriteDatabase(depdb, output_filename, depfile.ins_);
 
   return returncode;
 }

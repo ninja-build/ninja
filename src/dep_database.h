@@ -15,6 +15,7 @@
 #ifndef NINJA_DEP_DATABASE_H_
 #define NINJA_DEP_DATABASE_H_
 
+#ifdef _WIN32
 #include <windows.h>
 #include <string>
 #include <vector>
@@ -54,5 +55,6 @@ private:
 
   LockableMappedFile data_;
 };
+#endif
 
 #endif  // NINJA_DEP_DATABASE_H_

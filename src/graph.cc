@@ -42,9 +42,11 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   if (!rule_->depfile().empty()) {
     if (!LoadDepFile(state, disk_interface, err))
       return false;
+#ifdef _WIN32
   } else if (!rule_->deplist().empty()) {
     if (!LoadDepDb(state, err))
       return false;
+#endif
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -352,6 +354,7 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   return true;
 }
 
+#ifdef _WIN32
 bool Edge::LoadDepDb(State* state, string* err) {
   METRIC_RECORD("depdb load");
 
@@ -399,6 +402,7 @@ bool Edge::LoadDepDb(State* state, string* err) {
   state->depdb_->FinishLookups();
   return true;
 }
+#endif
 
 void Edge::Dump() {
   printf("[ ");

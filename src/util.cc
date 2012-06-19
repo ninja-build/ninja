@@ -292,6 +292,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
+#ifdef _WIN32
 TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
@@ -303,7 +304,6 @@ TimeStamp FiletimeToTimestamp(const FILETIME& filetime) {
   return (TimeStamp)mtime;
 }
 
-#ifdef _WIN32
 static double GetLoadAverage_win32()
 {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
