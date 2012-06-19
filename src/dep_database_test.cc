@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+
 #include "dep_database.h"
 
 #include <gtest/gtest.h>
@@ -99,3 +101,5 @@ TEST_F(DepDatabaseTest, AddMultipleUnsorted) {
   EXPECT_EQ("waa", GetDepData(db, "b.c")[0]);
   EXPECT_EQ("woo", GetDepData(db, "x.c")[0]);
 }
+
+#endif

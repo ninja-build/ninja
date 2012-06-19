@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+
 #include "deplist.h"
 
 #include <gtest/gtest.h>
@@ -91,3 +93,5 @@ TEST_F(DeplistTest, BinaryMode) {
   for (int i = 0; i < (int)entries.size(); ++i)
     EXPECT_EQ(entries[i].AsString(), entries2[i].AsString());
 }
+
+#endif

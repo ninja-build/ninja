@@ -23,10 +23,12 @@ namespace {
 
 string SLASH(const string& input) {
   string ret(input);
+#ifdef _WIN32
   for (size_t i = 0; i < ret.size(); ++i) {
     if (ret[i] == '/')
       ret[i] = '\\';
   }
+#endif
   return ret;
 }
 

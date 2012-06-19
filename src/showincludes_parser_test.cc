@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+
 #include "showincludes_parser.h"
 
 #include <gtest/gtest.h>
@@ -43,3 +45,5 @@ out);
   EXPECT_EQ("c:\\Some Files\\foobar.h", entries[0].AsString());
   EXPECT_EQ("c:\\initspaces.h", entries[1].AsString());
 }
+
+#endif

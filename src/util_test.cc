@@ -38,11 +38,13 @@ bool CanonPath(char* str, int* len, string* err) {
 }
 
 string SLASH(string in, int len = -1) {
+#ifdef _WIN32
   if (len == -1)
     len = static_cast<int>(in.size());
   for (int i = 0; i < len; ++i)
     if (in[i] == '/')
       in[i] = '\\';
+#endif
   return in;
 }
 
