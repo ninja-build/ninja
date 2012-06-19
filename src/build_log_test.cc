@@ -34,7 +34,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
   }
   virtual void TearDown() {
-    _unlink(kTestFilename);
+    unlink(kTestFilename);
   }
 };
 
