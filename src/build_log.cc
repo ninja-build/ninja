@@ -19,6 +19,8 @@
 #include <string.h>
 
 #ifndef _WIN32
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <unistd.h>
 #endif
 
@@ -37,6 +39,7 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
+const int kOldestSupportedVersion = 4;
 const int kCurrentVersion = 5;
 
 // 64bit MurmurHash2, by Austin Appleby
@@ -227,19 +230,23 @@ bool BuildLog::Load(const string& path, string* err) {
   char* line_end = 0;
   while (reader.ReadLine(&line_start, &line_end)) {
     if (!log_version) {
-      log_version = 1;  // Assume by default.
-      if (sscanf(line_start, kFileSignature, &log_version) > 0)
-        continue;
+      sscanf(line_start, kFileSignature, &log_version);
+
+      if (log_version < kOldestSupportedVersion) {
+        *err = "unable to extract version from build log, perhaps due to "
+          "being too old; you must clobber your build output and rebuild";
+        return false;
+      }
     }
 
     // If no newline was found in this chunk, read the next.
     if (!line_end)
       continue;
 
-    char field_separator = log_version >= 4 ? '\t' : ' ';
+    const char kFieldSeparator = '\t';
 
     char* start = line_start;
-    char* end = (char*)memchr(start, field_separator, line_end - start);
+    char* end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
       continue;
     *end = 0;
@@ -250,21 +257,21 @@ bool BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, field_separator, line_end - start);
+    end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, field_separator, line_end - start);
+    end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
       continue;
     *end = 0;
     restat_mtime = atol(start);
     start = end + 1;
 
-    end = (char*)memchr(start, field_separator, line_end - start);
+    end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
       continue;
     string output = string(start, end - start);
@@ -289,12 +296,12 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->restat_mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 10);
+      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
       *end = c;
-    }
-    else
+    } else {
       entry->command_hash = LogEntry::HashCommand(StringPiece(start,
                                                               end - start));
+    }
   }
   fclose(file);
 
@@ -325,8 +332,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%ld\t%s\t%llu\n",
-          entry.start_time, entry.end_time, (long) entry.restat_mtime,
+  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+          entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }
 
