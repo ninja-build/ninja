@@ -122,6 +122,7 @@ else:
     cflags = ['-g', '-Wall', '-Wextra',
               ###FIXME cygwin, mingw, .. fail to compile '-std=gnu++11',
               '-Wno-deprecated',
+              '-std=gnu++11',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
