@@ -34,9 +34,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void SetUp() {
   }
   virtual void TearDown() {
-    if (unlink(kTestFilename) < 0) {
-      Fatal("Couldn't remove %s", kTestFilename);
-    }
+    unlink(kTestFilename);
   }
 };
 
