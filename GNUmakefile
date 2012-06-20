@@ -14,9 +14,13 @@ gtestdir:=$(shell $(bindir)/grealpath $(HOME)/Workspace/cpp/gtest-1.6.0)
 .DEFAULT: all
 all::
 
+bootstrap.py: ;
+ninja.bootstrap: bootstrap.py
+	./$<
+
 # bootstrap with install ninja!
-ninja: build.ninja $(bindir)/ninja
-	$(bindir)/ninja -d explain
+ninja: ninja.bootstrap build.ninja
+	./$<
 
 manual:: README.html
 README.html: README HACKING GNUmakefile $(bindir)/rst2html-2.7.py
@@ -29,13 +33,15 @@ README.html: README HACKING GNUmakefile $(bindir)/rst2html-2.7.py
 build.ninja: src/depfile_parser.cc src/lexer.cc
 	CPPFLAGS="-I$(gtestdir)/include -I$(includedir)" \
 	CXXFLAGS='-Wall -Wextra -Weffc++ -Wold-style-cast -Wcast-qual -Wundef -std=c++11' \
-	CFLAGS='-Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align' \
+	CFLAGS='-Wsign-compare -Wconversion -Wpointer-arith -Wcomment -Wcast-align -Wcast-qual' \
 	LDFLAGS="-L$(libdir)" \
 	CXX="$(prefix)/libexec/ccache/g++" ./configure.py --debug --with-gtest=$(gtestdir)
 
+src/depfile_parser.in.cc: ;
 src/depfile_parser.cc: src/depfile_parser.in.cc $(bindir)/re2c
 	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
+src/lexer.in.cc: ;
 src/lexer.cc: src/lexer.in.cc $(bindir)/re2c
 	$(bindir)/re2c -b -i --no-generation-date -o $@ $<
 
@@ -71,5 +77,5 @@ $(bindir)/rst2html-2.7.py: ;
 
 # Anything we don't know how to build will use this rule.
 #
-% :: ;
+% :: ninja
 	./ninja $@

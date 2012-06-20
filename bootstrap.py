@@ -103,6 +103,6 @@ if options.verbose:
 print 'Building ninja using itself...'
 run([sys.executable, 'configure.py'] + conf_args)
 run(['./' + binary] + verbose)
-os.unlink(binary)
+#NOTE: ./nina -t clean remove itself! os.unlink(binary)
 
 print 'Done!'

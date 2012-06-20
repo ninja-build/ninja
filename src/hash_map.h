@@ -26,7 +26,7 @@ unsigned int MurmurHash2(const void* key, int len) {
   unsigned int h = seed ^ len;
   const unsigned char * data = (const unsigned char *)key;
   while(len >= 4) {
-    unsigned int k = *(unsigned int *)data;
+    unsigned int k = *(const unsigned int *)data;
     k *= m;
     k ^= k >> r;
     k *= m;
