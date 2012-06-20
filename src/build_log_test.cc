@@ -98,9 +98,9 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
 
 TEST_F(BuildLogTest, DoubleEntry) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v3\n");
-  fprintf(f, "0 1 2 out command abc\n");
-  fprintf(f, "3 4 5 out command def\n");
+  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "0\t1\t2\tout\tcommand abc\n");
+  fprintf(f, "3\t4\t5\tout\tcommand def\n");
   fclose(f);
 
   string err;
@@ -148,7 +148,7 @@ TEST_F(BuildLogTest, Truncate) {
   }
 }
 
-TEST_F(BuildLogTest, UpgradeV3) {
+TEST_F(BuildLogTest, ObsoleteOldVersion) {
   FILE* f = fopen(kTestFilename, "wb");
   fprintf(f, "# ninja log v3\n");
   fprintf(f, "123 456 0 out command\n");
@@ -156,15 +156,8 @@ TEST_F(BuildLogTest, UpgradeV3) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
-  ASSERT_EQ("", err);
-
-  BuildLog::LogEntry* e = log.LookupByOutput("out");
-  ASSERT_TRUE(e);
-  ASSERT_EQ(123, e->start_time);
-  ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(0, e->restat_mtime);
-  ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
+  EXPECT_FALSE(log.Load(kTestFilename, &err));
+  ASSERT_NE(err.find("version"), string::npos);
 }
 
 TEST_F(BuildLogTest, SpacesInOutputV4) {

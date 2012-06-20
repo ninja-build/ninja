@@ -18,10 +18,10 @@ TAGS
 /build
 /build.ninja
 /ninja
-/ninja_test
 /build_log_perftest
 /canon_perftest
 /hash_collision_bench
+/ninja_test
 /parser_perftest
 /graph.png
 /doc/manual.html

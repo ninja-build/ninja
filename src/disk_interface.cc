@@ -117,6 +117,8 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   return (((int64_t) st.st_mtimespec.tv_sec) * 10000000LL) + (st.st_mtimespec.tv_nsec / 100LL);
 #elif defined(_LARGEFILE64_SOURCE)
   return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
+#elif defined(__CYGWIN__)
+  return (((int64_t) st.st_mtime) * 10000000LL);
 #else
   // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
   return (((int64_t) st.st_mtime) * 10000000LL) + (st.st_mtimensec / 100LL);

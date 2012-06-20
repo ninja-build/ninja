@@ -93,7 +93,7 @@ bool WriteTestData(string* err) {
 }
 
 int main() {
-  vector<int64_t> times;
+  vector<int> times;
   string err;
 
   if (!WriteTestData(&err)) {
@@ -117,13 +117,13 @@ int main() {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
-    int64_t delta = (GetCurrentTick() - start);
-    printf("%lldms\n", delta / 10000LL);	//NOTE ms based on 100ns ticks! ck
+    int delta = static_cast<int>((GetCurrentTick() - start));
+    printf("%dms\n", delta / 10000);	//NOTE: ms based on 100ns ticks! ck
     times.push_back(delta);
   }
 
-  int64_t min = times[0];
-  int64_t max = times[0];
+  int min = times[0];
+  int max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
     total += static_cast<float>(times[i]);
@@ -133,8 +133,8 @@ int main() {
       max = times[i];
   }
 
-  printf("min %lldms  max %lldms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
-         min/10000LL, max/10000LL, (total / 10000LL) / static_cast<float>(times.size()));
+  printf("min %dms  max %dms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
+         min/10000, max/10000, (total / 10000) / static_cast<float>(times.size()));
 
   unlink(kTestFilename);
 
