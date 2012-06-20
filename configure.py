@@ -259,6 +259,8 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
+if platform == 'linux':
+    objs += cc('clockgettime_linux')
 if platform in ('mysys', 'mingw', 'windows'):
     objs += cxx('subprocess-win32')
     objs += cc('getopt')
