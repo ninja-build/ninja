@@ -19,7 +19,7 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-#include <windows.h>
+//XXX see "subprocess.h" #include <windows.h>
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -728,6 +728,9 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
+          if (new_mtime) {
+            printf("XXX unchanged output '%s' found\n", (*i)->path().c_str());
+          }
           plan_.CleanNode(log_, *i);
           node_cleaned = true;
         }
@@ -739,20 +742,21 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         for (vector<Node*>::iterator i = edge->inputs_.begin();
              i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
           TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
-          if (input_mtime == 0) {
-            restat_mtime = 0;
-            break;
-          }
-          if (input_mtime > restat_mtime)
+          if (input_mtime > restat_mtime) {
             restat_mtime = input_mtime;
+            printf("XXX newer input '%s' of cleaned node '%s' found\n",
+                    (*i)->path().c_str(), output.c_str());
+          }
         }
 
-        if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
+        // TODO what is the usecase for this code? ck
+        if ( restat_mtime != 0 && !edge->rule().depfile().empty()) {
           TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
-          if (depfile_mtime == 0)
-            restat_mtime = 0;
-          else if (depfile_mtime > restat_mtime)
+          if (depfile_mtime > restat_mtime) {
+            printf("XXX depfile is newer than most resent input of cleaned node '%s'\n",
+                    output.c_str());
             restat_mtime = depfile_mtime;
+          }
         }
 
         // The total number of edges in the plan may have changed as a result
