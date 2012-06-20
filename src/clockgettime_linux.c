@@ -1,6 +1,6 @@
 #include <unistd.h>
 #include <time.h>
-#include <errors.h>
+#include <errno.h>
 
 #if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
 #ifdef __linux__
