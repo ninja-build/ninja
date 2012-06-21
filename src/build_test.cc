@@ -191,7 +191,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
     fs_.Create("in2", now_, "");
   }
 
-  ~BuildTest() {
+  virtual ~BuildTest() {
     builder_.command_runner_.release();
   }
 
@@ -838,7 +838,7 @@ TEST_F(BuildDryRun, AllCommandsShown) {
 }
 
 // Test that RSP files are created when & where appropriate and deleted after
-// succesful execution.
+// successful execution.
 TEST_F(BuildTest, RspFileSuccess)
 {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

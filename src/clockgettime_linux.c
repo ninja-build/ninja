@@ -1,4 +1,4 @@
-// Copyright 2012 Google Inc. All Rights Reserved.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_WIN32PORT_H_
-#define NINJA_WIN32PORT_H_
-#pragma once
+#include <unistd.h>
+#include <time.h>
+#include <errno.h>
 
-/// A 64-bit integer type
-typedef signed long long int64_t;
-typedef unsigned long long uint64_t;
-
-// printf format specifier for uint64_t, from C99 header /usr/include/inttypes.h
-#ifndef PRIu64
-#define PRIu64 "I64u"
-#define PRIx64 "I64x"
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+#ifdef __linux__
+#include <sys/syscall.h>
+/* libc has incredibly messy way of doing this,
+ * typically requiring -lrt. We just skip all this mess */
+int clock_gettime(clockid_t clock_id, struct timespec *ts) {
+    if(syscall(__NR_clock_gettime, clock_id, ts)) {
+        return errno;
+    } else {
+        return 0;
+    }
+}
 #endif
-
-#endif // NINJA_WIN32PORT_H_
+#endif
 

@@ -50,9 +50,19 @@ if args:
     print 'ERROR: extra unparsed command-line arguments:', args
     sys.exit(1)
 
-platform = options.platform
+env_keys = set(['CXX', 'AR', 'CPPFLAGS', 'CFLAGS', 'LDFLAGS', 'MSYSCON'])
+configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
+
+MSYSCON = configure_env.get('MSYSCON')
+if MSYSCON:
+    print "mysys shell found, use MSYSCON=%s" % MSYSCON
+    platform = host = 'mysys'
+else:
+    platform = options.platform
+
 if platform is None:
     platform = sys.platform
+    # NOTE: MSYSCON use windows Python!
     if platform.startswith('linux'):
         platform = 'linux'
     elif platform.startswith('freebsd'):
@@ -74,8 +84,6 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
-env_keys = set(['CXX', 'AR', 'CPPFLAGS', 'CFLAGS', 'LDFLAGS'])
-configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + configure_env[k] for k in configure_env])
     n.variable('configure_env', config_str + '$ ')
@@ -126,7 +134,7 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              "-DNINJA_PYTHON=\"%s\"" % options.with_python]
+              "-DNINJA_PYTHON=\\\"%s\\\"" % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
@@ -136,7 +144,7 @@ else:
     ldflags = ['-L$builddir']
 libs = []
 
-if platform == 'mingw' or platform == 'mysys':
+if platform in ('cygwin', 'mysys', 'mingw'):
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform == 'sunos5':
@@ -155,8 +163,9 @@ def shell_escape(str):
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
     # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
     # just returning the input string.
-    if '"' in str:
-        return "'%s'" % str.replace("'", "\\'")
+    if platform == 'mingw' or platform == 'windows':
+        if '"' in str:
+            return "'%s'" % str.replace("'", "\\'")
     return str
 
 cppflags = []
@@ -209,7 +218,7 @@ n.newline()
 
 objs = []
 
-if platform not in ('mysys', 'mingw', 'windows'):
+if platform not in ('cygwin', 'mysys', 'mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -250,6 +259,8 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
+if platform == 'linux':
+    objs += cc('clockgettime_linux')
 if platform in ('mysys', 'mingw', 'windows'):
     objs += cxx('subprocess-win32')
     objs += cc('getopt')
@@ -383,7 +394,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if host != 'mingw':
+if host not in ('mysys', 'mingw', 'windows'):
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='${configure_env}%s configure.py $configure_args' %
