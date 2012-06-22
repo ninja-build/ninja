@@ -91,10 +91,6 @@ gpietsch@comcast.net
 #include "getopt.h"
 #endif
 
-#ifdef _WIN32
-//FIXME #pragma warning(disable: 4701)  // Potentially uninitialized local variable 'name' used
-#endif
-
 /* macros */
 
 /* types */

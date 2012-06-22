@@ -14,9 +14,11 @@ gtestdir:=$(shell $(bindir)/grealpath $(HOME)/Workspace/cpp/gtest-1.6.0)
 .DEFAULT: all
 all::
 
+# bootstrap without installed ninja!
 bootstrap.py: ;
 ninja.bootstrap: bootstrap.py
 	./$<
+	cp -p -n ninja $@
 
 # bootstrap with install ninja!
 ninja: ninja.bootstrap build.ninja
@@ -54,17 +56,21 @@ test:: parser_perftest
 test:: build_log_perftest
 	./$<
 
-ninja_test: ninja
-	./ninja $@
+test:: hash_collision_bench
+	./$<
 
 help: ninja
 	./ninja -t targets
 
 clean: build.ninja
-	-./ninja -t clean
+	rm -rf build/*.o ###XXX build.ninja
+###	-./ninja -t clean
 
-distclean: clean
-	rm -rf CMakeTest/build build *.orig *~ tags ninja ninja_test *.exe *.pdb *.ninja doc/doxygen/html *.html
+distclean: ###XXX clean
+	find . \( -name '*~' -o -name '.*~' -o -name '*.pyc' \) -delete
+	rm -rf CMakeTest/build build *.orig *~ tags ninja ninja_test *_perftest \
+		hash_collision_bench *.exe *.pdb *.ninja doc/doxygen/html *.html
+	git status --ignored --short
 
 install: ninja
 	install ninja $(bindir)
