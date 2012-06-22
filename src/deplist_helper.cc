@@ -60,6 +60,18 @@ enum InputFormat {
 
 }  // anonymous namespace
 
+void PushPathIntoEnvironment(void* env_block) {
+  const char* as_str = reinterpret_cast<const char*>(env_block);
+  while (as_str[0]) {
+    if (_strnicmp(as_str, "path=", 5) == 0) {
+      _putenv(as_str);
+      return;
+    } else {
+      as_str = &as_str[strlen(as_str) + 1];
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   const char* output_filename = NULL;
   const char* relative_to = NULL;
@@ -120,6 +132,7 @@ int main(int argc, char** argv) {
       if (ReadFile(envfile, &env, &err, true) != 0)
         Fatal("couldn't open %s: %s", envfile, err.c_str());
       env_block = const_cast<void*>(static_cast<const void*>(env.data()));
+      PushPathIntoEnvironment(env_block);
     }
     SubprocessSet subprocs;
     char* command = GetCommandLine();
