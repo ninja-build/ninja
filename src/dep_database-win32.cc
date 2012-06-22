@@ -80,13 +80,6 @@ bool PathCompare(const DepIndex& a, const DepIndex& b) {
   return strcmp(a.path, b.path) < 0;
 }
 
-
-
-  void StartLookups();
-  // deps points into moveable data; only valid until FinishLookups.
-  bool FindDepData(const string& filename, vector<StringPiece>* deps, string* err);
-  void FinishLookups();
-
 void DepDatabase::StartLookups() {
   data_.Acquire();
 }
