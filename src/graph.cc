@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
         return true;
       }
     } else {
-      EXPLAIN("output %s older than most recent input %s (%d vs %d)",
+      EXPLAIN("output %s older than most recent input %s (%ld vs %ld)",
           output->path().c_str(),
           most_recent_node ? most_recent_node->path().c_str() : "",
           output->mtime(), most_recent_input);
@@ -230,7 +230,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
 string Edge::EvaluateCommand(bool incl_rsp_file) {
   EdgeEnv env(this);
   string command = rule_->command().Evaluate(&env);
-  if (incl_rsp_file && HasRspFile()) 
+  if (incl_rsp_file && HasRspFile())
     command += ";rspfile=" + GetRspFileContent();
   return command;
 }

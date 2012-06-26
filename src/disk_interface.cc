@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     Error("stat(%s): %s", path.c_str(), strerror(errno));
     return -1;
   }
-  return st.st_mtime;
+  return st.st_mtime * 1e9 + st.st_mtim.tv_nsec;
 #endif
 }
 
