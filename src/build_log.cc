@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,11 +58,11 @@ uint64_t MurmurHash64A(const void* key, int len) {
   const uint64_t * end = data + (len/8);
   while(data != end) {
     uint64_t k = *data++;
-    k *= m; 
-    k ^= k >> r; 
-    k *= m; 
+    k *= m;
+    k ^= k >> r;
+    k *= m;
     h ^= k;
-    h *= m; 
+    h *= m;
   }
   const unsigned char* data2 = (const unsigned char*)data;
   switch(len & 7)
@@ -80,7 +80,7 @@ uint64_t MurmurHash64A(const void* key, int len) {
   h *= m;
   h ^= h >> r;
   return h;
-} 
+}
 #undef BIG_CONSTANT
 
 
@@ -332,7 +332,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+  fprintf(f, "%d\t%d\t%ld\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }

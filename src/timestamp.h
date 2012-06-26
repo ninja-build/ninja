@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
 #ifndef NINJA_TIMESTAMP_H_
 #define NINJA_TIMESTAMP_H_
 
+#include "util.h"  // For int64_t.
+
 // When considering file modification times we only care to compare
 // them against one another -- we never convert them to an absolute
-// real time.  On POSIX we use time_t (seconds since epoch) and on
-// Windows we use a different value.  Both fit in an int.
-typedef int TimeStamp;
+// real time.  On POSIX we use nanoseconds since epoch (with 1s resolution where
+// nsec isn't available) and on Windows we use a different value.
+typedef int64_t TimeStamp;
 
 #endif  // NINJA_TIMESTAMP_H_
