@@ -335,3 +335,9 @@ void Edge::Dump() {
 bool Edge::is_phony() const {
   return rule_ == &State::kPhonyRule;
 }
+
+void Node::AddOutEdge(Edge* edge) {
+    if (find(out_edges_.begin(), out_edges_.end(), edge) != out_edges_.end())
+        return;
+    out_edges_.push_back(edge);
+}
