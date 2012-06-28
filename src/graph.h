@@ -109,6 +109,7 @@ struct Rule {
 
   bool generator() const { return generator_; }
   bool restat() const { return restat_; }
+  bool reload() const { return reload_; }
 
   const EvalString& command() const { return command_; }
   EvalString& command() { return command_; }
@@ -125,6 +126,7 @@ struct Rule {
 
   bool generator_;
   bool restat_;
+  bool reload_;
 
   EvalString command_;
   EvalString description_;
@@ -172,6 +174,9 @@ struct Edge {
 
   /// Get the contents of the response file
   string GetRspFileContent();
+
+  /// Does the edge use a dep file?
+  bool HasDepFile() const;
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
