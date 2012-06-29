@@ -18,12 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-#include <unistd.h>
-#endif
-
 #include "build.h"
 #include "graph.h"
 #include "metrics.h"
@@ -203,7 +197,7 @@ class LineReader {
 
  private:
   FILE* file_;
-  char buf_[256 << 10];
+  char buf_[256 << 10]; //FIXME: huge stack! 262144 bytes; ck
   char* buf_end_;  // Points one past the last valid byte in |buf_|.
 
   char* line_start_;
@@ -268,7 +262,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = atoll(start);	// NOTE: 100ns TimeStamp
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -332,7 +326,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+  fprintf(f, "%d\t%d\t%" PRIx64 "\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash);
 }

@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// If _GNU_SOURCE is defined all the other features are turned on! ck
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE // needed for _LARGEFILE64_SOURCE, default on unix!
+//XXX #define _POSIX_C_SOURCE
+#endif
+
 #include "disk_interface.h"
 
 #include <errno.h>
@@ -83,23 +89,39 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     return -1;
   }
   const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
+  /* A Windows file time is a 64-bit value that represents the number of
+   * 100-nanosecond intervals that have elapsed since
+   * 12:00 midnight, January 1, 1601 A.D. (C.E.)
+   * Coordinated Universal Time (UTC). */
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  // return the time as a signed quadword, but keep 100nsec pression! ck
+  return mtime;
+
 #else
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
+
+#if defined(__CYGWIN__) || defined(_POSIX_C_SOURCE)
+#define stat64 stat
+#endif
+  struct stat64 st;
+  if (stat64(path.c_str(), &st) < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
-    Error("stat(%s): %s", path.c_str(), strerror(errno));
+    Error("stat64(%s): %s", path.c_str(), strerror(errno));
     return -1;
   }
-  return st.st_mtime;
+  // use 100 nsec ticks like windows
+#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+  return (((int64_t) st.st_mtimespec.tv_sec) * 10000000LL) + (st.st_mtimespec.tv_nsec / 100LL);
+#elif defined(_LARGEFILE64_SOURCE)
+  return (((int64_t) st.st_mtim.tv_sec) * 10000000LL) + (st.st_mtim.tv_nsec / 100LL);
+#elif defined(__CYGWIN__)
+  return (((int64_t) st.st_mtime) * 10000000LL);
+#else
+  // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
+  return (((int64_t) st.st_mtime) * 10000000LL) + (st.st_mtimensec / 100LL);
+#endif
+
 #endif
 }
 

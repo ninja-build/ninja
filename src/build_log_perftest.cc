@@ -107,14 +107,14 @@ int main() {
   }
   const int kNumRepetitions = 5;
   for (int i = 0; i < kNumRepetitions; ++i) {
-    int64_t start = GetTimeMillis();
+    int64_t start = GetCurrentTick();
     BuildLog log;
     if (!log.Load(kTestFilename, &err)) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
-    int delta = (int)(GetTimeMillis() - start);
-    printf("%dms\n", delta);
+    int delta = static_cast<int>((GetCurrentTick() - start));
+    printf("%dms\n", delta / 10000);	//NOTE: ms based on 100ns ticks! ck
     times.push_back(delta);
   }
 
@@ -122,15 +122,15 @@ int main() {
   int max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
-    total += times[i];
+    total += static_cast<float>(times[i]);
     if (times[i] < min)
       min = times[i];
     else if (times[i] > max)
       max = times[i];
   }
 
-  printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+  printf("min %dms  max %dms  avg %.1fms\n",	//NOTE: ms based on 100ns ticks! ck
+         min/10000, max/10000, (total / 10000) / static_cast<float>(times.size()));
 
   unlink(kTestFilename);
 

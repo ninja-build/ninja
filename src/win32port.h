@@ -20,7 +20,7 @@
 typedef signed long long int64_t;
 typedef unsigned long long uint64_t;
 
-// printf format specifier for uint64_t, from C99.
+// printf format specifier for uint64_t, from C99 header /usr/include/inttypes.h
 #ifndef PRIu64
 #define PRIu64 "I64u"
 #define PRIx64 "I64x"

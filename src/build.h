@@ -21,6 +21,7 @@
 #include <queue>
 #include <vector>
 #include <memory>
+#include <algorithm>
 using namespace std;
 
 #include "exit_status.h"
@@ -175,7 +176,7 @@ struct BuildStatus {
   const BuildConfig& config_;
 
   /// Time the build started.
-  int64_t start_time_millis_;
+  int64_t start_time_ticks_;
 
   int started_edges_, finished_edges_, total_edges_;
 

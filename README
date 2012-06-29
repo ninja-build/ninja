@@ -1,15 +1,32 @@
-Ninja is a small build system with a focus on speed.
+==================
+Ninja
+==================
+
+*Ninja* is a small build system with a focus on speed.
 http://martine.github.com/ninja/
 
+.. contents::
+
+
 See the manual -- http://martine.github.com/ninja/manual.html or
-doc/manual.asciidoc included in the distribution -- for background
+`doc/manual.asciidoc <doc/manual.html>`_ included in the distribution -- for background
 and more details.
 
-To build, run ./bootstrap.py.  It first blindly compiles all non-test
-source files together, then re-builds Ninja using itself.  You should
-end up with a 'ninja' binary in the source root.  Run './ninja -h' for
+To build, run `./bootstrap.py`.  It first blindly compiles all non-test source
+files together, then re-builds *Ninja* using itself and `./build.ninja`.  You
+should end up with a *Ninja* binary in the source root.  Run `./ninja -h` for
 help.
 
-There is no installation step.  The only file of interest to a user
-is the resulting ninja binary.
+**There is no installation step!**  The only file of interest to a user is the
+resulting *Ninja* binary.
+
+You may install it yourself with::
+
+  sudo install ninja /usr/local/bin
+
+
+HACKING
+==================
+
+.. include:: HACKING
 
