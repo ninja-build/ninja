@@ -37,7 +37,9 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true), progress_status_format_(NULL) {
+      have_blank_line_(true), progress_status_format_(NULL),
+      overall_rate_(), current_rate_(),
+      current_rate_average_count_(config.parallelism) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -171,6 +173,25 @@ string BuildStatus::FormatProgressStatus(const char* progress_status_format) con
         out += buf;
         break;
 
+      // Overall finished edges per second.
+      case 'o':
+        overall_rate_.UpdateRate(finished_edges_, finished_edges_);
+        overall_rate_.snprinfRate(buf, "%.1f");
+        out += buf;
+        break;
+
+      // Current rate, average over the last '-j' jobs.
+      case 'c':
+        // TODO use sliding window?
+        if (finished_edges_ > current_rate_.last_update() &&
+            finished_edges_ - current_rate_.last_update() == current_rate_average_count_) {
+          current_rate_.UpdateRate(current_rate_average_count_, finished_edges_);
+          current_rate_.Restart();
+        }
+        current_rate_.snprinfRate(buf, "%.0f");
+        out += buf;
+        break;
+
       default: {
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
@@ -208,6 +229,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
+  if (finished_edges_ == 0) {
+    overall_rate_.Restart();
+    current_rate_.Restart();
+  }
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
@@ -770,3 +795,4 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
   if (success && log_)
     log_->RecordCommand(edge, start_time, end_time, restat_mtime);
 }
+

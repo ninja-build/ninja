@@ -204,16 +204,6 @@ void SetCloseOnExec(int fd) {
 #endif  // ! _WIN32
 }
 
-int64_t GetTimeMillis() {
-#ifdef _WIN32
-  // GetTickCount64 is only available on Vista or later.
-  return GetTickCount();
-#else
-  timeval now;
-  gettimeofday(&now, NULL);
-  return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
-#endif
-}
 
 const char* SpellcheckStringV(const string& text,
                               const vector<const char*>& words) {

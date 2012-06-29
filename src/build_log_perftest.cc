@@ -20,6 +20,7 @@
 #include "manifest_parser.h"
 #include "state.h"
 #include "util.h"
+#include "metrics.h"
 
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 

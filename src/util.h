@@ -53,11 +53,6 @@ int ReadFile(const string& path, string* contents, string* err);
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 
-/// Get the current time as relative to some epoch.
-/// Epoch varies between platforms; only useful for measuring elapsed
-/// time.
-int64_t GetTimeMillis();
-
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
 const char* SpellcheckStringV(const string& text, const vector<const char*>& words);
