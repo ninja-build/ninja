@@ -195,7 +195,7 @@ yy13:
 
     if (!is_target) {
       ins_.push_back(StringPiece(filename, len));
-    } else if (!out_.str_) {
+    } else if (!out_.str()) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
       *err = "depfile has multiple output paths.";

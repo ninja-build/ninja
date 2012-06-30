@@ -80,7 +80,7 @@ uint64_t MurmurHash64A(const void* key, int len) {
   h *= m;
   h ^= h >> r;
   return h;
-} 
+}
 #undef BIG_CONSTANT
 
 
@@ -88,7 +88,7 @@ uint64_t MurmurHash64A(const void* key, int len) {
 
 // static
 uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
-  return MurmurHash64A(command.str_, command.len_);
+  return MurmurHash64A(command.str(), command.len());
 }
 
 BuildLog::BuildLog()

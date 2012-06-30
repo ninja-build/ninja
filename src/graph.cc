@@ -292,7 +292,8 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+    int length = i->len();
+    if (!CanonicalizePath(const_cast<char*>(i->str()), &length, err))
       return false;
 
     Node* node = state->GetNode(*i);

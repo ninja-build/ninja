@@ -23,8 +23,8 @@
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
   int line = 1;
-  const char* context = input_.str_;
-  for (const char* p = input_.str_; p < last_token_; ++p) {
+  const char* context = input_.str();
+  for (const char* p = input_.str(); p < last_token_; ++p) {
     if (*p == '\n') {
       ++line;
       context = p + 1;
@@ -66,7 +66,7 @@ Lexer::Lexer(const char* input) {
 void Lexer::Start(StringPiece filename, StringPiece input) {
   filename_ = filename;
   input_ = input;
-  ofs_ = input_.str_;
+  ofs_ = input_.str();
   last_token_ = NULL;
 }
 
