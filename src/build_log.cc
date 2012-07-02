@@ -165,7 +165,8 @@ class LineReader {
  public:
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
-      memset(buf_, 0, sizeof(buf_));
+      // Accept truncated log files
+      snprintf(buf_, sizeof(buf_), kFileSignature, kCurrentVersion);
   }
 
   // Reads a \n-terminated line from the file passed to the constructor.
