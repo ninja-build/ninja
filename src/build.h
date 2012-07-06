@@ -21,7 +21,7 @@
 #include <queue>
 #include <vector>
 #include <memory>
-using namespace std;
+#include <cstdio>
 
 #include "exit_status.h"
 #include "metrics.h"
