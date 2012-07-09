@@ -21,8 +21,8 @@
 #include "depfile_parser.h"
 #include "disk_interface.h"
 #include "explain.h"
+#include "manifest_parser.h"
 #include "metrics.h"
-#include "parsers.h"
 #include "state.h"
 #include "util.h"
 
