@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_PARSERS_H_
-#define NINJA_PARSERS_H_
+#ifndef NINJA_MANIFEST_PARSER_H_
+#define NINJA_MANIFEST_PARSER_H_
 
 #include <string>
 #include <vector>
@@ -68,4 +68,4 @@ private:
   Lexer lexer_;
 };
 
-#endif  // NINJA_PARSERS_H_
+#endif  // NINJA_MANIFEST_PARSER_H_
