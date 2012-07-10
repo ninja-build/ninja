@@ -17,7 +17,7 @@
 
 #include "build_log.h"
 #include "graph.h"
-#include "parsers.h"
+#include "manifest_parser.h"
 #include "state.h"
 #include "util.h"
 

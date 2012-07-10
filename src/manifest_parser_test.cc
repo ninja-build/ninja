@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "parsers.h"
+#include "manifest_parser.h"
 
 #include <gtest/gtest.h>
 

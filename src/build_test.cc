@@ -802,6 +802,60 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   ASSERT_EQ(1u, commands_ran_.size());
 }
 
+// Test scenario, in which an input file is removed, but output isn't changed
+// https://github.com/martine/ninja/issues/295
+TEST_F(BuildWithLogTest, RestatMissingInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule true\n"
+    "  command = true\n"
+    "  depfile = $out.d\n"
+    "  restat = 1\n"
+    "rule cc\n"
+    "  command = cc\n"
+    "build out1: true in\n"
+    "build out2: cc out1\n"));
+
+  // Create all necessary files
+  fs_.Create("in", now_, "");
+
+  // The implicit dependencies and the depfile itself 
+  // are newer than the output
+  TimeStamp restat_mtime = ++now_;
+  fs_.Create("out1.d", now_, "out1: will.be.deleted restat.file\n");
+  fs_.Create("will.be.deleted", now_, "");
+  fs_.Create("restat.file", now_, "");
+
+  // Run the build, out1 and out2 get built
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(2u, commands_ran_.size());
+
+  // See that an entry in the logfile is created, capturing
+  // the right mtime
+  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out1");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+
+  // Now remove a file, referenced from depfile, so that target becomes 
+  // dirty, but the output does not change
+  fs_.RemoveFile("will.be.deleted");
+  
+  // Trigger the build again - only out1 gets built
+  commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(1u, commands_ran_.size());
+
+  // Check that the logfile entry remains correctly set
+  log_entry = build_log_.LookupByOutput("out1");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+}
+
 struct BuildDryRun : public BuildWithLogTest {
   BuildDryRun() {
     config_.dry_run = true;
