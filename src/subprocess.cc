@@ -25,6 +25,13 @@
 #include <string.h>
 #include <sys/wait.h>
 
+// Older versions of won't find this in <poll.h>.  Some versions keep it in
+// <asm-generic/poll.h>, though attempting to include that will redefine the
+// pollfd structure.
+#ifndef POLLRDHUP
+#define POLLRDHUP 0x2000
+#endif
+
 #include "util.h"
 
 Subprocess::Subprocess() : fd_(-1), pid_(-1) {
