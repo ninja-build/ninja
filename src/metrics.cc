@@ -107,8 +107,8 @@ void Metrics::Report() {
   for (vector<Metric*>::iterator i = metrics_.begin();
        i != metrics_.end(); ++i) {
     Metric* metric = *i;
-    double total = metric->sum / (double)1000;
-    double avg = metric->sum / (double)metric->count;
+    double total = static_cast<double>(metric->sum) / 1000.0;
+    double avg = static_cast<double>(metric->sum) / static_cast<double>(metric->count);
     printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", width, metric->name.c_str(),
            metric->count, avg, total);
   }

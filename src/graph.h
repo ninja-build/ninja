@@ -77,6 +77,8 @@ struct Node {
   const vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
 
+  void Dump(const char* prefix="") const;
+
 private:
   string path_;
   /// Possible values of mtime_:
@@ -173,7 +175,7 @@ struct Edge {
 
   bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
-  void Dump();
+  void Dump(const char* prefix="") const;
 
   const Rule* rule_;
   vector<Node*> inputs_;

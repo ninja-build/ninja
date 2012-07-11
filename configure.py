@@ -27,7 +27,7 @@ sys.path.insert(0, 'misc')
 import ninja_syntax
 
 parser = OptionParser()
-platforms = ['linux', 'freebsd', 'mingw', 'windows']
+platforms = ['linux', 'freebsd', 'mysys', 'mingw', 'windows']
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
@@ -50,13 +50,25 @@ if args:
     print 'ERROR: extra unparsed command-line arguments:', args
     sys.exit(1)
 
-platform = options.platform
+env_keys = set(['CXX', 'AR', 'CPPFLAGS', 'CFLAGS', 'LDFLAGS', 'MSYSCON'])
+configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
+
+MSYSCON = configure_env.get('MSYSCON')
+if MSYSCON:
+    print "mysys shell found, use MSYSCON=%s" % MSYSCON
+    platform = host = 'mysys'
+else:
+    platform = options.platform
+
 if platform is None:
     platform = sys.platform
+    # NOTE: MSYSCON use windows Python!
     if platform.startswith('linux'):
         platform = 'linux'
     elif platform.startswith('freebsd'):
         platform = 'freebsd'
+    elif platform.startswith('mysys'):
+        platform = 'mysys'
     elif platform.startswith('mingw'):
         platform = 'mingw'
     elif platform.startswith('win'):
@@ -72,8 +84,6 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
-configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + configure_env[k] for k in configure_env])
     n.variable('configure_env', config_str + '$ ')
@@ -96,7 +106,7 @@ def cc(name, **kwargs):
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
-    if platform in ('mingw', 'windows'):
+    if platform in ('mysys', 'mingw', 'windows'):
         return name + '.exe'
     return name
 
@@ -118,12 +128,13 @@ if platform == 'windows':
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
+              ###FIXME cygwin, mingw, .. fail to compile '-std=gnu++11',
               '-Wno-deprecated',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              "-DNINJA_PYTHON=\"%s\"" % options.with_python]
+              "-DNINJA_PYTHON=\\\"%s\\\"" % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
@@ -133,7 +144,7 @@ else:
     ldflags = ['-L$builddir']
 libs = []
 
-if platform == 'mingw':
+if platform in ('cygwin', 'mysys', 'mingw'):
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform == 'sunos5':
@@ -152,10 +163,15 @@ def shell_escape(str):
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
     # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
     # just returning the input string.
-    if '"' in str:
-        return "'%s'" % str.replace("'", "\\'")
+    if platform == 'mingw' or platform == 'windows':
+        if '"' in str:
+            return "'%s'" % str.replace("'", "\\'")
     return str
 
+cppflags = []
+if 'CPPFLAGS' in configure_env:
+    cppflags.append(configure_env['CPPFLAGS'])
+n.variable('cppflags', ' '.join(shell_escape(flag) for flag in cppflags))
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
 n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
@@ -166,12 +182,12 @@ n.newline()
 
 if platform == 'windows':
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='$cxx $cppflags $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out')
 else:
     n.rule('cxx',
-        command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
+        command='$cxx -MMD -MT $out -MF $out.d $cppflags $cflags -c $in -o $out',
         depfile='$out.d',
         description='CXX $out')
 n.newline()
@@ -202,11 +218,12 @@ n.newline()
 
 objs = []
 
-if platform not in ('mingw', 'windows'):
+if platform not in ('cygwin', 'mysys', 'mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
-           description='INLINE $out')
+           description='INLINE $out',
+           generator=True)  #XXX prevent clean of generated files
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
             implicit='src/inline.sh',
             variables=[('varname', 'kBrowsePy')])
@@ -218,7 +235,8 @@ if platform not in ('mingw', 'windows'):
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
+       description='RE2C $out',
+       generator=True)  #XXX prevent clean of generated files
 # Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
@@ -236,12 +254,14 @@ for name in ['build',
              'graph',
              'graphviz',
              'lexer',
+             'manifest_parser',
              'metrics',
-             'parsers',
              'state',
              'util']:
     objs += cxx(name)
-if platform == 'mingw' or platform == 'windows':
+if platform == 'linux':
+    objs += cc('clockgettime_linux')
+if platform in ('mysys', 'mingw', 'windows'):
     objs += cxx('subprocess-win32')
     objs += cc('getopt')
 else:
@@ -264,7 +284,7 @@ objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 if 'ninja' not in ninja:
-  n.build('ninja', 'phony', ninja)
+    n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 
@@ -281,8 +301,10 @@ if options.with_gtest:
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform == 'windows':
         gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
+    elif platform == 'mysys':
+        gtest_cflags = '-Wno-undef ' + gtest_all_incs   # too many warnings with gtest
     else:
-        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
+        gtest_cflags = '-fvisibility=hidden -Wno-undef ' + gtest_all_incs   # too many warnings with gtest
     objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src/gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
@@ -305,20 +327,20 @@ for name in ['build_log_test',
              'edit_distance_test',
              'graph_test',
              'lexer_test',
-             'parsers_test',
+             'manifest_parser_test',
              'state_test',
              'subprocess_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
 
-if platform != 'mingw' and platform != 'windows':
+if platform not in ('mysys', 'mingw', 'windows'):
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
 if 'ninja_test' not in ninja_test:
-  n.build('ninja_test', 'phony', ninja_test)
+    n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 
@@ -372,7 +394,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if host != 'mingw':
+if host not in ('mysys', 'mingw', 'windows'):
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='${configure_env}%s configure.py $configure_args' %
