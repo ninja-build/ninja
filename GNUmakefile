@@ -19,6 +19,7 @@ bootstrap.py: ;
 ninja.bootstrap: bootstrap.py
 	./$<
 	cp -p -n ninja $@
+	-$(RM) build.ninja
 
 # bootstrap with install ninja!
 ninja: ninja.bootstrap build.ninja
@@ -63,8 +64,7 @@ help: ninja
 	./ninja -t targets
 
 clean: build.ninja
-	rm -rf build/*.o ###XXX build.ninja
-###	-./ninja -t clean
+	-$(RM) build/*.o ###XXX build.ninja
 
 distclean: ###XXX clean
 	find . \( -name '*~' -o -name '.*~' -o -name '*.pyc' \) -delete

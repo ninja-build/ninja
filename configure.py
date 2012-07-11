@@ -200,6 +200,10 @@ elif host == 'mingw':
     n.rule('ar',
            command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
            description='AR $out')
+elif host == 'mysys':
+    n.rule('ar',
+           command='sh -c "rm -f $out && $ar crs $out $in"',
+           description='AR $out')
 else:
     n.rule('ar',
            command='rm -f $out && $ar crs $out $in',
