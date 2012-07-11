@@ -25,9 +25,9 @@
 #include <string.h>
 #include <sys/wait.h>
 
-// Older versions of won't find this in <poll.h>.  Some versions keep it in
-// <asm-generic/poll.h>, though attempting to include that will redefine the
-// pollfd structure.
+// Older versions of glibc (like 2.4) won't find this in <poll.h>.  glibc
+// 2.4 keeps it in <asm-generic/poll.h>, though attempting to include that
+// will redefine the pollfd structure.
 #ifndef POLLRDHUP
 #define POLLRDHUP 0x2000
 #endif
