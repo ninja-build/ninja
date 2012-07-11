@@ -197,7 +197,7 @@ class LineReader {
 
  private:
   FILE* file_;
-  char buf_[256 << 10];
+  char buf_[256 << 10]; //FIXME: huge stack! 262144 bytes; ck
   char* buf_end_;  // Points one past the last valid byte in |buf_|.
 
   char* line_start_;

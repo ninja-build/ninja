@@ -751,7 +751,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(2u, commands_ran_.size());  //TOTO depending on try run?
 
   // If we run again, it should be a no-op, because the build log has recorded
   // that we've already built out2 with an input timestamp of 2 (from out1).
@@ -799,7 +799,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, commands_ran_.size());  //TOTO depending on try run?
 }
 
 // Test scenario, in which an input file is removed, but output isn't changed
@@ -860,7 +860,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
 
 struct BuildDryRun : public BuildWithLogTest {
   BuildDryRun() {
-    config_.dry_run = true;
+    config_.dry_run = true; //FIXME dry_run should not true to really test restat! ck
   }
 };
 

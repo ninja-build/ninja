@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
+#include <unistd.h> // unlink
+#endif
+
 #include "build_log.h"
 #include "graph.h"
 #include "manifest_parser.h"

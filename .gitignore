@@ -1,3 +1,6 @@
+*.html
+*.diff
+*.rst
 *.orig
 *.rej
 *.bak
@@ -19,9 +22,6 @@ TAGS
 /canon_perftest
 /hash_collision_bench
 /ninja_test
-/build_log_perftest
-/canon_perftest
-/hash_collision_bench
 /parser_perftest
 /graph.png
 /doc/manual.html

@@ -163,6 +163,22 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
     }
   }
 
+#ifdef USE_NEW_MTIME_CHECK
+  // Check if most_recent_node->mtime change since last log
+  if (most_recent_node && build_log &&
+      (entry = build_log->LookupByOutput(most_recent_node->path()))) {
+    // TBD: only for generator rules? ck
+    // FIXME: The FS time may not have ns resolution, so round to sec! ck
+    if (((entry->restat_mtime / 10000000LL)) != ((most_recent_node->mtime()
+        / 10000000LL))) {
+      EXPLAIN("generator: mtime %"PRIx64" != %"PRIx64" of file %s changed",
+          entry->restat_mtime, most_recent_node->mtime(),
+          most_recent_node->path().c_str());
+      return true;
+      }
+    }
+#endif
+
   return false;
 }
 
