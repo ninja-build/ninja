@@ -18,12 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-#include <unistd.h>
-#endif
-
 #include "build.h"
 #include "graph.h"
 #include "metrics.h"

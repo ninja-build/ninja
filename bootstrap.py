@@ -69,6 +69,9 @@ for src in glob.glob('src/*.cc'):
 
     sources.append(src)
 
+if sys.platform.startswith('linux'):
+    sources.append('src/clockgettime_linux.c')
+
 if sys.platform.startswith('win32'):
     sources.append('src/getopt.c')
 
@@ -103,6 +106,6 @@ if options.verbose:
 print 'Building ninja using itself...'
 run([sys.executable, 'configure.py'] + conf_args)
 run(['./' + binary] + verbose)
-os.unlink(binary)
+#NOTE: ./nina -t clean remove itself! os.unlink(binary)
 
 print 'Done!'

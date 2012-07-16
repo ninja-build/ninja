@@ -19,7 +19,11 @@
 #ifdef _WIN32
 #include "win32port.h"
 #else
-#include <stdint.h>
+#include <unistd.h> // unlink
+#include <string.h> // strcpy, strlen
+#include <stdint.h> // int64_t
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>   // PRIx64
 #endif
 
 #include <string>

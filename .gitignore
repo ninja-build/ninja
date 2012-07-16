@@ -1,5 +1,9 @@
+*.orig
+*.rej
+*.bak
 *.pyc
 *.exe
+*.pdb
 TAGS
 /build
 /build.ninja
@@ -8,7 +12,14 @@ TAGS
 /canon_perftest
 /hash_collision_bench
 /ninja_test
+/build_log_perftest
+/canon_perftest
+/hash_collision_bench
 /parser_perftest
 /graph.png
 /doc/manual.html
 /doc/doxygen
+.DS_Store
+.*.swp
+.*~
+*~

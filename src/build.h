@@ -21,6 +21,7 @@
 #include <queue>
 #include <vector>
 #include <memory>
+#include <algorithm>
 using namespace std;
 
 #include "exit_status.h"
