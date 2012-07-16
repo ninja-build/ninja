@@ -16,6 +16,11 @@
 
 #include "test.h"
 
+#ifdef linux
+// required by SubprocessTest
+#include <sys/resource.h>
+#endif
+
 namespace {
 
 #ifdef _WIN32
