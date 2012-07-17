@@ -111,11 +111,10 @@ if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
-              '/D_WIN32_WINNT=0x0600', '/DWINVER=0x0600',
               "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
-        cflags += ['/MT', '/Ox', '/DNDEBUG', '/GL']
+        cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
