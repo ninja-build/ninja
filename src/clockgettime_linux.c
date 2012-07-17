@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_TIMESTAMP_H_
-#define NINJA_TIMESTAMP_H_
+#include <unistd.h>
+#include <time.h>
+#include <errno.h>
 
-#ifdef _WIN32
-#include "win32port.h"
-#else
-#include <stdint.h>
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+#ifdef __linux__
+#include <sys/syscall.h>
+/* libc has incredibly messy way of doing this,
+ * typically requiring -lrt. We just skip all this mess */
+int clock_gettime(clockid_t clock_id, struct timespec *ts) {
+    if(syscall(__NR_clock_gettime, clock_id, ts)) {
+        return errno;
+    } else {
+        return 0;
+    }
+}
+#endif
 #endif
 
-// When considering file modification times we only care to compare
-// them against one another -- we never convert them to an absolute
-// real time.
-
-typedef int64_t TimeStamp;  // as 100ns value!
-
-#endif  // NINJA_TIMESTAMP_H_

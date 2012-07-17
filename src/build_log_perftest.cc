@@ -15,6 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
+#include <unistd.h> // unlink
+#endif
+
 #include "build_log.h"
 #include "graph.h"
 #include "manifest_parser.h"
@@ -113,7 +117,7 @@ int main() {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
-    int delta = (int)(GetTimeMillis() - start);
+    int delta = static_cast<int>((GetTimeMillis() - start));
     printf("%dms\n", delta);
     times.push_back(delta);
   }
@@ -122,7 +126,7 @@ int main() {
   int max = times[0];
   float total = 0;
   for (size_t i = 0; i < times.size(); ++i) {
-    total += times[i];
+    total += static_cast<float>(times[i]);
     if (times[i] < min)
       min = times[i];
     else if (times[i] > max)
@@ -130,7 +134,7 @@ int main() {
   }
 
   printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+         min, max, total / static_cast<float>(times.size()));
 
   unlink(kTestFilename);
 

@@ -19,7 +19,11 @@
 #ifdef _WIN32
 #include "win32port.h"
 #else
-#include <stdint.h>
+#include <unistd.h> // unlink
+#include <string.h> // strcpy, strlen
+#include <stdint.h> // int64_t
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>   // PRIx64
 #endif
 
 #include <string>
@@ -57,6 +61,11 @@ void SetCloseOnExec(int fd);
 /// Epoch varies between platforms; only useful for measuring elapsed
 /// time.
 int64_t GetTimeMillis();
+
+/// Get the current ticks since epoch as 100ns value.
+/// Epoch varies between platforms; only useful for measuring elapsed
+/// time.
+int64_t GetCurrentTick();
 
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.

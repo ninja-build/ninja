@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "build_log.h"
+#include <algorithm> // use sort
 
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);
@@ -22,7 +23,7 @@ void RandomCommand(char** s) {
   int len = random(5, 100);
   *s = new char[len];
   for (int i = 0; i < len; ++i)
-    (*s)[i] = random(32, 127);
+    (*s)[i] = static_cast<char>(random(32, 127));
 }
 
 int main() {

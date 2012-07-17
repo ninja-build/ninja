@@ -42,7 +42,7 @@ void AssertHash(const char* expected, uint64_t actual);
 /// so it can be used by tests to verify disk access patterns.
 struct VirtualFileSystem : public DiskInterface {
   /// "Create" a file with a given mtime and contents.
-  void Create(const string& path, int time, const string& contents);
+  void Create(const string& path, TimeStamp time, const string& contents);
 
   // DiskInterface
   virtual TimeStamp Stat(const string& path);
@@ -53,7 +53,7 @@ struct VirtualFileSystem : public DiskInterface {
 
   /// An entry for a single in-memory file.
   struct Entry {
-    int mtime;
+    TimeStamp mtime;
     string contents;
   };
 
