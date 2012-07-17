@@ -235,6 +235,7 @@ bool BuildLog::Load(const string& path, string* err) {
       if (log_version < kOldestSupportedVersion) {
         *err = "unable to extract version from build log, perhaps due to "
           "being too old; you must clobber your build output and rebuild";
+        fclose(file);
         return false;
       }
     }

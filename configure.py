@@ -150,8 +150,8 @@ else:
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by the shell."""
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
-    # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
-    # just returning the input string.
+    if platform == 'windows':
+      return str
     if '"' in str:
         return "'%s'" % str.replace("'", "\\'")
     return str
