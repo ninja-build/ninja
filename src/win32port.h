@@ -15,6 +15,8 @@
 #ifndef NINJA_WIN32PORT_H_
 #define NINJA_WIN32PORT_H_
 
+typedef signed short int16_t;
+typedef unsigned short uint16_t;
 /// A 64-bit integer type
 typedef signed long long int64_t;
 typedef unsigned long long uint64_t;
