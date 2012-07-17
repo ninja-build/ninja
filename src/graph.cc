@@ -140,7 +140,10 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
     if (rule_->restat() && build_log &&
         (entry = build_log->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_input) {
-        EXPLAIN("restat of output %s older than inputs", output->path().c_str());
+        EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
+            output->path().c_str(),
+            most_recent_node ? most_recent_node->path().c_str() : "",
+            entry->restat_mtime, most_recent_input);
         return true;
       }
     } else {
