@@ -496,7 +496,12 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
 
 #ifdef _WIN32
 int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
-  globals->state->depdb_->DumpIndex();
+  globals->state->depdb_->DumpIndex(false);
+  return 0;
+}
+
+int ToolDepIndexComplete(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex(true);
   return 0;
 }
 
@@ -551,6 +556,8 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
 #ifdef _WIN32
     { "depindex", "list all files indexed in the depdb",
       ToolDepIndex },
+    { "depcomplete", "list all files indexed in the depdb, and deps",
+      ToolDepIndexComplete },
     { "deps", "list dependencies stored in the depdb for given files",
       ToolDeps },
 #endif

@@ -78,17 +78,17 @@ bool Deplist::Write(FILE* file, const vector<StringPiece>& entries) {
 
 #ifdef _WIN32
 // static
-const char *Deplist::WriteDatabase(DepDatabase& depdb,
-                                   const string& filename,
-                                   const vector<StringPiece>& entries) {
+char* Deplist::SerializeForDatabase(const string& filename,
+                                    const vector<StringPiece>& entries,
+                                    size_t* data_size) {
   // Serialize to memory.
-  size_t data_size = 2;
-  data_size += entries.size() * 2;
+  size_t size = 2;
+  size += entries.size() * 2;
   for (vector<StringPiece>::const_iterator i = entries.begin();
        i != entries.end(); ++i)
-    data_size += i->len_;
+    size += i->len_;
 
-  char* data = new char[data_size];
+  char* data = new char[size];
   char* out = data;
   WriteUint16(&out, static_cast<uint16_t>(entries.size()));
   for (vector<StringPiece>::const_iterator i = entries.begin();
@@ -100,12 +100,20 @@ const char *Deplist::WriteDatabase(DepDatabase& depdb,
     memcpy(out, i->str_, i->len_);
     out += i->len_;
   }
+  *data_size = size;
+  return data;
+}
 
+// static
+void Deplist::WriteDatabase(DepDatabase& depdb,
+                            const string& filename,
+                            const vector<StringPiece>& entries) {
+  size_t data_size;
+  char* data = SerializeForDatabase(filename, entries, &data_size);
   depdb.InsertOrUpdateDepData(filename, data, data_size);
   delete[] data;
-  return 0;
 }
-//
+
 // static
 bool Deplist::LoadNoHeader(
     StringPiece input, vector<StringPiece>* entries, string* err) {

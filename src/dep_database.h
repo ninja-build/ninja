@@ -44,15 +44,18 @@ struct DepDatabase {
   // data if the path was already in the database. Handles locking internally.
   void InsertOrUpdateDepData(const string& filename, const char* data, int size);
 
-  void DumpIndex();
+  void DumpIndex(bool contents);
   void DumpDeps(const string& filename);
 
 private:
   DbData* GetView() const;
   char* GetDataAt(int offset) const;
 
+  void CompactDatabase();
+
   void SetEmptyData();
 
+  string filename_;
   LockableMappedFile data_;
 };
 #endif

@@ -32,6 +32,7 @@ string BuildMutexName(const string& filename) {
 }
 
 LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
+    filename_(filename),
     view_(0),
     file_mapping_(0),
     should_initialize_(false),
@@ -46,12 +47,12 @@ LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
 
   if (create)
     file_ = CreateFile(filename.c_str(), GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                        CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+                       FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                       CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
   if (!create || file_ == INVALID_HANDLE_VALUE)
     file_ = CreateFile(filename.c_str(), GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                       FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (file_ == INVALID_HANDLE_VALUE)
     Fatal("Couldn't CreateFile (%d)", GetLastError());
 
@@ -67,19 +68,6 @@ LockableMappedFile::LockableMappedFile(const string& filename, bool create) :
   MapFile();
   Release();
 }
-
-// static
-bool LockableMappedFile::IsAvailable(const string& filename) {
-  // TODO: Crappy test, used to see if the other process has created the
-  // data. Obviously racy and lame.
-  string mutex_name = BuildMutexName(filename);
-  HANDLE lock = OpenMutex(MUTEX_ALL_ACCESS, FALSE, mutex_name.c_str());
-  if (lock == NULL)
-    return false;
-  CloseHandle(lock);
-  return true;
-}
-
 
 LockableMappedFile::~LockableMappedFile() {
   Acquire();
@@ -146,3 +134,18 @@ void LockableMappedFile::IncreaseFileSize() {
   MapFile();
 }
 
+void LockableMappedFile::ReplaceDataFrom(const string& filename) {
+  Acquire();
+  UnmapFile();
+  CloseHandle(file_);
+  if (!DeleteFile(filename_.c_str()))
+    Fatal("DeleteFile (GLE=%d)", GetLastError());
+  if (!MoveFile(filename.c_str(), filename_.c_str()))
+    Fatal("MoveFile (GLE=%d)", GetLastError());
+  file_ = CreateFile(filename_.c_str(), GENERIC_READ | GENERIC_WRITE,
+                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  size_ = static_cast<int>(GetFileSize(file_, NULL));
+  MapFile();
+  Release();
+}

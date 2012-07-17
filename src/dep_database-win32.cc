@@ -69,10 +69,17 @@ struct DbData {
   DepIndex index[];
 };
 
+static const int kCleanupSize = 500000000;
+
 DepDatabase::DepDatabase(const string& filename, bool create) :
+    filename_(filename),
     data_(filename, create) {
   if (data_.ShouldInitialize()) {
     SetEmptyData();
+  } else {
+    if (data_.Size() > kCleanupSize) {
+      CompactDatabase();
+    }
   }
 }
 
@@ -159,6 +166,53 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
   data_.Release();
 }
 
+// Once the file is grows past a certain size due to appending dep
+// information, we compact it here.
+void DepDatabase::CompactDatabase() {
+  printf("ninja: Compacting dependency information...");
+  fflush(stdout);
+  string recompact_name = filename_ + ".recompact";
+  {
+    LockableMappedFile recompact(recompact_name, true);
+    DbData* source_view = GetView();
+    DbData* compacted_view = reinterpret_cast<DbData*>(recompact.View());
+    compacted_view->index_entries = source_view->index_entries;
+    compacted_view->max_index_entries = source_view->max_index_entries;
+    compacted_view->dep_insert_offset = sizeof(DbData) +
+        sizeof(DepIndex) * compacted_view->max_index_entries;
+    for (int i = 0; i < source_view->index_entries; ++i) {
+      // Copy over file names, offsets are not updated yet.
+      compacted_view->index[i] = source_view->index[i];
+    }
+
+    for (int i = 0; i < source_view->index_entries; ++i) {
+      vector<StringPiece> deps;
+      string err;
+      size_t data_size;
+      if (!FindDepData(source_view->index[i].path, &deps, &err))
+        Fatal("couldn't get dep data for '%s'", source_view->index[i].path);
+      char* deplist = Deplist::SerializeForDatabase(source_view->index[i].path,
+                                                    deps, &data_size);
+
+      // If we're out of space in the new one, grow it, and re-get the view.
+      while (compacted_view->dep_insert_offset + int(data_size) >
+                recompact.Size()) {
+        recompact.IncreaseFileSize();
+        compacted_view = reinterpret_cast<DbData*>(recompact.View());
+      }
+      char* insert_at = reinterpret_cast<char*>(recompact.View()) +
+                        compacted_view->dep_insert_offset;
+      memcpy(insert_at, deplist, data_size);
+      compacted_view->index[i].offset = compacted_view->dep_insert_offset;
+      compacted_view->dep_insert_offset += data_size;
+      delete [] deplist;
+    }
+  }
+  data_.ReplaceDataFrom(recompact_name);
+  printf("done.\n");
+  fflush(stdout);
+}
+
 DbData* DepDatabase::GetView() const {
   return reinterpret_cast<DbData*>(data_.View());
 }
@@ -178,12 +232,18 @@ void DepDatabase::SetEmptyData() {
   data_.Release();
 }
 
-void DepDatabase::DumpIndex() {
+void DepDatabase::DumpIndex(bool contents) {
   data_.Acquire();
   {
     DbData* view = GetView();
     for (int i = 0; i < view->index_entries; ++i) {
-      printf("%d: %s @ %d\n", i, view->index[i].path, view->index[i].offset);
+      printf("%d: %s", i, view->index[i].path);
+      if (contents) {
+        printf("\n");
+        DumpDeps(view->index[i].path);
+      } else {
+        printf("@ %d\n", view->index[i].offset);
+      }
     }
   }
   data_.Release();

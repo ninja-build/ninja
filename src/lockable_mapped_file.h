@@ -29,7 +29,6 @@ using namespace std;
 struct LockableMappedFile {
   LockableMappedFile(const string& filename, bool create);
   ~LockableMappedFile();
-  static bool IsAvailable(const string& filename);
 
   void Acquire();
   void Release();
@@ -38,6 +37,8 @@ struct LockableMappedFile {
   void* View() const { assert(DEBUG_is_acquired_); return view_; }
   bool ShouldInitialize() { return should_initialize_; }
 
+  void ReplaceDataFrom(const string& filename);
+
 private:
   void UnmapFile();
   void MapFile();
@@ -45,6 +46,7 @@ private:
   HANDLE lock_;
   HANDLE file_;
   HANDLE file_mapping_;
+  string filename_;
   void* view_;
   int size_;
   bool should_initialize_;

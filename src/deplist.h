@@ -29,10 +29,13 @@ struct Deplist {
 
 #ifdef _WIN32
   /// Write a list of strings to the DepDatabase.
-  /// Returns error string on error, on NULL on success.
-  static const char *WriteDatabase(DepDatabase& depdb,
-                                   const string& filename,
-                                   const vector<StringPiece>& entries);
+  static void WriteDatabase(DepDatabase& depdb,
+                            const string& filename,
+                            const vector<StringPiece>& entries);
+  // Convert entries to a deplist data chunk. Caller must delete[].
+  static char *SerializeForDatabase(const string& filename,
+                                    const vector<StringPiece>& entries,
+                                    size_t* data_size);
 
   static bool LoadNoHeader(
       StringPiece input, vector<StringPiece>* entries, string* err);
