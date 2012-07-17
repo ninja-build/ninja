@@ -14,7 +14,6 @@
 
 #ifndef NINJA_CLEAN_H_
 #define NINJA_CLEAN_H_
-#pragma once
 
 #include <set>
 #include <string>
