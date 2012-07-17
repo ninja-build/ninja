@@ -379,7 +379,7 @@ if host != 'mingw':
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['configure.py', 'misc/ninja_syntax.py'])
+            implicit=['configure.py', os.path.normpath('misc/ninja_syntax.py')])
     n.newline()
 
 n.comment('Build only the main binary by default.')
