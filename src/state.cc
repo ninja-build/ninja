@@ -63,6 +63,7 @@ Node* State::GetNode(StringPiece path) {
 }
 
 Node* State::LookupNode(StringPiece path) {
+  METRIC_RECORD("lookup node");
   Paths::iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
