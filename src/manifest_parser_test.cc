@@ -682,3 +682,23 @@ TEST_F(ParserTest, UTF8) {
 "  command = true\n"
 "  description = compilaci\xC3\xB3\n"));
 }
+
+// We might want to eventually allow CRLF to be nice to Windows developers,
+// but for now just verify we error out with a nice message.
+TEST_F(ParserTest, CRLF) {
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+
+  EXPECT_FALSE(parser.ParseTest("# comment with crlf\r\n",
+                                &err));
+  EXPECT_EQ("input:1: lexing error\n",
+            err);
+
+  EXPECT_FALSE(parser.ParseTest("foo = foo\nbar = bar\r\n",
+                                &err));
+  EXPECT_EQ("input:2: lexing error\n"
+            "bar = bar\r\n"
+            "         ^ near here",
+            err);
+}

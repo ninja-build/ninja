@@ -130,7 +130,7 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    [ ]*"#"[^\000\n]*"\n" { continue; }
+    [ ]*"#"[^\000\r\n]*"\n" { continue; }
     [ ]*[\n]   { token = NEWLINE;  break; }
     [ ]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
@@ -200,7 +200,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
   for (;;) {
     start = p;
     /*!re2c
-    [^$ :\n|\000]+ {
+    [^$ :\r\n|\000]+ {
       eval->AddText(StringPiece(start, p - start));
       continue;
     }
