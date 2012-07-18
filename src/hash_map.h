@@ -16,7 +16,6 @@
 #define NINJA_MAP_H_
 
 #include "string_piece.h"
-#include "util.h"
 
 // MurmurHash2, by Austin Appleby
 static inline
