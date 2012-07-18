@@ -28,12 +28,10 @@
 namespace {
 
 string DirName(const string& path) {
-  const string kPathSeparators(DIR_SEP_S);
-  string::size_type slash_pos = path.find_last_of(kPathSeparators);
+  string::size_type slash_pos = path.rfind(DIR_SEP_C);
   if (slash_pos == string::npos)
-      return string();  // Nothing to do.
-  while (slash_pos > 0 &&
-         kPathSeparators.find(path[slash_pos - 1]) != string::npos)
+    return string();  // Nothing to do.
+  while (slash_pos > 0 && path[slash_pos - 1] == DIR_SEP_C)
     --slash_pos;
   return path.substr(0, slash_pos);
 }
@@ -63,7 +61,6 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 TimeStamp RealDiskInterface::Stat(const string& path) {
 #ifdef _WIN32
-  //printf("real stat: %s\n", path.c_str());
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {

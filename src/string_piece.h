@@ -46,22 +46,6 @@ struct StringPiece {
     return len_ ? string(str_, len_) : string();
   }
 
-  bool operator<(const StringPiece& other) const {
-    // TODO
-    return this->AsString() < other.AsString();
-  }
-
-  typedef const char* const_iterator;
-  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-  const_iterator begin() const { return str_; }
-  const_iterator end() const { return str_ + len_; }
-  const_reverse_iterator rbegin() const {
-    return const_reverse_iterator(str_ + len_);
-  }
-  const_reverse_iterator rend() const {
-    return const_reverse_iterator(str_);
-  }
-
   const char* str_;
   int len_;
 };

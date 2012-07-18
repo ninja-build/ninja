@@ -29,11 +29,10 @@ struct Edge;
 /// it's dirty, mtime, etc.
 struct Node {
   explicit Node(const string& path)
-        : path_(path),
-          mtime_(-1),
-          dirty_(false),
-          in_edge_(NULL) {
-  }
+      : path_(path),
+        mtime_(-1),
+        dirty_(false),
+        in_edge_(NULL) {}
 
   /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
