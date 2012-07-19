@@ -31,7 +31,8 @@ struct DbData;
 struct DepDatabase {
   // Create or open the DepDatabase with the given filename. If create is
   // true, will create the given file, if necessary.
-  DepDatabase(const string& filename, bool create);
+  DepDatabase(const string& filename, bool create,
+              int max_index_entries = 0, int cleanup_size = 0);
 
   // Find the dependency information for a given file, or null if not
   // contained in the database.
@@ -46,6 +47,7 @@ struct DepDatabase {
 
   void DumpIndex(bool contents);
   void DumpDeps(const string& filename);
+  string DumpToString();
 
 private:
   DbData* GetView() const;
@@ -57,6 +59,7 @@ private:
 
   string filename_;
   LockableMappedFile data_;
+  int max_index_entries_;
 };
 #endif
 

@@ -103,7 +103,29 @@ TEST_F(DepDatabaseTest, AddMultipleUnsorted) {
 }
 
 TEST_F(DepDatabaseTest, Recompact) {
-  DepDatabase db("depdb", true);
+  string before, after;
+  {
+    // Create and fill with data past the compact size.
+    DepDatabase db("depdb", true, 10, 1000);
+    StoreDepData(db, "d", "wee");
+    StoreDepData(db, "c", "waa");
+    StoreDepData(db, "b", "woo");
+    for (int i = 0; i < 1000; ++i) {
+      char buf[256];
+      sprintf(buf, "iteration %d", i);
+      StoreDepData(db, "a", buf);
+    }
+    before = db.DumpToString();
+    printf("BEFORE\n%s\n", before.c_str());
+  }
+  // Close
+  {
+    // Reopen, which will cause recompaction.
+    DepDatabase db("depdb", true, 10, 1000);
+    after = db.DumpToString();
+    printf("AFTER\n%s\n", after.c_str());
+  }
+  EXPECT_EQ(before, after);
 }
 
 #endif

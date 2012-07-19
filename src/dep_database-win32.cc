@@ -69,15 +69,21 @@ struct DbData {
   DepIndex index[];
 };
 
-static const int kCleanupSize = 500000000;
+DepDatabase::DepDatabase(const string& filename, bool create,
+                         int max_index_entries, int cleanup_size)
+    : filename_(filename),
+      data_(filename, create),
+      max_index_entries_(max_index_entries) {
 
-DepDatabase::DepDatabase(const string& filename, bool create) :
-    filename_(filename),
-    data_(filename, create) {
+  if (!max_index_entries_)
+    max_index_entries_ = 20000;
+  if (!cleanup_size)
+    cleanup_size = 500000000;
+
   if (data_.ShouldInitialize()) {
     SetEmptyData();
   } else {
-    if (data_.Size() > kCleanupSize) {
+    if (data_.Size() > cleanup_size) {
       CompactDatabase();
     }
   }
@@ -225,7 +231,7 @@ void DepDatabase::SetEmptyData() {
   data_.Acquire();
   DbData* data = GetView();
   data->index_entries = 0;
-  data->max_index_entries = 20000; // TODO random size
+  data->max_index_entries = max_index_entries_;
   data->dep_insert_offset = sizeof(DbData) +
       sizeof(DepIndex) * data->max_index_entries;
   // TODO end of file/max size
@@ -265,4 +271,34 @@ void DepDatabase::DumpDeps(const string& filename) {
     }
   }
   data_.Release();
+}
+
+string DepDatabase::DumpToString() {
+  string ret;
+  data_.Acquire();
+  {
+    DbData* view = GetView();
+    for (int i = 0; i < view->index_entries; ++i) {
+      char buf[1024];
+      sprintf(buf, "%d: %s\n", i, view->index[i].path);
+      ret += string(buf);
+      {
+        vector<StringPiece> entries;
+        string err;
+        if (!FindDepData(view->index[i].path, &entries, &err))
+          Fatal("couldn't load deps for %s: %s\n", view->index[i].path, err.c_str());
+        ret += view->index[i].path;
+        ret += ":\n";
+        for (vector<StringPiece>::const_iterator i = entries.begin();
+            i != entries.end(); ++i) {
+          string tmp(i->str_, i->len_);
+          ret += "  ";
+          ret += tmp;
+          ret += "\n";
+        }
+      }
+    }
+  }
+  data_.Release();
+  return ret;
 }
