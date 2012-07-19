@@ -116,14 +116,40 @@ TEST_F(DepDatabaseTest, Recompact) {
       StoreDepData(db, "a", buf);
     }
     before = db.DumpToString();
-    printf("BEFORE\n%s\n", before.c_str());
+    //printf("BEFORE\n%s\n", before.c_str());
   }
   // Close
   {
     // Reopen, which will cause recompaction.
     DepDatabase db("depdb", true, 10, 1000);
     after = db.DumpToString();
-    printf("AFTER\n%s\n", after.c_str());
+    //printf("AFTER\n%s\n", after.c_str());
+  }
+  EXPECT_EQ(before, after);
+}
+
+TEST_F(DepDatabaseTest, RecompactAlternating) {
+  string before, after;
+  {
+    // Create and fill with data past the compact size.
+    DepDatabase db("depdb", true, 10, 1000);
+    for (int i = 0; i < 1000; ++i) {
+      char buf[256];
+      sprintf(buf, "iteration %d", i);
+      StoreDepData(db, "a", buf);
+      StoreDepData(db, "b", buf);
+      StoreDepData(db, "c", buf);
+      StoreDepData(db, "d", buf);
+    }
+    before = db.DumpToString();
+    //printf("BEFORE\n%s\n", before.c_str());
+  }
+  // Close
+  {
+    // Reopen, which will cause recompaction.
+    DepDatabase db("depdb", true, 10, 1000);
+    after = db.DumpToString();
+    //printf("AFTER\n%s\n", after.c_str());
   }
   EXPECT_EQ(before, after);
 }

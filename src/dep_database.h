@@ -47,6 +47,7 @@ struct DepDatabase {
 
   void DumpIndex(bool contents);
   void DumpDeps(const string& filename);
+  void DumpDepsNoAcquire(const string& filename);
   string DumpToString();
 
 private:

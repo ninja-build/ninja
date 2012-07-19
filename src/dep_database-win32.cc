@@ -179,7 +179,11 @@ void DepDatabase::CompactDatabase() {
   fflush(stdout);
   string recompact_name = filename_ + ".recompact";
   {
+    // In case it was left over, try to remove it. Failing is fine.
+    DeleteFile(recompact_name.c_str());
     LockableMappedFile recompact(recompact_name, true);
+    recompact.Acquire();
+    data_.Acquire();
     DbData* source_view = GetView();
     DbData* compacted_view = reinterpret_cast<DbData*>(recompact.View());
     compacted_view->index_entries = source_view->index_entries;
@@ -213,6 +217,8 @@ void DepDatabase::CompactDatabase() {
       compacted_view->dep_insert_offset += data_size;
       delete [] deplist;
     }
+    data_.Release();
+    recompact.Release();
   }
   data_.ReplaceDataFrom(recompact_name);
   printf("done.\n");
@@ -246,7 +252,7 @@ void DepDatabase::DumpIndex(bool contents) {
       printf("%d: %s", i, view->index[i].path);
       if (contents) {
         printf("\n");
-        DumpDeps(view->index[i].path);
+        DumpDepsNoAcquire(view->index[i].path);
       } else {
         printf("@ %d\n", view->index[i].offset);
       }
@@ -255,21 +261,23 @@ void DepDatabase::DumpIndex(bool contents) {
   data_.Release();
 }
 
+void DepDatabase::DumpDepsNoAcquire(const string& filename) {
+  vector<StringPiece> entries;
+  string err;
+  if (!FindDepData(filename, &entries, &err)) {
+    printf("couldn't load deps for %s: %s\n", filename.c_str(), err.c_str());
+  }
+  printf("%s:\n", filename.c_str());
+  for (vector<StringPiece>::const_iterator i = entries.begin();
+       i != entries.end(); ++i) {
+    string tmp(i->str_, i->len_);
+    printf("  %s\n", tmp.c_str());
+  }
+}
+
 void DepDatabase::DumpDeps(const string& filename) {
   data_.Acquire();
-  {
-    vector<StringPiece> entries;
-    string err;
-    if (!FindDepData(filename, &entries, &err)) {
-      printf("couldn't load deps for %s: %s\n", filename.c_str(), err.c_str());
-    }
-    printf("%s:\n", filename.c_str());
-    for (vector<StringPiece>::const_iterator i = entries.begin();
-         i != entries.end(); ++i) {
-      string tmp(i->str_, i->len_);
-      printf("  %s\n", tmp.c_str());
-    }
-  }
+  DumpDepsNoAcquire(filename);
   data_.Release();
 }
 
