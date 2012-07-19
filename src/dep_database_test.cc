@@ -132,7 +132,7 @@ TEST_F(DepDatabaseTest, RecompactAlternating) {
   string before, after;
   {
     // Create and fill with data past the compact size.
-    DepDatabase db("depdb", true, 10, 1000);
+    DepDatabase db("depdb", true, 10, 5000);
     for (int i = 0; i < 1000; ++i) {
       char buf[256];
       sprintf(buf, "iteration %d", i);
@@ -147,7 +147,7 @@ TEST_F(DepDatabaseTest, RecompactAlternating) {
   // Close
   {
     // Reopen, which will cause recompaction.
-    DepDatabase db("depdb", true, 10, 1000);
+    DepDatabase db("depdb", true, 10, 5000);
     after = db.DumpToString();
     //printf("AFTER\n%s\n", after.c_str());
   }
