@@ -16,6 +16,13 @@
 
 #include "test.h"
 
+#ifndef _WIN32
+// SetWithLots need setrlimit.
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
+
 namespace {
 
 #ifdef _WIN32
@@ -142,7 +149,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
   }
 }
 
-#ifdef linux
+#ifndef _WIN32
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.
@@ -169,4 +176,4 @@ TEST_F(SubprocessTest, SetWithLots) {
   }
   ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
 }
-#endif  // linux
+#endif  // _WIN32

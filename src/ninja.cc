@@ -44,8 +44,8 @@
 #include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "manifest_parser.h"
 #include "metrics.h"
-#include "parsers.h"
 #include "state.h"
 #include "util.h"
 

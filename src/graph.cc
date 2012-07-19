@@ -23,8 +23,8 @@
 #include "deplist.h"
 #include "disk_interface.h"
 #include "explain.h"
+#include "manifest_parser.h"
 #include "metrics.h"
-#include "parsers.h"
 #include "state.h"
 #include "util.h"
 
@@ -404,18 +404,37 @@ bool Edge::LoadDepDb(State* state, string* err) {
 }
 #endif
 
-void Edge::Dump() {
-  printf("[ ");
-  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
+void Edge::Dump(const char* prefix) const {
+  printf("%s[ ", prefix);
+  for (vector<Node*>::const_iterator i = inputs_.begin();
+       i != inputs_.end() && *i != NULL; ++i) {
     printf("%s ", (*i)->path().c_str());
   }
   printf("--%s-> ", rule_->name().c_str());
-  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
+  for (vector<Node*>::const_iterator i = outputs_.begin();
+       i != outputs_.end() && *i != NULL; ++i) {
     printf("%s ", (*i)->path().c_str());
   }
-  printf("]\n");
+  printf("] 0x%p\n", this);
 }
 
 bool Edge::is_phony() const {
   return rule_ == &State::kPhonyRule;
+}
+
+void Node::Dump(const char* prefix) const {
+    printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
+           prefix, path().c_str(), this,
+           mtime(), mtime()?"":" (:missing)",
+           dirty()?" dirty":" clean");
+    if (in_edge()) {
+        in_edge()->Dump("in-edge: ");
+    }else{
+        printf("no in-edge\n");
+    }
+    printf(" out edges:\n");
+    for (vector<Edge*>::const_iterator e = out_edges().begin();
+         e != out_edges().end() && *e != NULL; ++e) {
+        (*e)->Dump(" +- ");
+    }
 }

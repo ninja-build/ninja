@@ -102,4 +102,8 @@ TEST_F(DepDatabaseTest, AddMultipleUnsorted) {
   EXPECT_EQ("woo", GetDepData(db, "x.c")[0]);
 }
 
+TEST_F(DepDatabaseTest, Recompact) {
+  DepDatabase db("depdb", true);
+}
+
 #endif

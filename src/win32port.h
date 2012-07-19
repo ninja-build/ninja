@@ -14,7 +14,6 @@
 
 #ifndef NINJA_WIN32PORT_H_
 #define NINJA_WIN32PORT_H_
-#pragma once
 
 typedef signed short int16_t;
 typedef unsigned short uint16_t;

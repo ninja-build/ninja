@@ -19,7 +19,7 @@
 #include <errno.h>
 
 #include "build_log.h"
-#include "parsers.h"
+#include "manifest_parser.h"
 #include "util.h"
 
 #ifdef _WIN32

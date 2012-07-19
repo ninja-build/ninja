@@ -14,7 +14,6 @@
 
 #ifndef NINJA_STATE_H_
 #define NINJA_STATE_H_
-#pragma once
 
 #include <map>
 #include <string>
