@@ -236,22 +236,36 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
-  printf("%s", to_print.c_str());
-
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
+    printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
     have_blank_line_ = false;
 #else
-    // Clear to end of line.
+    // We don't want to have the cursor spamming back and forth, so
+    // use WriteConsoleOutput instead which updates the contents of
+    // the buffer, but doesn't move the cursor position.
     GetConsoleScreenBufferInfo(console_, &csbi);
-    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
-    printf("%*s", num_spaces, "");
+    COORD buf_size = { csbi.dwSize.X, 1 };
+    COORD zero_zero = { 0, 0 };
+    SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
+                          csbi.dwCursorPosition.X + csbi.dwSize.X - 1,
+                          csbi.dwCursorPosition.Y };
+    CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
+    memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
+    for (int i = 0; i < csbi.dwSize.X; ++i) {
+      char_data[i].Char.AsciiChar = ' ';
+      char_data[i].Attributes = csbi.wAttributes;
+
+    }
+    for (size_t i = 0; i < to_print.size(); ++i)
+      char_data[i].Char.AsciiChar = to_print[i];
+    WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
     have_blank_line_ = false;
 #endif
   } else {
-    printf("\n");
+    printf("%s\n", to_print.c_str());
   }
 }
 
