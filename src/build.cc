@@ -96,7 +96,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (edge->should_flush()) {
     // Print the command that is spewing after its output has been flushed.
     if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+      PrintCommandFailure(edge);
     return;
   }
 
@@ -109,7 +109,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
     // Print the command that is spewing before printing its output.
     if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+      PrintCommandFailure(edge);
 
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
@@ -135,6 +135,10 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     have_blank_line_ = true;
     edge->have_blank_line_ = true;
   }
+}
+
+void BuildStatus::PrintCommandFailure(Edge* edge) {
+  printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
 }
 
 void BuildStatus::BuildFinished() {
