@@ -616,6 +616,11 @@ aborting due to a missing input.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
+`flush`:: if present, causes Ninja to flush the output of the command when it
+  is not built in parallel. Useful for rule calling a long running command
+  with a long output like documentation generation, tests execution, or
+  configuration stage.
+
 `generator`:: if present, specifies that this rule is used to
   re-invoke the generator program.  Files built using `generator`
   rules are treated specially in two ways: firstly, they will not be

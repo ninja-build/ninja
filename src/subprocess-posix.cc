@@ -34,7 +34,7 @@
 
 #include "util.h"
 
-Subprocess::Subprocess() : fd_(-1), pid_(-1) {
+Subprocess::Subprocess(bool flush) : fd_(-1), pid_(-1), flush_(flush) {
 }
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
@@ -112,7 +112,10 @@ void Subprocess::OnPipeReady() {
   char buf[4 << 10];
   ssize_t len = read(fd_, buf, sizeof(buf));
   if (len > 0) {
-    buf_.append(buf, len);
+    if (!flush_)
+      buf_.append(buf, len);
+    else
+      write(1, buf, len);
   } else {
     if (len < 0)
       Fatal("read: %s", strerror(errno));
@@ -179,8 +182,8 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
-  Subprocess *subprocess = new Subprocess;
+Subprocess *SubprocessSet::Add(const string& command, bool flush) {
+  Subprocess *subprocess = new Subprocess(flush);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
