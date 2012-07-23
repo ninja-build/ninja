@@ -83,7 +83,7 @@ DepDatabase::DepDatabase(const string& filename, bool create,
   if (data_.ShouldInitialize()) {
     SetEmptyData();
   } else {
-    if (data_.Size() > cleanup_size) {
+    if (create && data_.Size() > cleanup_size) {
       CompactDatabase();
     }
   }
