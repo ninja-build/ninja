@@ -225,8 +225,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
       }
     }
 #else
-    // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    size_t width = static_cast<size_t>(csbi.dwSize.X);
     if (to_print.size() + kMargin > width) {
       int elide_size = (width - kMargin) / 2;
       to_print = to_print.substr(0, elide_size)
