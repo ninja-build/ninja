@@ -142,7 +142,8 @@ struct State;
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0), force_no_flush_(false), manual_flush_(false) {}
+           order_only_deps_(0), force_no_flush_(false), manual_flush_(false),
+           exit_status_(-1) {}
 
   /// Examine inputs, outputs, and command lines to judge whether this edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -220,6 +221,9 @@ struct Edge {
 
   /// @return whether the output of this edge must be flushed.
   bool ShouldFlush();
+
+  /// The exit status of the command run by this edge.
+  int exit_status_;
 };
 
 #endif  // NINJA_GRAPH_H_

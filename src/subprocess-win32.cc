@@ -179,6 +179,7 @@ ExitStatus Subprocess::Finish() {
 
   DWORD exit_code = 0;
   GetExitCodeProcess(child_, &exit_code);
+  exit_status_ = exit_code;
 
   CloseHandle(child_);
   child_ = NULL;

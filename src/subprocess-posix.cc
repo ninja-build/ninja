@@ -132,8 +132,8 @@ ExitStatus Subprocess::Finish() {
   pid_ = -1;
 
   if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
-    if (exit == 0)
+    exit_status_ = WEXITSTATUS(status);
+    if (exit_status_ == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
     if (WTERMSIG(status) == SIGINT)

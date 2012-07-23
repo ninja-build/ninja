@@ -42,6 +42,7 @@ struct Subprocess {
   bool Done() const;
 
   const string& GetOutput() const;
+  int exit_status() const { return exit_status_; }
 
  private:
   /// Constructor.
@@ -67,6 +68,7 @@ struct Subprocess {
   pid_t pid_;
 #endif
   bool flush_;
+  int exit_status_;
 
   friend struct SubprocessSet;
 };
