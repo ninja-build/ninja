@@ -263,6 +263,9 @@ string Edge::GetRspFileContent() {
 }
 
 bool Edge::ShouldFlush() {
+  if (manual_flush_)
+    return true;
+
   if (force_no_flush_)
     return false;
 

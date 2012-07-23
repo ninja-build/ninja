@@ -142,7 +142,7 @@ struct State;
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0), force_no_flush_(false) {}
+           order_only_deps_(0), force_no_flush_(false), manual_flush_(false) {}
 
   /// Examine inputs, outputs, and command lines to judge whether this edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -214,6 +214,9 @@ struct Edge {
   /// Force not to flush the output of this edge even if the attached rule
   /// has the flush flag set.  Useful when the edge is built in parallel.
   bool force_no_flush_;
+
+  /// True if flush has been asked on the command line using -F.
+  bool manual_flush_;
 
   /// @return whether the output of this edge must be flushed.
   bool ShouldFlush();

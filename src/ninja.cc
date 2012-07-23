@@ -94,6 +94,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  -F       flush the output of all commands\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool\n"
@@ -674,7 +675,7 @@ int NinjaMain(int argc, char** argv) {
 
   int opt;
   while (tool.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vFC:V", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -712,6 +713,9 @@ int NinjaMain(int argc, char** argv) {
         break;
       case 'v':
         globals.config.verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'F':
+        globals.config.flush = true;
         break;
       case 't':
         tool = optarg;

@@ -746,6 +746,10 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
 
+  // Force flush if asked by the user.
+  if (config_.flush)
+    edge->manual_flush_ = true;
+
   // Force not to flush the output if we plan to build more than one command.
   if (plan_.command_edge_count() > 1)
     edge->force_no_flush_ = true;
