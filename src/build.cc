@@ -138,7 +138,9 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 }
 
 void BuildStatus::PrintCommandFailure(Edge* edge) {
-  printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+  printf("FAILED (%d): %s\n",
+         edge->exit_status_,
+         edge->EvaluateCommand().c_str());
 }
 
 void BuildStatus::BuildFinished() {
@@ -552,6 +554,8 @@ Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
   Edge* edge = i->second;
   subproc_to_edge_.erase(i);
+
+  edge->exit_status_ = subproc->exit_status();
 
   delete subproc;
   return edge;

@@ -42,6 +42,7 @@ struct Subprocess {
   bool Done() const;
 
   const string& GetOutput() const;
+  int exit_status() const { return exit_status_; }
 
  private:
   /// Constructor.
@@ -72,6 +73,7 @@ struct Subprocess {
   /// would break the smart terminal feature when using only one job and no
   /// output have to be written.
   bool have_blank_line_;
+  int exit_status_;
 
   friend struct SubprocessSet;
 };
