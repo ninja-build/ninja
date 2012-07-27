@@ -91,10 +91,6 @@ gpietsch@comcast.net
 #include "getopt.h"
 #endif
 
-#ifdef _WIN32
-#pragma warning(disable: 4701)
-#endif
-
 /* macros */
 
 /* types */
@@ -159,7 +155,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
   char *possible_arg = NULL;
   int longopt_match = -1;
   int has_arg = -1;
-  char *cp;
+  char *cp = NULL;
   int arg_next = 0;
 
   /* first, deal with silly parameters and easy stuff */
@@ -255,7 +251,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
                       longopts[optindex].name, match_chars) == 0)
             {
               /* do we have an exact match? */
-              if (match_chars == (int) (strlen (longopts[optindex].name)))
+              if (match_chars == strlen (longopts[optindex].name))
                 {
                   longopt_match = optindex;
                   break;
