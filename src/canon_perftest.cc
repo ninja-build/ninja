@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "metrics.h"
 
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"

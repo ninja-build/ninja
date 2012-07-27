@@ -218,6 +218,8 @@ Several placeholders are available:
 * `%r`: The number of currently running edges.
 * `%u`: The number of remaining edges to start.
 * `%f`: The number of finished edges.
+* `%o`: Overall rate of finished edges per second
+* `%c`: Current rate of finished edges per second (average over builds specified by -j or its default)
 * `%%`: A plain `%` character.
 * The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
