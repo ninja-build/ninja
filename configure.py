@@ -111,7 +111,7 @@ if platform == 'windows':
     cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
-              "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
+              '/DNINJA_PYTHON="%s"' % options.with_python]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
@@ -123,7 +123,7 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              "-DNINJA_PYTHON=\"%s\"" % options.with_python]
+              '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
     else:
@@ -150,7 +150,7 @@ else:
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by the shell."""
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
-    if platform == 'windows':
+    if platform in ('windows', 'mingw'):
       return str
     if '"' in str:
         return "'%s'" % str.replace("'", "\\'")
