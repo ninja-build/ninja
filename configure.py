@@ -386,6 +386,26 @@ n.comment('Build only the main binary by default.')
 n.default(ninja)
 n.newline()
 
+if host == 'linux':
+    n.comment('Packaging')
+    n.rule('rpmbuild',
+           command="rpmbuild \
+           --define 'ver git' \
+           --define \"rel `git rev-parse --short HEAD`\" \
+           --define '_topdir %(pwd)/rpm-build' \
+           --define '_builddir %{_topdir}' \
+           --define '_rpmdir %{_topdir}' \
+           --define '_srcrpmdir %{_topdir}' \
+           --define '_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' \
+           --define '_specdir %{_topdir}' \
+           --define '_sourcedir  %{_topdir}' \
+           --quiet \
+           -bb misc/packaging/ninja.spec",
+           description='Building RPM..')
+    n.build('rpm', 'rpmbuild',
+            implicit=['ninja','README', 'COPYING', doc('manual.html')])
+    n.newline()
+
 n.build('all', 'phony', all_targets)
 
 print 'wrote %s.' % BUILD_FILENAME
