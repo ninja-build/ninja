@@ -61,7 +61,7 @@ for src in glob.glob('src/*.cc'):
         continue
 
     if sys.platform.startswith('win32'):
-        if filename == 'subprocess.cc':
+        if src.endswith('-posix.cc'):
             continue
     else:
         if src.endswith('-win32.cc'):

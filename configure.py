@@ -249,7 +249,7 @@ if platform in ('mingw', 'windows'):
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
-    objs += cxx('subprocess')
+    objs += cxx('subprocess-posix')
 if platform == 'windows':
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
