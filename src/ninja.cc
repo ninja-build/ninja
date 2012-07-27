@@ -626,44 +626,33 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   return 0;
 }
 
-}  // anonymous namespace
-
-
 #ifdef _MSC_VER
+
+// Defined in minidump-win32.cc.
+void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
 
 /// This handler processes fatal crashes that you can't catch
 /// Test example: C++ exception in a stack-unwind-block
-/// Real-world example: ninja launched a compiler to process a tricky C++ input file. 
-/// The compiler got itself into a state where it generated 3 GB of output and caused ninja to crash
-void ninja_terminate_fct() {
-  Create_Win32_MiniDump(NULL);
+/// Real-world example: ninja launched a compiler to process a tricky
+/// C++ input file. The compiler got itself into a state where it
+/// generated 3 GB of output and caused ninja to crash.
+void TerminateHandler() {
+  CreateWin32MiniDump(NULL);
   Fatal("terminate handler called");
 }
 
-/// main_unsafe is called from within an exception handling block
-int main_unsafe(int argc, char** argv);
-
-/// Windows main() uses SEH (Structured exception handling)
-int main(int argc, char** argv) {
-  // set a handler to catch crashes not caught by the __try..__except block (e.g. an exception in a stack-unwind-block)
-  set_terminate(ninja_terminate_fct);
-  __try {
-    // running inside __try ... __except suppresses any Windows error dialogs for errors such as bad_alloc
-    return main_unsafe(argc, argv);
-  }
-  __except(exception_filter(GetExceptionCode(), GetExceptionInformation())) {
-    // you will land here e.g. if you run out of memory, or run inside a distribution environment that fails
-    fprintf(stderr, "ninja: exception, exiting with error code 2\n");
-    // common error situations below return exitCode=1, 2 was chosen to indicate a more serious problem
-    return 2; 
-  }
+/// On Windows, we want to prevent error dialogs in case of exceptions.
+/// This function handles the exception, and writes a minidump.
+int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
+  Error("exception: 0x%X", code);  // e.g. EXCEPTION_ACCESS_VIOLATION
+  fflush(stderr);
+  CreateWin32MiniDump(ep);
+  return EXCEPTION_EXECUTE_HANDLER;
 }
 
-int main_unsafe (int argc, char** argv) {
-#else
-//on Linux, we have no exception handling
-int main(int argc, char** argv) {
-#endif
+#endif  // _MSC_VER
+
+int NinjaMain(int argc, char** argv) {
   Globals globals;
   globals.ninja_command = argv[0];
   const char* input_file = "build.ninja";
@@ -823,4 +812,26 @@ reload:
            count / (double) buckets, count, buckets);
   }
   return result;
+}
+
+}  // anonymous namespace
+
+int main(int argc, char** argv) {
+#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER)
+  // Set a handler to catch crashes not caught by the __try..__except
+  // block (e.g. an exception in a stack-unwind-block).
+  set_terminate(ninja_terminate_fct);
+  __try {
+    // Running inside __try ... __except suppresses any Windows error
+    // dialogs for errors such as bad_alloc.
+    return NinjaMain(argc, argv);
+  }
+  __except(ExceptionFilter(GetExceptionCode(), GetExceptionInformation())) {
+    // Common error situations return exitCode=1. 2 was chosen to
+    // indicate a more serious problem.
+    return 2;
+  }
+#else
+  return NinjaMain(argc, argv);
+#endif
 }

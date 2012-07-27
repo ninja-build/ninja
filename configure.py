@@ -243,8 +243,10 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
-if platform == 'mingw' or platform == 'windows':
+if platform in ('mingw', 'windows'):
     objs += cxx('subprocess-win32')
+    if platform == 'windows':
+        objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
     objs += cxx('subprocess')
