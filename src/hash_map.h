@@ -86,7 +86,7 @@ struct hash<std::string> {
 template<>
 struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
-    return MurmurHash2(key.str_, key.len_);
+    return MurmurHash2(key.str(), key.len());
   }
 };
 

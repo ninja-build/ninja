@@ -41,7 +41,7 @@ string EvalString::Evaluate(Env* env) const {
 void EvalString::AddText(StringPiece text) {
   // Add it to the end of an existing RAW token if possible.
   if (!parsed_.empty() && parsed_.back().second == RAW) {
-    parsed_.back().first.append(text.str_, text.len_);
+    parsed_.back().first.append(text.str(), text.len());
   } else {
     parsed_.push_back(make_pair(text.AsString(), RAW));
   }
