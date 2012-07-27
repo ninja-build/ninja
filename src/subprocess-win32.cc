@@ -271,9 +271,12 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
-    if ((*i)->child_)
-      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, GetProcessId((*i)->child_)))
+    if ((*i)->child_) {
+      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
+                                    GetProcessId((*i)->child_))) {
         Win32Fatal("GenerateConsoleCtrlEvent");
+      }
+    }
   }
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
