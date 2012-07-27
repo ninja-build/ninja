@@ -275,18 +275,18 @@ void BuildStatus::PrintStatus(Edge* edge) {
     COORD buf_size = { csbi.dwSize.X, 1 };
     COORD zero_zero = { 0, 0 };
     SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
-                          csbi.dwCursorPosition.X + csbi.dwSize.X - 1,
+                          (SHORT)(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
                           csbi.dwCursorPosition.Y };
     CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
     memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
     for (int i = 0; i < csbi.dwSize.X; ++i) {
       char_data[i].Char.AsciiChar = ' ';
       char_data[i].Attributes = csbi.wAttributes;
-
     }
     for (size_t i = 0; i < to_print.size(); ++i)
       char_data[i].Char.AsciiChar = to_print[i];
     WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
+    delete[] char_data;
     have_blank_line_ = false;
 #endif
   } else {
