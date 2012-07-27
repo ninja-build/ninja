@@ -40,8 +40,6 @@ parser.add_option('--debug', action='store_true',
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
-parser.add_option('--with-gtest', metavar='PATH',
-                  help='use gtest unpacked in directory PATH')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -270,34 +268,26 @@ if 'ninja' not in ninja:
 n.newline()
 all_targets += ninja
 
-n.comment('Tests all build into ninja_test executable.')
+n.comment('Tests all build into ninja_test executable (including gtest).')
 
 variables = []
 test_cflags = None
 test_ldflags = None
 test_libs = libs
 objs = []
-if options.with_gtest:
-    path = options.with_gtest
 
-    gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    if platform == 'windows':
-        gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
-    else:
-        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest-all.cc'),
-                    variables=[('cflags', gtest_cflags)])
-    objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest_main.cc'),
-                    variables=[('cflags', gtest_cflags)])
-
-    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
-                            '-I%s' % os.path.join(path, 'include')]
-elif platform == 'windows':
-    test_libs.extend(['gtest_main.lib', 'gtest.lib'])
+gtest_all_incs = '-Isrc/gtest -Isrc/gtest/include'
+if platform == 'windows':
+    gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
 else:
-    test_libs.extend(['-lgtest_main', '-lgtest'])
+    gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
+objs += n.build(built('gtest-all' + objext), 'cxx',
+                'src/gtest/src/gtest-all.cc',
+                variables=[('cflags', gtest_cflags)])
+objs += n.build(built('gtest_main' + objext), 'cxx',
+                'src/gtest/src/gtest_main.cc',
+                variables=[('cflags', gtest_cflags)])
+test_cflags = cflags + ['-DGTEST_HAS_RTTI=0', '-Isrc/gtest/include']
 
 for name in ['build_log_test',
              'build_test',
