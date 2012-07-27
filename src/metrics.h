@@ -72,7 +72,7 @@ public:
   Stopwatch() : started_(0) {}
 
   /// Seconds since Restart() call
-  double Elapsed() const { return 1e-6 * (Now() - started_); }
+  double Elapsed() const { return 1e-6 * static_cast<double>(Now() - started_); }
 
   void Restart() { started_ = Now(); }
 

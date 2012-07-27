@@ -120,6 +120,6 @@ uint64_t Stopwatch::Now() const {
 }
 
 int64_t GetTimeMillis() {
-  return 1000 * TimerToMicros(HighResTimer());
+  return TimerToMicros(HighResTimer()) / 1000;
 }
 
