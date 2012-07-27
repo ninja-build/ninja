@@ -72,6 +72,7 @@ int64_t TimerToMicros(int64_t dt) {
 
 }  // anonymous namespace
 
+
 ScopedMetric::ScopedMetric(Metric* metric) {
   metric_ = metric;
   if (!metric_)
@@ -113,3 +114,12 @@ void Metrics::Report() {
            metric->count, avg, total);
   }
 }
+
+uint64_t Stopwatch::Now() const {
+  return TimerToMicros(HighResTimer());
+}
+
+int64_t GetTimeMillis() {
+  return 1000 * TimerToMicros(HighResTimer());
+}
+
