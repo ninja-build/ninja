@@ -130,6 +130,8 @@ else:
         cflags += ['-O2', '-DNDEBUG']
     if 'clang' in os.path.basename(CXX):
         cflags += ['-fcolor-diagnostics']
+    if platform == 'mingw':
+        cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
 libs = []
 
