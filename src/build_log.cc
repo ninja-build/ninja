@@ -164,7 +164,10 @@ void BuildLog::Close() {
 class LineReader {
  public:
   explicit LineReader(FILE* file)
-    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {}
+    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
+      // Accept truncated log files
+      snprintf(buf_, sizeof(buf_), kFileSignature, kCurrentVersion);
+  }
 
   // Reads a \n-terminated line from the file passed to the constructor.
   // On return, *line_start points to the beginning of the next line, and
