@@ -14,8 +14,9 @@
 
 #ifndef NINJA_BOOTSTRAP
 
-#include <DbgHelp.h>
 #include <windows.h>
+#include <DbgHelp.h>
+
 
 #include "util.h"
 
