@@ -628,8 +628,12 @@ int RunBuild(Globals* globals, int argc, char** argv) {
 
 #ifdef _MSC_VER
 
+} // anonymous namespace
+
 // Defined in minidump-win32.cc.
 void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
+
+namespace {
 
 /// This handler processes fatal crashes that you can't catch
 /// Test example: C++ exception in a stack-unwind-block
@@ -820,7 +824,7 @@ int main(int argc, char** argv) {
 #if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
-  set_terminate(ninja_terminate_fct);
+  set_terminate(TerminateHandler);
   __try {
     // Running inside __try ... __except suppresses any Windows error
     // dialogs for errors such as bad_alloc.
