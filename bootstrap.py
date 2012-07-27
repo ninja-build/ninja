@@ -78,9 +78,11 @@ if vcdir:
             '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
-    args.extend(['-Wno-deprecated',
-                 '-DNINJA_PYTHON="' + sys.executable + '"',
-                 '-DNINJA_BOOTSTRAP'])
+    cflags.extend(['-Wno-deprecated',
+                   '-DNINJA_PYTHON="' + sys.executable + '"',
+                   '-DNINJA_BOOTSTRAP'])
+    if sys.platform.startswith('win32'):
+        cflags.append('-D_WIN32_WINNT=0x0501')
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
