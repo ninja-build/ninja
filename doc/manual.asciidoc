@@ -590,7 +590,7 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on

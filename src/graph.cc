@@ -233,7 +233,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
 string Edge::EvaluateCommand(bool incl_rsp_file) {
   EdgeEnv env(this);
   string command = rule_->command().Evaluate(&env);
-  if (incl_rsp_file && HasRspFile()) 
+  if (incl_rsp_file && HasRspFile())
     command += ";rspfile=" + GetRspFileContent();
   return command;
 }
