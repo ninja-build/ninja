@@ -284,17 +284,14 @@ string StripAnsiEscapeCodes(const string& in) {
 }
 
 #ifdef _WIN32
-static double GetLoadAverage_win32()
-{
+double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
   return -0.0f;
 }
 #else
-static double GetLoadAverage_unix()
-{
+double GetLoadAverage() {
   double loadavg[3] = { 0.0f, 0.0f, 0.0f };
-  if (getloadavg(loadavg, 3) < 0)
-  {
+  if (getloadavg(loadavg, 3) < 0) {
     // Maybe we should return an error here or the availability of
     // getloadavg(3) should be checked when ninja is configured.
     return -0.0f;
@@ -302,12 +299,3 @@ static double GetLoadAverage_unix()
   return loadavg[0];
 }
 #endif // _WIN32
-
-double GetLoadAverage()
-{
-#ifdef _WIN32
-  return GetLoadAverage_win32();
-#else
-  return GetLoadAverage_unix();
-#endif // _WIN32
-}
