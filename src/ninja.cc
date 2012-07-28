@@ -718,11 +718,7 @@ int NinjaMain(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (tool == "")
       printf("ninja: Entering directory `%s'\n", working_dir);
-#ifdef _WIN32
-    if (_chdir(working_dir) < 0) {
-#else
     if (chdir(working_dir) < 0) {
-#endif
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
     }
   }
