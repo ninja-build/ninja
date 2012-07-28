@@ -75,13 +75,6 @@ double GetLoadAverage();
 #endif
 
 #ifdef _WIN32
-
-/// Handler for __except block
-int exception_filter(unsigned int code, struct _EXCEPTION_POINTERS *ep);
-
-/// Write a windows minidump file in temp directory. User can specify null 'pep' argument.
-void Create_Win32_MiniDump( struct _EXCEPTION_POINTERS* pep );
-
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
 #endif
