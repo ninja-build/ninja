@@ -136,3 +136,14 @@ TEST(StripAnsiEscapeCodes, StripColors) {
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);
 }
+
+TEST(ElideMidell, NothingToEdlide) {
+  string input = "Nothing to elide in this short string.";
+  EXPECT_EQ(input, ElideMiddle(input, 80));
+}
+
+TEST(ElideMiddle, ElideInTheMiddle) {
+  string input = "01234567890123456789";
+  string elided = ElideMiddle(input, 10);
+  EXPECT_EQ("012...789", elided);
+}
