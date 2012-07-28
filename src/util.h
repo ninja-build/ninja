@@ -66,6 +66,10 @@ string StripAnsiEscapeCodes(const string& in);
 /// on error.
 double GetLoadAverage();
 
+/// Elide the given string @a str with '...' in the middle if the length
+/// exceeds @a width.
+string ElideMiddle(const string& str, size_t width);
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
