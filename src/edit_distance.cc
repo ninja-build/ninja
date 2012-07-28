@@ -29,8 +29,8 @@ int EditDistance(const StringPiece& s1,
   // Although the algorithm is typically described using an m x n
   // array, only two rows are used at a time, so this implemenation
   // just keeps two separate vectors for those two rows.
-  int m = s1.len();
-  int n = s2.len();
+  int m = s1.len_;
+  int n = s2.len_;
 
   std::vector<int> previous(n + 1);
   std::vector<int> current(n + 1);
@@ -44,11 +44,11 @@ int EditDistance(const StringPiece& s1,
 
     for (int x = 1; x <= n; ++x) {
       if (allow_replacements) {
-        current[x] = min(previous[x-1] + (s1.str()[y-1] == s2.str()[x-1] ?
-            0 : 1), min(current[x-1], previous[x]) + 1);
+        current[x] = min(previous[x-1] + (s1.str_[y-1] == s2.str_[x-1] ? 0 : 1),
+                         min(current[x-1], previous[x])+1);
       }
       else {
-        if (s1.str()[y-1] == s2.str()[x-1])
+        if (s1.str_[y-1] == s2.str_[x-1])
           current[x] = previous[x-1];
         else
           current[x] = min(current[x-1], previous[x]) + 1;
