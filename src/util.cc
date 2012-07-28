@@ -286,6 +286,7 @@ string StripAnsiEscapeCodes(const string& in) {
 #ifdef _WIN32
 double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
+  // Remember to also update Usage() when this is fixed.
   return -0.0f;
 }
 #else
