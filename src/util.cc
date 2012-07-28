@@ -38,6 +38,12 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#elif defined(linux)
+#include <sys/sysinfo.h>
+#endif
+
 #include "edit_distance.h"
 #include "metrics.h"
 
@@ -282,6 +288,30 @@ string StripAnsiEscapeCodes(const string& in) {
   }
   return stripped;
 }
+
+#if defined(linux)
+int GetProcessorCount() {
+  return get_nprocs();
+}
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+int GetProcessorCount() {
+  int processors;
+  size_t processors_size = sizeof(processors);
+  int name[] = {CTL_HW, HW_NCPU};
+  if (sysctl(name, sizeof(name) / sizeof(int),
+             &processors, &processors_size,
+             NULL, 0) < 0) {
+    return 0;
+  }
+  return processors;
+}
+#elif defined(_WIN32)
+int GetProcessorCount() {
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
+}
+#endif
 
 #ifdef _WIN32
 double GetLoadAverage() {

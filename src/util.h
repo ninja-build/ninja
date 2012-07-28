@@ -62,6 +62,10 @@ const char* SpellcheckString(const string& text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
+/// @return the number of processors on the machine.  Useful for an initial
+/// guess for how many jobs to run in parallel.  @return 0 on error.
+int GetProcessorCount();
+
 /// @return the load average of the machine. A negative value is returned
 /// on error.
 double GetLoadAverage();

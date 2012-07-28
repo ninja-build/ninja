@@ -19,12 +19,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#elif defined(linux)
-#include <sys/sysinfo.h>
-#endif
-
 #ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
@@ -107,25 +101,7 @@ void Usage(const BuildConfig& config) {
 
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
-  int processors = 0;
-
-#if defined(linux)
-  processors = get_nprocs();
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-  size_t processors_size = sizeof(processors);
-  int name[] = {CTL_HW, HW_NCPU};
-  if (sysctl(name, sizeof(name) / sizeof(int),
-             &processors, &processors_size,
-             NULL, 0) < 0) {
-    processors = 1;
-  }
-#elif defined(_WIN32)
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  processors = info.dwNumberOfProcessors;
-#endif
-
-  switch (processors) {
+  switch (int processors = GetProcessorCount()) {
   case 0:
   case 1:
     return 2;
