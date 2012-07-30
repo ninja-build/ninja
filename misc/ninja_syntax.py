@@ -33,7 +33,8 @@ class Writer(object):
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False, restat=False, rspfile=None, rspfile_content=None):
+             generator=False, restat=False, rspfile=None, rspfile_content=None,
+             flush=False):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
@@ -48,6 +49,8 @@ class Writer(object):
             self.variable('rspfile', rspfile, indent=1)
         if rspfile_content:
             self.variable('rspfile_content', rspfile_content, indent=1)
+        if flush:
+            self.variable('flush', '1', indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):

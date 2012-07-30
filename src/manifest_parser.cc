@@ -125,6 +125,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->rspfile_ = value;
     } else if (key == "rspfile_content") {
       rule->rspfile_content_ = value;
+    } else if (key == "flush") {
+      rule->flush_ = value;
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.

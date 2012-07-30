@@ -702,3 +702,21 @@ TEST_F(ParserTest, CRLF) {
             "         ^ near here",
             err);
 }
+
+TEST_F(ParserTest, Flush) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule flush\n"
+"  command = cat $in > $out\n"
+"  flush = $flush\n"
+"\n"
+"build out: flush in\n"
+"  flush = 1\n"));
+
+  ASSERT_EQ(2u, state.rules_.size());
+  const Rule* rule = state.rules_.begin()->second;
+  EXPECT_EQ("flush", rule->name());
+  EXPECT_EQ("[cat ][$in][ > ][$out]", rule->command().Serialize());
+  EXPECT_EQ("[$flush]", rule->flush().Serialize());
+  EXPECT_EQ(1u, state.edges_.size());
+  EXPECT_TRUE(state.edges_.front()->ShouldFlush());
+}

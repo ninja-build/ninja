@@ -91,6 +91,15 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
+  // If the output has been flushed, we do not need to print the status and the
+  // output again.
+  if (edge->ShouldFlush()) {
+    // Print the command that is spewing after its output has been flushed.
+    if (!success)
+      PrintCommandFailure(edge);
+    return;
+  }
+
   if (smart_terminal_)
     PrintStatus(edge);
 
@@ -100,7 +109,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
     // Print the command that is spewing before printing its output.
     if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+      PrintCommandFailure(edge);
 
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
@@ -125,6 +134,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
     have_blank_line_ = true;
   }
+}
+
+void BuildStatus::PrintCommandFailure(Edge* edge) {
+  printf("FAILED (%d): %s\n",
+         edge->exit_status_,
+         edge->EvaluateCommand().c_str());
 }
 
 void BuildStatus::BuildFinished() {
@@ -266,7 +281,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
-    have_blank_line_ = false;
+    if (edge->ShouldFlush())
+      printf("\n");
+    else
+      have_blank_line_ = false;
 #else
     // We don't want to have the cursor spamming back and forth, so
     // use WriteConsoleOutput instead which updates the contents of
@@ -287,7 +305,10 @@ void BuildStatus::PrintStatus(Edge* edge) {
       char_data[i].Char.AsciiChar = to_print[i];
     WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
     delete[] char_data;
-    have_blank_line_ = false;
+    if (edge->ShouldFlush())
+      printf("\n");
+    else
+      have_blank_line_ = false;
 #endif
   } else {
     printf("%s\n", to_print.c_str());
@@ -510,7 +531,7 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  Subprocess* subproc = subprocs_.Add(command, edge->ShouldFlush());
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -534,6 +555,8 @@ Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
   Edge* edge = i->second;
   subproc_to_edge_.erase(i);
+
+  edge->exit_status_ = subproc->exit_status();
 
   delete subproc;
   return edge;
@@ -726,6 +749,14 @@ bool Builder::Build(string* err) {
 bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
+
+  // Force flush if asked by the user.
+  if (config_.flush)
+    edge->manual_flush_ = true;
+
+  // Force not to flush the output if we plan to build more than one command.
+  if (plan_.command_edge_count() > 1)
+    edge->force_no_flush_ = true;
 
   status_->BuildEdgeStarted(edge);
 

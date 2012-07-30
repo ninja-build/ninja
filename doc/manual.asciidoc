@@ -590,7 +590,7 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
@@ -614,7 +614,15 @@ aborting due to a missing input.
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
   the full command or its description; if a command fails, the full command
-  line will always be printed before the command's output.
+  line will always be printed before the command's output (except if `-F`
+  is present).
+
+`flush`:: if present, causes Ninja to flush the output of the command when it
+  is not built in parallel. Useful for rule calling a long running command
+  with a long output like documentation generation, tests execution, or
+  configuration stage. The `-F` flag controls whether to flush all command
+  outputs. When the command output is not buffered and if the command fails,
+  the full command line will be printed after the command's output.
 
 `generator`:: if present, specifies that this rule is used to
   re-invoke the generator program.  Files built using `generator`

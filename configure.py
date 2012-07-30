@@ -363,7 +363,8 @@ n.newline()
 n.comment('Generate Doxygen.')
 n.rule('doxygen',
        command='doxygen $in',
-       description='DOXYGEN $in')
+       description='DOXYGEN $in',
+       flush=True)
 n.variable('doxygen_mainpage_generator',
            src('gen_doxygen_mainpage.sh'))
 n.rule('doxygen_mainpage',

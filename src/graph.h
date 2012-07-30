@@ -103,7 +103,7 @@ private:
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
   explicit Rule(const string& name)
-      : name_(name), generator_(false), restat_(false) {}
+    : name_(name), generator_(false), restat_(false) {}
 
   const string& name() const { return name_; }
 
@@ -116,6 +116,7 @@ struct Rule {
   const EvalString& depfile() const { return depfile_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
+  const EvalString& flush() const { return flush_; }
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.
@@ -131,6 +132,7 @@ struct Rule {
   EvalString depfile_;
   EvalString rspfile_;
   EvalString rspfile_content_;
+  EvalString flush_;
 };
 
 struct BuildLog;
@@ -140,7 +142,8 @@ struct State;
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0) {}
+           order_only_deps_(0), force_no_flush_(false), manual_flush_(false),
+           exit_status_(-1) {}
 
   /// Examine inputs, outputs, and command lines to judge whether this edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -158,15 +161,15 @@ struct Edge {
   bool AllInputsReady() const;
 
   /// Expand all variables in a command and return it as a string.
-  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
-  
+
   /// Does the edge use a response file?
   bool HasRspFile();
-  
+
   /// Get the path to the response file
   string GetRspFile();
 
@@ -208,6 +211,19 @@ struct Edge {
   }
 
   bool is_phony() const;
+
+  /// Force not to flush the output of this edge even if the attached rule
+  /// has the flush flag set.  Useful when the edge is built in parallel.
+  bool force_no_flush_;
+
+  /// True if flush has been asked on the command line using -F.
+  bool manual_flush_;
+
+  /// @return whether the output of this edge must be flushed.
+  bool ShouldFlush();
+
+  /// The exit status of the command run by this edge.
+  int exit_status_;
 };
 
 #endif  // NINJA_GRAPH_H_

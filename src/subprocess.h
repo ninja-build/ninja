@@ -42,9 +42,12 @@ struct Subprocess {
   bool Done() const;
 
   const string& GetOutput() const;
+  int exit_status() const { return exit_status_; }
 
  private:
-  Subprocess();
+  /// Constructor.
+  /// @param flush whether to flush the output of this sub-process.
+  Subprocess(bool flush);
   bool Start(struct SubprocessSet* set, const string& command);
   void OnPipeReady();
 
@@ -64,6 +67,8 @@ struct Subprocess {
   int fd_;
   pid_t pid_;
 #endif
+  bool flush_;
+  int exit_status_;
 
   friend struct SubprocessSet;
 };
@@ -75,7 +80,10 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const string& command);
+  /// Add the given @a command to this set of sub-processes.
+  /// @param flush whether to flush the command output.
+  /// @return the created sub-process.
+  Subprocess* Add(const string& command, bool flush = false);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
