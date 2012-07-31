@@ -43,9 +43,8 @@
 
 namespace {
 
-/// The version number of the current Ninja release.  This will always
-/// be "git" on trunk.
-const char* kVersion = "git";
+/// The version number of the current Ninja release.
+#include "version.h"
 
 /// Global information passed into subtools.
 struct Globals {
@@ -258,7 +257,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(__CYGWIN__) && !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
 int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
@@ -503,7 +502,7 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
     const char* desc;
     ToolFunc func;
   } tools[] = {
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(__CYGWIN__) && !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
       ToolBrowse },
 #endif

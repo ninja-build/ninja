@@ -19,6 +19,7 @@
 #include "win32port.h"
 #else
 #include <stdint.h>
+#include <unistd.h>
 #endif
 
 #include <string>
