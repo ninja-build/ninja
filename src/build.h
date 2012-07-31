@@ -141,6 +141,9 @@ struct Builder {
   bool StartEdge(Edge* edge, string* err);
   void FinishEdge(Edge* edge, bool success, const string& output);
 
+  /// Decide whether we can flush.
+  bool ShouldFlush() const;
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;

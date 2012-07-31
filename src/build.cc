@@ -91,6 +91,15 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
+  // If the output has been flushed, we do not need to print the status and the
+  // output again.
+  if (edge->should_flush()) {
+    // Print the command that is spewing after its output has been flushed.
+    if (!success)
+      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+    return;
+  }
+
   if (smart_terminal_)
     PrintStatus(edge);
 
@@ -124,6 +133,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       printf("%s", final_output.c_str());
 
     have_blank_line_ = true;
+    edge->have_blank_line_ = true;
   }
 }
 
@@ -267,6 +277,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
     have_blank_line_ = false;
+    edge->have_blank_line_ = false;
 #else
     // We don't want to have the cursor spamming back and forth, so
     // use WriteConsoleOutput instead which updates the contents of
@@ -288,6 +299,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
     delete[] char_data;
     have_blank_line_ = false;
+    edge->have_blank_line_ = false;
 #endif
   } else {
     printf("%s\n", to_print.c_str());
@@ -510,7 +522,9 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  Subprocess* subproc = subprocs_.Add(command,
+                                      edge->should_flush(),
+                                      edge->have_blank_line_);
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -723,9 +737,23 @@ bool Builder::Build(string* err) {
   return true;
 }
 
+bool Builder::ShouldFlush() const {
+  // TODO: Testing command_edge_count() == 1 is not really accurate but it
+  // works for most cases and still satisfy the constraints that no command's
+  // should interleave. It is preventive since we are sure that no other
+  // command will be run, but it does not cover all use cases where we have
+  // more than one command in the plan and we are sure that no other commands
+  // will run in parallel.
+  return (plan_.command_edge_count() == 1 || config_.parallelism == 1);
+}
+
 bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
+
+  // Flush the output if we plan to build only one command.
+  if (ShouldFlush())
+    edge->flush_ = true;
 
   status_->BuildEdgeStarted(edge);
 
