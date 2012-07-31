@@ -114,7 +114,6 @@ struct Rule {
   EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
-  const EvalString& deplist() const { return deplist_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
 
@@ -130,7 +129,6 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
-  EvalString deplist_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };

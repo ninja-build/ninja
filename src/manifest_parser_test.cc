@@ -88,15 +88,6 @@ TEST_F(ParserTest, RuleAttributes) {
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"));
-
-  // The same, with s/depfile/deplist/.
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-"rule cat2\n"
-"  command = a\n"
-"  deplist = a\n"
-"  description = a\n"
-"  generator = a\n"
-"  restat = a\n"));
 }
 
 TEST_F(ParserTest, IgnoreIndentedComments) {
@@ -425,18 +416,6 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("rule cat\n",
                                   &err));
     EXPECT_EQ("input:2: expected 'command =' line\n", err);
-  }
-
-  {
-    State state;
-    ManifestParser parser(&state, NULL);
-    string err;
-    EXPECT_FALSE(parser.ParseTest("rule cat\n"
-                                  "  command = cat\n"
-                                  "  depfile = a\n"
-                                  "  deplist = b\n",
-                                  &err));
-    EXPECT_EQ("input:5: can only specify one of depfile or deplist\n", err);
   }
 
   {
