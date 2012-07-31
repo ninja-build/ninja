@@ -40,7 +40,7 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
-#elif defined(linux)
+#elif defined(linux) || defined(__CYGWIN__)
 #include <sys/sysinfo.h>
 #endif
 
@@ -289,7 +289,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux)
+#if defined(linux) || defined(__CYGWIN__)
 int GetProcessorCount() {
   return get_nprocs();
 }

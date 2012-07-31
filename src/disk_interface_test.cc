@@ -60,6 +60,7 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
   EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile"));
 }
 
+#if !defined(__CYGWIN__)
 TEST_F(DiskInterfaceTest, StatBadPath) {
 #ifdef _WIN32
   string bad_path("cc:\\foo");
@@ -69,6 +70,7 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
   EXPECT_EQ(-1, disk_.Stat(too_long_name));
 #endif
 }
+#endif
 
 TEST_F(DiskInterfaceTest, StatExistingFile) {
   ASSERT_TRUE(Touch("file"));
