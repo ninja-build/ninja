@@ -55,16 +55,16 @@ using stdext::hash_compare;
 
 struct StringPieceCmp : public hash_compare<StringPiece> {
   size_t operator()(const StringPiece& key) const {
-    return MurmurHash2(key.str(), key.len());
+    return MurmurHash2(key.str_, key.len_);
   }
   bool operator()(const StringPiece& a, const StringPiece& b) const {
-    int cmp = strncmp(a.str(), b.str(), min(a.len(), b.len()));
+    int cmp = strncmp(a.str_, b.str_, min(a.len_, b.len_));
     if (cmp < 0) {
       return true;
     } else if (cmp > 0) {
       return false;
     } else {
-      return a.len() < b.len();
+      return a.len_ < b.len_;
     }
   }
 };
