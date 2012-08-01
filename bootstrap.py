@@ -108,4 +108,8 @@ run([sys.executable, 'configure.py'] + conf_args)
 run(['./' + binary] + verbose)
 os.unlink(binary)
 
+if sys.platform.startswith('win32'):
+    for obj in glob.glob('*.obj'):
+        os.unlink(obj)
+
 print 'Done!'
