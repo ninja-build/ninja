@@ -41,6 +41,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   if (!rule_->depfile().empty()) {
 #ifdef _WIN32
+    // Currently a platform choice, could be a variable in build.ninja maybe?
     if (!LoadDepDb(state, err))
       return false;
 #else
