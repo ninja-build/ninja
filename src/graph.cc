@@ -47,7 +47,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 #else
     if (!LoadDepFile(state, disk_interface, err))
       return false;
-#ekdif
+#endif
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
