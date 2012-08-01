@@ -148,9 +148,9 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 "rule catdep\n"
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+"build ." DIR_SEP_S "out.o: catdep ." DIR_SEP_S "foo.cc\n"));
   fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: bar/../foo.cc\n");
+  fs_.Create("out.o.d", 1, "out.o: bar" DIR_SEP_S ".." DIR_SEP_S "foo.cc\n");
   fs_.Create("out.o", 1, "");
 
   Edge* edge = GetNode("out.o")->in_edge();
