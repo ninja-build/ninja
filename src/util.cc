@@ -163,12 +163,48 @@ bool CanonicalizePath(char* path, int* len, string* err) {
   return true;
 }
 
-int MakeDir(const string& path) {
+string DirName(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  const char kPathSeparator = '\\';
 #else
-  return mkdir(path.c_str(), 0777);
+  const char kPathSeparator = '/';
 #endif
+
+  string::size_type slash_pos = path.rfind(kPathSeparator);
+  if (slash_pos == string::npos)
+    return string();  // Nothing to do.
+  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
+    --slash_pos;
+  return path.substr(0, slash_pos);
+}
+
+int MakeDir(const string& path, bool recursiveCreate) {
+#ifdef _WIN32
+	int rv = _mkdir(path.c_str());
+#else
+	int rv = mkdir(path.c_str(), 0777);
+#endif
+
+	if (recursiveCreate) {
+		if (rv == 0) 
+			return 0;						// Successfully created
+    else if (errno == EEXIST)
+    	return 0; 					// Directory already exists, success
+    else if (errno == ENOENT) {
+    	// Directory's parent doesn't exist, recurse on parent dir & try again
+			string parent = DirName(path);
+			if (parent.empty())
+				return 0;  // Reached root; assume it's there.
+    	
+    	if( MakeDir(parent, true) < 0 )
+    		return -1;
+    	return MakeDir(path, false);
+    }
+    else
+			return -1;		// Failed
+	}
+	else
+		return rv;
 }
 
 int ReadFile(const string& path, string* contents, string* err) {

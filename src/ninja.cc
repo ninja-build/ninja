@@ -745,7 +745,7 @@ reload:
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
-    if (MakeDir(build_dir) < 0 && errno != EEXIST) {
+    if (MakeDir(build_dir, true) < 0 && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir.c_str(), strerror(errno));
       return 1;

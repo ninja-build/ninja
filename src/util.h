@@ -41,9 +41,12 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, int* len, string* err);
 
+// Get the directory name for a path
+string DirName(const string & path);
+
 /// Create a directory (mode 0777 on Unix).
 /// Portability abstraction.
-int MakeDir(const string& path);
+int MakeDir(const string& path, bool recursiveCreate);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
