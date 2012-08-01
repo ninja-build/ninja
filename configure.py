@@ -98,11 +98,11 @@ elif platform in ('msys', 'mingw'):
     objext = '.obj'
 
 def src(filename):
-    return os.path.join('src', filename)
+    return '/'.join(['src', filename])
 def built(filename):
-    return os.path.join('$builddir', filename)
+    return '/'.join(['$builddir', filename])
 def doc(filename):
-    return os.path.join('doc', filename)
+    return '/'.join(['doc', filename])
 def cc(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
@@ -167,7 +167,7 @@ def shell_escape(str):
     if platform in ('windows', 'mingw'):
         return str
     if '"' in str:
-        return "'%s'" % str.replace("'", "\\'")
+        return "%s" % str.replace('"', '\\"')
     return str
 
 if 'CFLAGS' in configure_env:
@@ -311,7 +311,7 @@ objs = []
 if options.with_gtest:
     path = options.with_gtest
 
-    gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
+    gtest_all_incs = '-I%s -I%s' % (path, '/'.join([path, 'include']))
     if platform == 'windows':
         gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
     elif platform in ('cygwin', 'msys', 'mingw'):
@@ -319,14 +319,14 @@ if options.with_gtest:
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest-all.cc'),
+                    '/'.join([path, 'src/gtest-all.cc']),
                     variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest_main.cc'),
+                    '/'.join([path, 'src/gtest_main.cc']),
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
-                            '-I%s' % os.path.join(path, 'include')]
+                            '-I%s' % '/'.join([path, 'include'])]
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
