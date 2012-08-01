@@ -163,7 +163,7 @@ struct Edge {
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
-  /// Get/create a Node for an input as discovered through a depfile/deplist.
+  /// Get/create a Node for an input as discovered through a depfile.
   Node* GetDepNode(State* state, StringPiece path);
   
   /// Does the edge use a response file?

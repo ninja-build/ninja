@@ -41,13 +41,13 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   if (!rule_->depfile().empty()) {
 #ifdef _WIN32
-    // Currently a platform choice, could be a variable in build.ninja maybe?
-    if (!LoadDepDb(state, err))
-      return false;
-#else
+    if (state->depdb_) {
+      if (!LoadDepDb(state, err))
+        return false;
+    } else
+#endif
     if (!LoadDepFile(state, disk_interface, err))
       return false;
-#endif
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.

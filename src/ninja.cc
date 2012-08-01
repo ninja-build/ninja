@@ -784,14 +784,16 @@ reload:
     return 1;
   }
 
-  const char* kDepDbPath = ".ninja_depdb";
-  string depdb_path = kDepDbPath;
-  if (!build_dir.empty()) {
-    depdb_path = build_dir + "/" + kDepDbPath;
-  }
 #ifdef _WIN32
-  DepDatabase depdb(depdb_path, true);
-  globals.state->depdb_ = &depdb;
+  const string use_depdb = globals.state->bindings_.LookupVariable("use_dep_database");
+  if (!use_depdb.empty()) {
+    const char* kDepDbPath = ".ninja_depdb";
+    string depdb_path = kDepDbPath;
+    if (!build_dir.empty()) {
+      depdb_path = build_dir + "/" + kDepDbPath;
+    }
+    globals.state->depdb_ = new DepDatabase(depdb_path, true);
+  }
 #endif
 
   if (!tool.empty())
