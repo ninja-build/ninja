@@ -61,7 +61,7 @@ for src in glob.glob('src/*.cc'):
         continue
 
     if sys.platform.startswith('win32'):
-        if filename == 'subprocess.cc':
+        if src.endswith('-posix.cc'):
             continue
     else:
         if src.endswith('-win32.cc'):
@@ -77,12 +77,15 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DNOMINMAX']
+    args = [os.path.join(vcdir, 'bin', 'cl.exe'),
+            '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
-    args.extend(['-Wno-deprecated',
-                 '-DNINJA_PYTHON="' + sys.executable + '"',
-                 '-DNINJA_BOOTSTRAP'])
+    cflags.extend(['-Wno-deprecated',
+                   '-DNINJA_PYTHON="' + sys.executable + '"',
+                   '-DNINJA_BOOTSTRAP'])
+    if sys.platform.startswith('win32'):
+        cflags.append('-D_WIN32_WINNT=0x0501')
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'

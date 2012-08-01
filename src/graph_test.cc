@@ -141,3 +141,22 @@ TEST_F(GraphTest, VarInOutQuoteSpaces) {
   EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
       edge->EvaluateCommand());
 }
+
+// Regression test for https://github.com/martine/ninja/issues/380
+TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdep ./foo.cc\n"));
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 1, "out.o: bar/../foo.cc\n");
+  fs_.Create("out.o", 1, "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+}

@@ -131,7 +131,7 @@ TEST_F(BuildLogTest, Truncate) {
   ASSERT_GT(statbuf.st_size, 0);
 
   // For all possible truncations of the input file, assert that we don't
-  // crash or report an error when parsing.
+  // crash when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
 #ifndef _WIN32
     ASSERT_EQ(0, truncate(kTestFilename, size));
@@ -143,8 +143,8 @@ TEST_F(BuildLogTest, Truncate) {
 #endif
 
     BuildLog log2;
-    EXPECT_TRUE(log2.Load(kTestFilename, &err));
-    ASSERT_EQ("", err);
+    err.clear();
+    ASSERT_TRUE(log2.Load(kTestFilename, &err) || !err.empty());
   }
 }
 

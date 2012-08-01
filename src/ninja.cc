@@ -19,12 +19,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#elif defined(linux)
-#include <sys/sysinfo.h>
-#endif
-
 #ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
@@ -93,6 +87,9 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
+#ifdef _WIN32
+"           (not yet implemented on Windows)\n"
+#endif
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but pretend they succeeded)\n"
 "  -v       show all command lines while building\n"
@@ -106,25 +103,7 @@ void Usage(const BuildConfig& config) {
 
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
-  int processors = 0;
-
-#if defined(linux)
-  processors = get_nprocs();
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-  size_t processors_size = sizeof(processors);
-  int name[] = {CTL_HW, HW_NCPU};
-  if (sysctl(name, sizeof(name) / sizeof(int),
-             &processors, &processors_size,
-             NULL, 0) < 0) {
-    processors = 1;
-  }
-#elif defined(_WIN32)
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  processors = info.dwNumberOfProcessors;
-#endif
-
-  switch (processors) {
+  switch (int processors = GetProcessorCount()) {
   case 0:
   case 1:
     return 2;
@@ -655,9 +634,37 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   return 0;
 }
 
-}  // anonymous namespace
+#ifdef _MSC_VER
 
-int main(int argc, char** argv) {
+} // anonymous namespace
+
+// Defined in minidump-win32.cc.
+void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
+
+namespace {
+
+/// This handler processes fatal crashes that you can't catch
+/// Test example: C++ exception in a stack-unwind-block
+/// Real-world example: ninja launched a compiler to process a tricky
+/// C++ input file. The compiler got itself into a state where it
+/// generated 3 GB of output and caused ninja to crash.
+void TerminateHandler() {
+  CreateWin32MiniDump(NULL);
+  Fatal("terminate handler called");
+}
+
+/// On Windows, we want to prevent error dialogs in case of exceptions.
+/// This function handles the exception, and writes a minidump.
+int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
+  Error("exception: 0x%X", code);  // e.g. EXCEPTION_ACCESS_VIOLATION
+  fflush(stderr);
+  CreateWin32MiniDump(ep);
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
+#endif  // _MSC_VER
+
+int NinjaMain(int argc, char** argv) {
   Globals globals;
   globals.ninja_command = argv[0];
   const char* input_file = "build.ninja";
@@ -736,12 +743,11 @@ int main(int argc, char** argv) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
-    printf("ninja: Entering directory `%s'\n", working_dir);
-#ifdef _WIN32
-    if (_chdir(working_dir) < 0) {
-#else
+    // Don't print this if a tool is being used, so that tool output
+    // can be piped into a file without this string showing up.
+    if (tool == "")
+      printf("ninja: Entering directory `%s'\n", working_dir);
     if (chdir(working_dir) < 0) {
-#endif
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
     }
   }
@@ -827,4 +833,26 @@ reload:
            count / (double) buckets, count, buckets);
   }
   return result;
+}
+
+}  // anonymous namespace
+
+int main(int argc, char** argv) {
+#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER)
+  // Set a handler to catch crashes not caught by the __try..__except
+  // block (e.g. an exception in a stack-unwind-block).
+  set_terminate(TerminateHandler);
+  __try {
+    // Running inside __try ... __except suppresses any Windows error
+    // dialogs for errors such as bad_alloc.
+    return NinjaMain(argc, argv);
+  }
+  __except(ExceptionFilter(GetExceptionCode(), GetExceptionInformation())) {
+    // Common error situations return exitCode=1. 2 was chosen to
+    // indicate a more serious problem.
+    return 2;
+  }
+#else
+  return NinjaMain(argc, argv);
+#endif
 }

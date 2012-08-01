@@ -38,12 +38,18 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#elif defined(linux)
+#include <sys/sysinfo.h>
+#endif
+
 #include "edit_distance.h"
 #include "metrics.h"
 
 void Fatal(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: FATAL: ");
+  fprintf(stderr, "ninja: fatal: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -61,7 +67,7 @@ void Fatal(const char* msg, ...) {
 
 void Warning(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: WARNING: ");
+  fprintf(stderr, "ninja: warning: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -70,7 +76,7 @@ void Warning(const char* msg, ...) {
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: ERROR: ");
+  fprintf(stderr, "ninja: error: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -210,16 +216,6 @@ void SetCloseOnExec(int fd) {
 #endif  // ! _WIN32
 }
 
-int64_t GetTimeMillis() {
-#ifdef _WIN32
-  // GetTickCount64 is only available on Vista or later.
-  return GetTickCount();
-#else
-  timeval now;
-  gettimeofday(&now, NULL);
-  return ((int64_t)now.tv_sec * 1000) + (now.tv_usec / 1000);
-#endif
-}
 
 const char* SpellcheckStringV(const string& text,
                               const vector<const char*>& words) {
@@ -299,18 +295,40 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
+#if defined(linux)
+int GetProcessorCount() {
+  return get_nprocs();
+}
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+int GetProcessorCount() {
+  int processors;
+  size_t processors_size = sizeof(processors);
+  int name[] = {CTL_HW, HW_NCPU};
+  if (sysctl(name, sizeof(name) / sizeof(int),
+             &processors, &processors_size,
+             NULL, 0) < 0) {
+    return 0;
+  }
+  return processors;
+}
+#elif defined(_WIN32)
+int GetProcessorCount() {
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
+}
+#endif
+
 #ifdef _WIN32
-static double GetLoadAverage_win32()
-{
+double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
+  // Remember to also update Usage() when this is fixed.
   return -0.0f;
 }
 #else
-static double GetLoadAverage_unix()
-{
+double GetLoadAverage() {
   double loadavg[3] = { 0.0f, 0.0f, 0.0f };
-  if (getloadavg(loadavg, 3) < 0)
-  {
+  if (getloadavg(loadavg, 3) < 0) {
     // Maybe we should return an error here or the availability of
     // getloadavg(3) should be checked when ninja is configured.
     return -0.0f;
@@ -318,12 +336,3 @@ static double GetLoadAverage_unix()
   return loadavg[0];
 }
 #endif // _WIN32
-
-double GetLoadAverage()
-{
-#ifdef _WIN32
-  return GetLoadAverage_win32();
-#else
-  return GetLoadAverage_unix();
-#endif // _WIN32
-}

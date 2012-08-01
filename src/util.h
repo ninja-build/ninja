@@ -60,11 +60,6 @@ int ReadFile(const string& path, string* contents, string* err, bool binary = fa
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 
-/// Get the current time as relative to some epoch.
-/// Epoch varies between platforms; only useful for measuring elapsed
-/// time.
-int64_t GetTimeMillis();
-
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
 const char* SpellcheckStringV(const string& text, const vector<const char*>& words);
@@ -74,6 +69,10 @@ const char* SpellcheckString(const string& text, ...);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
+
+/// @return the number of processors on the machine.  Useful for an initial
+/// guess for how many jobs to run in parallel.  @return 0 on error.
+int GetProcessorCount();
 
 /// @return the load average of the machine. A negative value is returned
 /// on error.
