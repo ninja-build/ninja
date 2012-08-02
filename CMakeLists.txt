@@ -194,7 +194,9 @@ if(unix AND NOT MINGW)
 #       list(APPEND  ninja_lib ${srcdir}/clockgettime_linux.cc)
 #   endif(LINUX)
 elseif(windows OR MINGW)
-    list(APPEND ninja_lib ${srcdir}/getopt.c ${srcdir}/subprocess-win32.cc)
+    list(APPEND ninja_lib ${srcdir}/getopt.c ${srcdir}/subprocess-win32.cc
+        ${srcdir}/minidump-win32.cc
+    )
     add_definitions(-D_WIN32_WINNT=0x0501)
 endif()
 
