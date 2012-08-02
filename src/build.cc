@@ -236,28 +236,17 @@ void BuildStatus::PrintStatus(Edge* edge) {
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
-    const int kMargin = 3;  // Space for "...".
 #ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      if (to_print.size() + kMargin > size.ws_col) {
-        int elide_size = (size.ws_col - kMargin) / 2;
-        to_print = to_print.substr(0, elide_size)
-          + "..."
-          + to_print.substr(to_print.size() - elide_size, elide_size);
-      }
+      to_print = ElideMiddle(to_print, size.ws_col);
     }
 #else
     // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
-    if (to_print.size() + kMargin > width) {
-      int elide_size = (width - kMargin) / 2;
-      to_print = to_print.substr(0, elide_size)
-        + "..."
-        + to_print.substr(to_print.size() - elide_size, elide_size);
-    }
+    to_print = ElideMiddle(to_print, width);
 #endif
   }
 
