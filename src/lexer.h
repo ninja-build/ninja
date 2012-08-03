@@ -49,9 +49,12 @@ struct Lexer {
   /// Return a human-readable form of a token, used in error messages.
   static const char* TokenName(Token t);
 
-
   /// Return a human-readable token hint, used in error messages.
-  static const char* TokenErrorHint(Token t);
+  static const char* TokenErrorHint(Token expected);
+
+  /// If the last token read was an ERROR token, provide more info
+  /// or the empty string.
+  string DescribeLastError();
 
   /// Start parsing some input.
   void Start(StringPiece filename, StringPiece input);

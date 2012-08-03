@@ -85,3 +85,13 @@ TEST(Lexer, CommentEOF) {
   Lexer::Token token = lexer.ReadToken();
   EXPECT_EQ(Lexer::ERROR, token);
 }
+
+TEST(Lexer, Tabs) {
+  // Verify we print a useful error on a disallowed character.
+  Lexer lexer("   \tfoobar");
+  Lexer::Token token = lexer.ReadToken();
+  EXPECT_EQ(Lexer::INDENT, token);
+  token = lexer.ReadToken();
+  EXPECT_EQ(Lexer::ERROR, token);
+  EXPECT_EQ("tabs are not allowed, use spaces", lexer.DescribeLastError());
+}
