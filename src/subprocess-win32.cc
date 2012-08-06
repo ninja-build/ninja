@@ -28,7 +28,9 @@ void Win32Fatal(const char* function) {
 
 }  // anonymous namespace
 
-Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
+Subprocess::Subprocess(bool flush, bool have_blank_line)
+  : child_(NULL) , overlapped_(), is_reading_(false),
+    flush_(flush), have_blank_line_(have_blank_line) {
 }
 
 Subprocess::~Subprocess() {
@@ -145,8 +147,17 @@ void Subprocess::OnPipeReady() {
     Win32Fatal("GetOverlappedResult");
   }
 
-  if (is_reading_ && bytes)
-    buf_.append(overlapped_buf_, bytes);
+  if (is_reading_ && bytes) {
+    if (!flush_)
+      buf_.append(overlapped_buf_, bytes);
+    else {
+      if (!have_blank_line_) {
+        write(1, "\n", 1);
+        have_blank_line_ = true;
+      }
+      write(1, overlapped_buf_, bytes);
+    }
+  }
 
   memset(&overlapped_, 0, sizeof(overlapped_));
   is_reading_ = true;
@@ -174,6 +185,7 @@ ExitStatus Subprocess::Finish() {
 
   DWORD exit_code = 0;
   GetExitCodeProcess(child_, &exit_code);
+  exit_status_ = exit_code;
 
   CloseHandle(child_);
   child_ = NULL;
@@ -218,8 +230,10 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
-  Subprocess *subprocess = new Subprocess;
+Subprocess *SubprocessSet::Add(const string& command,
+                               bool flush,
+                               bool have_blank_line) {
+  Subprocess *subprocess = new Subprocess(flush, have_blank_line);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;

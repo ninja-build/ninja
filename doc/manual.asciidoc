@@ -127,11 +127,14 @@ but they are not part of make itself.)
   CPUs your system has.  Underspecified build dependencies will result
   in incorrect builds.
 
-* Command output is always buffered.  This means commands running in
-  parallel don't interleave their output, and when a command fails we
-  can print its failure output next to the full command line that
-  produced the failure.
-
+* Command output is always buffered (except in rare cases).  This means
+  commands running in parallel don't interleave their output, and when
+  a command fails we can print its failure output next to the full
+  command line that produced the failure.  However, when no command's
+  outputs can interleave, the output is flush.  This is convenient when
+  running a command lasting for a long time and generating a long output.
+  It happens when configuring a project, generating the documentation
+  or running the tests of a project.
 
 Using Ninja for your project
 ----------------------------
@@ -590,7 +593,7 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on

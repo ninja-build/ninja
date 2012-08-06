@@ -140,7 +140,8 @@ struct State;
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0) {}
+           order_only_deps_(0), flush_(false), have_blank_line_(true),
+           exit_status_(-1) {}
 
   /// Examine inputs, outputs, and command lines to judge whether this edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -158,15 +159,15 @@ struct Edge {
   bool AllInputsReady() const;
 
   /// Expand all variables in a command and return it as a string.
-  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
-  
+
   /// Does the edge use a response file?
   bool HasRspFile();
-  
+
   /// Get the path to the response file
   string GetRspFile();
 
@@ -208,6 +209,15 @@ struct Edge {
   }
 
   bool is_phony() const;
+
+  bool flush_;
+  bool have_blank_line_;
+
+  /// @return whether the output of this edge must be flushed.
+  bool should_flush() { return flush_; }
+
+  /// The exit status of the command run by this edge.
+  int exit_status_;
 };
 
 #endif  // NINJA_GRAPH_H_

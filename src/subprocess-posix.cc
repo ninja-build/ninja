@@ -34,7 +34,8 @@
 
 #include "util.h"
 
-Subprocess::Subprocess() : fd_(-1), pid_(-1) {
+Subprocess::Subprocess(bool flush, bool have_blank_line)
+  : fd_(-1), pid_(-1), flush_(flush), have_blank_line_(have_blank_line) {
 }
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
@@ -112,7 +113,15 @@ void Subprocess::OnPipeReady() {
   char buf[4 << 10];
   ssize_t len = read(fd_, buf, sizeof(buf));
   if (len > 0) {
-    buf_.append(buf, len);
+    if (!flush_)
+      buf_.append(buf, len);
+    else {
+      if (!have_blank_line_) {
+        write(1, "\n", 1);
+        have_blank_line_ = true;
+      }
+      write(1, buf, len);
+    }
   } else {
     if (len < 0)
       Fatal("read: %s", strerror(errno));
@@ -129,8 +138,8 @@ ExitStatus Subprocess::Finish() {
   pid_ = -1;
 
   if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
-    if (exit == 0)
+    exit_status_ = WEXITSTATUS(status);
+    if (exit_status_ == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
     if (WTERMSIG(status) == SIGINT)
@@ -179,8 +188,10 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
-  Subprocess *subprocess = new Subprocess;
+Subprocess *SubprocessSet::Add(const string& command,
+                               bool flush,
+                               bool have_blank_line) {
+  Subprocess *subprocess = new Subprocess(flush, have_blank_line);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;

@@ -141,6 +141,9 @@ struct Builder {
   bool StartEdge(Edge* edge, string* err);
   void FinishEdge(Edge* edge, bool success, const string& output);
 
+  /// Decide whether we can flush.
+  bool ShouldFlush() const;
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
@@ -162,6 +165,7 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void PrintCommandFailure(Edge* edge);
   void BuildFinished();
 
   /// Format the progress status string by replacing the placeholders.
