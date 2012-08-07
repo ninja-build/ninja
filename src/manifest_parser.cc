@@ -76,8 +76,9 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       if (!ParseFileInclude(true, err))
         return false;
       break;
-    case Lexer::ERROR:
-      return lexer_.Error("lexing error", err);
+    case Lexer::ERROR: {
+      return lexer_.Error(lexer_.DescribeLastError(), err);
+    }
     case Lexer::TEOF:
       return true;
     case Lexer::NEWLINE:

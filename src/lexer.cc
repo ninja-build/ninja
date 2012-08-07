@@ -90,24 +90,25 @@ const char* Lexer::TokenName(Token t) {
   return NULL;  // not reached
 }
 
-const char* Lexer::TokenErrorHint(Token t) {
-  switch (t) {
-  case ERROR:    return "";
-  case BUILD:    return "";
-  case COLON:    return " ($ also escapes ':')";
-  case DEFAULT:  return "";
-  case EQUALS:   return "";
-  case IDENT:    return "";
-  case INCLUDE:  return "";
-  case INDENT:   return "";
-  case NEWLINE:  return "";
-  case PIPE2:    return "";
-  case PIPE:     return "";
-  case RULE:     return "";
-  case SUBNINJA: return "";
-  case TEOF:     return "";
+const char* Lexer::TokenErrorHint(Token expected) {
+  switch (expected) {
+  case COLON:
+    return " ($ also escapes ':')";
+  default:
+    return "";
   }
-  return "";
+}
+
+string Lexer::DescribeLastError() {
+  if (last_token_) {
+    switch (last_token_[0]) {
+    case '\r':
+      return "carriage returns are not allowed, use newlines";
+    case '\t':
+      return "tabs are not allowed, use spaces";
+    }
+  }
+  return "lexing error";
 }
 
 void Lexer::UnreadToken() {
@@ -689,7 +690,7 @@ yy94:
 yy95:
 	{
       last_token_ = start;
-      return Error("lexing error", err);
+      return Error(DescribeLastError(), err);
     }
 yy96:
 	++p;

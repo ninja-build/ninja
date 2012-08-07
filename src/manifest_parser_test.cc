@@ -723,7 +723,7 @@ TEST_F(ParserTest, CRLF) {
 
   EXPECT_FALSE(parser.ParseTest("foo = foo\nbar = bar\r\n",
                                 &err));
-  EXPECT_EQ("input:2: lexing error\n"
+  EXPECT_EQ("input:2: carriage returns are not allowed, use newlines\n"
             "bar = bar\r\n"
             "         ^ near here",
             err);
