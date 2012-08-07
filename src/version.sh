@@ -15,20 +15,22 @@
 # limitations under the License.
 
 header="src/version.h"
-version="V0.1.3" 
+### version="V0.1.3"
+version=`date --iso`
+
 
 set -u
 set -e
 # set -x
 
-which git || exit 0	# OK, noop
+which -s git || exit 0	# OK, noop
 
 if [ -d .git ]; then
   branch=`git status -bsu no`
-  revisioncount=`git log --oneline | wc -l`
-  projectversion=`git describe --tags --long --always`
+  ### revisioncount=`git log --oneline | wc -l`
+  projectversion=`git describe --tags --always --dirty`
   # generate
-  echo "const char* kVersion = \"ninja ${version} ${branch%%.*}-${projectversion%%-*}\";" \
+  echo "const char* kVersion = \"ninja ${version} ${branch%%.*}-${projectversion}\";" \
     > "${header}.$$"
   # diff and mv if needed
   cmp -s "${header}.$$" "${header}" ||
