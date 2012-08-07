@@ -34,10 +34,6 @@
 
 #include <vector>
 
-#ifdef _WIN32
-#include <direct.h>  // _mkdir
-#endif
-
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
 #elif defined(linux)
@@ -161,14 +157,6 @@ bool CanonicalizePath(char* path, int* len, string* err) {
 
   *len = dst - start - 1;
   return true;
-}
-
-int MakeDir(const string& path) {
-#ifdef _WIN32
-  return _mkdir(path.c_str());
-#else
-  return mkdir(path.c_str(), 0777);
-#endif
 }
 
 int ReadFile(const string& path, string* contents, string* err) {

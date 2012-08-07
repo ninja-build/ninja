@@ -41,10 +41,6 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, int* len, string* err);
 
-/// Create a directory (mode 0777 on Unix).
-/// Portability abstraction.
-int MakeDir(const string& path);
-
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
