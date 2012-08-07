@@ -25,25 +25,6 @@
 
 #include "util.h"
 
-namespace {
-
-string DirName(const string& path) {
-#ifdef _WIN32
-  const char kPathSeparator = '\\';
-#else
-  const char kPathSeparator = '/';
-#endif
-
-  string::size_type slash_pos = path.rfind(kPathSeparator);
-  if (slash_pos == string::npos)
-    return string();  // Nothing to do.
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
-    --slash_pos;
-  return path.substr(0, slash_pos);
-}
-
-}  // namespace
-
 // DiskInterface ---------------------------------------------------------------
 
 bool DiskInterface::MakeDirs(const string& path) {
@@ -125,7 +106,7 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
-  if (::MakeDir(path) < 0) {
+  if (::MakeDir(path, false) < 0) {
     Error("mkdir(%s): %s", path.c_str(), strerror(errno));
     return false;
   }
