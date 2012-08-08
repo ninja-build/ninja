@@ -749,7 +749,7 @@ reload:
   string log_path = kLogPath;
   if (!build_dir.empty()) {
     log_path = build_dir + "/" + kLogPath;
-    if (globals.disk_interface.MakeDirs(log_path) < 0 && errno != EEXIST) {
+    if (!globals.disk_interface.MakeDirs(log_path) && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir.c_str(), strerror(errno));
       return 1;
