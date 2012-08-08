@@ -22,6 +22,10 @@
 #include "util.h"
 #include "metrics.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 bool WriteTestData(string* err) {

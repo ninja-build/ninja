@@ -119,7 +119,8 @@ struct BuildConfig {
 
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
-  Builder(State* state, const BuildConfig& config);
+  Builder(State* state, const BuildConfig& config,
+          DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -144,12 +145,13 @@ struct Builder {
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
-  DiskInterface* disk_interface_;
   auto_ptr<CommandRunner> command_runner_;
   BuildStatus* status_;
   BuildLog* log_;
 
  private:
+  DiskInterface* disk_interface_;
+
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT

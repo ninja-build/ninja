@@ -552,9 +552,9 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-Builder::Builder(State* state, const BuildConfig& config)
-    : state_(state), config_(config) {
-  disk_interface_ = new RealDiskInterface;
+Builder::Builder(State* state, const BuildConfig& config,
+                 DiskInterface* disk_interface)
+    : state_(state), config_(config), disk_interface_(disk_interface) {
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
 }

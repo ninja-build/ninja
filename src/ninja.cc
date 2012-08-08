@@ -32,6 +32,7 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "disk_interface.h"
 #include "edit_distance.h"
 #include "explain.h"
 #include "graph.h"
@@ -65,6 +66,8 @@ struct Globals {
   BuildConfig config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
+  /// Functions for interacting with the disk.
+  RealDiskInterface disk_interface;
 };
 
 /// Print usage information.
@@ -121,16 +124,16 @@ struct RealFileReader : public ManifestParser::FileReader {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool RebuildManifest(State* state, const BuildConfig& config,
-                     const char* input_file, string* err) {
+bool RebuildManifest(Globals* globals, const char* input_file, string* err) {
   string path = input_file;
   if (!CanonicalizePath(&path, err))
     return false;
-  Node* node = state->LookupNode(path);
+  Node* node = globals->state->LookupNode(path);
   if (!node)
     return false;
 
-  Builder manifest_builder(state, config);
+  Builder manifest_builder(globals->state, globals->config,
+                           &globals->disk_interface);
   if (!manifest_builder.AddTarget(node, err))
     return false;
 
@@ -578,7 +581,7 @@ int RunBuild(Globals* globals, int argc, char** argv) {
     return 1;
   }
 
-  Builder builder(globals->state, globals->config);
+  Builder builder(globals->state, globals->config, &globals->disk_interface);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
@@ -743,12 +746,12 @@ reload:
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
   if (!build_dir.empty()) {
-    if (MakeDir(build_dir) < 0 && errno != EEXIST) {
+    log_path = build_dir + "/" + kLogPath;
+    if (!globals.disk_interface.MakeDirs(log_path) && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir.c_str(), strerror(errno));
       return 1;
     }
-    log_path = build_dir + "/" + kLogPath;
   }
 
   if (!build_log.Load(log_path, &err)) {
@@ -763,7 +766,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    if (RebuildManifest(globals.state, globals.config, input_file, &err)) {
+    if (RebuildManifest(&globals, input_file, &err)) {
       rebuilt_manifest = true;
       globals.ResetState();
       goto reload;
