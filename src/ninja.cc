@@ -799,6 +799,11 @@ reload:
       depdb_path = build_dir + "/" + kDepDbPath;
     }
     globals.state->depdb_ = new DepDatabase(depdb_path, true);
+    if (globals.state->depdb_->RequireClean()) {
+      bool generator = false;
+      Cleaner cleaner(globals.state, globals.config);
+      cleaner.CleanAll(generator);
+    }
   }
 #endif
 

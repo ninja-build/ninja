@@ -42,9 +42,7 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   if (!rule_->depfile().empty()) {
 #ifdef _WIN32
     if (state->depdb_) {
-      if (state->depdb_->ForcedDirty())
-        dirty = true;
-      else if (!LoadDepDb(state, err))
+      if (!LoadDepDb(state, err))
         return false;
     } else
 #endif

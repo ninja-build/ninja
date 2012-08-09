@@ -76,7 +76,7 @@ DepDatabase::DepDatabase(const string& filename, bool create,
     : filename_(filename),
       data_(filename, create),
       max_index_entries_(max_index_entries),
-      force_dirty_(false) {
+      require_clean_(false) {
   if (!max_index_entries_)
     max_index_entries_ = 20000;
   if (!cleanup_size)
@@ -92,7 +92,7 @@ DepDatabase::DepDatabase(const string& filename, bool create,
   // != kCurrentVersion.
   if (create && GetView()->index_entries == 20000) {
     printf("ninja: Dependency database version upgrade, forcing clean.\n");
-    force_dirty_ = true;
+    require_clean_ = true;
     SetEmptyData();
   }
 
