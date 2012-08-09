@@ -28,23 +28,22 @@
 //
 // Writing procedure:
 //
-// 1. Ensure paths are canonicalized, including lower case on Windows.
+// 1. Ensure paths are canonicalized.
 // 2. Build new serialized Deplist data to be added.
 // 3. Acquire lock.
 // 4a. If it's a new path to be added, append blob to deplist, add path to
-// depindex and add path+offset to depindex.
+// depindex and add path+offset to depindex. Resort.
 // 4b. If it's an existing path, memcmp vs. old Deplist. If modified, append
 // to deplist and point index at new entry.
 // 5. Release lock.
 //
 // Reading procedure:
 // 1. Acquire lock.
-// 2. Ensure fully sorted.
-// 3. Binary search for path and load associated Deplist.
-// 4. Release lock.
+// 2. Binary search for path and load associated Deplist.
+// 3. Release lock.
 //
-// Defragment occasionally by locking, walking index and copying referenced
-// data to a new file.
+// Defragment/compact occasionally by locking, walking index and copying
+// referenced data to a new file.
 
 
 #include "dep_database.h"
@@ -62,7 +61,10 @@ struct DepIndex {
   int offset;
 };
 
+static const int kCurrentVersion = 1;
+
 struct DbData {
+  int version;
   int index_entries;
   int max_index_entries;
   int dep_insert_offset;
@@ -73,12 +75,26 @@ DepDatabase::DepDatabase(const string& filename, bool create,
                          int max_index_entries, int cleanup_size)
     : filename_(filename),
       data_(filename, create),
-      max_index_entries_(max_index_entries) {
-
+      max_index_entries_(max_index_entries),
+      force_dirty_(false) {
   if (!max_index_entries_)
     max_index_entries_ = 20000;
   if (!cleanup_size)
     cleanup_size = 500000000;
+
+  // Upgrading from old un-versioned data. Force all dirty. Here, we check
+  // |index_entries| for equality to the 20000 which was the original (fixed)
+  // value of |max_index_entries|. The addition of the |version| field causes
+  // an offset, so we find the old |max_index_entries| in the |index_entries|
+  // slot.
+  //
+  // If/when there's a future format upgrade, this should become simply version
+  // != kCurrentVersion.
+  if (create && GetView()->index_entries == 20000) {
+    printf("ninja: Dependency database version upgrade, forcing clean.\n");
+    force_dirty_ = true;
+    SetEmptyData();
+  }
 
   if (data_.ShouldInitialize()) {
     SetEmptyData();
@@ -163,7 +179,6 @@ void DepDatabase::InsertOrUpdateDepData(const string& filename,
         strcpy(elem->path, file.c_str());
         elem->offset = inserted_offset;
 
-        // TODO: defer sort until necessary (next lookup?)
         sort(view->index, &view->index[view->index_entries], PathCompare);
       }
     }
@@ -236,6 +251,7 @@ char* DepDatabase::GetDataAt(int offset) const {
 void DepDatabase::SetEmptyData() {
   data_.Acquire();
   DbData* data = GetView();
+  data->version = kCurrentVersion;
   data->index_entries = 0;
   data->max_index_entries = max_index_entries_;
   data->dep_insert_offset = sizeof(DbData) +

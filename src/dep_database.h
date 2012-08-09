@@ -45,6 +45,9 @@ struct DepDatabase {
   // data if the path was already in the database. Handles locking internally.
   void InsertOrUpdateDepData(const string& filename, const char* data, int size);
 
+  // During a version upgrade, we flush and force everything to be dirty.
+  bool ForcedDirty() { return force_dirty_; }
+
   void DumpIndex(bool contents);
   void DumpDeps(const string& filename);
   void DumpDepsNoAcquire(const string& filename);
@@ -61,6 +64,7 @@ private:
   string filename_;
   LockableMappedFile data_;
   int max_index_entries_;
+  bool force_dirty_;
 };
 #endif
 
