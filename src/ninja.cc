@@ -780,16 +780,6 @@ reload:
     log_path = build_dir + "/" + kLogPath;
   }
 
-  if (!build_log.Load(log_path, &err)) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
-    return 1;
-  }
-
-  if (!build_log.OpenForWrite(log_path, &err)) {
-    Error("opening build log: %s", err.c_str());
-    return 1;
-  }
-
 #ifdef _WIN32
   const string use_depdb = globals.state->bindings_.LookupVariable("use_dep_database");
   if (!use_depdb.empty()) {
@@ -800,12 +790,24 @@ reload:
     }
     globals.state->depdb_ = new DepDatabase(depdb_path, true);
     if (globals.state->depdb_->RequireClean()) {
-      bool generator = false;
-      Cleaner cleaner(globals.state, globals.config);
-      cleaner.CleanAll(generator);
+      // If we need to do a clean, clobber the build log to force one.
+      if (unlink(log_path.c_str()) < 0) {
+        Error("removing build log for version upgrade: %s", strerror(errno));
+        return 1;
+      }
     }
   }
 #endif
+
+  if (!build_log.Load(log_path, &err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return 1;
+  }
+
+  if (!build_log.OpenForWrite(log_path, &err)) {
+    Error("opening build log: %s", err.c_str());
+    return 1;
+  }
 
   if (!tool.empty())
     return RunTool(tool, &globals, argc, argv);
