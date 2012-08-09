@@ -90,10 +90,15 @@ DepDatabase::DepDatabase(const string& filename, bool create,
   //
   // If/when there's a future format upgrade, this should become simply version
   // != kCurrentVersion.
-  if (create && GetView()->index_entries == 20000) {
-    printf("ninja: Dependency database version upgrade, forcing clean.\n");
-    require_clean_ = true;
-    SetEmptyData();
+  if (create) {
+    data_.Acquire();
+    bool must_upgrade = GetView()->index_entries == 20000;
+    data_.Release();
+    if (must_upgrade) {
+      printf("ninja: Dependency database version upgrade, forcing clean.\n");
+      require_clean_ = true;
+      SetEmptyData();
+    }
   }
 
   if (data_.ShouldInitialize()) {
