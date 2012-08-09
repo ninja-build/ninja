@@ -775,6 +775,31 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ(2u, commands_ran_.size());
 }
 
+TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"build out1: cc in\n"));
+
+  // Create input/output that would be considered up to date when
+  // not considering the command line hash.
+  fs_.Create("in", now_, "");
+  fs_.Create("out1", now_, "");
+  string err;
+
+  // Because it's not in the log, it should not be up-to-date until
+  // we build again.
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  commands_ran_.clear();
+  state_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
 TEST_F(BuildWithLogTest, RestatMissingFile) {
   // If a restat rule doesn't create its output, and the output didn't
   // exist before the rule was run, consider that behavior equivalent
