@@ -166,10 +166,15 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
   // May also be dirty due to the command changing since the last build.
   // But if this is a generator rule, the command changing does not make us
   // dirty.
-  if (!rule_->generator() && build_log &&
-      (entry || (entry = build_log->LookupByOutput(output->path())))) {
-    if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
-      EXPLAIN("command line changed for %s", output->path().c_str());
+  if (!rule_->generator() && build_log) {
+    if (entry || (entry = build_log->LookupByOutput(output->path()))) {
+      if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
+        EXPLAIN("command line changed for %s", output->path().c_str());
+        return true;
+      }
+    }
+    if (!entry) {
+      EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }
   }
