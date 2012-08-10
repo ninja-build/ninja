@@ -39,7 +39,7 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
-bool CanonicalizePath(char* path, int* len, string* err);
+bool CanonicalizePath(char* path, size_t* len, string* err);
 
 /// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
