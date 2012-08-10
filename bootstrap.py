@@ -77,11 +77,10 @@ if sys.platform.startswith('win32'):
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
     if options.x64:
-        args = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe'),
-                '/nologo', '/EHsc', '/DNOMINMAX']
+        cl = os.path.join(vcdir, 'bin', 'amd64', 'cl.exe'),
     else:
-        args = [os.path.join(vcdir, 'bin', 'cl.exe'),
-                '/nologo', '/EHsc', '/DNOMINMAX']
+        cl = [os.path.join(vcdir, 'bin', 'cl.exe')
+    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
