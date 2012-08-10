@@ -77,9 +77,9 @@ if sys.platform.startswith('win32'):
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
     if options.x64:
-        cl = os.path.join(vcdir, 'bin', 'amd64', 'cl.exe'),
+        cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
     else:
-        cl = [os.path.join(vcdir, 'bin', 'cl.exe')
+        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
     args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
