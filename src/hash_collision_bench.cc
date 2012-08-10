@@ -14,6 +14,11 @@
 
 #include "build_log.h"
 
+#include <algorithm>
+using namespace std;
+
+#include <time.h>
+
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);
 }
@@ -22,7 +27,7 @@ void RandomCommand(char** s) {
   int len = random(5, 100);
   *s = new char[len];
   for (int i = 0; i < len; ++i)
-    (*s)[i] = random(32, 127);
+    (*s)[i] = (char)random(32, 127);
 }
 
 int main() {
@@ -32,7 +37,7 @@ int main() {
   char** commands = new char*[N];
   pair<uint64_t, int>* hashes = new pair<uint64_t, int>[N];
 
-  srand(time(NULL));
+  srand((int)time(NULL));
 
   for (int i = 0; i < N; ++i) {
     RandomCommand(&commands[i]);
