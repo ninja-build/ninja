@@ -23,10 +23,10 @@
 #include <stdio.h>
 
 #include "dep_database.h"
-#include "depfile_parser.h"
 #include "includes_normalize.h"
 #include "showincludes_parser.h"
 #include "subprocess.h"
+#include "string_piece.h"
 #include "util.h"
 
 #include "getopt.h"
@@ -39,9 +39,6 @@ void Usage() {
 "\n"
 "usage: ninja-deplist-helper [options] [infile|command]\n"
 "options:\n"
-"  -f FORMAT  specify input format; formats are\n"
-"               gcc  gcc Makefile-like output\n"
-"               cl   MSVC cl.exe /showIncludes output\n"
 "  -q         suppress first line of output in cl mode. this will be the file\n"
 "             being compiled when /nologo is used.\n"
 "  -r BASE    normalize paths and make relative to BASE before outputting\n"
@@ -52,11 +49,6 @@ void Usage() {
 "             must be the last argument\n"
          );
 }
-
-enum InputFormat {
-  INPUT_DEPFILE,
-  INPUT_SHOW_INCLUDES
-};
 
 }  // anonymous namespace
 
@@ -76,7 +68,6 @@ int main(int argc, char** argv) {
   const char* output_filename = NULL;
   const char* relative_to = NULL;
   const char* envfile = NULL;
-  InputFormat input_format = INPUT_DEPFILE;
   bool quiet = false;
   bool run_command = false;
 
@@ -89,13 +80,7 @@ int main(int argc, char** argv) {
   while ((opt = getopt_long(argc, argv, "f:o:hqd:r:e:", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'f': {
-        string format = optarg;
-        if (format == "gcc")
-          input_format = INPUT_DEPFILE;
-        else if (format == "cl")
-          input_format = INPUT_SHOW_INCLUDES;
-        else
-          Fatal("unknown input format '%s'", format.c_str());
+        // Ignored temporarily for backwards compatibility.
         break;
       }
       case 'o':
@@ -167,45 +152,37 @@ int main(int argc, char** argv) {
     }
   }
 
-  DepfileParser depfile;
   vector<StringPiece> includes;
+  vector<StringPiece> ins;
   vector<string> normalized;
   string depfile_err;
-  switch (input_format) {
-  case INPUT_DEPFILE:
-    if (!depfile.Parse(&content, &depfile_err))
-      Fatal("parsing %s", err.c_str());
-    break;
-  case INPUT_SHOW_INCLUDES:
-    if (quiet) {
-      size_t at;
-      if (
-          (at = content.find(".c\r\n")) != string::npos ||
-          (at = content.find(".cc\r\n")) != string::npos ||
-          (at = content.find(".cxx\r\n")) != string::npos ||
-          (at = content.find(".cpp\r\n")) != string::npos ||
-          (at = content.find(".c\n")) != string::npos ||
-          (at = content.find(".cc\n")) != string::npos ||
-          (at = content.find(".cxx\n")) != string::npos ||
-          (at = content.find(".cpp\n")) != string::npos
-         ) {
-        content = content.substr(content.find("\n", at) + 1);
-      }
+  if (quiet) {
+    size_t at;
+    if (
+        (at = content.find(".c\r\n")) != string::npos ||
+        (at = content.find(".cc\r\n")) != string::npos ||
+        (at = content.find(".cxx\r\n")) != string::npos ||
+        (at = content.find(".cpp\r\n")) != string::npos ||
+        (at = content.find(".c\n")) != string::npos ||
+        (at = content.find(".cc\n")) != string::npos ||
+        (at = content.find(".cxx\n")) != string::npos ||
+        (at = content.find(".cpp\n")) != string::npos
+        ) {
+      content = content.substr(content.find("\n", at) + 1);
     }
-    string text = ShowIncludes::Filter(content, &includes);
-    for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i)
-      normalized.push_back(IncludesNormalize::Normalize(*i, relative_to));
-    for (size_t i = 0; i < normalized.size(); ++i)
-      depfile.ins_.push_back(normalized[i]);
-    printf("%s", text.c_str());
-    break;
   }
+  string text = ShowIncludes::Filter(content, &includes);
+  for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i)
+    normalized.push_back(IncludesNormalize::Normalize(*i, relative_to));
+  for (size_t i = 0; i < normalized.size(); ++i)
+    ins.push_back(normalized[i]);
+  printf("%s", text.c_str());
 
   const char* db_filename = ".ninja_depdb";
   if (!output_filename)
       Fatal("-o required");
   DepDatabase depdb(db_filename, false);
-  Deplist::WriteDatabase(depdb, output_filename, depfile.ins_);
+  Deplist::WriteDatabase(depdb, output_filename, ins);
 
   return returncode;
 }
