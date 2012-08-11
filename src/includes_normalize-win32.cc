@@ -90,9 +90,9 @@ bool SameDrive(StringPiece a, StringPiece b)  {
 #ifdef _WIN32
 string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) {
   char copy[_MAX_PATH];
-  int len = input.len_;
+  size_t len = input.len_;
   strncpy(copy, input.str_, input.len_ + 1);
-  for (int j = 0; j < len; ++j)
+  for (size_t j = 0; j < len; ++j)
     if (copy[j] == '/')
       copy[j] = '\\';
   string err;

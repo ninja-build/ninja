@@ -70,7 +70,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       }
       [a-zA-Z0-9+,/_:.~()@=-]+ {
         // Got a span of plain text.
-        int len = in - start;
+        int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
         if (out < start)
           memmove(out, start, len);
@@ -88,7 +88,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       */
     }
 
-    int len = out - filename;
+    int len = (int)(out - filename);
     const bool is_target = parsing_targets;
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.

@@ -49,7 +49,7 @@ const int kCurrentVersion = 5;
 #define BIG_CONSTANT(x) (x##LLU)
 #endif // !defined(_MSC_VER)
 inline
-uint64_t MurmurHash64A(const void* key, int len) {
+uint64_t MurmurHash64A(const void* key, size_t len) {
   static const uint64_t seed = 0xDECAFBADDECAFBADull;
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
@@ -58,11 +58,11 @@ uint64_t MurmurHash64A(const void* key, int len) {
   const uint64_t * end = data + (len/8);
   while(data != end) {
     uint64_t k = *data++;
-    k *= m; 
-    k ^= k >> r; 
-    k *= m; 
+    k *= m;
+    k ^= k >> r;
+    k *= m;
     h ^= k;
-    h *= m; 
+    h *= m;
   }
   const unsigned char* data2 = (const unsigned char*)data;
   switch(len & 7)
@@ -80,7 +80,7 @@ uint64_t MurmurHash64A(const void* key, int len) {
   h *= m;
   h ^= h >> r;
   return h;
-} 
+}
 #undef BIG_CONSTANT
 
 

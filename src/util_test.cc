@@ -28,20 +28,20 @@ bool CanonPath(string* str, string* err) {
   return CanonicalizePath(str, err);
 }
 
-bool CanonPath(char* str, int* len, string* err) {
+bool CanonPath(char* str, size_t* len, string* err) {
 #ifdef _WIN32
-  for (int i = 0; i < *len; ++i)
+  for (size_t i = 0; i < *len; ++i)
     if (str[i] == '/')
       str[i] = '\\';
 #endif
   return CanonicalizePath(str, len, err);
 }
 
-string SLASH(string in, int len = -1) {
+string SLASH(string in, size_t len = -1) {
 #ifdef _WIN32
   if (len == -1)
     len = static_cast<int>(in.size());
-  for (int i = 0; i < len; ++i)
+  for (size_t i = 0; i < len; ++i)
     if (in[i] == '/')
       in[i] = '\\';
 #endif
@@ -139,7 +139,7 @@ TEST(CanonicalizePath, AbsolutePath) {
 TEST(CanonicalizePath, NotNullTerminated) {
   string path;
   string err;
-  int len, orig_len;
+  size_t len, orig_len;
 
   path = "foo/. bar/.";
   orig_len = len = strlen("foo/.");  // Canonicalize only the part before the space.

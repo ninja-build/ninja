@@ -178,9 +178,8 @@ TEST_F(PlanTest, DependencyCycle) {
 
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
-  BuildTest() : config_(MakeConfig()), builder_(&state_, config_), now_(1),
-                last_command_(NULL), status_(config_) {
-    builder_.disk_interface_ = &fs_;
+  BuildTest() : config_(MakeConfig()), builder_(&state_, config_, &fs_),
+                now_(1), last_command_(NULL), status_(config_) {
     builder_.command_runner_.reset(this);
     AssertParse(&state_,
 "build cat1: cat in1\n"
@@ -212,10 +211,9 @@ struct BuildTest : public StateTestWithBuiltinRules,
   }
 
   BuildConfig config_;
+  VirtualFileSystem fs_;
   Builder builder_;
   int now_;
-
-  VirtualFileSystem fs_;
 
   vector<string> commands_ran_;
   Edge* last_command_;

@@ -1,5 +1,6 @@
 *.pyc
 *.exe
+*.pdb
 TAGS
 /build
 /build.ninja

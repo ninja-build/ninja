@@ -26,6 +26,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 parser = OptionParser()
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
+parser.add_option('--x64', action='store_true',
+                  help='force 64-bit build (Windows)',)
 (options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
@@ -77,8 +79,11 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'),
-            '/nologo', '/EHsc', '/DNOMINMAX']
+    if options.x64:
+        cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
+    else:
+        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
+    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
@@ -86,6 +91,8 @@ else:
                    '-DNINJA_BOOTSTRAP'])
     if sys.platform.startswith('win32'):
         cflags.append('-D_WIN32_WINNT=0x0501')
+    if options.x64:
+        cflags.append('-m64')
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
@@ -110,5 +117,9 @@ print 'Building ninja using itself...'
 run([sys.executable, 'configure.py'] + conf_args)
 run(['./' + binary] + verbose)
 os.unlink(binary)
+
+if sys.platform.startswith('win32'):
+    for obj in glob.glob('*.obj'):
+        os.unlink(obj)
 
 print 'Done!'

@@ -18,9 +18,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#include <direct.h>  // _mkdir
 #endif
 
 #include "util.h"
@@ -34,6 +36,14 @@ string DirName(const string& path) {
   while (slash_pos > 0 && path[slash_pos - 1] == DIR_SEP_C)
     --slash_pos;
   return path.substr(0, slash_pos);
+}
+
+int MakeDir(const string& path) {
+#ifdef _WIN32
+  return _mkdir(path.c_str());
+#else
+  return mkdir(path.c_str(), 0777);
+#endif
 }
 
 }  // namespace

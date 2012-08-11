@@ -30,7 +30,7 @@ bool Lexer::Error(const string& message, string* err) {
       context = p + 1;
     }
   }
-  int col = last_token_ ? last_token_ - context : 0;
+  int col = last_token_ ? (int)(last_token_ - context) : 0;
 
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d: ", filename_.AsString().c_str(), line);
