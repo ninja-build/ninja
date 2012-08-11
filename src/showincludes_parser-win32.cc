@@ -37,7 +37,7 @@ string ShowIncludes::Filter(const string& output,
       in += sizeof(kMagicPrefix) - 1;
       while (*in == ' ')
         ++in;
-      int len = next - in;
+      size_t len = next - in;
       while (len > 0 && (in[len - 1] == '\n' || in[len - 1] == '\r'))
         --len;
       // Hack to exclude system includes.
