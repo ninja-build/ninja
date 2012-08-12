@@ -249,6 +249,7 @@ for name in ['build',
 if platform in ('mingw', 'windows'):
     objs += cxx('subprocess-win32')
     if platform == 'windows':
+        objs += cxx('msvc_helper-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -318,6 +319,8 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
+if platform == 'windows':
+    objs += cxx('msvc_helper_test', variables=[('cflags', test_cflags)])
 
 if platform != 'mingw' and platform != 'windows':
     test_libs.append('-lpthread')
