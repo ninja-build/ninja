@@ -31,5 +31,5 @@ struct IncludesNormalize {
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path relative to |relative_to|. Case is normalized to lowercase on
   /// Windows too.
-  static string Normalize(StringPiece input, const char* relative_to);
+  static string Normalize(const string& input, const char* relative_to);
 };

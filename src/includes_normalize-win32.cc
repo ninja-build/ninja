@@ -91,18 +91,17 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
   return Join(rel_list, '\\');
 }
 
-string IncludesNormalize::Normalize(StringPiece input,
+string IncludesNormalize::Normalize(const string& input,
                                     const char* relative_to) {
   char copy[_MAX_PATH];
-  size_t len = input.len_;
-  strncpy(copy, input.str_, input.len_ + 1);
+  size_t len = input.size();
+  strncpy(copy, input.c_str(), input.size() + 1);
   for (size_t j = 0; j < len; ++j)
     if (copy[j] == '/')
       copy[j] = '\\';
   string err;
   if (!CanonicalizePath(copy, &len, &err)) {
-    Warning("couldn't canonicalize '%*s': %s\n", input.len_, input.str_,
-            err.c_str());
+    Warning("couldn't canonicalize '%s: %s\n", input.c_str(), err.c_str());
   }
   string curdir;
   if (!relative_to) {
@@ -111,6 +110,6 @@ string IncludesNormalize::Normalize(StringPiece input,
   }
   StringPiece partially_fixed(copy, len);
   if (!SameDrive(partially_fixed, relative_to))
-    return partially_fixed.AsString();
+    return ToLower(partially_fixed.AsString());
   return ToLower(Relativize(partially_fixed, relative_to));
 }
