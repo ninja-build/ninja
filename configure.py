@@ -108,8 +108,13 @@ else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform == 'windows':
-    cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
+    cflags = ['/nologo',  # Don't print startup banner.
+              '/Zi',  # Create pdb with debug info.
+              '/W4',  # Highest warning level.
+              '/WX',  # Warnings as errors.
+              '/wd4530', '/wd4100', '/wd4706',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/GR-',  # Disable RTTI.
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
