@@ -20,14 +20,6 @@
 
 #include "util.h"
 
-namespace {
-
-void Win32Fatal(const char* function) {
-  Fatal("%s: %s", function, GetLastErrorString().c_str());
-}
-
-}  // anonymous namespace
-
 Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
 }
 

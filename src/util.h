@@ -82,6 +82,9 @@ string ElideMiddle(const string& str, size_t width);
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
+
+/// Calls Fatal() with a function name and GetLastErrorString.
+void Win32Fatal(const char* function);
 #endif
 
 #endif  // NINJA_UTIL_H_
