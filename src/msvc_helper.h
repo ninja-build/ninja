@@ -34,5 +34,11 @@ struct CLWrapper {
   /// Exposed for testing.
   static string FilterShowIncludes(const string& line);
 
+  /// Parse a line of cl.exe output and return true if it looks like
+  /// it's printing an input filename.  This is a heuristic but it appears
+  /// to be the best we can do.
+  /// Exposed for testing.
+  static bool FilterInputFilename(const string& line);
+
   vector<string> includes_;
 };

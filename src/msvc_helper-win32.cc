@@ -19,6 +19,16 @@
 
 #include "util.h"
 
+namespace {
+
+/// Return true if \a input ends with \a needle.
+bool EndsWith(const string& input, const string& needle) {
+  return (input.size() >= needle.size() &&
+          input.substr(input.size() - needle.size()) == needle);
+}
+
+}  // anonymous namespace
+
 // static
 string CLWrapper::FilterShowIncludes(const string& line) {
   static const char kMagicPrefix[] = "Note: including file: ";
@@ -33,6 +43,15 @@ string CLWrapper::FilterShowIncludes(const string& line) {
     return line.substr(in - line.c_str());
   }
   return "";
+}
+
+// static
+bool CLWrapper::FilterInputFilename(const string& line) {
+  // TODO: other extensions, like .asm?
+  return EndsWith(line, ".c") ||
+      EndsWith(line, ".cc") ||
+      EndsWith(line, ".cxx") ||
+      EndsWith(line, ".cpp");
 }
 
 int CLWrapper::Run(const string& command, string* extra_output) {
@@ -97,6 +116,10 @@ int CLWrapper::Run(const string& command, string* extra_output) {
       string include = FilterShowIncludes(line);
       if (!include.empty()) {
         includes_.push_back(include);
+      } else if (FilterInputFilename(line)) {
+        // Drop it.
+        // TODO: if we support compiling multiple output files in a single
+        // cl.exe invocation, we should stash the filename.
       } else {
         if (extra_output) {
           extra_output->append(line);

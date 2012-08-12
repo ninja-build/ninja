@@ -31,6 +31,16 @@ TEST(MSVCHelperTest, ShowIncludes) {
                                           "c:\\initspaces.h"));
 }
 
+TEST(MSVCHelperTest, FilterInputFilename) {
+  ASSERT_TRUE(CLWrapper::FilterInputFilename("foobar.cc"));
+  ASSERT_TRUE(CLWrapper::FilterInputFilename("foo bar.cc"));
+  ASSERT_TRUE(CLWrapper::FilterInputFilename("baz.c"));
+
+  ASSERT_FALSE(CLWrapper::FilterInputFilename(
+                   "src\\cl_helper.cc(166) : fatal error C1075: end "
+                   "of file found ..."));
+}
+
 TEST(MSVCHelperTest, Run) {
   CLWrapper cl;
   string output;
@@ -39,4 +49,12 @@ TEST(MSVCHelperTest, Run) {
   ASSERT_EQ("foo\nbar\n", output);
   ASSERT_EQ(1u, cl.includes_.size());
   ASSERT_EQ("foo.h", cl.includes_[0]);
+}
+
+TEST(MSVCHelperTest, RunFilenameFilter) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo foo.cc&& echo cl: warning\"",
+         &output);
+  ASSERT_EQ("cl: warning\n", output);
 }
