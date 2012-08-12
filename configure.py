@@ -291,10 +291,10 @@ if options.with_gtest:
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest-all.cc'),
+                    os.path.join(path, 'src', 'gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest_main.cc'),
+                    os.path.join(path, 'src', 'gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
