@@ -41,7 +41,8 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, size_t* len, string* err);
 
-/// Read a file to a string.
+/// Read a file to a string (in text mode: with CRLF conversion
+/// on Windows).
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
