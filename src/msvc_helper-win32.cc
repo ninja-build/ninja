@@ -17,6 +17,7 @@
 #include <string.h>
 #include <windows.h>
 
+#include "includes_normalize.h"
 #include "util.h"
 
 namespace {
@@ -43,6 +44,13 @@ string CLWrapper::FilterShowIncludes(const string& line) {
     return line.substr(in - line.c_str());
   }
   return "";
+}
+
+// static
+bool CLWrapper::IsSystemInclude(const string& path) {
+  // TODO: this is a heuristic, perhaps there's a better way?
+  return (path.find("program files") != string::npos ||
+          path.find("microsoft visual studio") != string::npos);
 }
 
 // static
@@ -115,7 +123,9 @@ int CLWrapper::Run(const string& command, string* extra_output) {
 
       string include = FilterShowIncludes(line);
       if (!include.empty()) {
-        includes_.push_back(include);
+        include = IncludesNormalize::Normalize(include, NULL);
+        if (!IsSystemInclude(include))
+          includes_.push_back(include);
       } else if (FilterInputFilename(line)) {
         // Drop it.
         // TODO: if we support compiling multiple output files in a single

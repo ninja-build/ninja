@@ -58,3 +58,17 @@ TEST(MSVCHelperTest, RunFilenameFilter) {
          &output);
   ASSERT_EQ("cl: warning\n", output);
 }
+
+TEST(MSVCHelperTest, RunSystemInclude) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo Note: including file: c:\\Program Files\\foo.h&&"
+         "echo Note: including file: d:\\Microsoft Visual Studio\\bar.h&&"
+         "echo Note: including file: path.h\"",
+         &output);
+  // We should have dropped the first two includes because they look like
+  // system headers.
+  ASSERT_EQ("", output);
+  ASSERT_EQ(1u, cl.includes_.size());
+  ASSERT_EQ("path.h", cl.includes_[0]);
+}
