@@ -15,8 +15,9 @@
 #include "msvc_helper.h"
 
 #include <string.h>
+#include <windows.h>
 
-#include "string_piece.h"
+#include "util.h"
 
 // static
 string CLWrapper::FilterShowIncludes(const string& line) {
@@ -32,4 +33,99 @@ string CLWrapper::FilterShowIncludes(const string& line) {
     return line.substr(in - line.c_str());
   }
   return "";
+}
+
+int CLWrapper::Run(const string& command, string* extra_output) {
+  SECURITY_ATTRIBUTES security_attributes = {};
+  security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
+  security_attributes.bInheritHandle = TRUE;
+
+  // Must be inheritable so subprocesses can dup to children.
+  HANDLE nul = CreateFile("NUL", GENERIC_READ,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE |
+                          FILE_SHARE_DELETE,
+                          &security_attributes, OPEN_EXISTING, 0, NULL);
+  if (nul == INVALID_HANDLE_VALUE)
+    Fatal("couldn't open nul");
+
+  HANDLE stdout_read, stdout_write;
+  if (!CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0))
+    Win32Fatal("CreatePipe");
+
+  if (!SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0))
+    Win32Fatal("SetHandleInformation");
+
+  PROCESS_INFORMATION process_info = {};
+  STARTUPINFO startup_info = {};
+  startup_info.cb = sizeof(STARTUPINFO);
+  startup_info.hStdInput = nul;
+  startup_info.hStdError = stdout_write;
+  startup_info.hStdOutput = stdout_write;
+  startup_info.dwFlags |= STARTF_USESTDHANDLES;
+
+  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
+                      /* inherit handles */ TRUE, 0,
+                      NULL, NULL,
+                      &startup_info, &process_info)) {
+    Win32Fatal("CreateProcess");
+  }
+
+  if (!CloseHandle(nul) ||
+      !CloseHandle(stdout_write)) {
+    Win32Fatal("CloseHandle");
+  }
+
+  // Read output of the subprocess and parse it.
+  string output;
+  DWORD read_len = 1;
+  while (read_len) {
+    char buf[64 << 10];
+    read_len = 0;
+    if (!::ReadFile(stdout_read, buf, sizeof(buf), &read_len, NULL) &&
+        GetLastError() != ERROR_BROKEN_PIPE) {
+      Win32Fatal("ReadFile");
+    }
+    output.append(buf, read_len);
+
+    // Loop over all lines in the output and process them.
+    for (;;) {
+      size_t ofs = output.find_first_of("\r\n");
+      if (ofs == string::npos)
+        break;
+      string line = output.substr(0, ofs);
+
+      string include = FilterShowIncludes(line);
+      if (!include.empty()) {
+        includes_.push_back(include);
+      } else {
+        if (extra_output) {
+          extra_output->append(line);
+          extra_output->append("\n");
+        } else {
+          printf("%s\n", line.c_str());
+        }
+      }
+
+      if (ofs < output.size() && output[ofs] == '\r')
+        ++ofs;
+      if (ofs < output.size() && output[ofs] == '\n')
+        ++ofs;
+      output = output.substr(ofs);
+    }
+  }
+
+  if (WaitForSingleObject(process_info.hProcess, INFINITE) == WAIT_FAILED)
+    Win32Fatal("WaitForSingleObject");
+
+  DWORD exit_code = 0;
+  if (!GetExitCodeProcess(process_info.hProcess, &exit_code))
+    Win32Fatal("GetExitCodeProcess");
+
+  if (!CloseHandle(stdout_read) ||
+      !CloseHandle(process_info.hProcess) ||
+      !CloseHandle(process_info.hThread)) {
+    Win32Fatal("CloseHandle");
+  }
+
+  return exit_code;
 }

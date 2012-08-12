@@ -30,3 +30,13 @@ TEST(MSVCHelperTest, ShowIncludes) {
             CLWrapper::FilterShowIncludes("Note: including file:    "
                                           "c:\\initspaces.h"));
 }
+
+TEST(MSVCHelperTest, Run) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo foo&& echo Note: including file:  foo.h&&echo bar\"",
+         &output);
+  ASSERT_EQ("foo\nbar\n", output);
+  ASSERT_EQ(1u, cl.includes_.size());
+  ASSERT_EQ("foo.h", cl.includes_[0]);
+}

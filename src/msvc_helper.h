@@ -23,7 +23,16 @@ struct StringPiece;
 /// format when building with /showIncludes.  This class wraps a CL
 /// process and parses that output to extract the file list.
 struct CLWrapper {
+  /// Start a process and parse its output.  Returns its exit code.
+  /// Any non-parsed output is buffered into \a extra_output if provided,
+  /// otherwise it is printed to stdout while the process runs.
+  /// Crashes (calls Fatal()) on error.
+  int Run(const string& command, string* extra_output=NULL);
+
   /// Parse a line of cl.exe output and extract /showIncludes info.
   /// If a dependency is extracted, returns a nonempty string.
+  /// Exposed for testing.
   static string FilterShowIncludes(const string& line);
+
+  vector<string> includes_;
 };
