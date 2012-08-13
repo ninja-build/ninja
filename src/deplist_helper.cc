@@ -172,8 +172,10 @@ int main(int argc, char** argv) {
     }
   }
   string text = ShowIncludes::Filter(content, &includes);
-  for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i)
-    normalized.push_back(IncludesNormalize::Normalize(*i, relative_to));
+  for (vector<StringPiece>::iterator i(includes.begin()); i != includes.end(); ++i) {
+    // TODO: AsString temp (maybe this is dead code anyway?)
+    normalized.push_back(IncludesNormalize::Normalize(i->AsString(), relative_to));
+  }
   for (size_t i = 0; i < normalized.size(); ++i)
     ins.push_back(normalized[i]);
   printf("%s", text.c_str());

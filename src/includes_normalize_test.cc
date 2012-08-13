@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef _WIN32
-
 #include "includes_normalize.h"
 
 #include <gtest/gtest.h>
@@ -88,14 +86,12 @@ TEST(IncludesNormalize, DifferentDrive) {
       IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "p:\\vs08"));
   EXPECT_EQ("stuff.h",
       IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "p:\\vs08"));
-  EXPECT_EQ("P:\\vs08\\stuff.h",
+  EXPECT_EQ("p:\\vs08\\stuff.h",
       IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "c:\\vs08"));
-  EXPECT_EQ("P:\\vs08\\stuff.h",
+  EXPECT_EQ("p:\\vs08\\stuff.h",
       IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "D:\\stuff/things"));
-  EXPECT_EQ("P:\\vs08\\stuff.h",
+  EXPECT_EQ("p:\\vs08\\stuff.h",
       IncludesNormalize::Normalize("P:/vs08\\stuff.h", "D:\\stuff/things"));
-  EXPECT_EQ("P:\\wee\\stuff.h",
+  EXPECT_EQ("p:\\wee\\stuff.h",
       IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h", "D:\\stuff/things"));
 }
-
-#endif

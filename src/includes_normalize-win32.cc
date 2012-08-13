@@ -1,7 +1,7 @@
 // Copyright 2012 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file exceIncludesNormalize::pt in compliance with the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -21,6 +21,22 @@
 #include <iterator>
 #include <sstream>
 
+namespace {
+
+bool SameDrive(StringPiece a, StringPiece b)  {
+  char a_absolute[_MAX_PATH];
+  char b_absolute[_MAX_PATH];
+  GetFullPathName(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
+  GetFullPathName(b.AsString().c_str(), sizeof(b_absolute), b_absolute, NULL);
+  char a_drive[_MAX_DIR];
+  char b_drive[_MAX_DIR];
+  _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
+  _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
+  return _stricmp(a_drive, b_drive) == 0;
+}
+
+}  // anonymous namespace
+
 string IncludesNormalize::Join(const vector<string>& list, char sep) {
   string ret;
   for (size_t i = 0; i < list.size(); ++i) {
@@ -29,7 +45,7 @@ string IncludesNormalize::Join(const vector<string>& list, char sep) {
       ret += sep;
   }
   return ret;
-}  
+}
 
 vector<string> IncludesNormalize::Split(const string& input, char sep) {
   vector<string> elems;
@@ -56,7 +72,8 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
   vector<string> start_list = Split(AbsPath(start), '\\');
   vector<string> path_list = Split(AbsPath(path), '\\');
   int i;
-  for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size())); ++i) {
+  for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size()));
+       ++i) {
     if (ToLower(start_list[i]) != ToLower(path_list[i]))
       break;
   }
@@ -71,33 +88,17 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
   return Join(rel_list, '\\');
 }
 
-namespace {
-
-bool SameDrive(StringPiece a, StringPiece b)  {
-  char a_absolute[_MAX_PATH];
-  char b_absolute[_MAX_PATH];
-  GetFullPathName(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
-  GetFullPathName(b.AsString().c_str(), sizeof(b_absolute), b_absolute, NULL);
-  char a_drive[_MAX_DIR];
-  char b_drive[_MAX_DIR];
-  _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
-  _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
-  return _stricmp(a_drive, b_drive) == 0;
-}
-
-}
-
-#ifdef _WIN32
-string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) {
+string IncludesNormalize::Normalize(const string& input,
+                                    const char* relative_to) {
   char copy[_MAX_PATH];
-  size_t len = input.len_;
-  strncpy(copy, input.str_, input.len_ + 1);
+  size_t len = input.size();
+  strncpy(copy, input.c_str(), input.size() + 1);
   for (size_t j = 0; j < len; ++j)
     if (copy[j] == '/')
       copy[j] = '\\';
   string err;
   if (!CanonicalizePath(copy, &len, &err)) {
-    fprintf(stderr, "WARNING: couldn't canonicalize '%*s': %s\n", input.len_, input.str_, err.c_str());
+    Warning("couldn't canonicalize '%s: %s\n", input.c_str(), err.c_str());
   }
   string curdir;
   if (!relative_to) {
@@ -106,7 +107,6 @@ string IncludesNormalize::Normalize(StringPiece input, const char* relative_to) 
   }
   StringPiece partially_fixed(copy, len);
   if (!SameDrive(partially_fixed, relative_to))
-    return partially_fixed.AsString();
+    return ToLower(partially_fixed.AsString());
   return ToLower(Relativize(partially_fixed, relative_to));
 }
-#endif

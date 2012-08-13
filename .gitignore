@@ -9,7 +9,6 @@ TAGS
 /canon_perftest
 /hash_collision_bench
 /ninja_test
-/ninja-deplist-helper
 /parser_perftest
 /graph.png
 /doc/manual.html

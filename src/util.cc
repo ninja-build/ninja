@@ -253,6 +253,10 @@ string GetLastErrorString() {
   LocalFree(msg_buf);
   return msg;
 }
+
+void Win32Fatal(const char* function) {
+  Fatal("%s: %s", function, GetLastErrorString().c_str());
+}
 #endif
 
 static bool islatinalpha(int c) {
