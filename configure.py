@@ -97,7 +97,9 @@ def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
     if platform in ('mingw', 'windows'):
-        return name + '.exe'
+        exe = name + '.exe'
+        n.build(name, 'phony', exe)
+        return exe
     return name
 
 n.variable('builddir', 'build')
@@ -277,8 +279,6 @@ n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
-if 'ninja' not in ninja:
-  n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 
@@ -334,8 +334,6 @@ if platform != 'mingw' and platform != 'windows':
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
-if 'ninja_test' not in ninja_test:
-  n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 
