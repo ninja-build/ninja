@@ -97,7 +97,9 @@ def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
     if platform in ('mingw', 'windows'):
-        return name + '.exe'
+        exe = name + '.exe'
+        n.build(name, 'phony', exe)
+        return exe
     return name
 
 n.variable('builddir', 'build')
@@ -108,8 +110,13 @@ else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform == 'windows':
-    cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
+    cflags = ['/nologo',  # Don't print startup banner.
+              '/Zi',  # Create pdb with debug info.
+              '/W4',  # Highest warning level.
+              '/WX',  # Warnings as errors.
+              '/wd4530', '/wd4100', '/wd4706',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/GR-',  # Disable RTTI.
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
@@ -249,6 +256,8 @@ for name in ['build',
 if platform in ('mingw', 'windows'):
     objs += cxx('subprocess-win32')
     if platform == 'windows':
+        objs += cxx('includes_normalize-win32')
+        objs += cxx('msvc_helper-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -270,8 +279,6 @@ n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
-if 'ninja' not in ninja:
-  n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 
@@ -291,10 +298,10 @@ if options.with_gtest:
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest-all.cc'),
+                    os.path.join(path, 'src', 'gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest_main.cc'),
+                    os.path.join(path, 'src', 'gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
@@ -318,14 +325,15 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
+if platform == 'windows':
+    for name in ['includes_normalize_test', 'msvc_helper_test']:
+        objs += cxx(name, variables=[('cflags', test_cflags)])
 
 if platform != 'mingw' and platform != 'windows':
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
-if 'ninja_test' not in ninja_test:
-  n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 

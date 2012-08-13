@@ -41,7 +41,8 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, size_t* len, string* err);
 
-/// Read a file to a string.
+/// Read a file to a string (in text mode: with CRLF conversion
+/// on Windows).
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
@@ -81,6 +82,9 @@ string ElideMiddle(const string& str, size_t width);
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
+
+/// Calls Fatal() with a function name and GetLastErrorString.
+void Win32Fatal(const char* function);
 #endif
 
 #endif  // NINJA_UTIL_H_
