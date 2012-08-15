@@ -68,6 +68,8 @@ for src in glob.glob('src/*.cc'):
     else:
         if src.endswith('-win32.cc'):
             continue
+    if '_main' in src:
+        continue
 
     if filename == 'deplist_helper.cc':
         continue
@@ -113,13 +115,41 @@ verbose = []
 if options.verbose:
     verbose = ['-v']
 
-print 'Building ninja using itself...'
-run([sys.executable, 'configure.py'] + conf_args)
-run(['./' + binary] + verbose)
-os.unlink(binary)
-
 if sys.platform.startswith('win32'):
+    # Build ninja-msvc-helper using ninja without an msvc-helper.
+    print 'Building ninja-msvc-helper...'
+    run([sys.executable, 'configure.py', '--with-msvc-helper='] + conf_args)
+    run(['./' + binary] + verbose + ['ninja-msvc-helper'])
+
+    # Rename the helper to the same name + .bootstrap.
+    helper_binary = 'ninja-msvc-helper.bootstrap.exe'
+    try:
+        os.unlink(helper_binary)
+    except:
+        pass
+    os.rename('ninja-msvc-helper.exe', helper_binary)
+
+    # Build ninja using the newly-built msvc-helper.
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py',
+         '--with-msvc-helper=%s' % helper_binary] + conf_args)
+    run(['./' + binary] + verbose)
+
+    # Clean up.
     for obj in glob.glob('*.obj'):
         os.unlink(obj)
 
-print 'Done!'
+    print """
+Done!
+
+Note: to work around Windows file locking, where you can't rebuild an
+in-use binary, to run ninja after making any changes to build ninja itself
+you should run ninja.bootstrap instead.  Your build is also configured to
+use ninja-msvc-helper.bootstrap.exe instead of the ninja-msvc-helper.exe
+that it builds; see the --help output of configure.py."""
+else:
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py'] + conf_args)
+    run(['./' + binary] + verbose)
+    os.unlink(binary)
+    print 'Done!'
