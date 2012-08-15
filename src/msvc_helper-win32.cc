@@ -92,7 +92,7 @@ int CLWrapper::Run(const string& command, string* extra_output) {
 
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, 0,
-                      NULL, NULL,
+                      env_block_, NULL,
                       &startup_info, &process_info)) {
     Win32Fatal("CreateProcess");
   }

@@ -72,3 +72,12 @@ TEST(MSVCHelperTest, RunSystemInclude) {
   ASSERT_EQ(1u, cl.includes_.size());
   ASSERT_EQ("path.h", cl.includes_[0]);
 }
+
+TEST(MSVCHelperTest, EnvBlock) {
+  char env_block[] = "foo=bar\0";
+  CLWrapper cl;
+  cl.SetEnvBlock(env_block);
+  string output;
+  cl.Run("cmd /c \"echo foo is %foo%", &output);
+  ASSERT_EQ("foo is bar\n", output);
+}

@@ -21,6 +21,12 @@ using namespace std;
 /// format when building with /showIncludes.  This class wraps a CL
 /// process and parses that output to extract the file list.
 struct CLWrapper {
+  CLWrapper() : env_block_(NULL) {}
+
+  /// Set the environment block (as suitable for CreateProcess) to be used
+  /// by Run().
+  void SetEnvBlock(void* env_block) { env_block_ = env_block; }
+
   /// Start a process and parse its output.  Returns its exit code.
   /// Any non-parsed output is buffered into \a extra_output if provided,
   /// otherwise it is printed to stdout while the process runs.
@@ -43,5 +49,6 @@ struct CLWrapper {
   /// Exposed for testing.
   static bool FilterInputFilename(const string& line);
 
+  void* env_block_;
   vector<string> includes_;
 };
