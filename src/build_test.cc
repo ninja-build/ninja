@@ -723,6 +723,31 @@ struct BuildWithLogTest : public BuildTest {
   BuildLog build_log_;
 };
 
+TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"build out1: cc in\n"));
+
+  // Create input/output that would be considered up to date when
+  // not considering the command line hash.
+  fs_.Create("in", now_, "");
+  fs_.Create("out1", now_, "");
+  string err;
+
+  // Because it's not in the log, it should not be up-to-date until
+  // we build again.
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  commands_ran_.clear();
+  state_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
 TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule true\n"
@@ -743,9 +768,22 @@ TEST_F(BuildWithLogTest, RestatTest) {
 
   fs_.Create("in", now_, "");
 
+  // Do a pre-build so that there's commands in the log for the outputs,
+  // otherwise, the lack of an entry in the build log will cause out3 to rebuild
+  // regardless of restat.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  commands_ran_.clear();
+  state_.Reset();
+
+  now_++;
+
+  fs_.Create("in", now_, "");
   // "cc" touches out1, so we should build out2.  But because "true" does not
   // touch out2, we should cancel the build of out3.
-  string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -790,10 +828,24 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   fs_.Create("in", now_, "");
   fs_.Create("out2", now_, "");
 
+  // Do a pre-build so that there's commands in the log for the outputs,
+  // otherwise, the lack of an entry in the build log will cause out2 to rebuild
+  // regardless of restat.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  commands_ran_.clear();
+  state_.Reset();
+
+  now_++;
+  fs_.Create("in", now_, "");
+  fs_.Create("out2", now_, "");
+
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so
   // we shouldn't run the dependent build.
-  string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
