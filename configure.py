@@ -233,12 +233,22 @@ if platform not in ('mingw', 'windows'):
     n.newline()
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
-n.rule('re2c',
-       command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
-# Generate the .cc files in the source directory so we can check them in.
-n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
-n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+def has_re2c():
+  import subprocess
+  try:
+    subprocess.call(['re2c', '-v'], stdout=subprocess.PIPE)
+    return True
+  except OSError:
+    return False
+if has_re2c():
+  n.rule('re2c',
+         command='re2c -b -i --no-generation-date -o $out $in',
+         description='RE2C $out')
+  # Generate the .cc files in the source directory so we can check them in.
+  n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+  n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+else:
+  n.comment('(re2c not found, using checked-in cc files instead.)')
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
