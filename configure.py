@@ -235,7 +235,9 @@ if platform not in ('mingw', 'windows'):
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 n.rule('re2c',
        command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
+       description='RE2C $out',
+       # To make re2c not required as long as the .in.cc files don't change.
+       generator=True)
 # Generate the .cc files in the source directory so we can check them in.
 n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
 n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
