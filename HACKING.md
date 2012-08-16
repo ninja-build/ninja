@@ -108,6 +108,6 @@ it's locked while in use.
 
 ## Clang
 
-Enable colors manually via `-fcolor-diagnostics`:
+To use clang, set `CXX`:
 
-    CXX='/path/to/llvm/Release+Asserts/bin/clang++ -fcolor-diagnostics' ./configure.py
+    CXX=clang++ ./configure.py
