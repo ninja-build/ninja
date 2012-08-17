@@ -154,7 +154,7 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
 
   string err;
   BuildLog log;
-  EXPECT_FALSE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_NE(err.find("version"), string::npos);
 }
 

@@ -759,6 +759,11 @@ reload:
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
     return 1;
   }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
 
   if (!build_log.OpenForWrite(log_path, &err)) {
     Error("opening build log: %s", err.c_str());

@@ -235,10 +235,13 @@ bool BuildLog::Load(const string& path, string* err) {
       sscanf(line_start, kFileSignature, &log_version);
 
       if (log_version < kOldestSupportedVersion) {
-        *err = "unable to extract version from build log, perhaps due to "
-          "being too old; you must clobber your build output and rebuild";
+        *err = ("build log version invalid, perhaps due to being too old; "
+                "starting over");
         fclose(file);
-        return false;
+        unlink(path.c_str());
+        // Don't report this as a failure.  An empty build log will cause
+        // us to rebuild the outputs anyway.
+        return true;
       }
     }
 
