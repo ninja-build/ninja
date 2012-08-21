@@ -45,6 +45,8 @@ parser.add_option('--with-gtest', metavar='PATH',
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
+parser.add_option('--with-msvc-helper', metavar='NAME',
+                  help="name for ninja-msvc-helper binary (MSVC only)")
 (options, args) = parser.parse_args()
 if args:
     print 'ERROR: extra unparsed command-line arguments:', args
@@ -109,7 +111,9 @@ def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
     if platform in ('msys', 'mingw', 'windows'):
-        return name + '.exe'
+        exe = name + '.exe'
+        n.build(name, 'phony', exe)
+        return exe
     return name
 
 n.variable('builddir', 'build')
@@ -120,8 +124,16 @@ else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform == 'windows':
-    cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
+    cflags = ['/nologo',  # Don't print startup banner.
+              '/Zi',  # Create pdb with debug info.
+              '/W4',  # Highest warning level.
+              '/WX',  # Warnings as errors.
+              '/wd4530', '/wd4100', '/wd4706',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/GR-',  # Disable RTTI.
+              # Disable size_t -> int truncation warning.
+              # We never have strings or arrays larger than 2**31.
+              '/wd4267',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/DNINJA_PYTHON="%s"' % options.with_python]
     ldflags = ['/DEBUG', '/libpath:$builddir']
@@ -179,8 +191,11 @@ n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
 if platform == 'windows':
+    compiler = '$cxx'
+    if options.with_msvc_helper:
+        compiler = '%s -o $out -- $cxx /showIncludes' % options.with_msvc_helper
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='%s $cflags -c $in /Fo$out' % compiler,
         depfile='$out.d',
         description='CXX $out')
 else:
@@ -245,15 +260,26 @@ if platform not in ('cygwin', 'msys', 'mingw', 'windows'):
     objs += cxx('browse', order_only=built('browse_py.h'))
     n.newline()
 
-    n.comment('the depfile parser and ninja lexers are generated using re2c.')
+n.comment('the depfile parser and ninja lexers are generated using re2c.')
+def has_re2c():
+    import subprocess
+    try:
+        subprocess.call(['re2c', '-v'], stdout=subprocess.PIPE)
+        return True
+    except OSError:
+        return False
+if has_re2c():
     n.rule('re2c',
            command='re2c -b -i --no-generation-date -o $out $in',
            description='RE2C $out',
-           generator=True)  #XXX prevent clean of generated files
+           generator=True)  #NOTE prevent clean of generated files
     # Generate the .cc files in the source directory so we can check them in.
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
-    n.newline()
+else:
+    print ("warning: re2c not found; changes to src/*.in.cc will not affect "
+           "your build.")
+n.newline()
 
 n.comment('Core source files all build into ninja library.')
 for name in ['build',
@@ -275,6 +301,8 @@ for name in ['build',
 if platform in ('msys', 'mingw', 'windows'):
     objs += cxx('subprocess-win32')
     if platform == 'windows':
+        objs += cxx('includes_normalize-win32')
+        objs += cxx('msvc_helper-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -300,6 +328,16 @@ if 'ninja' not in ninja:
     n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
+
+if platform == 'windows':
+    n.comment('Helper for working with MSVC.')
+    msvc_helper = n.build(binary('ninja-msvc-helper'), 'link',
+                          cxx('msvc_helper_main-win32'),
+                          implicit=ninja_lib,
+                          variables=[('libs', libs)])
+    n.default(msvc_helper)
+    n.newline()
+    all_targets += msvc_helper
 
 n.comment('Tests all build into ninja_test executable.')
 
@@ -346,6 +384,9 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
+if platform == 'windows':
+    for name in ['includes_normalize_test', 'msvc_helper_test']:
+        objs += cxx(name, variables=[('cflags', test_cflags)])
 
 if platform not in ('msys', 'mingw', 'windows'):
     test_libs.append('-lpthread')
@@ -402,7 +443,7 @@ n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
-                   ['README', 'HACKING', 'COPYING'],
+                   ['README', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
@@ -418,7 +459,6 @@ if host not in ('msys', 'mingw', 'windows'):
             implicit=['configure.py', os.path.normpath('misc/ninja_syntax.py')])
     n.newline()
 
-n.comment('Build only the main binary by default.')
 n.default(ninja)
 n.newline()
 

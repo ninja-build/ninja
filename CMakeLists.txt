@@ -188,16 +188,19 @@ set(ninja_lib
         ${srcdir}/state.cc
         ${srcdir}/util.cc)
 
-if(unix AND NOT MINGW)
+if(windows OR MINGW)
+    list(APPEND ninja_lib
+        ${srcdir}/getopt.c
+        ${srcdir}/minidump-win32.cc
+        ${srcdir}/subprocess-win32.cc
+        ${srcdir}/includes_normalize-win32.cc
+        )
+    add_definitions(-D_WIN32_WINNT=0x0501)
+elseif(unix AND NOT MINGW)
     list(APPEND  ninja_lib ${srcdir}/subprocess-posix.cc)
 #   if(LINUX)
 #       list(APPEND  ninja_lib ${srcdir}/clockgettime_linux.cc)
 #   endif(LINUX)
-elseif(windows OR MINGW)
-    list(APPEND ninja_lib ${srcdir}/getopt.c ${srcdir}/subprocess-win32.cc
-        ${srcdir}/minidump-win32.cc
-    )
-    add_definitions(-D_WIN32_WINNT=0x0501)
 endif()
 
 
@@ -296,7 +299,22 @@ if(gtest)
     endmacro()
 
     # find all tests in src/
-    file(GLOB ninja_test_sources ${srcdir}/*_test.cc)
+    ###FIXME win32 only: src/msvc_helper_test.cc src/includes_normalize_test.cc
+    ###FIXME file(GLOB ninja_test_sources ${srcdir}/*_test.cc)
+    set(ninja_test_sources 
+        src/build_log_test.cc
+        src/build_test.cc
+        src/clean_test.cc
+        src/depfile_parser_test.cc
+        src/disk_interface_test.cc
+        src/edit_distance_test.cc
+        src/graph_test.cc
+        src/lexer_test.cc
+        src/manifest_parser_test.cc
+        src/state_test.cc
+        src/subprocess_test.cc
+        src/util_test.cc
+    )
 
     if(monolithic-test)
         add_ninja_test(ninja_test ${ninja_test_sources})
@@ -304,9 +322,11 @@ if(gtest)
     else()
         foreach(it ${ninja_test_sources})
             get_filename_component(file_name ${it} NAME_WE)
-            set(test_name tst_${file_name})
-            add_ninja_test(${test_name} ${it})
-            add_test(NAME ${test_name} COMMAND ${test_name})
+            if (NOT "msvc_helper_test.cc" EQUAL ${file_name}) 
+                set(test_name tst_${file_name})
+                add_ninja_test(${test_name} ${it})
+                add_test(NAME ${test_name} COMMAND ${test_name})
+            endif()
         endforeach()
     endif()
 

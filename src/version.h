@@ -1,1 +1,1 @@
-const char* kVersion = "ninja V0.1.3 ## CMakeBuildSupportAdded-794fd48-dirty";
+const char* kVersion = "ninja V0.1.3 ## CMakeBuildSupportAdded-cd18ed8-dirty";

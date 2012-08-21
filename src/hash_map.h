@@ -19,7 +19,7 @@
 
 // MurmurHash2, by Austin Appleby
 static inline
-unsigned int MurmurHash2(const void* key, int len) {
+unsigned int MurmurHash2(const void* key, size_t len) {
   static const unsigned int seed = 0xDECAFBAD;
   const unsigned int m = 0x5bd1e995;
   const int r = 24;

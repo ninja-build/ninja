@@ -131,6 +131,14 @@ TEST_F(BuildLogTest, Truncate) {
   // For all possible truncations of the input file, assert that we don't
   // crash when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
+    BuildLog log2;
+    string err;
+    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+    log2.RecordCommand(state_.edges_[0], 15, 18);
+    log2.RecordCommand(state_.edges_[1], 20, 25);
+    log2.Close();
+
 #ifndef _WIN32
     ASSERT_EQ(0, truncate(kTestFilename, size));
 #else
@@ -140,9 +148,9 @@ TEST_F(BuildLogTest, Truncate) {
     _close(fh);
 #endif
 
-    BuildLog log2;
+    BuildLog log3;
     err.clear();
-    ASSERT_TRUE(log2.Load(kTestFilename, &err) || !err.empty());
+    ASSERT_TRUE(log3.Load(kTestFilename, &err) || !err.empty());
   }
 }
 
@@ -154,7 +162,7 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
 
   string err;
   BuildLog log;
-  EXPECT_FALSE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_NE(err.find("version"), string::npos);
 }
 

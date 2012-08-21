@@ -26,6 +26,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 parser = OptionParser()
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
+parser.add_option('--x64', action='store_true',
+                  help='force 64-bit build (Windows)',)
 (options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
@@ -66,6 +68,8 @@ for src in glob.glob('src/*.cc'):
     else:
         if src.endswith('-win32.cc'):
             continue
+    if '_main' in src:
+        continue
 
     sources.append(src)
 
@@ -74,8 +78,11 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'),
-            '/nologo', '/EHsc', '/DNOMINMAX']
+    if options.x64:
+        cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
+    else:
+        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
+    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
@@ -83,6 +90,8 @@ else:
                    '-DNINJA_BOOTSTRAP'])
     if sys.platform.startswith('win32'):
         cflags.append('-D_WIN32_WINNT=0x0501')
+    if options.x64:
+        cflags.append('-m64')
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
@@ -103,9 +112,41 @@ verbose = []
 if options.verbose:
     verbose = ['-v']
 
-print 'Building ninja using itself...'
-run([sys.executable, 'configure.py'] + conf_args)
-run(['./' + binary] + verbose)
-os.unlink(binary)
+if sys.platform.startswith('win32'):
+    # Build ninja-msvc-helper using ninja without an msvc-helper.
+    print 'Building ninja-msvc-helper...'
+    run([sys.executable, 'configure.py', '--with-msvc-helper='] + conf_args)
+    run(['./' + binary] + verbose + ['ninja-msvc-helper'])
 
-print 'Done!'
+    # Rename the helper to the same name + .bootstrap.
+    helper_binary = 'ninja-msvc-helper.bootstrap.exe'
+    try:
+        os.unlink(helper_binary)
+    except:
+        pass
+    os.rename('ninja-msvc-helper.exe', helper_binary)
+
+    # Build ninja using the newly-built msvc-helper.
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py',
+         '--with-msvc-helper=%s' % helper_binary] + conf_args)
+    run(['./' + binary] + verbose)
+
+    # Clean up.
+    for obj in glob.glob('*.obj'):
+        os.unlink(obj)
+
+    print """
+Done!
+
+Note: to work around Windows file locking, where you can't rebuild an
+in-use binary, to run ninja after making any changes to build ninja itself
+you should run ninja.bootstrap instead.  Your build is also configured to
+use ninja-msvc-helper.bootstrap.exe instead of the ninja-msvc-helper.exe
+that it builds; see the --help output of configure.py."""
+else:
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py'] + conf_args)
+    run(['./' + binary] + verbose)
+    os.unlink(binary)
+    print 'Done!'

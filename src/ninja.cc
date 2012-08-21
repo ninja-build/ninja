@@ -76,14 +76,12 @@ void Usage(const BuildConfig& config) {
 "usage: ninja [options] [targets...]\n"
 "\n"
 "if targets are unspecified, builds the 'default' target (see manual).\n"
-"targets are paths, with additional special syntax:\n"
-"  'target^' means 'the first output that uses target'.\n"
-"  example: 'ninja foo.cc^' will likely build foo.o.\n"
 "\n"
 "options:\n"
+"  --version  print ninja version (\"%s\")\n"
+"\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
-"  -V       print ninja version (\"%s\")\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
@@ -91,13 +89,12 @@ void Usage(const BuildConfig& config) {
 "           (not yet implemented on Windows)\n"
 #endif
 "  -k N     keep going until N jobs fail [default=1]\n"
-"  -n       dry run (don't run commands but pretend they succeeded)\n"
+"  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
-"  -t TOOL  run a subtool\n"
-"    use '-t list' to list subtools.\n"
-"    terminates toplevel options; further flags are passed to the tool.\n",
+"  -t TOOL  run a subtool (use -t list to list subtools)\n"
+"    terminates toplevel options; further flags are passed to the tool\n",
           kVersion, config.parallelism);
 }
 
@@ -647,8 +644,10 @@ int NinjaMain(int argc, char** argv) {
 
   globals.config.parallelism = GuessParallelism();
 
+  enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
+    { "version", no_argument, NULL, OPT_VERSION },
     { NULL, 0, NULL, 0 }
   };
 
@@ -699,7 +698,7 @@ int NinjaMain(int argc, char** argv) {
       case 'C':
         working_dir = optarg;
         break;
-      case 'V':
+      case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
       case 'h':
@@ -757,6 +756,11 @@ reload:
   if (!build_log.Load(log_path, &err)) {
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
     return 1;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.c_str());
+    err.clear();
   }
 
   if (!build_log.OpenForWrite(log_path, &err)) {

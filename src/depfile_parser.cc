@@ -149,7 +149,7 @@ yy4:
 yy5:
       {
         // Got a span of plain text.
-        int len = in - start;
+        int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
         if (out < start)
           memmove(out, start, len);
@@ -191,7 +191,7 @@ yy13:
 
     }
 
-    int len = out - filename;
+    int len = (int)(out - filename);
     const bool is_target = parsing_targets;
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
