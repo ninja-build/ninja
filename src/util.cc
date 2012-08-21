@@ -36,7 +36,7 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
-#elif defined(linux)
+#elif defined(linux) || defined(__CYGWIN__)
 #include <sys/sysinfo.h>
 #endif
 
@@ -292,7 +292,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux)
+#if defined(linux) || defined(__CYGWIN__)
 int GetProcessorCount() {
   return get_nprocs();
 }
@@ -316,7 +316,7 @@ int GetProcessorCount() {
 }
 #endif
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __CYGWIN__
 double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
   // Remember to also update Usage() when this is fixed.

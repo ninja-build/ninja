@@ -44,9 +44,8 @@
 
 namespace {
 
-/// The version number of the current Ninja release.  This will always
-/// be "git" on trunk.
-const char* kVersion = "git";
+/// The version number of the current Ninja release.
+#include "version.h"
 
 /// Global information passed into subtools.
 struct Globals {
@@ -258,7 +257,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(__CYGWIN__) && !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
 int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
@@ -503,7 +502,7 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
     const char* desc;
     ToolFunc func;
   } tools[] = {
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if !defined(__CYGWIN__) && !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
       ToolBrowse },
 #endif
@@ -605,8 +604,7 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   return 0;
 }
 
-#ifdef _MSC_VER
-
+#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER) && !defined(__MINGW32__)
 } // anonymous namespace
 
 // Defined in minidump-win32.cc.
@@ -803,7 +801,7 @@ reload:
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
-#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER)
+#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER) && !defined(__MINGW32__)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
   set_terminate(TerminateHandler);
