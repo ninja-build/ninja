@@ -115,7 +115,7 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return false;
   }
-  virtual string ReadFile(const string& path, string* err, bool binary) {
+  virtual string ReadFile(const string& path, string* err) {
     assert(false);
     return "";
   }
