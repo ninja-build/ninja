@@ -320,7 +320,7 @@ if options.with_gtest:
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform == 'windows':
-        gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
+        gtest_cflags = '/nologo /EHsc /Zi ' + gtest_all_incs
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
