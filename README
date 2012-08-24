@@ -13,3 +13,4 @@ help.
 There is no installation step.  The only file of interest to a user
 is the resulting ninja binary.
 
+If you're interested in making changes to Ninja, read HACKING.md first.
