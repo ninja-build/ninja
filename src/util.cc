@@ -180,10 +180,8 @@ int ReadFile(FILE* f, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
     return -errno;
   }
-  fclose(f);
   return 0;
 }
 
