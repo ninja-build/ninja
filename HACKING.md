@@ -66,7 +66,9 @@ googletest (gtest) library.
 
 * Otherwise you need to download it, unpack it, and pass
   `--with-gtest` to `configure.py`.  Get it from [its downloads
-  page](http://code.google.com/p/googletest/downloads/list).
+  page](http://code.google.com/p/googletest/downloads/list); [this
+  direct download link might work
+  too](http://googletest.googlecode.com/files/gtest-1.6.0.zip).
 
 ### Test-driven development
 
