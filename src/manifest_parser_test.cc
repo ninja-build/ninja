@@ -72,7 +72,10 @@ TEST_F(ParserTest, RuleAttributes) {
 "  depfile = a\n"
 "  description = a\n"
 "  generator = a\n"
-"  restat = a\n"));
+"  restat = a\n"
+"  rspfile = a\n"
+"  rspfile_content = a\n"
+));
 }
 
 TEST_F(ParserTest, IgnoreIndentedComments) {
