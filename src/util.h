@@ -25,8 +25,6 @@
 #include <vector>
 using namespace std;
 
-#define NINJA_UNUSED_ARG(arg_name) (void)arg_name;
-
 /// Log a fatal message and exit.
 void Fatal(const char* msg, ...);
 
