@@ -38,8 +38,13 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   outputs_ready_ = true;
 
   if (!rule_->depfile().empty()) {
-    if (!LoadDepFile(state, disk_interface, err))
-      return false;
+    if (!LoadDepFile(state, disk_interface, err)) {
+      if (!err->empty())
+        return false;
+      EXPLAIN("Edge targets are dirty because depfile '%s' is missing",
+              EvaluateDepFile().c_str());
+      dirty = true;
+    }
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -274,8 +279,9 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
   string content = disk_interface->ReadFile(path, err);
   if (!err->empty())
     return false;
+  // On a missing depfile: return false and empty *err.
   if (content.empty())
-    return true;
+    return false;
 
   DepfileParser depfile;
   string depfile_err;
