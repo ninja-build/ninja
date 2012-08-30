@@ -159,3 +159,28 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 
   EXPECT_FALSE(GetNode("out.o")->dirty());
 }
+
+// Regression test for https://github.com/martine/ninja/issues/404
+TEST_F(GraphTest, DepfileRemoved) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdep ./foo.cc\n"));
+  fs_.Create("foo.h", 1, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 2, "out.o: foo.h\n");
+  fs_.Create("out.o", 2, "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+
+  state_.Reset();
+  fs_.RemoveFile("out.o.d");
+  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
+}
