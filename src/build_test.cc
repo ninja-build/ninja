@@ -210,6 +210,11 @@ struct BuildTest : public StateTestWithBuiltinRules,
     return config;
   }
 
+  bool MkDepCmd(const Edge* edge);
+
+  // Useful for debugging
+  void DumpCommandsRan() const;
+
   BuildConfig config_;
   VirtualFileSystem fs_;
   Builder builder_;
@@ -235,6 +240,29 @@ bool BuildTest::CanRunMore() {
   return last_command_ == NULL;
 }
 
+bool BuildTest::MkDepCmd(const Edge* edge)
+{
+  string err;
+  const string& out_path = edge->outputs_[0]->path();
+  string in_path = edge->inputs_[0]->path();
+  string deps = out_path + ": " + in_path;
+
+  // Read input file. If its content starts with '%' then
+  //  treat the following symbols as an included file path.
+  //  Update 'depfile' and repeat with the 'included' path.
+  for(;;) {
+    string content = fs_.ReadFile(in_path, &err);
+    if (!err.empty())
+      return false;
+    if (content.find('%') != 0)
+      break;
+    in_path = content.substr(1);
+    deps += " " + in_path;
+  }
+  fs_.Create(out_path, now_, deps);
+  return true;
+}
+
 bool BuildTest::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
@@ -245,14 +273,17 @@ bool BuildTest::StartCommand(Edge* edge) {
       edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      fs_.Create((*out)->path(), now_, "");
+      fs_.Create((*out)->path(), now_, edge->env_->LookupVariable("content"));
     }
+  } else if (edge->rule().name() == "mkdep") {
+    if (!MkDepCmd(edge))
+      return false;
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
              edge->rule().name() == "interrupt") {
     // Don't do anything.
   } else {
-    printf("unknown command\n");
+    printf("unknown command. rule: %s\n", edge->rule().name().c_str());
     return false;
   }
 
@@ -288,6 +319,12 @@ vector<Edge*> BuildTest::GetActiveEdges() {
 
 void BuildTest::Abort() {
   last_command_ = NULL;
+}
+
+void BuildTest::DumpCommandsRan() const {
+  for (vector<string>::const_iterator i = commands_ran_.begin();
+       i != commands_ran_.end(); ++i)
+    printf("Executed: %s\n", (*i).c_str());
 }
 
 TEST_F(BuildTest, NoWork) {
