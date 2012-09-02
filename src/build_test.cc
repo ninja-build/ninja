@@ -1171,3 +1171,211 @@ TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
 }
+
+TEST_F(BuildTest, DepFileReloadNested) {
+  string err;
+  state_ = State(); //blank state
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule mkdep\n"
+"  command = MkDepCmd -o $out $in\n"
+"  depfile = $out\n"
+"  reload = 1\n"
+"rule cat\n"
+"  command = echo $content > $out\n"
+"rule cc\n"
+"  command = cc -o $out $in\n"
+""
+"build config.h: cat\n"
+"  content = #define x\n"
+"build auto.h: cat\n"
+"  content = %config.h\n"
+"build auto.c: cat\n"
+"  content = %auto.h\n"
+"build auto.o.dd: mkdep auto.c\n"
+"build auto.o: cc auto.c | auto.o.dd\n"));
+
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3, builder_.plan_.command_edge_count()); // auto.{o,c,o.dd}
+  ASSERT_EQ(5, state_.edges_.size());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  // (Only this build order is valid)
+  ASSERT_EQ(7u, commands_ran_.size()); // 5 edges + 'auto.o.dd' restarted twice
+  ASSERT_EQ(commands_ran_[0], "echo %auto.h > auto.c");
+  ASSERT_EQ(commands_ran_[1], "MkDepCmd -o auto.o.dd auto.c");
+  ASSERT_EQ(commands_ran_[2], "echo %config.h > auto.h");
+  ASSERT_EQ(commands_ran_[3], "MkDepCmd -o auto.o.dd auto.c");
+  ASSERT_EQ(commands_ran_[4], "echo #define x > config.h");
+  ASSERT_EQ(commands_ran_[5], "MkDepCmd -o auto.o.dd auto.c");
+  ASSERT_EQ(commands_ran_[6], "cc -o auto.o auto.c");
+
+  // Verify that restarted edges are counted properly
+  EXPECT_EQ("[7/7/7]", builder_.status_->FormatProgressStatus("[%s/%t/%f]"));
+
+  // Validate that auto.o.dd depends now on auto.h and config.h
+  vector<Node*>& ddeps = GetNode("auto.o.dd")->in_edge()->inputs_;
+  if (find(ddeps.begin(), ddeps.end(), GetNode("auto.h")) == ddeps.end())
+    FAIL();
+  if (find(ddeps.begin(), ddeps.end(), GetNode("config.h")) == ddeps.end())
+    FAIL();
+
+  // Finally, verify that expected content was built
+  EXPECT_EQ("auto.o.dd: auto.c auto.h config.h", fs_.ReadFile("auto.o.dd", &err));
+  EXPECT_EQ("%config.h", fs_.ReadFile("auto.h", &err));
+  EXPECT_EQ("#define x", fs_.ReadFile("config.h", &err));
+}
+
+TEST_F(BuildTest, DepFileReloadRebuild) {
+  string err;
+  state_ = State(); //blank state
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cat\n"
+"  command = echo $content > $out\n"
+"rule mkdep\n"
+"  command = MkDepCmd -o $out $in\n"
+"  depfile = $out\n"
+"  reload = 1\n"
+"rule cc\n"
+"  command = cc -o $out $in\n"
+""
+"build config.h: cat\n"
+"  content = #define x\n"
+"build auto.h: cat\n"
+"  content = %config.h\n"
+"build auto.c: cat\n"
+"  content = %auto.h\n"
+"build auto.o.dd: mkdep auto.c\n"
+"build auto.o: cc auto.c | auto.o.dd\n"));
+
+  // 1st build - build everything
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(7u, commands_ran_.size());
+
+  // Second build is noop
+  state_.Reset();
+  commands_ran_.clear();
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // One of the inputs was updated after dep file creation
+  state_.Reset();
+  commands_ran_.clear();
+  Dirty("auto.h");
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(commands_ran_[0], "MkDepCmd -o auto.o.dd auto.c");
+  ASSERT_EQ(commands_ran_[1], "cc -o auto.o auto.c");
+
+  // Second build is noop
+  state_.Reset();
+  commands_ran_.clear();
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // Dep file removed
+  state_.Reset();
+  commands_ran_.clear();
+  EXPECT_TRUE(fs_.RemoveFile("auto.o.dd") == 0);
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(commands_ran_[0], "MkDepCmd -o auto.o.dd auto.c");
+  ASSERT_EQ(commands_ran_[1], "cc -o auto.o auto.c");
+
+  // Second build is noop
+  state_.Reset();
+  commands_ran_.clear();
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
+
+TEST_F(BuildTest, DepFileReloadBadDep) {
+  string err;
+  state_ = State(); //blank state
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cat\n"
+"  command = echo $content > $out\n"
+"  depfile = $out\n"
+"  reload = 1\n"
+""
+"build auto.dd: cat\n"
+"  content = clutter\n"));
+
+  EXPECT_TRUE(builder_.AddTarget("auto.dd", &err));
+  ASSERT_EQ("", err);
+  // Then bad depfile built and reloaded
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("expected depfile 'auto.dd' to mention 'auto.dd', got 'clutter'", err);
+}
+
+// Reload rule failure
+TEST_F(BuildTest, DepFileReloadRuleFails) {
+  string err;
+  state_ = State(); //blank state
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = fail\n"
+"  depfile = $out\n"
+"  reload = 1\n"
+""
+"build out1: fail\n"
+"  content = clutter\n"));
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  // Then bad depfile built and reloaded
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+}
+
+// Check that response file is created and deleted for 'reload = 1' targets
+TEST_F(BuildTest, DepFileReloadWithRsp) {
+  string err;
+  state_ = State(); //blank state
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cat\n"
+"  command = echo $content > $out\n"
+"rule mkdep\n"
+"  command = MkDepCmd -o $out $in\n"
+"  rspfile = $out.rsp\n"
+"  rspfile_content = $long_command\n"
+"  depfile = $out\n"
+"  reload = 1\n"
+"rule cc\n"
+"  command = cc -o $out $in\n"
+""
+"build config.h: cat\n"
+"  content = #define x\n"
+"build auto.h: cat\n"
+"  content = %config.h\n"
+"build auto.c: cat\n"
+"  content = %auto.h\n"
+"build auto.o.dd: mkdep auto.c\n"
+"  rspfile = \n"
+"  long_command = Long Long Long command\n"
+"build auto.o: cc auto.c | auto.o.dd\n"));
+
+  // 1st build - build everything
+  EXPECT_TRUE(builder_.AddTarget("auto.o", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(7u, commands_ran_.size());
+
+  // RSP file(s) were created
+  EXPECT_EQ(1, fs_.files_created_.count("auto.o.dd.rsp"));
+
+  // RSP file(s) were removed
+  EXPECT_EQ(1, fs_.files_removed_.count("auto.o.dd.rsp"));
+  EXPECT_EQ(0, fs_.Stat("auto.o.dd.rsp"));
+}
