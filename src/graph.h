@@ -212,8 +212,7 @@ struct DependencyScan {
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(Edge* edge, TimeStamp most_recent_input,
-                            Node* most_recent_node,
+  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
                             const string& command, Node* output);
 
   bool LoadDepFile(Edge* edge, string* err);

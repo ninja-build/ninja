@@ -47,8 +47,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
-  TimeStamp most_recent_input = 1;
-  Node* most_recent_node = NULL;
+  Node* most_recent_input = NULL;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
     if ((*i)->StatIfNecessary(disk_interface_)) {
@@ -76,9 +75,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
         EXPLAIN("%s is dirty", (*i)->path().c_str());
         dirty = true;
       } else {
-        if ((*i)->mtime() > most_recent_input) {
-          most_recent_input = (*i)->mtime();
-          most_recent_node = *i;
+        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
+          most_recent_input = *i;
         }
       }
     }
@@ -92,8 +90,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     for (vector<Node*>::iterator i = edge->outputs_.begin();
          i != edge->outputs_.end(); ++i) {
       (*i)->StatIfNecessary(disk_interface_);
-      if (RecomputeOutputDirty(edge, most_recent_input, most_recent_node,
-                               command, *i)) {
+      if (RecomputeOutputDirty(edge, most_recent_input, command, *i)) {
         dirty = true;
         break;
       }
@@ -121,8 +118,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 }
 
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,
-                                          TimeStamp most_recent_input,
-                                          Node* most_recent_node,
+                                          Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -140,25 +136,24 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   }
 
   // Dirty if the output is older than the input.
-  if (output->mtime() < most_recent_input) {
+  if (most_recent_input && output->mtime() < most_recent_input->mtime()) {
     // If this is a restat rule, we may have cleaned the output with a restat
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
+    TimeStamp most_recent_stamp = most_recent_input->mtime();
     if (edge->rule_->restat() && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
-      if (entry->restat_mtime < most_recent_input) {
+      if (entry->restat_mtime < most_recent_stamp) {
         EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
-            output->path().c_str(),
-            most_recent_node ? most_recent_node->path().c_str() : "",
-            entry->restat_mtime, most_recent_input);
+            output->path().c_str(), most_recent_input->path().c_str(),
+            entry->restat_mtime, most_recent_stamp);
         return true;
       }
     } else {
       EXPLAIN("output %s older than most recent input %s (%d vs %d)",
-          output->path().c_str(),
-          most_recent_node ? most_recent_node->path().c_str() : "",
-          output->mtime(), most_recent_input);
+          output->path().c_str(), most_recent_input->path().c_str(),
+          output->mtime(), most_recent_stamp);
       return true;
     }
   }

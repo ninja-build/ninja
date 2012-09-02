@@ -422,10 +422,11 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
                             end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input and command.
-      TimeStamp most_recent_input = 1;
-      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
-        if ((*ni)->mtime() > most_recent_input)
-          most_recent_input = (*ni)->mtime();
+      Node* most_recent_input = NULL;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
+        if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
+          most_recent_input = *ni;
+      }
       string command = (*ei)->EvaluateCommand(true);
 
       // Now, recompute the dirty state of each output.
@@ -435,7 +436,7 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
         if (!(*ni)->dirty())
           continue;
 
-        if (scan->RecomputeOutputDirty(*ei, most_recent_input, NULL,
+        if (scan->RecomputeOutputDirty(*ei, most_recent_input,
                                        command, *ni)) {
           (*ni)->MarkDirty();
           all_outputs_clean = false;
