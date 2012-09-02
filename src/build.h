@@ -23,6 +23,7 @@
 #include <memory>
 #include <cstdio>
 
+#include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
 #include "metrics.h"
 #include "util.h"  // int64_t
@@ -59,7 +60,7 @@ struct Plan {
   void EdgeFinished(Edge* edge);
 
   /// Clean the given node during the build.
-  void CleanNode(BuildLog* build_log, Node* node);
+  void CleanNode(DependencyScan* scan, Node* node);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -151,6 +152,7 @@ struct Builder {
 
  private:
   DiskInterface* disk_interface_;
+  DependencyScan scan_;
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT

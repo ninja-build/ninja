@@ -406,7 +406,7 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
-void Plan::CleanNode(BuildLog* build_log, Node* node) {
+void Plan::CleanNode(DependencyScan* scan, Node* node) {
   node->set_dirty(false);
 
   for (vector<Edge*>::const_iterator ei = node->out_edges().begin();
@@ -435,12 +435,12 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if (!(*ni)->dirty())
           continue;
 
-        if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, NULL, command,
-                                        *ni)) {
+        if (scan->RecomputeOutputDirty(*ei, most_recent_input, NULL,
+                                       command, *ni)) {
           (*ni)->MarkDirty();
           all_outputs_clean = false;
         } else {
-          CleanNode(build_log, *ni);
+          CleanNode(scan, *ni);
         }
       }
 
@@ -554,7 +554,8 @@ struct DryRunCommandRunner : public CommandRunner {
 
 Builder::Builder(State* state, const BuildConfig& config,
                  DiskInterface* disk_interface)
-    : state_(state), config_(config), disk_interface_(disk_interface) {
+    : state_(state), config_(config), disk_interface_(disk_interface),
+      scan_(state, disk_interface) {
   status_ = new BuildStatus(config);
   log_ = state->build_log_;
 }
@@ -604,7 +605,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 bool Builder::AddTarget(Node* node, string* err) {
   node->StatIfNecessary(disk_interface_);
   if (Edge* in_edge = node->in_edge()) {
-    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
+    if (!scan_.RecomputeDirty(in_edge, err))
       return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
@@ -756,7 +757,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          plan_.CleanNode(log_, *i);
+          plan_.CleanNode(&scan_, *i);
           node_cleaned = true;
         }
       }

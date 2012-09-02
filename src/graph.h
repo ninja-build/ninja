@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "state.h"
 #include "timestamp.h"
 
 struct DiskInterface;
@@ -142,38 +143,24 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
            order_only_deps_(0) {}
 
-  /// Examine inputs, outputs, and command lines to judge whether this edge
-  /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
-  /// state accordingly.
-  /// Returns false on failure.
-  bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
-
-  /// Recompute whether a given single output should be marked dirty.
-  /// Returns true if so.
-  bool RecomputeOutputDirty(BuildLog* build_log, TimeStamp most_recent_input,
-                            Node* most_recent_node, const string& command,
-                            Node* output);
-
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
   /// Expand all variables in a command and return it as a string.
-  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
-  
+
   /// Does the edge use a response file?
   bool HasRspFile();
-  
+
   /// Get the path to the response file
   string GetRspFile();
 
   /// Get the contents of the response file
   string GetRspFileContent();
-
-  bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
 
   void Dump(const char* prefix="") const;
 
@@ -208,6 +195,34 @@ struct Edge {
   }
 
   bool is_phony() const;
+};
+
+
+/// DependencyScan manages the process of scanning the files in a graph
+/// and updating the dirty/outputs_ready state of all the nodes and edges.
+struct DependencyScan {
+  DependencyScan(State* state, DiskInterface* disk_interface)
+      : state_(state), disk_interface_(disk_interface) {}
+
+  /// Examine inputs, outputs, and command lines to judge whether an edge
+  /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
+  /// state accordingly.
+  /// Returns false on failure.
+  bool RecomputeDirty(Edge* edge, string* err);
+
+  /// Recompute whether a given single output should be marked dirty.
+  /// Returns true if so.
+  bool RecomputeOutputDirty(Edge* edge, TimeStamp most_recent_input,
+                            Node* most_recent_node,
+                            const string& command, Node* output);
+
+  bool LoadDepFile(Edge* edge, string* err);
+
+  State* state_;
+  DiskInterface* disk_interface_;
+  BuildLog* build_log() const {
+    return state_->build_log_;
+  }
 };
 
 #endif  // NINJA_GRAPH_H_

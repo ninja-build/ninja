@@ -105,6 +105,8 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
+  StatTest() : scan_(&state_, this) {}
+
   // DiskInterface implementation.
   virtual TimeStamp Stat(const string& path);
   virtual bool WriteFile(const string& path, const string& contents) {
@@ -124,6 +126,7 @@ struct StatTest : public StateTestWithBuiltinRules,
     return 0;
   }
 
+  DependencyScan scan_;
   map<string, TimeStamp> mtimes_;
   vector<string> stats_;
 };
@@ -143,7 +146,7 @@ TEST_F(StatTest, Simple) {
   Node* out = GetNode("out");
   out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
-  out->in_edge()->RecomputeDirty(NULL, this, NULL);
+  scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(2u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
@@ -157,7 +160,7 @@ TEST_F(StatTest, TwoStep) {
   Node* out = GetNode("out");
   out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
-  out->in_edge()->RecomputeDirty(NULL, this, NULL);
+  scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty());
@@ -175,7 +178,7 @@ TEST_F(StatTest, Tree) {
   Node* out = GetNode("out");
   out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
-  out->in_edge()->RecomputeDirty(NULL, this, NULL);
+  scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty());
@@ -194,7 +197,7 @@ TEST_F(StatTest, Middle) {
   Node* out = GetNode("out");
   out->Stat(this);
   ASSERT_EQ(1u, stats_.size());
-  out->in_edge()->RecomputeDirty(NULL, this, NULL);
+  scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_FALSE(GetNode("in")->dirty());
   ASSERT_TRUE(GetNode("mid")->dirty());
   ASSERT_TRUE(GetNode("out")->dirty());

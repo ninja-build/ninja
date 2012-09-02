@@ -32,17 +32,16 @@ bool Node::Stat(DiskInterface* disk_interface) {
   return mtime_ > 0;
 }
 
-bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
-                          string* err) {
+bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
-  outputs_ready_ = true;
+  edge->outputs_ready_ = true;
 
-  if (!rule_->depfile().empty()) {
-    if (!LoadDepFile(state, disk_interface, err)) {
+  if (!edge->rule_->depfile().empty()) {
+    if (!LoadDepFile(edge, err)) {
       if (!err->empty())
         return false;
       EXPLAIN("Edge targets are dirty because depfile '%s' is missing",
-              EvaluateDepFile().c_str());
+              edge->EvaluateDepFile().c_str());
       dirty = true;
     }
   }
@@ -50,10 +49,11 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // Visit all inputs; we're dirty if any of the inputs are dirty.
   TimeStamp most_recent_input = 1;
   Node* most_recent_node = NULL;
-  for (vector<Node*>::iterator i = inputs_.begin(); i != inputs_.end(); ++i) {
-    if ((*i)->StatIfNecessary(disk_interface)) {
-      if (Edge* edge = (*i)->in_edge()) {
-        if (!edge->RecomputeDirty(state, disk_interface, err))
+  for (vector<Node*>::iterator i = edge->inputs_.begin();
+       i != edge->inputs_.end(); ++i) {
+    if ((*i)->StatIfNecessary(disk_interface_)) {
+      if (Edge* in_edge = (*i)->in_edge()) {
+        if (!RecomputeDirty(in_edge, err))
           return false;
       } else {
         // This input has no in-edge; it is dirty if it is missing.
@@ -64,12 +64,12 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
     }
 
     // If an input is not ready, neither are our outputs.
-    if (Edge* edge = (*i)->in_edge()) {
-      if (!edge->outputs_ready_)
-        outputs_ready_ = false;
+    if (Edge* in_edge = (*i)->in_edge()) {
+      if (!in_edge->outputs_ready_)
+        edge->outputs_ready_ = false;
     }
 
-    if (!is_order_only(i - inputs_.begin())) {
+    if (!edge->is_order_only(i - edge->inputs_.begin())) {
       // If a regular input is dirty (or missing), we're dirty.
       // Otherwise consider mtime.
       if ((*i)->dirty()) {
@@ -87,13 +87,13 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
   if (!dirty) {
-    BuildLog* build_log = state ? state->build_log_ : 0;
-    string command = EvaluateCommand(true);
+    string command = edge->EvaluateCommand(true);
 
-    for (vector<Node*>::iterator i = outputs_.begin();
-         i != outputs_.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface);
-      if (RecomputeOutputDirty(build_log, most_recent_input, most_recent_node, command, *i)) {
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      (*i)->StatIfNecessary(disk_interface_);
+      if (RecomputeOutputDirty(edge, most_recent_input, most_recent_node,
+                               command, *i)) {
         dirty = true;
         break;
       }
@@ -102,30 +102,33 @@ bool Edge::RecomputeDirty(State* state, DiskInterface* disk_interface,
 
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
-  for (vector<Node*>::iterator i = outputs_.begin(); i != outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface);
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    (*i)->StatIfNecessary(disk_interface_);
     if (dirty)
       (*i)->MarkDirty();
   }
 
-  // If we're dirty, our outputs are normally not ready.  (It's possible to be
-  // clean but still not be ready in the presence of order-only inputs.)
-  // But phony edges with no inputs have nothing to do, so are always ready.
-  if (dirty && !(is_phony() && inputs_.empty()))
-    outputs_ready_ = false;
+  // If an edge is dirty, its outputs are normally not ready.  (It's
+  // possible to be clean but still not be ready in the presence of
+  // order-only inputs.)
+  // But phony edges with no inputs have nothing to do, so are always
+  // ready.
+  if (dirty && !(edge->is_phony() && edge->inputs_.empty()))
+    edge->outputs_ready_ = false;
 
   return true;
 }
 
-bool Edge::RecomputeOutputDirty(BuildLog* build_log,
-                                TimeStamp most_recent_input,
-                                Node* most_recent_node,
-                                const string& command,
-                                Node* output) {
-  if (is_phony()) {
+bool DependencyScan::RecomputeOutputDirty(Edge* edge,
+                                          TimeStamp most_recent_input,
+                                          Node* most_recent_node,
+                                          const string& command,
+                                          Node* output) {
+  if (edge->is_phony()) {
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
-    return inputs_.empty() && !output->exists();
+    return edge->inputs_.empty() && !output->exists();
   }
 
   BuildLog::LogEntry* entry = 0;
@@ -142,8 +145,8 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
-    if (rule_->restat() && build_log &&
-        (entry = build_log->LookupByOutput(output->path()))) {
+    if (edge->rule_->restat() && build_log() &&
+        (entry = build_log()->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_input) {
         EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
             output->path().c_str(),
@@ -163,8 +166,8 @@ bool Edge::RecomputeOutputDirty(BuildLog* build_log,
   // May also be dirty due to the command changing since the last build.
   // But if this is a generator rule, the command changing does not make us
   // dirty.
-  if (!rule_->generator() && build_log) {
-    if (entry || (entry = build_log->LookupByOutput(output->path()))) {
+  if (!edge->rule_->generator() && build_log()) {
+    if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
       if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
@@ -272,11 +275,10 @@ string Edge::GetRspFileContent() {
   return rule_->rspfile_content().Evaluate(&env);
 }
 
-bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
-                       string* err) {
+bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
   METRIC_RECORD("depfile load");
-  string path = EvaluateDepFile();
-  string content = disk_interface->ReadFile(path, err);
+  string path = edge->EvaluateDepFile();
+  string content = disk_interface_->ReadFile(path, err);
   if (!err->empty())
     return false;
   // On a missing depfile: return false and empty *err.
@@ -290,18 +292,21 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     return false;
   }
 
-  // Check that this depfile matches our output.
-  StringPiece opath = StringPiece(outputs_[0]->path());
+  // Check that this depfile matches the edge's output.
+  Node* first_output = edge->outputs_[0];
+  StringPiece opath = StringPiece(first_output->path());
   if (opath != depfile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
-      outputs_[0]->path() + "', got '" + depfile.out_.AsString() + "'";
+        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
     return false;
   }
 
-  inputs_.insert(inputs_.end() - order_only_deps_, depfile.ins_.size(), 0);
-  implicit_deps_ += depfile.ins_.size();
+  // Preallocate space in edge->inputs_ to be filled in below.
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       depfile.ins_.size(), 0);
+  edge->implicit_deps_ += depfile.ins_.size();
   vector<Node*>::iterator implicit_dep =
-    inputs_.end() - order_only_deps_ - depfile.ins_.size();
+      edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
 
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
@@ -309,15 +314,15 @@ bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
 
-    Node* node = state->GetNode(*i);
+    Node* node = state_->GetNode(*i);
     *implicit_dep = node;
-    node->AddOutEdge(this);
+    node->AddOutEdge(edge);
 
     // If we don't have a edge that generates this input already,
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge()) {
-      Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
       node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
