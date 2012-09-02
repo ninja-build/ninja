@@ -122,6 +122,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->generator_ = true;
     } else if (key == "restat") {
       rule->restat_ = true;
+    } else if (key == "reload") {
+      rule->reload_ = true;
     } else if (key == "rspfile") {
       rule->rspfile_ = value;
     } else if (key == "rspfile_content") {

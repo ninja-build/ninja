@@ -272,6 +272,10 @@ string Edge::GetRspFileContent() {
   return rule_->rspfile_content().Evaluate(&env);
 }
 
+bool Edge::HasDepFile() const {
+  return !rule_->depfile().empty();
+}
+
 bool Edge::LoadDepFile(State* state, DiskInterface* disk_interface,
                        string* err) {
   METRIC_RECORD("depfile load");

@@ -141,6 +141,8 @@ struct Builder {
 
   bool StartEdge(Edge* edge, string* err);
   void FinishEdge(Edge* edge, bool success, const string& output);
+  bool ConsiderRestartingEdge(Edge* edge, bool success, const string& output,
+                              string* err);
 
   State* state_;
   const BuildConfig& config_;
@@ -164,6 +166,7 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildEdgeFinishedShouldRestart(Edge* edge, bool success, const string& output);
   void BuildFinished();
 
   /// Format the progress status string by replacing the placeholders.
@@ -180,7 +183,7 @@ struct BuildStatus {
   /// Time the build started.
   int64_t start_time_millis_;
 
-  int started_edges_, finished_edges_, total_edges_;
+  int started_edges_, finished_edges_, restarted_edges_, total_edges_;
 
   bool have_blank_line_;
 

@@ -28,6 +28,7 @@
 
 #include "build_log.h"
 #include "disk_interface.h"
+#include "explain.h"
 #include "graph.h"
 #include "state.h"
 #include "subprocess.h"
@@ -36,7 +37,7 @@
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
-      started_edges_(0), finished_edges_(0), total_edges_(0),
+      started_edges_(0), finished_edges_(0), restarted_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL),
       overall_rate_(), current_rate_(),
       current_rate_average_count_(config.parallelism) {
@@ -73,6 +74,14 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   ++started_edges_;
 
   PrintStatus(edge);
+}
+
+void BuildStatus::BuildEdgeFinishedShouldRestart(Edge* edge, bool success, const string& output)
+{
+  ++restarted_edges_;
+
+  int unused_time;
+  BuildEdgeFinished(edge, success, output, &unused_time, &unused_time);
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
@@ -149,9 +158,9 @@ string BuildStatus::FormatProgressStatus(const char* progress_status_format) con
         out += buf;
         break;
 
-        // Total edges.
+        // Total edges. Since same edges are executed several times, fixing the 'total'.
       case 't':
-        snprintf(buf, sizeof(buf), "%d", total_edges_);
+        snprintf(buf, sizeof(buf), "%d", total_edges_ + restarted_edges_);
         out += buf;
         break;
 
@@ -163,7 +172,7 @@ string BuildStatus::FormatProgressStatus(const char* progress_status_format) con
 
         // Unstarted edges.
       case 'u':
-        snprintf(buf, sizeof(buf), "%d", total_edges_ - started_edges_);
+        snprintf(buf, sizeof(buf), "%d", total_edges_ + restarted_edges_ - started_edges_);
         out += buf;
         break;
 
@@ -620,6 +629,46 @@ bool Builder::AlreadyUpToDate() const {
   return !plan_.more_to_do();
 }
 
+bool Builder::ConsiderRestartingEdge(Edge* edge, bool success, const string& output, string* err) {
+  // No dep file specified? Dependencies can't change. Don't restart.
+  // Build failed? Ditto.
+  if (!edge->HasDepFile() or !success)
+    return false;
+
+  if (!edge->RecomputeDirty(state_, disk_interface_, err)) {
+    return false;
+  }
+
+  // Re-add all inputs, dirty and clean to check for dependencies loops
+  //  which could be created with the loading of the updated .dep file.
+  for (vector<Node*>::iterator input = edge->inputs_.begin();
+       input != edge->inputs_.end(); ++input) {
+    if (!plan_.AddTarget(*input, err)) {
+      if (!err->empty()) {
+        return false;
+      }
+    }
+  }
+
+  // Despite re-reading the .dep file, we are clean? Don't restart.
+  if (edge->AllInputsReady()) {
+    return false;
+  }
+
+  // Delete the response file if exists
+  if (edge->HasRspFile())
+    disk_interface_->RemoveFile(edge->GetRspFile());
+
+  // Number of plan edges could have changed. Update the number of reported plan edges.
+  status_->PlanHasTotalEdges(plan_.command_edge_count());
+
+  status_->BuildEdgeFinishedShouldRestart(edge, success, output);
+
+  EXPLAIN("Dirty deps discovered, restarting rule creating output %s", edge->outputs_[0]->path().c_str());
+
+  return true;
+}
+
 bool Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
 
@@ -669,11 +718,25 @@ bool Builder::Build(string* err) {
       if (edge && status != ExitInterrupted) {
         bool success = (status == ExitSuccess);
         --pending_commands;
-        FinishEdge(edge, success, output);
+
         if (!success) {
           if (failures_allowed)
             failures_allowed--;
         }
+
+        if (edge->rule().reload()) {
+          // Re-load dep file and recalc deps. If new dirty deps are discovered,
+          //  rebuild the edge.
+          if (ConsiderRestartingEdge(edge, success, output, err)) {
+            continue;
+          }
+          if (!err->empty()) {
+            status_->BuildFinished();
+            return false;
+          }
+        }
+
+        FinishEdge(edge, success, output);
 
         // We made some progress; start the main loop over.
         continue;
