@@ -92,16 +92,13 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
 }
 
 BuildLog::BuildLog()
-  : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
+  : log_file_(NULL), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
 }
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
-  if (config_ && config_->dry_run)
-    return true;  // Do nothing, report success.
-
   if (needs_recompaction_) {
     Close();
     if (!Recompact(path, err))
@@ -136,14 +133,14 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
-    Log::iterator i = log_.find(path);
+    Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
-    if (i != log_.end()) {
+    if (i != entries_.end()) {
       log_entry = i->second;
     } else {
       log_entry = new LogEntry;
       log_entry->output = path;
-      log_.insert(Log::value_type(log_entry->output, log_entry));
+      entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
     log_entry->command_hash = LogEntry::HashCommand(command);
     log_entry->start_time = start_time;
@@ -286,13 +283,13 @@ bool BuildLog::Load(const string& path, string* err) {
     end = line_end;
 
     LogEntry* entry;
-    Log::iterator i = log_.find(output);
-    if (i != log_.end()) {
+    Entries::iterator i = entries_.find(output);
+    if (i != entries_.end()) {
       entry = i->second;
     } else {
       entry = new LogEntry;
       entry->output = output;
-      log_.insert(Log::value_type(entry->output, entry));
+      entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -331,8 +328,8 @@ bool BuildLog::Load(const string& path, string* err) {
 }
 
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
-  Log::iterator i = log_.find(path);
-  if (i != log_.end())
+  Entries::iterator i = entries_.find(path);
+  if (i != entries_.end())
     return i->second;
   return NULL;
 }
@@ -359,7 +356,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
-  for (Log::iterator i = log_.begin(); i != log_.end(); ++i) {
+  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
     WriteEntry(f, *i->second);
   }
 

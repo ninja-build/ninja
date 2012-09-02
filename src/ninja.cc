@@ -740,7 +740,6 @@ reload:
     return RunTool(tool, &globals, argc, argv);
 
   BuildLog build_log;
-  build_log.SetConfig(&globals.config);
   globals.state->build_log_ = &build_log;
 
   const string build_dir = globals.state->bindings_.LookupVariable("builddir");
@@ -765,9 +764,11 @@ reload:
     err.clear();
   }
 
-  if (!build_log.OpenForWrite(log_path, &err)) {
-    Error("opening build log: %s", err.c_str());
-    return 1;
+  if (!globals.config.dry_run) {
+    if (!build_log.OpenForWrite(log_path, &err)) {
+      Error("opening build log: %s", err.c_str());
+      return 1;
+    }
   }
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
