@@ -145,51 +145,50 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
     *targets = state->DefaultNodes(err);
-    if (!err->empty())
+    return err->empty();
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    string path = argv[i];
+    if (!CanonicalizePath(&path, err))
       return false;
-  } else {
-    for (int i = 0; i < argc; ++i) {
-      string path = argv[i];
-      if (!CanonicalizePath(&path, err))
-        return false;
 
-      // Special syntax: "foo.cc^" means "the first output of foo.cc".
-      bool first_dependent = false;
-      if (!path.empty() && path[path.size() - 1] == '^') {
-        path.resize(path.size() - 1);
-        first_dependent = true;
-      }
+    // Special syntax: "foo.cc^" means "the first output of foo.cc".
+    bool first_dependent = false;
+    if (!path.empty() && path[path.size() - 1] == '^') {
+      path.resize(path.size() - 1);
+      first_dependent = true;
+    }
 
-      Node* node = state->LookupNode(path);
-      if (node) {
-        if (first_dependent) {
-          if (node->out_edges().empty()) {
-            *err = "'" + path + "' has no out edge";
-            return false;
-          }
-          Edge* edge = node->out_edges()[0];
-          if (edge->outputs_.empty()) {
-            edge->Dump();
-            Fatal("edge has no outputs");
-          }
-          node = edge->outputs_[0];
+    Node* node = state->LookupNode(path);
+    if (node) {
+      if (first_dependent) {
+        if (node->out_edges().empty()) {
+          *err = "'" + path + "' has no out edge";
+          return false;
         }
-        targets->push_back(node);
+        Edge* edge = node->out_edges()[0];
+        if (edge->outputs_.empty()) {
+          edge->Dump();
+          Fatal("edge has no outputs");
+        }
+        node = edge->outputs_[0];
+      }
+      targets->push_back(node);
+    } else {
+      *err = "unknown target '" + path + "'";
+
+      if (path == "clean") {
+        *err += ", did you mean 'ninja -t clean'?";
+      } else if (path == "help") {
+        *err += ", did you mean 'ninja -h'?";
       } else {
-        *err = "unknown target '" + path + "'";
-
-        if (path == "clean") {
-          *err += ", did you mean 'ninja -t clean'?";
-        } else if (path == "help") {
-          *err += ", did you mean 'ninja -h'?";
-        } else {
-          Node* suggestion = state->SpellcheckNode(path);
-          if (suggestion) {
-            *err += ", did you mean '" + suggestion->path() + "'?";
-          }
+        Node* suggestion = state->SpellcheckNode(path);
+        if (suggestion) {
+          *err += ", did you mean '" + suggestion->path() + "'?";
         }
-        return false;
       }
+      return false;
     }
   }
   return true;
