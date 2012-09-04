@@ -122,22 +122,20 @@ struct RealFileReader : public ManifestParser::FileReader {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool RebuildManifest(Globals* globals, const char* input_file, string* err) {
+bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   string path = input_file;
   if (!CanonicalizePath(&path, err))
     return false;
-  Node* node = globals->state->LookupNode(path);
+  Node* node = builder->state_->LookupNode(path);
   if (!node)
     return false;
 
-  Builder manifest_builder(globals->state, globals->config,
-                           &globals->disk_interface);
-  if (!manifest_builder.AddTarget(node, err))
+  if (!builder->AddTarget(node, err))
     return false;
 
-  if (manifest_builder.AlreadyUpToDate())
+  if (builder->AlreadyUpToDate())
     return false;  // Not an error, but we didn't rebuild.
-  if (!manifest_builder.Build(err))
+  if (!builder->Build(err))
     return false;
 
   // The manifest was only rebuilt if it is now dirty (it may have been cleaned
@@ -571,17 +569,16 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
-int RunBuild(Globals* globals, int argc, char** argv) {
+int RunBuild(Builder* builder, int argc, char** argv) {
   string err;
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(globals->state, argc, argv, &targets, &err)) {
+  if (!CollectTargetsFromArgs(builder->state_, argc, argv, &targets, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
 
-  Builder builder(globals->state, globals->config, &globals->disk_interface);
   for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
+    if (!builder->AddTarget(targets[i], &err)) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;
@@ -592,12 +589,12 @@ int RunBuild(Globals* globals, int argc, char** argv) {
     }
   }
 
-  if (builder.AlreadyUpToDate()) {
+  if (builder->AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
     return 0;
   }
 
-  if (!builder.Build(&err)) {
+  if (!builder->Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
     return 1;
   }
@@ -773,7 +770,9 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    if (RebuildManifest(&globals, input_file, &err)) {
+    Builder manifest_builder(globals.state, globals.config,
+                             &globals.disk_interface);
+    if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
       globals.ResetState();
       goto reload;
@@ -783,7 +782,8 @@ reload:
     }
   }
 
-  int result = RunBuild(&globals, argc, argv);
+  Builder builder(globals.state, globals.config, &globals.disk_interface);
+  int result = RunBuild(&builder, argc, argv);
   if (g_metrics) {
     g_metrics->Report();
 
