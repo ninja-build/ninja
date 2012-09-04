@@ -63,8 +63,8 @@ struct Globals {
 
   /// Command line used to run Ninja.
   const char* ninja_command;
-  /// Build configuration (e.g. parallelism).
-  BuildConfig config;
+  /// Build configuration set from flags (e.g. parallelism).
+  BuildConfig* config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
 };
@@ -456,7 +456,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(globals->state, globals->config);
+  Cleaner cleaner(globals->state, *globals->config);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -631,15 +631,17 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 #endif  // _MSC_VER
 
 int NinjaMain(int argc, char** argv) {
+  BuildConfig config;
   Globals globals;
   globals.ninja_command = argv[0];
+  globals.config = &config;
   const char* input_file = "build.ninja";
   const char* working_dir = NULL;
   string tool;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-  globals.config.parallelism = GuessParallelism();
+  config.parallelism = GuessParallelism();
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -661,14 +663,14 @@ int NinjaMain(int argc, char** argv) {
         input_file = optarg;
         break;
       case 'j':
-        globals.config.parallelism = atoi(optarg);
+        config.parallelism = atoi(optarg);
         break;
       case 'l': {
         char* end;
         double value = strtod(optarg, &end);
         if (end == optarg)
           Fatal("-l parameter not numeric: did you mean -l 0.0?");
-        globals.config.max_load_average = value;
+        config.max_load_average = value;
         break;
       }
       case 'k': {
@@ -680,14 +682,14 @@ int NinjaMain(int argc, char** argv) {
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        globals.config.failures_allowed = value > 0 ? value : INT_MAX;
+        config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'n':
-        globals.config.dry_run = true;
+        config.dry_run = true;
         break;
       case 'v':
-        globals.config.verbosity = BuildConfig::VERBOSE;
+        config.verbosity = BuildConfig::VERBOSE;
         break;
       case 't':
         tool = optarg;
@@ -700,7 +702,7 @@ int NinjaMain(int argc, char** argv) {
         return 0;
       case 'h':
       default:
-        Usage(globals.config);
+        Usage(config);
         return 1;
     }
   }
@@ -759,7 +761,7 @@ reload:
     err.clear();
   }
 
-  if (!globals.config.dry_run) {
+  if (!config.dry_run) {
     if (!build_log.OpenForWrite(log_path, &err)) {
       Error("opening build log: %s", err.c_str());
       return 1;
@@ -768,7 +770,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    Builder manifest_builder(globals.state, globals.config, &build_log,
+    Builder manifest_builder(globals.state, config, &build_log,
                              &disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
@@ -780,8 +782,7 @@ reload:
     }
   }
 
-  Builder builder(globals.state, globals.config, &build_log,
-                  &disk_interface);
+  Builder builder(globals.state, config, &build_log, &disk_interface);
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics) {
     g_metrics->Report();
