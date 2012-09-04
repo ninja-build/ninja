@@ -554,11 +554,10 @@ struct DryRunCommandRunner : public CommandRunner {
 };
 
 Builder::Builder(State* state, const BuildConfig& config,
-                 DiskInterface* disk_interface)
+                 BuildLog* log, DiskInterface* disk_interface)
     : state_(state), config_(config), disk_interface_(disk_interface),
-      scan_(state, disk_interface) {
+      scan_(state, log, disk_interface) {
   status_ = new BuildStatus(config);
-  log_ = state->build_log_;
 }
 
 Builder::~Builder() {
@@ -797,7 +796,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
-  if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
+  if (success && scan_.build_log())
+    scan_.build_log()->RecordCommand(edge, start_time, end_time, restat_mtime);
 }
 

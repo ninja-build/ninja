@@ -23,7 +23,6 @@ using namespace std;
 #include "eval_env.h"
 #include "hash_map.h"
 
-struct BuildLog;
 struct Edge;
 struct Node;
 struct Rule;
@@ -71,7 +70,6 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
-  BuildLog* build_log_;
 };
 
 #endif  // NINJA_STATE_H_

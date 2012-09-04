@@ -201,8 +201,10 @@ struct Edge {
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
 struct DependencyScan {
-  DependencyScan(State* state, DiskInterface* disk_interface)
-      : state_(state), disk_interface_(disk_interface) {}
+  DependencyScan(State* state, BuildLog* build_log,
+                 DiskInterface* disk_interface)
+      : state_(state), build_log_(build_log),
+        disk_interface_(disk_interface) {}
 
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -217,11 +219,17 @@ struct DependencyScan {
 
   bool LoadDepFile(Edge* edge, string* err);
 
-  State* state_;
-  DiskInterface* disk_interface_;
   BuildLog* build_log() const {
-    return state_->build_log_;
+    return build_log_;
   }
+  void set_build_log(BuildLog* log) {
+    build_log_ = log;
+  }
+
+ private:
+  State* state_;
+  BuildLog* build_log_;
+  DiskInterface* disk_interface_;
 };
 
 #endif  // NINJA_GRAPH_H_

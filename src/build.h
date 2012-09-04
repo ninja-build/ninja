@@ -121,7 +121,7 @@ struct BuildConfig {
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config,
-          DiskInterface* disk_interface);
+          BuildLog* log, DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -143,12 +143,16 @@ struct Builder {
   bool StartEdge(Edge* edge, string* err);
   void FinishEdge(Edge* edge, bool success, const string& output);
 
+  /// Used for tests.
+  void SetBuildLog(BuildLog* log) {
+    scan_.set_build_log(log);
+  }
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
   auto_ptr<CommandRunner> command_runner_;
   BuildStatus* status_;
-  BuildLog* log_;
 
  private:
   DiskInterface* disk_interface_;

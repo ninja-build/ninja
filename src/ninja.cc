@@ -737,7 +737,6 @@ reload:
     return RunTool(tool, &globals, argc, argv);
 
   BuildLog build_log;
-  globals.state->build_log_ = &build_log;
 
   const string build_dir = globals.state->bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
@@ -770,7 +769,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    Builder manifest_builder(globals.state, globals.config,
+    Builder manifest_builder(globals.state, globals.config, &build_log,
                              &globals.disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
@@ -782,7 +781,8 @@ reload:
     }
   }
 
-  Builder builder(globals.state, globals.config, &globals.disk_interface);
+  Builder builder(globals.state, globals.config, &build_log,
+                  &globals.disk_interface);
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics) {
     g_metrics->Report();
