@@ -67,8 +67,6 @@ struct Globals {
   BuildConfig config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
-  /// Functions for interacting with the disk.
-  RealDiskInterface disk_interface;
 };
 
 /// Print usage information.
@@ -725,6 +723,7 @@ int NinjaMain(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
+  RealDiskInterface disk_interface;
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
@@ -743,7 +742,7 @@ reload:
   string log_path = kLogPath;
   if (!build_dir.empty()) {
     log_path = build_dir + "/" + kLogPath;
-    if (!globals.disk_interface.MakeDirs(log_path) && errno != EEXIST) {
+    if (!disk_interface.MakeDirs(log_path) && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir.c_str(), strerror(errno));
       return 1;
@@ -770,7 +769,7 @@ reload:
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
     Builder manifest_builder(globals.state, globals.config, &build_log,
-                             &globals.disk_interface);
+                             &disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
       globals.ResetState();
@@ -782,7 +781,7 @@ reload:
   }
 
   Builder builder(globals.state, globals.config, &build_log,
-                  &globals.disk_interface);
+                  &disk_interface);
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics) {
     g_metrics->Report();
