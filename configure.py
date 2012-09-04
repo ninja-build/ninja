@@ -138,6 +138,7 @@ else:
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+        cflags.remove('-fno-rtti')  # Needed for above pedanticness.
     else:
         cflags += ['-O2', '-DNDEBUG']
     if 'clang' in os.path.basename(CXX):
