@@ -112,11 +112,13 @@ struct Rule {
   bool restat() const { return restat_; }
 
   const EvalString& command() const { return command_; }
-  EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
+
+  /// Used by a test.
+  void set_command(const EvalString& command) { command_ = command; }
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.
