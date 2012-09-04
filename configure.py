@@ -382,7 +382,7 @@ n.newline()
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
-       command='./ninja -t graph > $out')
+       command='./ninja -t graph all > $out')
 n.rule('gengraph',
        command='dot -Tpng $in > $out')
 dot = n.build(built('graph.dot'), 'gendot', ['ninja', 'build.ninja'])
