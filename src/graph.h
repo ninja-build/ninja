@@ -20,7 +20,6 @@
 using namespace std;
 
 #include "eval_env.h"
-#include "state.h"
 #include "timestamp.h"
 
 struct DiskInterface;
