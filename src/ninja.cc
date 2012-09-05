@@ -609,6 +609,22 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
   return true;
 }
 
+/// Dump the output requested by '-d stats'.
+void DumpMetrics(Globals* globals) {
+  g_metrics->Report();
+
+  printf("\n");
+  int count = (int)globals->state->paths_.size();
+  int buckets =
+#ifdef _MSC_VER
+      (int)globals->state->paths_.comp.bucket_size;
+#else
+      (int)globals->state->paths_.bucket_count();
+#endif
+  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+         count / (double) buckets, count, buckets);
+}
+
 int RunBuild(Builder* builder, int argc, char** argv) {
   string err;
   vector<Node*> targets;
@@ -811,20 +827,8 @@ reload:
 
   Builder builder(globals.state, config, &build_log, &disk_interface);
   int result = RunBuild(&builder, argc, argv);
-  if (g_metrics) {
-    g_metrics->Report();
-
-    printf("\n");
-    int count = (int)globals.state->paths_.size();
-    int buckets =
-#ifdef _MSC_VER
-        (int)globals.state->paths_.comp.bucket_size;
-#else
-        (int)globals.state->paths_.bucket_count();
-#endif
-    printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-           count / (double) buckets, count, buckets);
-  }
+  if (g_metrics)
+    DumpMetrics(&globals);
   return result;
 }
 
