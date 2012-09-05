@@ -69,6 +69,9 @@ struct Globals {
   State* state;
 };
 
+/// The type of functions that are the entry points to tools (subcommands).
+typedef int (*ToolFunc)(Globals*, int, char**);
+
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
@@ -491,13 +494,14 @@ void ToolUrtle() {
   }
 }
 
-int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
-  typedef int (*ToolFunc)(Globals*, int, char**);
-  struct Tool {
+/// Find the function to execute for \a tool_name and return it via \a func.
+/// If there is no tool to run (e.g.: unknown tool), returns an exit code.
+int ChooseTool(const string& tool_name, ToolFunc* func) {
+  const struct Tool {
     const char* name;
     const char* desc;
     ToolFunc func;
-  } tools[] = {
+  } kTools[] = {
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
       ToolBrowse },
@@ -517,30 +521,33 @@ int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
     { NULL, NULL, NULL }
   };
 
-  if (tool == "list") {
+  if (tool_name == "list") {
     printf("ninja subtools:\n");
-    for (int i = 0; tools[i].name; ++i) {
-      printf("%10s  %s\n", tools[i].name, tools[i].desc);
+    for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+      printf("%10s  %s\n", tool->name, tool->desc);
     }
     return 0;
-  } else if (tool == "urtle") {
+  } else if (tool_name == "urtle") {
     ToolUrtle();
     return 0;
   }
 
-  for (int i = 0; tools[i].name; ++i) {
-    if (tool == tools[i].name)
-      return tools[i].func(globals, argc, argv);
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+    if (tool->name == tool_name) {
+      *func = tool->func;
+      return 0;
+    }
   }
 
   vector<const char*> words;
-  for (int i = 0; tools[i].name; ++i)
-    words.push_back(tools[i].name);
-  const char* suggestion = SpellcheckStringV(tool, words);
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool)
+    words.push_back(tool->name);
+  const char* suggestion = SpellcheckStringV(tool_name, words);
   if (suggestion) {
-    Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
+    Error("unknown tool '%s', did you mean '%s'?",
+          tool_name.c_str(), suggestion);
   } else {
-    Error("unknown tool '%s'", tool.c_str());
+    Error("unknown tool '%s'", tool_name.c_str());
   }
   return 1;
 }
@@ -708,6 +715,15 @@ int NinjaMain(int argc, char** argv) {
   argv += optind;
   argc -= optind;
 
+  // If specified, select a tool as early as possible, so commands like
+  // -t list can succeed before we attempt to load build.ninja etc.
+  ToolFunc tool_func = NULL;
+  if (!tool.empty()) {
+    int exit_code = ChooseTool(tool, &tool_func);
+    if (!tool_func)
+      return exit_code;
+  }
+
   if (working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -733,8 +749,11 @@ reload:
     return 1;
   }
 
-  if (!tool.empty())
-    return RunTool(tool, &globals, argc, argv);
+  // TODO: some tools want to run before we load the above manifest.
+  // A tool probably needs to be able to specify where in the startup
+  // process it runs.
+  if (tool_func)
+    return tool_func(&globals, argc, argv);
 
   BuildLog build_log;
 
