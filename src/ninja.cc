@@ -573,6 +573,42 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
+bool OpenLog(BuildLog* build_log, Globals* globals,
+             DiskInterface* disk_interface) {
+  const string build_dir =
+      globals->state->bindings_.LookupVariable("builddir");
+  const char* kLogPath = ".ninja_log";
+  string log_path = kLogPath;
+  if (!build_dir.empty()) {
+    log_path = build_dir + "/" + kLogPath;
+    if (!disk_interface->MakeDirs(log_path) && errno != EEXIST) {
+      Error("creating build directory %s: %s",
+            build_dir.c_str(), strerror(errno));
+      return false;
+    }
+  }
+
+  string err;
+  if (!build_log->Load(log_path, &err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return false;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
+
+  if (!globals->config->dry_run) {
+    if (!build_log->OpenForWrite(log_path, &err)) {
+      Error("opening build log: %s", err.c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
 int RunBuild(Builder* builder, int argc, char** argv) {
   string err;
   vector<Node*> targets;
@@ -756,35 +792,8 @@ reload:
     return tool_func(&globals, argc, argv);
 
   BuildLog build_log;
-
-  const string build_dir = globals.state->bindings_.LookupVariable("builddir");
-  const char* kLogPath = ".ninja_log";
-  string log_path = kLogPath;
-  if (!build_dir.empty()) {
-    log_path = build_dir + "/" + kLogPath;
-    if (!disk_interface.MakeDirs(log_path) && errno != EEXIST) {
-      Error("creating build directory %s: %s",
-            build_dir.c_str(), strerror(errno));
-      return 1;
-    }
-  }
-
-  if (!build_log.Load(log_path, &err)) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+  if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
-  }
-  if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
-    Warning("%s", err.c_str());
-    err.clear();
-  }
-
-  if (!config.dry_run) {
-    if (!build_log.OpenForWrite(log_path, &err)) {
-      Error("opening build log: %s", err.c_str());
-      return 1;
-    }
-  }
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
