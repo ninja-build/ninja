@@ -72,6 +72,27 @@ struct Globals {
 /// The type of functions that are the entry points to tools (subcommands).
 typedef int (*ToolFunc)(Globals*, int, char**);
 
+/// Subtools, accessible via "-t foo".
+struct Tool {
+  /// Short name of the tool.
+  const char* name;
+
+  /// Description (shown in "-t list").
+  const char* desc;
+
+  /// When to run the tool.
+  enum {
+    /// Run after parsing the command-line flags (as early as possible).
+    RUN_AFTER_FLAGS,
+
+    /// Run after loading build.ninja.
+    RUN_AFTER_LOAD,
+  } when;
+
+  /// Implementation of the tool.
+  ToolFunc func;
+};
+
 /// Print usage information.
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
@@ -469,7 +490,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
-void ToolUrtle() {
+int ToolUrtle(Globals* globals, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
 " 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
@@ -492,49 +513,46 @@ void ToolUrtle() {
       count = 0;
     }
   }
+  return 0;
 }
 
 /// Find the function to execute for \a tool_name and return it via \a func.
 /// If there is no tool to run (e.g.: unknown tool), returns an exit code.
-int ChooseTool(const string& tool_name, ToolFunc* func) {
-  const struct Tool {
-    const char* name;
-    const char* desc;
-    ToolFunc func;
-  } kTools[] = {
+int ChooseTool(const string& tool_name, const Tool** tool_out) {
+  static const Tool kTools[] = {
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
-      ToolBrowse },
+      Tool::RUN_AFTER_LOAD, ToolBrowse },
 #endif
     { "clean", "clean built files",
-      ToolClean },
+      Tool::RUN_AFTER_LOAD, ToolClean },
     { "commands", "list all commands required to rebuild given targets",
-      ToolCommands },
+      Tool::RUN_AFTER_LOAD, ToolCommands },
     { "graph", "output graphviz dot file for targets",
-      ToolGraph },
+      Tool::RUN_AFTER_LOAD, ToolGraph },
     { "query", "show inputs/outputs for a path",
-      ToolQuery },
+      Tool::RUN_AFTER_LOAD, ToolQuery },
     { "rules",    "list all rules",
-      ToolRules },
+      Tool::RUN_AFTER_LOAD, ToolRules },
     { "targets",  "list targets by their rule or depth in the DAG",
-      ToolTargets },
-    { NULL, NULL, NULL }
+      Tool::RUN_AFTER_LOAD, ToolTargets },
+    { "urtle", NULL,
+      Tool::RUN_AFTER_FLAGS, ToolUrtle },
+    { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
   };
 
   if (tool_name == "list") {
     printf("ninja subtools:\n");
     for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-      printf("%10s  %s\n", tool->name, tool->desc);
+      if (tool->desc)
+        printf("%10s  %s\n", tool->name, tool->desc);
     }
-    return 0;
-  } else if (tool_name == "urtle") {
-    ToolUrtle();
     return 0;
   }
 
   for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
     if (tool->name == tool_name) {
-      *func = tool->func;
+      *tool_out = tool;
       return 0;
     }
   }
@@ -695,7 +713,7 @@ int NinjaMain(int argc, char** argv) {
   globals.config = &config;
   const char* input_file = "build.ninja";
   const char* working_dir = NULL;
-  string tool;
+  string tool_name;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
@@ -709,7 +727,7 @@ int NinjaMain(int argc, char** argv) {
   };
 
   int opt;
-  while (tool.empty() &&
+  while (tool_name.empty() &&
          (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -750,7 +768,7 @@ int NinjaMain(int argc, char** argv) {
         config.verbosity = BuildConfig::VERBOSE;
         break;
       case 't':
-        tool = optarg;
+        tool_name = optarg;
         break;
       case 'C':
         working_dir = optarg;
@@ -768,13 +786,16 @@ int NinjaMain(int argc, char** argv) {
   argc -= optind;
 
   // If specified, select a tool as early as possible, so commands like
-  // -t list can succeed before we attempt to load build.ninja etc.
-  ToolFunc tool_func = NULL;
-  if (!tool.empty()) {
-    int exit_code = ChooseTool(tool, &tool_func);
-    if (!tool_func)
+  // -t list can run before we attempt to load build.ninja etc.
+  const Tool* tool = NULL;
+  if (!tool_name.empty()) {
+    int exit_code = ChooseTool(tool_name, &tool);
+    if (!tool)
       return exit_code;
   }
+
+  if (tool && tool->when == Tool::RUN_AFTER_FLAGS)
+    return tool->func(&globals, argc, argv);
 
   if (working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -782,7 +803,7 @@ int NinjaMain(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (tool == "")
+    if (!tool)
       printf("ninja: Entering directory `%s'\n", working_dir);
     if (chdir(working_dir) < 0) {
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
@@ -801,11 +822,8 @@ reload:
     return 1;
   }
 
-  // TODO: some tools want to run before we load the above manifest.
-  // A tool probably needs to be able to specify where in the startup
-  // process it runs.
-  if (tool_func)
-    return tool_func(&globals, argc, argv);
+  if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+    return tool->func(&globals, argc, argv);
 
   BuildLog build_log;
   if (!OpenLog(&build_log, &globals, &disk_interface))
