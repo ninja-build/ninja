@@ -37,6 +37,7 @@
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
 #elif defined(__SVR4) && defined(__sun) 
+#include <sys/sysconf.h>
 #include <sys/loadavg.h>
 #elif defined(linux)
 #include <sys/sysinfo.h>
@@ -309,6 +310,10 @@ int GetProcessorCount() {
     return 0;
   }
   return processors;
+}
+#elif defined(__SVR4) && defined(__sun) 
+int GetProcessorCount() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
 }
 #elif defined(_WIN32)
 int GetProcessorCount() {
