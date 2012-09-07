@@ -173,8 +173,8 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   return true;
 }
 
-int ReadFile(const string& path, string* contents, string* err, bool binary) {
-  FILE* f = fopen(path.c_str(), binary ? "rb" : "r");
+int ReadFile(const string& path, string* contents, string* err) {
+  FILE* f = fopen(path.c_str(), "r");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -194,10 +194,8 @@ int ReadFile(FILE* f, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
     return -errno;
   }
-  fclose(f);
   return 0;
 }
 
