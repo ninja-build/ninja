@@ -37,17 +37,15 @@ bool Node::Stat(DiskInterface* disk_interface) {
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
 
-  /*
-#ifdef _WIN32
-    if (state->depdb_) {
-      if (!LoadDepDb(state, err))
-        return false;
-    } else
-#endif
-  */
   edge->outputs_ready_ = true;
 
   if (!edge->rule_->depfile().empty()) {
+#ifdef _WIN32
+    if (state_->depdb_) {
+      if (!LoadDepDb(edge, err))
+        return false;
+    } else
+#endif
     if (!LoadDepFile(edge, err)) {
       if (!err->empty())
         return false;
