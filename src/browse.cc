@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+if !defined(__SVR4) && !defined(__sun) 
 #include "../build/browse_py.h"
 
 void RunBrowsePython(State* state, const char* ninja_command,
@@ -63,3 +64,9 @@ void RunBrowsePython(State* state, const char* ninja_command,
     exit(0);
   }
 }
+#else 
+void RunBrowsePython(State* state, const char* ninja_command,
+                     const char* initial_target) {
+  printf("PythonBrowser is unsupported on Illumos/OpenSolaris\n");
+}
+#endif
