@@ -118,6 +118,8 @@ if platform == 'windows':
               '/WX',  # Warnings as errors.
               '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              # Disable warnings about passing "this" during initialization.
+              '/wd4355',
               '/GR-',  # Disable RTTI.
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
