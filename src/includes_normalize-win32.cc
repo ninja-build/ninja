@@ -58,7 +58,7 @@ vector<string> IncludesNormalize::Split(const string& input, char sep) {
 
 string IncludesNormalize::ToLower(const string& s) {
   string ret;
-  transform(s.begin(), s.end(), back_inserter(ret), tolower);
+  transform(s.begin(), s.end(), back_inserter(ret), ::tolower);
   return ret;
 }
 
