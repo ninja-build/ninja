@@ -143,7 +143,7 @@ is_option (char *argv_element, int only)
 
 /* getopt_internal:  the function that does all the dirty work */
 static int
-getopt_internal (int argc, char **argv, char *shortopts,
+getopt_internal (int argc, char **argv, const char *shortopts,
                  GETOPT_LONG_OPTION_T * longopts, int *longind, int only)
 {
   GETOPT_ORDERING_T ordering = PERMUTE;

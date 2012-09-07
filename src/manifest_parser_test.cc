@@ -19,12 +19,27 @@
 #include "graph.h"
 #include "state.h"
 
+namespace {
+
+string SLASH(const string& input) {
+  string ret(input);
+#ifdef _WIN32
+  for (size_t i = 0; i < ret.size(); ++i) {
+    if (ret[i] == '/')
+      ret[i] = '\\';
+  }
+#endif
+  return ret;
+}
+
+}  // namespace
+
 struct ParserTest : public testing::Test,
                     public ManifestParser::FileReader {
-  void AssertParse(const char* input) {
+  void AssertParse(const string& input) {
     ManifestParser parser(&state, this);
     string err;
-    ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
+    ASSERT_TRUE(parser.ParseTest(input.c_str(), &err)) << err;
     ASSERT_EQ("", err);
   }
 
@@ -245,40 +260,40 @@ TEST_F(ParserTest, EscapeSpaces) {
 }
 
 TEST_F(ParserTest, CanonicalizeFile) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(SLASH(
 "rule cat\n"
 "  command = cat $in > $out\n"
 "build out: cat in/1 in//2\n"
 "build in/1: cat\n"
-"build in/2: cat\n"));
+"build in/2: cat\n")));
 
-  EXPECT_TRUE(state.LookupNode("in/1"));
-  EXPECT_TRUE(state.LookupNode("in/2"));
-  EXPECT_FALSE(state.LookupNode("in//1"));
-  EXPECT_FALSE(state.LookupNode("in//2"));
+  EXPECT_TRUE(state.LookupNode(SLASH("in/1")));
+  EXPECT_TRUE(state.LookupNode(SLASH("in/2")));
+  EXPECT_FALSE(state.LookupNode(SLASH("in//1")));
+  EXPECT_FALSE(state.LookupNode(SLASH("in//2")));
 }
 
 TEST_F(ParserTest, PathVariables) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(SLASH(
 "rule cat\n"
 "  command = cat $in > $out\n"
 "dir = out\n"
-"build $dir/exe: cat src\n"));
+"build $dir/exe: cat src\n")));
 
-  EXPECT_FALSE(state.LookupNode("$dir/exe"));
-  EXPECT_TRUE(state.LookupNode("out/exe"));
+  EXPECT_FALSE(state.LookupNode(SLASH("$dir/exe")));
+  EXPECT_TRUE(state.LookupNode(SLASH("out/exe")));
 }
 
 TEST_F(ParserTest, CanonicalizePaths) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+  ASSERT_NO_FATAL_FAILURE(AssertParse(SLASH(
 "rule cat\n"
 "  command = cat $in > $out\n"
-"build ./out.o: cat ./bar/baz/../foo.cc\n"));
+"build ./out.o: cat ./bar/baz/../foo.cc\n")));
 
-  EXPECT_FALSE(state.LookupNode("./out.o"));
-  EXPECT_TRUE(state.LookupNode("out.o"));
-  EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
-  EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
+  EXPECT_FALSE(state.LookupNode(SLASH("./out.o")));
+  EXPECT_TRUE(state.LookupNode(SLASH("out.o")));
+  EXPECT_FALSE(state.LookupNode(SLASH("./bar/baz/../foo.cc")));
+  EXPECT_TRUE(state.LookupNode(SLASH("bar/foo.cc")));
 }
 
 TEST_F(ParserTest, ReservedWords) {
@@ -593,23 +608,23 @@ TEST_F(ParserTest, MultipleOutputs) {
 }
 
 TEST_F(ParserTest, SubNinja) {
-  files_["test.ninja"] =
+  files_["test.ninja"] = SLASH(
     "var = inner\n"
-    "build $builddir/inner: varref\n";
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+    "build $builddir/inner: varref\n");
+  ASSERT_NO_FATAL_FAILURE(AssertParse(SLASH(
 "builddir = some_dir/\n"
 "rule varref\n"
 "  command = varref $var\n"
 "var = outer\n"
 "build $builddir/outer: varref\n"
 "subninja test.ninja\n"
-"build $builddir/outer2: varref\n"));
+"build $builddir/outer2: varref\n")));
   ASSERT_EQ(1u, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);
-  EXPECT_TRUE(state.LookupNode("some_dir/outer"));
+  EXPECT_TRUE(state.LookupNode(SLASH("some_dir/outer")));
   // Verify our builddir setting is inherited.
-  EXPECT_TRUE(state.LookupNode("some_dir/inner"));
+  EXPECT_TRUE(state.LookupNode(SLASH("some_dir/inner")));
 
   ASSERT_EQ(3u, state.edges_.size());
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());

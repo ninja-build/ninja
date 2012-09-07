@@ -17,9 +17,13 @@
 
 #ifdef _WIN32
 #include "win32port.h"
+#include <windows.h>
+#undef ERROR
 #else
 #include <stdint.h>
 #endif
+
+#include "timestamp.h"
 
 #include <string>
 #include <vector>
@@ -41,6 +45,10 @@ bool CanonicalizePath(char* path, size_t* len, string* err);
 
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
+/// Returns -errno and fills in \a err on error.
+int ReadFile(FILE* f, string* contents, string* err);
+
+/// Read a file to a string.
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
@@ -84,5 +92,14 @@ string GetLastErrorString();
 /// Calls Fatal() with a function name and GetLastErrorString.
 void Win32Fatal(const char* function);
 #endif
+
+#ifdef _WIN32
+  #define DIR_SEP_S "\\"
+  #define DIR_SEP_C '\\'
+#else
+  #define DIR_SEP_S "/"
+  #define DIR_SEP_C '/'
+#endif
+
 
 #endif  // NINJA_UTIL_H_

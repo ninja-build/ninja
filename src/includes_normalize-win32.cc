@@ -21,11 +21,8 @@
 #include <iterator>
 #include <sstream>
 
-#include <windows.h>
-
 namespace {
 
-/// Return true if paths a and b are on the same Windows drive.
 bool SameDrive(StringPiece a, StringPiece b)  {
   char a_absolute[_MAX_PATH];
   char b_absolute[_MAX_PATH];

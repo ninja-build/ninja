@@ -23,6 +23,7 @@ using namespace std;
 #include "eval_env.h"
 #include "hash_map.h"
 
+struct DepDatabase;
 struct Edge;
 struct Node;
 struct Rule;
@@ -70,6 +71,9 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
+#ifdef _WIN32
+  DepDatabase* depdb_;
+#endif
 };
 
 #endif  // NINJA_STATE_H_

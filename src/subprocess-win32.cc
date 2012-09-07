@@ -69,11 +69,11 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command,
+                       void* env_block) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
-  SECURITY_ATTRIBUTES security_attributes;
-  memset(&security_attributes, 0, sizeof(SECURITY_ATTRIBUTES));
+  SECURITY_ATTRIBUTES security_attributes = {};
   security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
   security_attributes.bInheritHandle = TRUE;
   // Must be inheritable so subprocesses can dup to children.
@@ -83,22 +83,20 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
-  STARTUPINFOA startup_info;
-  memset(&startup_info, 0, sizeof(startup_info));
+  STARTUPINFOA startup_info = {};
   startup_info.cb = sizeof(STARTUPINFO);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
   startup_info.hStdInput = nul;
   startup_info.hStdOutput = child_pipe;
   startup_info.hStdError = child_pipe;
 
-  PROCESS_INFORMATION process_info;
-  memset(&process_info, 0, sizeof(process_info));
+  PROCESS_INFORMATION process_info = {};
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
-                      NULL, NULL,
+                      env_block, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
     if (error == ERROR_FILE_NOT_FOUND) { // file (program) not found error is treated as a normal build action failure
@@ -210,9 +208,9 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
+Subprocess *SubprocessSet::Add(const string& command, void* env_block) {
   Subprocess *subprocess = new Subprocess;
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, env_block)) {
     delete subprocess;
     return 0;
   }

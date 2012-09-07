@@ -18,7 +18,9 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "dep_database.h"
 #include "depfile_parser.h"
+#include "deplist.h"
 #include "disk_interface.h"
 #include "explain.h"
 #include "manifest_parser.h"
@@ -34,9 +36,16 @@ bool Node::Stat(DiskInterface* disk_interface) {
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
+
   edge->outputs_ready_ = true;
 
   if (!edge->rule_->depfile().empty()) {
+#ifdef _WIN32
+    if (state_->depdb_) {
+      if (!LoadDepDb(edge, err))
+        return false;
+    } else
+#endif
     if (!LoadDepFile(edge, err)) {
       if (!err->empty())
         return false;
@@ -256,6 +265,30 @@ string Edge::GetDescription() {
   return rule_->description().Evaluate(&env);
 }
 
+Node* Edge::GetDepNode(State* state, StringPiece path) {
+  Node* node = state->GetNode(path);  // XXX remove conversion
+  node->AddOutEdge(this);
+
+  // If we don't have a edge that generates this input already,
+  // create one; this makes us not abort if the input is missing,
+  // but instead will rebuild in that circumstance.
+  if (!node->in_edge()) {
+    Edge* phony_edge = state->AddEdge(&State::kPhonyRule);
+    node->set_in_edge(phony_edge);
+    phony_edge->outputs_.push_back(node);
+
+    // RecomputeDirty might not be called for phony_edge if a previous call
+    // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+    // invocations of RecomputeDirty would have seen this node without an
+    // input edge (and therefore ready), we have to set outputs_ready_ to true
+    // to avoid a potential stuck build.  If we do call RecomputeDirty for
+    // this node, it will simply set outputs_ready_ to the correct value.
+    phony_edge->outputs_ready_ = true;
+  }
+
+  return node;
+}
+
 bool Edge::HasRspFile() {
   return !rule_->rspfile().empty();
 }
@@ -296,19 +329,28 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
     return false;
   }
 
-  // Preallocate space in edge->inputs_ to be filled in below.
-  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       depfile.ins_.size(), 0);
-  edge->implicit_deps_ += depfile.ins_.size();
-  vector<Node*>::iterator implicit_dep =
-      edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
-
-  // Add all its in-edges.
+  // Canonicalize all the depfile inputs in-place.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+       i != depfile.ins_.end(); ++i) {
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
       return false;
+  }
 
+  AddImplicitDeps(edge, depfile.ins_);
+
+  return true;
+}
+
+void DependencyScan::AddImplicitDeps(Edge* edge, const vector<StringPiece>& deps) {
+  // Preallocate space in edge->inputs_ to be filled in below.
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       deps.size(), 0);
+  edge->implicit_deps_ += deps.size();
+
+  vector<Node*>::iterator implicit_dep =
+      edge->inputs_.end() - edge->order_only_deps_ - deps.size();
+  for (vector<StringPiece>::const_iterator i = deps.begin(); i != deps.end();
+       ++i, ++implicit_dep) {
     Node* node = state_->GetNode(*i);
     *implicit_dep = node;
     node->AddOutEdge(edge);
@@ -330,9 +372,27 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
       phony_edge->outputs_ready_ = true;
     }
   }
+}
 
+#ifdef _WIN32
+bool DependencyScan::LoadDepDb(Edge* edge, string* err) {
+  METRIC_RECORD("depdb load");
+
+  EdgeEnv env(edge);
+  string path = edge->rule_->depfile().Evaluate(&env);
+  vector<StringPiece> deps;
+  state_->depdb_->StartLookups();
+  if (!state_->depdb_->FindDepData(path, &deps, err)) {
+    state_->depdb_->FinishLookups();
+    return false;
+  }
+
+  AddImplicitDeps(edge, deps);
+
+  state_->depdb_->FinishLookups();
   return true;
 }
+#endif
 
 void Edge::Dump(const char* prefix) const {
   printf("%s[ ", prefix);

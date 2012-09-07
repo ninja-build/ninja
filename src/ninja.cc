@@ -32,6 +32,7 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "dep_database.h"
 #include "disk_interface.h"
 #include "edit_distance.h"
 #include "explain.h"
@@ -490,6 +491,25 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+#ifdef _WIN32
+int ToolDepIndex(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex(false);
+  return 0;
+}
+
+int ToolDepIndexComplete(Globals* globals, int argc, char* argv[]) {
+  globals->state->depdb_->DumpIndex(true);
+  return 0;
+}
+
+int ToolDeps(Globals* globals, int argc, char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    globals->state->depdb_->DumpDeps(argv[i]);
+  }
+  return 0;
+}
+#endif
+
 int ToolUrtle(Globals* globals, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -528,6 +548,14 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, ToolCommands },
+#ifdef _WIN32
+    { "depindex", "list all files indexed in the depdb",
+      Tool::RUN_AFTER_LOAD, ToolDepIndex },
+    { "depcomplete", "list all files indexed in the depdb, and deps",
+      Tool::RUN_AFTER_LOAD, ToolDepIndexComplete },
+    { "deps", "list dependencies stored in the depdb for given files",
+      Tool::RUN_AFTER_LOAD, ToolDeps },
+#endif
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, ToolGraph },
     { "query", "show inputs/outputs for a path",
@@ -616,6 +644,26 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
     Warning("%s", err.c_str());
     err.clear();
   }
+
+#ifdef _WIN32
+  const string use_depdb =
+      globals->state->bindings_.LookupVariable("use_dep_database");
+  if (!use_depdb.empty()) {
+    const char* kDepDbPath = ".ninja_depdb";
+    string depdb_path = kDepDbPath;
+    if (!build_dir.empty()) {
+      depdb_path = build_dir + "/" + kDepDbPath;
+    }
+    globals->state->depdb_ = new DepDatabase(depdb_path, true);
+    if (globals->state->depdb_->RequireClean()) {
+      // If we need to do a clean, clobber the build log to force one.
+      if (unlink(log_path.c_str()) < 0) {
+        Error("removing build log for version upgrade: %s", strerror(errno));
+        return false;
+      }
+    }
+  }
+#endif
 
   if (!globals->config->dry_run) {
     if (!build_log->OpenForWrite(log_path, &err)) {

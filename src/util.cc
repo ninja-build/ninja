@@ -112,10 +112,10 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == '/') {
+  if (*src == DIR_SEP_C) {
 #ifdef _WIN32
-    // network path starts with //
-    if (*len > 1 && *(src + 1) == '/') {
+    // network path starts with \\.
+    if (*len > 1 && *(src + 1) == '\\') {
       src += 2;
       dst += 2;
     } else {
@@ -130,11 +130,11 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
 
   while (src < end) {
     if (*src == '.') {
-      if (src + 1 == end || src[1] == '/') {
+      if (src + 1 == end || src[1] == DIR_SEP_C) {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
+      } else if (src[1] == '.' && (src + 2 == end || src[2] == DIR_SEP_C)) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
@@ -149,7 +149,7 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
       }
     }
 
-    if (*src == '/') {
+    if (*src == DIR_SEP_C) {
       src++;
       continue;
     }
@@ -159,9 +159,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     components[component_count] = dst;
     ++component_count;
 
-    while (*src != '/' && src != end)
+    while (*src != DIR_SEP_C && src != end)
       *dst++ = *src++;
-    *dst++ = *src++;  // Copy '/' or final \0 character as well.
+    *dst++ = *src++;  // Copy DIR_SEP_C or final \0 character as well.
   }
 
   if (dst == start) {
@@ -179,7 +179,13 @@ int ReadFile(const string& path, string* contents, string* err) {
     err->assign(strerror(errno));
     return -errno;
   }
+  if (ReadFile(f, contents, err) != 0)
+    return -errno;
+  fclose(f);
+  return 0;
+}
 
+int ReadFile(FILE* f, string* contents, string* err) {
   char buf[64 << 10];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
@@ -188,10 +194,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   if (ferror(f)) {
     err->assign(strerror(errno));  // XXX errno?
     contents->clear();
-    fclose(f);
     return -errno;
   }
-  fclose(f);
   return 0;
 }
 

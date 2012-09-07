@@ -248,8 +248,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
       to_print = ElideMiddle(to_print, size.ws_col);
     }
 #else
-    // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    size_t width = static_cast<size_t>(csbi.dwSize.X);
     to_print = ElideMiddle(to_print, width);
 #endif
   }
@@ -788,8 +787,8 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
       }
     }
 
-    // delete the response file on success (if exists)
-    if (edge->HasRspFile())
+    // delete the response file on success (if exists, and not in verbose mode)
+    if (edge->HasRspFile() && config_.verbosity < BuildConfig::VERBOSE)
       disk_interface_->RemoveFile(edge->GetRspFile());
 
     plan_.EdgeFinished(edge);

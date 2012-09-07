@@ -262,6 +262,7 @@ for name in ['build',
              'build_log',
              'clean',
              'depfile_parser',
+             'deplist',
              'disk_interface',
              'edit_distance',
              'eval_env',
@@ -274,7 +275,11 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
+
 if platform in ('mingw', 'windows'):
+    objs += cxx('dep_database-win32')
+    objs += cxx('lockable_mapped_file-win32')
+    objs += cxx('showincludes_parser-win32')
     objs += cxx('subprocess-win32')
     if platform == 'windows':
         objs += cxx('includes_normalize-win32')
@@ -295,6 +300,7 @@ else:
     libs.append('-lninja')
 
 all_targets = []
+default_targets = []
 
 n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
@@ -302,6 +308,7 @@ ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 n.newline()
 all_targets += ninja
+default_targets += ninja
 
 if platform == 'windows':
     n.comment('Helper for working with MSVC.')
@@ -318,7 +325,7 @@ n.comment('Tests all build into ninja_test executable.')
 variables = []
 test_cflags = None
 test_ldflags = None
-test_libs = libs
+test_libs = libs[:]
 objs = []
 if options.with_gtest:
     path = options.with_gtest
@@ -345,11 +352,13 @@ else:
 for name in ['build_log_test',
              'build_test',
              'clean_test',
+             'dep_database_test',
              'depfile_parser_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
              'lexer_test',
+             'showincludes_parser_test',
              'manifest_parser_test',
              'state_test',
              'subprocess_test',
@@ -368,6 +377,15 @@ ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
 n.newline()
 all_targets += ninja_test
 
+if platform == 'windows':
+    n.comment('Deplist helper.')
+    objs = cxx('deplist_helper')
+    deplist_helper = n.build(binary('ninja-deplist-helper'), 'link', objs,
+                            implicit=ninja_lib,
+                            variables=[('libs', libs)])
+    n.newline()
+    all_targets += deplist_helper
+    default_targets += deplist_helper
 
 n.comment('Ancilliary executables.')
 objs = cxx('parser_perftest')

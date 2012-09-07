@@ -18,8 +18,6 @@ using namespace std;
 
 struct StringPiece;
 
-/// Utility functions for normalizing include paths on Windows.
-/// TODO: this likely duplicates functionality of CanonicalizePath; refactor.
 struct IncludesNormalize {
   // Internal utilities made available for testing, maybe useful otherwise.
   static string Join(const vector<string>& list, char sep);

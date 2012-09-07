@@ -39,8 +39,9 @@ int main(int argc, char* argv[]) {
           return 1;
         }
 
-        DepfileParser parser;
-        if (!parser.Parse(&buf, &err)) {
+        StringPiece target;
+        vector<StringPiece> inputs;
+        if (!DepfileParser::Parse(&buf, &target, &inputs, &err)) {
           printf("%s: %s\n", filename, err.c_str());
           return 1;
         }

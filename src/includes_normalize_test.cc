@@ -92,7 +92,6 @@ TEST(IncludesNormalize, DifferentDrive) {
       IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "D:\\stuff/things"));
   EXPECT_EQ("p:\\vs08\\stuff.h",
       IncludesNormalize::Normalize("P:/vs08\\stuff.h", "D:\\stuff/things"));
-  // TODO: this fails; fix it.
-  //EXPECT_EQ("P:\\wee\\stuff.h",
-  //    IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h", "D:\\stuff/things"));
+  EXPECT_EQ("p:\\wee\\stuff.h",
+      IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h", "D:\\stuff/things"));
 }

@@ -153,6 +153,8 @@ struct Edge {
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
+  /// Get/create a Node for an input as discovered through a depfile.
+  Node* GetDepNode(State* state, StringPiece path);
 
   /// Does the edge use a response file?
   bool HasRspFile();
@@ -219,6 +221,11 @@ struct DependencyScan {
                             const string& command, Node* output);
 
   bool LoadDepFile(Edge* edge, string* err);
+#ifdef _WIN32
+  bool LoadDepDb(Edge* edge, string* err);
+#endif  // _WIN32
+
+  void AddImplicitDeps(Edge* edge, const vector<StringPiece>& deps);
 
   BuildLog* build_log() const {
     return build_log_;
