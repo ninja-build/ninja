@@ -633,12 +633,7 @@ void DumpMetrics(Globals* globals) {
 
   printf("\n");
   int count = (int)globals->state->paths_.size();
-  int buckets =
-#ifdef _MSC_VER
-      (int)globals->state->paths_.comp.bucket_size;
-#else
-      (int)globals->state->paths_.bucket_count();
-#endif
+  int buckets = (int)globals->state->paths_.bucket_count();
   printf("path->node hash load %.2f (%d entries / %d buckets)\n",
          count / (double) buckets, count, buckets);
 }
