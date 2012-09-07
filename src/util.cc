@@ -36,6 +36,9 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#elif defined(__SVR4) && defined(__sun)
+#include <unistd.h>
+#include <sys/loadavg.h>
 #elif defined(linux)
 #include <sys/sysinfo.h>
 #endif
@@ -313,6 +316,12 @@ int GetProcessorCount() {
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   return info.dwNumberOfProcessors;
+}
+#else
+// This is what get_nprocs() should be doing in the Linux implementation
+// above, but in a more standard way.
+int GetProcessorCount() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
 }
 #endif
 
