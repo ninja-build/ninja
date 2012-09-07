@@ -135,16 +135,3 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
 }
-
-TEST_F(DepfileParserTest, Tilde) {
-  string err;
-  EXPECT_TRUE(Parse(
-"foo~.o: foo~.c",
-      &err));
-  ASSERT_EQ("", err);
-  EXPECT_EQ("foo~.o",
-            parser_.out_.AsString());
-  ASSERT_EQ(1u, parser_.ins_.size());
-  EXPECT_EQ("foo~.c",
-            parser_.ins_[0].AsString());
-}

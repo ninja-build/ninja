@@ -138,6 +138,7 @@ else:
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+        cflags.remove('-fno-rtti')  # Needed for above pedanticness.
     else:
         cflags += ['-O2', '-DNDEBUG']
     if 'clang' in os.path.basename(CXX):
@@ -233,12 +234,23 @@ if platform not in ('mingw', 'windows'):
     n.newline()
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
-n.rule('re2c',
-       command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
-# Generate the .cc files in the source directory so we can check them in.
-n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
-n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+def has_re2c():
+    import subprocess
+    try:
+        subprocess.call(['re2c', '-v'], stdout=subprocess.PIPE)
+        return True
+    except OSError:
+        return False
+if has_re2c():
+    n.rule('re2c',
+           command='re2c -b -i --no-generation-date -o $out $in',
+           description='RE2C $out')
+    # Generate the .cc files in the source directory so we can check them in.
+    n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+    n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+else:
+    print ("warning: re2c not found; changes to src/*.in.cc will not affect "
+           "your build.")
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
@@ -389,7 +401,7 @@ n.newline()
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
-       command='./ninja -t graph > $out')
+       command='./ninja -t graph all > $out')
 n.rule('gengraph',
        command='dot -Tpng $in > $out')
 dot = n.build(built('graph.dot'), 'gendot', ['ninja', 'build.ninja'])
@@ -415,7 +427,7 @@ n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
-                   ['README', 'HACKING', 'COPYING'],
+                   ['README', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)

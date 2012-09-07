@@ -178,7 +178,8 @@ TEST_F(PlanTest, DependencyCycle) {
 
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
-  BuildTest() : config_(MakeConfig()), builder_(&state_, config_, &fs_),
+  BuildTest() : config_(MakeConfig()),
+                builder_(&state_, config_, NULL, &fs_),
                 now_(1), last_command_(NULL), status_(config_) {
     builder_.command_runner_.reset(this);
     AssertParse(&state_,
@@ -717,7 +718,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
 
 struct BuildWithLogTest : public BuildTest {
   BuildWithLogTest() {
-    state_.build_log_ = builder_.log_ = &build_log_;
+    builder_.SetBuildLog(&build_log_);
   }
 
   BuildLog build_log_;

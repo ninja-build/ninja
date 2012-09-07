@@ -111,11 +111,13 @@ struct Rule {
   bool restat() const { return restat_; }
 
   const EvalString& command() const { return command_; }
-  EvalString& command() { return command_; }
   const EvalString& description() const { return description_; }
   const EvalString& depfile() const { return depfile_; }
   const EvalString& rspfile() const { return rspfile_; }
   const EvalString& rspfile_content() const { return rspfile_content_; }
+
+  /// Used by a test.
+  void set_command(const EvalString& command) { command_ = command; }
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.
@@ -142,43 +144,26 @@ struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
            order_only_deps_(0) {}
 
-  /// Examine inputs, outputs, and command lines to judge whether this edge
-  /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
-  /// state accordingly.
-  /// Returns false on failure.
-  bool RecomputeDirty(State* state, DiskInterface* disk_interface, string* err);
-
-  /// Recompute whether a given single output should be marked dirty.
-  /// Returns true if so.
-  bool RecomputeOutputDirty(BuildLog* build_log, TimeStamp most_recent_input,
-                            Node* most_recent_node, const string& command,
-                            Node* output);
-
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
 
   /// Expand all variables in a command and return it as a string.
-  /// If incl_rsp_file is enabled, the string will also contain the 
+  /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
   string EvaluateDepFile();
   string GetDescription();
   /// Get/create a Node for an input as discovered through a depfile.
   Node* GetDepNode(State* state, StringPiece path);
-  
+
   /// Does the edge use a response file?
   bool HasRspFile();
-  
+
   /// Get the path to the response file
   string GetRspFile();
 
   /// Get the contents of the response file
   string GetRspFileContent();
-
-  bool LoadDepFile(State* state, DiskInterface* disk_interface, string* err);
-#ifdef _WIN32
-  bool LoadDepDb(State* state, string* err);
-#endif
 
   void Dump(const char* prefix="") const;
 
@@ -213,6 +198,46 @@ struct Edge {
   }
 
   bool is_phony() const;
+};
+
+
+/// DependencyScan manages the process of scanning the files in a graph
+/// and updating the dirty/outputs_ready state of all the nodes and edges.
+struct DependencyScan {
+  DependencyScan(State* state, BuildLog* build_log,
+                 DiskInterface* disk_interface)
+      : state_(state), build_log_(build_log),
+        disk_interface_(disk_interface) {}
+
+  /// Examine inputs, outputs, and command lines to judge whether an edge
+  /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
+  /// state accordingly.
+  /// Returns false on failure.
+  bool RecomputeDirty(Edge* edge, string* err);
+
+  /// Recompute whether a given single output should be marked dirty.
+  /// Returns true if so.
+  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
+                            const string& command, Node* output);
+
+  bool LoadDepFile(Edge* edge, string* err);
+#ifdef _WIN32
+  bool LoadDepDb(Edge* edge, string* err);
+#endif  // _WIN32
+
+  void AddImplicitDeps(Edge* edge, const vector<StringPiece>& deps);
+
+  BuildLog* build_log() const {
+    return build_log_;
+  }
+  void set_build_log(BuildLog* log) {
+    build_log_ = log;
+  }
+
+ private:
+  State* state_;
+  BuildLog* build_log_;
+  DiskInterface* disk_interface_;
 };
 
 #endif  // NINJA_GRAPH_H_

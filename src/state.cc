@@ -24,10 +24,9 @@
 
 const Rule State::kPhonyRule("phony");
 
-State::State() :
-    build_log_(NULL)
+State::State()
 #ifdef _WIN32
-    , depdb_(NULL)
+    : depdb_(NULL)
 #endif
     {
   AddRule(&kPhonyRule);

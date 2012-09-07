@@ -1,6 +1,7 @@
 *.pyc
 *.exe
 *.pdb
+*.ilk
 TAGS
 /build
 /build.ninja

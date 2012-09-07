@@ -23,7 +23,6 @@ using namespace std;
 #include "eval_env.h"
 #include "hash_map.h"
 
-struct BuildLog;
 struct DepDatabase;
 struct Edge;
 struct Node;
@@ -72,7 +71,6 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
-  BuildLog* build_log_;
 #ifdef _WIN32
   DepDatabase* depdb_;
 #endif

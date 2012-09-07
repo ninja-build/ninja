@@ -100,6 +100,22 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo/.hidden_bar";
   EXPECT_TRUE(CanonPath(&path, &err));
   EXPECT_EQ(SLASH("foo/.hidden_bar"), path);
+
+  path = "/foo";
+  EXPECT_TRUE(CanonPath(&path, &err));
+  EXPECT_EQ(SLASH("/foo"), path);
+
+  path = "//foo";
+  EXPECT_TRUE(CanonPath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("\\\\foo", path);
+#else
+  EXPECT_EQ("/foo", path);
+#endif
+
+  path = "/";
+  EXPECT_TRUE(CanonPath(&path, &err));
+  EXPECT_EQ("", path);
 }
 
 TEST(CanonicalizePath, EmptyResult) {

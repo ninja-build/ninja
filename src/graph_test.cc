@@ -18,7 +18,10 @@
 #include "util.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
+  GraphTest() : scan_(&state_, NULL, &fs_) {}
+
   VirtualFileSystem fs_;
+  DependencyScan scan_;
 };
 
 TEST_F(GraphTest, MissingImplicit) {
@@ -29,7 +32,7 @@ TEST_F(GraphTest, MissingImplicit) {
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   // A missing implicit dep *should* make the output dirty.
@@ -47,7 +50,7 @@ TEST_F(GraphTest, ModifiedImplicit) {
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   // A modified implicit dep should make the output dirty.
@@ -67,7 +70,7 @@ TEST_F(GraphTest, FunkyMakefilePath) {
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   // implicit.h has changed, though our depfile refers to it with a
@@ -90,7 +93,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   // We have both an implicit and an explicit dep on implicit.h.
@@ -111,7 +114,7 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(GetNode("out.o")->dirty());
@@ -155,8 +158,33 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
-  EXPECT_TRUE(edge->RecomputeDirty(&state_, &fs_, &err));
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(GetNode("out.o")->dirty());
+}
+
+// Regression test for https://github.com/martine/ninja/issues/404
+TEST_F(GraphTest, DepfileRemoved) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdep ./foo.cc\n"));
+  fs_.Create("foo.h", 1, "");
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("out.o.d", 2, "out.o: foo.h\n");
+  fs_.Create("out.o", 2, "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+
+  state_.Reset();
+  fs_.RemoveFile("out.o.d");
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
 }

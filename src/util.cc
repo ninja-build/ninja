@@ -36,6 +36,9 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#elif defined(__SVR4) && defined(__sun)
+#include <unistd.h>
+#include <sys/loadavg.h>
 #elif defined(linux)
 #include <sys/sysinfo.h>
 #endif
@@ -110,8 +113,19 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* end = start + *len;
 
   if (*src == DIR_SEP_C) {
+#ifdef _WIN32
+    // network path starts with \\.
+    if (*len > 1 && *(src + 1) == '\\') {
+      src += 2;
+      dst += 2;
+    } else {
+      ++src;
+      ++dst;
+    }
+#else
     ++src;
     ++dst;
+#endif
   }
 
   while (src < end) {
@@ -308,6 +322,12 @@ int GetProcessorCount() {
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   return info.dwNumberOfProcessors;
+}
+#else
+// This is what get_nprocs() should be doing in the Linux implementation
+// above, but in a more standard way.
+int GetProcessorCount() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
 }
 #endif
 

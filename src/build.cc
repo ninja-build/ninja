@@ -405,7 +405,7 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
-void Plan::CleanNode(BuildLog* build_log, Node* node) {
+void Plan::CleanNode(DependencyScan* scan, Node* node) {
   node->set_dirty(false);
 
   for (vector<Edge*>::const_iterator ei = node->out_edges().begin();
@@ -421,10 +421,11 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
                             end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input and command.
-      TimeStamp most_recent_input = 1;
-      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
-        if ((*ni)->mtime() > most_recent_input)
-          most_recent_input = (*ni)->mtime();
+      Node* most_recent_input = NULL;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
+        if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
+          most_recent_input = *ni;
+      }
       string command = (*ei)->EvaluateCommand(true);
 
       // Now, recompute the dirty state of each output.
@@ -434,12 +435,12 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if (!(*ni)->dirty())
           continue;
 
-        if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, NULL, command,
-                                        *ni)) {
+        if (scan->RecomputeOutputDirty(*ei, most_recent_input,
+                                       command, *ni)) {
           (*ni)->MarkDirty();
           all_outputs_clean = false;
         } else {
-          CleanNode(build_log, *ni);
+          CleanNode(scan, *ni);
         }
       }
 
@@ -552,10 +553,10 @@ struct DryRunCommandRunner : public CommandRunner {
 };
 
 Builder::Builder(State* state, const BuildConfig& config,
-                 DiskInterface* disk_interface)
-    : state_(state), config_(config), disk_interface_(disk_interface) {
+                 BuildLog* log, DiskInterface* disk_interface)
+    : state_(state), config_(config), disk_interface_(disk_interface),
+      scan_(state, log, disk_interface) {
   status_ = new BuildStatus(config);
-  log_ = state->build_log_;
 }
 
 Builder::~Builder() {
@@ -603,7 +604,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 bool Builder::AddTarget(Node* node, string* err) {
   node->StatIfNecessary(disk_interface_);
   if (Edge* in_edge = node->in_edge()) {
-    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
+    if (!scan_.RecomputeDirty(in_edge, err))
       return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
@@ -755,7 +756,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          plan_.CleanNode(log_, *i);
+          plan_.CleanNode(&scan_, *i);
           node_cleaned = true;
         }
       }
@@ -794,7 +795,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
-  if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
+  if (success && scan_.build_log())
+    scan_.build_log()->RecordCommand(edge, start_time, end_time, restat_mtime);
 }
 
