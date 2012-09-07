@@ -26,6 +26,10 @@
 #include <sys/time.h>
 #endif
 
+#if defined(__SVR4) && defined(__sun)
+#include <sys/termios.h>
+#endif
+
 #include "build_log.h"
 #include "disk_interface.h"
 #include "graph.h"
