@@ -241,8 +241,8 @@ n.comment('the depfile parser and ninja lexers are generated using re2c.')
 def has_re2c():
     import subprocess
     try:
-        subprocess.call(['re2c', '-v'], stdout=subprocess.PIPE)
-        return True
+        proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
+        return int(proc.communicate()[0], 10) >= 1103
     except OSError:
         return False
 if has_re2c():
@@ -253,8 +253,8 @@ if has_re2c():
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
-    print ("warning: re2c not found; changes to src/*.in.cc will not affect "
-           "your build.")
+    print ("warning: A compatible version of re2c (>= 0.11.3) was not found; "
+           "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
