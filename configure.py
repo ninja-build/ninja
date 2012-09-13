@@ -45,8 +45,9 @@ parser.add_option('--with-gtest', metavar='PATH',
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
-parser.add_option('--with-msvc-helper', metavar='NAME',
-                  help="name for ninja-msvc-helper binary (MSVC only)")
+parser.add_option('--with-ninja', metavar='NAME',
+                  help="name for ninja binary for -t msvc (MSVC only)",
+                  default="ninja")
 (options, args) = parser.parse_args()
 if args:
     print 'ERROR: extra unparsed command-line arguments:', args
@@ -185,8 +186,9 @@ n.newline()
 
 if platform == 'windows':
     compiler = '$cxx'
-    if options.with_msvc_helper:
-        compiler = '%s -o $out -- $cxx /showIncludes' % options.with_msvc_helper
+    if options.with_ninja:
+        compiler = ('%s -t msvc -o $out -- $cxx /showIncludes' %
+                    options.with_ninja)
     n.rule('cxx',
         command='%s $cflags -c $in /Fo$out' % compiler,
         depfile='$out.d',
@@ -279,6 +281,7 @@ if platform in ('mingw', 'windows'):
     if platform == 'windows':
         objs += cxx('includes_normalize-win32')
         objs += cxx('msvc_helper-win32')
+        objs += cxx('msvc_helper_main-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -302,16 +305,6 @@ ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 n.newline()
 all_targets += ninja
-
-if platform == 'windows':
-    n.comment('Helper for working with MSVC.')
-    msvc_helper = n.build(binary('ninja-msvc-helper'), 'link',
-                          cxx('msvc_helper_main-win32'),
-                          implicit=ninja_lib,
-                          variables=[('libs', libs)])
-    n.default(msvc_helper)
-    n.newline()
-    all_targets += msvc_helper
 
 n.comment('Tests all build into ninja_test executable.')
 

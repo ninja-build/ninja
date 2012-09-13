@@ -42,6 +42,9 @@
 #include "state.h"
 #include "util.h"
 
+// Defined in msvc_helper_main-win32.cc.
+int MSVCHelperMain(int argc, char** argv);
+
 namespace {
 
 /// The version number of the current Ninja release.  This will always
@@ -289,6 +292,16 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
 }
 #endif  // _WIN32
 
+#if defined(WIN32)
+int ToolMSVC(Globals* globals, int argc, char* argv[]) {
+  // Reset getopt: push one argument onto the front of argv, reset optind.
+  argc++;
+  argv--;
+  optind = 0;
+  return MSVCHelperMain(argc, argv);
+}
+#endif
+
 int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
@@ -523,6 +536,10 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, ToolBrowse },
+#endif
+#if defined(WIN32)
+    { "msvc", "build helper for MSVC cl.exe",
+      Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif
     { "clean", "clean built files",
       Tool::RUN_AFTER_LOAD, ToolClean },

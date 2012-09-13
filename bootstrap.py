@@ -19,6 +19,7 @@ import os
 import glob
 import errno
 import shlex
+import shutil
 import subprocess
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -68,8 +69,6 @@ for src in glob.glob('src/*.cc'):
     else:
         if src.endswith('-win32.cc'):
             continue
-    if '_main' in src:
-        continue
 
     sources.append(src)
 
@@ -113,24 +112,13 @@ if options.verbose:
     verbose = ['-v']
 
 if sys.platform.startswith('win32'):
-    # Build ninja-msvc-helper using ninja without an msvc-helper.
-    print 'Building ninja-msvc-helper...'
-    run([sys.executable, 'configure.py', '--with-msvc-helper='] + conf_args)
-    run(['./' + binary] + verbose + ['ninja-msvc-helper'])
-
-    # Rename the helper to the same name + .bootstrap.
-    helper_binary = 'ninja-msvc-helper.bootstrap.exe'
-    try:
-        os.unlink(helper_binary)
-    except:
-        pass
-    os.rename('ninja-msvc-helper.exe', helper_binary)
-
-    # Build ninja using the newly-built msvc-helper.
     print 'Building ninja using itself...'
-    run([sys.executable, 'configure.py',
-         '--with-msvc-helper=%s' % helper_binary] + conf_args)
+    run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
+        conf_args)
     run(['./' + binary] + verbose)
+
+    # Copy the new executable over the bootstrap one.
+    shutil.copyfile('ninja.exe', binary)
 
     # Clean up.
     for obj in glob.glob('*.obj'):
@@ -142,8 +130,8 @@ Done!
 Note: to work around Windows file locking, where you can't rebuild an
 in-use binary, to run ninja after making any changes to build ninja itself
 you should run ninja.bootstrap instead.  Your build is also configured to
-use ninja-msvc-helper.bootstrap.exe instead of the ninja-msvc-helper.exe
-that it builds; see the --help output of configure.py."""
+use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
+the --help output of configure.py."""
 else:
     print 'Building ninja using itself...'
     run([sys.executable, 'configure.py'] + conf_args)
