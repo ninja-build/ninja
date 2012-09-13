@@ -538,7 +538,7 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolBrowse },
 #endif
 #if defined(WIN32)
-    { "msvc", "build helper for MSVC cl.exe",
+    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
       Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif
     { "clean", "clean built files",
