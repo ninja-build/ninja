@@ -19,12 +19,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#elif defined(linux)
-#include <sys/sysinfo.h>
-#endif
-
 #ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
@@ -38,6 +32,7 @@
 #include "build.h"
 #include "build_log.h"
 #include "clean.h"
+#include "disk_interface.h"
 #include "edit_distance.h"
 #include "explain.h"
 #include "graph.h"
@@ -47,11 +42,14 @@
 #include "state.h"
 #include "util.h"
 
+// Defined in msvc_helper_main-win32.cc.
+int MSVCHelperMain(int argc, char** argv);
+
 namespace {
 
 /// The version number of the current Ninja release.  This will always
 /// be "git" on trunk.
-const char* kVersion = "120715";
+const char* kVersion = "1.0.0";
 
 /// Global information passed into subtools.
 struct Globals {
@@ -68,10 +66,34 @@ struct Globals {
 
   /// Command line used to run Ninja.
   const char* ninja_command;
-  /// Build configuration (e.g. parallelism).
-  BuildConfig config;
+  /// Build configuration set from flags (e.g. parallelism).
+  BuildConfig* config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
+};
+
+/// The type of functions that are the entry points to tools (subcommands).
+typedef int (*ToolFunc)(Globals*, int, char**);
+
+/// Subtools, accessible via "-t foo".
+struct Tool {
+  /// Short name of the tool.
+  const char* name;
+
+  /// Description (shown in "-t list").
+  const char* desc;
+
+  /// When to run the tool.
+  enum {
+    /// Run after parsing the command-line flags (as early as possible).
+    RUN_AFTER_FLAGS,
+
+    /// Run after loading build.ninja.
+    RUN_AFTER_LOAD,
+  } when;
+
+  /// Implementation of the tool.
+  ToolFunc func;
 };
 
 /// Print usage information.
@@ -80,49 +102,31 @@ void Usage(const BuildConfig& config) {
 "usage: ninja [options] [targets...]\n"
 "\n"
 "if targets are unspecified, builds the 'default' target (see manual).\n"
-"targets are paths, with additional special syntax:\n"
-"  'target^' means 'the first output that uses target'.\n"
-"  example: 'ninja foo.cc^' will likely build foo.o.\n"
 "\n"
 "options:\n"
+"  --version  print ninja version (\"%s\")\n"
+"\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
-"  -V       print ninja version (\"%s\")\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
+#ifdef _WIN32
+"           (not yet implemented on Windows)\n"
+#endif
 "  -k N     keep going until N jobs fail [default=1]\n"
-"  -n       dry run (don't run commands but pretend they succeeded)\n"
+"  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
-"  -t TOOL  run a subtool\n"
-"    use '-t list' to list subtools.\n"
-"    terminates toplevel options; further flags are passed to the tool.\n",
+"  -t TOOL  run a subtool (use -t list to list subtools)\n"
+"    terminates toplevel options; further flags are passed to the tool\n",
           kVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
-  int processors = 0;
-
-#if defined(linux)
-  processors = get_nprocs();
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-  size_t processors_size = sizeof(processors);
-  int name[] = {CTL_HW, HW_NCPU};
-  if (sysctl(name, sizeof(name) / sizeof(int),
-             &processors, &processors_size,
-             NULL, 0) < 0) {
-    processors = 1;
-  }
-#elif defined(_WIN32)
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  processors = info.dwNumberOfProcessors;
-#endif
-
-  switch (processors) {
+  switch (int processors = GetProcessorCount()) {
   case 0:
   case 1:
     return 2;
@@ -143,22 +147,20 @@ struct RealFileReader : public ManifestParser::FileReader {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool RebuildManifest(State* state, const BuildConfig& config,
-                     const char* input_file, string* err) {
+bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   string path = input_file;
   if (!CanonicalizePath(&path, err))
     return false;
-  Node* node = state->LookupNode(path);
+  Node* node = builder->state_->LookupNode(path);
   if (!node)
     return false;
 
-  Builder manifest_builder(state, config);
-  if (!manifest_builder.AddTarget(node, err))
+  if (!builder->AddTarget(node, err))
     return false;
 
-  if (manifest_builder.AlreadyUpToDate())
+  if (builder->AlreadyUpToDate())
     return false;  // Not an error, but we didn't rebuild.
-  if (!manifest_builder.Build(err))
+  if (!builder->Build(err))
     return false;
 
   // The manifest was only rebuilt if it is now dirty (it may have been cleaned
@@ -170,51 +172,50 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
     *targets = state->DefaultNodes(err);
-    if (!err->empty())
+    return err->empty();
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    string path = argv[i];
+    if (!CanonicalizePath(&path, err))
       return false;
-  } else {
-    for (int i = 0; i < argc; ++i) {
-      string path = argv[i];
-      if (!CanonicalizePath(&path, err))
-        return false;
 
-      // Special syntax: "foo.cc^" means "the first output of foo.cc".
-      bool first_dependent = false;
-      if (!path.empty() && path[path.size() - 1] == '^') {
-        path.resize(path.size() - 1);
-        first_dependent = true;
-      }
+    // Special syntax: "foo.cc^" means "the first output of foo.cc".
+    bool first_dependent = false;
+    if (!path.empty() && path[path.size() - 1] == '^') {
+      path.resize(path.size() - 1);
+      first_dependent = true;
+    }
 
-      Node* node = state->LookupNode(path);
-      if (node) {
-        if (first_dependent) {
-          if (node->out_edges().empty()) {
-            *err = "'" + path + "' has no out edge";
-            return false;
-          }
-          Edge* edge = node->out_edges()[0];
-          if (edge->outputs_.empty()) {
-            edge->Dump();
-            Fatal("edge has no outputs");
-          }
-          node = edge->outputs_[0];
+    Node* node = state->LookupNode(path);
+    if (node) {
+      if (first_dependent) {
+        if (node->out_edges().empty()) {
+          *err = "'" + path + "' has no out edge";
+          return false;
         }
-        targets->push_back(node);
+        Edge* edge = node->out_edges()[0];
+        if (edge->outputs_.empty()) {
+          edge->Dump();
+          Fatal("edge has no outputs");
+        }
+        node = edge->outputs_[0];
+      }
+      targets->push_back(node);
+    } else {
+      *err = "unknown target '" + path + "'";
+
+      if (path == "clean") {
+        *err += ", did you mean 'ninja -t clean'?";
+      } else if (path == "help") {
+        *err += ", did you mean 'ninja -h'?";
       } else {
-        *err = "unknown target '" + path + "'";
-
-        if (path == "clean") {
-          *err += ", did you mean 'ninja -t clean'?";
-        } else if (path == "help") {
-          *err += ", did you mean 'ninja -h'?";
-        } else {
-          Node* suggestion = state->SpellcheckNode(path);
-          if (suggestion) {
-            *err += ", did you mean '" + suggestion->path() + "'?";
-          }
+        Node* suggestion = state->SpellcheckNode(path);
+        if (suggestion) {
+          *err += ", did you mean '" + suggestion->path() + "'?";
         }
-        return false;
       }
+      return false;
     }
   }
   return true;
@@ -290,6 +291,16 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
   return 1;
 }
 #endif  // _WIN32
+
+#if defined(WIN32)
+int ToolMSVC(Globals* globals, int argc, char* argv[]) {
+  // Reset getopt: push one argument onto the front of argv, reset optind.
+  argc++;
+  argv--;
+  optind = 0;
+  return MSVCHelperMain(argc, argv);
+}
+#endif
 
 int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
@@ -481,7 +492,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(globals->state, globals->config);
+  Cleaner cleaner(globals->state, *globals->config);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -492,7 +503,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
-void ToolUrtle() {
+int ToolUrtle(Globals* globals, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
 " 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
@@ -515,58 +526,63 @@ void ToolUrtle() {
       count = 0;
     }
   }
+  return 0;
 }
 
-int RunTool(const string& tool, Globals* globals, int argc, char** argv) {
-  typedef int (*ToolFunc)(Globals*, int, char**);
-  struct Tool {
-    const char* name;
-    const char* desc;
-    ToolFunc func;
-  } tools[] = {
+/// Find the function to execute for \a tool_name and return it via \a func.
+/// If there is no tool to run (e.g.: unknown tool), returns an exit code.
+int ChooseTool(const string& tool_name, const Tool** tool_out) {
+  static const Tool kTools[] = {
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
-      ToolBrowse },
+      Tool::RUN_AFTER_LOAD, ToolBrowse },
+#endif
+#if defined(WIN32)
+    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
+      Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif
     { "clean", "clean built files",
-      ToolClean },
+      Tool::RUN_AFTER_LOAD, ToolClean },
     { "commands", "list all commands required to rebuild given targets",
-      ToolCommands },
+      Tool::RUN_AFTER_LOAD, ToolCommands },
     { "graph", "output graphviz dot file for targets",
-      ToolGraph },
+      Tool::RUN_AFTER_LOAD, ToolGraph },
     { "query", "show inputs/outputs for a path",
-      ToolQuery },
+      Tool::RUN_AFTER_LOAD, ToolQuery },
     { "rules",    "list all rules",
-      ToolRules },
+      Tool::RUN_AFTER_LOAD, ToolRules },
     { "targets",  "list targets by their rule or depth in the DAG",
-      ToolTargets },
-    { NULL, NULL, NULL }
+      Tool::RUN_AFTER_LOAD, ToolTargets },
+    { "urtle", NULL,
+      Tool::RUN_AFTER_FLAGS, ToolUrtle },
+    { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
   };
 
-  if (tool == "list") {
+  if (tool_name == "list") {
     printf("ninja subtools:\n");
-    for (int i = 0; tools[i].name; ++i) {
-      printf("%10s  %s\n", tools[i].name, tools[i].desc);
+    for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+      if (tool->desc)
+        printf("%10s  %s\n", tool->name, tool->desc);
     }
-    return 0;
-  } else if (tool == "urtle") {
-    ToolUrtle();
     return 0;
   }
 
-  for (int i = 0; tools[i].name; ++i) {
-    if (tool == tools[i].name)
-      return tools[i].func(globals, argc, argv);
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+    if (tool->name == tool_name) {
+      *tool_out = tool;
+      return 0;
+    }
   }
 
   vector<const char*> words;
-  for (int i = 0; tools[i].name; ++i)
-    words.push_back(tools[i].name);
-  const char* suggestion = SpellcheckStringV(tool, words);
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool)
+    words.push_back(tool->name);
+  const char* suggestion = SpellcheckStringV(tool_name, words);
   if (suggestion) {
-    Error("unknown tool '%s', did you mean '%s'?", tool.c_str(), suggestion);
+    Error("unknown tool '%s', did you mean '%s'?",
+          tool_name.c_str(), suggestion);
   } else {
-    Error("unknown tool '%s'", tool.c_str());
+    Error("unknown tool '%s'", tool_name.c_str());
   }
   return 1;
 }
@@ -592,17 +608,63 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
-int RunBuild(Globals* globals, int argc, char** argv) {
+bool OpenLog(BuildLog* build_log, Globals* globals,
+             DiskInterface* disk_interface) {
+  const string build_dir =
+      globals->state->bindings_.LookupVariable("builddir");
+  const char* kLogPath = ".ninja_log";
+  string log_path = kLogPath;
+  if (!build_dir.empty()) {
+    log_path = build_dir + "/" + kLogPath;
+    if (!disk_interface->MakeDirs(log_path) && errno != EEXIST) {
+      Error("creating build directory %s: %s",
+            build_dir.c_str(), strerror(errno));
+      return false;
+    }
+  }
+
+  string err;
+  if (!build_log->Load(log_path, &err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return false;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
+
+  if (!globals->config->dry_run) {
+    if (!build_log->OpenForWrite(log_path, &err)) {
+      Error("opening build log: %s", err.c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/// Dump the output requested by '-d stats'.
+void DumpMetrics(Globals* globals) {
+  g_metrics->Report();
+
+  printf("\n");
+  int count = (int)globals->state->paths_.size();
+  int buckets = (int)globals->state->paths_.bucket_count();
+  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+         count / (double) buckets, count, buckets);
+}
+
+int RunBuild(Builder* builder, int argc, char** argv) {
   string err;
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(globals->state, argc, argv, &targets, &err)) {
+  if (!CollectTargetsFromArgs(builder->state_, argc, argv, &targets, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
 
-  Builder builder(globals->state, globals->config);
   for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
+    if (!builder->AddTarget(targets[i], &err)) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;
@@ -613,12 +675,12 @@ int RunBuild(Globals* globals, int argc, char** argv) {
     }
   }
 
-  if (builder.AlreadyUpToDate()) {
+  if (builder->AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
     return 0;
   }
 
-  if (!builder.Build(&err)) {
+  if (!builder->Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
     return 1;
   }
@@ -626,26 +688,58 @@ int RunBuild(Globals* globals, int argc, char** argv) {
   return 0;
 }
 
-}  // anonymous namespace
+#ifdef _MSC_VER
 
-int main(int argc, char** argv) {
+} // anonymous namespace
+
+// Defined in minidump-win32.cc.
+void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
+
+namespace {
+
+/// This handler processes fatal crashes that you can't catch
+/// Test example: C++ exception in a stack-unwind-block
+/// Real-world example: ninja launched a compiler to process a tricky
+/// C++ input file. The compiler got itself into a state where it
+/// generated 3 GB of output and caused ninja to crash.
+void TerminateHandler() {
+  CreateWin32MiniDump(NULL);
+  Fatal("terminate handler called");
+}
+
+/// On Windows, we want to prevent error dialogs in case of exceptions.
+/// This function handles the exception, and writes a minidump.
+int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
+  Error("exception: 0x%X", code);  // e.g. EXCEPTION_ACCESS_VIOLATION
+  fflush(stderr);
+  CreateWin32MiniDump(ep);
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
+#endif  // _MSC_VER
+
+int NinjaMain(int argc, char** argv) {
+  BuildConfig config;
   Globals globals;
   globals.ninja_command = argv[0];
+  globals.config = &config;
   const char* input_file = "build.ninja";
   const char* working_dir = NULL;
-  string tool;
+  string tool_name;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-  globals.config.parallelism = GuessParallelism();
+  config.parallelism = GuessParallelism();
 
+  enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
+    { "version", no_argument, NULL, OPT_VERSION },
     { NULL, 0, NULL, 0 }
   };
 
   int opt;
-  while (tool.empty() &&
+  while (tool_name.empty() &&
          (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -657,14 +751,14 @@ int main(int argc, char** argv) {
         input_file = optarg;
         break;
       case 'j':
-        globals.config.parallelism = atoi(optarg);
+        config.parallelism = atoi(optarg);
         break;
       case 'l': {
         char* end;
         double value = strtod(optarg, &end);
         if (end == optarg)
           Fatal("-l parameter not numeric: did you mean -l 0.0?");
-        globals.config.max_load_average = value;
+        config.max_load_average = value;
         break;
       }
       case 'k': {
@@ -676,43 +770,54 @@ int main(int argc, char** argv) {
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        globals.config.failures_allowed = value > 0 ? value : INT_MAX;
+        config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'n':
-        globals.config.dry_run = true;
+        config.dry_run = true;
         break;
       case 'v':
-        globals.config.verbosity = BuildConfig::VERBOSE;
+        config.verbosity = BuildConfig::VERBOSE;
         break;
       case 't':
-        tool = optarg;
+        tool_name = optarg;
         break;
       case 'C':
         working_dir = optarg;
         break;
-      case 'V':
+      case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
       case 'h':
       default:
-        Usage(globals.config);
+        Usage(config);
         return 1;
     }
   }
   argv += optind;
   argc -= optind;
 
+  // If specified, select a tool as early as possible, so commands like
+  // -t list can run before we attempt to load build.ninja etc.
+  const Tool* tool = NULL;
+  if (!tool_name.empty()) {
+    int exit_code = ChooseTool(tool_name, &tool);
+    if (!tool)
+      return exit_code;
+  }
+
+  if (tool && tool->when == Tool::RUN_AFTER_FLAGS)
+    return tool->func(&globals, argc, argv);
+
   if (working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
-    printf("ninja: Entering directory `%s'\n", working_dir);
-#ifdef _WIN32
-    if (_chdir(working_dir) < 0) {
-#else
+    // Don't print this if a tool is being used, so that tool output
+    // can be piped into a file without this string showing up.
+    if (!tool)
+      printf("ninja: Entering directory `%s'\n", working_dir);
     if (chdir(working_dir) < 0) {
-#endif
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
     }
   }
@@ -720,6 +825,7 @@ int main(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
+  RealDiskInterface disk_interface;
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
@@ -728,38 +834,18 @@ reload:
     return 1;
   }
 
-  if (!tool.empty())
-    return RunTool(tool, &globals, argc, argv);
+  if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+    return tool->func(&globals, argc, argv);
 
   BuildLog build_log;
-  build_log.SetConfig(&globals.config);
-  globals.state->build_log_ = &build_log;
-
-  const string build_dir = globals.state->bindings_.LookupVariable("builddir");
-  const char* kLogPath = ".ninja_log";
-  string log_path = kLogPath;
-  if (!build_dir.empty()) {
-    if (MakeDir(build_dir) < 0 && errno != EEXIST) {
-      Error("creating build directory %s: %s",
-            build_dir.c_str(), strerror(errno));
-      return 1;
-    }
-    log_path = build_dir + "/" + kLogPath;
-  }
-
-  if (!build_log.Load(log_path, &err)) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+  if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
-  }
-
-  if (!build_log.OpenForWrite(log_path, &err)) {
-    Error("opening build log: %s", err.c_str());
-    return 1;
-  }
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    if (RebuildManifest(globals.state, globals.config, input_file, &err)) {
+    Builder manifest_builder(globals.state, config, &build_log,
+                             &disk_interface);
+    if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
       globals.ResetState();
       goto reload;
@@ -769,20 +855,31 @@ reload:
     }
   }
 
-  int result = RunBuild(&globals, argc, argv);
-  if (g_metrics) {
-    g_metrics->Report();
-
-    printf("\n");
-    int count = (int)globals.state->paths_.size();
-    int buckets =
-#ifdef _MSC_VER
-        (int)globals.state->paths_.comp.bucket_size;
-#else
-        (int)globals.state->paths_.bucket_count();
-#endif
-    printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-           count / (double) buckets, count, buckets);
-  }
+  Builder builder(globals.state, config, &build_log, &disk_interface);
+  int result = RunBuild(&builder, argc, argv);
+  if (g_metrics)
+    DumpMetrics(&globals);
   return result;
+}
+
+}  // anonymous namespace
+
+int main(int argc, char** argv) {
+#if !defined(NINJA_BOOTSTRAP) && defined(_MSC_VER)
+  // Set a handler to catch crashes not caught by the __try..__except
+  // block (e.g. an exception in a stack-unwind-block).
+  set_terminate(TerminateHandler);
+  __try {
+    // Running inside __try ... __except suppresses any Windows error
+    // dialogs for errors such as bad_alloc.
+    return NinjaMain(argc, argv);
+  }
+  __except(ExceptionFilter(GetExceptionCode(), GetExceptionInformation())) {
+    // Common error situations return exitCode=1. 2 was chosen to
+    // indicate a more serious problem.
+    return 2;
+  }
+#else
+  return NinjaMain(argc, argv);
+#endif
 }

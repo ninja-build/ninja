@@ -19,6 +19,7 @@ import os
 import glob
 import errno
 import shlex
+import shutil
 import subprocess
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +27,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 parser = OptionParser()
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
+parser.add_option('--x64', action='store_true',
+                  help='force 64-bit build (Windows)',)
 (options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
@@ -61,7 +64,7 @@ for src in glob.glob('src/*.cc'):
         continue
 
     if sys.platform.startswith('win32'):
-        if filename == 'subprocess.cc':
+        if src.endswith('-posix.cc'):
             continue
     else:
         if src.endswith('-win32.cc'):
@@ -74,12 +77,20 @@ if sys.platform.startswith('win32'):
 
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
-    args = [os.path.join(vcdir, 'bin', 'cl.exe'), '/nologo', '/EHsc', '/DNOMINMAX']
+    if options.x64:
+        cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
+    else:
+        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
+    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
-    args.extend(['-Wno-deprecated',
-                 '-DNINJA_PYTHON="' + sys.executable + '"',
-                 '-DNINJA_BOOTSTRAP'])
+    cflags.extend(['-Wno-deprecated',
+                   '-DNINJA_PYTHON="' + sys.executable + '"',
+                   '-DNINJA_BOOTSTRAP'])
+    if sys.platform.startswith('win32'):
+        cflags.append('-D_WIN32_WINNT=0x0501')
+    if options.x64:
+        cflags.append('-m64')
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
@@ -100,9 +111,30 @@ verbose = []
 if options.verbose:
     verbose = ['-v']
 
-print 'Building ninja using itself...'
-run([sys.executable, 'configure.py'] + conf_args)
-run(['./' + binary] + verbose)
-os.unlink(binary)
+if sys.platform.startswith('win32'):
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
+        conf_args)
+    run(['./' + binary] + verbose)
 
-print 'Done!'
+    # Copy the new executable over the bootstrap one.
+    shutil.copyfile('ninja.exe', binary)
+
+    # Clean up.
+    for obj in glob.glob('*.obj'):
+        os.unlink(obj)
+
+    print """
+Done!
+
+Note: to work around Windows file locking, where you can't rebuild an
+in-use binary, to run ninja after making any changes to build ninja itself
+you should run ninja.bootstrap instead.  Your build is also configured to
+use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
+the --help output of configure.py."""
+else:
+    print 'Building ninja using itself...'
+    run([sys.executable, 'configure.py'] + conf_args)
+    run(['./' + binary] + verbose)
+    os.unlink(binary)
+    print 'Done!'

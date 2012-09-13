@@ -29,7 +29,7 @@ bool Lexer::Error(const string& message, string* err) {
       context = p + 1;
     }
   }
-  int col = last_token_ ? last_token_ - context : 0;
+  int col = last_token_ ? (int)(last_token_ - context) : 0;
 
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d: ", filename_.AsString().c_str(), line);
@@ -89,24 +89,25 @@ const char* Lexer::TokenName(Token t) {
   return NULL;  // not reached
 }
 
-const char* Lexer::TokenErrorHint(Token t) {
-  switch (t) {
-  case ERROR:    return "";
-  case BUILD:    return "";
-  case COLON:    return " ($ also escapes ':')";
-  case DEFAULT:  return "";
-  case EQUALS:   return "";
-  case IDENT:    return "";
-  case INCLUDE:  return "";
-  case INDENT:   return "";
-  case NEWLINE:  return "";
-  case PIPE2:    return "";
-  case PIPE:     return "";
-  case RULE:     return "";
-  case SUBNINJA: return "";
-  case TEOF:     return "";
+const char* Lexer::TokenErrorHint(Token expected) {
+  switch (expected) {
+  case COLON:
+    return " ($ also escapes ':')";
+  default:
+    return "";
   }
-  return "";
+}
+
+string Lexer::DescribeLastError() {
+  if (last_token_) {
+    switch (last_token_[0]) {
+    case '\r':
+      return "carriage returns are not allowed, use newlines";
+    case '\t':
+      return "tabs are not allowed, use spaces";
+    }
+  }
+  return "lexing error";
 }
 
 void Lexer::UnreadToken() {
@@ -130,7 +131,7 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    [ ]*"#"[^\000\n]*"\n" { continue; }
+    [ ]*"#"[^\000\r\n]*"\n" { continue; }
     [ ]*[\n]   { token = NEWLINE;  break; }
     [ ]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
@@ -200,7 +201,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
   for (;;) {
     start = p;
     /*!re2c
-    [^$ :\n|\000]+ {
+    [^$ :\r\n|\000]+ {
       eval->AddText(StringPiece(start, p - start));
       continue;
     }
@@ -248,7 +249,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     }
     [^] {
       last_token_ = start;
-      return Error("lexing error", err);
+      return Error(DescribeLastError(), err);
     }
     */
   }

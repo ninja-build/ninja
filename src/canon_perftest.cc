@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "metrics.h"
 
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
@@ -26,7 +27,7 @@ int main() {
   string err;
 
   char buf[200];
-  int len = strlen(kPath);
+  size_t len = strlen(kPath);
   strcpy(buf, kPath);
 
   for (int j = 0; j < 5; ++j) {

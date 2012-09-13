@@ -27,7 +27,7 @@ sys.path.insert(0, 'misc')
 import ninja_syntax
 
 parser = OptionParser()
-platforms = ['linux', 'freebsd', 'mingw', 'windows']
+platforms = ['linux', 'freebsd', 'solaris', 'mingw', 'windows']
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platforms) + ')',
@@ -45,6 +45,9 @@ parser.add_option('--with-gtest', metavar='PATH',
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
+parser.add_option('--with-ninja', metavar='NAME',
+                  help="name for ninja binary for -t msvc (MSVC only)",
+                  default="ninja")
 (options, args) = parser.parse_args()
 if args:
     print 'ERROR: extra unparsed command-line arguments:', args
@@ -57,6 +60,8 @@ if platform is None:
         platform = 'linux'
     elif platform.startswith('freebsd'):
         platform = 'freebsd'
+    elif platform.startswith('solaris'):
+        platform = 'solaris'
     elif platform.startswith('mingw'):
         platform = 'mingw'
     elif platform.startswith('win'):
@@ -97,7 +102,9 @@ def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
     if platform in ('mingw', 'windows'):
-        return name + '.exe'
+        exe = name + '.exe'
+        n.build(name, 'phony', exe)
+        return exe
     return name
 
 n.variable('builddir', 'build')
@@ -108,10 +115,20 @@ else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform == 'windows':
-    cflags = ['/nologo', '/Zi', '/W4', '/WX', '/wd4530', '/wd4100', '/wd4706',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819', '/GR-',
+    cflags = ['/nologo',  # Don't print startup banner.
+              '/Zi',  # Create pdb with debug info.
+              '/W4',  # Highest warning level.
+              '/WX',  # Warnings as errors.
+              '/wd4530', '/wd4100', '/wd4706',
+              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              # Disable warnings about passing "this" during initialization.
+              '/wd4355',
+              '/GR-',  # Disable RTTI.
+              # Disable size_t -> int truncation warning.
+              # We never have strings or arrays larger than 2**31.
+              '/wd4267',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
-              "/DNINJA_PYTHON=\"%s\"" % (options.with_python,)]
+              '/DNINJA_PYTHON="%s"' % options.with_python]
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
@@ -123,13 +140,16 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              "-DNINJA_PYTHON=\"%s\"" % options.with_python]
+              '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
+        cflags.remove('-fno-rtti')  # Needed for above pedanticness.
     else:
         cflags += ['-O2', '-DNDEBUG']
     if 'clang' in os.path.basename(CXX):
         cflags += ['-fcolor-diagnostics']
+    if platform == 'mingw':
+        cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
 libs = []
 
@@ -150,8 +170,8 @@ else:
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by the shell."""
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
-    # TODO: do the appropriate thing for Windows-style cmd here, perhaps by
-    # just returning the input string.
+    if platform in ('windows', 'mingw'):
+      return str
     if '"' in str:
         return "'%s'" % str.replace("'", "\\'")
     return str
@@ -165,8 +185,12 @@ n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
 if platform == 'windows':
+    compiler = '$cxx'
+    if options.with_ninja:
+        compiler = ('%s -t msvc -o $out -- $cxx /showIncludes' %
+                    options.with_ninja)
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='%s $cflags -c $in /Fo$out' % compiler,
         depfile='$out.d',
         description='CXX $out')
 else:
@@ -202,7 +226,7 @@ n.newline()
 
 objs = []
 
-if platform not in ('mingw', 'windows'):
+if platform not in ('solaris', 'mingw', 'windows'):
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -216,12 +240,23 @@ if platform not in ('mingw', 'windows'):
     n.newline()
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
-n.rule('re2c',
-       command='re2c -b -i --no-generation-date -o $out $in',
-       description='RE2C $out')
-# Generate the .cc files in the source directory so we can check them in.
-n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
-n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+def has_re2c():
+    import subprocess
+    try:
+        proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
+        return int(proc.communicate()[0], 10) >= 1103
+    except OSError:
+        return False
+if has_re2c():
+    n.rule('re2c',
+           command='re2c -b -i --no-generation-date -o $out $in',
+           description='RE2C $out')
+    # Generate the .cc files in the source directory so we can check them in.
+    n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+    n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
+else:
+    print ("warning: A compatible version of re2c (>= 0.11.3) was not found; "
+           "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
@@ -241,11 +276,16 @@ for name in ['build',
              'state',
              'util']:
     objs += cxx(name)
-if platform == 'mingw' or platform == 'windows':
+if platform in ('mingw', 'windows'):
     objs += cxx('subprocess-win32')
+    if platform == 'windows':
+        objs += cxx('includes_normalize-win32')
+        objs += cxx('msvc_helper-win32')
+        objs += cxx('msvc_helper_main-win32')
+        objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
-    objs += cxx('subprocess')
+    objs += cxx('subprocess-posix')
 if platform == 'windows':
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
@@ -263,8 +303,6 @@ n.comment('Main executable is library plus main() function.')
 objs = cxx('ninja')
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
-if 'ninja' not in ninja:
-  n.build('ninja', 'phony', ninja)
 n.newline()
 all_targets += ninja
 
@@ -280,14 +318,14 @@ if options.with_gtest:
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform == 'windows':
-        gtest_cflags = '/nologo /EHsc ' + gtest_all_incs
+        gtest_cflags = '/nologo /EHsc /Zi ' + gtest_all_incs
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest-all.cc'),
+                    os.path.join(path, 'src', 'gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
     objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src/gtest_main.cc'),
+                    os.path.join(path, 'src', 'gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
@@ -311,14 +349,15 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
+if platform == 'windows':
+    for name in ['includes_normalize_test', 'msvc_helper_test']:
+        objs += cxx(name, variables=[('cflags', test_cflags)])
 
 if platform != 'mingw' and platform != 'windows':
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
                                 ('libs', test_libs)])
-if 'ninja_test' not in ninja_test:
-  n.build('ninja_test', 'phony', ninja_test)
 n.newline()
 all_targets += ninja_test
 
@@ -340,7 +379,7 @@ n.newline()
 
 n.comment('Generate a graph using the "graph" tool.')
 n.rule('gendot',
-       command='./ninja -t graph > $out')
+       command='./ninja -t graph all > $out')
 n.rule('gengraph',
        command='dot -Tpng $in > $out')
 dot = n.build(built('graph.dot'), 'gendot', ['ninja', 'build.ninja'])
@@ -366,7 +405,7 @@ n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
-                   ['README', 'HACKING', 'COPYING'],
+                   ['README', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
@@ -379,12 +418,31 @@ if host != 'mingw':
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['configure.py', 'misc/ninja_syntax.py'])
+            implicit=['configure.py', os.path.normpath('misc/ninja_syntax.py')])
     n.newline()
 
-n.comment('Build only the main binary by default.')
 n.default(ninja)
 n.newline()
+
+if host == 'linux':
+    n.comment('Packaging')
+    n.rule('rpmbuild',
+           command="rpmbuild \
+           --define 'ver git' \
+           --define \"rel `git rev-parse --short HEAD`\" \
+           --define '_topdir %(pwd)/rpm-build' \
+           --define '_builddir %{_topdir}' \
+           --define '_rpmdir %{_topdir}' \
+           --define '_srcrpmdir %{_topdir}' \
+           --define '_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' \
+           --define '_specdir %{_topdir}' \
+           --define '_sourcedir  %{_topdir}' \
+           --quiet \
+           -bb misc/packaging/ninja.spec",
+           description='Building RPM..')
+    n.build('rpm', 'rpmbuild',
+            implicit=['ninja','README', 'COPYING', doc('manual.html')])
+    n.newline()
 
 n.build('all', 'phony', all_targets)
 

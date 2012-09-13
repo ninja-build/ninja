@@ -14,7 +14,6 @@
 
 #ifndef NINJA_UTIL_H_
 #define NINJA_UTIL_H_
-#pragma once
 
 #ifdef _WIN32
 #include "win32port.h"
@@ -25,8 +24,6 @@
 #include <string>
 #include <vector>
 using namespace std;
-
-#define NINJA_UNUSED_ARG(arg_name) (void)arg_name;
 
 /// Log a fatal message and exit.
 void Fatal(const char* msg, ...);
@@ -40,23 +37,15 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 bool CanonicalizePath(string* path, string* err);
 
-bool CanonicalizePath(char* path, int* len, string* err);
+bool CanonicalizePath(char* path, size_t* len, string* err);
 
-/// Create a directory (mode 0777 on Unix).
-/// Portability abstraction.
-int MakeDir(const string& path);
-
-/// Read a file to a string.
+/// Read a file to a string (in text mode: with CRLF conversion
+/// on Windows).
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const string& path, string* contents, string* err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
-
-/// Get the current time as relative to some epoch.
-/// Epoch varies between platforms; only useful for measuring elapsed
-/// time.
-int64_t GetTimeMillis();
 
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
@@ -68,9 +57,17 @@ const char* SpellcheckString(const string& text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
+/// @return the number of processors on the machine.  Useful for an initial
+/// guess for how many jobs to run in parallel.  @return 0 on error.
+int GetProcessorCount();
+
 /// @return the load average of the machine. A negative value is returned
 /// on error.
 double GetLoadAverage();
+
+/// Elide the given string @a str with '...' in the middle if the length
+/// exceeds @a width.
+string ElideMiddle(const string& str, size_t width);
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -83,6 +80,9 @@ double GetLoadAverage();
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
+
+/// Calls Fatal() with a function name and GetLastErrorString.
+void Win32Fatal(const char* function);
 #endif
 
 #endif  // NINJA_UTIL_H_

@@ -106,12 +106,17 @@ TEST_F(DepfileParserTest, Escapes) {
 TEST_F(DepfileParserTest, SpecialChars) {
   string err;
   EXPECT_TRUE(Parse(
-"C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h:",
+"C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \n"
+" en@quot.header~ t+t-x=1",
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
             parser_.out_.AsString());
-  ASSERT_EQ(0u, parser_.ins_.size());
+  ASSERT_EQ(2u, parser_.ins_.size());
+  EXPECT_EQ("en@quot.header~",
+            parser_.ins_[0].AsString());
+  EXPECT_EQ("t+t-x=1",
+            parser_.ins_[1].AsString());
 }
 
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
@@ -129,17 +134,4 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
-}
-
-TEST_F(DepfileParserTest, Tilde) {
-  string err;
-  EXPECT_TRUE(Parse(
-"foo~.o: foo~.c",
-      &err));
-  ASSERT_EQ("", err);
-  EXPECT_EQ("foo~.o",
-            parser_.out_.AsString());
-  ASSERT_EQ(1u, parser_.ins_.size());
-  EXPECT_EQ("foo~.c",
-            parser_.ins_[0].AsString());
 }

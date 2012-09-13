@@ -22,11 +22,14 @@ namespace {
 TEST(State, Basic) {
   State state;
 
+  EvalString command;
+  command.AddText("cat ");
+  command.AddSpecial("in");
+  command.AddText(" > ");
+  command.AddSpecial("out");
+
   Rule* rule = new Rule("cat");
-  rule->command().AddText("cat ");
-  rule->command().AddSpecial("in");
-  rule->command().AddText(" > ");
-  rule->command().AddSpecial("out");
+  rule->set_command(command);
   state.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);

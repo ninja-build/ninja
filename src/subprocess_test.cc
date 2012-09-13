@@ -16,6 +16,13 @@
 
 #include "test.h"
 
+#ifndef _WIN32
+// SetWithLots need setrlimit.
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
+
 namespace {
 
 #ifdef _WIN32
@@ -142,6 +149,8 @@ TEST_F(SubprocessTest, SetWithMulti) {
   }
 }
 
+// OS X's process limit is less than 1025 by default
+// (|sysctl kern.maxprocperuid| is 709 on 10.7 and 10.8 and less prior to that).
 #ifdef linux
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer

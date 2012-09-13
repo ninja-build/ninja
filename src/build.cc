@@ -26,6 +26,10 @@
 #include <sys/time.h>
 #endif
 
+#if defined(__SVR4) && defined(__sun)
+#include <sys/termios.h>
+#endif
+
 #include "build_log.h"
 #include "disk_interface.h"
 #include "graph.h"
@@ -37,7 +41,9 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true), progress_status_format_(NULL) {
+      have_blank_line_(true), progress_status_format_(NULL),
+      overall_rate_(), current_rate_(),
+      current_rate_average_count_(config.parallelism) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -171,6 +177,25 @@ string BuildStatus::FormatProgressStatus(const char* progress_status_format) con
         out += buf;
         break;
 
+      // Overall finished edges per second.
+      case 'o':
+        overall_rate_.UpdateRate(finished_edges_, finished_edges_);
+        overall_rate_.snprinfRate(buf, "%.1f");
+        out += buf;
+        break;
+
+      // Current rate, average over the last '-j' jobs.
+      case 'c':
+        // TODO use sliding window?
+        if (finished_edges_ > current_rate_.last_update() &&
+            finished_edges_ - current_rate_.last_update() == current_rate_average_count_) {
+          current_rate_.UpdateRate(current_rate_average_count_, finished_edges_);
+          current_rate_.Restart();
+        }
+        current_rate_.snprinfRate(buf, "%.0f");
+        out += buf;
+        break;
+
       default: {
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
@@ -208,50 +233,57 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
+  if (finished_edges_ == 0) {
+    overall_rate_.Restart();
+    current_rate_.Restart();
+  }
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
-    const int kMargin = 3;  // Space for "...".
 #ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      if (to_print.size() + kMargin > size.ws_col) {
-        int elide_size = (size.ws_col - kMargin) / 2;
-        to_print = to_print.substr(0, elide_size)
-          + "..."
-          + to_print.substr(to_print.size() - elide_size, elide_size);
-      }
+      to_print = ElideMiddle(to_print, size.ws_col);
     }
 #else
     // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
-    if (to_print.size() + kMargin > width) {
-      int elide_size = (width - kMargin) / 2;
-      to_print = to_print.substr(0, elide_size)
-        + "..."
-        + to_print.substr(to_print.size() - elide_size, elide_size);
-    }
+    to_print = ElideMiddle(to_print, width);
 #endif
   }
 
-  printf("%s", to_print.c_str());
-
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
+    printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
     have_blank_line_ = false;
 #else
-    // Clear to end of line.
+    // We don't want to have the cursor spamming back and forth, so
+    // use WriteConsoleOutput instead which updates the contents of
+    // the buffer, but doesn't move the cursor position.
     GetConsoleScreenBufferInfo(console_, &csbi);
-    int num_spaces = csbi.dwSize.X - 1 - csbi.dwCursorPosition.X;
-    printf("%*s", num_spaces, "");
+    COORD buf_size = { csbi.dwSize.X, 1 };
+    COORD zero_zero = { 0, 0 };
+    SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
+                          (SHORT)(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
+                          csbi.dwCursorPosition.Y };
+    CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
+    memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
+    for (int i = 0; i < csbi.dwSize.X; ++i) {
+      char_data[i].Char.AsciiChar = ' ';
+      char_data[i].Attributes = csbi.wAttributes;
+    }
+    for (size_t i = 0; i < to_print.size(); ++i)
+      char_data[i].Char.AsciiChar = to_print[i];
+    WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
+    delete[] char_data;
     have_blank_line_ = false;
 #endif
   } else {
-    printf("\n");
+    printf("%s\n", to_print.c_str());
   }
 }
 
@@ -378,7 +410,7 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
-void Plan::CleanNode(BuildLog* build_log, Node* node) {
+void Plan::CleanNode(DependencyScan* scan, Node* node) {
   node->set_dirty(false);
 
   for (vector<Edge*>::const_iterator ei = node->out_edges().begin();
@@ -394,10 +426,11 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
                             end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input and command.
-      TimeStamp most_recent_input = 1;
-      for (vector<Node*>::iterator ni = begin; ni != end; ++ni)
-        if ((*ni)->mtime() > most_recent_input)
-          most_recent_input = (*ni)->mtime();
+      Node* most_recent_input = NULL;
+      for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
+        if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
+          most_recent_input = *ni;
+      }
       string command = (*ei)->EvaluateCommand(true);
 
       // Now, recompute the dirty state of each output.
@@ -407,12 +440,12 @@ void Plan::CleanNode(BuildLog* build_log, Node* node) {
         if (!(*ni)->dirty())
           continue;
 
-        if ((*ei)->RecomputeOutputDirty(build_log, most_recent_input, NULL, command,
-                                        *ni)) {
+        if (scan->RecomputeOutputDirty(*ei, most_recent_input,
+                                       command, *ni)) {
           (*ni)->MarkDirty();
           all_outputs_clean = false;
         } else {
-          CleanNode(build_log, *ni);
+          CleanNode(scan, *ni);
         }
       }
 
@@ -524,11 +557,11 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-Builder::Builder(State* state, const BuildConfig& config)
-    : state_(state), config_(config) {
-  disk_interface_ = new RealDiskInterface;
+Builder::Builder(State* state, const BuildConfig& config,
+                 BuildLog* log, DiskInterface* disk_interface)
+    : state_(state), config_(config), disk_interface_(disk_interface),
+      scan_(state, log, disk_interface) {
   status_ = new BuildStatus(config);
-  log_ = state->build_log_;
 }
 
 Builder::~Builder() {
@@ -576,7 +609,7 @@ Node* Builder::AddTarget(const string& name, string* err) {
 bool Builder::AddTarget(Node* node, string* err) {
   node->StatIfNecessary(disk_interface_);
   if (Edge* in_edge = node->in_edge()) {
-    if (!in_edge->RecomputeDirty(state_, disk_interface_, err))
+    if (!scan_.RecomputeDirty(in_edge, err))
       return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
@@ -728,7 +761,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          plan_.CleanNode(log_, *i);
+          plan_.CleanNode(&scan_, *i);
           node_cleaned = true;
         }
       }
@@ -767,6 +800,7 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
 
   int start_time, end_time;
   status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
-  if (success && log_)
-    log_->RecordCommand(edge, start_time, end_time, restat_mtime);
+  if (success && scan_.build_log())
+    scan_.build_log()->RecordCommand(edge, start_time, end_time, restat_mtime);
 }
+

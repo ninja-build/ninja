@@ -64,6 +64,20 @@ TEST_F(ParserTest, Rules) {
   EXPECT_EQ("[cat ][$in][ > ][$out]", rule->command().Serialize());
 }
 
+TEST_F(ParserTest, RuleAttributes) {
+  // Check that all of the allowed rule attributes are parsed ok.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = a\n"
+"  depfile = a\n"
+"  description = a\n"
+"  generator = a\n"
+"  restat = a\n"
+"  rspfile = a\n"
+"  rspfile_content = a\n"
+));
+}
+
 TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "  #indented comment\n"
@@ -681,4 +695,24 @@ TEST_F(ParserTest, UTF8) {
 "rule utf8\n"
 "  command = true\n"
 "  description = compilaci\xC3\xB3\n"));
+}
+
+// We might want to eventually allow CRLF to be nice to Windows developers,
+// but for now just verify we error out with a nice message.
+TEST_F(ParserTest, CRLF) {
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+
+  EXPECT_FALSE(parser.ParseTest("# comment with crlf\r\n",
+                                &err));
+  EXPECT_EQ("input:1: lexing error\n",
+            err);
+
+  EXPECT_FALSE(parser.ParseTest("foo = foo\nbar = bar\r\n",
+                                &err));
+  EXPECT_EQ("input:2: carriage returns are not allowed, use newlines\n"
+            "bar = bar\r\n"
+            "         ^ near here",
+            err);
 }

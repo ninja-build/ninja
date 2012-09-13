@@ -66,6 +66,22 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo/.hidden_bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo/.hidden_bar", path);
+
+  path = "/foo";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("/foo", path);
+
+  path = "//foo";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("//foo", path);
+#else
+  EXPECT_EQ("/foo", path);
+#endif
+
+  path = "/";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("", path);
 }
 
 TEST(CanonicalizePath, EmptyResult) {
@@ -105,18 +121,18 @@ TEST(CanonicalizePath, AbsolutePath) {
 TEST(CanonicalizePath, NotNullTerminated) {
   string path;
   string err;
-  int len;
+  size_t len;
 
   path = "foo/. bar/.";
   len = strlen("foo/.");  // Canonicalize only the part before the space.
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
-  EXPECT_EQ(strlen("foo"), static_cast<size_t>(len));
+  EXPECT_EQ(strlen("foo"), len);
   EXPECT_EQ("foo/. bar/.", string(path));
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
-  EXPECT_EQ(strlen("file"), static_cast<size_t>(len));
+  EXPECT_EQ(strlen("file"), len);
   EXPECT_EQ("file ./file bar/.", string(path));
 }
 
@@ -135,4 +151,15 @@ TEST(StripAnsiEscapeCodes, StripColors) {
   string stripped = StripAnsiEscapeCodes(input);
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);
+}
+
+TEST(ElideMiddle, NothingToElide) {
+  string input = "Nothing to elide in this short string.";
+  EXPECT_EQ(input, ElideMiddle(input, 80));
+}
+
+TEST(ElideMiddle, ElideInTheMiddle) {
+  string input = "01234567890123456789";
+  string elided = ElideMiddle(input, 10);
+  EXPECT_EQ("012...789", elided);
 }

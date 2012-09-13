@@ -21,9 +21,11 @@
 #include <queue>
 #include <vector>
 #include <memory>
-using namespace std;
+#include <cstdio>
 
+#include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
+#include "metrics.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -58,7 +60,7 @@ struct Plan {
   void EdgeFinished(Edge* edge);
 
   /// Clean the given node during the build.
-  void CleanNode(BuildLog* build_log, Node* node);
+  void CleanNode(DependencyScan* scan, Node* node);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -118,7 +120,8 @@ struct BuildConfig {
 
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
-  Builder(State* state, const BuildConfig& config);
+  Builder(State* state, const BuildConfig& config,
+          BuildLog* log, DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -140,15 +143,21 @@ struct Builder {
   bool StartEdge(Edge* edge, string* err);
   void FinishEdge(Edge* edge, bool success, const string& output);
 
+  /// Used for tests.
+  void SetBuildLog(BuildLog* log) {
+    scan_.set_build_log(log);
+  }
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
-  DiskInterface* disk_interface_;
   auto_ptr<CommandRunner> command_runner_;
   BuildStatus* status_;
-  BuildLog* log_;
 
  private:
+  DiskInterface* disk_interface_;
+  DependencyScan scan_;
+
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT
@@ -191,9 +200,43 @@ struct BuildStatus {
   /// The custom progress status format to use.
   const char* progress_status_format_;
 
+  struct RateInfo {
+    RateInfo() : last_update_(0), rate_(-1) {}
+
+    double rate() const { return rate_; }
+    int last_update() const { return last_update_; }
+    void Restart() { return stopwatch_.Restart(); }
+
+    double UpdateRate(int edges, int update_hint) {
+      if (update_hint != last_update_) {
+        rate_ = edges / stopwatch_.Elapsed() + 0.5;
+        last_update_ = update_hint;
+      }
+      return rate_;
+    }
+
+    template<class T>
+    void snprinfRate(T buf, const char* format) {
+      if (rate_ == -1)
+        snprintf(buf, sizeof(buf), "?");
+      else
+        snprintf(buf, sizeof(buf), format, rate_);
+    }
+
+  private:
+    Stopwatch stopwatch_;
+    int last_update_;
+    double rate_;
+  };
+
+  mutable RateInfo overall_rate_;
+  mutable RateInfo current_rate_;
+  const int current_rate_average_count_;
+
 #ifdef _WIN32
   void* console_;
 #endif
 };
 
 #endif  // NINJA_BUILD_H_
+

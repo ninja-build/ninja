@@ -49,7 +49,7 @@ const int kCurrentVersion = 5;
 #define BIG_CONSTANT(x) (x##LLU)
 #endif // !defined(_MSC_VER)
 inline
-uint64_t MurmurHash64A(const void* key, int len) {
+uint64_t MurmurHash64A(const void* key, size_t len) {
   static const uint64_t seed = 0xDECAFBADDECAFBADull;
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
@@ -58,11 +58,11 @@ uint64_t MurmurHash64A(const void* key, int len) {
   const uint64_t * end = data + (len/8);
   while(data != end) {
     uint64_t k = *data++;
-    k *= m; 
-    k ^= k >> r; 
-    k *= m; 
+    k *= m;
+    k ^= k >> r;
+    k *= m;
     h ^= k;
-    h *= m; 
+    h *= m;
   }
   const unsigned char* data2 = (const unsigned char*)data;
   switch(len & 7)
@@ -80,7 +80,7 @@ uint64_t MurmurHash64A(const void* key, int len) {
   h *= m;
   h ^= h >> r;
   return h;
-} 
+}
 #undef BIG_CONSTANT
 
 
@@ -92,16 +92,13 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
 }
 
 BuildLog::BuildLog()
-  : log_file_(NULL), config_(NULL), needs_recompaction_(false) {}
+  : log_file_(NULL), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
 }
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
-  if (config_ && config_->dry_run)
-    return true;  // Do nothing, report success.
-
   if (needs_recompaction_) {
     Close();
     if (!Recompact(path, err))
@@ -136,14 +133,14 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
-    Log::iterator i = log_.find(path);
+    Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
-    if (i != log_.end()) {
+    if (i != entries_.end()) {
       log_entry = i->second;
     } else {
       log_entry = new LogEntry;
       log_entry->output = path;
-      log_.insert(Log::value_type(log_entry->output, log_entry));
+      entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
     log_entry->command_hash = LogEntry::HashCommand(command);
     log_entry->start_time = start_time;
@@ -164,7 +161,9 @@ void BuildLog::Close() {
 class LineReader {
  public:
   explicit LineReader(FILE* file)
-    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {}
+    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
+      memset(buf_, 0, sizeof(buf_));
+  }
 
   // Reads a \n-terminated line from the file passed to the constructor.
   // On return, *line_start points to the beginning of the next line, and
@@ -233,9 +232,13 @@ bool BuildLog::Load(const string& path, string* err) {
       sscanf(line_start, kFileSignature, &log_version);
 
       if (log_version < kOldestSupportedVersion) {
-        *err = "unable to extract version from build log, perhaps due to "
-          "being too old; you must clobber your build output and rebuild";
-        return false;
+        *err = ("build log version invalid, perhaps due to being too old; "
+                "starting over");
+        fclose(file);
+        unlink(path.c_str());
+        // Don't report this as a failure.  An empty build log will cause
+        // us to rebuild the outputs anyway.
+        return true;
       }
     }
 
@@ -280,13 +283,13 @@ bool BuildLog::Load(const string& path, string* err) {
     end = line_end;
 
     LogEntry* entry;
-    Log::iterator i = log_.find(output);
-    if (i != log_.end()) {
+    Entries::iterator i = entries_.find(output);
+    if (i != entries_.end()) {
       entry = i->second;
     } else {
       entry = new LogEntry;
       entry->output = output;
-      log_.insert(Log::value_type(entry->output, entry));
+      entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -325,8 +328,8 @@ bool BuildLog::Load(const string& path, string* err) {
 }
 
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
-  Log::iterator i = log_.find(path);
-  if (i != log_.end())
+  Entries::iterator i = entries_.find(path);
+  if (i != entries_.end())
     return i->second;
   return NULL;
 }
@@ -353,7 +356,7 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
-  for (Log::iterator i = log_.begin(); i != log_.end(); ++i) {
+  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
     WriteEntry(f, *i->second);
   }
 

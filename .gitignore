@@ -1,5 +1,7 @@
 *.pyc
 *.exe
+*.pdb
+*.ilk
 TAGS
 /build
 /build.ninja
@@ -12,3 +14,4 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
+/gtest-1.6.0

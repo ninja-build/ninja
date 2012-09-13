@@ -20,14 +20,6 @@
 
 #include "util.h"
 
-namespace {
-
-void Win32Fatal(const char* function) {
-  Fatal("%s: %s", function, GetLastErrorString().c_str());
-}
-
-}  // anonymous namespace
-
 Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
 }
 
@@ -44,7 +36,7 @@ Subprocess::~Subprocess() {
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetCurrentProcessId(), this);
+           "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
 
   pipe_ = ::CreateNamedPipeA(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
@@ -271,9 +263,12 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
-    if ((*i)->child_)
-      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, GetProcessId((*i)->child_)))
+    if ((*i)->child_) {
+      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
+                                    GetProcessId((*i)->child_))) {
         Win32Fatal("GenerateConsoleCtrlEvent");
+      }
+    }
   }
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)

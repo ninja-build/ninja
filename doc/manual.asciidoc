@@ -218,6 +218,8 @@ Several placeholders are available:
 * `%r`: The number of currently running edges.
 * `%u`: The number of remaining edges to start.
 * `%f`: The number of finished edges.
+* `%o`: Overall rate of finished edges per second
+* `%c`: Current rate of finished edges per second (average over builds specified by -j or its default)
 * `%%`: A plain `%` character.
 * The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
@@ -278,9 +280,9 @@ built for them.
 If used like +ninja -t clean -r _rules_+ it removes all files built using
 the given rules.
 +
-depfiles are not removed. Files created but not referenced in the
-graph are not removed. This tool takes in account the +-v+ and the
-+-n+ options (note that +-n+ implies +-v+).
+Files created but not referenced in the graph are not removed. This
+tool takes in account the +-v+ and the +-n+ options (note that +-n+
+implies +-v+).
 
 
 
@@ -522,7 +524,9 @@ Lexical syntax
 
 Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
 about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
-ISO-8859-1 input files ought to work.
+ISO-8859-1 input files ought to work.  (To simplify some code, tabs
+and carriage returns are currently disallowed; this could be fixed if
+it really mattered to you.)
 
 Comments begin with `#` and extend to the end of the line.
 
