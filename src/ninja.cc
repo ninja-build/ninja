@@ -740,7 +740,7 @@ int NinjaMain(int argc, char** argv) {
 
   int opt;
   while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -753,14 +753,6 @@ int NinjaMain(int argc, char** argv) {
       case 'j':
         config.parallelism = atoi(optarg);
         break;
-      case 'l': {
-        char* end;
-        double value = strtod(optarg, &end);
-        if (end == optarg)
-          Fatal("-l parameter not numeric: did you mean -l 0.0?");
-        config.max_load_average = value;
-        break;
-      }
       case 'k': {
         char* end;
         int value = strtol(optarg, &end, 10);
@@ -773,14 +765,22 @@ int NinjaMain(int argc, char** argv) {
         config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
+      case 'l': {
+        char* end;
+        double value = strtod(optarg, &end);
+        if (end == optarg)
+          Fatal("-l parameter not numeric: did you mean -l 0.0?");
+        config.max_load_average = value;
+        break;
+      }
       case 'n':
         config.dry_run = true;
         break;
-      case 'v':
-        config.verbosity = BuildConfig::VERBOSE;
-        break;
       case 't':
         tool_name = optarg;
+        break;
+      case 'v':
+        config.verbosity = BuildConfig::VERBOSE;
         break;
       case 'C':
         working_dir = optarg;
