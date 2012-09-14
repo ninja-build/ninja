@@ -106,7 +106,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version  print ninja version (\"%s\")\n"
 "\n"
-"  -C DIR   change to DIR before doing anything else\n"
+"  -C DIR   change to DIR before doing anything else. Use -q to supress directory change notification.\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
@@ -727,6 +727,7 @@ int NinjaMain(int argc, char** argv) {
   const char* input_file = "build.ninja";
   const char* working_dir = NULL;
   string tool_name;
+  bool printChdir = true;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
@@ -742,7 +743,7 @@ int NinjaMain(int argc, char** argv) {
 
   int opt;
   while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:hq", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -787,6 +788,9 @@ int NinjaMain(int argc, char** argv) {
       case 'C':
         working_dir = optarg;
         break;
+      case 'q':
+        printChdir = false;
+        break;
       case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
@@ -827,7 +831,7 @@ int NinjaMain(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!tool)
+    if (!tool && printChdir)
       printf("ninja: Entering directory `%s'\n", working_dir);
     if (chdir(working_dir) < 0) {
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
