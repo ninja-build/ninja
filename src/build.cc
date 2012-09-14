@@ -42,8 +42,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       have_blank_line_(true), progress_status_format_(NULL),
-      overall_rate_(), current_rate_(),
-      current_rate_average_count_(config.parallelism) {
+      overall_rate_(), current_rate_(config.parallelism) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -136,7 +135,8 @@ void BuildStatus::BuildFinished() {
     printf("\n");
 }
 
-string BuildStatus::FormatProgressStatus(const char* progress_status_format) const {
+string BuildStatus::FormatProgressStatus(
+    const char* progress_status_format) const {
   string out;
   char buf[32];
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
@@ -177,29 +177,23 @@ string BuildStatus::FormatProgressStatus(const char* progress_status_format) con
         out += buf;
         break;
 
-      // Overall finished edges per second.
+        // Overall finished edges per second.
       case 'o':
-        overall_rate_.UpdateRate(finished_edges_, finished_edges_);
+        overall_rate_.UpdateRate(finished_edges_);
         overall_rate_.snprinfRate(buf, "%.1f");
         out += buf;
         break;
 
-      // Current rate, average over the last '-j' jobs.
+        // Current rate, average over the last '-j' jobs.
       case 'c':
-        // TODO use sliding window?
-        if (finished_edges_ > current_rate_.last_update() &&
-            finished_edges_ - current_rate_.last_update() == current_rate_average_count_) {
-          current_rate_.UpdateRate(current_rate_average_count_, finished_edges_);
-          current_rate_.Restart();
-        }
-        current_rate_.snprinfRate(buf, "%.0f");
+        current_rate_.UpdateRate(finished_edges_);
+        current_rate_.snprinfRate(buf, "%.1f");
         out += buf;
         break;
 
-      default: {
+      default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
-      }
       }
     } else {
       out.push_back(*s);
