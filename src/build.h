@@ -201,37 +201,59 @@ struct BuildStatus {
   const char* progress_status_format_;
 
   struct RateInfo {
-    RateInfo() : last_update_(0), rate_(-1) {}
+    RateInfo() : rate_(-1) {}
 
-    double rate() const { return rate_; }
-    int last_update() const { return last_update_; }
-    void Restart() { return stopwatch_.Restart(); }
+    void Restart() { stopwatch_.Restart(); }
 
-    double UpdateRate(int edges, int update_hint) {
-      if (update_hint != last_update_) {
-        rate_ = edges / stopwatch_.Elapsed() + 0.5;
-        last_update_ = update_hint;
-      }
-      return rate_;
+    void UpdateRate(int edges) {
+      if (edges && stopwatch_.Elapsed())
+        rate_ = edges / stopwatch_.Elapsed();
     }
 
     template<class T>
     void snprinfRate(T buf, const char* format) {
-      if (rate_ == -1)
-        snprintf(buf, sizeof(buf), "?");
-      else
-        snprintf(buf, sizeof(buf), format, rate_);
+      if (rate_ == -1) snprintf(buf, sizeof(buf), "?");
+      else             snprintf(buf, sizeof(buf), format, rate_);
     }
 
   private:
+    Stopwatch stopwatch_;
+    double rate_;
+  };
+
+  struct SlidingRateInfo {
+    SlidingRateInfo(int n) : N(n), last_update_(-1), rate_(-1) {}
+
+    void Restart() { stopwatch_.Restart(); }
+
+    void UpdateRate(int update_hint) {
+      if (update_hint == last_update_)
+        return;
+      last_update_ = update_hint;
+
+      if (times_.size() == N)
+        times_.pop();
+      times_.push(stopwatch_.Elapsed());
+      if (times_.back() != times_.front())
+        rate_ = times_.size() / (times_.back() - times_.front());
+    }
+
+    template<class T>
+    void snprinfRate(T buf, const char* format) {
+      if (rate_ == -1) snprintf(buf, sizeof(buf), "?");
+      else             snprintf(buf, sizeof(buf), format, rate_);
+    }
+
+  private:
+    const size_t N;
+    std::queue<double> times_;
     Stopwatch stopwatch_;
     int last_update_;
     double rate_;
   };
 
   mutable RateInfo overall_rate_;
-  mutable RateInfo current_rate_;
-  const int current_rate_average_count_;
+  mutable SlidingRateInfo current_rate_;
 
 #ifdef _WIN32
   void* console_;
