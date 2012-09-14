@@ -155,7 +155,7 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     }
 
     if (component_count == kMaxPathComponents)
-      Fatal("path has too many components");
+      Fatal("path has too many components : %s", path);
     components[component_count] = dst;
     ++component_count;
 
