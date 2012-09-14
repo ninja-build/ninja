@@ -59,19 +59,18 @@ private:
 };
 
 /// Get the current time as relative to some epoch.
-/// Epoch varies between platforms; only useful for measuring elapsed
-/// time.
+/// Epoch varies between platforms; only useful for measuring elapsed time.
 int64_t GetTimeMillis();
 
 
-/// A simple stopwatch which retruns the time
-// in seconds since Restart() was called
+/// A simple stopwatch which returns the time
+/// in seconds since Restart() was called.
 class Stopwatch
 {
 public:
   Stopwatch() : started_(0) {}
 
-  /// Seconds since Restart() call
+  /// Seconds since Restart() call.
   double Elapsed() const { return 1e-6 * static_cast<double>(Now() - started_); }
 
   void Restart() { started_ = Now(); }
