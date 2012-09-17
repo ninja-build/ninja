@@ -69,6 +69,9 @@ double GetLoadAverage();
 /// exceeds @a width.
 string ElideMiddle(const string& str, size_t width);
 
+// Convert \xHH to a hex code
+string ConvertEscapeCodes(const string & str);
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno

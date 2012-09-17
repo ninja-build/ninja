@@ -290,6 +290,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
+    to_print = ConvertEscapeCodes(to_print);
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);

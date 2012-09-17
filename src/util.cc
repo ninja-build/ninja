@@ -354,3 +354,29 @@ string ElideMiddle(const string& str, size_t width) {
   }
   return result;
 }
+
+// Convert \xHH to a hex code
+string ConvertEscapeCodes(const string & str_) {
+  string result;
+  result.reserve(str_.size());
+  const char * str = str_.c_str();
+  for( size_t i=0; i<str_.size(); ++i) {
+    // Convert \xHH to ascii character
+    if( str[i] == '\\' && str[i+1] == 'x' ) {
+      char c1 = str[i+2];
+      char c2 = str[i+3];
+      c1 = (c1>='a' && c1<='z') ? c1-32 : c1;
+      c2 = (c2>='a' && c2<='z') ? c2-32 : c2;
+      int hexCode = 0;
+      if( c1 >= '0' && c1 <= '9') hexCode += (c1-'0')*16;
+      if( c1 >= 'A' && c1 <= 'F') hexCode += (c1-'A'+10)*16;
+      if( c2 >= '0' && c2 <= '9') hexCode += (c2-'0');
+      if( c2 >= 'A' && c2 <= 'F') hexCode += (c2-'A'+10);
+      result.push_back((char)hexCode);
+      i+=3;
+    }
+    else
+      result.push_back(str[i]);
+  }
+  return result;
+}
