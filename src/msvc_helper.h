@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <string>
-#include <vector>
+#include <set>
 using namespace std;
 
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
@@ -50,5 +50,5 @@ struct CLWrapper {
   static bool FilterInputFilename(const string& line);
 
   void* env_block_;
-  vector<string> includes_;
+  set<string> includes_;
 };

@@ -125,7 +125,7 @@ int CLWrapper::Run(const string& command, string* extra_output) {
       if (!include.empty()) {
         include = IncludesNormalize::Normalize(include, NULL);
         if (!IsSystemInclude(include))
-          includes_.push_back(include);
+          includes_.insert(include);
       } else if (FilterInputFilename(line)) {
         // Drop it.
         // TODO: if we support compiling multiple output files in a single
