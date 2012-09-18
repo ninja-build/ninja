@@ -200,31 +200,33 @@ struct BuildStatus {
   /// The custom progress status format to use.
   const char* progress_status_format_;
 
+  template<size_t S>
+  void snprinfRate(double rate, char(&buf)[S], const char* format) const {
+    if (rate == -1) snprintf(buf, S, "?");
+    else            snprintf(buf, S, format, rate);
+  }
+
   struct RateInfo {
     RateInfo() : rate_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }
+    double rate() { return rate_; }
 
     void UpdateRate(int edges) {
       if (edges && stopwatch_.Elapsed())
         rate_ = edges / stopwatch_.Elapsed();
     }
 
-    template<class T>
-    void snprinfRate(T buf, const char* format) {
-      if (rate_ == -1) snprintf(buf, sizeof(buf), "?");
-      else             snprintf(buf, sizeof(buf), format, rate_);
-    }
-
   private:
-    Stopwatch stopwatch_;
     double rate_;
+    Stopwatch stopwatch_;
   };
 
   struct SlidingRateInfo {
-    SlidingRateInfo(int n) : N(n), last_update_(-1), rate_(-1) {}
+    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }
+    double rate() { return rate_; }
 
     void UpdateRate(int update_hint) {
       if (update_hint == last_update_)
@@ -238,18 +240,12 @@ struct BuildStatus {
         rate_ = times_.size() / (times_.back() - times_.front());
     }
 
-    template<class T>
-    void snprinfRate(T buf, const char* format) {
-      if (rate_ == -1) snprintf(buf, sizeof(buf), "?");
-      else             snprintf(buf, sizeof(buf), format, rate_);
-    }
-
   private:
+    double rate_;
+    Stopwatch stopwatch_;
     const size_t N;
     std::queue<double> times_;
-    Stopwatch stopwatch_;
     int last_update_;
-    double rate_;
   };
 
   mutable RateInfo overall_rate_;

@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <functional>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -180,14 +181,14 @@ string BuildStatus::FormatProgressStatus(
         // Overall finished edges per second.
       case 'o':
         overall_rate_.UpdateRate(finished_edges_);
-        overall_rate_.snprinfRate(buf, "%.1f");
+        snprinfRate(overall_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
         // Current rate, average over the last '-j' jobs.
       case 'c':
         current_rate_.UpdateRate(finished_edges_);
-        current_rate_.snprinfRate(buf, "%.1f");
+        snprinfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
