@@ -200,10 +200,10 @@ struct BuildStatus {
   /// The custom progress status format to use.
   const char* progress_status_format_;
 
-  template<class T>
-  void snprinfRate(double rate, T buf, const char* format) const {
-    if (rate == -1) snprintf(buf, sizeof(buf), "?");
-    else             snprintf(buf, sizeof(buf), format, rate);
+  template<size_t S>
+  void snprinfRate(double rate, char(&buf)[S], const char* format) const {
+    if (rate == -1) snprintf(buf, S, "?");
+    else            snprintf(buf, S, format, rate);
   }
 
   struct RateInfo {
