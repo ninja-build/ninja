@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <functional>
 
 #ifdef _WIN32
 #include <windows.h>
