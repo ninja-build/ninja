@@ -292,7 +292,7 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
 }
 #endif  // _WIN32
 
-#if defined(WIN32)
+#if defined(_WIN32)
 int ToolMSVC(Globals* globals, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
@@ -537,7 +537,7 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, ToolBrowse },
 #endif
-#if defined(WIN32)
+#if defined(_WIN32)
     { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
       Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif

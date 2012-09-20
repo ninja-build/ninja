@@ -16,6 +16,10 @@
 
 #include <windows.h>
 
+#ifdef __MINGW32__
+#include <stdio.h>
+#endif
+
 #include "util.h"
 
 #include "getopt.h"

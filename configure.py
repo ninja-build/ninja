@@ -277,11 +277,12 @@ for name in ['build',
              'util']:
     objs += cxx(name)
 if platform in ('mingw', 'windows'):
-    objs += cxx('subprocess-win32')
+    for name in ['subprocess-win32',
+                 'includes_normalize-win32',
+                 'msvc_helper-win32',
+                 'msvc_helper_main-win32']:
+        objs += cxx(name)
     if platform == 'windows':
-        objs += cxx('includes_normalize-win32')
-        objs += cxx('msvc_helper-win32')
-        objs += cxx('msvc_helper_main-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -349,7 +350,7 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', test_cflags)])
-if platform == 'windows':
+if platform in ('windows', 'mingw'):
     for name in ['includes_normalize_test', 'msvc_helper_test']:
         objs += cxx(name, variables=[('cflags', test_cflags)])
 
