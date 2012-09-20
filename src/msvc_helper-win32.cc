@@ -39,7 +39,7 @@ string Replace(const string& input, const string& find, const string& replace) {
 }
 
 string EscapeForDepfile(const string& path) {
-  // Depfiles don't escape single \ because they're common in paths.
+  // Depfiles don't escape single \.
   return Replace(path, " ", "\\ ");
 }
 
