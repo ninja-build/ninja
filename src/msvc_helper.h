@@ -14,6 +14,7 @@
 
 #include <string>
 #include <set>
+#include <vector>
 using namespace std;
 
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
@@ -48,6 +49,10 @@ struct CLWrapper {
   /// to be the best we can do.
   /// Exposed for testing.
   static bool FilterInputFilename(const string& line);
+
+  /// Fill a vector with the unique'd headers, escaped for output as a .d
+  /// file.
+  vector<string> GetEscapedResult();
 
   void* env_block_;
   set<string> includes_;

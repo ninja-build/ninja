@@ -105,3 +105,14 @@ TEST(MSVCHelperTest, DuplicatedHeaderPathConverted) {
   ASSERT_EQ("", output);
   ASSERT_EQ(2u, cl.includes_.size());
 }
+
+TEST(MSVCHelperTest, SpacesInFilename) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo Note: including file: sub\\some sdk\\foo.h",
+         &output);
+  ASSERT_EQ("", output);
+  vector<string> headers = cl.GetEscapedResult();
+  ASSERT_EQ(1u, headers.size());
+  ASSERT_EQ("sub\\some\\ sdk\\foo.h", headers[0]);
+}
