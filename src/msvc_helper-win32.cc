@@ -28,20 +28,19 @@ bool EndsWith(const string& input, const string& needle) {
           input.substr(input.size() - needle.size()) == needle);
 }
 
-void Replace(string& in_out, const string& find, const string& replace) {
+string Replace(const string& input, const string& find, const string& replace) {
+  string result = input;
   size_t start_pos = 0;
-  while ((start_pos = in_out.find(find, start_pos)) != std::string::npos) {
-    in_out.replace(start_pos, find.length(), replace);
+  while ((start_pos = result.find(find, start_pos)) != string::npos) {
+    result.replace(start_pos, find.length(), replace);
     start_pos += replace.length();
   }
+  return result;
 }
 
-string Escape(const string& path) {
-  string result = path;
-  // TODO: very strange format, should we escape \ too?
-  //Replace(result, "\\", "\\\\");
-  Replace(result, " ", "\\ ");
-  return result;
+string EscapeForDepfile(const string& path) {
+  // Depfiles don't escape single \ because they're common in paths.
+  return Replace(path, " ", "\\ ");
 }
 
 }  // anonymous namespace
@@ -182,7 +181,7 @@ int CLWrapper::Run(const string& command, string* extra_output) {
 vector<string> CLWrapper::GetEscapedResult() {
   vector<string> result;
   for (set<string>::iterator i = includes_.begin(); i != includes_.end(); ++i) {
-    result.push_back(Escape(*i));
+    result.push_back(EscapeForDepfile(*i));
   }
   return result;
 }
