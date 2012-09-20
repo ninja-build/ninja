@@ -28,6 +28,21 @@ bool EndsWith(const string& input, const string& needle) {
           input.substr(input.size() - needle.size()) == needle);
 }
 
+string Replace(const string& input, const string& find, const string& replace) {
+  string result = input;
+  size_t start_pos = 0;
+  while ((start_pos = result.find(find, start_pos)) != string::npos) {
+    result.replace(start_pos, find.length(), replace);
+    start_pos += replace.length();
+  }
+  return result;
+}
+
+string EscapeForDepfile(const string& path) {
+  // Depfiles don't escape single \.
+  return Replace(path, " ", "\\ ");
+}
+
 }  // anonymous namespace
 
 // static
@@ -161,4 +176,12 @@ int CLWrapper::Run(const string& command, string* extra_output) {
   }
 
   return exit_code;
+}
+
+vector<string> CLWrapper::GetEscapedResult() {
+  vector<string> result;
+  for (set<string>::iterator i = includes_.begin(); i != includes_.end(); ++i) {
+    result.push_back(EscapeForDepfile(*i));
+  }
+  return result;
 }

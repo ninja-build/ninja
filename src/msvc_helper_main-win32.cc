@@ -105,8 +105,8 @@ int MSVCHelperMain(int argc, char** argv) {
     Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
   }
   fprintf(output, "%s: ", output_filename);
-  for (set<string>::iterator i = cl.includes_.begin();
-       i != cl.includes_.end(); ++i) {
+  vector<string> headers = cl.GetEscapedResult();
+  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
     fprintf(output, "%s\n", i->c_str());
   }
   fclose(output);
