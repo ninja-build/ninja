@@ -42,8 +42,10 @@
 #include "state.h"
 #include "util.h"
 
+#if defined(_MSC_VER)
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
+#endif
 
 namespace {
 
@@ -292,7 +294,7 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
 }
 #endif  // _WIN32
 
-#if defined(WIN32)
+#if defined(_MSC_VER)
 int ToolMSVC(Globals* globals, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
@@ -300,7 +302,7 @@ int ToolMSVC(Globals* globals, int argc, char* argv[]) {
   optind = 0;
   return MSVCHelperMain(argc, argv);
 }
-#endif
+#endif  // _MSC_VER
 
 int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
@@ -537,7 +539,7 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, ToolBrowse },
 #endif
-#if defined(WIN32)
+#if defined(_MSC_VER)
     { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
       Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif
