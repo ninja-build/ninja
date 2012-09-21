@@ -14,6 +14,7 @@
 
 #include "msvc_helper.h"
 
+#include <stdio.h>
 #include <windows.h>
 
 #include "util.h"
