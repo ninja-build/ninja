@@ -429,21 +429,9 @@ n.newline()
 if host == 'linux':
     n.comment('Packaging')
     n.rule('rpmbuild',
-           command="rpmbuild \
-           --define 'ver git' \
-           --define \"rel `git rev-parse --short HEAD`\" \
-           --define '_topdir %(pwd)/rpm-build' \
-           --define '_builddir %{_topdir}' \
-           --define '_rpmdir %{_topdir}' \
-           --define '_srcrpmdir %{_topdir}' \
-           --define '_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' \
-           --define '_specdir %{_topdir}' \
-           --define '_sourcedir  %{_topdir}' \
-           --quiet \
-           -bb misc/packaging/ninja.spec",
-           description='Building RPM..')
-    n.build('rpm', 'rpmbuild',
-            implicit=['ninja','README', 'COPYING', doc('manual.html')])
+           command="misc/packaging/rpmbuild.sh",
+           description='Building rpms..')
+    n.build('rpm', 'rpmbuild')
     n.newline()
 
 n.build('all', 'phony', all_targets)
