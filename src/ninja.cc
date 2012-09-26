@@ -682,6 +682,9 @@ int RunBuild(Builder* builder, int argc, char** argv) {
 
   if (!builder->Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
+    if (err.find("interrupted by user") != string::npos) {
+    	return 2;
+    }
     return 1;
   }
 
