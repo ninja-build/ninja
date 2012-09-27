@@ -131,6 +131,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString pool_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };

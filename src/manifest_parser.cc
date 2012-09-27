@@ -47,6 +47,10 @@ bool ManifestParser::Parse(const string& filename, const string& input,
   for (;;) {
     Lexer::Token token = lexer_.ReadToken();
     switch (token) {
+    case Lexer::POOL:
+      if (!ParsePool(err))
+        return false;
+      break;
     case Lexer::BUILD:
       if (!ParseEdge(err))
         return false;
@@ -91,6 +95,46 @@ bool ManifestParser::Parse(const string& filename, const string& input,
   return false;  // not reached
 }
 
+
+bool ManifestParser::ParsePool(string* err) {
+  string name;
+  if (!lexer_.ReadIdent(&name))
+    return lexer_.Error("expected pool name", err);
+
+  if (!ExpectToken(Lexer::NEWLINE, err))
+    return false;
+
+  if (state_->LookupPool(name) != NULL)
+    return lexer_.Error("duplicate pool '" + name + "'", err);
+
+  Pool* pool = new Pool(name);
+  bool set_depth = false;
+
+  while (lexer_.PeekToken(Lexer::INDENT)) {
+    string key;
+    EvalString value;
+    if (!ParseLet(&key, &value, err))
+      return false;
+
+    if (key == "depth") {
+      string depth_string = value.Evaluate(env_);
+      pool->depth_ = atol(depth_string.c_str());
+      if (pool->depth() <= 0)
+        return lexer_.Error("invalid pool depth", err);
+      set_depth = true;
+    } else {
+      return lexer_.Error("unexpected variable '" + key + "'", err);
+    }
+  }
+
+  if (!set_depth)
+    return lexer_.Error("expected 'depth =' line", err);
+
+  state_->AddPool(pool);
+  return true;
+}
+
+
 bool ManifestParser::ParseRule(string* err) {
   string name;
   if (!lexer_.ReadIdent(&name))
@@ -126,6 +170,8 @@ bool ManifestParser::ParseRule(string* err) {
       rule->rspfile_ = value;
     } else if (key == "rspfile_content") {
       rule->rspfile_content_ = value;
+    } else if (key == "pool") {
+      rule->pool_ = value;
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
@@ -252,6 +298,7 @@ bool ManifestParser::ParseEdge(string* err) {
 
   // Default to using outer env.
   BindingEnv* env = env_;
+  Pool* pool = NULL;
 
   // But create and fill a nested env if there are variables in scope.
   if (lexer_.PeekToken(Lexer::INDENT)) {
@@ -262,11 +309,28 @@ bool ManifestParser::ParseEdge(string* err) {
       EvalString val;
       if (!ParseLet(&key, &val, err))
         return false;
-      env->AddBinding(key, val.Evaluate(env_));
+      if (key == "pool") {
+        string pool_name = val.Evaluate(env_);
+        pool = state_->LookupPool(pool_name);
+        if (pool == NULL)
+          return lexer_.Error("undefined pool '" + pool_name + "'", err);
+      } else {
+        env->AddBinding(key, val.Evaluate(env_));
+      }
     } while (lexer_.PeekToken(Lexer::INDENT));
   }
 
-  Edge* edge = state_->AddEdge(rule, &State::kDefaultPool);
+  if (pool == NULL) {
+    if (!rule->pool_.empty()) {
+      pool = state_->LookupPool(rule->pool_.Evaluate(env_));
+      if (pool == NULL)
+        return lexer_.Error("cannot resolve pool for this edge.", err);
+    } else {
+      pool = &State::kDefaultPool;
+    }
+  }
+
+  Edge* edge = state_->AddEdge(rule, pool);
   edge->env_ = env;
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);

@@ -41,6 +41,7 @@ struct Lexer {
     NEWLINE,
     PIPE,
     PIPE2,
+    POOL,
     RULE,
     SUBNINJA,
     TEOF,
