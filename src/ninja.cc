@@ -613,8 +613,17 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
              DiskInterface* disk_interface) {
   const string build_dir =
       globals->state->bindings_.LookupVariable("builddir");
+  const string working_dir =
+      globals->state->bindings_.LookupVariable("workingdir");
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
+
+  if (!working_dir.empty()) {
+    if (chdir(working_dir.c_str()) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir.c_str(), strerror(errno));
+    }
+  }
+
   if (!build_dir.empty()) {
     log_path = build_dir + "/" + kLogPath;
     if (!disk_interface->MakeDirs(log_path) && errno != EEXIST) {
