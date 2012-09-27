@@ -608,6 +608,19 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
+bool SetWorkingDirFromLog(Globals* globals) {
+  const string working_dir =
+      globals->state->bindings_.LookupVariable("workingdir");
+
+  if (!working_dir.empty()) {
+    if (chdir(working_dir.c_str()) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir.c_str(), strerror(errno));
+    }
+    return true;
+  }
+  return false;
+}
+
 bool OpenLog(BuildLog* build_log, Globals* globals,
              DiskInterface* disk_interface) {
   const string build_dir =
@@ -617,11 +630,7 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
 
-  if (!working_dir.empty()) {
-    if (chdir(working_dir.c_str()) < 0) {
-      Fatal("chdir to '%s' - %s", working_dir.c_str(), strerror(errno));
-    }
-  }
+  SetWorkingDirFromLog(globals);
 
   if (!build_dir.empty()) {
     log_path = build_dir + "/" + kLogPath;
@@ -844,7 +853,10 @@ reload:
   }
 
   if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+  {
+    SetWorkingDirFromLog(&globals);
     return tool->func(&globals, argc, argv);
+  }
 
   BuildLog build_log;
   if (!OpenLog(&build_log, &globals, &disk_interface))
