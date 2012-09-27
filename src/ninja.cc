@@ -740,7 +740,7 @@ int NinjaMain(int argc, char** argv) {
 
   int opt;
   while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
