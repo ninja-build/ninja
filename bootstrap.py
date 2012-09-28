@@ -108,7 +108,11 @@ else:
 if options.verbose:
     print(' '.join(args))
 
-run(args)
+try:
+    run(args)
+except:
+    print 'Failure running:', args
+    raise
 
 verbose = []
 if options.verbose:
