@@ -113,7 +113,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
     // Print the command that is spewing before printing its output.
     if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+      printf("FAILED: %s\n%s\n", edge->GetDescription().c_str(), edge->EvaluateCommand().c_str());
+
 
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
