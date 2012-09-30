@@ -196,9 +196,10 @@ struct BuildStatus {
 
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
+  bool single_line_;
 
   /// The custom progress status format to use.
-  const char* progress_status_format_;
+  string progress_status_format_;
 
   template<size_t S>
   void snprinfRate(double rate, char(&buf)[S], const char* format) const {
