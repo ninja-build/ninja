@@ -316,7 +316,8 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge()) {
-      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule,
+                                         &State::kDefaultPool);
       node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
