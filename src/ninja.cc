@@ -117,6 +117,8 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  --strip-ansi [yes|no|auto]  strip ansi escape codes (e.g., colors)\n"
+"    from rules output [default behavior is 'auto']\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -731,10 +733,14 @@ int NinjaMain(int argc, char** argv) {
 
   config.parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum {
+    OPT_VERSION = 1,
+    OPT_STRIP_ANSI,
+  };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
+    { "strip-ansi", optional_argument, NULL, OPT_STRIP_ANSI },
     { NULL, 0, NULL, 0 }
   };
 
@@ -788,6 +794,17 @@ int NinjaMain(int argc, char** argv) {
       case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
+      case OPT_STRIP_ANSI:
+        if (!optarg || strcmp(optarg, "auto") == 0) {
+          config.strip_ansi = BuildConfig::STRIP_ANSI_AUTO;
+        }else if (strcmp(optarg, "yes") == 0) {
+          config.strip_ansi = BuildConfig::STRIP_ANSI_YES;
+        }else if (strcmp(optarg, "no") == 0) {
+          config.strip_ansi = BuildConfig::STRIP_ANSI_NO;
+        }else{
+          Fatal("Syntax: --strip-ansi [yes|no|auto*].");
+        }
+        break;
       case 'h':
       default:
         Usage(config);
