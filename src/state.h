@@ -27,16 +27,36 @@ struct Edge;
 struct Node;
 struct Rule;
 
+/// A pool for delayed edges
+struct Pool {
+  explicit Pool(const string& name, int depth)
+    : name_(name), depth_(depth) { }
+
+  // A depth of 0 is infinite
+  bool isValid() const { return depth_ >= 0; }
+  int depth() const { return depth_; }
+  string name() const { return name_; }
+
+private:
+  string name_;
+
+  int depth_;
+};
+
 /// Global state (file status, loaded rules) for a single run.
 struct State {
   static const Rule kPhonyRule;
+  static const Pool kDefaultPool;
 
   State();
 
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const string& rule_name);
 
-  Edge* AddEdge(const Rule* rule);
+  void AddPool(const Pool* pool);
+  const Pool* LookupPool(const string& pool_name);
+
+  Edge* AddEdge(const Rule* rule, const Pool* pool);
 
   Node* GetNode(StringPiece path);
   Node* LookupNode(StringPiece path);
@@ -64,6 +84,9 @@ struct State {
 
   /// All the rules used in the graph.
   map<string, const Rule*> rules_;
+
+  /// All the pools used in the graph.
+  map<string, const Pool*> pools_;
 
   /// All the edges of the graph.
   vector<Edge*> edges_;
