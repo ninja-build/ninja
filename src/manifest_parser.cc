@@ -107,8 +107,7 @@ bool ManifestParser::ParsePool(string* err) {
   if (state_->LookupPool(name) != NULL)
     return lexer_.Error("duplicate pool '" + name + "'", err);
 
-  Pool* pool = new Pool(name);
-  bool set_depth = false;
+  int depth = -1;
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
     string key;
@@ -118,19 +117,18 @@ bool ManifestParser::ParsePool(string* err) {
 
     if (key == "depth") {
       string depth_string = value.Evaluate(env_);
-      pool->depth_ = atol(depth_string.c_str());
-      if (pool->depth() <= 0)
+      depth = atol(depth_string.c_str());
+      if (depth < 0)
         return lexer_.Error("invalid pool depth", err);
-      set_depth = true;
     } else {
       return lexer_.Error("unexpected variable '" + key + "'", err);
     }
   }
 
-  if (!set_depth)
+  if (depth < 0)
     return lexer_.Error("expected 'depth =' line", err);
 
-  state_->AddPool(pool);
+  state_->AddPool(new Pool(name, depth));
   return true;
 }
 
