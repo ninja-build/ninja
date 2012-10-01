@@ -35,7 +35,7 @@ struct Pool {
   // A depth of 0 is infinite
   bool isValid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
-  string name() const { return name_; }
+  const string& name() const { return name_; }
 
 private:
   string name_;
