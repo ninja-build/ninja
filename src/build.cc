@@ -38,6 +38,45 @@
 #include "subprocess.h"
 #include "util.h"
 
+namespace {
+
+/// A CommandRunner that doesn't actually run the commands.
+class DryRunCommandRunner : public CommandRunner {
+ public:
+  virtual ~DryRunCommandRunner() {}
+
+  // Overridden from CommandRunner:
+  virtual bool CanRunMore();
+  virtual bool StartCommand(Edge* edge);
+  virtual Edge* WaitForCommand(ExitStatus* status, string* /* output */);
+
+ private:
+  queue<Edge*> finished_;
+};
+
+bool DryRunCommandRunner::CanRunMore() {
+  return true;
+}
+
+bool DryRunCommandRunner::StartCommand(Edge* edge) {
+  finished_.push(edge);
+  return true;
+}
+
+Edge* DryRunCommandRunner::WaitForCommand(ExitStatus* status,
+                                          string* /*output*/) {
+   if (finished_.empty()) {
+     *status = ExitFailure;
+     return NULL;
+   }
+   *status = ExitSuccess;
+   Edge* edge = finished_.front();
+   finished_.pop();
+   return edge;
+}
+
+}  // namespace
+
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
@@ -527,30 +566,6 @@ Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
   delete subproc;
   return edge;
 }
-
-/// A CommandRunner that doesn't actually run the commands.
-struct DryRunCommandRunner : public CommandRunner {
-  virtual ~DryRunCommandRunner() {}
-  virtual bool CanRunMore() {
-    return true;
-  }
-  virtual bool StartCommand(Edge* edge) {
-    finished_.push(edge);
-    return true;
-  }
-  virtual Edge* WaitForCommand(ExitStatus* status, string* /* output */) {
-    if (finished_.empty()) {
-      *status = ExitFailure;
-      return NULL;
-    }
-    *status = ExitSuccess;
-    Edge* edge = finished_.front();
-    finished_.pop();
-    return edge;
-  }
-
-  queue<Edge*> finished_;
-};
 
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* log, DiskInterface* disk_interface)
