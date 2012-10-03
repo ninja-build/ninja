@@ -117,6 +117,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  --smart [on/off]  Force-enable/disable the smart \r terminal\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -731,10 +732,11 @@ int NinjaMain(int argc, char** argv) {
 
   config.parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_SMART_TERMINAL = 2, };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
+    { "smart", optional_argument, NULL, OPT_SMART_TERMINAL },
     { NULL, 0, NULL, 0 }
   };
 
@@ -788,6 +790,14 @@ int NinjaMain(int argc, char** argv) {
       case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
+      case OPT_SMART_TERMINAL:
+        if (strcmp(optarg, "on") == 0)
+          config.smart_terminal = 1;
+        else if (strcmp(optarg, "off") == 0)
+          config.smart_terminal = -1;
+        else
+          config.smart_terminal = 0;
+        break;
       case 'h':
       default:
         Usage(config);

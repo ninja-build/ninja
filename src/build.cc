@@ -86,6 +86,10 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  if (config.smart_terminal == 1)
+    smart_terminal_ = true;
+  else if (config.smart_terminal == -1)
+    smart_terminal_ = false;
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
