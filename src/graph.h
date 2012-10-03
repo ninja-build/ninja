@@ -138,6 +138,7 @@ struct Rule {
 struct BuildLog;
 struct Node;
 struct State;
+struct Pool;
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
@@ -166,6 +167,7 @@ struct Edge {
   void Dump(const char* prefix="") const;
 
   const Rule* rule_;
+  Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   Env* env_;

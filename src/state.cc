@@ -22,7 +22,7 @@
 #include "metrics.h"
 #include "util.h"
 
-const Pool State::kDefaultPool("", 0);
+Pool State::kDefaultPool("", 0);
 const Rule State::kPhonyRule("phony");
 
 State::State() {
@@ -42,22 +42,22 @@ const Rule* State::LookupRule(const string& rule_name) {
   return i->second;
 }
 
-void State::AddPool(const Pool* pool) {
+void State::AddPool(Pool* pool) {
   assert(LookupPool(pool->name()) == NULL);
   pools_[pool->name()] = pool;
 }
 
-const Pool* State::LookupPool(const string& pool_name) {
-  map<string, const Pool*>::iterator i = pools_.find(pool_name);
+Pool* State::LookupPool(const string& pool_name) {
+  map<string, Pool*>::iterator i = pools_.find(pool_name);
   if (i == pools_.end())
     return NULL;
   return i->second;
 }
 
-Edge* State::AddEdge(const Rule* rule, const Pool* pool) {
-  // FIXME(iannucci): do something with pool
+Edge* State::AddEdge(const Rule* rule, Pool* pool) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
+  edge->pool_ = pool;
   edge->env_ = &bindings_;
   edges_.push_back(edge);
   return edge;

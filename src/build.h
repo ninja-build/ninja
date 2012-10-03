@@ -15,13 +15,13 @@
 #ifndef NINJA_BUILD_H_
 #define NINJA_BUILD_H_
 
+#include <cstdio>
 #include <map>
+#include <memory>
+#include <queue>
 #include <set>
 #include <string>
-#include <queue>
 #include <vector>
-#include <memory>
-#include <cstdio>
 
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
@@ -69,6 +69,8 @@ private:
   bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
   bool CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err);
   void NodeFinished(Node* node);
+  void ScheduleWork(Edge* edge);
+  void ResumeDelayedJobs(Edge* edge);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its

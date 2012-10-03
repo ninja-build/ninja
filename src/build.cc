@@ -359,7 +359,7 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
     want = true;
     ++wanted_edges_;
     if (edge->AllInputsReady())
-      ready_.insert(edge);
+      ScheduleWork(edge);
     if (!edge->is_phony())
       ++command_edges_;
   }
@@ -408,6 +408,22 @@ Edge* Plan::FindWork() {
   return edge;
 }
 
+void Plan::ScheduleWork(Edge* edge) {
+  // TODO(iannucci): See if this should get delayed instead
+  // if edge has pool
+  //   create pool if DNE
+  //   pool.InsertEdge(edge)
+  //   ready_.insert(pool.GetAvailableEdges())
+  // else
+  ready_.insert(edge);
+}
+
+void Plan::ResumeDelayedJobs(Edge* edge) {
+  // if edge has pool
+  //   pool.ReturnUnits(edge)
+  //   ready_.insert(pool.GetAvailableEdges())
+}
+
 void Plan::EdgeFinished(Edge* edge) {
   map<Edge*, bool>::iterator i = want_.find(edge);
   assert(i != want_.end());
@@ -415,6 +431,9 @@ void Plan::EdgeFinished(Edge* edge) {
     --wanted_edges_;
   want_.erase(i);
   edge->outputs_ready_ = true;
+
+  // See if this job frees up any delayed jobs
+  ResumeDelayedJobs(edge);
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator i = edge->outputs_.begin();
@@ -434,7 +453,7 @@ void Plan::NodeFinished(Node* node) {
     // See if the edge is now ready.
     if ((*i)->AllInputsReady()) {
       if (want_i->second) {
-        ready_.insert(*i);
+        ScheduleWork(*i);
       } else {
         // We do not need to build this edge, but we might need to build one of
         // its dependents.
@@ -501,6 +520,7 @@ void Plan::Dump() {
       printf("want ");
     i->first->Dump();
   }
+  // TODO(iannucci): Dump pending pools too
   printf("ready: %d\n", (int)ready_.size());
 }
 

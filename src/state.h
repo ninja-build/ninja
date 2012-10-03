@@ -16,6 +16,8 @@
 #define NINJA_STATE_H_
 
 #include <map>
+#include <queue>
+#include <set>
 #include <string>
 #include <vector>
 using namespace std;
@@ -37,26 +39,46 @@ struct Pool {
   int depth() const { return depth_; }
   const string& name() const { return name_; }
 
+  /// true if the Pool would delay this edge
+  bool ShouldDelayEdge(Edge* edge);
+
+  /// informs this Pool that the given edge is committed to be run.
+  /// Pool will count this edge as using resources from this pool.
+  void EdgeScheduled(Edge* edge);
+
+  /// informs this Pool that the given edge is no longer runnable, and should
+  /// relinquish it's resources back to the pool
+  void EdgeFinished(Edge* edge);
+
+  /// adds the given edge to this Pool to be delayed.
+  void DelayEdge(Edge* edge);
+
+  /// Pool will add zero or more edges to the ready_queue
+  void RetrieveReadyEdges(Edge* edge, set<Edge*>* ready_queue);
+
 private:
   string name_;
 
+  int current_use_;
   int depth_;
+
+  queue<Edge*> delayed_;
 };
 
 /// Global state (file status, loaded rules) for a single run.
 struct State {
+  static Pool kDefaultPool;
   static const Rule kPhonyRule;
-  static const Pool kDefaultPool;
 
   State();
 
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const string& rule_name);
 
-  void AddPool(const Pool* pool);
-  const Pool* LookupPool(const string& pool_name);
+  void AddPool(Pool* pool);
+  Pool* LookupPool(const string& pool_name);
 
-  Edge* AddEdge(const Rule* rule, const Pool* pool);
+  Edge* AddEdge(const Rule* rule, Pool* pool);
 
   Node* GetNode(StringPiece path);
   Node* LookupNode(StringPiece path);
@@ -86,7 +108,7 @@ struct State {
   map<string, const Rule*> rules_;
 
   /// All the pools used in the graph.
-  map<string, const Pool*> pools_;
+  map<string, Pool*> pools_;
 
   /// All the edges of the graph.
   vector<Edge*> edges_;
