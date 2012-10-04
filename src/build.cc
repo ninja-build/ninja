@@ -86,8 +86,13 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  smart_terminal_with_newline_ = false;
   if (config.smart_terminal == 1)
     smart_terminal_ = true;
+  else if (config.smart_terminal == 2) {
+    smart_terminal_ = true;
+    smart_terminal_with_newline_ = true;
+  }
   else if (config.smart_terminal == -1)
     smart_terminal_ = false;
 #else
@@ -297,6 +302,8 @@ void BuildStatus::PrintStatus(Edge* edge) {
     to_print = ConvertEscapeCodes(to_print);
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
+    if (smart_terminal_with_newline_)
+      printf("\n\x1B[1A");
     fflush(stdout);
     have_blank_line_ = false;
 #else

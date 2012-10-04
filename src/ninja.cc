@@ -117,7 +117,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
-"  --smart [on/off]  Force-enable/disable the smart \r terminal\n"
+"  --smart [on/off/on-with-newline]  Force-enable/disable the smart terminal. on-with-newline adds \\n and a move-up character\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -795,6 +795,8 @@ int NinjaMain(int argc, char** argv) {
           config.smart_terminal = 1;
         else if (strcmp(optarg, "off") == 0)
           config.smart_terminal = -1;
+        else if (strcmp(optarg, "on-with-newline") == 0)
+          config.smart_terminal = 2;
         else
           config.smart_terminal = 0;
         break;

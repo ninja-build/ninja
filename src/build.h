@@ -197,6 +197,8 @@ struct BuildStatus {
 
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
+  // Print \n followed by a move-up character. Allows smart terminal output to work with tools like sed
+  bool smart_terminal_with_newline_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
