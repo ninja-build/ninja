@@ -29,6 +29,7 @@ Cleaner::Cleaner(State* state, const BuildConfig& config)
   : state_(state),
     config_(config),
     removed_(),
+    cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(new RealDiskInterface),
     status_(0) {
@@ -40,6 +41,7 @@ Cleaner::Cleaner(State* state,
   : state_(state),
     config_(config),
     removed_(),
+    cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
     status_(0) {
@@ -134,9 +136,16 @@ void Cleaner::DoCleanTarget(Node* target) {
     }
     for (vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
          ++n) {
-      DoCleanTarget(*n);
+      Node* next = *n;
+      // call DoCleanTarget recursively if this node has not been visited
+      if (cleaned_.count(next) == 0) {
+        DoCleanTarget(next);
+      }
     }
   }
+
+  // mark this target to be cleaned already
+  cleaned_.insert(target);
 }
 
 int Cleaner::CleanTarget(Node* target) {
@@ -249,4 +258,5 @@ void Cleaner::Reset() {
   status_ = 0;
   cleaned_files_count_ = 0;
   removed_.clear();
+  cleaned_.clear();
 }
