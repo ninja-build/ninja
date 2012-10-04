@@ -409,19 +409,19 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::ScheduleWork(Edge* edge) {
-  // TODO(iannucci): See if this should get delayed instead
-  // if edge has pool
-  //   create pool if DNE
-  //   pool.InsertEdge(edge)
-  //   ready_.insert(pool.GetAvailableEdges())
-  // else
-  ready_.insert(edge);
+  Pool& pool = edge->pool();
+  if (pool.ShouldDelayEdge(*edge)) {
+    pool.DelayEdge(edge);
+    pool.RetrieveReadyEdges(&ready_);
+  } else {
+    pool.EdgeScheduled(*edge);
+    ready_.insert(edge);
+  }
 }
 
 void Plan::ResumeDelayedJobs(Edge* edge) {
-  // if edge has pool
-  //   pool.ReturnUnits(edge)
-  //   ready_.insert(pool.GetAvailableEdges())
+  edge->pool().EdgeFinished(*edge);
+  edge->pool().RetrieveReadyEdges(&ready_);
 }
 
 void Plan::EdgeFinished(Edge* edge) {

@@ -39,24 +39,26 @@ struct Pool {
   int depth() const { return depth_; }
   const string& name() const { return name_; }
 
-  /// true if the Pool would delay this edge
-  bool ShouldDelayEdge(Edge* edge);
+  /// true if the Pool might delay this edge
+  bool ShouldDelayEdge(const Edge& edge) const { return depth_ == 0; }
 
   /// informs this Pool that the given edge is committed to be run.
   /// Pool will count this edge as using resources from this pool.
-  void EdgeScheduled(Edge* edge);
+  void EdgeScheduled(const Edge& edge);
 
   /// informs this Pool that the given edge is no longer runnable, and should
   /// relinquish it's resources back to the pool
-  void EdgeFinished(Edge* edge);
+  void EdgeFinished(const Edge& edge);
 
   /// adds the given edge to this Pool to be delayed.
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(Edge* edge, set<Edge*>* ready_queue);
+  void RetrieveReadyEdges(set<Edge*>* ready_queue);
 
 private:
+  int UnitsWaiting() { return delayed_.size(); }
+
   string name_;
 
   int current_use_;

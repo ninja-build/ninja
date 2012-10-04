@@ -22,6 +22,33 @@
 #include "metrics.h"
 #include "util.h"
 
+
+void Pool::EdgeScheduled(const Edge& edge) {
+  if (depth_ != 0)
+    current_use_ += edge.weight();
+}
+
+void Pool::EdgeFinished(const Edge& edge) {
+  if (depth_ != 0)
+    current_use_ -= edge.weight();
+}
+
+void Pool::DelayEdge(Edge* edge) {
+  assert(depth_ != 0);
+  delayed_.push(edge);
+}
+
+void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
+  while(!delayed_.empty()) {
+    Edge* edge = delayed_.front();
+    if(current_use_ + edge->weight() > depth_)
+      break;
+    delayed_.pop();
+    ready_queue->insert(edge);
+    EdgeScheduled(*edge);
+  }
+}
+
 Pool State::kDefaultPool("", 0);
 const Rule State::kPhonyRule("phony");
 
