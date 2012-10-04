@@ -95,6 +95,7 @@ class Cleaner {
   State* state_;
   const BuildConfig& config_;
   set<string> removed_;
+  set<Node*> cleaned_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
   int status_;
