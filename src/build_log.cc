@@ -341,6 +341,7 @@ void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
+  METRIC_RECORD(".ninja_log recompact");
   printf("Recompacting log...\n");
 
   string temp_path = path + ".recompact";
