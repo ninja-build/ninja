@@ -25,6 +25,8 @@ using namespace std;
 struct DiskInterface;
 struct Edge;
 
+extern bool g_depcheck;
+
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
@@ -142,7 +144,7 @@ struct State;
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0) {}
+           depfile_implicit_deps_(0), order_only_deps_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -186,9 +188,14 @@ struct Edge {
   // and a type of input, or if memory matters could use the low bits of the
   // pointer...)
   int implicit_deps_;
+  int depfile_implicit_deps_;   // records the number of implicit dependencies discovered from the depfile
   int order_only_deps_;
   bool is_implicit(size_t index) {
     return index >= inputs_.size() - order_only_deps_ - implicit_deps_ &&
+        !is_order_only(index);
+  }
+  bool is_depfile_implicit(size_t index) {
+    return index >= inputs_.size() - order_only_deps_ - depfile_implicit_deps_ &&
         !is_order_only(index);
   }
   bool is_order_only(size_t index) {
@@ -226,11 +233,18 @@ struct DependencyScan {
   void set_build_log(BuildLog* log) {
     build_log_ = log;
   }
-
+    
+  // Check whether edge depends on node ignoring any depfile information
+  // This is used for discovering unsafe dependencies on generated files
+  static bool HasNonDepfileDependency(Edge*, Node*);
+ 
  private:
   State* state_;
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
+
+  static bool HasNonDepfileDependency_R(Edge*, Node*);
+
 };
 
 #endif  // NINJA_GRAPH_H_

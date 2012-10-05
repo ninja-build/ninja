@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <algorithm>
 
 #include "build_log.h"
 #include "depfile_parser.h"
@@ -25,6 +26,8 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+
+bool g_depcheck = false;
 
 bool Node::Stat(DiskInterface* disk_interface) {
   METRIC_RECORD("node stat");
@@ -299,9 +302,10 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
   // Preallocate space in edge->inputs_ to be filled in below.
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
                        depfile.ins_.size(), 0);
-  edge->implicit_deps_ += depfile.ins_.size();
+  edge->depfile_implicit_deps_ = depfile.ins_.size();
+  edge->implicit_deps_ += edge->depfile_implicit_deps_;
   vector<Node*>::iterator implicit_dep =
-      edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
+      edge->inputs_.end() - edge->order_only_deps_ - edge->depfile_implicit_deps_;
 
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
@@ -328,11 +332,62 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
       // to avoid a potential stuck build.  If we do call RecomputeDirty for
       // this node, it will simply set outputs_ready_ to the correct value.
       phony_edge->outputs_ready_ = true;
+    } else {
+      if (g_depcheck && !node->in_edge()->is_phony()) {
+        // The depfile has brought in a dependency which is a generated file
+        // (that is, it has a non-phony in-edge). We need to check that this dependency
+        // is defined explicitly in the ninja file as well.
+        if (HasNonDepfileDependency(edge, node)) {
+          Fatal("depcheck failed: dependency on generated file (%s -> %s) only exists in depfile",
+                  edge->outputs_[0]->path().c_str(), node->path().c_str());
+        }
+      }
     }
   }
 
   return true;
 }
+
+// Check whether edge depends on node ignoring any depfile information
+// It just delegates to the recursive HasNonDepfileDependency_R.
+bool DependencyScan::HasNonDepfileDependency(Edge* edge, Node* target)
+{
+    METRIC_RECORD("HasNonDepfileDependency");
+    return HasNonDepfileDependency_R(edge, target);
+}
+
+// Check whether edge depends on node ignoring any depfile information (implementation)
+bool DependencyScan::HasNonDepfileDependency_R(Edge* edge, Node* target)
+{
+    // the fast path - compare target with every (non-depfile) direct inputs of edge
+    std::vector<Node*>& nodes = edge->inputs_;
+    for (vector<Node*>::iterator i=nodes.begin(); i!=nodes.end(); ++i) {
+        if (edge->is_depfile_implicit(i - nodes.begin())) // skip implicit dependencies read from the depfile
+            continue;
+        if (*i == target)
+            return true;
+    }
+
+    // the slow path - search target using a (depth first) recursive algorithm
+    // Assuming circular dependencies do not exist
+    for (vector<Node*>::iterator i=nodes.begin(); i!=nodes.end(); ++i) {
+        if (edge->is_depfile_implicit(i - nodes.begin())) // skip implicit dependencies read from the depfile
+            continue;
+        Edge* lower_edge = (*i)->in_edge();
+        if (!lower_edge) 
+            continue;
+        if (lower_edge->outputs_.size() > 1) {  // if lower_edge has more than one output, check whether target is one of them
+            std::vector<Node*> sibling_nodes = lower_edge->outputs_;
+            if (std::find(sibling_nodes.begin(), sibling_nodes.end(), target) != sibling_nodes.end())
+                return true;
+        }
+        if (HasNonDepfileDependency_R(lower_edge, target))
+            return true;
+    }
+
+    return false;
+}
+
 
 void Edge::Dump(const char* prefix) const {
   printf("%s[ ", prefix);

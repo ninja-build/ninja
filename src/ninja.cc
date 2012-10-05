@@ -594,6 +594,7 @@ bool DebugEnable(const string& name, Globals* globals) {
     printf("debugging modes:\n"
 "  stats    print operation counts/timing info\n"
 "  explain  explain what caused a command to execute\n"
+"  depcheck check depfile discovered dependencies on generated files\n"
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -601,6 +602,9 @@ bool DebugEnable(const string& name, Globals* globals) {
     return true;
   } else if (name == "explain") {
     g_explaining = true;
+    return true;
+  } else if (name == "depcheck") {
+    g_depcheck = true;
     return true;
   } else {
     printf("ninja: unknown debug setting '%s'\n", name.c_str());

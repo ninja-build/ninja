@@ -187,3 +187,80 @@ TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(GetNode("out.o")->dirty());
 }
+
+TEST_F(GraphTest, DepCheckSimple) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build out1.o: catdep out.cc\n"               // missing dependency on generated.h here
+"build out2.o: catdep out.cc | generated.h\n" // this is fine
+"build generated.h: cat src.h\n"));
+ 
+  fs_.Create("out.cc", 1, "");
+  fs_.Create("out1.o.d", 1, "out1.o: normal.h generated.h\n");
+  fs_.Create("out1.o", 1, "");
+  fs_.Create("out2.o.d", 1, "out2.o: normal.h generated.h\n");
+  fs_.Create("out2.o", 1, "");
+  fs_.Create("generated.h", 1, "");
+  fs_.Create("normal.h", 1, "");
+
+  EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out1.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out1.o")->in_edge(), GetNode("normal.h")));
+
+  EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out2.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out2.o")->in_edge(), GetNode("normal.h")));
+}
+
+TEST_F(GraphTest, DepCheckIndirect) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build out1.o: catdep out.cc \n"                 // missing dependency on generated.h here
+"build out2.o: catdep out.cc | headers.stamp\n"  // this is fine
+"build out3.o: catdep out.cc || headers.stamp\n" // this is also fine
+"build headers.stamp: phony generated.h\n"       // a common "sentinel" for (possibly many) generated headers
+"build generated.h: cat src.h\n"));
+  fs_.Create("out.cc", 1, "");
+  fs_.Create("out1.o.d", 1, "out1.o: normal.h generated.h\n");
+  fs_.Create("out1.o", 1, "");
+  fs_.Create("out2.o.d", 1, "out2.o: normal.h generated.h\n");
+  fs_.Create("out2.o", 1, "");
+  fs_.Create("out3.o.d", 1, "out3.o: normal.h generated.h\n");
+  fs_.Create("out3.o", 1, "");
+  fs_.Create("generated.h", 1, "");
+  fs_.Create("normal.h", 1, "");
+
+  EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out1.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out2.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out3.o")->in_edge(), GetNode("generated.h")));
+}
+
+TEST_F(GraphTest, DepCheckSiblings) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cat2\n"
+"  command = cat $in > $out1 && cat $in > $out\n"
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build out1.o: catdep out.cc \n"                 // missing dependency on generated.h here
+"build out2.o: catdep out.cc | headers.stamp\n"  // this is fine
+"build out3.o: catdep out.cc || headers.stamp\n" // this is also fine
+"build headers.stamp generated.h: cat2 src.h\n"  // a common "sentinel" with (possibly many) generated headers
+"  out1=headers.stamp\n"
+"  out2=generated.h\n"));
+  fs_.Create("out.cc", 1, "");
+  fs_.Create("out1.o.d", 1, "out1.o: normal.h generated.h\n");
+  fs_.Create("out1.o", 1, "");
+  fs_.Create("out2.o.d", 1, "out2.o: normal.h generated.h\n");
+  fs_.Create("out2.o", 1, "");
+  fs_.Create("out3.o.d", 1, "out3.o: normal.h generated.h\n");
+  fs_.Create("out3.o", 1, "");
+  fs_.Create("generated.h", 1, "");
+  fs_.Create("normal.h", 1, "");
+
+  EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out1.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out2.o")->in_edge(), GetNode("generated.h")));
+  EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out3.o")->in_edge(), GetNode("generated.h")));
+}
