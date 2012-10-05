@@ -188,6 +188,9 @@ TEST_F(GraphTest, DepfileRemoved) {
   EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
+// Test the HasNonDepfileDependency method used in -d depcheck
+// First present two files depending on a generated header,
+// but only one mentioning that in the .ninja file
 TEST_F(GraphTest, DepCheckSimple) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule catdep\n"
@@ -212,6 +215,8 @@ TEST_F(GraphTest, DepCheckSimple) {
   EXPECT_FALSE(DependencyScan::HasNonDepfileDependency(GetNode("out2.o")->in_edge(), GetNode("normal.h")));
 }
 
+// Extension of DepCheckSimple - now use a "sentinel" in between the header
+// generation and its usage
 TEST_F(GraphTest, DepCheckIndirect) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule catdep\n"
@@ -237,6 +242,8 @@ TEST_F(GraphTest, DepCheckIndirect) {
   EXPECT_TRUE(DependencyScan::HasNonDepfileDependency(GetNode("out3.o")->in_edge(), GetNode("generated.h")));
 }
 
+// Extension of DepCheckIndirect - use the sentinel to mark the dependency in 
+// .ninja file, but depend on a header file, which is its byproduct (sibling)
 TEST_F(GraphTest, DepCheckSiblings) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cat2\n"
