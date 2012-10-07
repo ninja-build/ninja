@@ -53,15 +53,18 @@ const char* kVersion = "git";
 
 /// Global information passed into subtools.
 struct Globals {
-  Globals() : state(new State()) {}
+  Globals() : state(new State()), build_log(new BuildLog) {}
   ~Globals() {
     delete state;
+    delete build_log;
   }
 
-  /// Deletes and recreates state so it is empty.
+  /// Deletes and recreates state and build log so these are empty.
   void ResetState() {
     delete state;
+    delete build_log;
     state = new State();
+    build_log = new BuildLog();
   }
 
   /// Command line used to run Ninja.
@@ -70,6 +73,8 @@ struct Globals {
   BuildConfig* config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
+  /// Build log. Accumulative state from previous builds.
+  BuildLog* build_log;
 };
 
 /// The type of functions that are the entry points to tools (subcommands).
@@ -608,8 +613,7 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
-bool OpenLog(BuildLog* build_log, Globals* globals,
-             DiskInterface* disk_interface) {
+bool OpenLog(Globals* globals, DiskInterface* disk_interface) {
   const string build_dir =
       globals->state->bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
@@ -623,6 +627,7 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
     }
   }
 
+  BuildLog* build_log = globals->build_log;
   string err;
   if (!build_log->Load(log_path, &err)) {
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
@@ -843,7 +848,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    Builder manifest_builder(globals.state, config, &build_log,
+    Builder manifest_builder(globals.state, config, globals.build_log,
                              &disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
@@ -855,7 +860,7 @@ reload:
     }
   }
 
-  Builder builder(globals.state, config, &build_log, &disk_interface);
+  Builder builder(globals.state, config, globals.build_log, &disk_interface);
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics)
     DumpMetrics(&globals);
