@@ -353,18 +353,18 @@ bool Edge::is_phony() const {
 }
 
 void Node::Dump(const char* prefix) const {
-    printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
-           prefix, path().c_str(), this,
-           mtime(), mtime()?"":" (:missing)",
-           dirty()?" dirty":" clean");
-    if (in_edge()) {
-        in_edge()->Dump("in-edge: ");
-    }else{
-        printf("no in-edge\n");
-    }
-    printf(" out edges:\n");
-    for (vector<Edge*>::const_iterator e = out_edges().begin();
-         e != out_edges().end() && *e != NULL; ++e) {
-        (*e)->Dump(" +- ");
-    }
+  printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
+         prefix, path().c_str(), this,
+         mtime(), mtime() ? "" : " (:missing)",
+         dirty() ? " dirty" : " clean");
+  if (in_edge()) {
+    in_edge()->Dump("in-edge: ");
+  } else {
+    printf("no in-edge\n");
+  }
+  printf(" out edges:\n");
+  for (vector<Edge*>::const_iterator e = out_edges().begin();
+       e != out_edges().end() && *e != NULL; ++e) {
+    (*e)->Dump(" +- ");
+  }
 }
