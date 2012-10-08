@@ -159,8 +159,15 @@ it's locked while in use.
 
 ### Via mingw on Linux (not well supported)
 
+Setup on Ubuntu Lucid:
 * `sudo apt-get install gcc-mingw32 wine`
 * `export CC=i586-mingw32msvc-cc CXX=i586-mingw32msvc-c++ AR=i586-mingw32msvc-ar`
+
+Setup on Ubuntu Precise:
+* `sudo apt-get install gcc-mingw-w64-i686 g++-mingw-w64-i686 wine`
+* `export CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ AR=i686-w64-mingw32-ar`
+
+Then run:
 * `./configure.py --platform=mingw --host=linux`
 * Build `ninja.exe` using a Linux ninja binary: `/path/to/linux/ninja`
 * Run: `./ninja.exe`  (implicitly runs through wine(!))
