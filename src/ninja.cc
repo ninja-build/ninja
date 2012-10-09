@@ -140,7 +140,7 @@ int GuessParallelism() {
 /// An implementation of ManifestParser::FileReader that actually reads
 /// the file.
 struct RealFileReader : public ManifestParser::FileReader {
-  bool ReadFile(const string& path, string* content, string* err) {
+  virtual bool ReadFile(const string& path, string* content, string* err) {
     return ::ReadFile(path, content, err) == 0;
   }
 };
