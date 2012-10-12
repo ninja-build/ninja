@@ -159,6 +159,21 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (log_file_)
       WriteEntry(log_file_, *log_entry);
   }
+
+  // Log implicit targets.
+  // Currently only used when cleaning orphan targets, therefore do this
+  //  only unless a matching path is already in the log.
+  if (!edge->rule_->depfile().empty()) {
+    const string& path = edge->EvaluateDepFile();
+    if (entries_.count(path) == 0) {
+      LogEntry* log_entry =
+        new LogEntry(path, command_hash, start_time, end_time, restat_mtime);
+      entries_.insert(Entries::value_type(log_entry->output, log_entry));
+
+      if (log_file_)
+        WriteEntry(log_file_, *log_entry);
+    }
+  }
 }
 
 void BuildLog::Close() {

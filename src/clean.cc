@@ -126,12 +126,23 @@ int Cleaner::CleanAll(bool generator) {
 }
 
 int Cleaner::CleanOrphanTargets(BuildLog* build_log) {
+  // Prepare set of depfiles referenced in the updated manifest
+  set<string> implicit_targets;
+  for (vector<Edge*>::iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    if (!(*e)->rule().depfile().empty())
+      implicit_targets.insert((*e)->EvaluateDepFile());
+  }
+
   for (BuildLog::Entries::const_iterator i = build_log->entries().begin();
        i != build_log->entries().end(); ++i) {
     const string& path = (*i).second->output;
     Node* target = state_->LookupNode(path);
 
     if (target && !target->in_edge()->is_phony())
+      continue;
+
+    if (implicit_targets.count(path) != 0)
       continue;
 
     // Target built previously but does not exist in the updated manifest.
