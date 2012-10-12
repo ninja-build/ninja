@@ -91,6 +91,15 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
 
+BuildLog::LogEntry::LogEntry(const string& _output)
+  : output(_output) {}
+
+BuildLog::LogEntry::LogEntry(const string& _output, uint64_t _command_hash,
+  int _start_time, int _end_time, TimeStamp _restat_mtime)
+  : output(_output), command_hash(_command_hash),
+    start_time(_start_time), end_time(_end_time), restat_mtime(_restat_mtime)
+{}
+
 BuildLog::BuildLog()
   : log_file_(NULL), needs_recompaction_(false) {}
 
@@ -139,8 +148,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (i != entries_.end()) {
       log_entry = i->second;
     } else {
-      log_entry = new LogEntry;
-      log_entry->output = path;
+      log_entry = new LogEntry(path);
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
     log_entry->command_hash = command_hash;
@@ -288,8 +296,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (i != entries_.end()) {
       entry = i->second;
     } else {
-      entry = new LogEntry;
-      entry->output = output;
+      entry = new LogEntry(output);
       entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
