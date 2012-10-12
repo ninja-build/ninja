@@ -130,6 +130,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
+  uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
@@ -142,7 +143,7 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
       log_entry->output = path;
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
-    log_entry->command_hash = LogEntry::HashCommand(command);
+    log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
