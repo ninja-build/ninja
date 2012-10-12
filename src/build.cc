@@ -728,6 +728,7 @@ bool Builder::Build(string* err) {
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
+  METRIC_RECORD("StartEdge");
   if (edge->is_phony())
     return true;
 
@@ -758,6 +759,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 }
 
 void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
+  METRIC_RECORD("FinishEdge");
   TimeStamp restat_mtime = 0;
 
   if (success) {
