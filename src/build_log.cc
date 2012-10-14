@@ -91,13 +91,13 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const string& _output)
-  : output(_output) {}
+BuildLog::LogEntry::LogEntry(const string& a_output)
+  : output(a_output) {}
 
-BuildLog::LogEntry::LogEntry(const string& _output, uint64_t _command_hash,
-  int _start_time, int _end_time, TimeStamp _restat_mtime)
-  : output(_output), command_hash(_command_hash),
-    start_time(_start_time), end_time(_end_time), restat_mtime(_restat_mtime)
+BuildLog::LogEntry::LogEntry(const string& a_output, uint64_t a_command_hash,
+  int a_start_time, int a_end_time, TimeStamp a_restat_mtime)
+  : output(a_output), command_hash(a_command_hash),
+    start_time(a_start_time), end_time(a_end_time), restat_mtime(a_restat_mtime)
 {}
 
 BuildLog::BuildLog()
