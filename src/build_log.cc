@@ -91,6 +91,15 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
 
+BuildLog::LogEntry::LogEntry(const string& a_output)
+  : output(a_output) {}
+
+BuildLog::LogEntry::LogEntry(const string& a_output, uint64_t a_command_hash,
+  int a_start_time, int a_end_time, TimeStamp a_restat_mtime)
+  : output(a_output), command_hash(a_command_hash),
+    start_time(a_start_time), end_time(a_end_time), restat_mtime(a_restat_mtime)
+{}
+
 BuildLog::BuildLog()
   : log_file_(NULL), needs_recompaction_(false) {}
 
@@ -130,6 +139,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
+  uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
@@ -138,11 +148,10 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (i != entries_.end()) {
       log_entry = i->second;
     } else {
-      log_entry = new LogEntry;
-      log_entry->output = path;
+      log_entry = new LogEntry(path);
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
-    log_entry->command_hash = LogEntry::HashCommand(command);
+    log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
@@ -287,8 +296,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (i != entries_.end()) {
       entry = i->second;
     } else {
-      entry = new LogEntry;
-      entry->output = output;
+      entry = new LogEntry(output);
       entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
