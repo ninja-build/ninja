@@ -245,3 +245,23 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   ASSERT_EQ(789, e->restat_mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
+
+TEST_F(BuildLogTest, MultiTargetEdge) {
+  AssertParse(&state_,
+"build out out.d: cat\n");
+
+  BuildLog log;
+  log.RecordCommand(state_.edges_[0], 21, 22);
+
+  ASSERT_EQ(2u, log.entries().size());
+  BuildLog::LogEntry* e1 = log.LookupByOutput("out");
+  ASSERT_TRUE(e1);
+  BuildLog::LogEntry* e2 = log.LookupByOutput("out.d");
+  ASSERT_TRUE(e2);
+  ASSERT_EQ("out", e1->output);
+  ASSERT_EQ("out.d", e2->output);
+  ASSERT_EQ(21, e1->start_time);
+  ASSERT_EQ(21, e2->start_time);
+  ASSERT_EQ(22, e2->end_time);
+  ASSERT_EQ(22, e2->end_time);
+}
