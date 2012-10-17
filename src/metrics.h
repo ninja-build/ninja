@@ -62,12 +62,10 @@ private:
 /// Epoch varies between platforms; only useful for measuring elapsed time.
 int64_t GetTimeMillis();
 
-
 /// A simple stopwatch which returns the time
 /// in seconds since Restart() was called.
-class Stopwatch
-{
-public:
+class Stopwatch {
+ public:
   Stopwatch() : started_(0) {}
 
   /// Seconds since Restart() call.
@@ -79,7 +77,6 @@ private:
   uint64_t started_;
   uint64_t Now() const;
 };
-
 
 /// The primary interface to metrics.  Use METRIC_RECORD("foobar") at the top
 /// of a function to get timing stats recorded for each call of the function.
