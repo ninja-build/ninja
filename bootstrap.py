@@ -22,6 +22,14 @@ import shlex
 import shutil
 import subprocess
 
+if sys.version_info[0] == 3:
+    import builtins
+    print_ = getattr(builtins, "print")
+else:
+    def print_(*args):
+        sys.stdout.write(" ".join(str(x) for x in args))
+        sys.stdout.write("\n")
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = OptionParser()
@@ -44,11 +52,12 @@ if sys.platform.startswith('freebsd'):
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
-print 'Building ninja manually...'
+print_('Building ninja manually...')
 
 try:
     os.mkdir('build')
-except OSError, e:
+except OSError:
+    e = sys.exc_info()[1]
     if e.errno != errno.EEXIST:
         raise
 
@@ -103,7 +112,7 @@ else:
     args.extend(['-o', binary])
 
 if options.verbose:
-    print ' '.join(args)
+    print_(' '.join(args))
 
 run(args)
 
@@ -112,7 +121,7 @@ if options.verbose:
     verbose = ['-v']
 
 if sys.platform.startswith('win32'):
-    print 'Building ninja using itself...'
+    print_('Building ninja using itself...')
     run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
         conf_args)
     run(['./' + binary] + verbose)
@@ -124,17 +133,17 @@ if sys.platform.startswith('win32'):
     for obj in glob.glob('*.obj'):
         os.unlink(obj)
 
-    print """
+    print_("""
 Done!
 
 Note: to work around Windows file locking, where you can't rebuild an
 in-use binary, to run ninja after making any changes to build ninja itself
 you should run ninja.bootstrap instead.  Your build is also configured to
 use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
-the --help output of configure.py."""
+the --help output of configure.py.""")
 else:
-    print 'Building ninja using itself...'
+    print_('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)
     run(['./' + binary] + verbose)
     os.unlink(binary)
-    print 'Done!'
+    print_('Done!')
