@@ -15,7 +15,11 @@
 # limitations under the License.
 
 import unittest
-from StringIO import StringIO
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 import ninja_syntax
 
