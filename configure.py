@@ -19,20 +19,14 @@
 Projects that use ninja themselves should either write a similar script
 or use a meta-build system that supports Ninja output."""
 
+from __future__ import print_function
+
 from optparse import OptionParser
 import os
 import sys
 sys.path.insert(0, 'misc')
 
 import ninja_syntax
-
-if sys.version_info[0] == 3:
-    import builtins
-    print_ = getattr(builtins, "print")
-else:
-    def print_(*args):
-        sys.stdout.write(" ".join(str(x) for x in args))
-        sys.stdout.write("\n")
 
 parser = OptionParser()
 platforms = ['linux', 'freebsd', 'solaris', 'mingw', 'windows']
@@ -58,7 +52,7 @@ parser.add_option('--with-ninja', metavar='NAME',
                   default="ninja")
 (options, args) = parser.parse_args()
 if args:
-    print_('ERROR: extra unparsed command-line arguments:', args)
+    print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
 platform = options.platform
@@ -264,7 +258,7 @@ if has_re2c():
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
-    print_("warning: A compatible version of re2c (>= 0.11.3) was not found; "
+    print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
@@ -444,4 +438,4 @@ if host == 'linux':
 
 n.build('all', 'phony', all_targets)
 
-print_('wrote %s.' % BUILD_FILENAME)
+print('wrote %s.' % BUILD_FILENAME)

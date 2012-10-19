@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 from optparse import OptionParser
 import sys
 import os
@@ -21,14 +23,6 @@ import errno
 import shlex
 import shutil
 import subprocess
-
-if sys.version_info[0] == 3:
-    import builtins
-    print_ = getattr(builtins, "print")
-else:
-    def print_(*args):
-        sys.stdout.write(" ".join(str(x) for x in args))
-        sys.stdout.write("\n")
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -52,7 +46,7 @@ if sys.platform.startswith('freebsd'):
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
-print_('Building ninja manually...')
+print('Building ninja manually...')
 
 try:
     os.mkdir('build')
@@ -112,7 +106,7 @@ else:
     args.extend(['-o', binary])
 
 if options.verbose:
-    print_(' '.join(args))
+    print(' '.join(args))
 
 run(args)
 
@@ -121,7 +115,7 @@ if options.verbose:
     verbose = ['-v']
 
 if sys.platform.startswith('win32'):
-    print_('Building ninja using itself...')
+    print('Building ninja using itself...')
     run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
         conf_args)
     run(['./' + binary] + verbose)
@@ -133,7 +127,7 @@ if sys.platform.startswith('win32'):
     for obj in glob.glob('*.obj'):
         os.unlink(obj)
 
-    print_("""
+    print("""
 Done!
 
 Note: to work around Windows file locking, where you can't rebuild an
@@ -142,8 +136,8 @@ you should run ninja.bootstrap instead.  Your build is also configured to
 use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
 the --help output of configure.py.""")
 else:
-    print_('Building ninja using itself...')
+    print('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)
     run(['./' + binary] + verbose)
     os.unlink(binary)
-    print_('Done!')
+    print('Done!')
