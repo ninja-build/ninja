@@ -60,10 +60,12 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 #endif
 
   // Don't do anything fancy in verbose mode.
-  if (config_.verbosity != BuildConfig::NORMAL) {
+  if (config_.verbosity != BuildConfig::NORMAL)
     smart_terminal_ = false;
+
+  // Don't try to overwrite output to a dumb terminal.
+  if ( ! smart_terminal_ )
     single_line_ = false;
-  }
 
   char * ninjaStatus = getenv("NINJA_STATUS");
   if (ninjaStatus)
