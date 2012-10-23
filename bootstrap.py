@@ -111,7 +111,7 @@ if options.verbose:
 try:
     run(args)
 except:
-    print 'Failure running:', args
+    print('Failure running:', args)
     raise
 
 verbose = []
