@@ -60,9 +60,7 @@ def parse(text):
     outputs = []
 
     try:
-        target = next(lines)
-        if target.endswith(':'):
-            target = target[:-1]  # strip trailing colon
+        target = next(lines)[:-1]  # strip trailing colon
 
         line = next(lines)
         (match, rule) = match_strip(line, '  input: ')
@@ -90,8 +88,8 @@ def parse(text):
 
     return Node(inputs, rule, target, outputs)
 
-def generate_html(node):
-    document = ['''<!DOCTYPE html>
+def create_page(body):
+    return '''<!DOCTYPE html>
 <style>
 body {
     font-family: sans;
@@ -115,9 +113,11 @@ tt {
 .filelist {
   -webkit-columns: auto 2;
 }
-</style>''']
+</style>
+''' + body
 
-    document.append('<h1><tt>%s</tt></h1>' % node.target)
+def generate_html(node):
+    document = ['<h1><tt>%s</tt></h1>' % node.target]
 
     if node.inputs:
         document.append('<h2>target is built using rule <tt>%s</tt> of</h2>' %
@@ -145,7 +145,7 @@ tt {
 def ninja_dump(target):
     proc = subprocess.Popen([sys.argv[1], '-t', 'query', target],
                             stdout=subprocess.PIPE, universal_newlines=True)
-    return proc.communicate()[0]
+    return (proc.communicate()[0], proc.returncode)
 
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -164,11 +164,16 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
             return
         target = target[1:]
 
-        input = ninja_dump(target)
+        input, exit_code = ninja_dump(target)
+        if exit_code == 0:
+            page_body = generate_html(parse(input.strip()))
+        else:
+            # Relay ninja's error message.
+            page_body = '<h1><tt>%s</tt></h1>' % input
 
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(generate_html(parse(input.strip())).encode('utf-8'))
+        self.wfile.write(create_page(page_body).encode('utf-8'))
 
     def log_message(self, format, *args):
         pass  # Swallow console spam.
