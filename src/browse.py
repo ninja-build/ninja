@@ -60,7 +60,9 @@ def parse(text):
     outputs = []
 
     try:
-        target = next(lines)[:-1]  # strip trailing colon
+        target = next(lines)
+        if target.endswith(':'):
+            target = target[:-1]  # strip trailing colon
 
         line = next(lines)
         (match, rule) = match_strip(line, '  input: ')
