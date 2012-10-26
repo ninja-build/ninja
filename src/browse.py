@@ -20,7 +20,12 @@ This script is inlined into the final executable and spawned by
 it when needed.
 """
 
-import BaseHTTPServer
+from __future__ import print_function
+
+try:
+    import http.server as httpserver
+except ImportError:
+    import BaseHTTPServer as httpserver
 import subprocess
 import sys
 import webbrowser
@@ -55,12 +60,12 @@ def parse(text):
     outputs = []
 
     try:
-        target = lines.next()[:-1]  # strip trailing colon
+        target = next(lines)[:-1]  # strip trailing colon
 
-        line = lines.next()
+        line = next(lines)
         (match, rule) = match_strip(line, '  input: ')
         if match:
-            (match, line) = match_strip(lines.next(), '    ')
+            (match, line) = match_strip(next(lines), '    ')
             while match:
                 type = None
                 (match, line) = match_strip(line, '| ')
@@ -70,21 +75,21 @@ def parse(text):
                 if match:
                     type = 'order-only'
                 inputs.append((line, type))
-                (match, line) = match_strip(lines.next(), '    ')
+                (match, line) = match_strip(next(lines), '    ')
 
         match, _ = match_strip(line, '  outputs:')
         if match:
-            (match, line) = match_strip(lines.next(), '    ')
+            (match, line) = match_strip(next(lines), '    ')
             while match:
                 outputs.append(line)
-                (match, line) = match_strip(lines.next(), '    ')
+                (match, line) = match_strip(next(lines), '    ')
     except StopIteration:
         pass
 
     return Node(inputs, rule, target, outputs)
 
-def generate_html(node):
-    print '''<!DOCTYPE html>
+def create_page(body):
+    return '''<!DOCTYPE html>
 <style>
 body {
     font-family: sans;
@@ -108,34 +113,41 @@ tt {
 .filelist {
   -webkit-columns: auto 2;
 }
-</style>'''
+</style>
+''' + body
 
-    print '<h1><tt>%s</tt></h1>' % node.target
+def generate_html(node):
+    document = ['<h1><tt>%s</tt></h1>' % node.target]
 
     if node.inputs:
-        print '<h2>target is built using rule <tt>%s</tt> of</h2>' % node.rule
+        document.append('<h2>target is built using rule <tt>%s</tt> of</h2>' %
+                        node.rule)
         if len(node.inputs) > 0:
-            print '<div class=filelist>'
+            document.append('<div class=filelist>')
             for input, type in sorted(node.inputs):
                 extra = ''
                 if type:
                     extra = ' (%s)' % type
-                print '<tt><a href="?%s">%s</a>%s</tt><br>' % (input, input, extra)
-            print '</div>'
+                document.append('<tt><a href="?%s">%s</a>%s</tt><br>' %
+                                (input, input, extra))
+            document.append('</div>')
 
     if node.outputs:
-        print '<h2>dependent edges build:</h2>'
-        print '<div class=filelist>'
+        document.append('<h2>dependent edges build:</h2>')
+        document.append('<div class=filelist>')
         for output in sorted(node.outputs):
-            print '<tt><a href="?%s">%s</a></tt><br>' % (output, output)
-        print '</div>'
+            document.append('<tt><a href="?%s">%s</a></tt><br>' %
+                            (output, output))
+        document.append('</div>')
+
+    return '\n'.join(document)
 
 def ninja_dump(target):
     proc = subprocess.Popen([sys.argv[1], '-t', 'query', target],
-                            stdout=subprocess.PIPE)
-    return proc.communicate()[0]
+                            stdout=subprocess.PIPE, universal_newlines=True)
+    return (proc.communicate()[0], proc.returncode)
 
-class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path[0] == '/'
         target = self.path[1:]
@@ -152,28 +164,28 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return
         target = target[1:]
 
-        input = ninja_dump(target)
+        input, exit_code = ninja_dump(target)
+        if exit_code == 0:
+            page_body = generate_html(parse(input.strip()))
+        else:
+            # Relay ninja's error message.
+            page_body = '<h1><tt>%s</tt></h1>' % input
 
         self.send_response(200)
         self.end_headers()
-        stdout = sys.stdout
-        sys.stdout = self.wfile
-        try:
-            generate_html(parse(input.strip()))
-        finally:
-            sys.stdout = stdout
+        self.wfile.write(create_page(page_body).encode('utf-8'))
 
     def log_message(self, format, *args):
         pass  # Swallow console spam.
 
 port = 8000
-httpd = BaseHTTPServer.HTTPServer(('',port), RequestHandler)
+httpd = httpserver.HTTPServer(('',port), RequestHandler)
 try:
-    print 'Web server running on port %d, ctl-C to abort...' % port
+    print('Web server running on port %d, ctl-C to abort...' % port)
     webbrowser.open_new('http://localhost:%s' % port)
     httpd.serve_forever()
 except KeyboardInterrupt:
-    print
+    print()
     pass  # Swallow console spam.
 
 
