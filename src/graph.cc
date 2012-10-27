@@ -192,7 +192,7 @@ struct EdgeEnv : public Env {
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
-  /// line.  XXX here is where shell-escaping of e.g spaces should happen.
+  /// line.
   string MakePathList(vector<Node*>::iterator begin,
                       vector<Node*>::iterator end,
                       char sep);
@@ -214,7 +214,6 @@ string EdgeEnv::LookupVariable(const string& var) {
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
-    // XXX should we warn here?
     return string();
   }
 }
