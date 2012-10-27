@@ -22,6 +22,8 @@ using namespace std;
 
 #include "string_piece.h"
 
+struct EvalString;
+
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
   virtual ~Env() {}
@@ -33,9 +35,19 @@ struct Env {
 struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
   explicit BindingEnv(Env* parent) : parent_(parent) {}
+
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
+
   void AddBinding(const string& key, const string& val);
+
+  /// This is tricky.  Edges want lookup scope to go in this order:
+  /// 1) value set on edge itself (edge_->env_)
+  /// 2) value set on rule, with expansion in the edge's scope
+  /// 3) value set on enclosing scope of edge (edge_->env_->parent_)
+  /// This function takes as parameters the necessary info to do (2).
+  string LookupWithFallback(const string& var, const EvalString* eval,
+                            Env* env);
 
 private:
   map<string, string> bindings_;

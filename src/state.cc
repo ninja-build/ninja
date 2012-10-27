@@ -91,10 +91,10 @@ Pool* State::LookupPool(const string& pool_name) {
   return i->second;
 }
 
-Edge* State::AddEdge(const Rule* rule, Pool* pool) {
+Edge* State::AddEdge(const Rule* rule) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
-  edge->pool_ = pool;
+  edge->pool_ = &State::kDefaultPool;
   edge->env_ = &bindings_;
   edges_.push_back(edge);
   return edge;

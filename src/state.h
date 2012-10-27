@@ -92,7 +92,7 @@ struct State {
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
 
-  Edge* AddEdge(const Rule* rule, Pool* pool);
+  Edge* AddEdge(const Rule* rule);
 
   Node* GetNode(StringPiece path);
   Node* LookupNode(StringPiece path);

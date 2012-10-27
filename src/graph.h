@@ -102,38 +102,23 @@ private:
 
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
-  explicit Rule(const string& name)
-      : name_(name), generator_(false), restat_(false) {}
+  explicit Rule(const string& name) : name_(name) {}
 
   const string& name() const { return name_; }
 
-  bool generator() const { return generator_; }
-  bool restat() const { return restat_; }
+  typedef map<string, EvalString> Bindings;
+  void AddBinding(const string& key, const EvalString& val);
 
-  const EvalString& command() const { return command_; }
-  const EvalString& description() const { return description_; }
-  const EvalString& depfile() const { return depfile_; }
-  const EvalString& rspfile() const { return rspfile_; }
-  const EvalString& rspfile_content() const { return rspfile_content_; }
+  static bool IsReservedBinding(const string& var);
 
-  /// Used by a test.
-  void set_command(const EvalString& command) { command_ = command; }
+  const EvalString* GetBinding(const string& key) const;
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
 
   string name_;
-
-  bool generator_;
-  bool restat_;
-
-  EvalString command_;
-  EvalString description_;
-  EvalString depfile_;
-  EvalString pool_;
-  EvalString rspfile_;
-  EvalString rspfile_content_;
+  map<string, EvalString> bindings_;
 };
 
 struct BuildLog;
@@ -153,17 +138,9 @@ struct Edge {
   /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);
-  string EvaluateDepFile();
-  string GetDescription();
 
-  /// Does the edge use a response file?
-  bool HasRspFile();
-
-  /// Get the path to the response file
-  string GetRspFile();
-
-  /// Get the contents of the response file
-  string GetRspFileContent();
+  string GetBinding(const string& key);
+  bool GetBindingBool(const string& key);
 
   void Dump(const char* prefix="") const;
 
@@ -171,7 +148,7 @@ struct Edge {
   Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
-  Env* env_;
+  BindingEnv* env_;
   bool outputs_ready_;
 
   const Rule& rule() const { return *rule_; }
@@ -220,7 +197,7 @@ struct DependencyScan {
   bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
                             const string& command, Node* output);
 
-  bool LoadDepFile(Edge* edge, string* err);
+  bool LoadDepFile(Edge* edge, const string& path, string* err);
 
   BuildLog* build_log() const {
     return build_log_;

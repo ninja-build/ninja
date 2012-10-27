@@ -187,3 +187,38 @@ TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(GetNode("out.o")->dirty());
 }
+
+// Check that rule-level variables are in scope for eval.
+TEST_F(GraphTest, RuleVariablesInScope) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = depfile is $depfile\n"
+"build out: r in\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("depfile is x", edge->EvaluateCommand());
+}
+
+// Check that build statements can override rule builtins like depfile.
+TEST_F(GraphTest, DepfileOverride) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = unused\n"
+"build out: r in\n"
+"  depfile = y\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("y", edge->GetBinding("depfile"));
+}
+
+// Check that overridden values show up in expansion of rule-level bindings.
+TEST_F(GraphTest, DepfileOverrideParent) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = depfile is $depfile\n"
+"build out: r in\n"
+"  depfile = y\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("depfile is y", edge->GetBinding("command"));
+}
