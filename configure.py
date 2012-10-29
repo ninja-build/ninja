@@ -276,6 +276,7 @@ for name in ['build',
              'lexer',
              'manifest_parser',
              'metrics',
+             'python_deps',
              'state',
              'util']:
     objs += cxx(name)
