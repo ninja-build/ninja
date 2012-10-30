@@ -16,9 +16,17 @@
 #   . path/to/ninja/misc/bash-completion
 
 _ninja_target() {
-    local cur targets
+    local cur targets dir line targets_command OPTIND
     cur="${COMP_WORDS[COMP_CWORD]}"
-    targets=$((ninja -t targets all 2>/dev/null) | awk -F: '{print $1}')
+    dir="."
+    line=$(echo ${COMP_LINE} | cut -d" " -f 2-)
+    while getopts C: opt "${line[@]}"; do
+      case $opt in
+        C) dir="$OPTARG" ;;
+      esac
+    done;
+    targets_command="ninja -C ${dir} -t targets all"
+    targets=$((${targets_command} 2>/dev/null) | awk -F: '{print $1}')
     COMPREPLY=($(compgen -W "$targets" -- "$cur"))
     return 0
 }
