@@ -41,15 +41,12 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+#include "version.h"
 
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
 
 namespace {
-
-/// The version number of the current Ninja release.  This will always
-/// be "git" on trunk.
-const char* kVersion = "git";
 
 /// Global information passed into subtools.
 struct Globals {
@@ -121,7 +118,7 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n",
-          kVersion, config.parallelism);
+          kNinjaVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -772,7 +769,7 @@ int NinjaMain(int argc, char** argv) {
         working_dir = optarg;
         break;
       case OPT_VERSION:
-        printf("%s\n", kVersion);
+        printf("%s\n", kNinjaVersion);
         return 0;
       case 'h':
       default:

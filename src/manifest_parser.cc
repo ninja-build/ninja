@@ -23,6 +23,7 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+#include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   : state_(state), file_reader_(file_reader) {
@@ -66,10 +67,15 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::IDENT: {
       lexer_.UnreadToken();
       string name;
-      EvalString value;
-      if (!ParseLet(&name, &value, err))
+      EvalString let_value;
+      if (!ParseLet(&name, &let_value, err))
         return false;
-      env_->AddBinding(name, value.Evaluate(env_));
+      string value = let_value.Evaluate(env_);
+      // Check ninja_required_version immediately so we can exit
+      // before encountering any syntactic surprises.
+      if (name == "ninja_required_version")
+        CheckNinjaVersion(value);
+      env_->AddBinding(name, value);
       break;
     }
     case Lexer::INCLUDE:
