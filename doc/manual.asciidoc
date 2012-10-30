@@ -747,6 +747,31 @@ header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
 
+Variable expansion
+~~~~~~~~~~~~~~~~~~
+
+Variables are expanded in paths (in a `build` or `default` statement)
+and on the right side of a `name = value` statement.
+
+When a `name = value` statement is evaluated, its right-hand side is
+expanded immediately (according to the below scoping rules), and
+from then on `$name` expands to the static string as the result of the
+expansion.  It is never the case that you'll need to "double-escape" a
+value to prevent it from getting expanded twice.
+
+All variables are expanded immediately as they're encountered in parsing,
+with one important exception: variables in `rule` blocks are expanded
+when the rule is _used_, not when it is declared.  In the following
+example, the `demo` rule prints "this is a demo of bar".
+
+----
+rule demo
+  command = echo "this is a demo of $foo'
+
+build out: demo
+  foo = bar
+----
+
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
 [[ref_scope]]
@@ -762,26 +787,19 @@ To include another `.ninja` file in the current scope, much like a C
 `#include` statement, use `include` instead of `subninja`.
 
 Variable declarations indented in a `build` block are scoped to the
-`build` block.  This scope is inherited by the `rule`.  The full
-lookup order for a variable referenced in a rule is:
+`build` block.  The full lookup order for a variable expanded in a
+`build` block (or the `rule` is uses) is:
 
-1. Rule-level variables (i.e. `$in`, `$command`).
+1. Special built-in variables (`$in`, `$out`).
 
-2. Build-level variables from the `build` that references this rule.
+2. Build-level variables from the `build` block.
 
-3. File-level variables from the file that the `build` line was in.
+3. Rule-level variables from the `rule` block (i.e. `$command`).
+   (Note from the above discussion on expansion that these are
+   expanded "late", and may make use of in-scope bindings like `$in`.)
 
-4. Variables from the file that included that file using the
+4. File-level variables from the file that the `build` line was in.
+
+5. Variables from the file that included that file using the
    `subninja` keyword.
 
-Variable expansion
-~~~~~~~~~~~~~~~~~~
-
-Variables are expanded in paths (in a `build` or `default` statement)
-and on the right side of a `name = value` statement.
-
-When a `name = value` statement is evaluated, its right-hand side is
-expanded once (according to the above scoping rules) immediately, and
-from then on `$name` expands to the static string as the result of the
-expansion.  It is never the case that you'll need to "double-escape" a
-value to prevent it from getting expanded twice.
