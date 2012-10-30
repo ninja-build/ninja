@@ -279,7 +279,8 @@ for name in ['build',
              'manifest_parser',
              'metrics',
              'state',
-             'util']:
+             'util',
+             'version']:
     objs += cxx(name)
 if platform in ('mingw', 'windows'):
     for name in ['subprocess-win32',
