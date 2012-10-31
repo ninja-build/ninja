@@ -410,23 +410,6 @@ int ToolTargets(Globals* globals, int argc, char* argv[]) {
   }
 }
 
-int ToolRules(Globals* globals, int argc, char* /* argv */[]) {
-  for (map<string, const Rule*>::iterator i = globals->state->rules_.begin();
-       i != globals->state->rules_.end(); ++i) {
-    if (i->second->description().empty()) {
-      printf("%s\n", i->first.c_str());
-    } else {
-      printf("%s: %s\n",
-             i->first.c_str(),
-             // XXX I changed it such that we don't have an easy way
-             // to get the source text anymore, so this output is
-             // unsatisfactory.  How useful is this command, anyway?
-             i->second->description().Serialize().c_str());
-    }
-  }
-  return 0;
-}
-
 void PrintCommands(Edge* edge, set<Edge*>* seen) {
   if (!edge)
     return;
@@ -551,8 +534,6 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolGraph },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOAD, ToolQuery },
-    { "rules",    "list all rules",
-      Tool::RUN_AFTER_LOAD, ToolRules },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, ToolTargets },
     { "urtle", NULL,

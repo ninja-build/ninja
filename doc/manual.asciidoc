@@ -263,10 +263,6 @@ several times. If used like this +ninja -t targets all+ it
 prints all the targets available without indentation and it is faster
 than the _depth_ mode.
 
-`rules`:: output the list of all rules with their description if they have
-one.  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+.
-
 `commands`:: given a list of targets, print a list of commands which, if
 executed in order, may be used to rebuild those targets, assuming that all
 output files are out of date.
