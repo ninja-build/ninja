@@ -175,7 +175,7 @@ struct BuildStatus {
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available
   /// placeholders.
-  /// @param progress_status_format_ The format of the progress status.
+  /// @param progress_status_format The format of the progress status.
   string FormatProgressStatus(const char* progress_status_format) const;
 
  private:
