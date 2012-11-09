@@ -266,7 +266,7 @@ bool ManifestParser::ParseEdge(string* err) {
     } while (lexer_.PeekToken(Lexer::INDENT));
   }
 
-  Edge* edge = state_->AddEdge(rule, NULL);
+  Edge* edge = state_->AddEdge(rule, &State::kDefaultPool);
   edge->env_ = env;
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
