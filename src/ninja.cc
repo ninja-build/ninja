@@ -839,12 +839,11 @@ reload:
     return 1;
   }
 
+  if (!OpenLog(&globals, &disk_interface))
+    return 1;
+
   if (tool && tool->when == Tool::RUN_AFTER_LOAD)
     return tool->func(&globals, argc, argv);
-
-  BuildLog build_log;
-  if (!OpenLog(&build_log, &globals, &disk_interface))
-    return 1;
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
