@@ -53,15 +53,18 @@ const char* kVersion = "git";
 
 /// Global information passed into subtools.
 struct Globals {
-  Globals() : state(new State()) {}
+  Globals() : state(new State()), build_log(new BuildLog) {}
   ~Globals() {
     delete state;
+    delete build_log;
   }
 
-  /// Deletes and recreates state so it is empty.
+  /// Deletes and recreates state and build log so these are empty.
   void ResetState() {
     delete state;
+    delete build_log;
     state = new State();
+    build_log = new BuildLog();
   }
 
   /// Command line used to run Ninja.
@@ -70,6 +73,8 @@ struct Globals {
   BuildConfig* config;
   /// Loaded state (rules, nodes). This is a pointer so it can be reset.
   State* state;
+  /// Build log. Accumulative state from previous builds.
+  BuildLog* build_log;
 };
 
 /// The type of functions that are the entry points to tools (subcommands).
@@ -168,6 +173,50 @@ bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   return node->dirty();
 }
 
+Node* CollectTarget(State* state, const char* cpath, string* err) {
+  string path = cpath;
+  if (!CanonicalizePath(&path, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!path.empty() && path[path.size() - 1] == '^') {
+    path.resize(path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(path);
+  if (node) {
+    if (first_dependent) {
+      if (node->out_edges().empty()) {
+        *err = "'" + path + "' has no out edge";
+        return false;
+      }
+      Edge* edge = node->out_edges()[0];
+      if (edge->outputs_.empty()) {
+        edge->Dump();
+        Fatal("edge has no outputs");
+      }
+      node = edge->outputs_[0];
+    }
+    return node;
+  } else {
+    *err = "unknown target '" + path + "'";
+
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = state->SpellcheckNode(path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+}
+
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
@@ -176,47 +225,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   }
 
   for (int i = 0; i < argc; ++i) {
-    string path = argv[i];
-    if (!CanonicalizePath(&path, err))
+    Node* node = CollectTarget(state, argv[i], err);
+    if (node == NULL)
       return false;
-
-    // Special syntax: "foo.cc^" means "the first output of foo.cc".
-    bool first_dependent = false;
-    if (!path.empty() && path[path.size() - 1] == '^') {
-      path.resize(path.size() - 1);
-      first_dependent = true;
-    }
-
-    Node* node = state->LookupNode(path);
-    if (node) {
-      if (first_dependent) {
-        if (node->out_edges().empty()) {
-          *err = "'" + path + "' has no out edge";
-          return false;
-        }
-        Edge* edge = node->out_edges()[0];
-        if (edge->outputs_.empty()) {
-          edge->Dump();
-          Fatal("edge has no outputs");
-        }
-        node = edge->outputs_[0];
-      }
-      targets->push_back(node);
-    } else {
-      *err = "unknown target '" + path + "'";
-
-      if (path == "clean") {
-        *err += ", did you mean 'ninja -t clean'?";
-      } else if (path == "help") {
-        *err += ", did you mean 'ninja -h'?";
-      } else {
-        Node* suggestion = state->SpellcheckNode(path);
-        if (suggestion) {
-          *err += ", did you mean '" + suggestion->path() + "'?";
-        }
-      }
-      return false;
-    }
+    targets->push_back(node);
   }
   return true;
 }
@@ -244,19 +256,14 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = globals->state->LookupNode(argv[i]);
+    string err;
+    Node* node = CollectTarget(globals->state, argv[i], &err);
     if (!node) {
-      Node* suggestion = globals->state->SpellcheckNode(argv[i]);
-      if (suggestion) {
-        printf("%s unknown, did you mean %s?\n",
-               argv[i], suggestion->path().c_str());
-      } else {
-        printf("%s unknown\n", argv[i]);
-      }
+      Error("%s", err.c_str());
       return 1;
     }
 
-    printf("%s:\n", argv[i]);
+    printf("%s:\n", node->path().c_str());
     if (Edge* edge = node->in_edge()) {
       printf("  input: %s\n", edge->rule_->name().c_str());
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
@@ -608,8 +615,7 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
-bool OpenLog(BuildLog* build_log, Globals* globals,
-             DiskInterface* disk_interface) {
+bool OpenLog(Globals* globals, DiskInterface* disk_interface) {
   const string build_dir =
       globals->state->bindings_.LookupVariable("builddir");
   const char* kLogPath = ".ninja_log";
@@ -623,6 +629,7 @@ bool OpenLog(BuildLog* build_log, Globals* globals,
     }
   }
 
+  BuildLog* build_log = globals->build_log;
   string err;
   if (!build_log->Load(log_path, &err)) {
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
@@ -843,7 +850,7 @@ reload:
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
-    Builder manifest_builder(globals.state, config, &build_log,
+    Builder manifest_builder(globals.state, config, globals.build_log,
                              &disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
       rebuilt_manifest = true;
@@ -855,7 +862,7 @@ reload:
     }
   }
 
-  Builder builder(globals.state, config, &build_log, &disk_interface);
+  Builder builder(globals.state, config, globals.build_log, &disk_interface);
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics)
     DumpMetrics(&globals);
