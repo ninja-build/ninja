@@ -14,6 +14,7 @@
 
 #include "clean.h"
 #include "build.h"
+#include "build_log.h"
 
 #include "test.h"
 
@@ -371,4 +372,59 @@ TEST_F(CleanTest, CleanPhony) {
   EXPECT_EQ(0, cleaner.CleanTarget("phony"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_NE(0, fs_.Stat("phony"));
+}
+
+TEST_F(CleanTest, CleanOrphanTargets) {
+  BuildLog log1;
+  State state_[3], *state = &state_[0];
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(state,
+"rule cat\n"
+"  command = cat $in > $out\n"
+"  depfile = $out.d\n"
+"build t1: cat\n"));
+
+  // Record 't1' in the build log as if it would be built
+  fs_.Create("t1", 2, "");
+  fs_.Create("t1.d", 2, "");
+  log1.RecordCommand(state->edges_[0], 1, 2);
+
+  // Both 't1' and its depfile 't1.d' should be logged
+  ASSERT_EQ(2u, log1.entries().size());
+  ASSERT_EQ(1u, log1.entries().count("t1.d"));
+
+  // Load new manifest
+  ++state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(state,
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build t2: cat\n"));
+
+  // Record 't2' in the build log as if it would be built.
+  // Now log contains records for t1 and t2, while updated manifest
+  //  is only referencing 't2'.
+  fs_.Create("t2", 3, "");
+  log1.RecordCommand(state->edges_[0], 2, 3);
+  ASSERT_EQ(3u, log1.entries().size());
+
+  // Check that CleanOrphans removes 't1', 't1.d' and keeps 't2'.
+  Cleaner cleaner(state, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanOrphanTargets(&log1));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, fs_.Stat("t1"));
+  EXPECT_EQ(0, fs_.Stat("t1.d"));
+  EXPECT_NE(0, fs_.Stat("t2"));
+
+  // Load new manifest where t2 denotes a phony target
+  ++state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(state,
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build t2: phony\n"));
+
+  // Check that CleanOrphans now removes 't2'.
+  Cleaner cleaner2(state, config_, &fs_);
+  EXPECT_EQ(0, cleaner2.CleanOrphanTargets(&log1));
+  EXPECT_EQ(1, cleaner2.cleaned_files_count());
+  EXPECT_EQ(0, fs_.Stat("t2"));
 }
