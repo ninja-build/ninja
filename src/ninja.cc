@@ -485,6 +485,9 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
 "options:\n"
 "  -g     also clean files marked as ninja generator output\n"
 "  -r     interpret targets as a list of rules to clean instead\n"
+"\n"
+"  target '^' is special, selecting all old targets unspecified\n"
+"  in the current manifest\n"
              );
     return 1;
     }
@@ -502,7 +505,7 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
     else
-      return cleaner.CleanTargets(argc, argv);
+      return cleaner.CleanTargets(argc, argv, globals->build_log);
   } else {
     return cleaner.CleanAll(generator);
   }

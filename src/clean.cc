@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "build_log.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "state.h"
@@ -124,6 +125,21 @@ int Cleaner::CleanAll(bool generator) {
   return status_;
 }
 
+int Cleaner::CleanOrphanTargets(BuildLog* build_log) {
+  for (BuildLog::Entries::const_iterator i = build_log->entries().begin();
+       i != build_log->entries().end(); ++i) {
+    const string& path = (*i).second->output;
+    Node* target = state_->LookupNode(path);
+
+    if (target && !target->in_edge()->is_phony())
+      continue;
+
+    // Target built previously but does not exist in the updated manifest.
+    Remove(path);
+  }
+  return status_;
+}
+
 void Cleaner::DoCleanTarget(Node* target) {
   if (Edge* e = target->in_edge()) {
     // Do not try to remove phony targets
@@ -172,7 +188,8 @@ int Cleaner::CleanTarget(const char* target) {
   return status_;
 }
 
-int Cleaner::CleanTargets(int target_count, char* targets[]) {
+int Cleaner::CleanTargets(int target_count, char* targets[],
+                          BuildLog* build_log) {
   Reset();
   PrintHeader();
   for (int i = 0; i < target_count; ++i) {
@@ -182,6 +199,9 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
       if (IsVerbose())
         printf("Target %s\n", target_name);
       DoCleanTarget(target);
+    } else if (strcmp(target_name, "^") == 0) {
+      // Special target '^' means 'all orphan targets'
+      CleanOrphanTargets(build_log);
     } else {
       Error("unknown target '%s'", target_name);
       status_ = 1;
