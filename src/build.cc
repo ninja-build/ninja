@@ -520,7 +520,6 @@ void Plan::Dump() {
       printf("want ");
     i->first->Dump();
   }
-  // TODO(iannucci): Dump pending pools too
   printf("ready: %d\n", (int)ready_.size());
 }
 

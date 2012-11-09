@@ -16,7 +16,7 @@
 #define NINJA_STATE_H_
 
 #include <map>
-#include <queue>
+#include <deque>
 #include <set>
 #include <string>
 #include <vector>
@@ -56,6 +56,9 @@ struct Pool {
   /// Pool will add zero or more edges to the ready_queue
   void RetrieveReadyEdges(set<Edge*>* ready_queue);
 
+  /// Dump the Pool and it's edges (useful for debugging).
+  void Dump() const;
+
 private:
   int UnitsWaiting() { return delayed_.size(); }
 
@@ -64,7 +67,7 @@ private:
   int current_use_;
   int depth_;
 
-  queue<Edge*> delayed_;
+  deque<Edge*> delayed_;
 };
 
 /// Global state (file status, loaded rules) for a single run.
@@ -94,7 +97,7 @@ struct State {
   /// state where we haven't yet examined the disk for dirty state.
   void Reset();
 
-  /// Dump the nodes (useful for debugging).
+  /// Dump the nodes and Pools (useful for debugging).
   void Dump();
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
