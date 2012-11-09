@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Default : colourise paths & filenames on stdin
+# With argument : colourise the argument on stdin
+
+# Example usage : ninja | color
+
+FILTER="$@"
+if [[ "$FILTER" == "" ]]; then
+	sed -e 's,^, ,' -e 's,$, ,' -e 's,\([^+ ][A-Za-z/][-A-Za-z0-9/\._]*/\)\([^ :]*.[ :]\),\x1b[0;34m\1\x1b[m\x1b[0;31m\2\x1b[m,g' -e 's,^ ,,' -e 's, $,,'
+else
+	EFILTER=$(echo "$FILTER" | sed -e 's/,/\\,/g')
+	 # | sed -e 's,\[,\\[,g' -e 's,\],\\],g')
+	#echo "EFILTER $EFILTER"
+	sed -e "s,\($EFILTER\),\x1b[1;31m\1\x1b[m,g"
+fi
+
