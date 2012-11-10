@@ -236,6 +236,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 "build outb1: bazcat in\n"
 "build outb2: bazcat in\n"
 "build outb3: bazcat in\n"
+"  pool =\n"
 "build allTheThings: cat out1 out2 out3 outb1 outb2 outb3\n"
 ));
   // Mark all the out* nodes dirty
@@ -250,7 +251,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_EQ("", err);
 
   // Grab the first 4 edges, out1 out2 outb1 outb2
-  vector<Edge*> edges;
+  deque<Edge*> edges;
   for(int i = 0; i < 4; ++i) {
     ASSERT_TRUE(plan_.more_to_do());
     Edge* edge = plan_.FindWork();
@@ -261,35 +262,35 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
     edges.push_back(edge);
   }
 
-  ASSERT_FALSE(plan_.FindWork());
-
-  // finish outb2
-  plan_.EdgeFinished(edges.back());
-  edges.pop_back();
-
-  // outb3 should be available
-  Edge* outb3 = plan_.FindWork();
-  ASSERT_TRUE(outb3);
-  ASSERT_EQ("in",  outb3->inputs_[0]->path());
-  ASSERT_EQ("outb3", outb3->outputs_[0]->path());
+  // outb3 is exempt because it has an empty pool
+  ASSERT_TRUE(plan_.more_to_do());
+  Edge* edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in",  edge->inputs_[0]->path());
+  ASSERT_EQ("outb3", edge->outputs_[0]->path());
+  edges.push_back(edge);
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(outb3);
+  // finish out1
+  plan_.EdgeFinished(edges.front());
+  edges.pop_front();
 
-  ASSERT_FALSE(plan_.FindWork());
-
-  for(vector<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
-    plan_.EdgeFinished(*it);
-  }
-
+  // out3 should be available
   Edge* out3 = plan_.FindWork();
   ASSERT_TRUE(out3);
   ASSERT_EQ("in",  out3->inputs_[0]->path());
   ASSERT_EQ("out3", out3->outputs_[0]->path());
 
   ASSERT_FALSE(plan_.FindWork());
+
   plan_.EdgeFinished(out3);
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  for(deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
+    plan_.EdgeFinished(*it);
+  }
 
   Edge* final = plan_.FindWork();
   ASSERT_TRUE(final);
