@@ -176,6 +176,131 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
+TEST_F(PlanTest, PoolWithDepthOne) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"pool foobar\n"
+"  depth = 1\n"
+"rule poolcat\n"
+"  command = cat $in > $out\n"
+"  pool = foobar\n"
+"build out1: poolcat in\n"
+"build out2: poolcat in\n"));
+  GetNode("out1")->MarkDirty();
+  GetNode("out2")->MarkDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out1"), &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out2"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in",  edge->inputs_[0]->path());
+  ASSERT_EQ("out1", edge->outputs_[0]->path());
+
+  // This will be false since poolcat is serialized
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in", edge->inputs_[0]->path());
+  ASSERT_EQ("out2", edge->outputs_[0]->path());
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge);
+
+  ASSERT_FALSE(plan_.more_to_do());
+  edge = plan_.FindWork();
+  ASSERT_EQ(0, edge);
+}
+
+TEST_F(PlanTest, PoolsWithDepthTwo) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"pool foobar\n"
+"  depth = 2\n"
+"pool bazbin\n"
+"  depth = 2\n"
+"rule foocat\n"
+"  command = cat $in > $out\n"
+"  pool = foobar\n"
+"rule bazcat\n"
+"  command = cat $in > $out\n"
+"  pool = bazbin\n"
+"build out1: foocat in\n"
+"build out2: foocat in\n"
+"build out3: foocat in\n"
+"build outb1: bazcat in\n"
+"build outb2: bazcat in\n"
+"build outb3: bazcat in\n"
+"build allTheThings: cat out1 out2 out3 outb1 outb2 outb3\n"
+));
+  // Mark all the out* nodes dirty
+  for(int i = 0; i < 3; ++i) {
+    GetNode("out"+string(1, '1'+i))->MarkDirty();
+    GetNode("outb"+string(1, '1'+i))->MarkDirty();
+  }
+  GetNode("allTheThings")->MarkDirty();
+
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("allTheThings"), &err));
+  ASSERT_EQ("", err);
+
+  // Grab the first 4 edges, out1 out2 outb1 outb2
+  vector<Edge*> edges;
+  for(int i = 0; i < 4; ++i) {
+    ASSERT_TRUE(plan_.more_to_do());
+    Edge* edge = plan_.FindWork();
+    ASSERT_TRUE(edge);
+    ASSERT_EQ("in",  edge->inputs_[0]->path());
+    string base_name(i < 2 ? "out" : "outb");
+    ASSERT_EQ(base_name+string(1, '1'+(i%2)), edge->outputs_[0]->path());
+    edges.push_back(edge);
+  }
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  // finish outb2
+  plan_.EdgeFinished(edges.back());
+  edges.pop_back();
+
+  // outb3 should be available
+  Edge* outb3 = plan_.FindWork();
+  ASSERT_TRUE(outb3);
+  ASSERT_EQ("in",  outb3->inputs_[0]->path());
+  ASSERT_EQ("outb3", outb3->outputs_[0]->path());
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(outb3);
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  for(vector<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
+    plan_.EdgeFinished(*it);
+  }
+
+  Edge* out3 = plan_.FindWork();
+  ASSERT_TRUE(out3);
+  ASSERT_EQ("in",  out3->inputs_[0]->path());
+  ASSERT_EQ("out3", out3->outputs_[0]->path());
+
+  ASSERT_FALSE(plan_.FindWork());
+  plan_.EdgeFinished(out3);
+
+  Edge* final = plan_.FindWork();
+  ASSERT_TRUE(final);
+  ASSERT_EQ("allTheThings", final->outputs_[0]->path());
+
+  plan_.EdgeFinished(final);
+
+  ASSERT_FALSE(plan_.more_to_do());
+  ASSERT_FALSE(plan_.FindWork());
+}
+
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
   BuildTest() : config_(MakeConfig()),
@@ -869,7 +994,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // Create all necessary files
   fs_.Create("in", now_, "");
 
-  // The implicit dependencies and the depfile itself 
+  // The implicit dependencies and the depfile itself
   // are newer than the output
   TimeStamp restat_mtime = ++now_;
   fs_.Create("out1.d", now_, "out1: will.be.deleted restat.file\n");
@@ -889,10 +1014,10 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
 
-  // Now remove a file, referenced from depfile, so that target becomes 
+  // Now remove a file, referenced from depfile, so that target becomes
   // dirty, but the output does not change
   fs_.RemoveFile("will.be.deleted");
-  
+
   // Trigger the build again - only out1 gets built
   commands_ran_.clear();
   state_.Reset();
@@ -1135,3 +1260,4 @@ TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
 }
+
