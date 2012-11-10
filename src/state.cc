@@ -203,7 +203,9 @@ void State::Dump() {
     for (map<string, Pool*>::const_iterator it = pools_.begin();
          it != pools_.end(); ++it)
     {
-      it->second->Dump();
+      if (!it->second->name().empty()) {
+        it->second->Dump();
+      }
     }
   }
 }

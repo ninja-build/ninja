@@ -345,6 +345,13 @@ void Edge::Dump(const char* prefix) const {
        i != outputs_.end() && *i != NULL; ++i) {
     printf("%s ", (*i)->path().c_str());
   }
+  if (pool_) {
+    if (!pool_->name().empty()) {
+      printf("(in pool '%s')", pool_->name().c_str());
+    }
+  } else {
+    printf("(null pool?)");
+  }
   printf("] 0x%p\n", this);
 }
 
