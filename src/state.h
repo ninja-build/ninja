@@ -32,7 +32,7 @@ struct Rule;
 /// A pool for delayed edges
 struct Pool {
   explicit Pool(const string& name, int depth)
-    : name_(name), depth_(depth) { }
+    : name_(name), current_use_(0), depth_(depth) { }
 
   // A depth of 0 is infinite
   bool isValid() const { return depth_ >= 0; }
