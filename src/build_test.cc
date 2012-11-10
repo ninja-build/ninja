@@ -194,8 +194,6 @@ TEST_F(PlanTest, PoolWithDepthOne) {
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
 
-  plan_.Dump();
-  state_.Dump();
   Edge* edge = plan_.FindWork();
   ASSERT_TRUE(edge);
   ASSERT_EQ("in",  edge->inputs_[0]->path());
@@ -252,8 +250,6 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   EXPECT_TRUE(plan_.AddTarget(GetNode("allTheThings"), &err));
   ASSERT_EQ("", err);
 
-  plan_.Dump();
-  state_.Dump();
   // Grab the first 4 edges, out1 out2 outb1 outb2
   deque<Edge*> edges;
   for(int i = 0; i < 4; ++i) {
