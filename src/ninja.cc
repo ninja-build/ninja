@@ -828,7 +828,6 @@ int NinjaMain(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
-  RealDiskInterface disk_interface;
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
@@ -841,6 +840,7 @@ reload:
     return tool->func(&globals, argc, argv);
 
   BuildLog build_log;
+  RealDiskInterface disk_interface;
   if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
 
