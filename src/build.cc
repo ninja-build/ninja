@@ -81,8 +81,9 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true), progress_status_format_(NULL),
-      overall_rate_(), current_rate_(config.parallelism) {
+      have_blank_line_(true), single_line_(true),
+      progress_status_format_(), overall_rate_(),
+      current_rate_(config.parallelism) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -101,9 +102,19 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   if (config_.verbosity != BuildConfig::NORMAL)
     smart_terminal_ = false;
 
-  progress_status_format_ = getenv("NINJA_STATUS");
-  if (!progress_status_format_)
+  // Don't try to overwrite output to a dumb terminal.
+  if ( ! smart_terminal_ )
+    single_line_ = false;
+
+  char * ninjaStatus = getenv("NINJA_STATUS");
+  if (ninjaStatus)
+    progress_status_format_ = ninjaStatus;
+  else
     progress_status_format_ = "[%s/%t] ";
+  if (progress_status_format_[progress_status_format_.size()-1] == '\n') {
+    single_line_ = false;
+    progress_status_format_[progress_status_format_.size()-1]='\0';
+  }
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -134,16 +145,17 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (smart_terminal_)
+  if (single_line_)
     PrintStatus(edge);
 
   if (!success || !output.empty()) {
-    if (smart_terminal_)
+    if (single_line_)
       printf("\n");
 
     // Print the command that is spewing before printing its output.
     if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+      printf("FAILED: %s\n%s\n", edge->GetDescription().c_str(), edge->EvaluateCommand().c_str());
+
 
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
@@ -171,7 +183,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 }
 
 void BuildStatus::BuildFinished() {
-  if (smart_terminal_ && !have_blank_line_)
+  if (single_line_ && !have_blank_line_)
     printf("\n");
 }
 
@@ -258,7 +270,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
-  if (smart_terminal_) {
+  if (single_line_) {
 #ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
 #else
@@ -271,7 +283,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     overall_rate_.Restart();
     current_rate_.Restart();
   }
-  to_print = FormatProgressStatus(progress_status_format_) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_.c_str()) + to_print;
 
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
@@ -288,7 +300,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
 #endif
   }
 
-  if (smart_terminal_ && !force_full_command) {
+  if (single_line_ && !force_full_command) {
 #ifndef _WIN32
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
