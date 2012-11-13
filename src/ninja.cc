@@ -39,6 +39,7 @@
 #include "graphviz.h"
 #include "manifest_parser.h"
 #include "metrics.h"
+#include "python_deps.h"
 #include "state.h"
 #include "util.h"
 
@@ -241,6 +242,23 @@ int ToolGraph(Globals* globals, int argc, char* argv[]) {
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
   graph.Finish();
+
+  return 0;
+}
+
+int ToolDeps(Globals* globals, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  PythonDeps deps;
+  deps.Start();
+  for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
+    deps.AddTarget(*n);
+  deps.Finish();
 
   return 0;
 }
@@ -549,6 +567,8 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolCommands },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, ToolGraph },
+    { "deps", "show recursive inputs/outputs for a path",
+      Tool::RUN_AFTER_LOAD, ToolDeps },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOAD, ToolQuery },
     { "rules",    "list all rules",
