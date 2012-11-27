@@ -179,17 +179,14 @@ struct Edge {
   int weight() const { return 1; }
   bool outputs_ready() const { return outputs_ready_; }
 
-  // XXX There are three types of inputs.
+  // There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;
   // 2) implicit deps, which the target depends on implicitly (e.g. C headers),
   //                   and changes in them cause the target to rebuild;
   // 3) order-only deps, which are needed before the target builds but which
   //                     don't cause the target to rebuild.
-  // Currently we stuff all of these into inputs_ and keep counts of #2 and #3
-  // when we need to compute subsets.  This is suboptimal; should think of a
-  // better representation.  (Could make each pointer into a pair of a pointer
-  // and a type of input, or if memory matters could use the low bits of the
-  // pointer...)
+  // These are stored in inputs_ in that order, and we keep counts of
+  // #2 and #3 when we need to access the various subsets.
   int implicit_deps_;
   int order_only_deps_;
   bool is_implicit(size_t index) {
