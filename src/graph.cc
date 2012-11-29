@@ -337,7 +337,7 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
         // The depfile has brought in a dependency which is a generated file
         // (that is, it has a non-phony in-edge). We need to check that this dependency
         // is defined explicitly in the ninja file as well.
-        if (HasNonDepfileDependency(edge, node)) {
+        if (!HasNonDepfileDependency(edge, node)) {
           Fatal("depcheck failed: dependency on generated file (%s -> %s) only exists in depfile",
                   edge->outputs_[0]->path().c_str(), node->path().c_str());
         }
