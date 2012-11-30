@@ -409,19 +409,19 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::ScheduleWork(Edge* edge) {
-  Pool& pool = edge->pool();
-  if (pool.ShouldDelayEdge(*edge)) {
-    pool.DelayEdge(edge);
-    pool.RetrieveReadyEdges(&ready_);
+  Pool* pool = edge->pool();
+  if (pool->ShouldDelayEdge(*edge)) {
+    pool->DelayEdge(edge);
+    pool->RetrieveReadyEdges(&ready_);
   } else {
-    pool.EdgeScheduled(*edge);
+    pool->EdgeScheduled(*edge);
     ready_.insert(edge);
   }
 }
 
 void Plan::ResumeDelayedJobs(Edge* edge) {
-  edge->pool().EdgeFinished(*edge);
-  edge->pool().RetrieveReadyEdges(&ready_);
+  edge->pool()->EdgeFinished(*edge);
+  edge->pool()->RetrieveReadyEdges(&ready_);
 }
 
 void Plan::EdgeFinished(Edge* edge) {

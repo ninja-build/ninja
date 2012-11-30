@@ -175,7 +175,7 @@ struct Edge {
   bool outputs_ready_;
 
   const Rule& rule() const { return *rule_; }
-  Pool& pool() const { return *pool_; }
+  Pool* pool() const { return pool_; }
   int weight() const { return 1; }
   bool outputs_ready() const { return outputs_ready_; }
 
