@@ -39,9 +39,9 @@ void Pool::DelayEdge(Edge* edge) {
 }
 
 void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
-  while(!delayed_.empty()) {
+  while (!delayed_.empty()) {
     Edge* edge = delayed_.front();
-    if(current_use_ + edge->weight() > depth_)
+    if (current_use_ + edge->weight() > depth_)
       break;
     delayed_.pop_front();
     ready_queue->insert(edge);
@@ -198,7 +198,7 @@ void State::Dump() {
            node->status_known() ? (node->dirty() ? "dirty" : "clean")
                                 : "unknown");
   }
-  if(!pools_.empty()) {
+  if (!pools_.empty()) {
     printf("resource_pools:\n");
     for (map<string, Pool*>::const_iterator it = pools_.begin();
          it != pools_.end(); ++it)

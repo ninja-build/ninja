@@ -240,9 +240,9 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 "build allTheThings: cat out1 out2 out3 outb1 outb2 outb3\n"
 ));
   // Mark all the out* nodes dirty
-  for(int i = 0; i < 3; ++i) {
-    GetNode("out"+string(1, '1'+i))->MarkDirty();
-    GetNode("outb"+string(1, '1'+i))->MarkDirty();
+  for (int i = 0; i < 3; ++i) {
+    GetNode("out" + string(1, '1' + i))->MarkDirty();
+    GetNode("outb" + string(1, '1' + i))->MarkDirty();
   }
   GetNode("allTheThings")->MarkDirty();
 
@@ -252,13 +252,13 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   // Grab the first 4 edges, out1 out2 outb1 outb2
   deque<Edge*> edges;
-  for(int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 4; ++i) {
     ASSERT_TRUE(plan_.more_to_do());
     Edge* edge = plan_.FindWork();
     ASSERT_TRUE(edge);
     ASSERT_EQ("in",  edge->inputs_[0]->path());
     string base_name(i < 2 ? "out" : "outb");
-    ASSERT_EQ(base_name+string(1, '1'+(i%2)), edge->outputs_[0]->path());
+    ASSERT_EQ(base_name + string(1, '1' + (i % 2)), edge->outputs_[0]->path());
     edges.push_back(edge);
   }
 
@@ -288,7 +288,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  for(deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
+  for (deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
     plan_.EdgeFinished(*it);
   }
 
