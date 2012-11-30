@@ -29,7 +29,14 @@ struct Edge;
 struct Node;
 struct Rule;
 
-/// A pool for delayed edges
+/// A pool for delayed edges.
+/// Pools are scoped to a State. Edges within a State will share Pools. A Pool
+/// will keep a count of the total 'weight' of the currently scheduled edges. If
+/// a Plan attempts to schedule an Edge which would cause the total weight to
+/// exceed the depth of the Pool, the Pool will enque the Edge instead of
+/// allowing the Plan to schedule it. The Pool will relinquish queued Edges when
+/// the total scheduled weight diminishes enough (i.e. when a scheduled edge
+/// completes).
 struct Pool {
   explicit Pool(const string& name, int depth)
     : name_(name), current_use_(0), depth_(depth) { }
@@ -47,7 +54,7 @@ struct Pool {
   void EdgeScheduled(const Edge& edge);
 
   /// informs this Pool that the given edge is no longer runnable, and should
-  /// relinquish it's resources back to the pool
+  /// relinquish its resources back to the pool
   void EdgeFinished(const Edge& edge);
 
   /// adds the given edge to this Pool to be delayed.
@@ -56,7 +63,7 @@ struct Pool {
   /// Pool will add zero or more edges to the ready_queue
   void RetrieveReadyEdges(set<Edge*>* ready_queue);
 
-  /// Dump the Pool and it's edges (useful for debugging).
+  /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
 
 private:
@@ -64,6 +71,8 @@ private:
 
   string name_;
 
+  /// |current_use_| is the total of the weights of the edges which are
+  /// currently scheduled in the Plan (i.e. the edges in Plan::ready_).
   int current_use_;
   int depth_;
 
