@@ -424,26 +424,27 @@ Pools
 ~~~~~
 
 Pools allow you to allocate one or more rules or edges a finite number
-of concurrent jobs which is more tightly restricted than the total job
-number that you specify to ninja on the command line.
+of concurrent jobs which is more tightly restricted than the default
+parallelism.
 
 This can be useful, for example, to restrict a particular expensive rule
 (like link steps for huge executables), or to restrict particular build
-statements which you know preform poorly when run concurrently.
+statements which you know perform poorly when run concurrently.
 
 Each pool has a `depth` variable which is specified in the build file.
 The pool is then referred to with the `pool` variable on either a rule
 or a build statement.
 
-The jobs amount specified on the command line is always respected, no
-matter what pools you've set up.
+No matter what pools you specify, ninja will never run more concurrent jobs
+than the default parallelism, or the number of jobs specified on the command
+line (with -j).
 
 ----------------
-# No more than 4 links at a time
+# No more than 4 links at a time.
 pool link_pool
   depth = 4
 
-# No more than 1 heavy object at a time
+# No more than 1 heavy object at a time.
 pool heavy_object_pool
   depth = 1
 
@@ -457,12 +458,13 @@ rule cc
 # The link_pool is used here. Only 4 links will run concurrently.
 build foo.exe: link input.obj
 
-# A build statement can be exempted from it's rule's pool by setting an
-# empty pool
+# A build statement can be exempted from its rule's pool by setting an
+# empty pool. This effectively puts the build statement back into the default
+# pool, which has infinite depth.
 build other.exe: link input.obj
   pool =
 
-# A build statement can specify a pool even if its rule does not
+# A build statement can specify a pool directly.
 # Only one of these builds will run at a time.
 build heavy_object1.obj: cc heavy_obj1.cc
   pool = heavy_object_pool
