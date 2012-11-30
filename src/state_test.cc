@@ -32,7 +32,7 @@ TEST(State, Basic) {
   rule->set_command(command);
   state.AddRule(rule);
 
-  Edge* edge = state.AddEdge(rule);
+  Edge* edge = state.AddEdge(rule, &State::kDefaultPool);
   state.AddIn(edge, "in1");
   state.AddIn(edge, "in2");
   state.AddOut(edge, "out");

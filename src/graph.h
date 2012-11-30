@@ -131,6 +131,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString pool_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };
@@ -138,6 +139,7 @@ struct Rule {
 struct BuildLog;
 struct Node;
 struct State;
+struct Pool;
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
@@ -166,12 +168,15 @@ struct Edge {
   void Dump(const char* prefix="") const;
 
   const Rule* rule_;
+  Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   Env* env_;
   bool outputs_ready_;
 
   const Rule& rule() const { return *rule_; }
+  Pool* pool() const { return pool_; }
+  int weight() const { return 1; }
   bool outputs_ready() const { return outputs_ready_; }
 
   // XXX There are three types of inputs.
