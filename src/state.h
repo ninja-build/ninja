@@ -47,7 +47,7 @@ struct Pool {
   const string& name() const { return name_; }
 
   /// true if the Pool might delay this edge
-  bool ShouldDelayEdge(const Edge& edge) const { return depth_ != 0; }
+  bool ShouldDelayEdge() const { return depth_ != 0; }
 
   /// informs this Pool that the given edge is committed to be run.
   /// Pool will count this edge as using resources from this pool.

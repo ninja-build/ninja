@@ -410,7 +410,7 @@ Edge* Plan::FindWork() {
 
 void Plan::ScheduleWork(Edge* edge) {
   Pool* pool = edge->pool();
-  if (pool->ShouldDelayEdge(*edge)) {
+  if (pool->ShouldDelayEdge()) {
     pool->DelayEdge(edge);
     pool->RetrieveReadyEdges(&ready_);
   } else {
