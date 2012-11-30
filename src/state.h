@@ -42,7 +42,7 @@ struct Pool {
     : name_(name), current_use_(0), depth_(depth) { }
 
   // A depth of 0 is infinite
-  bool isValid() const { return depth_ >= 0; }
+  bool is_valid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
   const string& name() const { return name_; }
 
