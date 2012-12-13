@@ -26,6 +26,8 @@ try:
     import http.server as httpserver
 except ImportError:
     import BaseHTTPServer as httpserver
+import os
+import socket
 import subprocess
 import sys
 import webbrowser
@@ -181,8 +183,10 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
 port = 8000
 httpd = httpserver.HTTPServer(('',port), RequestHandler)
 try:
-    print('Web server running on port %d, ctl-C to abort...' % port)
-    webbrowser.open_new('http://localhost:%s' % port)
+    print('Web server running on port %d, ctl-C to abort...' % port )
+    print('Web server pid %d' % os.getpid(), file=sys.stderr )
+    hostname = socket.gethostname()
+    webbrowser.open_new('http://%s:%s' % (hostname, port) )
     httpd.serve_forever()
 except KeyboardInterrupt:
     print()
