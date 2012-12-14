@@ -37,7 +37,7 @@ syn match ninjaKeyword "^subninja\>"
 " manifest_parser.cc, ParseRule()
 syn region ninjaRule start="^rule" end="^\ze\S" contains=ALL transparent
 syn keyword ninjaRuleCommand contained command depfile description generator
-                                     \ pool restat
+                                     \ pool restat rspfile rspfile_content
 
 syn region ninjaPool start="^pool" end="^\ze\S" contains=ALL transparent
 syn keyword ninjaPoolCommand contained depth
