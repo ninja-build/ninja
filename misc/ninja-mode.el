@@ -18,7 +18,8 @@
 (setq ninja-keywords
       (list
        '("^#.*" . font-lock-comment-face)
-       (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include")
+       (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
+                                       "pool")
                                      'words))
              font-lock-keyword-face)
        '("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
