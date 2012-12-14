@@ -32,8 +32,13 @@ class Writer(object):
             value = ' '.join(filter(None, value))  # Filter out empty strings.
         self._line('%s = %s' % (key, value), indent)
 
+    def pool(self, name, depth):
+        self._line('pool %s' % name)
+        self.variable('depth', depth, indent=1)
+
     def rule(self, name, command, description=None, depfile=None,
-             generator=False, restat=False, rspfile=None, rspfile_content=None):
+             generator=False, pool=None, restat=False, rspfile=None,
+             rspfile_content=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
@@ -42,6 +47,8 @@ class Writer(object):
             self.variable('depfile', depfile, indent=1)
         if generator:
             self.variable('generator', '1', indent=1)
+        if pool:
+            self.variable('pool', pool, indent=1)
         if restat:
             self.variable('restat', '1', indent=1)
         if rspfile:
