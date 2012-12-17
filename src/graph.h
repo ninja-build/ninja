@@ -32,7 +32,8 @@ struct Node {
       : path_(path),
         mtime_(-1),
         dirty_(false),
-        in_edge_(NULL) {}
+        in_edge_(NULL),
+        id_(-1) {}
 
   /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
@@ -74,6 +75,9 @@ struct Node {
   Edge* in_edge() const { return in_edge_; }
   void set_in_edge(Edge* edge) { in_edge_ = edge; }
 
+  int id() const { return id_; }
+  void set_id(int id) { id_ = id; }
+
   const vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
 
@@ -98,6 +102,9 @@ private:
 
   /// All Edges that use this Node as an input.
   vector<Edge*> out_edges_;
+
+  /// A dense integer id for the node, assigned and used by DepsLog.
+  int id_;
 };
 
 /// An invokable build command and associated metadata (description, etc.).
