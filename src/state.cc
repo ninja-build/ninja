@@ -22,10 +22,49 @@
 #include "metrics.h"
 #include "util.h"
 
+
+void Pool::EdgeScheduled(const Edge& edge) {
+  if (depth_ != 0)
+    current_use_ += edge.weight();
+}
+
+void Pool::EdgeFinished(const Edge& edge) {
+  if (depth_ != 0)
+    current_use_ -= edge.weight();
+}
+
+void Pool::DelayEdge(Edge* edge) {
+  assert(depth_ != 0);
+  delayed_.push_back(edge);
+}
+
+void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
+  while (!delayed_.empty()) {
+    Edge* edge = delayed_.front();
+    if (current_use_ + edge->weight() > depth_)
+      break;
+    delayed_.pop_front();
+    ready_queue->insert(edge);
+    EdgeScheduled(*edge);
+  }
+}
+
+void Pool::Dump() const {
+  printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
+  for (deque<Edge*>::const_iterator it = delayed_.begin();
+       it != delayed_.end(); ++it)
+  {
+    printf("\t");
+    (*it)->Dump();
+  }
+}
+
+Pool State::kDefaultPool("", 0);
 const Rule State::kPhonyRule("phony");
 
 State::State() {
   AddRule(&kPhonyRule);
+  AddPool(&kDefaultPool);
 }
 
 void State::AddRule(const Rule* rule) {
@@ -40,9 +79,22 @@ const Rule* State::LookupRule(const string& rule_name) {
   return i->second;
 }
 
-Edge* State::AddEdge(const Rule* rule) {
+void State::AddPool(Pool* pool) {
+  assert(LookupPool(pool->name()) == NULL);
+  pools_[pool->name()] = pool;
+}
+
+Pool* State::LookupPool(const string& pool_name) {
+  map<string, Pool*>::iterator i = pools_.find(pool_name);
+  if (i == pools_.end())
+    return NULL;
+  return i->second;
+}
+
+Edge* State::AddEdge(const Rule* rule, Pool* pool) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
+  edge->pool_ = pool;
   edge->env_ = &bindings_;
   edges_.push_back(edge);
   return edge;
@@ -145,5 +197,15 @@ void State::Dump() {
            node->path().c_str(),
            node->status_known() ? (node->dirty() ? "dirty" : "clean")
                                 : "unknown");
+  }
+  if (!pools_.empty()) {
+    printf("resource_pools:\n");
+    for (map<string, Pool*>::const_iterator it = pools_.begin();
+         it != pools_.end(); ++it)
+    {
+      if (!it->second->name().empty()) {
+        it->second->Dump();
+      }
+    }
   }
 }

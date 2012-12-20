@@ -316,7 +316,8 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge()) {
-      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule,
+                                         &State::kDefaultPool);
       node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
@@ -343,6 +344,13 @@ void Edge::Dump(const char* prefix) const {
   for (vector<Node*>::const_iterator i = outputs_.begin();
        i != outputs_.end() && *i != NULL; ++i) {
     printf("%s ", (*i)->path().c_str());
+  }
+  if (pool_) {
+    if (!pool_->name().empty()) {
+      printf("(in pool '%s')", pool_->name().c_str());
+    }
+  } else {
+    printf("(null pool?)");
   }
   printf("] 0x%p\n", this);
 }

@@ -169,6 +169,50 @@ bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   return node->dirty();
 }
 
+Node* CollectTarget(State* state, const char* cpath, string* err) {
+  string path = cpath;
+  if (!CanonicalizePath(&path, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!path.empty() && path[path.size() - 1] == '^') {
+    path.resize(path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(path);
+  if (node) {
+    if (first_dependent) {
+      if (node->out_edges().empty()) {
+        *err = "'" + path + "' has no out edge";
+        return NULL;
+      }
+      Edge* edge = node->out_edges()[0];
+      if (edge->outputs_.empty()) {
+        edge->Dump();
+        Fatal("edge has no outputs");
+      }
+      node = edge->outputs_[0];
+    }
+    return node;
+  } else {
+    *err = "unknown target '" + path + "'";
+
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = state->SpellcheckNode(path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+}
+
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
@@ -177,47 +221,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   }
 
   for (int i = 0; i < argc; ++i) {
-    string path = argv[i];
-    if (!CanonicalizePath(&path, err))
+    Node* node = CollectTarget(state, argv[i], err);
+    if (node == NULL)
       return false;
-
-    // Special syntax: "foo.cc^" means "the first output of foo.cc".
-    bool first_dependent = false;
-    if (!path.empty() && path[path.size() - 1] == '^') {
-      path.resize(path.size() - 1);
-      first_dependent = true;
-    }
-
-    Node* node = state->LookupNode(path);
-    if (node) {
-      if (first_dependent) {
-        if (node->out_edges().empty()) {
-          *err = "'" + path + "' has no out edge";
-          return false;
-        }
-        Edge* edge = node->out_edges()[0];
-        if (edge->outputs_.empty()) {
-          edge->Dump();
-          Fatal("edge has no outputs");
-        }
-        node = edge->outputs_[0];
-      }
-      targets->push_back(node);
-    } else {
-      *err = "unknown target '" + path + "'";
-
-      if (path == "clean") {
-        *err += ", did you mean 'ninja -t clean'?";
-      } else if (path == "help") {
-        *err += ", did you mean 'ninja -h'?";
-      } else {
-        Node* suggestion = state->SpellcheckNode(path);
-        if (suggestion) {
-          *err += ", did you mean '" + suggestion->path() + "'?";
-        }
-      }
-      return false;
-    }
+    targets->push_back(node);
   }
   return true;
 }
@@ -245,19 +252,14 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = globals->state->LookupNode(argv[i]);
+    string err;
+    Node* node = CollectTarget(globals->state, argv[i], &err);
     if (!node) {
-      Node* suggestion = globals->state->SpellcheckNode(argv[i]);
-      if (suggestion) {
-        printf("%s unknown, did you mean %s?\n",
-               argv[i], suggestion->path().c_str());
-      } else {
-        printf("%s unknown\n", argv[i]);
-      }
+      Error("%s", err.c_str());
       return 1;
     }
 
-    printf("%s:\n", argv[i]);
+    printf("%s:\n", node->path().c_str());
     if (Edge* edge = node->in_edge()) {
       printf("  input: %s\n", edge->rule_->name().c_str());
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
@@ -862,7 +864,6 @@ int NinjaMain(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
-  RealDiskInterface disk_interface;
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
@@ -878,6 +879,7 @@ reload:
   }
 
   BuildLog build_log;
+  RealDiskInterface disk_interface;
   if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
 
