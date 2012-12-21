@@ -1,8 +1,8 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
-" Version: 1.2
-" Last Change: 2012/06/01
+" Version: 1.3
+" Last Change: 2012/12/14
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
 " Version 1.2 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
