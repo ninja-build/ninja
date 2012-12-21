@@ -179,6 +179,7 @@ string BuildStatus::FormatProgressStatus(
     const char* progress_status_format) const {
   string out;
   char buf[32];
+  int percent;
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
       ++s;
@@ -228,6 +229,13 @@ string BuildStatus::FormatProgressStatus(
       case 'c':
         current_rate_.UpdateRate(finished_edges_);
         snprinfRate(current_rate_.rate(), buf, "%.1f");
+        out += buf;
+        break;
+
+        // Percentage
+      case 'p':
+        percent = (100 * started_edges_) / total_edges_;
+        snprintf(buf, sizeof(buf), "%3i%%", percent);
         out += buf;
         break;
 
