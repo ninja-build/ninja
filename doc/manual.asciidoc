@@ -215,6 +215,7 @@ Ninja supports one environment variable to control its behavior.
 Several placeholders are available:
 * `%s`: The number of started edges.
 * `%t`: The total number of edges that must be run to complete the build.
+* `%p`: The percentage of started edges.
 * `%r`: The number of currently running edges.
 * `%u`: The number of remaining edges to start.
 * `%f`: The number of finished edges.
