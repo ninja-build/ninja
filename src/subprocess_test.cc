@@ -179,3 +179,18 @@ TEST_F(SubprocessTest, SetWithLots) {
   ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
 }
 #endif  // linux
+
+// TODO: this test could work on Windows, just not sure how to simply
+// read stdin.
+#ifndef _WIN32
+// Verify that a command that attempts to read stdin correctly thinks
+// that stdin is closed.
+TEST_F(SubprocessTest, ReadStdin) {
+  Subprocess* subproc = subprocs_.Add("cat -");
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+  ASSERT_EQ(ExitSuccess, subproc->Finish());
+  ASSERT_EQ(1u, subprocs_.finished_.size());
+}
+#endif  // _WIN32
