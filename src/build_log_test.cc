@@ -26,6 +26,8 @@
 #include <unistd.h>
 #endif
 
+namespace {
+
 const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules {
@@ -265,3 +267,5 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
   ASSERT_EQ(22, e2->end_time);
   ASSERT_EQ(22, e2->end_time);
 }
+
+}  // anonymous namespace
