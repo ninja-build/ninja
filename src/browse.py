@@ -144,8 +144,9 @@ def generate_html(node):
 
 def ninja_dump(target):
     proc = subprocess.Popen([sys.argv[1], '-t', 'query', target],
-                            stdout=subprocess.PIPE, universal_newlines=True)
-    return (proc.communicate()[0], proc.returncode)
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            universal_newlines=True)
+    return proc.communicate() + (proc.returncode,)
 
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -164,12 +165,12 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
             return
         target = target[1:]
 
-        input, exit_code = ninja_dump(target)
+        ninja_output, ninja_error, exit_code = ninja_dump(target)
         if exit_code == 0:
-            page_body = generate_html(parse(input.strip()))
+            page_body = generate_html(parse(ninja_output.strip()))
         else:
             # Relay ninja's error message.
-            page_body = '<h1><tt>%s</tt></h1>' % input
+            page_body = '<h1><tt>%s</tt></h1>' % ninja_error
 
         self.send_response(200)
         self.end_headers()
