@@ -39,7 +39,7 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
-#elif defined(linux)
+#elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
 #endif
 
@@ -295,7 +295,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux)
+#if defined(linux) || defined(__GLIBC__)
 int GetProcessorCount() {
   return get_nprocs();
 }
