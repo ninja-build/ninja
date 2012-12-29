@@ -103,8 +103,17 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  /// Wait for a command to complete.
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output) = 0;
+
+  /// The result of waiting for a command.
+  struct Result {
+    Result() : edge(NULL) {}
+    Edge* edge;
+    ExitStatus status;
+    string output;
+  };
+  /// Wait for a command to complete, or return false if interrupted.
+  virtual bool WaitForCommand(Result* result) = 0;
+
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
 };

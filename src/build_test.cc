@@ -401,7 +401,7 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // CommandRunner impl
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -461,23 +461,25 @@ bool BuildTest::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
-  if (Edge* edge = last_command_) {
-    if (edge->rule().name() == "interrupt" ||
-        edge->rule().name() == "touch-interrupt") {
-      *status = ExitInterrupted;
-      return NULL;
-    }
+bool BuildTest::WaitForCommand(Result* result) {
+  if (!last_command_)
+    return false;
 
-    if (edge->rule().name() == "fail")
-      *status = ExitFailure;
-    else
-      *status = ExitSuccess;
-    last_command_ = NULL;
-    return edge;
+  Edge* edge = last_command_;
+  result->edge = edge;
+
+  if (edge->rule().name() == "interrupt" ||
+      edge->rule().name() == "touch-interrupt") {
+    result->status = ExitInterrupted;
+    return true;
   }
-  *status = ExitFailure;
-  return NULL;
+
+  if (edge->rule().name() == "fail")
+    result->status = ExitFailure;
+  else
+    result->status = ExitSuccess;
+  last_command_ = NULL;
+  return true;
 }
 
 vector<Edge*> BuildTest::GetActiveEdges() {

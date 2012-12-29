@@ -47,7 +47,7 @@ struct DryRunCommandRunner : public CommandRunner {
   // Overridden from CommandRunner:
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(ExitStatus* status, string* /* output */);
+  virtual bool WaitForCommand(Result* result);
 
  private:
   queue<Edge*> finished_;
@@ -62,16 +62,14 @@ bool DryRunCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* DryRunCommandRunner::WaitForCommand(ExitStatus* status,
-                                          string* /*output*/) {
-   if (finished_.empty()) {
-     *status = ExitFailure;
-     return NULL;
-   }
-   *status = ExitSuccess;
-   Edge* edge = finished_.front();
+bool DryRunCommandRunner::WaitForCommand(Result* result) {
+   if (finished_.empty())
+     return false;
+
+   result->status = ExitSuccess;
+   result->edge = finished_.front();
    finished_.pop();
-   return edge;
+   return true;
 }
 
 }  // namespace
@@ -549,7 +547,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -586,25 +584,23 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* RealCommandRunner::WaitForCommand(ExitStatus* status, string* output) {
+bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
     bool interrupted = subprocs_.DoWork();
-    if (interrupted) {
-      *status = ExitInterrupted;
-      return 0;
-    }
+    if (interrupted)
+      return false;
   }
 
-  *status = subproc->Finish();
-  *output = subproc->GetOutput();
+  result->status = subproc->Finish();
+  result->output = subproc->GetOutput();
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
-  Edge* edge = i->second;
+  result->edge = i->second;
   subproc_to_edge_.erase(i);
 
   delete subproc;
-  return edge;
+  return true;
 }
 
 Builder::Builder(State* state, const BuildConfig& config,
@@ -696,8 +692,6 @@ bool Builder::Build(string* err) {
   // First, we attempt to start as many commands as allowed by the
   // command runner.
   // Second, we attempt to wait for / reap the next finished command.
-  // If we can do neither of those, the build is stuck, and we report
-  // an error.
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
     if (failures_allowed && command_runner_->CanRunMore()) {
@@ -719,34 +713,24 @@ bool Builder::Build(string* err) {
 
     // See if we can reap any finished commands.
     if (pending_commands) {
-      ExitStatus status;
-      string output;
-      Edge* edge = command_runner_->WaitForCommand(&status, &output);
-      if (edge && status != ExitInterrupted) {
-        bool success = (status == ExitSuccess);
-        --pending_commands;
-        FinishEdge(edge, success, output);
-        if (!success) {
-          if (failures_allowed)
-            failures_allowed--;
-        }
-
-        // We made some progress; start the main loop over.
-        continue;
-      }
-
-      if (status == ExitInterrupted) {
+      CommandRunner::Result result;
+      if (!command_runner_->WaitForCommand(&result) ||
+          result.status == ExitInterrupted) {
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
       }
-    }
 
-    // If we get here, we can neither enqueue new commands nor are any running.
-    if (pending_commands) {
-      status_->BuildFinished();
-      *err = "stuck: pending commands but none to wait for? [this is a bug]";
-      return false;
+      bool success = (result.status == ExitSuccess);
+      --pending_commands;
+      FinishEdge(result.edge, success, result.output);
+      if (!success) {
+        if (failures_allowed)
+          failures_allowed--;
+      }
+
+      // We made some progress; start the main loop over.
+      continue;
     }
 
     // If we get here, we cannot make any more progress.
