@@ -19,6 +19,7 @@
 
 #include "build_log.h"
 #include "depfile_parser.h"
+#include "deps_log.h"
 #include "disk_interface.h"
 #include "explain.h"
 #include "manifest_parser.h"
@@ -282,72 +283,6 @@ bool Edge::GetBindingBool(const string& key) {
   return !GetBinding(key).empty();
 }
 
-bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
-                                    string* err) {
-  METRIC_RECORD("depfile load");
-  string content = disk_interface_->ReadFile(path, err);
-  if (!err->empty()) {
-    *err = "loading '" + path + "': " + *err;
-    return false;
-  }
-  // On a missing depfile: return false and empty *err.
-  if (content.empty())
-    return false;
-
-  DepfileParser depfile;
-  string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
-    *err = path + ": " + depfile_err;
-    return false;
-  }
-
-  // Check that this depfile matches the edge's output.
-  Node* first_output = edge->outputs_[0];
-  StringPiece opath = StringPiece(first_output->path());
-  if (opath != depfile.out_) {
-    *err = "expected depfile '" + path + "' to mention '" +
-        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
-    return false;
-  }
-
-  // Preallocate space in edge->inputs_ to be filled in below.
-  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       depfile.ins_.size(), 0);
-  edge->implicit_deps_ += depfile.ins_.size();
-  vector<Node*>::iterator implicit_dep =
-      edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
-
-  // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
-      return false;
-
-    Node* node = state_->GetNode(*i);
-    *implicit_dep = node;
-    node->AddOutEdge(edge);
-
-    // If we don't have a edge that generates this input already,
-    // create one; this makes us not abort if the input is missing,
-    // but instead will rebuild in that circumstance.
-    if (!node->in_edge()) {
-      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
-      node->set_in_edge(phony_edge);
-      phony_edge->outputs_.push_back(node);
-
-      // RecomputeDirty might not be called for phony_edge if a previous call
-      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
-      // invocations of RecomputeDirty would have seen this node without an
-      // input edge (and therefore ready), we have to set outputs_ready_ to true
-      // to avoid a potential stuck build.  If we do call RecomputeDirty for
-      // this node, it will simply set outputs_ready_ to the correct value.
-      phony_edge->outputs_ready_ = true;
-    }
-  }
-
-  return true;
-}
-
 void Edge::Dump(const char* prefix) const {
   printf("%s[ ", prefix);
   for (vector<Node*>::const_iterator i = inputs_.begin();
@@ -388,4 +323,92 @@ void Node::Dump(const char* prefix) const {
        e != out_edges().end() && *e != NULL; ++e) {
     (*e)->Dump(" +- ");
   }
+}
+
+bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
+                                    string* err) {
+  METRIC_RECORD("depfile load");
+  string content = disk_interface_->ReadFile(path, err);
+  if (!err->empty()) {
+    *err = "loading '" + path + "': " + *err;
+    return false;
+  }
+  // On a missing depfile: return false and empty *err.
+  if (content.empty())
+    return false;
+
+  DepfileParser depfile;
+  string depfile_err;
+  if (!depfile.Parse(&content, &depfile_err)) {
+    *err = path + ": " + depfile_err;
+    return false;
+  }
+
+  // Check that this depfile matches the edge's output.
+  Node* first_output = edge->outputs_[0];
+  StringPiece opath = StringPiece(first_output->path());
+  if (opath != depfile.out_) {
+    *err = "expected depfile '" + path + "' to mention '" +
+        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
+    return false;
+  }
+
+  // Preallocate space in edge->inputs_ to be filled in below.
+  vector<Node*>::iterator implicit_dep =
+      PreallocateSpace(edge, depfile.ins_.size());
+
+  // Add all its in-edges.
+  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
+       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+      return false;
+
+    Node* node = state_->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(edge);
+    CreatePhonyInEdge(node);
+  }
+
+  return true;
+}
+
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
+  DepsLog::Deps* deps = deps_log_->GetDeps(edge->outputs_[0]);
+  if (!deps)
+    return false;
+
+  // XXX mtime
+
+  vector<Node*>::iterator implicit_dep =
+      PreallocateSpace(edge, deps->node_count);
+  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
+    *implicit_dep = deps->nodes[i];
+    CreatePhonyInEdge(*implicit_dep);
+  }
+  return true;
+}
+
+vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
+                                                            int count) {
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       (size_t)count, 0);
+  edge->implicit_deps_ += count;
+  return edge->inputs_.end() - edge->order_only_deps_ - count;
+}
+
+void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
+  if (node->in_edge())
+    return;
+
+  Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  node->set_in_edge(phony_edge);
+  phony_edge->outputs_.push_back(node);
+
+  // RecomputeDirty might not be called for phony_edge if a previous call
+  // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+  // invocations of RecomputeDirty would have seen this node without an
+  // input edge (and therefore ready), we have to set outputs_ready_ to true
+  // to avoid a potential stuck build.  If we do call RecomputeDirty for
+  // this node, it will simply set outputs_ready_ to the correct value.
+  phony_edge->outputs_ready_ = true;
 }

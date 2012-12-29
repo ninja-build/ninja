@@ -22,8 +22,13 @@ using namespace std;
 #include "eval_env.h"
 #include "timestamp.h"
 
+struct BuildLog;
 struct DiskInterface;
+struct DepsLog;
 struct Edge;
+struct Node;
+struct Pool;
+struct State;
 
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
@@ -128,11 +133,6 @@ struct Rule {
   map<string, EvalString> bindings_;
 };
 
-struct BuildLog;
-struct Node;
-struct State;
-struct Pool;
-
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
@@ -192,10 +192,23 @@ struct ImplicitDepLoader {
       : state_(state), disk_interface_(disk_interface) {}
 
   bool LoadDepFile(Edge* edge, const string& path, string* err);
+  bool LoadDepsFromLog(Edge* edge, string* err);
+
+ private:
+  /// Preallocate \a count spaces in the input array on \a edge, returning
+  /// an iterator pointing at the first new space.
+  vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
+
+  /// If we don't have a edge that generates this input already,
+  /// create one; this makes us not abort if the input is missing,
+  /// but instead will rebuild in that circumstance.
+  void CreatePhonyInEdge(Node* node);
 
   State* state_;
   DiskInterface* disk_interface_;
+  DepsLog* deps_log_;
 };
+
 
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
