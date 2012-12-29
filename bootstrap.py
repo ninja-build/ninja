@@ -31,6 +31,7 @@ parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
 parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
+# TODO: make this --platform to match configure.py.
 parser.add_option('--windows', action='store_true',
                   help='force native Windows build (when using Cygwin Python)',
                   default=sys.platform.startswith('win32'))
