@@ -64,16 +64,18 @@ int64_t GetTimeMillis();
 
 /// A simple stopwatch which returns the time
 /// in seconds since Restart() was called.
-class Stopwatch {
+struct Stopwatch {
  public:
   Stopwatch() : started_(0) {}
 
   /// Seconds since Restart() call.
-  double Elapsed() const { return 1e-6 * static_cast<double>(Now() - started_); }
+  double Elapsed() const {
+    return 1e-6 * static_cast<double>(Now() - started_);
+  }
 
   void Restart() { started_ = Now(); }
 
-private:
+ private:
   uint64_t started_;
   uint64_t Now() const;
 };

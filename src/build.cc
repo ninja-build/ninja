@@ -41,8 +41,7 @@
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
-class DryRunCommandRunner : public CommandRunner {
- public:
+struct DryRunCommandRunner : public CommandRunner {
   virtual ~DryRunCommandRunner() {}
 
   // Overridden from CommandRunner:

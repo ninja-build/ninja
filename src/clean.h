@@ -27,8 +27,7 @@ struct Node;
 struct Rule;
 struct DiskInterface;
 
-class Cleaner {
- public:
+struct Cleaner {
   /// Build a cleaner object with a real disk interface.
   Cleaner(State* state, const BuildConfig& config);
 

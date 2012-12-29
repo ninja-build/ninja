@@ -167,8 +167,7 @@ void BuildLog::Close() {
   log_file_ = NULL;
 }
 
-class LineReader {
- public:
+struct LineReader {
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
       memset(buf_, 0, sizeof(buf_));
