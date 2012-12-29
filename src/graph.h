@@ -185,13 +185,26 @@ struct Edge {
 };
 
 
+/// ImplicitDepLoader loads implicit dependencies, as referenced via the
+/// "depfile" attribute in build files.
+struct ImplicitDepLoader {
+  explicit ImplicitDepLoader(State* state, DiskInterface* disk_interface)
+      : state_(state), disk_interface_(disk_interface) {}
+
+  bool LoadDepFile(Edge* edge, const string& path, string* err);
+
+  State* state_;
+  DiskInterface* disk_interface_;
+};
+
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
 struct DependencyScan {
   DependencyScan(State* state, BuildLog* build_log,
                  DiskInterface* disk_interface)
-      : state_(state), build_log_(build_log),
-        disk_interface_(disk_interface) {}
+      : build_log_(build_log),
+        disk_interface_(disk_interface),
+        dep_loader_(state, disk_interface) {}
 
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -204,8 +217,6 @@ struct DependencyScan {
   bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
                             const string& command, Node* output);
 
-  bool LoadDepFile(Edge* edge, const string& path, string* err);
-
   BuildLog* build_log() const {
     return build_log_;
   }
@@ -214,9 +225,9 @@ struct DependencyScan {
   }
 
  private:
-  State* state_;
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
+  ImplicitDepLoader dep_loader_;
 };
 
 #endif  // NINJA_GRAPH_H_

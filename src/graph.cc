@@ -61,7 +61,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
   string depfile = edge->GetBinding("depfile");
   if (!depfile.empty()) {
-    if (!LoadDepFile(edge, depfile, err)) {
+    if (!dep_loader_.LoadDepFile(edge, depfile, err)) {
       if (!err->empty())
         return false;
       EXPLAIN("Edge targets are dirty because depfile '%s' is missing",
@@ -282,7 +282,8 @@ bool Edge::GetBindingBool(const string& key) {
   return !GetBinding(key).empty();
 }
 
-bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
+bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
+                                    string* err) {
   METRIC_RECORD("depfile load");
   string content = disk_interface_->ReadFile(path, err);
   if (!err->empty()) {
