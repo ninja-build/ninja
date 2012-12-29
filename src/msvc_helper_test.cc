@@ -48,7 +48,7 @@ TEST(MSVCHelperTest, Run) {
          &output);
   ASSERT_EQ("foo\nbar\n", output);
   ASSERT_EQ(1u, cl.includes_.size());
-  ASSERT_EQ("foo.h", cl.includes_[0]);
+  ASSERT_EQ("foo.h", *cl.includes_.begin());
 }
 
 TEST(MSVCHelperTest, RunFilenameFilter) {
@@ -70,7 +70,7 @@ TEST(MSVCHelperTest, RunSystemInclude) {
   // system headers.
   ASSERT_EQ("", output);
   ASSERT_EQ(1u, cl.includes_.size());
-  ASSERT_EQ("path.h", cl.includes_[0]);
+  ASSERT_EQ("path.h", *cl.includes_.begin());
 }
 
 TEST(MSVCHelperTest, EnvBlock) {
@@ -80,4 +80,39 @@ TEST(MSVCHelperTest, EnvBlock) {
   string output;
   cl.Run("cmd /c \"echo foo is %foo%", &output);
   ASSERT_EQ("foo is bar\n", output);
+}
+
+TEST(MSVCHelperTest, DuplicatedHeader) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo Note: including file: foo.h&&"
+         "echo Note: including file: bar.h&&"
+         "echo Note: including file: foo.h\"",
+         &output);
+  // We should have dropped one copy of foo.h.
+  ASSERT_EQ("", output);
+  ASSERT_EQ(2u, cl.includes_.size());
+}
+
+TEST(MSVCHelperTest, DuplicatedHeaderPathConverted) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo Note: including file: sub/foo.h&&"
+         "echo Note: including file: bar.h&&"
+         "echo Note: including file: sub\\foo.h\"",
+         &output);
+  // We should have dropped one copy of foo.h.
+  ASSERT_EQ("", output);
+  ASSERT_EQ(2u, cl.includes_.size());
+}
+
+TEST(MSVCHelperTest, SpacesInFilename) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo Note: including file: sub\\some sdk\\foo.h",
+         &output);
+  ASSERT_EQ("", output);
+  vector<string> headers = cl.GetEscapedResult();
+  ASSERT_EQ(1u, headers.size());
+  ASSERT_EQ("sub\\some\\ sdk\\foo.h", headers[0]);
 }

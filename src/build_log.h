@@ -60,6 +60,10 @@ struct BuildLog {
           start_time == o.start_time && end_time == o.end_time &&
           restat_mtime == o.restat_mtime;
     }
+
+    explicit LogEntry(const string& output);
+    LogEntry(const string& output, uint64_t command_hash,
+             int start_time, int end_time, TimeStamp restat_mtime);
   };
 
   /// Lookup a previously-run command by its output path.

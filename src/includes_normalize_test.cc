@@ -40,7 +40,8 @@ string GetCurDir() {
 TEST(IncludesNormalize, WithRelative) {
   string currentdir = IncludesNormalize::ToLower(GetCurDir());
   EXPECT_EQ("c", IncludesNormalize::Normalize("a/b/c", "a/b"));
-  EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"), NULL));
+  EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"),
+                                              NULL));
   EXPECT_EQ(string("..\\") + currentdir + string("\\a"),
             IncludesNormalize::Normalize("a", "../b"));
   EXPECT_EQ(string("..\\") + currentdir + string("\\a\\b"),
@@ -69,16 +70,21 @@ TEST(IncludesNormalize, Join) {
 }
 
 TEST(IncludesNormalize, Split) {
-  EXPECT_EQ("", IncludesNormalize::Join(IncludesNormalize::Split("", '/'), ':'));
-  EXPECT_EQ("a", IncludesNormalize::Join(IncludesNormalize::Split("a", '/'), ':'));
-  EXPECT_EQ("a:b:c", IncludesNormalize::Join(IncludesNormalize::Split("a/b/c", '/'), ':'));
+  EXPECT_EQ("", IncludesNormalize::Join(IncludesNormalize::Split("", '/'),
+                                        ':'));
+  EXPECT_EQ("a", IncludesNormalize::Join(IncludesNormalize::Split("a", '/'),
+                                         ':'));
+  EXPECT_EQ("a:b:c",
+            IncludesNormalize::Join(
+                IncludesNormalize::Split("a/b/c", '/'), ':'));
 }
 
 TEST(IncludesNormalize, ToLower) {
   EXPECT_EQ("", IncludesNormalize::ToLower(""));
   EXPECT_EQ("stuff", IncludesNormalize::ToLower("Stuff"));
   EXPECT_EQ("stuff and things", IncludesNormalize::ToLower("Stuff AND thINGS"));
-  EXPECT_EQ("stuff 3and thin43gs", IncludesNormalize::ToLower("Stuff 3AND thIN43GS"));
+  EXPECT_EQ("stuff 3and thin43gs",
+            IncludesNormalize::ToLower("Stuff 3AND thIN43GS"));
 }
 
 TEST(IncludesNormalize, DifferentDrive) {

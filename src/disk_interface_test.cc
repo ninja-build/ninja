@@ -25,8 +25,7 @@
 
 namespace {
 
-class DiskInterfaceTest : public testing::Test {
- public:
+struct DiskInterfaceTest : public testing::Test {
   virtual void SetUp() {
     // These tests do real disk accesses, so create a temp dir.
     temp_dir_.CreateAndEnter("Ninja-DiskInterfaceTest");

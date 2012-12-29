@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string>
+#include <set>
 #include <vector>
 using namespace std;
 
@@ -49,6 +50,10 @@ struct CLWrapper {
   /// Exposed for testing.
   static bool FilterInputFilename(const string& line);
 
+  /// Fill a vector with the unique'd headers, escaped for output as a .d
+  /// file.
+  vector<string> GetEscapedResult();
+
   void* env_block_;
-  vector<string> includes_;
+  set<string> includes_;
 };

@@ -49,7 +49,7 @@ namespace {
 
 /// The version number of the current Ninja release.  This will always
 /// be "git" on trunk.
-const char* kVersion = "1.0.0";
+const char* kVersion = "1.1.0";
 
 /// Global information passed into subtools.
 struct Globals {
@@ -140,7 +140,7 @@ int GuessParallelism() {
 /// An implementation of ManifestParser::FileReader that actually reads
 /// the file.
 struct RealFileReader : public ManifestParser::FileReader {
-  bool ReadFile(const string& path, string* content, string* err) {
+  virtual bool ReadFile(const string& path, string* content, string* err) {
     return ::ReadFile(path, content, err) == 0;
   }
 };
@@ -168,6 +168,50 @@ bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   return node->dirty();
 }
 
+Node* CollectTarget(State* state, const char* cpath, string* err) {
+  string path = cpath;
+  if (!CanonicalizePath(&path, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!path.empty() && path[path.size() - 1] == '^') {
+    path.resize(path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(path);
+  if (node) {
+    if (first_dependent) {
+      if (node->out_edges().empty()) {
+        *err = "'" + path + "' has no out edge";
+        return NULL;
+      }
+      Edge* edge = node->out_edges()[0];
+      if (edge->outputs_.empty()) {
+        edge->Dump();
+        Fatal("edge has no outputs");
+      }
+      node = edge->outputs_[0];
+    }
+    return node;
+  } else {
+    *err = "unknown target '" + path + "'";
+
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = state->SpellcheckNode(path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+}
+
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             vector<Node*>* targets, string* err) {
   if (argc == 0) {
@@ -176,47 +220,10 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   }
 
   for (int i = 0; i < argc; ++i) {
-    string path = argv[i];
-    if (!CanonicalizePath(&path, err))
+    Node* node = CollectTarget(state, argv[i], err);
+    if (node == NULL)
       return false;
-
-    // Special syntax: "foo.cc^" means "the first output of foo.cc".
-    bool first_dependent = false;
-    if (!path.empty() && path[path.size() - 1] == '^') {
-      path.resize(path.size() - 1);
-      first_dependent = true;
-    }
-
-    Node* node = state->LookupNode(path);
-    if (node) {
-      if (first_dependent) {
-        if (node->out_edges().empty()) {
-          *err = "'" + path + "' has no out edge";
-          return false;
-        }
-        Edge* edge = node->out_edges()[0];
-        if (edge->outputs_.empty()) {
-          edge->Dump();
-          Fatal("edge has no outputs");
-        }
-        node = edge->outputs_[0];
-      }
-      targets->push_back(node);
-    } else {
-      *err = "unknown target '" + path + "'";
-
-      if (path == "clean") {
-        *err += ", did you mean 'ninja -t clean'?";
-      } else if (path == "help") {
-        *err += ", did you mean 'ninja -h'?";
-      } else {
-        Node* suggestion = state->SpellcheckNode(path);
-        if (suggestion) {
-          *err += ", did you mean '" + suggestion->path() + "'?";
-        }
-      }
-      return false;
-    }
+    targets->push_back(node);
   }
   return true;
 }
@@ -244,19 +251,14 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
     return 1;
   }
   for (int i = 0; i < argc; ++i) {
-    Node* node = globals->state->LookupNode(argv[i]);
+    string err;
+    Node* node = CollectTarget(globals->state, argv[i], &err);
     if (!node) {
-      Node* suggestion = globals->state->SpellcheckNode(argv[i]);
-      if (suggestion) {
-        printf("%s unknown, did you mean %s?\n",
-               argv[i], suggestion->path().c_str());
-      } else {
-        printf("%s unknown\n", argv[i]);
-      }
+      Error("%s", err.c_str());
       return 1;
     }
 
-    printf("%s:\n", argv[i]);
+    printf("%s:\n", node->path().c_str());
     if (Edge* edge = node->in_edge()) {
       printf("  input: %s\n", edge->rule_->name().c_str());
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
@@ -292,7 +294,7 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
 }
 #endif  // _WIN32
 
-#if defined(WIN32)
+#if defined(_WIN32)
 int ToolMSVC(Globals* globals, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
@@ -537,7 +539,7 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, ToolBrowse },
 #endif
-#if defined(WIN32)
+#if defined(_WIN32)
     { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
       Tool::RUN_AFTER_FLAGS, ToolMSVC },
 #endif
@@ -682,6 +684,9 @@ int RunBuild(Builder* builder, int argc, char** argv) {
 
   if (!builder->Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
+    if (err.find("interrupted by user") != string::npos) {
+    	return 2;
+    }
     return 1;
   }
 
@@ -740,7 +745,7 @@ int NinjaMain(int argc, char** argv) {
 
   int opt;
   while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:hj:k:l:nt:vC:V", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -753,14 +758,6 @@ int NinjaMain(int argc, char** argv) {
       case 'j':
         config.parallelism = atoi(optarg);
         break;
-      case 'l': {
-        char* end;
-        double value = strtod(optarg, &end);
-        if (end == optarg)
-          Fatal("-l parameter not numeric: did you mean -l 0.0?");
-        config.max_load_average = value;
-        break;
-      }
       case 'k': {
         char* end;
         int value = strtol(optarg, &end, 10);
@@ -773,14 +770,22 @@ int NinjaMain(int argc, char** argv) {
         config.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
+      case 'l': {
+        char* end;
+        double value = strtod(optarg, &end);
+        if (end == optarg)
+          Fatal("-l parameter not numeric: did you mean -l 0.0?");
+        config.max_load_average = value;
+        break;
+      }
       case 'n':
         config.dry_run = true;
         break;
-      case 'v':
-        config.verbosity = BuildConfig::VERBOSE;
-        break;
       case 't':
         tool_name = optarg;
+        break;
+      case 'v':
+        config.verbosity = BuildConfig::VERBOSE;
         break;
       case 'C':
         working_dir = optarg;
@@ -825,7 +830,6 @@ int NinjaMain(int argc, char** argv) {
   bool rebuilt_manifest = false;
 
 reload:
-  RealDiskInterface disk_interface;
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
@@ -838,6 +842,7 @@ reload:
     return tool->func(&globals, argc, argv);
 
   BuildLog build_log;
+  RealDiskInterface disk_interface;
   if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
 

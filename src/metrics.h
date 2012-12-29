@@ -59,28 +59,26 @@ private:
 };
 
 /// Get the current time as relative to some epoch.
-/// Epoch varies between platforms; only useful for measuring elapsed
-/// time.
+/// Epoch varies between platforms; only useful for measuring elapsed time.
 int64_t GetTimeMillis();
 
-
-/// A simple stopwatch which retruns the time
-// in seconds since Restart() was called
-class Stopwatch
-{
-public:
+/// A simple stopwatch which returns the time
+/// in seconds since Restart() was called.
+struct Stopwatch {
+ public:
   Stopwatch() : started_(0) {}
 
-  /// Seconds since Restart() call
-  double Elapsed() const { return 1e-6 * static_cast<double>(Now() - started_); }
+  /// Seconds since Restart() call.
+  double Elapsed() const {
+    return 1e-6 * static_cast<double>(Now() - started_);
+  }
 
   void Restart() { started_ = Now(); }
 
-private:
+ private:
   uint64_t started_;
   uint64_t Now() const;
 };
-
 
 /// The primary interface to metrics.  Use METRIC_RECORD("foobar") at the top
 /// of a function to get timing stats recorded for each call of the function.

@@ -27,8 +27,7 @@ struct Node;
 struct Rule;
 struct DiskInterface;
 
-class Cleaner {
- public:
+struct Cleaner {
   /// Build a cleaner object with a real disk interface.
   Cleaner(State* state, const BuildConfig& config);
 
@@ -81,10 +80,14 @@ class Cleaner {
   /// @returns whether the file @a path exists.
   bool FileExists(const string& path);
   void Report(const string& path);
+
   /// Remove the given @a path file only if it has not been already removed.
   void Remove(const string& path);
   /// @return whether the given @a path has already been removed.
   bool IsAlreadyRemoved(const string& path);
+  /// Remove the depfile and rspfile for an Edge.
+  void RemoveEdgeFiles(Edge* edge);
+
   /// Helper recursive method for CleanTarget().
   void DoCleanTarget(Node* target);
   void PrintHeader();
@@ -95,6 +98,7 @@ class Cleaner {
   State* state_;
   const BuildConfig& config_;
   set<string> removed_;
+  set<Node*> cleaned_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
   int status_;

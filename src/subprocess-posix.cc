@@ -76,7 +76,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         break;
 
       // Open /dev/null over stdin.
-      int devnull = open("/dev/null", O_WRONLY);
+      int devnull = open("/dev/null", O_RDONLY);
       if (devnull < 0)
         break;
       if (dup2(devnull, 0) < 0)

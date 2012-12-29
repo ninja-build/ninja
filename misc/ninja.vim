@@ -1,8 +1,8 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
-" Version: 1.2
-" Last Change: 2012/06/01
+" Version: 1.3
+" Last Change: 2012/12/14
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
 " Version 1.2 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
@@ -25,6 +25,7 @@ syn match ninjaComment /#.*/  contains=@Spell
 " lexer.in.cc, ReadToken() and manifest_parser.cc, Parse()
 syn match ninjaKeyword "^build\>"
 syn match ninjaKeyword "^rule\>"
+syn match ninjaKeyword "^pool\>"
 syn match ninjaKeyword "^default\>"
 syn match ninjaKeyword "^include\>"
 syn match ninjaKeyword "^subninja\>"
@@ -35,7 +36,11 @@ syn match ninjaKeyword "^subninja\>"
 " let assignments.
 " manifest_parser.cc, ParseRule()
 syn region ninjaRule start="^rule" end="^\ze\S" contains=ALL transparent
-syn keyword ninjaRuleCommand contained command depfile description generator restat
+syn keyword ninjaRuleCommand contained command depfile description generator
+                                     \ pool restat rspfile rspfile_content
+
+syn region ninjaPool start="^pool" end="^\ze\S" contains=ALL transparent
+syn keyword ninjaPoolCommand contained depth
 
 " Strings are parsed as follows:
 " lexer.in.cc, ReadEvalString()
@@ -61,6 +66,7 @@ syn match ninjaOperator "\(=\|:\||\|||\)\ze\s"
 hi def link ninjaComment Comment
 hi def link ninjaKeyword Keyword
 hi def link ninjaRuleCommand Statement
+hi def link ninjaPoolCommand Statement
 hi def link ninjaWrapLineOperator ninjaOperator
 hi def link ninjaOperator Operator
 hi def link ninjaSimpleVar ninjaVar

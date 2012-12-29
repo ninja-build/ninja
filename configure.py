@@ -19,6 +19,8 @@
 Projects that use ninja themselves should either write a similar script
 or use a meta-build system that supports Ninja output."""
 
+from __future__ import print_function
+
 from optparse import OptionParser
 import os
 import sys
@@ -50,7 +52,7 @@ parser.add_option('--with-ninja', metavar='NAME',
                   default="ninja")
 (options, args) = parser.parse_args()
 if args:
-    print 'ERROR: extra unparsed command-line arguments:', args
+    print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
 platform = options.platform
@@ -140,6 +142,7 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
+              '-Wno-missing-field-initializers',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
@@ -168,7 +171,9 @@ else:
         libs.append('-lprofiler')
 
 def shell_escape(str):
-    """Escape str such that it's interpreted as a single argument by the shell."""
+    """Escape str such that it's interpreted as a single argument by
+    the shell."""
+
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
     if platform in ('windows', 'mingw'):
       return str
@@ -255,7 +260,7 @@ if has_re2c():
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
-    print ("warning: A compatible version of re2c (>= 0.11.3) was not found; "
+    print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
@@ -277,11 +282,12 @@ for name in ['build',
              'util']:
     objs += cxx(name)
 if platform in ('mingw', 'windows'):
-    objs += cxx('subprocess-win32')
+    for name in ['subprocess-win32',
+                 'includes_normalize-win32',
+                 'msvc_helper-win32',
+                 'msvc_helper_main-win32']:
+        objs += cxx(name)
     if platform == 'windows':
-        objs += cxx('includes_normalize-win32')
-        objs += cxx('msvc_helper-win32')
-        objs += cxx('msvc_helper_main-win32')
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
@@ -309,7 +315,7 @@ all_targets += ninja
 n.comment('Tests all build into ninja_test executable.')
 
 variables = []
-test_cflags = None
+test_cflags = cflags[:]
 test_ldflags = None
 test_libs = libs
 objs = []
@@ -328,13 +334,17 @@ if options.with_gtest:
                     os.path.join(path, 'src', 'gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
-    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
-                            '-I%s' % os.path.join(path, 'include')]
+    test_cflags.append('-I%s' % os.path.join(path, 'include'))
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
+    test_cflags.append('-DGTEST_HAS_RTTI=0')
     test_libs.extend(['-lgtest_main', '-lgtest'])
 
+if test_cflags == cflags:
+    test_cflags = None
+
+n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
              'build_test',
              'clean_test',
@@ -348,8 +358,8 @@ for name in ['build_log_test',
              'subprocess_test',
              'test',
              'util_test']:
-    objs += cxx(name, variables=[('cflags', test_cflags)])
-if platform == 'windows':
+    objs += cxx(name, variables=[('cflags', '$test_cflags')])
+if platform in ('windows', 'mingw'):
     for name in ['includes_normalize_test', 'msvc_helper_test']:
         objs += cxx(name, variables=[('cflags', test_cflags)])
 
@@ -362,7 +372,7 @@ n.newline()
 all_targets += ninja_test
 
 
-n.comment('Ancilliary executables.')
+n.comment('Ancillary executables.')
 objs = cxx('parser_perftest')
 all_targets += n.build(binary('parser_perftest'), 'link', objs,
                        implicit=ninja_lib, variables=[('libs', libs)])
@@ -427,23 +437,11 @@ n.newline()
 if host == 'linux':
     n.comment('Packaging')
     n.rule('rpmbuild',
-           command="rpmbuild \
-           --define 'ver git' \
-           --define \"rel `git rev-parse --short HEAD`\" \
-           --define '_topdir %(pwd)/rpm-build' \
-           --define '_builddir %{_topdir}' \
-           --define '_rpmdir %{_topdir}' \
-           --define '_srcrpmdir %{_topdir}' \
-           --define '_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' \
-           --define '_specdir %{_topdir}' \
-           --define '_sourcedir  %{_topdir}' \
-           --quiet \
-           -bb misc/packaging/ninja.spec",
-           description='Building RPM..')
-    n.build('rpm', 'rpmbuild',
-            implicit=['ninja','README', 'COPYING', doc('manual.html')])
+           command="misc/packaging/rpmbuild.sh",
+           description='Building rpms..')
+    n.build('rpm', 'rpmbuild')
     n.newline()
 
 n.build('all', 'phony', all_targets)
 
-print 'wrote %s.' % BUILD_FILENAME
+print('wrote %s.' % BUILD_FILENAME)

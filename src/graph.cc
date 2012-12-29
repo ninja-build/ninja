@@ -145,9 +145,10 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     if (edge->rule_->restat() && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_stamp) {
-        EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
-            output->path().c_str(), most_recent_input->path().c_str(),
-            entry->restat_mtime, most_recent_stamp);
+        EXPLAIN("restat of output %s older than most recent input %s "
+                "(%d vs %d)",
+                output->path().c_str(), most_recent_input->path().c_str(),
+                entry->restat_mtime, most_recent_stamp);
         return true;
       }
     } else {
@@ -192,7 +193,7 @@ struct EdgeEnv : public Env {
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
-  /// line.  XXX here is where shell-escaping of e.g spaces should happen.
+  /// line.
   string MakePathList(vector<Node*>::iterator begin,
                       vector<Node*>::iterator end,
                       char sep);
@@ -214,7 +215,6 @@ string EdgeEnv::LookupVariable(const string& var) {
   } else if (edge_->env_) {
     return edge_->env_->LookupVariable(var);
   } else {
-    // XXX should we warn here?
     return string();
   }
 }
@@ -241,7 +241,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
 string Edge::EvaluateCommand(bool incl_rsp_file) {
   EdgeEnv env(this);
   string command = rule_->command().Evaluate(&env);
-  if (incl_rsp_file && HasRspFile()) 
+  if (incl_rsp_file && HasRspFile())
     command += ";rspfile=" + GetRspFileContent();
   return command;
 }
@@ -317,7 +317,8 @@ bool DependencyScan::LoadDepFile(Edge* edge, string* err) {
     // create one; this makes us not abort if the input is missing,
     // but instead will rebuild in that circumstance.
     if (!node->in_edge()) {
-      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule,
+                                         &State::kDefaultPool);
       node->set_in_edge(phony_edge);
       phony_edge->outputs_.push_back(node);
 
@@ -345,6 +346,13 @@ void Edge::Dump(const char* prefix) const {
        i != outputs_.end() && *i != NULL; ++i) {
     printf("%s ", (*i)->path().c_str());
   }
+  if (pool_) {
+    if (!pool_->name().empty()) {
+      printf("(in pool '%s')", pool_->name().c_str());
+    }
+  } else {
+    printf("(null pool?)");
+  }
   printf("] 0x%p\n", this);
 }
 
@@ -353,18 +361,18 @@ bool Edge::is_phony() const {
 }
 
 void Node::Dump(const char* prefix) const {
-    printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
-           prefix, path().c_str(), this,
-           mtime(), mtime()?"":" (:missing)",
-           dirty()?" dirty":" clean");
-    if (in_edge()) {
-        in_edge()->Dump("in-edge: ");
-    }else{
-        printf("no in-edge\n");
-    }
-    printf(" out edges:\n");
-    for (vector<Edge*>::const_iterator e = out_edges().begin();
-         e != out_edges().end() && *e != NULL; ++e) {
-        (*e)->Dump(" +- ");
-    }
+  printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
+         prefix, path().c_str(), this,
+         mtime(), mtime() ? "" : " (:missing)",
+         dirty() ? " dirty" : " clean");
+  if (in_edge()) {
+    in_edge()->Dump("in-edge: ");
+  } else {
+    printf("no in-edge\n");
+  }
+  printf(" out edges:\n");
+  for (vector<Edge*>::const_iterator e = out_edges().begin();
+       e != out_edges().end() && *e != NULL; ++e) {
+    (*e)->Dump(" +- ");
+  }
 }

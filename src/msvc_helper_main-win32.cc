@@ -14,6 +14,7 @@
 
 #include "msvc_helper.h"
 
+#include <stdio.h>
 #include <windows.h>
 
 #include "util.h"
@@ -27,7 +28,6 @@ void Usage() {
 "usage: ninja -t msvc [options] -- cl.exe /showIncludes /otherArgs\n"
 "options:\n"
 "  -e ENVFILE load environment block from ENVFILE as environment\n"
-"  -r BASE    normalize paths and make relative to BASE before output\n"
 "  -o FILE    write output dependency information to FILE.d\n"
          );
 }
@@ -48,7 +48,6 @@ void PushPathIntoEnvironment(const string& env_block) {
 
 int MSVCHelperMain(int argc, char** argv) {
   const char* output_filename = NULL;
-  const char* relative_to = NULL;
   const char* envfile = NULL;
 
   const option kLongOptions[] = {
@@ -56,16 +55,13 @@ int MSVCHelperMain(int argc, char** argv) {
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "e:o:r:h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "e:o:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'e':
         envfile = optarg;
         break;
       case 'o':
         output_filename = optarg;
-        break;
-      case 'r':
-        relative_to = optarg;
         break;
       case 'h':
       default:
@@ -105,8 +101,8 @@ int MSVCHelperMain(int argc, char** argv) {
     Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
   }
   fprintf(output, "%s: ", output_filename);
-  for (vector<string>::iterator i = cl.includes_.begin();
-       i != cl.includes_.end(); ++i) {
+  vector<string> headers = cl.GetEscapedResult();
+  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
     fprintf(output, "%s\n", i->c_str());
   }
   fclose(output);

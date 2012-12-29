@@ -131,6 +131,7 @@ struct Rule {
   EvalString command_;
   EvalString description_;
   EvalString depfile_;
+  EvalString pool_;
   EvalString rspfile_;
   EvalString rspfile_content_;
 };
@@ -138,6 +139,7 @@ struct Rule {
 struct BuildLog;
 struct Node;
 struct State;
+struct Pool;
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
@@ -150,7 +152,7 @@ struct Edge {
   /// Expand all variables in a command and return it as a string.
   /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
-  string EvaluateCommand(bool incl_rsp_file = false);  // XXX move to env, take env ptr
+  string EvaluateCommand(bool incl_rsp_file = false);
   string EvaluateDepFile();
   string GetDescription();
 
@@ -166,25 +168,25 @@ struct Edge {
   void Dump(const char* prefix="") const;
 
   const Rule* rule_;
+  Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   Env* env_;
   bool outputs_ready_;
 
   const Rule& rule() const { return *rule_; }
+  Pool* pool() const { return pool_; }
+  int weight() const { return 1; }
   bool outputs_ready() const { return outputs_ready_; }
 
-  // XXX There are three types of inputs.
+  // There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;
   // 2) implicit deps, which the target depends on implicitly (e.g. C headers),
   //                   and changes in them cause the target to rebuild;
   // 3) order-only deps, which are needed before the target builds but which
   //                     don't cause the target to rebuild.
-  // Currently we stuff all of these into inputs_ and keep counts of #2 and #3
-  // when we need to compute subsets.  This is suboptimal; should think of a
-  // better representation.  (Could make each pointer into a pair of a pointer
-  // and a type of input, or if memory matters could use the low bits of the
-  // pointer...)
+  // These are stored in inputs_ in that order, and we keep counts of
+  // #2 and #3 when we need to access the various subsets.
   int implicit_deps_;
   int order_only_deps_;
   bool is_implicit(size_t index) {

@@ -50,6 +50,7 @@ private:
   bool Parse(const string& filename, const string& input, string* err);
 
   /// Parse various statement types.
+  bool ParsePool(string* err);
   bool ParseRule(string* err);
   bool ParseLet(string* key, EvalString* val, string* err);
   bool ParseEdge(string* err);

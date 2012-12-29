@@ -56,7 +56,7 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   uint64_t h = seed ^ (len * m);
   const uint64_t * data = (const uint64_t *)key;
   const uint64_t * end = data + (len/8);
-  while(data != end) {
+  while (data != end) {
     uint64_t k = *data++;
     k *= m;
     k ^= k >> r;
@@ -65,7 +65,7 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
     h *= m;
   }
   const unsigned char* data2 = (const unsigned char*)data;
-  switch(len & 7)
+  switch (len & 7)
   {
   case 7: h ^= uint64_t(data2[6]) << 48;
   case 6: h ^= uint64_t(data2[5]) << 40;
@@ -90,6 +90,15 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
 uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
+
+BuildLog::LogEntry::LogEntry(const string& output)
+  : output(output) {}
+
+BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
+  int start_time, int end_time, TimeStamp restat_mtime)
+  : output(output), command_hash(command_hash),
+    start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
+{}
 
 BuildLog::BuildLog()
   : log_file_(NULL), needs_recompaction_(false) {}
@@ -130,6 +139,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
 void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
+  uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
@@ -138,11 +148,10 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (i != entries_.end()) {
       log_entry = i->second;
     } else {
-      log_entry = new LogEntry;
-      log_entry->output = path;
+      log_entry = new LogEntry(path);
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
-    log_entry->command_hash = LogEntry::HashCommand(command);
+    log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
@@ -158,8 +167,7 @@ void BuildLog::Close() {
   log_file_ = NULL;
 }
 
-class LineReader {
- public:
+struct LineReader {
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
       memset(buf_, 0, sizeof(buf_));
@@ -287,8 +295,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (i != entries_.end()) {
       entry = i->second;
     } else {
-      entry = new LogEntry;
-      entry->output = output;
+      entry = new LogEntry(output);
       entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
@@ -341,6 +348,7 @@ void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
+  METRIC_RECORD(".ninja_log recompact");
   printf("Recompacting log...\n");
 
   string temp_path = path + ".recompact";
