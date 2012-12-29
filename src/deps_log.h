@@ -67,12 +67,6 @@ struct DepsLog {
   void Close();
 
   // Reading (startup-time) interface.
-  bool Load(const string& path, State* state, string* err);
-
- private:
-  // Write a node name record, assigning it an id.
-  bool RecordId(Node* node);
-
   struct Deps {
     Deps() : mtime(-1), node_count(0), nodes(NULL) {}
     ~Deps() { delete [] nodes; }
@@ -80,6 +74,12 @@ struct DepsLog {
     int node_count;
     Node** nodes;
   };
+  bool Load(const string& path, State* state, string* err);
+  Deps* GetDeps(Node* node);
+
+ private:
+  // Write a node name record, assigning it an id.
+  bool RecordId(Node* node);
 
   FILE* file_;
   vector<Node*> nodes_;

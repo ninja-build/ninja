@@ -137,6 +137,12 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   return true;
 }
 
+DepsLog::Deps* DepsLog::GetDeps(Node* node) {
+  if (node->id() < 0)
+    return NULL;
+  return deps_[node->id()];
+}
+
 bool DepsLog::RecordId(Node* node) {
   uint16_t size = node->path().size();
   fwrite(&size, 2, 1, file_);
