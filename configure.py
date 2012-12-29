@@ -313,7 +313,7 @@ all_targets += ninja
 n.comment('Tests all build into ninja_test executable.')
 
 variables = []
-test_cflags = None
+test_cflags = cflags[:]
 test_ldflags = None
 test_libs = libs
 objs = []
@@ -332,13 +332,17 @@ if options.with_gtest:
                     os.path.join(path, 'src', 'gtest_main.cc'),
                     variables=[('cflags', gtest_cflags)])
 
-    test_cflags = cflags + ['-DGTEST_HAS_RTTI=0',
-                            '-I%s' % os.path.join(path, 'include')]
+    test_cflags.append('-I%s' % os.path.join(path, 'include'))
 elif platform == 'windows':
     test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
+    test_cflags.append('-DGTEST_HAS_RTTI=0')
     test_libs.extend(['-lgtest_main', '-lgtest'])
 
+if test_cflags == cflags:
+    test_cflags = None
+
+n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
              'build_test',
              'clean_test',
@@ -352,7 +356,7 @@ for name in ['build_log_test',
              'subprocess_test',
              'test',
              'util_test']:
-    objs += cxx(name, variables=[('cflags', test_cflags)])
+    objs += cxx(name, variables=[('cflags', '$test_cflags')])
 if platform in ('windows', 'mingw'):
     for name in ['includes_normalize_test', 'msvc_helper_test']:
         objs += cxx(name, variables=[('cflags', test_cflags)])
