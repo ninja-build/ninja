@@ -80,7 +80,8 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
-    Error("Stat(%s): Filename longer than %i characters", path.c_str(), MAX_PATH);
+    Error("Stat(%s): Filename longer than %i characters",
+          path.c_str(), MAX_PATH);
     return -1;
   }
   WIN32_FILE_ATTRIBUTE_DATA attrs;
@@ -116,18 +117,21 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
   FILE * fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
-    Error("WriteFile(%s): Unable to create file. %s", path.c_str(), strerror(errno));
+    Error("WriteFile(%s): Unable to create file. %s",
+          path.c_str(), strerror(errno));
     return false;
   }
 
   if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
-    Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(), strerror(errno));
+    Error("WriteFile(%s): Unable to write to the file. %s",
+          path.c_str(), strerror(errno));
     fclose(fp);
     return false;
   }
 
   if (fclose(fp) == EOF) {
-    Error("WriteFile(%s): Unable to close the file. %s", path.c_str(), strerror(errno));
+    Error("WriteFile(%s): Unable to close the file. %s",
+          path.c_str(), strerror(errno));
     return false;
   }
 

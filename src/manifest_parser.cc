@@ -177,8 +177,10 @@ bool ManifestParser::ParseRule(string* err) {
     }
   }
 
-  if (rule->rspfile_.empty() != rule->rspfile_content_.empty())
-    return lexer_.Error("rspfile and rspfile_content need to be both specified", err);
+  if (rule->rspfile_.empty() != rule->rspfile_content_.empty()) {
+    return lexer_.Error("rspfile and rspfile_content need to be both specified",
+                        err);
+  }
 
   if (rule->command_.empty())
     return lexer_.Error("expected 'command =' line", err);

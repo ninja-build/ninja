@@ -49,7 +49,8 @@ void SetCloseOnExec(int fd);
 
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
-const char* SpellcheckStringV(const string& text, const vector<const char*>& words);
+const char* SpellcheckStringV(const string& text,
+                              const vector<const char*>& words);
 
 /// Like SpellcheckStringV, but takes a NULL-terminated list.
 const char* SpellcheckString(const string& text, ...);

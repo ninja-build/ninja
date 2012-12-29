@@ -101,14 +101,17 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
                       NULL, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
-    if (error == ERROR_FILE_NOT_FOUND) { // file (program) not found error is treated as a normal build action failure
+    if (error == ERROR_FILE_NOT_FOUND) {
+      // File (program) not found error is treated as a normal build
+      // action failure.
       if (child_pipe)
         CloseHandle(child_pipe);
       CloseHandle(pipe_);
       CloseHandle(nul);
       pipe_ = NULL;
       // child_ is already NULL;
-      buf_ = "CreateProcess failed: The system cannot find the file specified.\n";
+      buf_ = "CreateProcess failed: The system cannot find the file "
+          "specified.\n";
       return true;
     } else {
       Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal

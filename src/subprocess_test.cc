@@ -64,7 +64,8 @@ TEST_F(SubprocessTest, NoSuchCommand) {
   EXPECT_EQ(ExitFailure, subproc->Finish());
   EXPECT_NE("", subproc->GetOutput());
 #ifdef _WIN32
-  ASSERT_EQ("CreateProcess failed: The system cannot find the file specified.\n", subproc->GetOutput());
+  ASSERT_EQ("CreateProcess failed: The system cannot find the file "
+            "specified.\n", subproc->GetOutput());
 #endif
 }
 

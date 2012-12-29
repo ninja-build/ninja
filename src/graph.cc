@@ -145,9 +145,10 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     if (edge->rule_->restat() && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
       if (entry->restat_mtime < most_recent_stamp) {
-        EXPLAIN("restat of output %s older than most recent input %s (%d vs %d)",
-            output->path().c_str(), most_recent_input->path().c_str(),
-            entry->restat_mtime, most_recent_stamp);
+        EXPLAIN("restat of output %s older than most recent input %s "
+                "(%d vs %d)",
+                output->path().c_str(), most_recent_input->path().c_str(),
+                entry->restat_mtime, most_recent_stamp);
         return true;
       }
     } else {

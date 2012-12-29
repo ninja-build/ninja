@@ -482,8 +482,9 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
 
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
-    vector<Node*>::iterator begin = (*ei)->inputs_.begin(),
-                            end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
+    vector<Node*>::iterator
+        begin = (*ei)->inputs_.begin(),
+        end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input and command.
       Node* most_recent_input = NULL;
@@ -771,8 +772,10 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // Create response file, if needed
   // XXX: this may also block; do we care?
   if (edge->HasRspFile()) {
-    if (!disk_interface_->WriteFile(edge->GetRspFile(), edge->GetRspFileContent()))
+    if (!disk_interface_->WriteFile(edge->GetRspFile(),
+                                    edge->GetRspFileContent())) {
       return false;
+    }
   }
 
   // start command computing and run it
@@ -815,7 +818,8 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
         }
 
         if (restat_mtime != 0 && !edge->rule().depfile().empty()) {
-          TimeStamp depfile_mtime = disk_interface_->Stat(edge->EvaluateDepFile());
+          TimeStamp depfile_mtime =
+              disk_interface_->Stat(edge->EvaluateDepFile());
           if (depfile_mtime > restat_mtime)
             restat_mtime = depfile_mtime;
         }
