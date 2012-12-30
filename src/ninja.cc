@@ -32,6 +32,7 @@
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
+#include "deps_log.h"
 #include "clean.h"
 #include "disk_interface.h"
 #include "edit_distance.h"
@@ -670,6 +671,36 @@ bool OpenBuildLog(BuildLog* build_log, const string& build_dir,
   return true;
 }
 
+/// Open the deps log: load it, then open for writing.
+/// @return false on error.
+bool OpenDepsLog(DepsLog* deps_log, const string& build_dir,
+                 Globals* globals, DiskInterface* disk_interface) {
+  string path = ".ninja_deps";
+  if (!build_dir.empty())
+    path = build_dir + "/" + path;
+
+  string err;
+  if (!deps_log->Load(path, globals->state, &err)) {
+    Error("loading deps log %s: %s", path.c_str(), err.c_str());
+    return false;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
+
+  if (!globals->config->dry_run) {
+    if (!deps_log->OpenForWrite(path, &err)) {
+      Error("opening deps log: %s", err.c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 /// Dump the output requested by '-d stats'.
 void DumpMetrics(Globals* globals) {
   g_metrics->Report();
@@ -880,6 +911,10 @@ reload:
 
   BuildLog build_log;
   if (!OpenBuildLog(&build_log, build_dir, &globals, &disk_interface))
+    return 1;
+
+  DepsLog deps_log;
+  if (!OpenDepsLog(&deps_log, build_dir, &globals, &disk_interface))
     return 1;
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
