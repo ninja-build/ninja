@@ -315,7 +315,7 @@ all_targets += ninja
 n.comment('Tests all build into ninja_test executable.')
 
 variables = []
-test_cflags = cflags[:]
+test_cflags = cflags + ['-DGTEST_HAS_RTTI=0']
 test_ldflags = None
 test_libs = libs
 objs = []
@@ -335,14 +335,12 @@ if options.with_gtest:
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags.append('-I%s' % os.path.join(path, 'include'))
-elif platform == 'windows':
-    test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
-    test_cflags.append('-DGTEST_HAS_RTTI=0')
-    test_libs.extend(['-lgtest_main', '-lgtest'])
-
-if test_cflags == cflags:
-    test_cflags = None
+    # Use gtest from system.
+    if platform == 'windows':
+        test_libs.extend(['gtest_main.lib', 'gtest.lib'])
+    else:
+        test_libs.extend(['-lgtest_main', '-lgtest'])
 
 n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
