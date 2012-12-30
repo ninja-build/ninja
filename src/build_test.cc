@@ -379,7 +379,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
   BuildTest() : config_(MakeConfig()),
-                builder_(&state_, config_, NULL, &fs_),
+                builder_(&state_, config_, NULL, NULL, &fs_),
                 now_(1), last_command_(NULL), status_(config_) {
     builder_.command_runner_.reset(this);
     AssertParse(&state_,

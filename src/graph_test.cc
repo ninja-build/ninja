@@ -17,7 +17,7 @@
 #include "test.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, NULL, &fs_) {}
+  GraphTest() : scan_(&state_, NULL, NULL, &fs_) {}
 
   VirtualFileSystem fs_;
   DependencyScan scan_;
