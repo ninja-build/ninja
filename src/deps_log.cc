@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "graph.h"
+#include "metrics.h"
 #include "state.h"
 #include "util.h"
 
@@ -80,6 +81,7 @@ void DepsLog::Close() {
 }
 
 bool DepsLog::Load(const string& path, State* state, string* err) {
+  METRIC_RECORD(".ninja_deps load");
   char buf[32 << 10];
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
