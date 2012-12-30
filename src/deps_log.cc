@@ -63,11 +63,11 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   fwrite(&size, 2, 1, file_);
   int id = node->id();
   fwrite(&id, 4, 1, file_);
-  int timestamp = node->mtime();
+  int timestamp = mtime;
   fwrite(&timestamp, 4, 1, file_);
   for (vector<Node*>::const_iterator i = nodes.begin();
        i != nodes.end(); ++i) {
-    id = node->id();
+    id = (*i)->id();
     fwrite(&id, 4, 1, file_);
   }
 
@@ -89,7 +89,6 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     return false;
   }
 
-  int id = 0;
   for (;;) {
     uint16_t size;
     if (fread(&size, 2, 1, f) < 1)
@@ -127,8 +126,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       StringPiece path(buf, size);
       Node* node = state->GetNode(path);
       assert(node->id() < 0);
-      node->set_id(id);
-      ++id;
+      node->set_id(nodes_.size());
+      nodes_.push_back(node);
     }
   }
   if (ferror(f)) {
