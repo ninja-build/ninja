@@ -77,12 +77,17 @@ struct DepsLog {
   bool Load(const string& path, State* state, string* err);
   Deps* GetDeps(Node* node);
 
+  /// Used for tests.
+  const vector<Node*>& nodes() const { return nodes_; }
+
  private:
   // Write a node name record, assigning it an id.
   bool RecordId(Node* node);
 
   FILE* file_;
+  /// Maps id -> Node.
   vector<Node*> nodes_;
+  /// Maps id -> deps of that id.
   vector<Deps*> deps_;
 
   friend struct DepsLogTest;
