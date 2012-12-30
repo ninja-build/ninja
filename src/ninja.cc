@@ -641,20 +641,13 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
-bool OpenLog(BuildLog* build_log, Globals* globals,
-             DiskInterface* disk_interface) {
-  const string build_dir =
-      globals->state->bindings_.LookupVariable("builddir");
-  const char* kLogPath = ".ninja_log";
-  string log_path = kLogPath;
-  if (!build_dir.empty()) {
-    log_path = build_dir + "/" + kLogPath;
-    if (!disk_interface->MakeDirs(log_path) && errno != EEXIST) {
-      Error("creating build directory %s: %s",
-            build_dir.c_str(), strerror(errno));
-      return false;
-    }
-  }
+/// Open the build log.
+/// @return false on error.
+bool OpenBuildLog(BuildLog* build_log, const string& build_dir,
+                  Globals* globals, DiskInterface* disk_interface) {
+  string log_path = ".ninja_log";
+  if (!build_dir.empty())
+    log_path = build_dir + "/" + log_path;
 
   string err;
   if (!build_log->Load(log_path, &err)) {
@@ -872,9 +865,21 @@ reload:
   if (tool && tool->when == Tool::RUN_AFTER_LOAD)
     return tool->func(&globals, argc, argv);
 
-  BuildLog build_log;
   RealDiskInterface disk_interface;
-  if (!OpenLog(&build_log, &globals, &disk_interface))
+
+  // Create the build dir if it doesn't exist.
+  const string build_dir = globals.state->bindings_.LookupVariable("builddir");
+  if (!build_dir.empty() && !config.dry_run) {
+    if (!disk_interface.MakeDirs(build_dir + "/.") &&
+        errno != EEXIST) {
+      Error("creating build directory %s: %s",
+            build_dir.c_str(), strerror(errno));
+      return 1;
+    }
+  }
+
+  BuildLog build_log;
+  if (!OpenBuildLog(&build_log, build_dir, &globals, &disk_interface))
     return 1;
 
   if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
