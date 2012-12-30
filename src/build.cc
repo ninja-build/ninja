@@ -604,9 +604,10 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 }
 
 Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* log, DiskInterface* disk_interface)
+                 BuildLog* build_log, DepsLog* deps_log,
+                 DiskInterface* disk_interface)
     : state_(state), config_(config), disk_interface_(disk_interface),
-      scan_(state, log, disk_interface) {
+      scan_(state, build_log, deps_log, disk_interface) {
   status_ = new BuildStatus(config);
 }
 

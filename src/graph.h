@@ -188,8 +188,9 @@ struct Edge {
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
 struct ImplicitDepLoader {
-  explicit ImplicitDepLoader(State* state, DiskInterface* disk_interface)
-      : state_(state), disk_interface_(disk_interface) {}
+  ImplicitDepLoader(State* state, DepsLog* deps_log,
+                    DiskInterface* disk_interface)
+      : state_(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
 
   bool LoadDepFile(Edge* edge, const string& path, string* err);
   bool LoadDepsFromLog(Edge* edge, string* err);
@@ -213,11 +214,11 @@ struct ImplicitDepLoader {
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
 struct DependencyScan {
-  DependencyScan(State* state, BuildLog* build_log,
+  DependencyScan(State* state, BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface)
       : build_log_(build_log),
         disk_interface_(disk_interface),
-        dep_loader_(state, disk_interface) {}
+        dep_loader_(state, deps_log, disk_interface) {}
 
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|

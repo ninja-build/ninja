@@ -394,7 +394,7 @@ struct FakeCommandRunner : public CommandRunner {
 
 struct BuildTest : public StateTestWithBuiltinRules {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
-                builder_(&state_, config_, NULL, &fs_),
+                builder_(&state_, config_, NULL, NULL, &fs_),
                 status_(config_) {
     builder_.command_runner_.reset(&command_runner_);
     AssertParse(&state_,

@@ -140,7 +140,8 @@ struct BuildConfig {
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config,
-          BuildLog* log, DiskInterface* disk_interface);
+          BuildLog* build_log, DepsLog* deps_log,
+          DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
