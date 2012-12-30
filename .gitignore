@@ -2,6 +2,7 @@
 *.exe
 *.pdb
 *.ilk
+*.swp
 TAGS
 /build
 /build.ninja

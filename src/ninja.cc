@@ -151,6 +151,7 @@ bool RebuildManifest(Builder* builder, const char* input_file, string* err) {
   string path = input_file;
   if (!CanonicalizePath(&path, err))
     return false;
+
   Node* node = builder->state_->LookupNode(path);
   if (!node)
     return false;
@@ -808,7 +809,7 @@ int NinjaMain(int argc, char** argv) {
     }
   }
 
-  bool rebuilt_manifest = false;
+  unsigned int rebuilt_manifest = 10;
 
 reload:
   RealFileReader file_reader;
@@ -827,12 +828,12 @@ reload:
   if (!OpenLog(&build_log, &globals, &disk_interface))
     return 1;
 
-  if (!rebuilt_manifest) { // Don't get caught in an infinite loop by a rebuild
+  if (rebuilt_manifest > 0) { // Don't get caught in an infinite loop by a rebuild
                            // target that is never up to date.
     Builder manifest_builder(globals.state, config, &build_log,
                              &disk_interface);
     if (RebuildManifest(&manifest_builder, input_file, &err)) {
-      rebuilt_manifest = true;
+      rebuilt_manifest -= 1;
       globals.ResetState();
       goto reload;
     } else if (!err.empty()) {

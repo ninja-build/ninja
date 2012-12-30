@@ -615,12 +615,17 @@ TEST_F(ParserTest, SubNinja) {
   // Verify our builddir setting is inherited.
   EXPECT_TRUE(state.LookupNode("some_dir/inner"));
 
-  ASSERT_EQ(3u, state.edges_.size());
+  ASSERT_EQ(4u, state.edges_.size());
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
-  EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
-  EXPECT_EQ("varref outer", state.edges_[2]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[2]->EvaluateCommand());
+  EXPECT_EQ("varref outer", state.edges_[3]->EvaluateCommand());
 }
 
+#if 0
+/*
+ * Since the subninja/included files now can be created when
+ * running ninja, it is no longer a syntactic error.
+*/
 TEST_F(ParserTest, MissingSubNinja) {
   ManifestParser parser(&state, this);
   string err;
@@ -630,6 +635,7 @@ TEST_F(ParserTest, MissingSubNinja) {
             "                  ^ near here"
             , err);
 }
+#endif
 
 TEST_F(ParserTest, Include) {
   files_["include.ninja"] = "var = inner\n";
