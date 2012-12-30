@@ -335,21 +335,28 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
   string contents;
   string read_err;
-  if (!file_reader_->ReadFile(path, &contents, &read_err))
-    return lexer_.Error("loading '" + path + "': " + read_err, err);
+  if (file_reader_->ReadFile(path, &contents, &read_err)) {
+    ManifestParser subparser(state_, file_reader_);
+    if (new_scope) {
+      subparser.env_ = new BindingEnv(env_);
+    } else {
+      subparser.env_ = env_;
+    }
 
-  ManifestParser subparser(state_, file_reader_);
-  if (new_scope) {
-    subparser.env_ = new BindingEnv(env_);
+    if (!subparser.Parse(path, contents, err))
+      return false;
+
+    if (!ExpectToken(Lexer::NEWLINE, err))
+      return false;
+
   } else {
-    subparser.env_ = env_;
+    if ( read_err == "No such file or directory" ) {
+      // Not an error anymore. The file might be created later.
+      return true;
+    }
+
+    return lexer_.Error("loading '" + path + "': " + read_err, err);
   }
-
-  if (!subparser.Parse(path, contents, err))
-    return false;
-
-  if (!ExpectToken(Lexer::NEWLINE, err))
-    return false;
 
   return true;
 }
