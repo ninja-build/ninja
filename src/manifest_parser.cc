@@ -373,7 +373,13 @@ bool ManifestParser::ParseFileInclude(bool new_scope, const string& parent_filen
       return false;
 
     Edge* edge = parent_node->in_edge();
-    state_->AddIn(edge, include_path); // FIXME fix depedency type. It should be an "implicit deps"
+    state_->AddIn(edge, include_path);
+
+    // move GetNode(include_path) to the "implicit deps" position in the vector edge->inputs_ position
+    Node* include_node = edge->inputs_.back();
+    edge->inputs_.pop_back();
+    edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_, include_node);
+    edge->implicit_deps_ += 1;
   }
 
   string contents;
