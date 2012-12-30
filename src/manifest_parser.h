@@ -57,7 +57,7 @@ private:
   bool ParseDefault(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(bool new_scope, string* err);
+  bool ParseFileInclude(bool new_scope, const string& parent_filename, string* err);
 
   /// If the next token is not \a expected, produce an error string
   /// saying "expectd foo, got bar".

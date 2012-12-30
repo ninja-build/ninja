@@ -73,11 +73,11 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       break;
     }
     case Lexer::INCLUDE:
-      if (!ParseFileInclude(false, err))
+      if (!ParseFileInclude(false, filename, err))
         return false;
       break;
     case Lexer::SUBNINJA:
-      if (!ParseFileInclude(true, err))
+      if (!ParseFileInclude(true, filename, err))
         return false;
       break;
     case Lexer::ERROR: {
@@ -326,12 +326,55 @@ bool ManifestParser::ParseEdge(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
+bool ManifestParser::ParseFileInclude(bool new_scope, const string& parent_filename, string* err) {
   // XXX this should use ReadPath!
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
   string path = eval.Evaluate(env_);
+
+  // add included file dependency to parent .ninja file
+  {
+    //
+    string parent_path = parent_filename;
+    if (!CanonicalizePath(&parent_path, err))
+      return false;
+
+    Node* parent_node = state_->LookupNode(parent_path);
+    if (parent_node == NULL)
+    {
+      const Rule* rule = state_->LookupRule("phony");
+
+      Edge* edge = state_->AddEdge(rule);
+      edge->env_ = new BindingEnv(env_);
+
+      state_->AddOut(edge, parent_path);
+
+      parent_node = state_->LookupNode(parent_path);
+      if (parent_node == NULL)
+      {
+        return false;
+      }
+    }
+
+    if (parent_node->in_edge() == NULL)
+    {
+      const Rule* rule = state_->LookupRule("phony");
+
+      Edge* edge = state_->AddEdge(rule);
+      edge->env_ = new BindingEnv(env_);
+
+      state_->AddOut(edge, parent_path);
+    }
+
+    //
+    string include_path = path;
+    if (!CanonicalizePath(&include_path, err))
+      return false;
+
+    Edge* edge = parent_node->in_edge();
+    state_->AddIn(edge, include_path); // FIXME fix depedency type. It should be an "implicit deps"
+  }
 
   string contents;
   string read_err;
