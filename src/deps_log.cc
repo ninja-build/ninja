@@ -83,6 +83,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   char buf[32 << 10];
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
+    if (errno == ENOENT)
+      return true;
     *err = strerror(errno);
     return false;
   }
