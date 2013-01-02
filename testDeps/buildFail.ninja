@@ -1,0 +1,24 @@
+rule cc
+  command=gcc -c -o$out $in
+  description=cc $out : $in
+
+rule link
+  command=gcc -o$out $in -Wl,-Bstatic $libs -Wl,-Bdynamic
+  description=link $out : $in
+
+rule ar
+  command=ar rc $out $in
+  description=ar $out : $in
+
+build bin/core.o: cc src/core.c
+build bin/libcore.a: ar bin/core.o
+
+build bin/main.o: cc src/main.c
+build bin/main: link bin/main.o | bin/libcore.a
+ libs=-L./bin -lcore
+
+build deps: phony bin/libcore.a
+build bin/test.o: cc src/test.c
+build bin/test: link bin/test.o | deps
+#build bin/test: link bin/test.o | bin/libcore.a
+ libs=-L./bin -lcore
