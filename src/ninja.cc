@@ -117,7 +117,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
-"  --smart [on/off/on-with-newline]  Force-enable/disable the smart terminal. on-with-newline adds \\n and a move-up character\n"
+"  --smart-terminal [on/off/on-with-newline]  Force-enable/disable the smart terminal. on-with-newline adds \\n and a move-up character\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -736,7 +736,7 @@ int NinjaMain(int argc, char** argv) {
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
-    { "smart", optional_argument, NULL, OPT_SMART_TERMINAL },
+    { "smart-terminal", optional_argument, NULL, OPT_SMART_TERMINAL },
     { NULL, 0, NULL, 0 }
   };
 
