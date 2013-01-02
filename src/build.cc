@@ -85,6 +85,15 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  smart_terminal_with_newline_ = false;
+  if (config.smart_terminal == 1)
+    smart_terminal_ = true;
+  else if (config.smart_terminal == 2) {
+    smart_terminal_ = true;
+    smart_terminal_with_newline_ = true;
+  }
+  else if (config.smart_terminal == -1)
+    smart_terminal_ = false;
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
@@ -280,6 +289,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   }
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
+  size_t width = 0;
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
     // Limit output to width of the terminal if provided so we don't cause
@@ -288,17 +298,24 @@ void BuildStatus::PrintStatus(Edge* edge) {
     if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       to_print = ElideMiddle(to_print, size.ws_col);
     }
+    width = (size_t)size.ws_col;
 #else
     // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
+    width = static_cast<size_t>(csbi.dwSize.X) - 1;
     to_print = ElideMiddle(to_print, width);
 #endif
   }
 
   if (smart_terminal_ && !force_full_command) {
 #ifndef _WIN32
+    to_print = ConvertEscapeCodes(to_print);
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
+    if (smart_terminal_with_newline_) {
+      printf("\n\x1B[1A");  // Print newline & move carat up
+      if (to_print.length() == width)
+         printf("\x1B[1A");
+    }
     fflush(stdout);
     have_blank_line_ = false;
 #else
