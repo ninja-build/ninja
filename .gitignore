@@ -20,3 +20,5 @@ TAGS
 .project
 .cproject
 
+.settings/
+

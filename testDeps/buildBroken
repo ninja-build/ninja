@@ -1,0 +1,8 @@
+touch src/core.c
+echo "ninja -f buildFail.ninja bin/main"
+ninja -f buildFail.ninja bin/main
+
+echo "ninja -f buildFail.ninja bin/test"
+ninja -f buildFail.ninja bin/test
+
+echo "^^^ This does not build anything for bin/test"

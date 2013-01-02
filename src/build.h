@@ -111,7 +111,7 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
+  BuildConfig() : verbosity(NORMAL), dry_run(false), smart_terminal(0), parallelism(1),
                   failures_allowed(1), max_load_average(-0.0f) {}
 
   enum Verbosity {
@@ -121,6 +121,7 @@ struct BuildConfig {
   };
   Verbosity verbosity;
   bool dry_run;
+  int smart_terminal;   // 0 = auto, 1 = on, -1 = off
   int parallelism;
   int failures_allowed;
   /// The maximum load average we must not exceed. A negative value
@@ -206,6 +207,8 @@ struct BuildStatus {
 
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
+  // Print \n followed by a move-up character. Allows smart terminal output to work with tools like sed
+  bool smart_terminal_with_newline_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;

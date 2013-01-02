@@ -1,0 +1,8 @@
+touch src/core.c
+echo "ninja -f build.ninja bin/main"
+ninja -f build.ninja bin/main
+
+echo "ninja -f build.ninja bin/test"
+ninja -f build.ninja bin/test
+
+echo "^^^ This builds bin/test correctly"

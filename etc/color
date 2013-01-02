@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Default : colourise paths & filenames on stdin
+# With argument : colourise the argument on stdin
+# Example usage : ninja | colorpath
+
+# For bold colors, add this to your .bashrc :
+#   export COLOR_DIR="\x1b[1;34m"
+#   export COLOR_FILE="\x1b[1;31m"
+
+if [[ "$COLOR_FILE" == "" ]]; then
+	COLOR_FILE="\x1b[1;31m"
+fi
+if [[ "$COLOR_DIR" == "" ]]; then
+	COLOR_DIR=$(echo $LS_COLORS | tr ':' '\n' | grep ^di= | cut -c4-)
+	if [[ "$COLOR_DIR" == "" ]]; then
+		COLOR_DIR="0;34"
+	fi
+	COLOR_DIR="\x1b[${COLOR_DIR}m"
+fi
+
+FILTER="$@"
+if [[ "$FILTER" == "" ]]; then
+	replacePattern="s,\([^+ ][A-Za-z/][-A-Za-z0-9/\._]*/\)\([^ :]*.[ :]\),${COLOR_DIR}\1\x1b[m${COLOR_FILE}\2\x1b[m,g"
+	sed -e 's,^, ,' -e 's,$, ,' -e "$replacePattern" -e 's,^ ,,' -e 's, $,,'
+else
+	EFILTER=$(echo "$FILTER" | sed -e 's/,/\\,/g')
+	 # | sed -e 's,\[,\\[,g' -e 's,\],\\],g')
+	#echo "EFILTER $EFILTER"
+	sed -e "s,\($EFILTER\),\x1b[1;31m\1\x1b[m,g"
+fi
+

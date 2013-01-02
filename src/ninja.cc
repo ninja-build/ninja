@@ -106,7 +106,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version  print ninja version (\"%s\")\n"
 "\n"
-"  -C DIR   change to DIR before doing anything else\n"
+"  -C DIR   change to DIR before doing anything else. Use -q to supress directory change notification.\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d]\n"
@@ -117,6 +117,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  --smart [on/off/on-with-newline]  Force-enable/disable the smart terminal. on-with-newline adds \\n and a move-up character\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -591,12 +592,30 @@ bool DebugEnable(const string& name, Globals* globals) {
   }
 }
 
+bool SetWorkingDirFromLog(Globals* globals) {
+  const string working_dir =
+      globals->state->bindings_.LookupVariable("workingdir");
+
+  if (!working_dir.empty()) {
+    if (chdir(working_dir.c_str()) < 0) {
+      Fatal("chdir to '%s' - %s", working_dir.c_str(), strerror(errno));
+    }
+    return true;
+  }
+  return false;
+}
+
 bool OpenLog(BuildLog* build_log, Globals* globals,
              DiskInterface* disk_interface) {
   const string build_dir =
       globals->state->bindings_.LookupVariable("builddir");
+  const string working_dir =
+      globals->state->bindings_.LookupVariable("workingdir");
   const char* kLogPath = ".ninja_log";
   string log_path = kLogPath;
+
+  SetWorkingDirFromLog(globals);
+
   if (!build_dir.empty()) {
     log_path = build_dir + "/" + kLogPath;
     if (!disk_interface->MakeDirs(log_path) && errno != EEXIST) {
@@ -712,21 +731,23 @@ int NinjaMain(int argc, char** argv) {
   const char* input_file = "build.ninja";
   const char* working_dir = NULL;
   string tool_name;
+  bool printChdir = true;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
   config.parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_SMART_TERMINAL = 2, };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
+    { "smart", optional_argument, NULL, OPT_SMART_TERMINAL },
     { NULL, 0, NULL, 0 }
   };
 
   int opt;
   while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:hq", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -771,9 +792,22 @@ int NinjaMain(int argc, char** argv) {
       case 'C':
         working_dir = optarg;
         break;
+      case 'q':
+        printChdir = false;
+        break;
       case OPT_VERSION:
         printf("%s\n", kVersion);
         return 0;
+      case OPT_SMART_TERMINAL:
+        if (strcmp(optarg, "on") == 0)
+          config.smart_terminal = 1;
+        else if (strcmp(optarg, "off") == 0)
+          config.smart_terminal = -1;
+        else if (strcmp(optarg, "on-with-newline") == 0)
+          config.smart_terminal = 2;
+        else
+          config.smart_terminal = 0;
+        break;
       case 'h':
       default:
         Usage(config);
@@ -801,7 +835,7 @@ int NinjaMain(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!tool)
+    if (!tool && printChdir)
       printf("ninja: Entering directory `%s'\n", working_dir);
     if (chdir(working_dir) < 0) {
       Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
@@ -820,7 +854,10 @@ reload:
   }
 
   if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+  {
+    SetWorkingDirFromLog(&globals);
     return tool->func(&globals, argc, argv);
+  }
 
   BuildLog build_log;
   RealDiskInterface disk_interface;
