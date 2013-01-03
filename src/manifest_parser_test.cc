@@ -295,7 +295,8 @@ TEST_F(ParserTest, ReservedWords) {
 
 TEST_F(ParserTest, Errors) {
   {
-    ManifestParser parser(NULL, NULL);
+    State state;
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
@@ -305,7 +306,8 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    ManifestParser parser(NULL, NULL);
+    State state;
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x 3", &err));
     EXPECT_EQ("input:1: expected '=', got identifier\n"
@@ -315,7 +317,8 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    ManifestParser parser(NULL, NULL);
+    State state;
+    ManifestParser parser(&state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = 3", &err));
     EXPECT_EQ("input:1: unexpected EOF\n"
