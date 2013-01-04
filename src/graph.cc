@@ -53,22 +53,19 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "pool" ||
       var == "restat" ||
       var == "rspfile" ||
-      var == "rspfile_content";
+      var == "rspfile_content" ||
+      var == "special";
 }
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
 
-  string depfile = edge->GetBinding("depfile");
-  if (!depfile.empty()) {
-    if (!dep_loader_.LoadDepFile(edge, depfile, err)) {
-      if (!err->empty())
-        return false;
-      EXPLAIN("Edge targets are dirty because depfile '%s' is missing",
-              depfile.c_str());
-      dirty = true;
-    }
+  if (!dep_loader_.LoadDeps(edge, err)) {
+    if (!err->empty())
+      return false;
+    // Failed to load dependency info: rebuild to regenerate it.
+    dirty = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -323,6 +320,33 @@ void Node::Dump(const char* prefix) const {
        e != out_edges().end() && *e != NULL; ++e) {
     (*e)->Dump(" +- ");
   }
+}
+
+bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
+  string special = edge->GetBinding("special");
+  if (!special.empty() && special == "gcc") {
+    if (!LoadDepsFromLog(edge, err)) {
+      if (!err->empty())
+        return false;
+      EXPLAIN("deps for %s are missing", edge->outputs_[0]->path().c_str());
+      return false;
+    }
+    return true;
+  }
+
+  string depfile = edge->GetBinding("depfile");
+  if (!depfile.empty()) {
+    if (!LoadDepFile(edge, depfile, err)) {
+      if (!err->empty())
+        return false;
+      EXPLAIN("depfile '%s' is missing", depfile.c_str());
+      return false;
+    }
+    return true;
+  }
+
+  // No deps to load.
+  return true;
 }
 
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,

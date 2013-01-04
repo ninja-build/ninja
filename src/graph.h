@@ -192,10 +192,19 @@ struct ImplicitDepLoader {
                     DiskInterface* disk_interface)
       : state_(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
 
-  bool LoadDepFile(Edge* edge, const string& path, string* err);
-  bool LoadDepsFromLog(Edge* edge, string* err);
+  /// Load implicit dependencies for \a edge.
+  /// @return false on error (without filling \a err if info is just missing).
+  bool LoadDeps(Edge* edge, string* err);
 
  private:
+  /// Load implicit dependencies for \a edge from a depfile attribute.
+  /// @return false on error (without filling \a err if info is just missing).
+  bool LoadDepFile(Edge* edge, const string& path, string* err);
+
+  /// Load implicit dependencies for \a edge from the DepsLog.
+  /// @return false on error (without filling \a err if info is just missing).
+  bool LoadDepsFromLog(Edge* edge, string* err);
+
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
   vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
