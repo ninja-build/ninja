@@ -59,7 +59,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
       RecordId(*i);
   }
 
-  uint16_t size = 4 * (1 + 1 + nodes.size());
+  uint16_t size = 4 * (1 + 1 + (uint16_t)nodes.size());
   size |= 0x8000;  // Deps record: set high bit.
   fwrite(&size, 2, 1, file_);
   int id = node->id();
@@ -147,7 +147,7 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
 }
 
 bool DepsLog::RecordId(Node* node) {
-  uint16_t size = node->path().size();
+  uint16_t size = (uint16_t)node->path().size();
   fwrite(&size, 2, 1, file_);
   fwrite(node->path().data(), node->path().size(), 1, file_);
 
