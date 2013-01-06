@@ -175,6 +175,9 @@ struct Builder {
   BuildStatus* status_;
 
  private:
+  bool ExtractDeps(CommandRunner::Result* result, vector<Node*>* deps_nodes,
+                   string* err);
+
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 

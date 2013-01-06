@@ -15,6 +15,7 @@
 #include "build.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
@@ -32,6 +33,7 @@
 #endif
 
 #include "build_log.h"
+#include "depfile_parser.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "state.h"
@@ -723,6 +725,18 @@ bool Builder::Build(string* err) {
       }
 
       bool success = (result.status == ExitSuccess);
+
+      if (success) {
+        vector<Node*> deps_nodes;
+        string extract_err;
+        if (!ExtractDeps(&result, &deps_nodes, &extract_err)) {
+          if (!result.output.empty())
+            result.output.append("\n");
+          result.output.append(extract_err);
+          success = false;
+        }
+      }
+
       --pending_commands;
       FinishEdge(result.edge, success, result.output);
       if (!success) {
@@ -846,3 +860,39 @@ void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
     scan_.build_log()->RecordCommand(edge, start_time, end_time, restat_mtime);
 }
 
+bool Builder::ExtractDeps(CommandRunner::Result* result,
+                          vector<Node*>* deps_nodes,
+                          string* err) {
+#ifdef _WIN32
+#else
+  string depfile = result->edge->GetBinding("depfile");
+  if (depfile.empty())
+    return true;  // No dependencies to load.
+
+  string content = disk_interface_->ReadFile(depfile, err);
+  if (!err->empty())
+    return false;
+
+  DepfileParser deps;
+  if (!deps.Parse(&content, err))
+    return false;
+
+  // XXX check depfile matches expected output.
+  deps_nodes->reserve(deps.ins_.size());
+  for (vector<StringPiece>::iterator i = deps.ins_.begin();
+       i != deps.ins_.end(); ++i) {
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+      return false;
+    deps_nodes->push_back(state_->GetNode(*i));
+  }
+
+  /* TODO: unlink the file via diskinterface.
+  if (unlink(depfile.c_str()) < 0) {
+    *err = string("unlink: ")) + strerror(errno);
+    return false;
+  }
+  */
+#endif
+
+  return deps_nodes;
+}
