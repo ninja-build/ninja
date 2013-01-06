@@ -143,9 +143,7 @@ Done!
 
 Note: to work around Windows file locking, where you can't rebuild an
 in-use binary, to run ninja after making any changes to build ninja itself
-you should run ninja.bootstrap instead.  Your build is also configured to
-use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
-the --help output of configure.py.""")
+you should run ninja.bootstrap instead.""")
 else:
     print('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)
