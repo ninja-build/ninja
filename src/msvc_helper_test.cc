@@ -19,58 +19,86 @@
 #include "test.h"
 #include "util.h"
 
-TEST(MSVCHelperTest, ShowIncludes) {
-  ASSERT_EQ("", CLWrapper::FilterShowIncludes(""));
+TEST(CLParserTest, ShowIncludes) {
+  ASSERT_EQ("", CLParser::FilterShowIncludes(""));
 
-  ASSERT_EQ("", CLWrapper::FilterShowIncludes("Sample compiler output"));
+  ASSERT_EQ("", CLParser::FilterShowIncludes("Sample compiler output"));
   ASSERT_EQ("c:\\Some Files\\foobar.h",
-            CLWrapper::FilterShowIncludes("Note: including file: "
-                                          "c:\\Some Files\\foobar.h"));
+            CLParser::FilterShowIncludes("Note: including file: "
+                                         "c:\\Some Files\\foobar.h"));
   ASSERT_EQ("c:\\initspaces.h",
-            CLWrapper::FilterShowIncludes("Note: including file:    "
-                                          "c:\\initspaces.h"));
+            CLParser::FilterShowIncludes("Note: including file:    "
+                                         "c:\\initspaces.h"));
 }
 
-TEST(MSVCHelperTest, FilterInputFilename) {
-  ASSERT_TRUE(CLWrapper::FilterInputFilename("foobar.cc"));
-  ASSERT_TRUE(CLWrapper::FilterInputFilename("foo bar.cc"));
-  ASSERT_TRUE(CLWrapper::FilterInputFilename("baz.c"));
+TEST(CLParserTest, FilterInputFilename) {
+  ASSERT_TRUE(CLParser::FilterInputFilename("foobar.cc"));
+  ASSERT_TRUE(CLParser::FilterInputFilename("foo bar.cc"));
+  ASSERT_TRUE(CLParser::FilterInputFilename("baz.c"));
 
-  ASSERT_FALSE(CLWrapper::FilterInputFilename(
+  ASSERT_FALSE(CLParser::FilterInputFilename(
                    "src\\cl_helper.cc(166) : fatal error C1075: end "
                    "of file found ..."));
 }
 
-TEST(MSVCHelperTest, Run) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo foo&& echo Note: including file:  foo.h&&echo bar\"",
-         &output);
+TEST(CLParserTest, ParseSimple) {
+  CLParser parser;
+  string output = parser.Parse(
+      "foo\r\n"
+      "Note: including file:  foo.h\r\n"
+      "bar\r\n");
+
   ASSERT_EQ("foo\nbar\n", output);
-  ASSERT_EQ(1u, cl.includes_.size());
-  ASSERT_EQ("foo.h", *cl.includes_.begin());
+  ASSERT_EQ(1u, parser.includes_.size());
+  ASSERT_EQ("foo.h", *parser.includes_.begin());
 }
 
-TEST(MSVCHelperTest, RunFilenameFilter) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo foo.cc&& echo cl: warning\"",
-         &output);
+TEST(CLParserTest, ParseFilenameFilter) {
+  CLParser parser;
+  string output = parser.Parse(
+      "foo.cc\r\n"
+      "cl: warning\r\n");
   ASSERT_EQ("cl: warning\n", output);
 }
 
-TEST(MSVCHelperTest, RunSystemInclude) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo Note: including file: c:\\Program Files\\foo.h&&"
-         "echo Note: including file: d:\\Microsoft Visual Studio\\bar.h&&"
-         "echo Note: including file: path.h\"",
-         &output);
+TEST(CLParserTest, ParseSystemInclude) {
+  CLParser parser;
+  string output = parser.Parse(
+      "Note: including file: c:\\Program Files\\foo.h\r\n"
+      "Note: including file: d:\\Microsoft Visual Studio\\bar.h\r\n"
+      "Note: including file: path.h\r\n");
   // We should have dropped the first two includes because they look like
   // system headers.
   ASSERT_EQ("", output);
-  ASSERT_EQ(1u, cl.includes_.size());
-  ASSERT_EQ("path.h", *cl.includes_.begin());
+  ASSERT_EQ(1u, parser.includes_.size());
+  ASSERT_EQ("path.h", *parser.includes_.begin());
+}
+
+TEST(CLParserTest, DuplicatedHeader) {
+  CLParser parser;
+  string output = parser.Parse(
+      "Note: including file: foo.h\r\n"
+      "Note: including file: bar.h\r\n"
+      "Note: including file: foo.h\r\n");
+  // We should have dropped one copy of foo.h.
+  ASSERT_EQ("", output);
+  ASSERT_EQ(2u, parser.includes_.size());
+}
+
+TEST(CLParserTest, DuplicatedHeaderPathConverted) {
+  CLParser parser;
+  string output = parser.Parse(
+      "Note: including file: sub/foo.h\r\n"
+      "Note: including file: bar.h\r\n"
+      "Note: including file: sub\\foo.h\r\n");
+  // We should have dropped one copy of foo.h.
+  ASSERT_EQ("", output);
+  ASSERT_EQ(2u, parser.includes_.size());
+}
+
+TEST(CLParserTest, SpacesInFilename) {
+  ASSERT_EQ("sub\\some\\ sdk\\foo.h",
+            EscapeForDepfile("sub\\some sdk\\foo.h"));
 }
 
 TEST(MSVCHelperTest, EnvBlock) {
@@ -79,40 +107,5 @@ TEST(MSVCHelperTest, EnvBlock) {
   cl.SetEnvBlock(env_block);
   string output;
   cl.Run("cmd /c \"echo foo is %foo%", &output);
-  ASSERT_EQ("foo is bar\n", output);
-}
-
-TEST(MSVCHelperTest, DuplicatedHeader) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo Note: including file: foo.h&&"
-         "echo Note: including file: bar.h&&"
-         "echo Note: including file: foo.h\"",
-         &output);
-  // We should have dropped one copy of foo.h.
-  ASSERT_EQ("", output);
-  ASSERT_EQ(2u, cl.includes_.size());
-}
-
-TEST(MSVCHelperTest, DuplicatedHeaderPathConverted) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo Note: including file: sub/foo.h&&"
-         "echo Note: including file: bar.h&&"
-         "echo Note: including file: sub\\foo.h\"",
-         &output);
-  // We should have dropped one copy of foo.h.
-  ASSERT_EQ("", output);
-  ASSERT_EQ(2u, cl.includes_.size());
-}
-
-TEST(MSVCHelperTest, SpacesInFilename) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo Note: including file: sub\\some sdk\\foo.h",
-         &output);
-  ASSERT_EQ("", output);
-  vector<string> headers = cl.GetEscapedResult();
-  ASSERT_EQ(1u, headers.size());
-  ASSERT_EQ("sub\\some\\ sdk\\foo.h", headers[0]);
+  ASSERT_EQ("foo is bar\r\n", output);
 }
