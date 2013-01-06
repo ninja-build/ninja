@@ -324,7 +324,7 @@ void Node::Dump(const char* prefix) const {
 
 bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   string special = edge->GetBinding("special");
-  if (!special.empty() && special == "gcc") {
+  if (!special.empty()) {
     if (!LoadDepsFromLog(edge, err)) {
       if (!err->empty())
         return false;
