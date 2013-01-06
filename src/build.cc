@@ -726,8 +726,8 @@ bool Builder::Build(string* err) {
       bool success = (result.status == ExitSuccess);
 
       vector<Node*> deps_nodes;
-      if (success)
-        success = ExtractDeps(&result, &deps_nodes);
+      if (!ExtractDeps(&result, &deps_nodes))
+        success = false;
 
       --pending_commands;
       FinishEdge(result.edge, success, result.output);
