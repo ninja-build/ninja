@@ -39,15 +39,15 @@ string Replace(const string& input, const string& find, const string& replace) {
   return result;
 }
 
+}  // anonymous namespace
+
 string EscapeForDepfile(const string& path) {
   // Depfiles don't escape single \.
   return Replace(path, " ", "\\ ");
 }
 
-}  // anonymous namespace
-
 // static
-string CLWrapper::FilterShowIncludes(const string& line) {
+string CLParser::FilterShowIncludes(const string& line) {
   static const char kMagicPrefix[] = "Note: including file: ";
   const char* in = line.c_str();
   const char* end = in + line.size();
@@ -63,14 +63,14 @@ string CLWrapper::FilterShowIncludes(const string& line) {
 }
 
 // static
-bool CLWrapper::IsSystemInclude(const string& path) {
+bool CLParser::IsSystemInclude(const string& path) {
   // TODO: this is a heuristic, perhaps there's a better way?
   return (path.find("program files") != string::npos ||
           path.find("microsoft visual studio") != string::npos);
 }
 
 // static
-bool CLWrapper::FilterInputFilename(const string& line) {
+bool CLParser::FilterInputFilename(const string& line) {
   // TODO: other extensions, like .asm?
   return EndsWith(line, ".c") ||
       EndsWith(line, ".cc") ||
@@ -78,7 +78,42 @@ bool CLWrapper::FilterInputFilename(const string& line) {
       EndsWith(line, ".cpp");
 }
 
-int CLWrapper::Run(const string& command, string* extra_output) {
+string CLParser::Parse(const string& output) {
+  string filtered_output;
+
+  // Loop over all lines in the output to process them.
+  size_t start = 0;
+  while (start < output.size()) {
+    size_t end = output.find_first_of("\r\n", start);
+    if (end == string::npos)
+      end = output.size();
+    string line = output.substr(start, end - start);
+
+    string include = FilterShowIncludes(line);
+    if (!include.empty()) {
+      include = IncludesNormalize::Normalize(include, NULL);
+      if (!IsSystemInclude(include))
+        includes_.insert(include);
+    } else if (FilterInputFilename(line)) {
+      // Drop it.
+      // TODO: if we support compiling multiple output files in a single
+      // cl.exe invocation, we should stash the filename.
+    } else {
+      filtered_output.append(line);
+      filtered_output.append("\n");
+    }
+
+    if (end < output.size() && output[end] == '\r')
+      ++end;
+    if (end < output.size() && output[end] == '\n')
+      ++end;
+    start = end;
+  }
+
+  return filtered_output;
+}
+
+int CLWrapper::Run(const string& command, string* output) {
   SECURITY_ATTRIBUTES security_attributes = {};
   security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
   security_attributes.bInheritHandle = TRUE;
@@ -118,8 +153,7 @@ int CLWrapper::Run(const string& command, string* extra_output) {
     Win32Fatal("CloseHandle");
   }
 
-  // Read output of the subprocess and parse it.
-  string output;
+  // Read all output of the subprocess.
   DWORD read_len = 1;
   while (read_len) {
     char buf[64 << 10];
@@ -128,44 +162,12 @@ int CLWrapper::Run(const string& command, string* extra_output) {
         GetLastError() != ERROR_BROKEN_PIPE) {
       Win32Fatal("ReadFile");
     }
-    output.append(buf, read_len);
-
-    // Loop over all lines in the output and process them.
-    for (;;) {
-      size_t ofs = output.find_first_of("\r\n");
-      if (ofs == string::npos)
-        break;
-      string line = output.substr(0, ofs);
-
-      string include = FilterShowIncludes(line);
-      if (!include.empty()) {
-        include = IncludesNormalize::Normalize(include, NULL);
-        if (!IsSystemInclude(include))
-          includes_.insert(include);
-      } else if (FilterInputFilename(line)) {
-        // Drop it.
-        // TODO: if we support compiling multiple output files in a single
-        // cl.exe invocation, we should stash the filename.
-      } else {
-        if (extra_output) {
-          extra_output->append(line);
-          extra_output->append("\n");
-        } else {
-          printf("%s\n", line.c_str());
-        }
-      }
-
-      if (ofs < output.size() && output[ofs] == '\r')
-        ++ofs;
-      if (ofs < output.size() && output[ofs] == '\n')
-        ++ofs;
-      output = output.substr(ofs);
-    }
+    output->append(buf, read_len);
   }
 
+  // Wait for it to exit and grab its exit code.
   if (WaitForSingleObject(process_info.hProcess, INFINITE) == WAIT_FAILED)
     Win32Fatal("WaitForSingleObject");
-
   DWORD exit_code = 0;
   if (!GetExitCodeProcess(process_info.hProcess, &exit_code))
     Win32Fatal("GetExitCodeProcess");
@@ -177,12 +179,4 @@ int CLWrapper::Run(const string& command, string* extra_output) {
   }
 
   return exit_code;
-}
-
-vector<string> CLWrapper::GetEscapedResult() {
-  vector<string> result;
-  for (set<string>::iterator i = includes_.begin(); i != includes_.end(); ++i) {
-    result.push_back(EscapeForDepfile(*i));
-  }
-  return result;
 }

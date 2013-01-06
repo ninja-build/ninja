@@ -17,23 +17,13 @@
 #include <vector>
 using namespace std;
 
+string EscapeForDepfile(const string& path);
+
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
-/// format when building with /showIncludes.  This class wraps a CL
-/// process and parses that output to extract the file list.
-struct CLWrapper {
-  CLWrapper() : env_block_(NULL) {}
-
-  /// Set the environment block (as suitable for CreateProcess) to be used
-  /// by Run().
-  void SetEnvBlock(void* env_block) { env_block_ = env_block; }
-
-  /// Start a process and parse its output.  Returns its exit code.
-  /// Any non-parsed output is buffered into \a extra_output if provided,
-  /// otherwise it is printed to stdout while the process runs.
-  /// Crashes (calls Fatal()) on error.
-  int Run(const string& command, string* extra_output=NULL);
-
+/// format when building with /showIncludes.  This class parses this
+/// output.
+struct CLParser {
   /// Parse a line of cl.exe output and extract /showIncludes info.
   /// If a dependency is extracted, returns a nonempty string.
   /// Exposed for testing.
@@ -50,10 +40,24 @@ struct CLWrapper {
   /// Exposed for testing.
   static bool FilterInputFilename(const string& line);
 
-  /// Fill a vector with the unique'd headers, escaped for output as a .d
-  /// file.
-  vector<string> GetEscapedResult();
+  /// Parse the full output of cl, returning the output (if any) that
+  /// should printed.
+  string Parse(const string& output);
+
+  set<string> includes_;
+};
+
+/// Wraps a synchronous execution of a CL subprocess.
+struct CLWrapper {
+  CLWrapper() : env_block_(NULL) {}
+
+  /// Set the environment block (as suitable for CreateProcess) to be used
+  /// by Run().
+  void SetEnvBlock(void* env_block) { env_block_ = env_block; }
+
+  /// Start a process and gather its raw output.  Returns its exit code.
+  /// Crashes (calls Fatal()) on error.
+  int Run(const string& command, string* output);
 
   void* env_block_;
-  set<string> includes_;
 };
