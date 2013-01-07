@@ -24,6 +24,12 @@
 #include "state.h"
 #include "util.h"
 
+namespace {
+const char kFileSignature[] = "# ninja deps v%d\n";
+const int kCurrentVersion = 1;
+}  // anonymous namespace
+
+
 bool DepsLog::OpenForWrite(const string& path, string* err) {
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
@@ -36,14 +42,12 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
   // end on Windows. Do that explicitly.
   fseek(file_, 0, SEEK_END);
 
-  /* XXX
-  if (ftell(log_file_) == 0) {
-    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
+  if (ftell(file_) == 0) {
+    if (fprintf(file_, kFileSignature, kCurrentVersion) < 0) {
       *err = strerror(errno);
       return false;
     }
   }
-  */
 
   return true;
 }
@@ -117,6 +121,22 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       return true;
     *err = strerror(errno);
     return false;
+  }
+
+  if (!fgets(buf, sizeof(buf), f)) {
+    *err = strerror(errno);
+    return false;
+  }
+  int version = 0;
+  if (sscanf(buf, kFileSignature, &version) != 1) {
+    *err = "unable to read file signature";
+    return false;
+  }
+  if (version != kCurrentVersion) {
+    *err = "bad deps log version; starting over";
+    // Don't report this as a failure.  An empty deps log will cause
+    // us to rebuild the outputs anyway.
+    return true;
   }
 
   for (;;) {
