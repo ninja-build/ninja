@@ -76,4 +76,50 @@ TEST_F(DepsLogTest, WriteRead) {
   ASSERT_EQ("bar.h", deps->nodes[1]->path());
 }
 
+// Verify that adding the same deps twice doesn't grow the file.
+TEST_F(DepsLogTest, DoubleEntry) {
+  // Write some deps to the file and grab its size.
+  int file_size;
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar.h"));
+    log.RecordDeps(state.GetNode("out.o"), 1, deps);
+    log.Close();
+
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    file_size = (int)st.st_size;
+    ASSERT_GT(file_size, 0);
+  }
+
+  // Now reload the file, and readd the same deps.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
+
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar.h"));
+    log.RecordDeps(state.GetNode("out.o"), 1, deps);
+    log.Close();
+
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    int file_size_2 = (int)st.st_size;
+    ASSERT_EQ(file_size, file_size_2);
+  }
+}
+
 }  // anonymous namespace

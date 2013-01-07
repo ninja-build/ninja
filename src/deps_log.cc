@@ -50,14 +50,42 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
+  // Track whether there's any new data to be recorded.
+  bool made_change = false;
+
   // Assign ids to all nodes that are missing one.
-  if (node->id() < 0)
+  if (node->id() < 0) {
     RecordId(node);
+    made_change = true;
+  }
   for (vector<Node*>::const_iterator i = nodes.begin();
        i != nodes.end(); ++i) {
-    if ((*i)->id() < 0)
+    if ((*i)->id() < 0) {
       RecordId(*i);
+      made_change = true;
+    }
   }
+
+  // See if the new data is different than the existing data, if any.
+  if (!made_change) {
+    Deps* deps = GetDeps(node);
+    if (!deps ||
+        deps->mtime != mtime ||
+        deps->node_count != (int)nodes.size()) {
+      made_change = true;
+    } else {
+      for (int i = 0; i < (int)nodes.size(); ++i) {
+        if (deps->nodes[i] != nodes[i]) {
+          made_change = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Don't write anything if there's no new info.
+  if (!made_change)
+    return true;
 
   uint16_t size = 4 * (1 + 1 + (uint16_t)nodes.size());
   size |= 0x8000;  // Deps record: set high bit.
