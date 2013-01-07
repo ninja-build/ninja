@@ -862,7 +862,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->push_back(state_->GetNode(*i));
   }
 #else
-  if (result.deps.empty())
+  if (result->deps.empty())
     return true;
 
   DepfileParser deps;
@@ -873,11 +873,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     return false;
 
   // XXX check depfile matches expected output.
-  deps_nodes.reserve(deps.ins_.size());
+  deps_nodes->reserve(deps.ins_.size());
   for (vector<StringPiece>::iterator i = deps.ins_.begin();
        i != deps.ins_.end(); ++i) {
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_,
-                          &result.output)) {
+                          &result->output)) {
       return false;
     }
     deps_nodes->push_back(state_->GetNode(*i));
