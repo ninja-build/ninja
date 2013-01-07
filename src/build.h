@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "graph.h"  // XXX needed for DependencyScan; should rearrange.
+#include "graph.h"  // TODO: Needed for DependencyScan; should rearrange.
 #include "exit_status.h"
 #include "metrics.h"
 #include "util.h"  // int64_t
