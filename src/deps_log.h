@@ -27,10 +27,10 @@ struct Node;
 struct State;
 
 /// As build commands run they can output extra dependency information
-/// (e.g. header dependencies for C source) via a pipe.  DepsLog collects
-/// that information at build time and reloads it at startup.
+/// (e.g. header dependencies for C source) dynamically.  DepsLog collects
+/// that information at build time and uses it for subsequent builds.
 ///
-/// The on-disk format is based on two primary constraints:
+/// The on-disk format is based on two primary design constraints:
 /// - it must be written to as a stream (during the build, which may be
 ///   interrupted);
 /// - it can be read all at once on startup.  (Alternative designs, where
@@ -43,7 +43,8 @@ struct State;
 /// There's about 10k files worth of dependencies that reference about
 /// 40k total paths totalling 2mb of unique strings.
 ///
-/// Based on these above, the file is structured as a sequence of records.
+/// Based on these stats, here's the current design.
+/// The file is structured as version header followed by a sequence of records.
 /// Each record is either a path string or a dependency list.
 /// Numbering the path strings in file order gives them dense integer ids.
 /// A dependency list maps an output id to a list of input ids.
