@@ -122,4 +122,74 @@ TEST_F(DepsLogTest, DoubleEntry) {
   }
 }
 
+// Verify that adding the new deps works and can be compacted away.
+TEST_F(DepsLogTest, Recompact) {
+  // Write some deps to the file and grab its size.
+  int file_size;
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar.h"));
+    log.RecordDeps(state.GetNode("out.o"), 1, deps);
+    log.Close();
+
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    file_size = (int)st.st_size;
+    ASSERT_GT(file_size, 0);
+  }
+
+  // Now reload the file, and add slighly different deps.
+  int file_size_2;
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
+
+    ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    log.RecordDeps(state.GetNode("out.o"), 1, deps);
+    log.Close();
+
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    file_size_2 = (int)st.st_size;
+    // The file should grow to record the new deps.
+    ASSERT_GT(file_size_2, file_size);
+  }
+
+  // Now reload the file, verify the new deps have replaced the old, then
+  // recompact.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
+
+    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o"));
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(1, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+
+    ASSERT_TRUE(log.Recompact(kTestFilename, &err));
+
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    int file_size_3 = (int)st.st_size;
+    // The file should have shrunk a bit for the smaller deps.
+    ASSERT_LT(file_size_3, file_size_2);
+  }
+}
+
 }  // anonymous namespace

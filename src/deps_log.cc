@@ -54,6 +54,11 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
+  return RecordDeps(node, mtime, nodes.size(), (Node**)&nodes.front());
+}
+
+bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
+                         int node_count, Node** nodes) {
   // Track whether there's any new data to be recorded.
   bool made_change = false;
 
@@ -62,10 +67,9 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     RecordId(node);
     made_change = true;
   }
-  for (vector<Node*>::const_iterator i = nodes.begin();
-       i != nodes.end(); ++i) {
-    if ((*i)->id() < 0) {
-      RecordId(*i);
+  for (int i = 0; i < node_count; ++i) {
+    if (nodes[i]->id() < 0) {
+      RecordId(nodes[i]);
       made_change = true;
     }
   }
@@ -75,10 +79,10 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     Deps* deps = GetDeps(node);
     if (!deps ||
         deps->mtime != mtime ||
-        deps->node_count != (int)nodes.size()) {
+        deps->node_count != node_count) {
       made_change = true;
     } else {
-      for (int i = 0; i < (int)nodes.size(); ++i) {
+      for (int i = 0; i < node_count; ++i) {
         if (deps->nodes[i] != nodes[i]) {
           made_change = true;
           break;
@@ -91,16 +95,15 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   if (!made_change)
     return true;
 
-  uint16_t size = 4 * (1 + 1 + (uint16_t)nodes.size());
+  uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
   size |= 0x8000;  // Deps record: set high bit.
   fwrite(&size, 2, 1, file_);
   int id = node->id();
   fwrite(&id, 4, 1, file_);
   int timestamp = mtime;
   fwrite(&timestamp, 4, 1, file_);
-  for (vector<Node*>::const_iterator i = nodes.begin();
-       i != nodes.end(); ++i) {
-    id = (*i)->id();
+  for (int i = 0; i < node_count; ++i) {
+    id = nodes[i]->id();
     fwrite(&id, 4, 1, file_);
   }
 
@@ -191,6 +194,46 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   if (node->id() < 0)
     return NULL;
   return deps_[node->id()];
+}
+
+bool DepsLog::Recompact(const string& path, string* err) {
+  METRIC_RECORD(".ninja_deps recompact");
+  printf("Recompacting deps...\n");
+
+  string temp_path = path + ".recompact";
+  DepsLog new_log;
+  if (!new_log.OpenForWrite(temp_path, err))
+    return false;
+
+  // Clear all known ids so that new ones can be reassigned.
+  for (vector<Node*>::iterator i = nodes_.begin();
+       i != nodes_.end(); ++i) {
+    (*i)->set_id(-1);
+  }
+
+  // Write out all deps again.
+  for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
+    Deps* deps = deps_[old_id];
+    if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
+                            deps->node_count, deps->nodes)) {
+      new_log.Close();
+      return false;
+    }
+  }
+
+  new_log.Close();
+
+  if (unlink(path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (rename(temp_path.c_str(), path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  return true;
 }
 
 bool DepsLog::RecordId(Node* node) {
