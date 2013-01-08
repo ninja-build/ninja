@@ -128,12 +128,11 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     return false;
   }
   int version = 0;
-  if (sscanf(buf, kFileSignature, &version) != 1) {
-    *err = "unable to read file signature";
-    return false;
-  }
+  sscanf(buf, kFileSignature, &version);
   if (version != kCurrentVersion) {
-    *err = "bad deps log version; starting over";
+    *err = "bad deps log signature or version; starting over";
+    fclose(f);
+    unlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
     return true;
