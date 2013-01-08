@@ -65,6 +65,7 @@ struct DepsLog {
   // Writing (build-time) interface.
   bool OpenForWrite(const string& path, string* err);
   bool RecordDeps(Node* node, TimeStamp mtime, const vector<Node*>& nodes);
+  bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
   void Close();
 
   // Reading (startup-time) interface.
@@ -77,6 +78,9 @@ struct DepsLog {
   };
   bool Load(const string& path, State* state, string* err);
   Deps* GetDeps(Node* node);
+
+  /// Rewrite the known log entries, throwing away old data.
+  bool Recompact(const string& path, string* err);
 
   /// Used for tests.
   const vector<Node*>& nodes() const { return nodes_; }
