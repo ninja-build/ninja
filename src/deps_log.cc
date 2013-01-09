@@ -171,8 +171,10 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 
       if (out_id >= (int)deps_.size())
         deps_.resize(out_id + 1);
-      if (deps_[out_id])
+      if (deps_[out_id]) {
+        ++dead_record_count_;
         delete deps_[out_id];
+      }
       deps_[out_id] = deps;
     } else {
       StringPiece path(buf, size);
