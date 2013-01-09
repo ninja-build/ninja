@@ -61,6 +61,7 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog {
+  DepsLog() : dead_record_count_(0) {}
 
   // Writing (build-time) interface.
   bool OpenForWrite(const string& path, string* err);
@@ -88,6 +89,10 @@ struct DepsLog {
  private:
   // Write a node name record, assigning it an id.
   bool RecordId(Node* node);
+
+  /// Number of deps record read while loading the file that ended up
+  /// being unused (due to a latter entry superceding it).
+  int dead_record_count_;
 
   FILE* file_;
   /// Maps id -> Node.
