@@ -96,6 +96,7 @@ else:
                    '-DNINJA_BOOTSTRAP'])
     if options.windows:
         cflags.append('-D_WIN32_WINNT=0x0501')
+        conf_args.append("--platform=mingw")
     if options.x64:
         cflags.append('-m64')
 args.extend(cflags)
