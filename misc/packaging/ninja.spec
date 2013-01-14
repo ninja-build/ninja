@@ -1,12 +1,14 @@
 Summary: Ninja is a small build system with a focus on speed.
 Name: ninja
 Version: %{ver}
-Release: %{rel}%{?dist}
+Release: %{rel}
 Group: Development/Tools
 License: Apache 2.0
 URL: https://github.com/martine/ninja
 Source0: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
+
+BuildRequires: re2c asciidoc
 
 %description
 Ninja is yet another build system. It takes as input the interdependencies of files (typically source code and output executables) and
