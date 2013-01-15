@@ -879,6 +879,8 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   string content = disk_interface_->ReadFile(depfile, err);
   if (!err->empty())
     return false;
+  if (content.empty())
+    return true;
 
   DepfileParser deps;
   if (!deps.Parse(&content, err))
@@ -893,12 +895,10 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->push_back(state_->GetNode(*i));
   }
 
-  /* TODO: unlink the file via diskinterface.
-  if (unlink(depfile.c_str()) < 0) {
-    *err = string("unlink: ")) + strerror(errno);
+  if (disk_interface_->RemoveFile(depfile) < 0) {
+    *err = string("deleting depfile: ") + strerror(errno);
     return false;
   }
-  */
 #endif
 
   return true;

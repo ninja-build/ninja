@@ -756,6 +756,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   now_++;
 
+  // Recreate the depfile, as it should have been deleted by the build.
+  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
+
   // implicit dep dirty, expect a rebuild.
   fs_.Create("blah.h", now_, "");
   fs_.Create("bar.h", now_, "");
@@ -767,6 +770,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ(1u, commands_ran_.size());
 
   now_++;
+
+  // Recreate the depfile, as it should have been deleted by the build.
+  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
 
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", now_, "");
