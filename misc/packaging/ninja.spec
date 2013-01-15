@@ -1,12 +1,12 @@
 Summary: Ninja is a small build system with a focus on speed.
 Name: ninja
 Version: %{ver}
-Release: %{rel}
+Release: %{rel}%{?dist}
 Group: Development/Tools
 License: Apache 2.0
 URL: https://github.com/martine/ninja
-Source0: %{name}-%{version}-%{release}.tar.gz
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
+Source0: %{name}-%{version}-%{rel}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{rel}
 
 BuildRequires: re2c asciidoc
 
@@ -19,7 +19,7 @@ which has over 30,000 source files and whose other build systems (including one 
 seconds to start building after changing one file. Ninja is under a second.
 
 %prep
-%setup -q -n %{name}-%{version}-%{release}
+%setup -q -n %{name}-%{version}-%{rel}
 
 %build
 echo Building..
