@@ -763,7 +763,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   status_->BuildEdgeStarted(edge);
 
   // Create directories necessary for outputs.
-  // XXX: this will block; do we care?
+  // TODO: This will block; do we care?
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
     if (!disk_interface_->MakeDirs((*i)->path()))
@@ -771,7 +771,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   }
 
   // Create response file, if needed
-  // XXX: this may also block; do we care?
+  // TODO: This may also block; do we care?
   string rspfile = edge->GetBinding("rspfile");
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");

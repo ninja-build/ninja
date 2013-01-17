@@ -186,7 +186,7 @@ int ReadFile(const string& path, string* contents, string* err) {
     contents->append(buf, len);
   }
   if (ferror(f)) {
-    err->assign(strerror(errno));  // XXX errno?
+    err->assign(strerror(errno));  // TODO: errno?
     contents->clear();
     fclose(f);
     return -errno;

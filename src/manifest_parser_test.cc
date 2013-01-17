@@ -562,7 +562,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("rule r\n"
                                   "  command = r\n"
                                   "build $a: r $c\n", &err));
-    // XXX the line number is wrong; we should evaluate paths in ParseEdge
+    // TODO: The line number is wrong; we should evaluate paths in ParseEdge
     // as we see them, not after we've read them all!
     EXPECT_EQ("input:4: empty path\n", err);
   }

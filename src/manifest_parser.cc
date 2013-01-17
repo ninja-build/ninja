@@ -146,7 +146,7 @@ bool ManifestParser::ParseRule(string* err) {
     return false;
   }
 
-  Rule* rule = new Rule(name);  // XXX scoped_ptr
+  Rule* rule = new Rule(name);  // TODO: Use scoped_ptr.
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
     string key;
@@ -243,7 +243,7 @@ bool ManifestParser::ParseEdge(string* err) {
     return lexer_.Error("unknown build rule '" + rule_name + "'", err);
 
   for (;;) {
-    // XXX should we require one path here?
+    // TODO: Should we require one path here?
     EvalString in;
     if (!lexer_.ReadPath(&in, err))
       return false;
@@ -283,7 +283,7 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  // XXX scoped_ptr to handle error case.
+  // TODO: Use scoped_ptr to handle error case.
   BindingEnv* env = new BindingEnv(env_);
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
@@ -327,7 +327,7 @@ bool ManifestParser::ParseEdge(string* err) {
 }
 
 bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
-  // XXX this should use ReadPath!
+  // TODO: This should use ReadPath!
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
