@@ -8,7 +8,7 @@ URL: https://github.com/martine/ninja
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{rel}
 
-BuildRequires: re2c asciidoc
+BuildRequires: asciidoc
 
 %description
 Ninja is yet another build system. It takes as input the interdependencies of files (typically source code and output executables) and
