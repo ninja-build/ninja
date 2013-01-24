@@ -284,8 +284,10 @@ bool Edge::GetBindingBool(const string& key) {
 bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
   METRIC_RECORD("depfile load");
   string content = disk_interface_->ReadFile(path, err);
-  if (!err->empty())
+  if (!err->empty()) {
+    *err = "loading '" + path + "': " + *err;
     return false;
+  }
   // On a missing depfile: return false and empty *err.
   if (content.empty())
     return false;
