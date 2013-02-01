@@ -420,6 +420,10 @@ before building the targets requested by the user.
 Pools
 ~~~~~
 
+*Note: pools were added as an experiment and may be removed in a future
+version of Ninja.  Are they useful for you?  Let us know on the mailing
+list.*
+
 Pools allow you to allocate one or more rules or edges a finite number
 of concurrent jobs which is more tightly restricted than the default
 parallelism.
