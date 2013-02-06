@@ -44,6 +44,31 @@ void PushPathIntoEnvironment(const string& env_block) {
   }
 }
 
+void WriteDepFileOrDie(const char* output_filename, CLWrapper* cl) {
+  string depfile = string(output_filename) + ".d";
+  FILE* output = fopen(depfile.c_str(), "w");
+  if (!output) {
+    unlink(output_filename);
+    Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
+  }
+  if (fprintf(output, "%s: ", output_filename) < 0) {
+    unlink(output_filename);
+    fclose(output);
+    unlink(depfile.c_str());
+    Fatal("writing %s", depfile.c_str());
+  }
+  vector<string> headers = cl->GetEscapedResult();
+  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
+    if (fprintf(output, "%s\n", i->c_str()) < 0) {
+      unlink(output_filename);
+      fclose(output);
+      unlink(depfile.c_str());
+      Fatal("writing %s", depfile.c_str());
+    }
+  }
+  fclose(output);
+}
+
 }  // anonymous namespace
 
 int MSVCHelperMain(int argc, char** argv) {
@@ -95,19 +120,7 @@ int MSVCHelperMain(int argc, char** argv) {
     cl.SetEnvBlock((void*)env.data());
   int exit_code = cl.Run(command);
 
-  string depfile = string(output_filename) + ".d";
-  FILE* output = fopen(depfile.c_str(), "w");
-  if (!output) {
-    Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
-  }
-  if (fprintf(output, "%s: ", output_filename) < 0)
-    return 1;
-  vector<string> headers = cl.GetEscapedResult();
-  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
-    if (fprintf(output, "%s\n", i->c_str()) < 0)
-      return 1;
-  }
-  fclose(output);
+  WriteDepFileOrDie(output_filename, &cl);
 
   return exit_code;
 }
