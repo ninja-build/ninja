@@ -100,10 +100,12 @@ int MSVCHelperMain(int argc, char** argv) {
   if (!output) {
     Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
   }
-  fprintf(output, "%s: ", output_filename);
+  if (fprintf(output, "%s: ", output_filename) < 0)
+    return 1;
   vector<string> headers = cl.GetEscapedResult();
   for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
-    fprintf(output, "%s\n", i->c_str());
+    if (fprintf(output, "%s\n", i->c_str()) < 0)
+      return 1;
   }
   fclose(output);
 
