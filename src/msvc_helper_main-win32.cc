@@ -44,29 +44,29 @@ void PushPathIntoEnvironment(const string& env_block) {
   }
 }
 
-void WriteDepFileOrDie(const char* output_filename, CLWrapper* cl) {
-  string depfile = string(output_filename) + ".d";
-  FILE* output = fopen(depfile.c_str(), "w");
-  if (!output) {
-    unlink(output_filename);
-    Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
+void WriteDepFileOrDie(const char* object_path, CLWrapper* cl) {
+  string depfile_path = string(object_path) + ".d";
+  FILE* depfile = fopen(depfile_path.c_str(), "w");
+  if (!depfile) {
+    unlink(object_path);
+    Fatal("opening %s: %s", depfile_path.c_str(), GetLastErrorString().c_str());
   }
-  if (fprintf(output, "%s: ", output_filename) < 0) {
-    unlink(output_filename);
-    fclose(output);
-    unlink(depfile.c_str());
-    Fatal("writing %s", depfile.c_str());
+  if (fprintf(depfile, "%s: ", object_path) < 0) {
+    unlink(object_path);
+    fclose(depfile);
+    unlink(depfile_path.c_str());
+    Fatal("writing %s", depfile_path.c_str());
   }
   vector<string> headers = cl->GetEscapedResult();
   for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
-    if (fprintf(output, "%s\n", i->c_str()) < 0) {
-      unlink(output_filename);
-      fclose(output);
-      unlink(depfile.c_str());
-      Fatal("writing %s", depfile.c_str());
+    if (fprintf(depfile, "%s\n", i->c_str()) < 0) {
+      unlink(object_path);
+      fclose(depfile);
+      unlink(depfile_path.c_str());
+      Fatal("writing %s", depfile_path.c_str());
     }
   }
-  fclose(output);
+  fclose(depfile);
 }
 
 }  // anonymous namespace
