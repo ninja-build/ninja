@@ -325,7 +325,7 @@ int GetProcessorCount() {
 }
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__)
 double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
   // Remember to also update Usage() when this is fixed.
