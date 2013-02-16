@@ -539,6 +539,8 @@ default.
 The Ninja log
 ~~~~~~~~~~~~~
 
+[[ref_log]]
+
 For each built file, Ninja keeps a log of the command used to build
 it.  Using this log Ninja can know when an existing output was built
 with a different command line than the build files specify (i.e., the
@@ -547,6 +549,35 @@ command line changed) and knows to rebuild the file.
 The log file is kept in the build root in a file called `.ninja_log`.
 If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
+
+
+Version compatibility
+~~~~~~~~~~~~~~~~~~~~~
+
+[[ref_versioning]]
+
+Ninja version labels follow the standard major.minor.patch format,
+where the major version is increased on backwards-incompatible
+syntax/behavioral changes and the minor version is increased on new
+behaviors.  Your `build.ninja` may declare a variable named
+`ninja_required_version` that asserts the minimum Ninja version
+required to use the generated file.  For example,
+
+-----
+ninja_required_version = 1.1
+-----
+
+declares that the build file relies on some feature that was
+introduced in Ninja 1.1 (perhaps the `pool` syntax), and that
+Ninja 1.1 or greater must be used to build.  Unlike other Ninja
+variables, this version requirement is checked immediately when
+the variable is encountered in parsing, so it's best to put it
+at the top of the build file.
+
+Ninja always warns if the major versions of Ninja and the
+`ninja_required_version` don't match; a major version change hasn't
+come up yet so it's difficult to predict what behavior might be
+required.
 
 
 Ninja file reference
@@ -633,6 +664,19 @@ Other whitespace is only significant if it's at the beginning of a
 line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
+
+Top-level variables
+~~~~~~~~~~~~~~~~~~~
+
+Two variables are significant when declared in the outermost file scope.
+
+`builddir`:: a directory for some Ninja output files.  See <<ref_log,the
+  discussion of the build log>>.  (You can also store other build output
+  in this directory.)
+
+`ninja_required_version`:: the minimum verison of Ninja required to process
+  the build correctly.  See <<ref_versioning,the discussion of versioning>>.
+
 
 Rule variables
 ~~~~~~~~~~~~~~
