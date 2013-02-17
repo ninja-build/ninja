@@ -161,24 +161,25 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
 
   // Dirty if the output is older than the input.
   if (most_recent_input && output->mtime() < most_recent_input->mtime()) {
+    TimeStamp output_mtime = output->mtime();
+
     // If this is a restat rule, we may have cleaned the output with a restat
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
-    TimeStamp most_recent_stamp = most_recent_input->mtime();
+    bool used_restat = false;
     if (edge->GetBindingBool("restat") && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
-      if (entry->restat_mtime < most_recent_stamp) {
-        EXPLAIN("restat of output %s older than most recent input %s "
-                "(%d vs %d)",
-                output->path().c_str(), most_recent_input->path().c_str(),
-                entry->restat_mtime, most_recent_stamp);
-        return true;
-      }
-    } else {
-      EXPLAIN("output %s older than most recent input %s (%d vs %d)",
-          output->path().c_str(), most_recent_input->path().c_str(),
-          output->mtime(), most_recent_stamp);
+      output_mtime = entry->restat_mtime;
+      used_restat = true;
+    }
+
+    if (output_mtime < most_recent_input->mtime()) {
+      EXPLAIN("%soutput %s older than most recent input %s "
+              "(%d vs %d)",
+              used_restat ? "restat of " : "", output->path().c_str(),
+              most_recent_input->path().c_str(),
+              output_mtime, most_recent_input->mtime());
       return true;
     }
   }
