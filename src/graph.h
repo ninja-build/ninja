@@ -196,6 +196,10 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDeps(Edge* edge, string* err);
 
+  DepsLog* deps_log() const {
+    return deps_log_;
+  }
+
  private:
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
@@ -245,6 +249,10 @@ struct DependencyScan {
   }
   void set_build_log(BuildLog* log) {
     build_log_ = log;
+  }
+
+  DepsLog* deps_log() const {
+    return dep_loader_.deps_log();
   }
 
  private:

@@ -34,6 +34,7 @@
 
 #include "build_log.h"
 #include "depfile_parser.h"
+#include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "msvc_helper.h"
@@ -705,10 +706,11 @@ bool Builder::Build(string* err) {
           return false;
         }
 
-        if (edge->is_phony())
-          FinishEdge(edge, true, "");
-        else
+        if (edge->is_phony()) {
+          plan_.EdgeFinished(edge);
+        } else {
           ++pending_commands;
+        }
 
         // We made some progress; go back to the main loop.
         continue;
@@ -725,22 +727,10 @@ bool Builder::Build(string* err) {
         return false;
       }
 
-      bool success = (result.status == ExitSuccess);
-
-      if (success) {
-        vector<Node*> deps_nodes;
-        string extract_err;
-        if (!ExtractDeps(&result, &deps_nodes, &extract_err)) {
-          if (!result.output.empty())
-            result.output.append("\n");
-          result.output.append(extract_err);
-          success = false;
-        }
-      }
-
       --pending_commands;
-      FinishEdge(result.edge, success, result.output);
-      if (!success) {
+      FinishCommand(&result);
+
+      if (!result.success()) {
         if (failures_allowed)
           failures_allowed--;
       }
@@ -801,105 +791,143 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
-void Builder::FinishEdge(Edge* edge, bool success, const string& output) {
-  METRIC_RECORD("FinishEdge");
-  TimeStamp restat_mtime = 0;
+void Builder::FinishCommand(CommandRunner::Result* result) {
+  METRIC_RECORD("FinishCommand");
 
-  if (success) {
-    if (edge->GetBindingBool("restat") && !config_.dry_run) {
-      bool node_cleaned = false;
+  Edge* edge = result->edge;
 
-      for (vector<Node*>::iterator i = edge->outputs_.begin();
-           i != edge->outputs_.end(); ++i) {
-        TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
-        if ((*i)->mtime() == new_mtime) {
-          // The rule command did not change the output.  Propagate the clean
-          // state through the build graph.
-          // Note that this also applies to nonexistent outputs (mtime == 0).
-          plan_.CleanNode(&scan_, *i);
-          node_cleaned = true;
-        }
+  // First try to extract dependencies from the result, if any.
+  // This must happen first as it filters the command output and
+  // can fail, which makes the command fail from a build perspective.
+
+  vector<Node*> deps_nodes;
+  if (result->success()) {
+    string deps_type = edge->GetBinding("deps");
+    if (!deps_type.empty()) {
+      string extract_err;
+      if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err)) {
+        if (!result->output.empty())
+          result->output.append("\n");
+        result->output.append(extract_err);
+        result->status = ExitFailure;
       }
+    }
+  }
 
-      if (node_cleaned) {
-        // If any output was cleaned, find the most recent mtime of any
-        // (existing) non-order-only input or the depfile.
-        for (vector<Node*>::iterator i = edge->inputs_.begin();
-             i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-          TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
-          if (input_mtime > restat_mtime)
-            restat_mtime = input_mtime;
-        }
+  int start_time, end_time;
+  status_->BuildEdgeFinished(edge, result->success(), result->output,
+                             &start_time, &end_time);
 
-        string depfile = edge->GetBinding("depfile");
-        if (restat_mtime != 0 && !depfile.empty()) {
-          TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
-          if (depfile_mtime > restat_mtime)
-            restat_mtime = depfile_mtime;
-        }
+  // The rest of this function only applies to successful commands.
+  if (!result->success())
+    return;
 
-        // The total number of edges in the plan may have changed as a result
-        // of a restat.
-        status_->PlanHasTotalEdges(plan_.command_edge_count());
+  // Restat the edge outputs, if necessary.
+  TimeStamp restat_mtime = 0;
+  if (edge->GetBindingBool("restat") && !config_.dry_run) {
+    bool node_cleaned = false;
+
+    for (vector<Node*>::iterator i = edge->outputs_.begin();
+         i != edge->outputs_.end(); ++i) {
+      TimeStamp new_mtime = disk_interface_->Stat((*i)->path());
+      if ((*i)->mtime() == new_mtime) {
+        // The rule command did not change the output.  Propagate the clean
+        // state through the build graph.
+        // Note that this also applies to nonexistent outputs (mtime == 0).
+        plan_.CleanNode(&scan_, *i);
+        node_cleaned = true;
       }
     }
 
-    // Delete the response file on success (if exists)
-    string rspfile = edge->GetBinding("rspfile");
-    if (!rspfile.empty())
-      disk_interface_->RemoveFile(rspfile);
+    if (node_cleaned) {
+      // If any output was cleaned, find the most recent mtime of any
+      // (existing) non-order-only input or the depfile.
+      for (vector<Node*>::iterator i = edge->inputs_.begin();
+           i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+        TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
+        if (input_mtime > restat_mtime)
+          restat_mtime = input_mtime;
+      }
 
-    plan_.EdgeFinished(edge);
+      string depfile = edge->GetBinding("depfile");
+      if (restat_mtime != 0 && !depfile.empty()) {
+        TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
+        if (depfile_mtime > restat_mtime)
+          restat_mtime = depfile_mtime;
+      }
+
+      // The total number of edges in the plan may have changed as a result
+      // of a restat.
+      status_->PlanHasTotalEdges(plan_.command_edge_count());
+    }
   }
 
-  if (edge->is_phony())
-    return;
+  plan_.EdgeFinished(edge);
 
-  int start_time, end_time;
-  status_->BuildEdgeFinished(edge, success, output, &start_time, &end_time);
-  if (success && scan_.build_log())
-    scan_.build_log()->RecordCommand(edge, start_time, end_time, restat_mtime);
+  // Delete any left over response file.
+  string rspfile = edge->GetBinding("rspfile");
+  if (!rspfile.empty())
+    disk_interface_->RemoveFile(rspfile);
+
+  if (scan_.build_log()) {
+    scan_.build_log()->RecordCommand(edge, start_time, end_time,
+                                     restat_mtime);
+  }
+
+  if (scan_.deps_log()) {
+    // XXX figure out multiple outputs.
+    Node* out = edge->outputs_[0];
+    // XXX need to restat for restat_mtime.
+    scan_.deps_log()->RecordDeps(out, restat_mtime, deps_nodes);
+  }
+
 }
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,
+                          const string& deps_type,
                           vector<Node*>* deps_nodes,
                           string* err) {
 #ifdef _WIN32
-  CLParser parser;
-  result->output = parser.Parse(result->output);
-  for (set<string>::iterator i = parser.includes_.begin();
-       i != parser.includes_.end(); ++i) {
-    deps_nodes->push_back(state_->GetNode(*i));
-  }
-#else
-  string depfile = result->edge->GetBinding("depfile");
-  if (depfile.empty())
-    return true;  // No dependencies to load.
-
-  string content = disk_interface_->ReadFile(depfile, err);
-  if (!err->empty())
-    return false;
-  if (content.empty())
-    return true;
-
-  DepfileParser deps;
-  if (!deps.Parse(&content, err))
-    return false;
-
-  // XXX check depfile matches expected output.
-  deps_nodes->reserve(deps.ins_.size());
-  for (vector<StringPiece>::iterator i = deps.ins_.begin();
-       i != deps.ins_.end(); ++i) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
-      return false;
-    deps_nodes->push_back(state_->GetNode(*i));
-  }
-
-  if (disk_interface_->RemoveFile(depfile) < 0) {
-    *err = string("deleting depfile: ") + strerror(errno);
-    return false;
-  }
+  if (deps_type == "msvc") {
+    CLParser parser;
+    result->output = parser.Parse(result->output);
+    for (set<string>::iterator i = parser.includes_.begin();
+         i != parser.includes_.end(); ++i) {
+      deps_nodes->push_back(state_->GetNode(*i));
+    }
+  } else
 #endif
+  if (deps_type == "gcc") {
+    string depfile = result->edge->GetBinding("depfile");
+    if (depfile.empty())
+      return true;  // No dependencies to load.
+
+    string content = disk_interface_->ReadFile(depfile, err);
+    if (!err->empty())
+      return false;
+    if (content.empty())
+      return true;
+
+    DepfileParser deps;
+    if (!deps.Parse(&content, err))
+      return false;
+
+    // XXX check depfile matches expected output.
+    deps_nodes->reserve(deps.ins_.size());
+    for (vector<StringPiece>::iterator i = deps.ins_.begin();
+         i != deps.ins_.end(); ++i) {
+      if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+        return false;
+      deps_nodes->push_back(state_->GetNode(*i));
+    }
+
+    if (disk_interface_->RemoveFile(depfile) < 0) {
+      *err = string("deleting depfile: ") + strerror(errno);
+      return false;
+    }
+  } else {
+    Fatal("unknown deps type '%s'", deps_type.c_str());
+  }
 
   return true;
 }
