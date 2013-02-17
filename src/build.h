@@ -110,6 +110,7 @@ struct CommandRunner {
     Edge* edge;
     ExitStatus status;
     string output;
+    bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
   virtual bool WaitForCommand(Result* result) = 0;
@@ -161,7 +162,7 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
-  void FinishEdge(Edge* edge, bool success, const string& output);
+  void FinishCommand(CommandRunner::Result* result);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -175,8 +176,8 @@ struct Builder {
   BuildStatus* status_;
 
  private:
-  bool ExtractDeps(CommandRunner::Result* result, vector<Node*>* deps_nodes,
-                   string* err);
+  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
+                   vector<Node*>* deps_nodes, string* err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;
