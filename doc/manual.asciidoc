@@ -422,9 +422,7 @@ before building the targets requested by the user.
 Pools
 ~~~~~
 
-*Note: pools were added as an experiment and may be removed in a future
-version of Ninja.  Are they useful for you?  Let us know on the mailing
-list.*
+_Available since Ninja 1.1._
 
 Pools allow you to allocate one or more rules or edges a finite number
 of concurrent jobs which is more tightly restricted than the default
@@ -555,6 +553,8 @@ If you provide a variable named `builddir` in the outermost scope,
 [[ref_versioning]]
 Version compatibility
 ~~~~~~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.XXX._
 
 Ninja version labels follow the standard major.minor.patch format,
 where the major version is increased on backwards-incompatible
