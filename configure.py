@@ -397,9 +397,14 @@ n.newline()
 
 n.comment('Generate the manual using asciidoc.')
 n.rule('asciidoc',
-       command='asciidoc -a toc -a max-width=45em -o $out $in',
-       description='ASCIIDOC $in')
-manual = n.build(doc('manual.html'), 'asciidoc', doc('manual.asciidoc'))
+       command='asciidoc -b docbook -d book -o $out $in',
+       description='ASCIIDOC $out')
+n.rule('xsltproc',
+       command='xsltproc --nonet doc/docbook.xsl $in > $out',
+       description='XSLTPROC $out')
+xml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
+manual = n.build(doc('manual.html'), 'xsltproc', xml,
+                 implicit=doc('style.css'))
 n.build('manual', 'phony',
         order_only=manual)
 n.newline()
