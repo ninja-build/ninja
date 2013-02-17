@@ -397,7 +397,7 @@ rule cc
 # If left unspecified, builds get the outer $cflags.
 build foo.o: cc foo.c
 
-# But you can can shadow variables like cflags for a particular build.
+# But you can shadow variables like cflags for a particular build.
 build special.o: cc special.c
   cflags = -Wall
 
@@ -636,7 +636,7 @@ across a line break).
 paths, where a space would otherwise separate filenames.  See below.)
 
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
-would otherwise terminate the list of inputs.)
+would otherwise terminate the list of outputs.)
 
 `$$`:: a literal `$`.
 
