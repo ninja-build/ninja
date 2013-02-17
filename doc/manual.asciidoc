@@ -538,10 +538,9 @@ This causes Ninja to build the `foo`, `bar` and `baz` targets by
 default.
 
 
+[[ref_log]]
 The Ninja log
 ~~~~~~~~~~~~~
-
-[[ref_log]]
 
 For each built file, Ninja keeps a log of the command used to build
 it.  Using this log Ninja can know when an existing output was built
@@ -553,10 +552,9 @@ If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
 
 
+[[ref_versioning]]
 Version compatibility
 ~~~~~~~~~~~~~~~~~~~~~
-
-[[ref_versioning]]
 
 Ninja version labels follow the standard major.minor.patch format,
 where the major version is increased on backwards-incompatible
@@ -680,9 +678,9 @@ Two variables are significant when declared in the outermost file scope.
   the build correctly.  See <<ref_versioning,the discussion of versioning>>.
 
 
+[[ref_rule]]
 Rule variables
 ~~~~~~~~~~~~~~
-[[ref_rule]]
 
 A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
@@ -754,9 +752,9 @@ Finally, the special `$in` and `$out` variables expand to the
 shell-quoted space-separated list of files provided to the `build`
 line referencing this `rule`.
 
+[[ref_dependencies]]
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
-[[ref_dependencies]]
 
 There are three types of build dependencies which are subtly different.
 
@@ -818,9 +816,9 @@ build out: demo
   foo = bar
 ----
 
+[[ref_scope]]
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
-[[ref_scope]]
 
 Top-level variable declarations are scoped to the file they occur in.
 
