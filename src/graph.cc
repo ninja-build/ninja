@@ -49,12 +49,12 @@ bool Rule::IsReservedBinding(const string& var) {
   return var == "command" ||
       var == "depfile" ||
       var == "description" ||
+      var == "deps" ||
       var == "generator" ||
       var == "pool" ||
       var == "restat" ||
       var == "rspfile" ||
-      var == "rspfile_content" ||
-      var == "special";
+      var == "rspfile_content";
 }
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
@@ -323,8 +323,8 @@ void Node::Dump(const char* prefix) const {
 }
 
 bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
-  string special = edge->GetBinding("special");
-  if (!special.empty()) {
+  string deps_type = edge->GetBinding("deps");
+  if (!deps_type.empty()) {
     if (!LoadDepsFromLog(edge, err)) {
       if (!err->empty())
         return false;

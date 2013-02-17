@@ -191,7 +191,7 @@ if platform == 'windows':
         command='$cxx /showIncludes $cflags -c $in /Fo$out',
         depfile='$out.d',
         description='CXX $out',
-        special='msvc')
+        deps='msvc')
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
