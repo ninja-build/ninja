@@ -61,7 +61,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
 
-  if (!dep_loader_.LoadDeps(edge, err)) {
+  TimeStamp deps_mtime = 0;
+  if (!dep_loader_.LoadDeps(edge, &deps_mtime, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
@@ -112,7 +113,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     for (vector<Node*>::iterator i = edge->outputs_.begin();
          i != edge->outputs_.end(); ++i) {
       (*i)->StatIfNecessary(disk_interface_);
-      if (RecomputeOutputDirty(edge, most_recent_input, command, *i)) {
+      if (RecomputeOutputDirty(edge, most_recent_input, deps_mtime,
+                               command, *i)) {
         dirty = true;
         break;
       }
@@ -141,6 +143,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,
                                           Node* most_recent_input,
+                                          TimeStamp deps_mtime,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -180,6 +183,12 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
               output_mtime, most_recent_input->mtime());
       return true;
     }
+  }
+
+  // Dirty if the output is newer than the deps.
+  if (deps_mtime && output->mtime() > deps_mtime) {
+    EXPLAIN("stored deps info out of date for for %s", output->path().c_str());
+    return true;
   }
 
   // May also be dirty due to the command changing since the last build.
@@ -322,10 +331,10 @@ void Node::Dump(const char* prefix) const {
   }
 }
 
-bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDeps(Edge* edge, TimeStamp* mtime, string* err) {
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty()) {
-    if (!LoadDepsFromLog(edge, err)) {
+    if (!LoadDepsFromLog(edge, mtime, err)) {
       if (!err->empty())
         return false;
       EXPLAIN("deps for %s are missing", edge->outputs_[0]->path().c_str());
@@ -396,7 +405,8 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   return true;
 }
 
-bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
+                                        string* err) {
   DepsLog::Deps* deps = deps_log_->GetDeps(edge->outputs_[0]);
   if (!deps)
     return false;
