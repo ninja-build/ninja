@@ -41,6 +41,9 @@ TEST(State, Basic) {
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 
+  // Release the edge after we are done with it.
+  delete edge;
+
   EXPECT_FALSE(state.GetNode("in1")->dirty());
   EXPECT_FALSE(state.GetNode("in2")->dirty());
   EXPECT_FALSE(state.GetNode("out")->dirty());
