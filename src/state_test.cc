@@ -32,6 +32,8 @@ TEST(State, Basic) {
   rule->AddBinding("command", command);
   state.AddRule(rule);
 
+  EXPECT_EQ(rule, state.LookupRule("cat"));
+
   Edge* edge = state.AddEdge(rule);
   state.AddIn(edge, "in1");
   state.AddIn(edge, "in2");
