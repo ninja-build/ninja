@@ -356,17 +356,11 @@ consisting of the `rule` keyword and a name for the rule.  Then
 follows an indented set of `variable = value` lines.
 
 The basic example above declares a new rule named `cc`, along with the
-command to run.  (In the context of a rule, the `command` variable is
-special and defines the command to run.  A full list of special
-variables is provided in <<ref_rule,the reference>>.)
-
-Within the context of a rule, three additional special variables are
-available: `$in` expands to the list of input files (`foo.c`) and
-`$out` to the output file (`foo.o`) for the command. For use with
-`$rspfile_content`, there is also `$in_newline`, which is the same as
-`$in`, except that multiple inputs are separated by `\n`, rather than
-spaces.
-
+command to run.  In the context of a rule, the `command` variable
+defines the command to run, `$in` expands to the list of
+input files (`foo.c`), and `$out` to the output files (`foo.o`) for the
+command.  A full list of special variables is provided in
+<<ref_rule,the reference>>.
 
 Build statements
 ~~~~~~~~~~~~~~~~
@@ -722,6 +716,20 @@ aborting due to a missing input.
   rebuilt if the command line changes; and secondly, they are not
   cleaned by default.
 
+`in`:: the shell-quoted space-separated list of files provided as
+  inputs to the build line referencing this `rule`.  (`$in` is provided
+  solely for convenience; if you need some subset or variant of this
+  list of files, just construct a new variable with that list and use
+  that instead.)
+
+`in_newline`:: the same as `$in` except that multiple inputs are
+  separated by newlines rather than spaces.  (For use with
+  `$rspfile_content`; this works around a bug in the MSVC linker where
+  it uses a fixed-size buffer for processing input.)
+
+`out`:: the shell-quoted space-separated list of files provided as
+  outputs to the build line referencing this `rule`.
+
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
   the command did not change will be treated as though it had never
@@ -747,10 +755,6 @@ rule link
 
 build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 ----
-
-Finally, the special `$in` and `$out` variables expand to the
-shell-quoted space-separated list of files provided to the `build`
-line referencing this `rule`.
 
 [[ref_dependencies]]
 Build dependencies
