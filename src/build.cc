@@ -801,16 +801,14 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   // can fail, which makes the command fail from a build perspective.
 
   vector<Node*> deps_nodes;
-  if (result->success()) {
-    string deps_type = edge->GetBinding("deps");
-    if (!deps_type.empty()) {
-      string extract_err;
-      if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err)) {
-        if (!result->output.empty())
-          result->output.append("\n");
-        result->output.append(extract_err);
-        result->status = ExitFailure;
-      }
+  string deps_type = edge->GetBinding("deps");
+  if (result->success() && !deps_type.empty()) {
+    string extract_err;
+    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err)) {
+      if (!result->output.empty())
+        result->output.append("\n");
+      result->output.append(extract_err);
+      result->status = ExitFailure;
     }
   }
 
@@ -874,7 +872,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
                                      restat_mtime);
   }
 
-  if (scan_.deps_log()) {
+  if (!deps_type.empty() && scan_.deps_log()) {
     // XXX figure out multiple outputs.
     Node* out = edge->outputs_[0];
     // XXX need to restat for restat_mtime.
