@@ -120,7 +120,6 @@ if platform == 'windows':
     cflags = ['/nologo',  # Don't print startup banner.
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
-              '/WX',  # Warnings as errors.
               '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
               # Disable warnings about passing "this" during initialization.
