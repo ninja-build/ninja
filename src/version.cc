@@ -26,7 +26,7 @@ void ParseVersion(const string& version, int* major, int* minor) {
   *minor = 0;
   if (end != string::npos) {
     size_t start = end + 1;
-    end = version.find(start, '.');
+    end = version.find('.', start);
     *minor = atoi(version.substr(start, end).c_str());
   }
 }
@@ -51,6 +51,7 @@ void CheckNinjaVersion(const string& version) {
           kNinjaVersion, version.c_str());
   }
 }
+
 
 
 
