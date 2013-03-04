@@ -238,6 +238,14 @@ string BuildStatus::FormatProgressStatus(
         out += buf;
         break;
 
+      case 'e':
+      {
+        double elapsed = overall_rate_.Elapsed();
+        snprintf(buf, sizeof(buf), "%.3fs", elapsed);
+        out += buf;
+        break;
+      }
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
