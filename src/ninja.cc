@@ -486,6 +486,49 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+void EncodeJSONString(const char *str) {
+  while (*str) {
+    if (*str == '"' || *str == '\\')
+      putchar('\\');
+    putchar(*str);
+    str++;
+  }
+}
+
+int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
+  bool first = true;
+  char cwd[PATH_MAX];
+
+  if (!getcwd(cwd, PATH_MAX)) {
+    Error("cannot determine working directory: %s", strerror(errno));
+    return 1;
+  }
+
+  putchar('[');
+  for (vector<Edge*>::iterator e = globals->state->edges_.begin();
+       e != globals->state->edges_.end(); ++e) {
+    for (int i = 0; i != argc; ++i) {
+      if ((*e)->rule_->name() == argv[i]) {
+        if (!first)
+          putchar(',');
+
+        printf("\n  {\n    \"directory\": \"");
+        EncodeJSONString(cwd);
+        printf("\",\n    \"command\": \"");
+        EncodeJSONString((*e)->EvaluateCommand().c_str());
+        printf("\",\n    \"file\": \"");
+        EncodeJSONString((*e)->inputs_[0]->path().c_str());
+        printf("\"\n  }");
+
+        first = false;
+      }
+    }
+  }
+
+  puts("\n]");
+  return 0;
+}
+
 int ToolUrtle(Globals* globals, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -534,6 +577,8 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolQuery },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, ToolTargets },
+    { "compdb",  "dump JSON compilation database to stdout",
+      Tool::RUN_AFTER_LOAD, ToolCompilationDatabase },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
