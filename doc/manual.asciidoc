@@ -668,7 +668,7 @@ Two variables are significant when declared in the outermost file scope.
   discussion of the build log>>.  (You can also store other build output
   in this directory.)
 
-`ninja_required_version`:: the minimum verison of Ninja required to process
+`ninja_required_version`:: the minimum version of Ninja required to process
   the build correctly.  See <<ref_versioning,the discussion of versioning>>.
 
 
