@@ -85,7 +85,9 @@ if options.windows:
 vcdir = os.environ.get('VCINSTALLDIR')
 if vcdir:
     if options.x64:
-        cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
+        cl = [os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')]
+        if not os.path.exists(cl[0]):
+            cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
     else:
         cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
     args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
