@@ -238,8 +238,7 @@ string BuildStatus::FormatProgressStatus(
         out += buf;
         break;
 
-      case 'e':
-      {
+      case 'e': {
         double elapsed = overall_rate_.Elapsed();
         snprintf(buf, sizeof(buf), "%.3f", elapsed);
         out += buf;
