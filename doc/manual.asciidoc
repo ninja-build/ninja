@@ -222,6 +222,7 @@ Several placeholders are available:
 `%f`:: The number of finished edges.
 `%o`:: Overall rate of finished edges per second
 `%c`:: Current rate of finished edges per second (average over builds specified by -j or its default)
+`%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
 `%%`:: A plain `%` character.
 
 The default progress status is `"[%s/%t] "` (note the trailing space
@@ -690,7 +691,7 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
