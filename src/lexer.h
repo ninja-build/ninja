@@ -86,8 +86,17 @@ struct Lexer {
     return ReadEvalString(value, false, err);
   }
 
-  /// Construct an error message with context.
-  bool Error(const string& message, string* err);
+  /// Get a offest which is useful for printing Errors with this Lexer.
+  int GetCurrentTokenOffset() { return last_token_ - input_.str_; }
+
+  /// Construct an error message with current context.
+  bool Error(const string& message, string* err) {
+    return Error(message, err, GetCurrentTokenOffset());
+  }
+
+  /// Construct an error message with specified context (see
+  /// GetCurrentTokenOffset).
+  bool Error(const string& message, string* err, int error_token_offset);
 
 private:
   /// Skip past whitespace (called after each read token/ident/etc.).

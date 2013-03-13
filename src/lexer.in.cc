@@ -14,22 +14,27 @@
 
 #include "lexer.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include "eval_env.h"
 #include "util.h"
 
-bool Lexer::Error(const string& message, string* err) {
+bool Lexer::Error(const string& message, string* err, int error_token_offset) {
+  assert(error_token_offset < input_.len_);
+  assert(error_token_offset >= 0);
+  const char * error_token = input_.str_ + error_token_offset;
+
   // Compute line/column.
   int line = 1;
   const char* context = input_.str_;
-  for (const char* p = input_.str_; p < last_token_; ++p) {
+  for (const char* p = input_.str_; p < error_token; ++p) {
     if (*p == '\n') {
       ++line;
       context = p + 1;
     }
   }
-  int col = last_token_ ? (int)(last_token_ - context) : 0;
+  int col = error_token ? (int)(error_token - context) : 0;
 
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d: ", filename_.AsString().c_str(), line);

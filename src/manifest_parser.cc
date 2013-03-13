@@ -220,6 +220,7 @@ bool ManifestParser::ParseDefault(string* err) {
 
 bool ManifestParser::ParseEdge(string* err) {
   vector<EvalString> ins, outs;
+  vector<int> ins_error_contexts;
 
   {
     EvalString out;
@@ -256,6 +257,7 @@ bool ManifestParser::ParseEdge(string* err) {
     if (in.empty())
       break;
     ins.push_back(in);
+    ins_error_contexts.push_back(lexer_.GetCurrentTokenOffset());
   }
 
   // Add all implicit deps, counting how many as we go.
@@ -268,6 +270,7 @@ bool ManifestParser::ParseEdge(string* err) {
       if (in.empty())
         break;
       ins.push_back(in);
+      ins_error_contexts.push_back(lexer_.GetCurrentTokenOffset());
       ++implicit;
     }
   }
@@ -282,6 +285,7 @@ bool ManifestParser::ParseEdge(string* err) {
       if (in.empty())
         break;
       ins.push_back(in);
+      ins_error_contexts.push_back(lexer_.GetCurrentTokenOffset());
       ++order_only;
     }
   }
@@ -310,6 +314,18 @@ bool ManifestParser::ParseEdge(string* err) {
     if (pool == NULL)
       return lexer_.Error("unknown pool name", err);
     edge->pool_ = pool;
+  }
+
+  {
+    set<string> ins_evaluated;
+    for (size_t idx=0; idx < ins.size(); ++idx) {
+      string evaluated(ins[idx].Evaluate(env));
+      if(ins_evaluated.count(evaluated)) {
+        int ctx = ins_error_contexts[idx];
+        return lexer_.Error("redundant dependency '"+evaluated+"'", err, ctx);
+      }
+      ins_evaluated.insert(evaluated);
+    }
   }
 
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {

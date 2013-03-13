@@ -579,6 +579,51 @@ TEST_F(ParserTest, Errors) {
                                   "  generator = 1\n", &err));
     EXPECT_EQ("input:4: unexpected indent\n", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    // We are not allowed to depend on the same input twice.
+    EXPECT_FALSE(parser.ParseTest("rule r\n"
+                                  "  command = r\n"
+                                  "build a: r b c $thing d e\n"
+                                  "  thing = b\n", &err));
+    EXPECT_EQ(
+      "input:3: redundant dependency 'b'\n"
+      "build a: r b c $thing d e\n"
+      "                     ^ near here", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    // We are not allowed to depend on the same input twice, implicitly.
+    EXPECT_FALSE(parser.ParseTest("rule r\n"
+                                  "  command = r\n"
+                                  "build a: r b c d e | $thing k\n"
+                                  "  thing = b\n", &err));
+    EXPECT_EQ(
+      "input:3: redundant dependency 'b'\n"
+      "build a: r b c d e | $thing k\n"
+      "                           ^ near here", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    // We are not allowed to depend on the same input twice, order-only.
+    EXPECT_FALSE(parser.ParseTest("rule r\n"
+                                  "  command = r\n"
+                                  "build a: r b c d e | foo || $thing k\n"
+                                  "  thing = b\n", &err));
+    EXPECT_EQ(
+      "input:3: redundant dependency 'b'\n"
+      "build a: r b c d e | foo || $thing k\n"
+      "                                  ^ near here", err);
+  }
 }
 
 TEST_F(ParserTest, MissingInput) {
