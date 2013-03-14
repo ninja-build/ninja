@@ -76,6 +76,8 @@ string ElideMiddle(const string& str, size_t width);
 #define unlink _unlink
 #define chdir _chdir
 #define strtoull _strtoui64
+#define getcwd _getcwd
+#define PATH_MAX _MAX_PATH
 #endif
 
 #ifdef _WIN32
