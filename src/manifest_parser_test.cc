@@ -674,7 +674,7 @@ TEST_F(ParserTest, DuplicateDependencies) {
 
   Edge* edge = state.LookupNode("foo")->in_edge();
   ASSERT_EQ(3u, edge->inputs_.size());
-  ASSERT_FALSE(edge->is_order_only(0) && edge->is_implicit(0));
+  ASSERT_FALSE(edge->is_order_only(0) || edge->is_implicit(0));
   ASSERT_TRUE(edge->is_implicit(1));
   ASSERT_TRUE(edge->is_order_only(2));
   ASSERT_EQ("bar", edge->inputs_[0]->path());
