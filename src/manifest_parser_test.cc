@@ -664,6 +664,24 @@ TEST_F(ParserTest, OrderOnly) {
   ASSERT_TRUE(edge->is_order_only(1));
 }
 
+TEST_F(ParserTest, DuplicateDependencies) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build foo: cat bar bar | $whizbang ./bar || $thing baz\n"
+"  thing = ././bar\n"
+"  whizbang = ././meep\n"
+));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(3u, edge->inputs_.size());
+  ASSERT_FALSE(edge->is_order_only(0) && edge->is_implicit(0));
+  ASSERT_TRUE(edge->is_implicit(1));
+  ASSERT_TRUE(edge->is_order_only(2));
+  ASSERT_EQ("bar", edge->inputs_[0]->path());
+  ASSERT_EQ("meep", edge->inputs_[1]->path());
+  ASSERT_EQ("baz", edge->inputs_[2]->path());
+}
+
 TEST_F(ParserTest, DefaultDefault) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n  command = cat $in > $out\n"
