@@ -14,6 +14,8 @@
 
 #include "depfile_parser.h"
 
+#include "util.h"
+
 // A note on backslashes in Makefiles, from reading the docs:
 // Backslash-newline is the line continuation character.
 // Backslash-# escapes a # (otherwise meaningful as a comment start).
@@ -28,7 +30,9 @@
 // otherwise they are passed through verbatim.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(string* content, string* err) {
+bool DepfileParser::Parse(string* content, string* err,
+                          set<string>* current_deps)
+{
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
@@ -93,7 +97,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       */
     }
 
-    int len = (int)(out - filename);
+    size_t len = (int)(out - filename);
     const bool is_target = parsing_targets;
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
@@ -104,7 +108,14 @@ bool DepfileParser::Parse(string* content, string* err) {
       continue;
 
     if (!is_target) {
-      ins_.push_back(StringPiece(filename, len));
+      if (!CanonicalizePath(filename, &len, err))
+        return false;
+      string path(filename, len);
+      if (current_deps->count(path)) {
+        continue;
+      }
+      ins_.push_back(path);
+      current_deps->insert(ins_.back());
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {

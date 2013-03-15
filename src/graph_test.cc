@@ -23,6 +23,26 @@ struct GraphTest : public StateTestWithBuiltinRules {
   DependencyScan scan_;
 };
 
+TEST_F(GraphTest, RedundantDepfile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build foo.o: catdep foo.cc\n"));
+  fs_.Create("foo.cc", 1, "");
+  fs_.Create("foo.o.d", 1, "foo.o: foo.cc foo.h\n");
+
+  Edge* edge = GetNode("foo.o")->in_edge();
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+
+  // Edge should only have two inputs -- shouldn't pick up foo.cc twice.
+  ASSERT_EQ(2u, edge->inputs_.size());
+  EXPECT_EQ("foo.cc", edge->inputs_[0]->path());
+  EXPECT_EQ("foo.h",  edge->inputs_[1]->path());
+}
+
 TEST_F(GraphTest, MissingImplicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in | implicit\n"));
