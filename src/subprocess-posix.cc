@@ -15,6 +15,7 @@
 #include "subprocess.h"
 
 #include <algorithm>
+#include <vector>
 #include <map>
 #include <assert.h>
 #include <errno.h>
@@ -23,7 +24,12 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <iterator>
+#include <istream>
+#include <sstream>
+#include <strstream>
 #include <sys/wait.h>
+#include <sys/user.h>
 
 // Older versions of glibc (like 2.4) won't find this in <poll.h>.  glibc
 // 2.4 keeps it in <asm-generic/poll.h>, though attempting to include that
@@ -42,6 +48,42 @@ Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
+}
+
+static inline
+char **construct_argv_from_command (const string &command)
+{
+  size_t argc = 0, begin_idx = 0, end_idx;
+  string local_command = command;
+  std::stringstream ss (local_command);
+  istream_iterator<string> end, begin (ss);
+  vector<std::string> vstrings (begin, end);
+
+  do {
+    if (vstrings[begin_idx] != ":" && vstrings[begin_idx] != "&&")
+      break;
+    begin_idx++;
+  } while (begin_idx < vstrings.size ());
+
+  end_idx = vstrings.size () - 1;
+  do {
+    if (vstrings[end_idx] != ":" && vstrings[end_idx] != "&&")
+      break;
+    end_idx--;
+  } while (end_idx != begin_idx);
+
+  argc = end_idx - begin_idx + 1;
+  char **argv = new char * [argc + 1];
+  argv[argc] = 0;
+
+  for (size_t i_arg = begin_idx; i_arg <= end_idx; i_arg++)
+    {
+      const string &current_arg = vstrings[i_arg];
+      argv[i_arg - begin_idx] = new char[current_arg.length () + 1];
+      strcpy (argv[i_arg - begin_idx], current_arg.c_str ());
+    }
+
+  return argv;
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
@@ -91,7 +133,20 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       error_pipe = 2;
       close(output_pipe[1]);
 
-      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
+      if (command.length () < /*MAX_ARG_STRLEN*/ static_cast < size_t > (PAGE_SIZE * 32))
+        execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
+      else
+        {
+          char **argv = construct_argv_from_command (command);
+          if (argv)
+            {
+              execv (argv[0], argv);
+
+              for (char **arg_i = argv; *arg_i; arg_i++)
+                free (*argv);
+              free (argv);
+            }
+        }
     } while (false);
 
     // If we get here, something went wrong; the execl should have
