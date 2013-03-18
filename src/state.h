@@ -39,7 +39,7 @@ struct Rule;
 /// completes).
 struct Pool {
   explicit Pool(const string& name, int depth)
-    : name_(name), current_use_(0), depth_(depth) { }
+    : name_(name), current_use_(0), depth_(depth), delayed_(&WeightedEdgeCmp) { }
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
@@ -74,7 +74,9 @@ struct Pool {
   int current_use_;
   int depth_;
 
-  deque<Edge*> delayed_;
+  static bool WeightedEdgeCmp(const Edge* a, const Edge* b);
+
+  set<Edge*,bool(*)(const Edge*, const Edge*)> delayed_;
 };
 
 /// Global state (file status, loaded rules) for a single run.
