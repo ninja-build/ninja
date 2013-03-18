@@ -29,10 +29,10 @@ struct DepfileParser {
   /// current_deps contains the set of Canonicalized paths which are
   ///   explicit+implicit dependencies. DepfileParser adds all new
   ///   implicit dependencies to it during parsing.
-  bool Parse(string* content, string* err, set<string>* current_deps);
+  bool Parse(string* content, string* err, set<StringPiece>* current_deps);
 
   StringPiece out_;
-  vector<string> ins_;
+  vector<StringPiece> ins_;
 };
 
 #endif // NINJA_DEPFILE_PARSER_H_

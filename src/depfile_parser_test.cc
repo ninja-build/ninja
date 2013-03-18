@@ -18,17 +18,17 @@
 
 struct DepfileParserTest : public testing::Test {
   bool Parse(const char* input, string* err) {
-    set<string> current_deps;
+    set<StringPiece> current_deps;
     return Parse(input, err, &current_deps);
   }
-  bool Parse(const char* input, string* err, set<string>* current_deps);
+  bool Parse(const char* input, string* err, set<StringPiece>* current_deps);
 
   DepfileParser parser_;
   string input_;
 };
 
 bool DepfileParserTest::Parse(const char* input, string* err,
-                              set<string>* current_deps) {
+                              set<StringPiece>* current_deps) {
   input_ = input;
   return parser_.Parse(&input_, err, current_deps);
 }
@@ -87,9 +87,12 @@ TEST_F(DepfileParserTest, Spaces) {
   EXPECT_EQ("a bc def",
             parser_.out_.AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
-  EXPECT_EQ("a b", parser_.ins_[0]);
-  EXPECT_EQ("c", parser_.ins_[1]);
-  EXPECT_EQ("d", parser_.ins_[2]);
+  EXPECT_EQ("a b",
+            parser_.ins_[0].AsString());
+  EXPECT_EQ("c",
+            parser_.ins_[1].AsString());
+  EXPECT_EQ("d",
+            parser_.ins_[2].AsString());
 }
 
 TEST_F(DepfileParserTest, Escapes) {
@@ -129,9 +132,9 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
   ASSERT_EQ(parser_.out_.AsString(), "foo");
   ASSERT_EQ(parser_.ins_.size(), 3u);
-  EXPECT_EQ("x", parser_.ins_[0]);
-  EXPECT_EQ("y", parser_.ins_[1]);
-  EXPECT_EQ("z", parser_.ins_[2]);
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
 }
 
 TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {

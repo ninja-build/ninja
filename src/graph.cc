@@ -285,9 +285,9 @@ bool Edge::GetBindingBool(const string& key) {
 }
 
 struct DepsRemover {
-  DepsRemover(const set<string>& current_deps) : current_deps_(current_deps) {}
+  DepsRemover(const set<StringPiece>& current_deps) : current_deps_(current_deps) {}
   bool operator ()(Node* node) { return current_deps_.count(node->path()); }
-  const set<string>& current_deps_;
+  const set<StringPiece>& current_deps_;
 };
 
 bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
@@ -303,8 +303,7 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
 
   DepfileParser depfile;
   string depfile_err;
-  // TODO(riannucci): Worth it to make this set<const string*>?
-  set<string> current_deps;
+  set<StringPiece> current_deps;
   size_t implicit_end_idx = (edge->inputs_.size() - edge->order_only_deps_);
   for(vector<Node*>::iterator it=edge->inputs_.begin();
       it != edge->inputs_.begin() + implicit_end_idx;
@@ -327,8 +326,8 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
 
   // Remove now-duplicate order-only dependencies.
   size_t order_end_idx = edge->inputs_.size() - edge->order_only_deps_;
-  vector<Node*>::iterator new_end = remove_if(edge->inputs_.begin() + order_end_idx,
-    edge->inputs_.end(), DepsRemover(current_deps));
+  vector<Node*>::iterator new_end = remove_if(edge->inputs_.begin() +
+    order_end_idx, edge->inputs_.end(), DepsRemover(current_deps));
   edge->order_only_deps_ -= edge->inputs_.end() - new_end;
   edge->inputs_.erase(new_end, edge->inputs_.end());
 
@@ -340,7 +339,7 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
       edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
 
   // Add all its in-edges.
-  for (vector<string>::iterator i = depfile.ins_.begin();
+  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
     Node* node = state_->GetNode(*i);
     *implicit_dep = node;

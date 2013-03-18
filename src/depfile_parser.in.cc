@@ -31,7 +31,7 @@
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
 bool DepfileParser::Parse(string* content, string* err,
-                          set<string>* current_deps)
+                          set<StringPiece>* current_deps)
 {
   // in: current parser input point.
   // end: end of input.
@@ -110,7 +110,7 @@ bool DepfileParser::Parse(string* content, string* err,
     if (!is_target) {
       if (!CanonicalizePath(filename, &len, err))
         return false;
-      string path(filename, len);
+      StringPiece path(filename, len);
       if (current_deps->count(path)) {
         continue;
       }
