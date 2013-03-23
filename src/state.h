@@ -76,7 +76,8 @@ struct Pool {
 
   static bool WeightedEdgeCmp(const Edge* a, const Edge* b);
 
-  set<Edge*,bool(*)(const Edge*, const Edge*)> delayed_;
+  typedef set<Edge*,bool(*)(const Edge*, const Edge*)> DelayedEdges;
+  DelayedEdges delayed_;
 };
 
 /// Global state (file status, loaded rules) for a single run.

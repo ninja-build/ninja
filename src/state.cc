@@ -39,7 +39,7 @@ void Pool::DelayEdge(Edge* edge) {
 }
 
 void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
-  set<Edge*>::iterator it = delayed_.begin();
+  DelayedEdges::iterator it = delayed_.begin();
   while (it != delayed_.end()) {
     Edge* edge = *it;
     if (current_use_ + edge->weight() > depth_)
@@ -53,7 +53,7 @@ void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
 
 void Pool::Dump() const {
   printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
-  for (set<Edge*>::const_iterator it = delayed_.begin();
+  for (DelayedEdges::const_iterator it = delayed_.begin();
        it != delayed_.end(); ++it)
   {
     printf("\t");
