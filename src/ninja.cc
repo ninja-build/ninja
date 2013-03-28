@@ -629,7 +629,14 @@ bool DebugEnable(const string& name, Globals* globals) {
     g_explaining = true;
     return true;
   } else {
-    printf("ninja: unknown debug setting '%s'\n", name.c_str());
+    const char* suggestion =
+        SpellcheckString(name, "stats", "explain", NULL);
+    if (suggestion) {
+      Error("unknown debug setting '%s', did you mean '%s'?",
+            name.c_str(), suggestion);
+    } else {
+      Error("unknown debug setting '%s'", name.c_str());
+    }
     return false;
   }
 }
