@@ -104,10 +104,12 @@ TEST_F(DepfileParserTest, Escapes) {
 }
 
 TEST_F(DepfileParserTest, SpecialChars) {
+  // See filenames like istreambuf.iterator_op!= in
+  // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
   string err;
   EXPECT_TRUE(Parse(
 "C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \n"
-" en@quot.header~ t+t-x=1",
+" en@quot.header~ t+t-x!=1",
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
@@ -115,7 +117,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
   ASSERT_EQ(2u, parser_.ins_.size());
   EXPECT_EQ("en@quot.header~",
             parser_.ins_[0].AsString());
-  EXPECT_EQ("t+t-x=1",
+  EXPECT_EQ("t+t-x!=1",
             parser_.ins_[1].AsString());
 }
 
