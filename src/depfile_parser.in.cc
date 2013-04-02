@@ -55,11 +55,16 @@ bool DepfileParser::Parse(string* content, string* err) {
       re2c:indent:string = "  ";
 
       nul = "\000";
-      escape = [ \\#*$[|];
+      escape = [ \\#*[|];
 
       '\\' escape {
         // De-escape backslashed character.
         *out++ = yych;
+        continue;
+      }
+      '$$' {
+        // De-escape dollar character.
+        *out++ = '$';
         continue;
       }
       '\\' [^\000\n] {
