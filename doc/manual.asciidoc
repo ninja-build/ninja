@@ -555,7 +555,7 @@ If you provide a variable named `builddir` in the outermost scope,
 Version compatibility
 ~~~~~~~~~~~~~~~~~~~~~
 
-_Available since Ninja 1.XXX._
+_Available since Ninja 1.2._
 
 Ninja version labels follow the standard major.minor.patch format,
 where the major version is increased on backwards-incompatible
