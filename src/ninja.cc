@@ -49,10 +49,6 @@ int MSVCHelperMain(int argc, char** argv);
 
 namespace {
 
-/// The version number of the current Ninja release.  This will always
-/// be "git" on trunk.
-const char* kVersion = "1.2.0";
-
 /// Global information passed into subtools.
 struct Globals {
   Globals() : state(new State()) {}
