@@ -14,6 +14,8 @@
 
 #include "graph.h"
 
+#include <algorithm>
+
 #include <assert.h>
 #include <stdio.h>
 
@@ -282,6 +284,12 @@ bool Edge::GetBindingBool(const string& key) {
   return !GetBinding(key).empty();
 }
 
+struct DepsRemover {
+  DepsRemover(const set<StringPiece>& current_deps) : current_deps_(current_deps) {}
+  bool operator ()(Node* node) { return current_deps_.count(node->path()); }
+  const set<StringPiece>& current_deps_;
+};
+
 bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
   METRIC_RECORD("depfile load");
   string content = disk_interface_->ReadFile(path, err);
@@ -295,7 +303,14 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
 
   DepfileParser depfile;
   string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
+  set<StringPiece> current_deps;
+  size_t implicit_end_idx = (edge->inputs_.size() - edge->order_only_deps_);
+  for(vector<Node*>::iterator it=edge->inputs_.begin();
+      it != edge->inputs_.begin() + implicit_end_idx;
+      ++it) {
+    current_deps.insert((*it)->path());
+  }
+  if (!depfile.Parse(&content, &depfile_err, &current_deps)) {
     *err = path + ": " + depfile_err;
     return false;
   }
@@ -309,6 +324,13 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
     return false;
   }
 
+  // Remove now-duplicate order-only dependencies.
+  size_t order_end_idx = edge->inputs_.size() - edge->order_only_deps_;
+  vector<Node*>::iterator new_end = remove_if(edge->inputs_.begin() +
+    order_end_idx, edge->inputs_.end(), DepsRemover(current_deps));
+  edge->order_only_deps_ -= edge->inputs_.end() - new_end;
+  edge->inputs_.erase(new_end, edge->inputs_.end());
+
   // Preallocate space in edge->inputs_ to be filled in below.
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
                        depfile.ins_.size(), 0);
@@ -319,9 +341,6 @@ bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
-      return false;
-
     Node* node = state_->GetNode(*i);
     *implicit_dep = node;
     node->AddOutEdge(edge);

@@ -17,15 +17,20 @@
 #include <gtest/gtest.h>
 
 struct DepfileParserTest : public testing::Test {
-  bool Parse(const char* input, string* err);
+  bool Parse(const char* input, string* err) {
+    set<StringPiece> current_deps;
+    return Parse(input, err, &current_deps);
+  }
+  bool Parse(const char* input, string* err, set<StringPiece>* current_deps);
 
   DepfileParser parser_;
   string input_;
 };
 
-bool DepfileParserTest::Parse(const char* input, string* err) {
+bool DepfileParserTest::Parse(const char* input, string* err,
+                              set<StringPiece>* current_deps) {
   input_ = input;
-  return parser_.Parse(&input_, err);
+  return parser_.Parse(&input_, err, current_deps);
 }
 
 TEST_F(DepfileParserTest, Basic) {

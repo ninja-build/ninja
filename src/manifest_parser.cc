@@ -312,12 +312,28 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
-    string path = i->Evaluate(env);
-    string path_err;
-    if (!CanonicalizePath(&path, &path_err))
-      return lexer_.Error(path_err, err);
-    state_->AddIn(edge, path);
+  {
+    // Drop duplicate dependencies and adjust implicit and order_only
+    // accordingly.
+    set<string> ins_evaluated;
+    size_t idx = 0;
+    for (vector<EvalString>::iterator i = ins.begin();
+         i != ins.end(); ++i, ++idx) {
+      string path = i->Evaluate(env);
+      string path_err;
+      if (!CanonicalizePath(&path, &path_err))
+        return lexer_.Error(path_err, err);
+      if (ins_evaluated.count(path)) {
+        if (idx >= ins.size() - order_only) {
+          --order_only;
+        } else if (idx >= ins.size() - order_only - implicit) {
+          --implicit;
+        }
+        continue;
+      }
+      ins_evaluated.insert(path);
+      state_->AddIn(edge, path);
+    }
   }
   for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     string path = i->Evaluate(env);

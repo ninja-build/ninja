@@ -40,6 +40,12 @@ struct StringPiece {
     return !(*this == other);
   }
 
+  bool operator <(const StringPiece& other) const {
+    const size_t min_len = min(len_, other.len_);
+    const int cmp = memcmp(str_, other.str_, min_len);
+    return min_len && (cmp < 0 || (cmp == 0 && len_ < other.len_));
+  }
+
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
   string AsString() const {

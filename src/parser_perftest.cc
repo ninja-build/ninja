@@ -39,8 +39,9 @@ int main(int argc, char* argv[]) {
           return 1;
         }
 
+        set<StringPiece> current_deps;
         DepfileParser parser;
-        if (!parser.Parse(&buf, &err)) {
+        if (!parser.Parse(&buf, &err, &current_deps)) {
           printf("%s: %s\n", filename, err.c_str());
           return 1;
         }

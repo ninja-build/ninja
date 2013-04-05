@@ -16,6 +16,7 @@
 #define NINJA_DEPFILE_PARSER_H_
 
 #include <string>
+#include <set>
 #include <vector>
 using namespace std;
 
@@ -24,9 +25,11 @@ using namespace std;
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
   /// Parse an input file.  Input must be NUL-terminated.
-  /// Warning: may mutate the content in-place and parsed StringPieces are
-  /// pointers within it.
-  bool Parse(string* content, string* err);
+  /// Warning: may mutate the content in-place.
+  /// current_deps contains the set of Canonicalized paths which are
+  ///   explicit+implicit dependencies. DepfileParser adds all new
+  ///   implicit dependencies to it during parsing.
+  bool Parse(string* content, string* err, set<StringPiece>* current_deps);
 
   StringPiece out_;
   vector<StringPiece> ins_;
