@@ -302,6 +302,80 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_FALSE(plan_.FindWork());
 }
 
+TEST_F(PlanTest, PoolWithRedundantEdges) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "pool compile\n"
+    "  depth = 1\n"
+    "rule gen_foo\n"
+    "  command = touch foo.cpp\n"
+    "rule gen_bar\n"
+    "  command = touch bar.cpp\n"
+    "rule echo\n"
+    "  command = echo $out > $out\n"
+    "build foo.cpp.obj: echo foo.cpp || foo.cpp\n"
+    "  pool = compile\n"
+    "build bar.cpp.obj: echo bar.cpp || bar.cpp\n"
+    "  pool = compile\n"
+    "build libfoo.a: echo foo.cpp.obj bar.cpp.obj\n"
+    "build foo.cpp: gen_foo\n"
+    "build bar.cpp: gen_bar\n"
+    "build all: phony libfoo.a\n"));
+  GetNode("foo.cpp")->MarkDirty();
+  GetNode("foo.cpp.obj")->MarkDirty();
+  GetNode("bar.cpp")->MarkDirty();
+  GetNode("bar.cpp.obj")->MarkDirty();
+  GetNode("libfoo.a")->MarkDirty();
+  GetNode("all")->MarkDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("all"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge = NULL;
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("foo.cpp", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("foo.cpp", edge->inputs_[0]->path());
+  ASSERT_EQ("foo.cpp", edge->inputs_[1]->path());
+  ASSERT_EQ("foo.cpp.obj", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("bar.cpp", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("bar.cpp", edge->inputs_[0]->path());
+  ASSERT_EQ("bar.cpp", edge->inputs_[1]->path());
+  ASSERT_EQ("bar.cpp.obj", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("foo.cpp.obj", edge->inputs_[0]->path());
+  ASSERT_EQ("bar.cpp.obj", edge->inputs_[1]->path());
+  ASSERT_EQ("libfoo.a", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("libfoo.a", edge->inputs_[0]->path());
+  ASSERT_EQ("all", edge->outputs_[0]->path());
+  plan_.EdgeFinished(edge);
+
+  edge = plan_.FindWork();
+  ASSERT_FALSE(edge);
+  ASSERT_FALSE(plan_.more_to_do());
+}
+
+
 struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
   BuildTest() : config_(MakeConfig()),

@@ -27,6 +27,22 @@ void BindingEnv::AddBinding(const string& key, const string& val) {
   bindings_[key] = val;
 }
 
+string BindingEnv::LookupWithFallback(const string& var,
+                                      const EvalString* eval,
+                                      Env* env) {
+  map<string, string>::iterator i = bindings_.find(var);
+  if (i != bindings_.end())
+    return i->second;
+
+  if (eval)
+    return eval->Evaluate(env);
+
+  if (parent_)
+    return parent_->LookupVariable(var);
+
+  return "";
+}
+
 string EvalString::Evaluate(Env* env) const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {

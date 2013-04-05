@@ -83,11 +83,11 @@ bool Cleaner::IsAlreadyRemoved(const string& path) {
 }
 
 void Cleaner::RemoveEdgeFiles(Edge* edge) {
-  string depfile = edge->EvaluateDepFile();
+  string depfile = edge->GetBinding("depfile");
   if (!depfile.empty())
     Remove(depfile);
 
-  string rspfile = edge->GetRspFile();
+  string rspfile = edge->GetBinding("rspfile");
   if (!rspfile.empty())
     Remove(rspfile);
 }
@@ -117,7 +117,7 @@ int Cleaner::CleanAll(bool generator) {
     if ((*e)->is_phony())
       continue;
     // Do not remove generator's files unless generator specified.
-    if (!generator && (*e)->rule().generator())
+    if (!generator && (*e)->GetBindingBool("generator"))
       continue;
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {

@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,6 +42,7 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+#include "version.h"
 
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
@@ -49,7 +51,7 @@ namespace {
 
 /// The version number of the current Ninja release.  This will always
 /// be "git" on trunk.
-const char* kVersion = "1.1.0";
+const char* kVersion = "1.2.0";
 
 /// Global information passed into subtools.
 struct Globals {
@@ -109,7 +111,7 @@ void Usage(const BuildConfig& config) {
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
-"  -j N     run N jobs in parallel [default=%d]\n"
+"  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 #ifdef _WIN32
 "           (not yet implemented on Windows)\n"
@@ -121,7 +123,7 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n",
-          kVersion, config.parallelism);
+          kNinjaVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -410,23 +412,6 @@ int ToolTargets(Globals* globals, int argc, char* argv[]) {
   }
 }
 
-int ToolRules(Globals* globals, int argc, char* /* argv */[]) {
-  for (map<string, const Rule*>::iterator i = globals->state->rules_.begin();
-       i != globals->state->rules_.end(); ++i) {
-    if (i->second->description().empty()) {
-      printf("%s\n", i->first.c_str());
-    } else {
-      printf("%s: %s\n",
-             i->first.c_str(),
-             // XXX I changed it such that we don't have an easy way
-             // to get the source text anymore, so this output is
-             // unsatisfactory.  How useful is this command, anyway?
-             i->second->description().Serialize().c_str());
-    }
-  }
-  return 0;
-}
-
 void PrintCommands(Edge* edge, set<Edge*>* seen) {
   if (!edge)
     return;
@@ -505,6 +490,49 @@ int ToolClean(Globals* globals, int argc, char* argv[]) {
   }
 }
 
+void EncodeJSONString(const char *str) {
+  while (*str) {
+    if (*str == '"' || *str == '\\')
+      putchar('\\');
+    putchar(*str);
+    str++;
+  }
+}
+
+int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
+  bool first = true;
+  char cwd[PATH_MAX];
+
+  if (!getcwd(cwd, PATH_MAX)) {
+    Error("cannot determine working directory: %s", strerror(errno));
+    return 1;
+  }
+
+  putchar('[');
+  for (vector<Edge*>::iterator e = globals->state->edges_.begin();
+       e != globals->state->edges_.end(); ++e) {
+    for (int i = 0; i != argc; ++i) {
+      if ((*e)->rule_->name() == argv[i]) {
+        if (!first)
+          putchar(',');
+
+        printf("\n  {\n    \"directory\": \"");
+        EncodeJSONString(cwd);
+        printf("\",\n    \"command\": \"");
+        EncodeJSONString((*e)->EvaluateCommand().c_str());
+        printf("\",\n    \"file\": \"");
+        EncodeJSONString((*e)->inputs_[0]->path().c_str());
+        printf("\"\n  }");
+
+        first = false;
+      }
+    }
+  }
+
+  puts("\n]");
+  return 0;
+}
+
 int ToolUrtle(Globals* globals, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -551,10 +579,10 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       Tool::RUN_AFTER_LOAD, ToolGraph },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOAD, ToolQuery },
-    { "rules",    "list all rules",
-      Tool::RUN_AFTER_LOAD, ToolRules },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, ToolTargets },
+    { "compdb",  "dump JSON compilation database to stdout",
+      Tool::RUN_AFTER_LOAD, ToolCompilationDatabase },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
@@ -605,7 +633,14 @@ bool DebugEnable(const string& name, Globals* globals) {
     g_explaining = true;
     return true;
   } else {
-    printf("ninja: unknown debug setting '%s'\n", name.c_str());
+    const char* suggestion =
+        SpellcheckString(name, "stats", "explain", NULL);
+    if (suggestion) {
+      Error("unknown debug setting '%s', did you mean '%s'?",
+            name.c_str(), suggestion);
+    } else {
+      Error("unknown debug setting '%s'", name.c_str());
+    }
     return false;
   }
 }
@@ -791,7 +826,7 @@ int NinjaMain(int argc, char** argv) {
         working_dir = optarg;
         break;
       case OPT_VERSION:
-        printf("%s\n", kVersion);
+        printf("%s\n", kNinjaVersion);
         return 0;
       case 'h':
       default:

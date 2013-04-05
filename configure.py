@@ -279,7 +279,8 @@ for name in ['build',
              'manifest_parser',
              'metrics',
              'state',
-             'util']:
+             'util',
+             'version']:
     objs += cxx(name)
 if platform in ('mingw', 'windows'):
     for name in ['subprocess-win32',
@@ -315,7 +316,7 @@ all_targets += ninja
 n.comment('Tests all build into ninja_test executable.')
 
 variables = []
-test_cflags = cflags[:]
+test_cflags = cflags + ['-DGTEST_HAS_RTTI=0']
 test_ldflags = None
 test_libs = libs
 objs = []
@@ -335,14 +336,12 @@ if options.with_gtest:
                     variables=[('cflags', gtest_cflags)])
 
     test_cflags.append('-I%s' % os.path.join(path, 'include'))
-elif platform == 'windows':
-    test_libs.extend(['gtest_main.lib', 'gtest.lib'])
 else:
-    test_cflags.append('-DGTEST_HAS_RTTI=0')
-    test_libs.extend(['-lgtest_main', '-lgtest'])
-
-if test_cflags == cflags:
-    test_cflags = None
+    # Use gtest from system.
+    if platform == 'windows':
+        test_libs.extend(['gtest_main.lib', 'gtest.lib'])
+    else:
+        test_libs.extend(['-lgtest_main', '-lgtest'])
 
 n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
@@ -398,9 +397,14 @@ n.newline()
 
 n.comment('Generate the manual using asciidoc.')
 n.rule('asciidoc',
-       command='asciidoc -a toc -a max-width=45em -o $out $in',
-       description='ASCIIDOC $in')
-manual = n.build(doc('manual.html'), 'asciidoc', doc('manual.asciidoc'))
+       command='asciidoc -b docbook -d book -o $out $in',
+       description='ASCIIDOC $out')
+n.rule('xsltproc',
+       command='xsltproc --nonet doc/docbook.xsl $in > $out',
+       description='XSLTPROC $out')
+xml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
+manual = n.build(doc('manual.html'), 'xsltproc', xml,
+                 implicit=doc('style.css'))
 n.build('manual', 'phony',
         order_only=manual)
 n.newline()

@@ -210,20 +210,23 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior.
+Ninja supports one environment variable to control its behavior:
+`NINJA_STATUS`, the progress status printed before the rule being run.
 
-`NINJA_STATUS`:: The progress status printed before the rule being run.
 Several placeholders are available:
-* `%s`: The number of started edges.
-* `%t`: The total number of edges that must be run to complete the build.
-* `%p`: The percentage of started edges.
-* `%r`: The number of currently running edges.
-* `%u`: The number of remaining edges to start.
-* `%f`: The number of finished edges.
-* `%o`: Overall rate of finished edges per second
-* `%c`: Current rate of finished edges per second (average over builds specified by -j or its default)
-* `%%`: A plain `%` character.
-* The default progress status is `"[%s/%t] "` (note the trailing space
+
+`%s`:: The number of started edges.
+`%t`:: The total number of edges that must be run to complete the build.
+`%p`:: The percentage of started edges.
+`%r`:: The number of currently running edges.
+`%u`:: The number of remaining edges to start.
+`%f`:: The number of finished edges.
+`%o`:: Overall rate of finished edges per second
+`%c`:: Current rate of finished edges per second (average over builds specified by -j or its default)
+`%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
+`%%`:: A plain `%` character.
+
+The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
 
@@ -264,10 +267,6 @@ several times. If used like this +ninja -t targets all+ it
 prints all the targets available without indentation and it is faster
 than the _depth_ mode.
 
-`rules`:: output the list of all rules with their description if they have
-one.  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+.
-
 `commands`:: given a list of targets, print a list of commands which, if
 executed in order, may be used to rebuild those targets, assuming that all
 output files are out of date.
@@ -286,6 +285,12 @@ Files created but not referenced in the graph are not removed. This
 tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
 
+`compdb`:: given a list of rules, each of which is expected to be a
+C family language compiler rule whose first input is the name of the
+source file, prints on standard output a compilation database in the
+http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
+by the Clang tooling interface.
+_Available since Ninja 1.2._
 
 
 Writing your own Ninja files
@@ -359,17 +364,11 @@ consisting of the `rule` keyword and a name for the rule.  Then
 follows an indented set of `variable = value` lines.
 
 The basic example above declares a new rule named `cc`, along with the
-command to run.  (In the context of a rule, the `command` variable is
-special and defines the command to run.  A full list of special
-variables is provided in <<ref_rule,the reference>>.)
-
-Within the context of a rule, three additional special variables are
-available: `$in` expands to the list of input files (`foo.c`) and
-`$out` to the output file (`foo.o`) for the command. For use with
-`$rspfile_content`, there is also `$in_newline`, which is the same as
-`$in`, except that multiple inputs are separated by `\n`, rather than
-spaces.
-
+command to run.  In the context of a rule, the `command` variable
+defines the command to run, `$in` expands to the list of
+input files (`foo.c`), and `$out` to the output files (`foo.o`) for the
+command.  A full list of special variables is provided in
+<<ref_rule,the reference>>.
 
 Build statements
 ~~~~~~~~~~~~~~~~
@@ -400,7 +399,7 @@ rule cc
 # If left unspecified, builds get the outer $cflags.
 build foo.o: cc foo.c
 
-# But you can can shadow variables like cflags for a particular build.
+# But you can shadow variables like cflags for a particular build.
 build special.o: cc special.c
   cflags = -Wall
 
@@ -425,9 +424,7 @@ before building the targets requested by the user.
 Pools
 ~~~~~
 
-*Note: pools were added as an experiment and may be removed in a future
-version of Ninja.  Are they useful for you?  Let us know on the mailing
-list.*
+_Available since Ninja 1.1._
 
 Pools allow you to allocate one or more rules or edges a finite number
 of concurrent jobs which is more tightly restricted than the default
@@ -541,6 +538,7 @@ This causes Ninja to build the `foo`, `bar` and `baz` targets by
 default.
 
 
+[[ref_log]]
 The Ninja log
 ~~~~~~~~~~~~~
 
@@ -552,6 +550,36 @@ command line changed) and knows to rebuild the file.
 The log file is kept in the build root in a file called `.ninja_log`.
 If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
+
+
+[[ref_versioning]]
+Version compatibility
+~~~~~~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.XXX._
+
+Ninja version labels follow the standard major.minor.patch format,
+where the major version is increased on backwards-incompatible
+syntax/behavioral changes and the minor version is increased on new
+behaviors.  Your `build.ninja` may declare a variable named
+`ninja_required_version` that asserts the minimum Ninja version
+required to use the generated file.  For example,
+
+-----
+ninja_required_version = 1.1
+-----
+
+declares that the build file relies on some feature that was
+introduced in Ninja 1.1 (perhaps the `pool` syntax), and that
+Ninja 1.1 or greater must be used to build.  Unlike other Ninja
+variables, this version requirement is checked immediately when
+the variable is encountered in parsing, so it's best to put it
+at the top of the build file.
+
+Ninja always warns if the major versions of Ninja and the
+`ninja_required_version` don't match; a major version change hasn't
+come up yet so it's difficult to predict what behavior might be
+required.
 
 
 Ninja file reference
@@ -608,7 +636,7 @@ across a line break).
 paths, where a space would otherwise separate filenames.  See below.)
 
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
-would otherwise terminate the list of inputs.)
+would otherwise terminate the list of outputs.)
 
 `$$`:: a literal `$`.
 
@@ -639,9 +667,22 @@ line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
 
+Top-level variables
+~~~~~~~~~~~~~~~~~~~
+
+Two variables are significant when declared in the outermost file scope.
+
+`builddir`:: a directory for some Ninja output files.  See <<ref_log,the
+  discussion of the build log>>.  (You can also store other build output
+  in this directory.)
+
+`ninja_required_version`:: the minimum version of Ninja required to process
+  the build correctly.  See <<ref_versioning,the discussion of versioning>>.
+
+
+[[ref_rule]]
 Rule variables
 ~~~~~~~~~~~~~~
-[[ref_rule]]
 
 A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
@@ -651,7 +692,7 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
@@ -683,6 +724,20 @@ aborting due to a missing input.
   rebuilt if the command line changes; and secondly, they are not
   cleaned by default.
 
+`in`:: the shell-quoted space-separated list of files provided as
+  inputs to the build line referencing this `rule`.  (`$in` is provided
+  solely for convenience; if you need some subset or variant of this
+  list of files, just construct a new variable with that list and use
+  that instead.)
+
+`in_newline`:: the same as `$in` except that multiple inputs are
+  separated by newlines rather than spaces.  (For use with
+  `$rspfile_content`; this works around a bug in the MSVC linker where
+  it uses a fixed-size buffer for processing input.)
+
+`out`:: the shell-quoted space-separated list of files provided as
+  outputs to the build line referencing this `rule`.
+
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
   the command did not change will be treated as though it had never
@@ -709,13 +764,9 @@ rule link
 build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 ----
 
-Finally, the special `$in` and `$out` variables expand to the
-shell-quoted space-separated list of files provided to the `build`
-line referencing this `rule`.
-
+[[ref_dependencies]]
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
-[[ref_dependencies]]
 
 There are three types of build dependencies which are subtly different.
 
@@ -752,9 +803,34 @@ header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
 
+Variable expansion
+~~~~~~~~~~~~~~~~~~
+
+Variables are expanded in paths (in a `build` or `default` statement)
+and on the right side of a `name = value` statement.
+
+When a `name = value` statement is evaluated, its right-hand side is
+expanded immediately (according to the below scoping rules), and
+from then on `$name` expands to the static string as the result of the
+expansion.  It is never the case that you'll need to "double-escape" a
+value to prevent it from getting expanded twice.
+
+All variables are expanded immediately as they're encountered in parsing,
+with one important exception: variables in `rule` blocks are expanded
+when the rule is _used_, not when it is declared.  In the following
+example, the `demo` rule prints "this is a demo of bar".
+
+----
+rule demo
+  command = echo "this is a demo of $foo'
+
+build out: demo
+  foo = bar
+----
+
+[[ref_scope]]
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
-[[ref_scope]]
 
 Top-level variable declarations are scoped to the file they occur in.
 
@@ -767,26 +843,19 @@ To include another `.ninja` file in the current scope, much like a C
 `#include` statement, use `include` instead of `subninja`.
 
 Variable declarations indented in a `build` block are scoped to the
-`build` block.  This scope is inherited by the `rule`.  The full
-lookup order for a variable referenced in a rule is:
+`build` block.  The full lookup order for a variable expanded in a
+`build` block (or the `rule` is uses) is:
 
-1. Rule-level variables (i.e. `$in`, `$command`).
+1. Special built-in variables (`$in`, `$out`).
 
-2. Build-level variables from the `build` that references this rule.
+2. Build-level variables from the `build` block.
 
-3. File-level variables from the file that the `build` line was in.
+3. Rule-level variables from the `rule` block (i.e. `$command`).
+   (Note from the above discussion on expansion that these are
+   expanded "late", and may make use of in-scope bindings like `$in`.)
 
-4. Variables from the file that included that file using the
+4. File-level variables from the file that the `build` line was in.
+
+5. Variables from the file that included that file using the
    `subninja` keyword.
 
-Variable expansion
-~~~~~~~~~~~~~~~~~~
-
-Variables are expanded in paths (in a `build` or `default` statement)
-and on the right side of a `name = value` statement.
-
-When a `name = value` statement is evaluated, its right-hand side is
-expanded once (according to the above scoping rules) immediately, and
-from then on `$name` expands to the static string as the result of the
-expansion.  It is never the case that you'll need to "double-escape" a
-value to prevent it from getting expanded twice.

@@ -23,6 +23,7 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+#include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   : state_(state), file_reader_(file_reader) {
@@ -66,10 +67,15 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::IDENT: {
       lexer_.UnreadToken();
       string name;
-      EvalString value;
-      if (!ParseLet(&name, &value, err))
+      EvalString let_value;
+      if (!ParseLet(&name, &let_value, err))
         return false;
-      env_->AddBinding(name, value.Evaluate(env_));
+      string value = let_value.Evaluate(env_);
+      // Check ninja_required_version immediately so we can exit
+      // before encountering any syntactic surprises.
+      if (name == "ninja_required_version")
+        CheckNinjaVersion(value);
+      env_->AddBinding(name, value);
       break;
     }
     case Lexer::INCLUDE:
@@ -154,22 +160,8 @@ bool ManifestParser::ParseRule(string* err) {
     if (!ParseLet(&key, &value, err))
       return false;
 
-    if (key == "command") {
-      rule->command_ = value;
-    } else if (key == "depfile") {
-      rule->depfile_ = value;
-    } else if (key == "description") {
-      rule->description_ = value;
-    } else if (key == "generator") {
-      rule->generator_ = true;
-    } else if (key == "restat") {
-      rule->restat_ = true;
-    } else if (key == "rspfile") {
-      rule->rspfile_ = value;
-    } else if (key == "rspfile_content") {
-      rule->rspfile_content_ = value;
-    } else if (key == "pool") {
-      rule->pool_ = value;
+    if (Rule::IsReservedBinding(key)) {
+      rule->AddBinding(key, value);
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
@@ -177,12 +169,13 @@ bool ManifestParser::ParseRule(string* err) {
     }
   }
 
-  if (rule->rspfile_.empty() != rule->rspfile_content_.empty()) {
-    return lexer_.Error("rspfile and rspfile_content need to be both specified",
-                        err);
+  if (rule->bindings_["rspfile"].empty() !=
+      rule->bindings_["rspfile_content"].empty()) {
+    return lexer_.Error("rspfile and rspfile_content need to be "
+                        "both specified", err);
   }
 
-  if (rule->command_.empty())
+  if (rule->bindings_["command"].empty())
     return lexer_.Error("expected 'command =' line", err);
 
   state_->AddRule(rule);
@@ -296,42 +289,29 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  // Default to using outer env.
-  BindingEnv* env = env_;
-  Pool* pool = NULL;
+  // XXX scoped_ptr to handle error case.
+  BindingEnv* env = new BindingEnv(env_);
 
-  // But create and fill a nested env if there are variables in scope.
-  if (lexer_.PeekToken(Lexer::INDENT)) {
-    // XXX scoped_ptr to handle error case.
-    env = new BindingEnv(env_);
-    do {
-      string key;
-      EvalString val;
-      if (!ParseLet(&key, &val, err))
-        return false;
-      if (key == "pool") {
-        string pool_name = val.Evaluate(env_);
-        pool = state_->LookupPool(pool_name);
-        if (pool == NULL)
-          return lexer_.Error("undefined pool '" + pool_name + "'", err);
-      } else {
-        env->AddBinding(key, val.Evaluate(env_));
-      }
-    } while (lexer_.PeekToken(Lexer::INDENT));
+  while (lexer_.PeekToken(Lexer::INDENT)) {
+    string key;
+    EvalString val;
+    if (!ParseLet(&key, &val, err))
+      return false;
+
+    env->AddBinding(key, val.Evaluate(env_));
   }
 
-  if (pool == NULL) {
-    if (!rule->pool_.empty()) {
-      pool = state_->LookupPool(rule->pool_.Evaluate(env_));
-      if (pool == NULL)
-        return lexer_.Error("cannot resolve pool for this edge.", err);
-    } else {
-      pool = &State::kDefaultPool;
-    }
-  }
-
-  Edge* edge = state_->AddEdge(rule, pool);
+  Edge* edge = state_->AddEdge(rule);
   edge->env_ = env;
+
+  string pool_name = edge->GetBinding("pool");
+  if (!pool_name.empty()) {
+    Pool* pool = state_->LookupPool(pool_name);
+    if (pool == NULL)
+      return lexer_.Error("unknown pool name", err);
+    edge->pool_ = pool;
+  }
+
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
     string path_err;

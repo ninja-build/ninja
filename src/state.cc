@@ -35,28 +35,37 @@ void Pool::EdgeFinished(const Edge& edge) {
 
 void Pool::DelayEdge(Edge* edge) {
   assert(depth_ != 0);
-  delayed_.push_back(edge);
+  delayed_.insert(edge);
 }
 
 void Pool::RetrieveReadyEdges(set<Edge*>* ready_queue) {
-  while (!delayed_.empty()) {
-    Edge* edge = delayed_.front();
+  DelayedEdges::iterator it = delayed_.begin();
+  while (it != delayed_.end()) {
+    Edge* edge = *it;
     if (current_use_ + edge->weight() > depth_)
       break;
-    delayed_.pop_front();
     ready_queue->insert(edge);
     EdgeScheduled(*edge);
+    ++it;
   }
+  delayed_.erase(delayed_.begin(), it);
 }
 
 void Pool::Dump() const {
   printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
-  for (deque<Edge*>::const_iterator it = delayed_.begin();
+  for (DelayedEdges::const_iterator it = delayed_.begin();
        it != delayed_.end(); ++it)
   {
     printf("\t");
     (*it)->Dump();
   }
+}
+
+bool Pool::WeightedEdgeCmp(const Edge* a, const Edge* b) {
+  if (!a) return b;
+  if (!b) return false;
+  int weight_diff = a->weight() - b->weight();
+  return ((weight_diff < 0) || (weight_diff == 0 && a < b));
 }
 
 Pool State::kDefaultPool("", 0);
@@ -91,10 +100,10 @@ Pool* State::LookupPool(const string& pool_name) {
   return i->second;
 }
 
-Edge* State::AddEdge(const Rule* rule, Pool* pool) {
+Edge* State::AddEdge(const Rule* rule) {
   Edge* edge = new Edge();
   edge->rule_ = rule;
-  edge->pool_ = pool;
+  edge->pool_ = &State::kDefaultPool;
   edge->env_ = &bindings_;
   edges_.push_back(edge);
   return edge;

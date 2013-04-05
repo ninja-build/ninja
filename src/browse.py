@@ -29,6 +29,7 @@ except ImportError:
 import subprocess
 import sys
 import webbrowser
+import urllib2
 from collections import namedtuple
 
 Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
@@ -151,7 +152,7 @@ def ninja_dump(target):
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path[0] == '/'
-        target = self.path[1:]
+        target = urllib2.unquote(self.path[1:])
 
         if target == '':
             self.send_response(302)

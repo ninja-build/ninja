@@ -29,10 +29,10 @@ TEST(State, Basic) {
   command.AddSpecial("out");
 
   Rule* rule = new Rule("cat");
-  rule->set_command(command);
+  rule->AddBinding("command", command);
   state.AddRule(rule);
 
-  Edge* edge = state.AddEdge(rule, &State::kDefaultPool);
+  Edge* edge = state.AddEdge(rule);
   state.AddIn(edge, "in1");
   state.AddIn(edge, "in2");
   state.AddOut(edge, "out");

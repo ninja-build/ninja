@@ -220,6 +220,7 @@ struct BuildStatus {
     RateInfo() : rate_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }
+    double Elapsed() const { return stopwatch_.Elapsed(); }
     double rate() { return rate_; }
 
     void UpdateRate(int edges) {

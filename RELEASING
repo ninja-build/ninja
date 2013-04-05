@@ -1,0 +1,10 @@
+Notes to myself on all the steps to make for a Ninja release.
+
+1. git checkout release; git merge master
+2. fix version number in source (it will likely conflict in the above)
+3. fix version in doc/manual.asciidoc
+4. grep doc/manual.asciidoc for XXX, fix version references
+5. rebuild manual, put in place on website
+6. commit, tag, push
+7. construct release notes from prior notes
+   credits: git shortlog -s --no-merges REV..
