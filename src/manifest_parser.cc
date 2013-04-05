@@ -329,6 +329,14 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
+  // Multiple outputs aren't (yet?) supported with depslog.
+  string deps_type = edge->GetBinding("deps");
+  if (!deps_type.empty() && edge->outputs_.size() > 1) {
+    return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
+                        "bring this up on the mailing list if it affects you",
+                        err);
+  }
+
   return true;
 }
 
