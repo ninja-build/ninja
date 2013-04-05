@@ -1352,3 +1352,20 @@ TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
 }
 
+TEST_F(BuildTest, FailedDepsParse) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build bad_deps.o: cat in1\n"
+"  deps = gcc\n"
+"  depfile = in1.d\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("bad_deps.o", &err));
+  ASSERT_EQ("", err);
+
+  // These deps will fail to parse, as they should only have one
+  // path to the left of the colon.
+  fs_.Create("in1.d", "XXX YYY");
+
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+}
