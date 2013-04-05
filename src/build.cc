@@ -873,7 +873,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   }
 
   if (!deps_type.empty() && scan_.deps_log()) {
-    // XXX figure out multiple outputs.
+    assert(edge->outputs_.size() == 1);
     Node* out = edge->outputs_[0];
     // XXX need to restat for restat_mtime.
     scan_.deps_log()->RecordDeps(out, restat_mtime, deps_nodes);

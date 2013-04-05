@@ -71,6 +71,7 @@ TEST_F(ParserTest, RuleAttributes) {
 "rule cat\n"
 "  command = a\n"
 "  depfile = a\n"
+"  deps = a\n"
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"
@@ -597,6 +598,17 @@ TEST_F(ParserTest, MultipleOutputs) {
                                "build a.o b.o: cc c.cc\n",
                                &err));
   EXPECT_EQ("", err);
+}
+
+TEST_F(ParserTest, MultipleOutputsWithDeps) {
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
+                               "build a.o b.o: cc c.cc\n",
+                               &err));
+  EXPECT_EQ("input:5: multiple outputs aren't (yet?) supported by depslog; "
+            "bring this up on the mailing list if it affects you\n", err);
 }
 
 TEST_F(ParserTest, SubNinja) {
