@@ -28,11 +28,11 @@ using namespace std;
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
 #else
-#define NORETURN __attribute__((noreturn));
+#define NORETURN __attribute__((noreturn))
 #endif
 
 /// Log a fatal message and exit.
-void Fatal(const char* msg, ...) NORETURN;
+NORETURN void Fatal(const char* msg, ...);
 
 /// Log a warning message.
 void Warning(const char* msg, ...);
@@ -91,7 +91,7 @@ string ElideMiddle(const string& str, size_t width);
 string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
-void Win32Fatal(const char* function) NORETURN;
+NORETURN void Win32Fatal(const char* function);
 #endif
 
 #endif  // NINJA_UTIL_H_
