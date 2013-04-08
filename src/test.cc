@@ -94,9 +94,9 @@ void AssertHash(const char* expected, uint64_t actual) {
   ASSERT_EQ(BuildLog::LogEntry::HashCommand(expected), actual);
 }
 
-void VirtualFileSystem::Create(const string& path, int time,
+void VirtualFileSystem::Create(const string& path,
                                const string& contents) {
-  files_[path].mtime = time;
+  files_[path].mtime = now_;
   files_[path].contents = contents;
   files_created_.insert(path);
 }
@@ -109,7 +109,7 @@ TimeStamp VirtualFileSystem::Stat(const string& path) {
 }
 
 bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
-  Create(path, 0, contents);
+  Create(path, contents);
   return true;
 }
 

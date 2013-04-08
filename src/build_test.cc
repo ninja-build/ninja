@@ -380,15 +380,15 @@ struct BuildTest : public StateTestWithBuiltinRules,
                    public CommandRunner {
   BuildTest() : config_(MakeConfig()),
                 builder_(&state_, config_, NULL, &fs_),
-                now_(1), last_command_(NULL), status_(config_) {
+                last_command_(NULL), status_(config_) {
     builder_.command_runner_.reset(this);
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
 "build cat12: cat cat1 cat2\n");
 
-    fs_.Create("in1", now_, "");
-    fs_.Create("in2", now_, "");
+    fs_.Create("in1", "");
+    fs_.Create("in2", "");
   }
 
   ~BuildTest() {
@@ -414,7 +414,6 @@ struct BuildTest : public StateTestWithBuiltinRules,
   BuildConfig config_;
   VirtualFileSystem fs_;
   Builder builder_;
-  int now_;
 
   vector<string> commands_ran_;
   Edge* last_command_;
@@ -446,7 +445,7 @@ bool BuildTest::StartCommand(Edge* edge) {
       edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      fs_.Create((*out)->path(), now_, "");
+      fs_.Create((*out)->path(), "");
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
@@ -540,11 +539,11 @@ TEST_F(BuildTest, TwoStep) {
 
   EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
 
-  now_++;
+  fs_.Tick();
 
   // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
-  fs_.Create("in2", now_, "");
+  fs_.Create("in2", "");
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
@@ -561,7 +560,7 @@ TEST_F(BuildTest, TwoOutputs) {
 "  command = touch $out\n"
 "build out1 out2: touch in.txt\n"));
 
-  fs_.Create("in.txt", now_, "");
+  fs_.Create("in.txt", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
@@ -581,8 +580,9 @@ TEST_F(BuildTest, MultiOutIn) {
 "build in1 otherfile: touch in\n"
 "build out: touch in | in1\n"));
 
-  fs_.Create("in", now_, "");
-  fs_.Create("in1", ++now_, "");
+  fs_.Create("in", "");
+  fs_.Tick();
+  fs_.Create("in1", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
@@ -598,7 +598,7 @@ TEST_F(BuildTest, Chain) {
 "build c4: cat c3\n"
 "build c5: cat c4\n"));
 
-  fs_.Create("c1", now_, "");
+  fs_.Create("c1", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
@@ -614,9 +614,9 @@ TEST_F(BuildTest, Chain) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("c3", now_, "");
+  fs_.Create("c3", "");
   err.clear();
   commands_ran_.clear();
   state_.Reset();
@@ -657,7 +657,6 @@ TEST_F(BuildTest, MakeDirs) {
 #endif
 
   EXPECT_EQ("", err);
-  now_ = 0;  // Make all stat()s return file not found.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, fs_.directories_made_.size());
@@ -674,7 +673,7 @@ TEST_F(BuildTest, DepFileMissing) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  fs_.Create("foo.c", now_, "");
+  fs_.Create("foo.c", "");
 
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
@@ -690,9 +689,9 @@ TEST_F(BuildTest, DepFileOK) {
 "build foo.o: cc foo.c\n"));
   Edge* edge = state_.edges_.back();
 
-  fs_.Create("foo.c", now_, "");
+  fs_.Create("foo.c", "");
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
-  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
+  fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, fs_.files_read_.size());
@@ -713,8 +712,8 @@ TEST_F(BuildTest, DepFileParseError) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
-  fs_.Create("foo.c", now_, "");
-  fs_.Create("foo.o.d", now_, "randomtext\n");
+  fs_.Create("foo.c", "");
+  fs_.Create("foo.o.d", "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got 'randomtext'",
             err);
@@ -727,9 +726,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 "build foo.o: cc foo.c || otherfile\n"));
   Edge* edge = state_.edges_.back();
 
-  fs_.Create("foo.c", now_, "");
-  fs_.Create("otherfile", now_, "");
-  fs_.Create("foo.o.d", now_, "foo.o: blah.h bar.h\n");
+  fs_.Create("foo.c", "");
+  fs_.Create("otherfile", "");
+  fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   ASSERT_EQ("", err);
 
@@ -752,11 +751,11 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
 
-  now_++;
+  fs_.Tick();
 
   // implicit dep dirty, expect a rebuild.
-  fs_.Create("blah.h", now_, "");
-  fs_.Create("bar.h", now_, "");
+  fs_.Create("blah.h", "");
+  fs_.Create("bar.h", "");
   commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -764,10 +763,10 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, commands_ran_.size());
 
-  now_++;
+  fs_.Tick();
 
   // order only dep dirty, no rebuild.
-  fs_.Create("otherfile", now_, "");
+  fs_.Create("otherfile", "");
   commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -792,8 +791,8 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 "build oo.h: cc oo.h.in\n"
 "build foo.o: cc foo.c || oo.h\n"));
 
-  fs_.Create("foo.c", now_, "");
-  fs_.Create("oo.h.in", now_, "");
+  fs_.Create("foo.c", "");
+  fs_.Create("oo.h.in", "");
 
   // foo.o and order-only dep dirty, build both.
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -818,10 +817,10 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   ASSERT_EQ(1u, commands_ran_.size());
   ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
 
-  now_++;
+  fs_.Tick();
 
   // order-only dep dirty, build it only.
-  fs_.Create("oo.h.in", now_, "");
+  fs_.Create("oo.h.in", "");
   commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -836,7 +835,7 @@ TEST_F(BuildTest, Phony) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
-  fs_.Create("bar.cc", now_, "");
+  fs_.Create("bar.cc", "");
 
   EXPECT_TRUE(builder_.AddTarget("all", &err));
   ASSERT_EQ("", err);
@@ -853,8 +852,8 @@ TEST_F(BuildTest, PhonyNoWork) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
-  fs_.Create("bar.cc", now_, "");
-  fs_.Create("out", now_, "");
+  fs_.Create("bar.cc", "");
+  fs_.Create("out", "");
 
   EXPECT_TRUE(builder_.AddTarget("all", &err));
   ASSERT_EQ("", err);
@@ -934,8 +933,8 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
 
   // Create input/output that would be considered up to date when
   // not considering the command line hash.
-  fs_.Create("in", now_, "");
-  fs_.Create("out1", now_, "");
+  fs_.Create("in", "");
+  fs_.Create("out1", "");
   string err;
 
   // Because it's not in the log, it should not be up-to-date until
@@ -963,13 +962,13 @@ TEST_F(BuildWithLogTest, RestatTest) {
 "build out2: true out1\n"
 "build out3: cat out2\n"));
 
-  fs_.Create("out1", now_, "");
-  fs_.Create("out2", now_, "");
-  fs_.Create("out3", now_, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+  fs_.Create("out3", "");
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
 
   // Do a pre-build so that there's commands in the log for the outputs,
   // otherwise, the lack of an entry in the build log will cause out3 to rebuild
@@ -982,9 +981,9 @@ TEST_F(BuildWithLogTest, RestatTest) {
   commands_ran_.clear();
   state_.Reset();
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
   // "cc" touches out1, so we should build out2.  But because "true" does not
   // touch out2, we should cancel the build of out3.
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
@@ -1000,9 +999,9 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
 
   // The build log entry should not, however, prevent us from rebuilding out2
   // if out1 changes.
@@ -1028,8 +1027,8 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 "build out1: true in\n"
 "build out2: cc out1\n"));
 
-  fs_.Create("in", now_, "");
-  fs_.Create("out2", now_, "");
+  fs_.Create("in", "");
+  fs_.Create("out2", "");
 
   // Do a pre-build so that there's commands in the log for the outputs,
   // otherwise, the lack of an entry in the build log will cause out2 to rebuild
@@ -1042,9 +1041,9 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   commands_ran_.clear();
   state_.Reset();
 
-  now_++;
-  fs_.Create("in", now_, "");
-  fs_.Create("out2", now_, "");
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Create("out2", "");
 
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so
@@ -1069,14 +1068,14 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
     "build out2: cc out1\n"));
 
   // Create all necessary files
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
 
   // The implicit dependencies and the depfile itself
   // are newer than the output
-  TimeStamp restat_mtime = ++now_;
-  fs_.Create("out1.d", now_, "out1: will.be.deleted restat.file\n");
-  fs_.Create("will.be.deleted", now_, "");
-  fs_.Create("restat.file", now_, "");
+  TimeStamp restat_mtime = fs_.Tick();
+  fs_.Create("out1.d", "out1: will.be.deleted restat.file\n");
+  fs_.Create("will.be.deleted", "");
+  fs_.Create("restat.file", "");
 
   // Run the build, out1 and out2 get built
   string err;
@@ -1127,13 +1126,13 @@ TEST_F(BuildDryRun, AllCommandsShown) {
 "build out2: true out1\n"
 "build out3: cat out2\n"));
 
-  fs_.Create("out1", now_, "");
-  fs_.Create("out2", now_, "");
-  fs_.Create("out3", now_, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+  fs_.Create("out3", "");
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
 
   // "cc" touches out1, so we should build out2.  But because "true" does not
   // touch out2, we should cancel the build of out3.
@@ -1158,13 +1157,13 @@ TEST_F(BuildTest, RspFileSuccess)
     "  rspfile = out2.rsp\n"
     "  long_command = Some very long command\n"));
 
-  fs_.Create("out1", now_, "");
-  fs_.Create("out2", now_, "");
-  fs_.Create("out3", now_, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+  fs_.Create("out3", "");
 
-  now_++;
+  fs_.Tick();
 
-  fs_.Create("in", now_, "");
+  fs_.Create("in", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
@@ -1198,9 +1197,9 @@ TEST_F(BuildTest, RspFileFailure) {
     "  rspfile = out.rsp\n"
     "  long_command = Another very long command\n"));
 
-  fs_.Create("out", now_, "");
-  now_++;
-  fs_.Create("in", now_, "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("in", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
@@ -1237,9 +1236,9 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
     "  rspfile = out.rsp\n"
     "  long_command = Original very long command\n"));
 
-  fs_.Create("out", now_, "");
-  now_++;
-  fs_.Create("in", now_, "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("in", "");
 
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
@@ -1282,11 +1281,11 @@ TEST_F(BuildTest, InterruptCleanup) {
 "build out1: interrupt in1\n"
 "build out2: touch-interrupt in2\n"));
 
-  fs_.Create("out1", now_, "");
-  fs_.Create("out2", now_, "");
-  now_++;
-  fs_.Create("in1", now_, "");
-  fs_.Create("in2", now_, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+  fs_.Tick();
+  fs_.Create("in1", "");
+  fs_.Create("in2", "");
 
   // An untouched output of an interrupted command should be retained.
   string err;
@@ -1295,7 +1294,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_EQ(now_-1, fs_.Stat("out1"));
+  EXPECT_GT(fs_.Stat("out1"), 0);
   err = "";
 
   // A touched output of an interrupted command should be deleted.
@@ -1312,8 +1311,8 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
 "build nonexistent: phony\n"
 "build out1: cat || nonexistent\n"
 "build out2: cat nonexistent\n"));
-  fs_.Create("out1", now_, "");
-  fs_.Create("out2", now_, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
 
   // out1 should be up to date even though its input is dirty, because its
   // order-only dependency has nothing to do.

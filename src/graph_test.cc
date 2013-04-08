@@ -26,8 +26,8 @@ struct GraphTest : public StateTestWithBuiltinRules {
 TEST_F(GraphTest, MissingImplicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in | implicit\n"));
-  fs_.Create("in", 1, "");
-  fs_.Create("out", 1, "");
+  fs_.Create("in", "");
+  fs_.Create("out", "");
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
@@ -43,9 +43,10 @@ TEST_F(GraphTest, MissingImplicit) {
 TEST_F(GraphTest, ModifiedImplicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in | implicit\n"));
-  fs_.Create("in", 1, "");
-  fs_.Create("out", 1, "");
-  fs_.Create("implicit", 2, "");
+  fs_.Create("in", "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("implicit", "");
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
@@ -62,10 +63,11 @@ TEST_F(GraphTest, FunkyMakefilePath) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build out.o: catdep foo.cc\n"));
-  fs_.Create("implicit.h", 2, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: ./foo/../implicit.h\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc",  "");
+  fs_.Create("out.o.d", "out.o: ./foo/../implicit.h\n");
+  fs_.Create("out.o", "");
+  fs_.Tick();
+  fs_.Create("implicit.h", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -84,11 +86,12 @@ TEST_F(GraphTest, ExplicitImplicit) {
 "  command = cat $in > $out\n"
 "build implicit.h: cat data\n"
 "build out.o: catdep foo.cc || implicit.h\n"));
-  fs_.Create("data", 2, "");
-  fs_.Create("implicit.h", 1, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: implicit.h\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("implicit.h", "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: implicit.h\n");
+  fs_.Create("out.o", "");
+  fs_.Tick();
+  fs_.Create("data", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -107,9 +110,9 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: foo.cc\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -151,9 +154,9 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: bar/../foo.cc\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: bar/../foo.cc\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -170,10 +173,11 @@ TEST_F(GraphTest, DepfileRemoved) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.h", 1, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 2, "out.o: foo.h\n");
-  fs_.Create("out.o", 2, "");
+  fs_.Create("foo.h", "");
+  fs_.Create("foo.cc", "");
+  fs_.Tick();
+  fs_.Create("out.o.d", "out.o: foo.h\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
