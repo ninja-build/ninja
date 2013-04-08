@@ -411,7 +411,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
   if (!deps)
     return false;
 
-  // XXX mtime
+  *deps_mtime = deps->mtime;
 
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, deps->node_count);

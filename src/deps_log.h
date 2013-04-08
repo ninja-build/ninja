@@ -61,7 +61,8 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog {
-  DepsLog() : dead_record_count_(0) {}
+  DepsLog() : dead_record_count_(0), file_(NULL) {}
+  ~DepsLog();
 
   // Writing (build-time) interface.
   bool OpenForWrite(const string& path, string* err);

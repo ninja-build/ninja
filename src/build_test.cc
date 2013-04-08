@@ -15,6 +15,7 @@
 #include "build.h"
 
 #include "build_log.h"
+#include "deps_log.h"
 #include "graph.h"
 #include "test.h"
 
@@ -396,6 +397,11 @@ struct BuildTest : public StateTestWithBuiltinRules {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
                 builder_(&state_, config_, NULL, NULL, &fs_),
                 status_(config_) {
+  }
+
+  virtual void SetUp() {
+    StateTestWithBuiltinRules::SetUp();
+
     builder_.command_runner_.reset(&command_runner_);
     AssertParse(&state_,
 "build cat1: cat in1\n"
@@ -1368,4 +1374,94 @@ TEST_F(BuildTest, FailedDepsParse) {
 
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("subcommand failed", err);
+}
+
+/// Tests of builds involving deps logs necessarily must span
+/// multiple builds.  We reuse methods on BuildTest but not the
+/// builder_ it sets up, because we want pristine objects for
+/// each build.
+struct BuildWithDepsLogTest : public BuildTest {
+  BuildWithDepsLogTest() {}
+
+  virtual void SetUp() {
+    BuildTest::SetUp();
+
+    temp_dir_.CreateAndEnter("BuildWithDepsLogTest");
+  }
+
+  virtual void TearDown() {
+    temp_dir_.Cleanup();
+  }
+
+  ScopedTempDir temp_dir_;
+
+  /// Shadow parent class builder_ so we don't accidentally use it.
+  void* builder_;
+};
+
+TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
+  // Don't make use of the class's built-in Builder etc. so that we
+  // can construct objects with the DepsLog in place.
+
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest =
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("in1.d", "out: in2");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("in1.d"));
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Pretend that the build aborted before the deps were
+    // removed, leaving behind an obsolete .d file, but after
+    // the output was written.
+    fs_.Create("in1.d", "XXX");
+    fs_.Tick();
+    fs_.Create("out", "");
+
+    // Run the build again.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // We should have rebuilt the output due to the deps being
+    // out of date.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
 }
