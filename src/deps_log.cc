@@ -30,6 +30,9 @@ const char kFileSignature[] = "# ninja deps v%d\n";
 const int kCurrentVersion = 1;
 }  // anonymous namespace
 
+DepsLog::~DepsLog() {
+  Close();
+}
 
 bool DepsLog::OpenForWrite(const string& path, string* err) {
   file_ = fopen(path.c_str(), "ab");
@@ -113,7 +116,8 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
 }
 
 void DepsLog::Close() {
-  fclose(file_);
+  if (file_)
+    fclose(file_);
   file_ = NULL;
 }
 

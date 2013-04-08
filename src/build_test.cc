@@ -15,6 +15,7 @@
 #include "build.h"
 
 #include "build_log.h"
+#include "deps_log.h"
 #include "graph.h"
 #include "test.h"
 
@@ -396,6 +397,16 @@ struct BuildTest : public StateTestWithBuiltinRules {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
                 builder_(&state_, config_, NULL, NULL, &fs_),
                 status_(config_) {
+  }
+  explicit BuildTest(DepsLog* deps_log) :
+      config_(MakeConfig()), command_runner_(&fs_),
+      builder_(&state_, config_, NULL, deps_log, &fs_),
+      status_(config_) {
+  }
+
+  virtual void SetUp() {
+    StateTestWithBuiltinRules::SetUp();
+
     builder_.command_runner_.reset(&command_runner_);
     AssertParse(&state_,
 "build cat1: cat in1\n"
@@ -1368,4 +1379,58 @@ TEST_F(BuildTest, FailedDepsParse) {
 
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("subcommand failed", err);
+}
+
+struct BuildWithDepsLogTest : public BuildTest {
+  BuildWithDepsLogTest() : BuildTest(&deps_log_) {}
+
+  virtual void SetUp() {
+    BuildTest::SetUp();
+
+    temp_dir_.CreateAndEnter("BuildWithDepsLogTest");
+  }
+
+  virtual void TearDown() {
+    temp_dir_.Cleanup();
+  }
+
+  ScopedTempDir temp_dir_;
+  DepsLog deps_log_;
+};
+
+TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
+  return; // XXX WIP
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in1\n"
+"  deps = gcc\n"
+"  depfile = in1.d\n"));
+
+  // Run the build once, everything should be ok.
+  string err;
+  ASSERT_TRUE(deps_log_.OpenForWrite("ninja_deps", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in1.d", "XXX");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  // The deps file should have been removed.
+  EXPECT_EQ(0, fs_.Stat("in1.d"));
+  deps_log_.Close();
+
+  // Pretend that the build aborted before the deps were
+  // removed, leaving behind an obsolete .d file.
+  fs_.Create("in1.d", "XXX");
+
+  fs_.Tick();
+
+  // Run the build again.
+  ASSERT_TRUE(deps_log_.Load("ninja_deps", &state_, &err));
+  ASSERT_TRUE(deps_log_.OpenForWrite("ninja_deps", &err));
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("", err);
 }
