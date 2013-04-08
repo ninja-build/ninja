@@ -1341,6 +1341,25 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
   ASSERT_EQ(1u, commands_ran_.size());
 }
 
+TEST_F(BuildTest, DepsGccWithEmptyDeps) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"  deps = gcc\n"
+"build out: cc\n"));
+  Dirty("out");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_FALSE(builder_.Build(&err));
+fprintf(stderr, "%s\n", err.c_str());
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1u, commands_ran_.size());
+}
+
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
