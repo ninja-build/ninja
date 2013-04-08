@@ -375,13 +375,28 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_FALSE(plan_.more_to_do());
 }
 
+/// Fake implementation of CommandRunner, useful for tests.
+struct FakeCommandRunner : public CommandRunner {
+  explicit FakeCommandRunner(VirtualFileSystem* fs) :
+      last_command_(NULL), fs_(fs) {}
 
-struct BuildTest : public StateTestWithBuiltinRules,
-                   public CommandRunner {
-  BuildTest() : config_(MakeConfig()),
+  // CommandRunner impl
+  virtual bool CanRunMore();
+  virtual bool StartCommand(Edge* edge);
+  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual vector<Edge*> GetActiveEdges();
+  virtual void Abort();
+
+  vector<string> commands_ran_;
+  Edge* last_command_;
+  VirtualFileSystem* fs_;
+};
+
+struct BuildTest : public StateTestWithBuiltinRules {
+  BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
                 builder_(&state_, config_, NULL, &fs_),
-                last_command_(NULL), status_(config_) {
-    builder_.command_runner_.reset(this);
+                status_(config_) {
+    builder_.command_runner_.reset(&command_runner_);
     AssertParse(&state_,
 "build cat1: cat in1\n"
 "build cat2: cat in1 in2\n"
@@ -398,13 +413,6 @@ struct BuildTest : public StateTestWithBuiltinRules,
   // Mark a path dirty.
   void Dirty(const string& path);
 
-  // CommandRunner impl
-  virtual bool CanRunMore();
-  virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
-  virtual vector<Edge*> GetActiveEdges();
-  virtual void Abort();
-
   BuildConfig MakeConfig() {
     BuildConfig config;
     config.verbosity = BuildConfig::QUIET;
@@ -412,30 +420,19 @@ struct BuildTest : public StateTestWithBuiltinRules,
   }
 
   BuildConfig config_;
+  FakeCommandRunner command_runner_;
   VirtualFileSystem fs_;
   Builder builder_;
 
-  vector<string> commands_ran_;
-  Edge* last_command_;
   BuildStatus status_;
 };
 
-void BuildTest::Dirty(const string& path) {
-  Node* node = GetNode(path);
-  node->MarkDirty();
-
-  // If it's an input file, mark that we've already stat()ed it and
-  // it's missing.
-  if (!node->in_edge())
-    node->MarkMissing();
-}
-
-bool BuildTest::CanRunMore() {
+bool FakeCommandRunner::CanRunMore() {
   // Only run one at a time.
   return last_command_ == NULL;
 }
 
-bool BuildTest::StartCommand(Edge* edge) {
+bool FakeCommandRunner::StartCommand(Edge* edge) {
   assert(!last_command_);
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule().name() == "cat"  ||
@@ -445,7 +442,7 @@ bool BuildTest::StartCommand(Edge* edge) {
       edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      fs_.Create((*out)->path(), "");
+      fs_->Create((*out)->path(), "");
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
@@ -460,7 +457,8 @@ bool BuildTest::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
+Edge* FakeCommandRunner::WaitForCommand(ExitStatus* status,
+                                        string* /* output */) {
   if (Edge* edge = last_command_) {
     if (edge->rule().name() == "interrupt" ||
         edge->rule().name() == "touch-interrupt") {
@@ -479,15 +477,25 @@ Edge* BuildTest::WaitForCommand(ExitStatus* status, string* /* output */) {
   return NULL;
 }
 
-vector<Edge*> BuildTest::GetActiveEdges() {
+vector<Edge*> FakeCommandRunner::GetActiveEdges() {
   vector<Edge*> edges;
   if (last_command_)
     edges.push_back(last_command_);
   return edges;
 }
 
-void BuildTest::Abort() {
+void FakeCommandRunner::Abort() {
   last_command_ = NULL;
+}
+
+void BuildTest::Dirty(const string& path) {
+  Node* node = GetNode(path);
+  node->MarkDirty();
+
+  // If it's an input file, mark that we've already stat()ed it and
+  // it's missing.
+  if (!node->in_edge())
+    node->MarkMissing();
 }
 
 TEST_F(BuildTest, NoWork) {
@@ -505,8 +513,8 @@ TEST_F(BuildTest, OneStep) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(1u, commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
 }
 
 TEST_F(BuildTest, OneStep2) {
@@ -519,8 +527,8 @@ TEST_F(BuildTest, OneStep2) {
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1u, commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", commands_ran_[0]);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
 }
 
 TEST_F(BuildTest, TwoStep) {
@@ -529,15 +537,15 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   // Depending on how the pointers work out, we could've ran
   // the first two commands in either order.
-  EXPECT_TRUE((commands_ran_[0] == "cat in1 > cat1" &&
-               commands_ran_[1] == "cat in1 in2 > cat2") ||
-              (commands_ran_[1] == "cat in1 > cat1" &&
-               commands_ran_[0] == "cat in1 in2 > cat2"));
+  EXPECT_TRUE((command_runner_.commands_ran_[0] == "cat in1 > cat1" &&
+               command_runner_.commands_ran_[1] == "cat in1 in2 > cat2") ||
+              (command_runner_.commands_ran_[1] == "cat in1 > cat1" &&
+               command_runner_.commands_ran_[0] == "cat in1 in2 > cat2"));
 
-  EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[2]);
+  EXPECT_EQ("cat cat1 cat2 > cat12", command_runner_.commands_ran_[2]);
 
   fs_.Tick();
 
@@ -549,9 +557,9 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(5u, commands_ran_.size());
-  EXPECT_EQ("cat in1 in2 > cat2", commands_ran_[3]);
-  EXPECT_EQ("cat cat1 cat2 > cat12", commands_ran_[4]);
+  ASSERT_EQ(5u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in1 in2 > cat2", command_runner_.commands_ran_[3]);
+  EXPECT_EQ("cat cat1 cat2 > cat12", command_runner_.commands_ran_[4]);
 }
 
 TEST_F(BuildTest, TwoOutputs) {
@@ -567,8 +575,8 @@ TEST_F(BuildTest, TwoOutputs) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
-  EXPECT_EQ("touch out1 out2", commands_ran_[0]);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1 out2", command_runner_.commands_ran_[0]);
 }
 
 // Test case from
@@ -605,10 +613,10 @@ TEST_F(BuildTest, Chain) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(4u, commands_ran_.size());
+  ASSERT_EQ(4u, command_runner_.commands_ran_.size());
 
   err.clear();
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
@@ -618,13 +626,13 @@ TEST_F(BuildTest, Chain) {
 
   fs_.Create("c3", "");
   err.clear();
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size());  // 3->4, 4->5
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());  // 3->4, 4->5
 }
 
 TEST_F(BuildTest, MissingInput) {
@@ -749,25 +757,25 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // explicit dep dirty, expect a rebuild.
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   fs_.Tick();
 
   // implicit dep dirty, expect a rebuild.
   fs_.Create("blah.h", "");
   fs_.Create("bar.h", "");
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   fs_.Tick();
 
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", "");
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
@@ -775,12 +783,12 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   // implicit dep missing, expect rebuild.
   fs_.RemoveFile("bar.h");
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, RebuildOrderOnlyDeps) {
@@ -798,10 +806,10 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // all clean, no rebuild.
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
@@ -809,25 +817,25 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 
   // order-only dep missing, build it only.
   fs_.RemoveFile("oo.h");
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
-  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
 
   fs_.Tick();
 
   // order-only dep dirty, build it only.
   fs_.Create("oo.h.in", "");
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
-  ASSERT_EQ("cc oo.h.in", commands_ran_[0]);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
 }
 
 TEST_F(BuildTest, Phony) {
@@ -844,7 +852,7 @@ TEST_F(BuildTest, Phony) {
   EXPECT_FALSE(builder_.AlreadyUpToDate());
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, PhonyNoWork) {
@@ -871,7 +879,7 @@ TEST_F(BuildTest, Fail) {
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(builder_.Build(&err));
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommand failed", err);
 }
 
@@ -892,7 +900,7 @@ TEST_F(BuildTest, SwallowFailures) {
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(builder_.Build(&err));
-  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommands failed", err);
 }
 
@@ -913,7 +921,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   ASSERT_EQ("", err);
 
   EXPECT_FALSE(builder_.Build(&err));
-  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
 }
 
@@ -942,7 +950,7 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
 
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
@@ -978,7 +986,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
 
   fs_.Tick();
@@ -989,11 +997,11 @@ TEST_F(BuildWithLogTest, RestatTest) {
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // If we run again, it should be a no-op, because the build log has recorded
   // that we've already built out2 with an input timestamp of 2 (from out1).
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
@@ -1005,12 +1013,12 @@ TEST_F(BuildWithLogTest, RestatTest) {
 
   // The build log entry should not, however, prevent us from rebuilding out2
   // if out1 changes.
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildWithLogTest, RestatMissingFile) {
@@ -1038,7 +1046,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
 
   fs_.Tick();
@@ -1051,7 +1059,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 // Test scenario, in which an input file is removed, but output isn't changed
@@ -1082,7 +1090,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size());
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // See that an entry in the logfile is created, capturing
   // the right mtime
@@ -1095,12 +1103,12 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   fs_.RemoveFile("will.be.deleted");
 
   // Trigger the build again - only out1 gets built
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // Check that the logfile entry remains correctly set
   log_entry = build_log_.LookupByOutput("out1");
@@ -1140,7 +1148,7 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(3u, commands_ran_.size());
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 }
 
 // Test that RSP files are created when & where appropriate and deleted after
@@ -1175,7 +1183,7 @@ TEST_F(BuildTest, RspFileSuccess)
   size_t files_removed = fs_.files_removed_.size();
 
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, commands_ran_.size()); // cat + cat_rsp
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size()); // cat + cat_rsp
 
   // The RSP file was created
   ASSERT_EQ(files_created + 1, fs_.files_created_.size());
@@ -1210,7 +1218,7 @@ TEST_F(BuildTest, RspFileFailure) {
 
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ("subcommand failed", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // The RSP file was created
   ASSERT_EQ(files_created + 1, fs_.files_created_.size());
@@ -1246,10 +1254,10 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
 
   // 1. Build for the 1st time (-> populate log)
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // 2. Build again (no change)
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
@@ -1264,12 +1272,12 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
         log_entry->command_hash));
   log_entry->command_hash++;  // Change the command hash to something else.
   // Now expect the target to be rebuilt
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ(1u, commands_ran_.size());
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, InterruptCleanup) {
@@ -1323,13 +1331,13 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
 
   // out2 should still be out of date though, because its input is dirty.
   err.clear();
-  commands_ran_.clear();
+  command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
-  ASSERT_EQ(1u, commands_ran_.size());
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
