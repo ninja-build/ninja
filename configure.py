@@ -276,6 +276,7 @@ for name in ['build',
              'graph',
              'graphviz',
              'lexer',
+             'line_printer',
              'manifest_parser',
              'metrics',
              'state',
@@ -331,9 +332,6 @@ if options.with_gtest:
     objs += n.build(built('gtest-all' + objext), 'cxx',
                     os.path.join(path, 'src', 'gtest-all.cc'),
                     variables=[('cflags', gtest_cflags)])
-    objs += n.build(built('gtest_main' + objext), 'cxx',
-                    os.path.join(path, 'src', 'gtest_main.cc'),
-                    variables=[('cflags', gtest_cflags)])
 
     test_cflags.append('-I%s' % os.path.join(path, 'include'))
 else:
@@ -353,6 +351,7 @@ for name in ['build_log_test',
              'graph_test',
              'lexer_test',
              'manifest_parser_test',
+             'ninja_test',
              'state_test',
              'subprocess_test',
              'test',

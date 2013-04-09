@@ -25,6 +25,7 @@
 
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
+#include "line_printer.h"
 #include "metrics.h"
 #include "util.h"  // int64_t
 
@@ -198,14 +199,12 @@ struct BuildStatus {
 
   int started_edges_, finished_edges_, total_edges_;
 
-  bool have_blank_line_;
-
   /// Map of running edge to time the edge started running.
   typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
-  /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
+  /// Prints progress output.
+  LinePrinter printer_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
