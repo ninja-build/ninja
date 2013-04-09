@@ -136,16 +136,12 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     return false;
   }
 
-  if (!fgets(buf, sizeof(buf), f)) {
-    *err = strerror(errno);
-    return false;
-  }
+  bool valid_header = true;
   int version = 0;
-  if (fread(&version, 4, 1, f) < 1) {
-    *err = strerror(errno);
-    return false;
-  }
-  if (version != kCurrentVersion) {
+  if (!fgets(buf, sizeof(buf), f) || fread(&version, 4, 1, f) < 1)
+    valid_header = false;
+  if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
+      version != kCurrentVersion) {
     *err = "bad deps log signature or version; starting over";
     fclose(f);
     unlink(path.c_str());
