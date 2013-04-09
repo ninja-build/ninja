@@ -27,6 +27,8 @@ class LinePrinter {
   };
   void Print(std::string to_print, LineType type);
 
+  void PrintOnNewLine(const std::string& to_print);
+
  //private:
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;

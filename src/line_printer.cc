@@ -96,3 +96,10 @@ void LinePrinter::Print(std::string to_print, LineType type) {
     printf("%s\n", to_print.c_str());
   }
 }
+
+void LinePrinter::PrintOnNewLine(const string& to_print) {
+  if (!have_blank_line_)
+    printf("\n");
+  printf("%s", to_print.c_str());
+  have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
+}

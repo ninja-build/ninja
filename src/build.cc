@@ -115,19 +115,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (printer_.smart_terminal_)
     PrintStatus(edge);
 
-  if (!success) {
-    if (!printer_.have_blank_line_)
-      printf("\n");
-
-    // Print the command that is spewing before printing its output.
-    printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
-    printer_.have_blank_line_ = true;
-  }
+  // Print the command that is spewing before printing its output.
+  if (!success)
+    printer_.PrintOnNewLine("FAILED: " + edge->EvaluateCommand() + "\n");
 
   if (!output.empty()) {
-    if (!printer_.have_blank_line_)
-      printf("\n");
-
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
     // isatty(stderr) to decide if they should print colored output.
@@ -145,18 +137,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
-
-    if (!final_output.empty()) {
-      printf("%s", final_output.c_str());
-      if (*final_output.rbegin() == '\n')
-        printer_.have_blank_line_ = true;
-    }
+    printer_.PrintOnNewLine(final_output);
   }
 }
 
 void BuildStatus::BuildFinished() {
-  if (printer_.smart_terminal_ && !printer_.have_blank_line_)
-    printf("\n");
+  printer_.PrintOnNewLine("");
 }
 
 string BuildStatus::FormatProgressStatus(
