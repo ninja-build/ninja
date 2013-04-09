@@ -25,10 +25,10 @@
 #include "state.h"
 #include "util.h"
 
-namespace {
-const char kFileSignature[] = "# ninja deps v%d\n";
+// The version is stored as 4 bytes after the signature and also serves as a
+// byte order mark. Signature and version combined are 16 bytes long.
+const char kFileSignature[] = "# ninjadeps\n";
 const int kCurrentVersion = 1;
-}  // anonymous namespace
 
 DepsLog::~DepsLog() {
   Close();
@@ -47,7 +47,11 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
   fseek(file_, 0, SEEK_END);
 
   if (ftell(file_) == 0) {
-    if (fprintf(file_, kFileSignature, kCurrentVersion) < 0) {
+    if (fprintf(file_, kFileSignature) < 0) {
+      *err = strerror(errno);
+      return false;
+    }
+    if (fwrite(&kCurrentVersion, 4, 1, file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -137,7 +141,10 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     return false;
   }
   int version = 0;
-  sscanf(buf, kFileSignature, &version);
+  if (fread(&version, 4, 1, f) < 1) {
+    *err = strerror(errno);
+    return false;
+  }
   if (version != kCurrentVersion) {
     *err = "bad deps log signature or version; starting over";
     fclose(f);
