@@ -195,7 +195,7 @@ TEST_F(DepsLogTest, Recompact) {
 // Verify that invalid file headers cause a new build.
 TEST_F(DepsLogTest, InvalidHeader) {
   const char *kInvalidHeaders[] = {
-    "",                              // Emtpy file.
+    "",                              // Empty file.
     "# ninjad",                      // Truncated first line.
     "# ninjadeps\n",                 // No version int.
     "# ninjadeps\n\001\002",         // Truncated version int.
