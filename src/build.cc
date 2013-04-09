@@ -789,7 +789,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
                                      restat_mtime);
   }
 
-  if (!deps_type.empty() && result->success()) {
+  if (!deps_type.empty()) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     if (!deps_mtime) {
