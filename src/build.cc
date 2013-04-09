@@ -115,13 +115,18 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (printer_.smart_terminal_)
     PrintStatus(edge);
 
-  if (!success || !output.empty()) {
-    if (printer_.smart_terminal_)
+  if (!success) {
+    if (!printer_.have_blank_line_)
       printf("\n");
 
     // Print the command that is spewing before printing its output.
-    if (!success)
-      printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+    printf("FAILED: %s\n", edge->EvaluateCommand().c_str());
+    printer_.have_blank_line_ = true;
+  }
+
+  if (!output.empty()) {
+    if (!printer_.have_blank_line_)
+      printf("\n");
 
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
@@ -141,10 +146,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     else
       final_output = output;
 
-    if (!final_output.empty())
+    if (!final_output.empty()) {
       printf("%s", final_output.c_str());
-
-    printer_.have_blank_line_ = true;
+      if (*final_output.rbegin() == '\n')
+        printer_.have_blank_line_ = true;
+    }
   }
 }
 
