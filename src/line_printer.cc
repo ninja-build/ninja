@@ -57,7 +57,7 @@ void LinePrinter::Print(std::string to_print, LineType type) {
 #endif
   }
 
-  if (smart_terminal_ && type == SHORT) {
+  if (smart_terminal_ && type == ELIDE) {
 #ifdef _WIN32
     // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
@@ -68,9 +68,11 @@ void LinePrinter::Print(std::string to_print, LineType type) {
     GetConsoleScreenBufferInfo(console_, &csbi);
     COORD buf_size = { csbi.dwSize.X, 1 };
     COORD zero_zero = { 0, 0 };
-    SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
-                          (SHORT)(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
-                          csbi.dwCursorPosition.Y };
+    SMALL_RECT target = {
+      csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
+      static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
+      csbi.dwCursorPosition.Y
+    };
     CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
     memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
     for (int i = 0; i < csbi.dwSize.X; ++i) {

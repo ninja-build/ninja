@@ -247,7 +247,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   printer_.Print(to_print,
-                 force_full_command ? LinePrinter::FULL : LinePrinter::SHORT);
+                 force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}

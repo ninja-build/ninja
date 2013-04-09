@@ -28,9 +28,9 @@ class LinePrinter {
 
   enum LineType {
     FULL,
-    SHORT
+    ELIDE
   };
-  /// Overprints the current line. If type is SHORT, elides to_print to fit on
+  /// Overprints the current line. If type is ELIDE, elides to_print to fit on
   /// one line.
   void Print(std::string to_print, LineType type);
 
@@ -43,6 +43,8 @@ class LinePrinter {
 
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
+
+  void* console_;
 };
 
 #endif  // NINJA_LINE_PRINTER_H_
