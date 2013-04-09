@@ -177,7 +177,8 @@ struct Builder {
 
  private:
   bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
-                   vector<Node*>* deps_nodes, string* err);
+                   vector<Node*>* deps_nodes, TimeStamp* deps_mtime,
+                   string* err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;

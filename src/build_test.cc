@@ -1388,7 +1388,7 @@ TEST_F(BuildTest, FailedDepsParse) {
 
   // These deps will fail to parse, as they should only have one
   // path to the left of the colon.
-  fs_.Create("in1.d", "XXX YYY");
+  fs_.Create("in1.d", "AAA BBB");
 
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("subcommand failed", err);
@@ -1417,10 +1417,8 @@ struct BuildWithDepsLogTest : public BuildTest {
   void* builder_;
 };
 
-TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
-  // Don't make use of the class's built-in Builder etc. so that we
-  // can construct objects with the DepsLog in place.
-
+/// Run a straightforwad build where the deps log is used.
+TEST_F(BuildWithDepsLogTest, Straightforward) {
   string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
@@ -1447,6 +1445,8 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
 
     // The deps file should have been removed.
     EXPECT_EQ(0, fs_.Stat("in1.d"));
+    // Recreate it for the next step.
+    fs_.Create("in1.d", "out: in2");
     deps_log.Close();
     builder.command_runner_.release();
   }
@@ -1456,12 +1456,9 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    // Pretend that the build aborted before the deps were
-    // removed, leaving behind an obsolete .d file, but after
-    // the output was written.
-    fs_.Create("in1.d", "XXX");
+    // Touch the file only mentioned in the deps.
     fs_.Tick();
-    fs_.Create("out", "");
+    fs_.Create("in2", "");
 
     // Run the build again.
     DepsLog deps_log;
@@ -1473,6 +1470,80 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // We should have rebuilt the output due to in2 being
+    // out of date.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
+}
+
+/// Verify that obsolete deps still cause a rebuild.
+TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest =
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    // Create the obsolete deps, then run a build to incorporate them.
+    // The idea is that the inputs/outputs are newer than the logged
+    // deps.
+    fs_.Create("in1.d", "out: ");
+    fs_.Tick();
+
+    fs_.Create("in1", "");
+
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    fs_.Create("out", "");
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("in1.d"));
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  // Now we should be in a situation where in1/out2 both have recent
+  // timestamps but the deps are old.  Verify we rebuild.
+  fs_.Tick();
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+
+    // Recreate the deps here just to prove the old recorded deps are
+    // the problem.
+    fs_.Create("in1.d", "out: ");
+
     EXPECT_TRUE(builder.Build(&err));
     EXPECT_EQ("", err);
 
