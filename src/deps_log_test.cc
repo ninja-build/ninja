@@ -192,4 +192,30 @@ TEST_F(DepsLogTest, Recompact) {
   }
 }
 
+// Verify that invalid file headers cause a new build.
+TEST_F(DepsLogTest, InvalidHeader) {
+  const char *kInvalidHeaders[] = {
+    "",                              // Emtpy file.
+    "# ninjad",                      // Truncated first line.
+    "# ninjadeps\n",                 // No version int.
+    "# ninjadeps\n\001\002",         // Truncated version int.
+    "# ninjadeps\n\001\002\003\004"  // Invalid version int.
+  };
+  for (size_t i = 0; i < sizeof(kInvalidHeaders) / sizeof(kInvalidHeaders[0]);
+       ++i) {
+    FILE* deps_log = fopen(kTestFilename, "wb");
+    ASSERT_TRUE(deps_log != NULL);
+    ASSERT_EQ(
+        strlen(kInvalidHeaders[i]),
+        fwrite(kInvalidHeaders[i], 1, strlen(kInvalidHeaders[i]), deps_log));
+    ASSERT_EQ(0 ,fclose(deps_log));
+
+    string err;
+    DepsLog log;
+    State state;
+    ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
+    EXPECT_EQ("bad deps log signature or version; starting over", err);
+  }
+}
+
 }  // anonymous namespace
