@@ -275,10 +275,6 @@ struct BuildStatus {
 
   mutable RateInfo overall_rate_;
   mutable SlidingRateInfo current_rate_;
-
-#ifdef _WIN32
-  void* console_;
-#endif
 };
 
 #endif  // NINJA_BUILD_H_

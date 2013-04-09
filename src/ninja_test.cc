@@ -42,7 +42,7 @@ class LaconicPrinter : public testing::EmptyTestEventListener {
     ++tests_started_;
     printer_.Print(StringPrintf("[%d/%d] %s.%s", tests_started_, test_count_,
                                 test_info.test_case_name(), test_info.name()),
-                   LinePrinter::SHORT);
+                   LinePrinter::ELIDE);
   }
 
   virtual void OnTestPartResult(

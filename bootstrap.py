@@ -127,8 +127,7 @@ if options.verbose:
 
 if options.windows:
     print('Building ninja using itself...')
-    run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
-        conf_args)
+    run([sys.executable, 'configure.py'] + conf_args)
     run(['./' + binary] + verbose)
 
     # Copy the new executable over the bootstrap one.
