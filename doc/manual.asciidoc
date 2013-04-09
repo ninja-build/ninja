@@ -580,6 +580,80 @@ Ninja always warns if the major versions of Ninja and the
 come up yet so it's difficult to predict what behavior might be
 required.
 
+[[ref_headers]]
+C/C++ header dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To get C/C++ header dependencies (or any other build dependency that
+works in a similar way) correct Ninja has some extra functionality.
+
+The problem with headers is that the full list of files that a given
+source file depends on can only be discovered by the compiler:
+different preprocessor defines and include paths cause different files
+to be used.  Some compilers can emit this information while building,
+and Ninja can use that to get its dependencies perfect.
+
+Consider: if the file has never been compiled, it must be built anyway,
+generating the header dependencies as a side effect.  If any file is
+later modified (even in a way that changes which headers it depends
+on) the modification will cause a rebuild as well, keeping the
+dependencies up to date.
+
+When loading these special dependencies, Ninja implicitly adds extra
+build edges such that it is not an error if the listed dependency is
+missing.  This allows you to delete a header file and rebuild without
+the build aborting due to a missing input.
+
+depfile
+^^^^^^^
+
+`gcc` (and other compilers like `clang`) support emitting dependency
+information in the syntax of a Makefile.  (Any command that can write
+dependencies in this form can be used, not just `gcc`.)
+
+To bring this information into Ninja requires cooperation.  On the
+Ninja side, the `depfile` attribute on the `build` must point to a
+path where this data is written.  (Ninja only supports the limited
+subset of the Makefile syntax emitted by compilers.)  Then the command
+must know to write dependencies into the `depfile` path.
+Use it like in the following example:
+
+----
+rule cc
+  depfile = $out.d
+  command = gcc -MMD -MF $out.d [other gcc flags here]
+----
+
+The `-MMD` flag to `gcc` tells it to output header dependencies, and
+the `-MF` flag tells it where to write them.
+
+deps
+^^^^
+
+_(Available since Ninja 1.3.)_
+
+It turns out that for large projects (and particularly on Windows,
+where the file system is slow) loading these dependency files on
+startup is slow.
+
+Ninja 1.3 can instead process dependencies just after they're generated
+and save a compacted form of the same information in a Ninja-internal
+database.
+
+Ninja supports this processing in two forms.
+
+1. `deps = gcc` specifies that the tool outputs `gcc`-style dependencies
+   in the form of Makefiles.  Adding this to the above example will
+   cause Ninja to process the `depfile` immediately after the
+   compilation finishes, then delete the `.d` file (which is only used
+   as a temporary).
+
+2. `deps = msvc` specifies that the tool outputs header dependencies
+   in the form produced by Visual Studio's compiler's
+   http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
+   flag].  Briefly, this means the tool outputs specially-formatted lines
+   to its stdout.  No `depfile` attribute is necessary.
+
 
 Ninja file reference
 --------------------
@@ -666,6 +740,7 @@ line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
 
+[[ref_toplevel]]
 Top-level variables
 ~~~~~~~~~~~~~~~~~~~
 
@@ -695,22 +770,14 @@ keys.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
-  dependency types>>).  This is explicitly to support `gcc` and its `-M`
-  family of flags, which output the list of headers a given `.c` file
-  depends on.
-+
-Use it like in the following example:
-+
-----
-rule cc
-  depfile = $out.d
-  command = gcc -MMD -MF $out.d [other gcc flags here]
-----
-+
-When loading a `depfile`, Ninja implicitly adds edges such that it is
-not an error if the listed dependency is missing.  This allows you to
-delete a depfile-discovered header file and rebuild, without the build
-aborting due to a missing input.
+  dependency types>>).  This is explicitly to support C/C++ header
+  dependencies; see <<ref_headers,the full discussion>>.
+
+`deps`:: _(Available since Ninja 1.3.)_ if present, must be one of
+  `gcc` or `msvc` to specify special dependency processing.  See
+   <<ref_headers,the full discussion>>.  The generated database is
+   stored as `.ninja_deps` in the `builddir`, see <<ref_toplevel,the
+   discussion of `builddir`>>.
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
