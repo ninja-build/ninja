@@ -716,10 +716,12 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   vector<Node*> deps_nodes;
   TimeStamp deps_mtime = 0;
   string deps_type = edge->GetBinding("deps");
-  if (result->success() && !deps_type.empty()) {
+  if (!deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &deps_mtime,
-                     &extract_err)) {
+    // ExtractDeps to suppress /showIncludes even on failure.
+    if (!ExtractDeps(
+            result, deps_type, &deps_nodes, &deps_mtime, &extract_err) &&
+        result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
