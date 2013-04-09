@@ -19,14 +19,6 @@
 #include <stdlib.h>
 #include <functional>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#endif
-
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
 #endif
@@ -80,25 +72,12 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      have_blank_line_(true), progress_status_format_(NULL),
+      progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
-#ifndef _WIN32
-  const char* term = getenv("TERM");
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
-#else
-  // Disable output buffer.  It'd be nice to use line buffering but
-  // MSDN says: "For some systems, [_IOLBF] provides line
-  // buffering. However, for Win32, the behavior is the same as _IOFBF
-  // - Full Buffering."
-  setvbuf(stdout, NULL, _IONBF, 0);
-  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
-#endif
 
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
-    smart_terminal_ = false;
+    printer_.smart_terminal_ = false;
 
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
@@ -133,11 +112,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (smart_terminal_)
+  if (printer_.smart_terminal_)
     PrintStatus(edge);
 
   if (!success || !output.empty()) {
-    if (smart_terminal_)
+    if (printer_.smart_terminal_)
       printf("\n");
 
     // Print the command that is spewing before printing its output.
@@ -157,7 +136,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!smart_terminal_)
+    if (!printer_.smart_terminal_)
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
@@ -165,12 +144,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     if (!final_output.empty())
       printf("%s", final_output.c_str());
 
-    have_blank_line_ = true;
+    printer_.have_blank_line_ = true;
   }
 }
 
 void BuildStatus::BuildFinished() {
-  if (smart_terminal_ && !have_blank_line_)
+  if (printer_.smart_terminal_ && !printer_.have_blank_line_)
     printf("\n");
 }
 
@@ -267,72 +246,14 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-#ifdef _WIN32
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(console_, &csbi);
-#endif
-
-  if (smart_terminal_) {
-#ifndef _WIN32
-    printf("\r");  // Print over previous line, if any.
-#else
-    csbi.dwCursorPosition.X = 0;
-    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
-#endif
-  }
-
   if (finished_edges_ == 0) {
     overall_rate_.Restart();
     current_rate_.Restart();
   }
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
-  if (smart_terminal_ && !force_full_command) {
-#ifndef _WIN32
-    // Limit output to width of the terminal if provided so we don't cause
-    // line-wrapping.
-    winsize size;
-    if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      to_print = ElideMiddle(to_print, size.ws_col);
-    }
-#else
-    // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
-    to_print = ElideMiddle(to_print, width);
-#endif
-  }
-
-  if (smart_terminal_ && !force_full_command) {
-#ifndef _WIN32
-    printf("%s", to_print.c_str());
-    printf("\x1B[K");  // Clear to end of line.
-    fflush(stdout);
-    have_blank_line_ = false;
-#else
-    // We don't want to have the cursor spamming back and forth, so
-    // use WriteConsoleOutput instead which updates the contents of
-    // the buffer, but doesn't move the cursor position.
-    GetConsoleScreenBufferInfo(console_, &csbi);
-    COORD buf_size = { csbi.dwSize.X, 1 };
-    COORD zero_zero = { 0, 0 };
-    SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
-                          (SHORT)(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
-                          csbi.dwCursorPosition.Y };
-    CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
-    memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
-    for (int i = 0; i < csbi.dwSize.X; ++i) {
-      char_data[i].Char.AsciiChar = ' ';
-      char_data[i].Attributes = csbi.wAttributes;
-    }
-    for (size_t i = 0; i < to_print.size(); ++i)
-      char_data[i].Char.AsciiChar = to_print[i];
-    WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
-    delete[] char_data;
-    have_blank_line_ = false;
-#endif
-  } else {
-    printf("%s\n", to_print.c_str());
-  }
+  printer_.Print(to_print,
+                 force_full_command ? LinePrinter::FULL : LinePrinter::SHORT);
 }
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
