@@ -17,22 +17,31 @@
 
 #include <string>
 
+/// Prints lines of text, possibly overprinting previously printed lines
+/// if the terminal supports it.
 class LinePrinter {
  public:
   LinePrinter();
+
+  bool is_smart_terminal() const { return smart_terminal_; }
+  void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
 
   enum LineType {
     FULL,
     SHORT
   };
+  /// Overprints the current line. If type is SHORT, elides to_print to fit on
+  /// one line.
   void Print(std::string to_print, LineType type);
 
+  /// Prints a string on a new line, not overprinting previous output.
   void PrintOnNewLine(const std::string& to_print);
 
- //private:
+ private:
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
 
+  /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
 };
 

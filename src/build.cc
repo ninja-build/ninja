@@ -77,7 +77,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
-    printer_.smart_terminal_ = false;
+    printer_.set_smart_terminal(false);
 
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
@@ -112,7 +112,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (printer_.smart_terminal_)
+  if (printer_.is_smart_terminal())
     PrintStatus(edge);
 
   // Print the command that is spewing before printing its output.
@@ -133,7 +133,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.smart_terminal_)
+    if (!printer_.is_smart_terminal())
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
