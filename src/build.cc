@@ -873,7 +873,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   }
 
   if (!deps_type.empty()) {
-    assert(edge->outputs_.size() == 1);
+    assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp mtime = disk_interface_->Stat(out->path());
     // XXX we could reuse the restat logic to avoid a second stat,
@@ -899,8 +899,10 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 #endif
   if (deps_type == "gcc") {
     string depfile = result->edge->GetBinding("depfile");
-    if (depfile.empty())
-      return true;  // No dependencies to load.
+    if (depfile.empty()) {
+      *err = string("edge with deps=gcc but no depfile makes no sense\n");
+      return false;
+    }
 
     string content = disk_interface_->ReadFile(depfile, err);
     if (!err->empty())
@@ -922,7 +924,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     }
 
     if (disk_interface_->RemoveFile(depfile) < 0) {
-      *err = string("deleting depfile: ") + strerror(errno);
+      *err = string("deleting depfile: ") + strerror(errno) + string("\n");
       return false;
     }
   } else {
