@@ -717,24 +717,16 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   TimeStamp deps_mtime = 0;
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty()) {
-    if (result->success()) {
-      string extract_err;
-      if (!ExtractDeps(result, deps_type, &deps_nodes, &deps_mtime,
-                      &extract_err)) {
-        if (!result->output.empty())
-          result->output.append("\n");
-        result->output.append(extract_err);
-        result->status = ExitFailure;
-      }
+    string extract_err;
+    // ExtractDeps to suppress /showIncludes even on failure.
+    if (!ExtractDeps(
+            result, deps_type, &deps_nodes, &deps_mtime, &extract_err) &&
+        result->success()) {
+      if (!result->output.empty())
+        result->output.append("\n");
+      result->output.append(extract_err);
+      result->status = ExitFailure;
     }
-#ifdef _WIN32
-    else if (deps_type == "msvc") {
-      // Even on failure, strip the output of /showIncludes so that the output
-      // isn't included with the error message.
-      CLParser parser;
-      result->output = parser.Parse(result->output);
-    }
-#endif
   }
 
   int start_time, end_time;
@@ -797,7 +789,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
                                      restat_mtime);
   }
 
-  if (!deps_type.empty()) {
+  if (!deps_type.empty() && result->success()) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     if (!deps_mtime) {
