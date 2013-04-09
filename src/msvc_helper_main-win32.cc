@@ -44,12 +44,13 @@ void PushPathIntoEnvironment(const string& env_block) {
   }
 }
 
-void WriteDepFileOrDie(const char* object_path, CLWrapper* cl) {
+void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
   string depfile_path = string(object_path) + ".d";
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
-    Fatal("opening %s: %s", depfile_path.c_str(), GetLastErrorString().c_str());
+    Fatal("opening %s: %s", depfile_path.c_str(),
+          GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
     unlink(object_path);
@@ -57,9 +58,9 @@ void WriteDepFileOrDie(const char* object_path, CLWrapper* cl) {
     unlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
-  vector<string> headers = cl->GetEscapedResult();
-  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
-    if (fprintf(depfile, "%s\n", i->c_str()) < 0) {
+  const set<string>& headers = parse.includes_;
+  for (set<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
+    if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
       unlink(object_path);
       fclose(depfile);
       unlink(depfile_path.c_str());
@@ -95,11 +96,6 @@ int MSVCHelperMain(int argc, char** argv) {
     }
   }
 
-  if (!output_filename) {
-    Usage();
-    Fatal("-o required");
-  }
-
   string env;
   if (envfile) {
     string err;
@@ -118,9 +114,15 @@ int MSVCHelperMain(int argc, char** argv) {
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
-  int exit_code = cl.Run(command);
+  string output;
+  int exit_code = cl.Run(command, &output);
 
-  WriteDepFileOrDie(output_filename, &cl);
+  if (output_filename) {
+    CLParser parser;
+    output = parser.Parse(output);
+    WriteDepFileOrDie(output_filename, parser);
+  }
+  printf("%s\n", output.c_str());
 
   return exit_code;
 }

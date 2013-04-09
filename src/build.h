@@ -104,8 +104,18 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  /// Wait for a command to complete.
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output) = 0;
+
+  /// The result of waiting for a command.
+  struct Result {
+    Result() : edge(NULL) {}
+    Edge* edge;
+    ExitStatus status;
+    string output;
+    bool success() const { return status == ExitSuccess; }
+  };
+  /// Wait for a command to complete, or return false if interrupted.
+  virtual bool WaitForCommand(Result* result) = 0;
+
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
 };
@@ -132,7 +142,8 @@ struct BuildConfig {
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config,
-          BuildLog* log, DiskInterface* disk_interface);
+          BuildLog* build_log, DepsLog* deps_log,
+          DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -152,7 +163,7 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
-  void FinishEdge(Edge* edge, bool success, const string& output);
+  void FinishCommand(CommandRunner::Result* result);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -166,6 +177,10 @@ struct Builder {
   BuildStatus* status_;
 
  private:
+  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
+                   vector<Node*>* deps_nodes, TimeStamp* deps_mtime,
+                   string* err);
+
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 

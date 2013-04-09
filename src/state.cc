@@ -202,10 +202,11 @@ void State::Reset() {
 void State::Dump() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     Node* node = i->second;
-    printf("%s %s\n",
+    printf("%s %s [id:%d]\n",
            node->path().c_str(),
            node->status_known() ? (node->dirty() ? "dirty" : "clean")
-                                : "unknown");
+                                : "unknown",
+           node->id());
   }
   if (!pools_.empty()) {
     printf("resource_pools:\n");

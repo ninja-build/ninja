@@ -74,7 +74,11 @@ string GetSystemTempDir() {
 }  // anonymous namespace
 
 StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
-  AssertParse(&state_,
+  AddCatRule(&state_);
+}
+
+void StateTestWithBuiltinRules::AddCatRule(State* state) {
+  AssertParse(state,
 "rule cat\n"
 "  command = cat $in > $out\n");
 }

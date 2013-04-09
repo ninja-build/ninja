@@ -15,6 +15,7 @@
 #include "build.h"
 
 #include "build_log.h"
+#include "deps_log.h"
 #include "graph.h"
 #include "test.h"
 
@@ -383,7 +384,7 @@ struct FakeCommandRunner : public CommandRunner {
   // CommandRunner impl
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output);
+  virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -394,8 +395,13 @@ struct FakeCommandRunner : public CommandRunner {
 
 struct BuildTest : public StateTestWithBuiltinRules {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
-                builder_(&state_, config_, NULL, &fs_),
+                builder_(&state_, config_, NULL, NULL, &fs_),
                 status_(config_) {
+  }
+
+  virtual void SetUp() {
+    StateTestWithBuiltinRules::SetUp();
+
     builder_.command_runner_.reset(&command_runner_);
     AssertParse(&state_,
 "build cat1: cat in1\n"
@@ -457,24 +463,25 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-Edge* FakeCommandRunner::WaitForCommand(ExitStatus* status,
-                                        string* /* output */) {
-  if (Edge* edge = last_command_) {
-    if (edge->rule().name() == "interrupt" ||
-        edge->rule().name() == "touch-interrupt") {
-      *status = ExitInterrupted;
-      return NULL;
-    }
+bool FakeCommandRunner::WaitForCommand(Result* result) {
+  if (!last_command_)
+    return false;
 
-    if (edge->rule().name() == "fail")
-      *status = ExitFailure;
-    else
-      *status = ExitSuccess;
-    last_command_ = NULL;
-    return edge;
+  Edge* edge = last_command_;
+  result->edge = edge;
+
+  if (edge->rule().name() == "interrupt" ||
+      edge->rule().name() == "touch-interrupt") {
+    result->status = ExitInterrupted;
+    return true;
   }
-  *status = ExitFailure;
-  return NULL;
+
+  if (edge->rule().name() == "fail")
+    result->status = ExitFailure;
+  else
+    result->status = ExitSuccess;
+  last_command_ = NULL;
+  return true;
 }
 
 vector<Edge*> FakeCommandRunner::GetActiveEdges() {
@@ -761,6 +768,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
 
   fs_.Tick();
 
+  // Recreate the depfile, as it should have been deleted by the build.
+  fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
+
   // implicit dep dirty, expect a rebuild.
   fs_.Create("blah.h", "");
   fs_.Create("bar.h", "");
@@ -772,6 +782,9 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   fs_.Tick();
+
+  // Recreate the depfile, as it should have been deleted by the build.
+  fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
 
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", "");
@@ -1340,8 +1353,204 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildTest, DepsGccWithEmptyDeps) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"  deps = gcc\n"
+"build out: cc\n"));
+  Dirty("out");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
 }
 
+TEST_F(BuildTest, FailedDepsParse) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build bad_deps.o: cat in1\n"
+"  deps = gcc\n"
+"  depfile = in1.d\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("bad_deps.o", &err));
+  ASSERT_EQ("", err);
+
+  // These deps will fail to parse, as they should only have one
+  // path to the left of the colon.
+  fs_.Create("in1.d", "AAA BBB");
+
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+}
+
+/// Tests of builds involving deps logs necessarily must span
+/// multiple builds.  We reuse methods on BuildTest but not the
+/// builder_ it sets up, because we want pristine objects for
+/// each build.
+struct BuildWithDepsLogTest : public BuildTest {
+  BuildWithDepsLogTest() {}
+
+  virtual void SetUp() {
+    BuildTest::SetUp();
+
+    temp_dir_.CreateAndEnter("BuildWithDepsLogTest");
+  }
+
+  virtual void TearDown() {
+    temp_dir_.Cleanup();
+  }
+
+  ScopedTempDir temp_dir_;
+
+  /// Shadow parent class builder_ so we don't accidentally use it.
+  void* builder_;
+};
+
+/// Run a straightforwad build where the deps log is used.
+TEST_F(BuildWithDepsLogTest, Straightforward) {
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest =
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("in1.d", "out: in2");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("in1.d"));
+    // Recreate it for the next step.
+    fs_.Create("in1.d", "out: in2");
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Touch the file only mentioned in the deps.
+    fs_.Tick();
+    fs_.Create("in2", "");
+
+    // Run the build again.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // We should have rebuilt the output due to in2 being
+    // out of date.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
+}
+
+/// Verify that obsolete deps still cause a rebuild.
+TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest =
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    // Create the obsolete deps, then run a build to incorporate them.
+    // The idea is that the inputs/outputs are newer than the logged
+    // deps.
+    fs_.Create("in1.d", "out: ");
+    fs_.Tick();
+
+    fs_.Create("in1", "");
+
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    fs_.Create("out", "");
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("in1.d"));
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  // Now we should be in a situation where in1/out2 both have recent
+  // timestamps but the deps are old.  Verify we rebuild.
+  fs_.Tick();
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+
+    // Recreate the deps here just to prove the old recorded deps are
+    // the problem.
+    fs_.Create("in1.d", "out: ");
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // We should have rebuilt the output due to the deps being
+    // out of date.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
+}

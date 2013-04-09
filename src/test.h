@@ -29,6 +29,12 @@ struct Node;
 /// builtin "cat" rule.
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();
+
+  /// Add a "cat" rule to \a state.  Used by some tests; it's
+  /// otherwise done by the ctor to state_.
+  void AddCatRule(State* state);
+
+  /// Short way to get a Node by its path from state_.
   Node* GetNode(const string& path);
 
   State state_;

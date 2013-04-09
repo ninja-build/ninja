@@ -47,9 +47,6 @@ parser.add_option('--with-gtest', metavar='PATH',
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
-parser.add_option('--with-ninja', metavar='NAME',
-                  help="name for ninja binary for -t msvc (MSVC only)",
-                  default="ninja")
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -190,14 +187,11 @@ n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
 if platform == 'windows':
-    compiler = '$cxx'
-    if options.with_ninja:
-        compiler = ('%s -t msvc -o $out -- $cxx /showIncludes' %
-                    options.with_ninja)
     n.rule('cxx',
-        command='%s $cflags -c $in /Fo$out' % compiler,
+        command='$cxx /showIncludes $cflags -c $in /Fo$out',
         depfile='$out.d',
-        description='CXX $out')
+        description='CXX $out',
+        deps='msvc')
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
@@ -269,6 +263,7 @@ for name in ['build',
              'build_log',
              'clean',
              'depfile_parser',
+             'deps_log',
              'disk_interface',
              'edit_distance',
              'eval_env',
@@ -346,6 +341,7 @@ for name in ['build_log_test',
              'build_test',
              'clean_test',
              'depfile_parser_test',
+             'deps_log_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
