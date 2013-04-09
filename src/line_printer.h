@@ -44,7 +44,9 @@ class LinePrinter {
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
 
+#ifdef _WIN32
   void* console_;
+#endif
 };
 
 #endif  // NINJA_LINE_PRINTER_H_
