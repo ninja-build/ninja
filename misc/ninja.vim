@@ -2,7 +2,7 @@
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
 " Version: 1.3
-" Last Change: 2012/12/14
+" Last Change: 2013/04/09
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
 " Version 1.2 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
@@ -36,7 +36,7 @@ syn match ninjaKeyword "^subninja\>"
 " let assignments.
 " manifest_parser.cc, ParseRule()
 syn region ninjaRule start="^rule" end="^\ze\S" contains=ALL transparent
-syn keyword ninjaRuleCommand contained command depfile description generator
+syn keyword ninjaRuleCommand contained command deps depfile description generator
                                      \ pool restat rspfile rspfile_content
 
 syn region ninjaPool start="^pool" end="^\ze\S" contains=ALL transparent
