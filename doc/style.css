@@ -27,6 +27,9 @@ div.chapter {
 .section .title {
     font-size: 1.3em;
 }
+.section .section .title {
+    font-size: 1.2em;
+}
 p {
     margin-top: 0;
 }
