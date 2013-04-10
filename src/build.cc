@@ -714,12 +714,10 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   // can fail, which makes the command fail from a build perspective.
 
   vector<Node*> deps_nodes;
-  TimeStamp deps_mtime = 0;
   string deps_type = edge->GetBinding("deps");
   if (result->success() && !deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &deps_mtime,
-                     &extract_err)) {
+    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err)) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
@@ -790,11 +788,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   if (!deps_type.empty()) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
-    if (!deps_mtime) {
-      // On Windows there's no separate file to compare against; just reuse
-      // the output's mtime.
-      deps_mtime = disk_interface_->Stat(out->path());
-    }
+    TimeStamp deps_mtime = disk_interface_->Stat(out->path());
     scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes);
   }
 
@@ -803,7 +797,6 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
 bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const string& deps_type,
                           vector<Node*>* deps_nodes,
-                          TimeStamp* deps_mtime,
                           string* err) {
 #ifdef _WIN32
   if (deps_type == "msvc") {
@@ -819,12 +812,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     string depfile = result->edge->GetBinding("depfile");
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");
-      return false;
-    }
-
-    *deps_mtime = disk_interface_->Stat(depfile);
-    if (*deps_mtime <= 0) {
-      *err = string("unable to read depfile");
       return false;
     }
 
