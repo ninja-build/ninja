@@ -285,8 +285,9 @@ Conceptual overview
 ~~~~~~~~~~~~~~~~~~~
 
 Ninja evaluates a graph of dependencies between files, and runs
-whichever commands are necessary to make your build target up to date.
-If you are familiar with Make, Ninja is very similar.
+whichever commands are necessary to make your build target up to date
+as determined by file modification times.  If you are familiar with
+Make, Ninja is very similar.
 
 A build file (default name: `build.ninja`) provides a list of _rules_
 -- short names for longer commands, like how to run the compiler --
