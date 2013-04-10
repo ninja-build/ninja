@@ -15,8 +15,8 @@ to be fast.  It is born from
 http://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
 work on the Chromium browser project], which has over 30,000 source
 files and whose other build systems (including one built from custom
-non-recursive Makefiles) can take ten seconds to start building after
-changing one file.  Ninja is under a second.
+non-recursive Makefiles) would take ten seconds to start building
+after changing one file.  Ninja is under a second.
 
 Philosophical overview
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -89,7 +89,7 @@ create your project's `.ninja` files.
 Comparison to Make
 ~~~~~~~~~~~~~~~~~~
 
-Ninja is closest in spirit and functionality to make, relying on
+Ninja is closest in spirit and functionality to Make, relying on
 simple dependencies between file timestamps.
 
 But fundamentally, make has a lot of _features_: suffix rules,
@@ -102,7 +102,7 @@ builds correct while punting most complexity to generation of the
 ninja input files.  Ninja by itself is unlikely to be useful for most
 projects.
 
-Here are some of the features Ninja adds to make.  (These sorts of
+Here are some of the features Ninja adds to Make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
 but they are not part of make itself.)
 
@@ -878,7 +878,7 @@ example, the `demo` rule prints "this is a demo of bar".
 
 ----
 rule demo
-  command = echo "this is a demo of $foo'
+  command = echo "this is a demo of $foo"
 
 build out: demo
   foo = bar
