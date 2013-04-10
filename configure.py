@@ -189,13 +189,13 @@ n.newline()
 if platform == 'windows':
     n.rule('cxx',
         command='$cxx /showIncludes $cflags -c $in /Fo$out',
-        depfile='$out.d',
         description='CXX $out',
         deps='msvc')
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
         depfile='$out.d',
+        deps='gcc',
         description='CXX $out')
 n.newline()
 
