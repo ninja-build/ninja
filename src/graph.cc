@@ -187,7 +187,8 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
 
   // Dirty if the output is newer than the deps.
   if (deps_mtime && output->mtime() > deps_mtime) {
-    EXPLAIN("stored deps info out of date for for %s", output->path().c_str());
+    EXPLAIN("stored deps info out of date for for %s (%d vs %d)",
+            output->path().c_str(), deps_mtime, output->mtime());
     return true;
   }
 
