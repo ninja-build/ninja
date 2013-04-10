@@ -202,7 +202,8 @@ Several placeholders are available:
 `%u`:: The number of remaining edges to start.
 `%f`:: The number of finished edges.
 `%o`:: Overall rate of finished edges per second
-`%c`:: Current rate of finished edges per second (average over builds specified by -j or its default)
+`%c`:: Current rate of finished edges per second (average over builds
+specified by `-j` or its default)
 `%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
 `%%`:: A plain `%` character.
 
@@ -420,7 +421,7 @@ or a build statement.
 
 No matter what pools you specify, ninja will never run more concurrent jobs
 than the default parallelism, or the number of jobs specified on the command
-line (with -j).
+line (with `-j`).
 
 ----------------
 # No more than 4 links at a time.
