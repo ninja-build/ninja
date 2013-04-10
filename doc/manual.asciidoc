@@ -106,9 +106,9 @@ Here are some of the features Ninja adds to make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
 but they are not part of make itself.)
 
-* A Ninja rule may point at a path for extra implicit dependency
-  information.  This makes it easy to get header dependencies correct
-  for C/C++ code.
+* Ninja has special support for discovering extra dependencies at build
+  time, making it easy to get <<ref_headers,header dependencies>>
+  correct for C/C++ code.
 
 * A build edge may have multiple outputs.
 
@@ -633,7 +633,14 @@ Ninja supports this processing in two forms.
    in the form produced by Visual Studio's compiler's
    http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
    flag].  Briefly, this means the tool outputs specially-formatted lines
-   to its stdout.  No `depfile` attribute is necessary.
+   to its stdout.  Ninja then filters these lines from the displayed
+   output.  No `depfile` attribute is necessary.
++
+----
+rule cc
+  deps = msvc
+  command = cl /showIncludes -c $in /Fo$out
+----
 
 
 Ninja file reference
