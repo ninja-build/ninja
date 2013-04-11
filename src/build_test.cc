@@ -1481,7 +1481,10 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
   }
 }
 
-/// Verify that obsolete deps still cause a rebuild.
+/// Verify that obsolete dependency info causes a rebuild.
+/// 1) Run a successful build where everything has time t, record deps.
+/// 2) Move input/output to time t+1 -- despite files in alignment,
+///    should still need to rebuild due to deps at older time.
 TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
   string err;
   // Note: in1 was created by the superclass SetUp().
@@ -1490,13 +1493,9 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
       "  deps = gcc\n"
       "  depfile = in1.d\n";
   {
-    // Create the obsolete deps, then run a build to incorporate them.
-    // The idea is that the inputs/outputs are newer than the logged
-    // deps.
-    fs_.Create("in1.d", "out: ");
-    fs_.Tick();
-
+    // Run an ordinary build that gathers dependencies.
     fs_.Create("in1", "");
+    fs_.Create("in1.d", "out: ");
 
     State state;
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
@@ -1514,16 +1513,18 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     EXPECT_TRUE(builder.Build(&err));
     EXPECT_EQ("", err);
 
-    fs_.Create("out", "");
-    // The deps file should have been removed.
-    EXPECT_EQ(0, fs_.Stat("in1.d"));
     deps_log.Close();
     builder.command_runner_.release();
   }
 
-  // Now we should be in a situation where in1/out2 both have recent
-  // timestamps but the deps are old.  Verify we rebuild.
+  // Push all files one tick forward so that only the deps are out
+  // of date.
   fs_.Tick();
+  fs_.Create("in1", "");
+  fs_.Create("out", "");
+
+  // The deps file should have been removed, so no need to timestamp it.
+  EXPECT_EQ(0, fs_.Stat("in1.d"));
 
   {
     State state;
@@ -1540,8 +1541,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
 
-    // Recreate the deps here just to prove the old recorded deps are
-    // the problem.
+    // Recreate the deps file here because the build expects them to exist.
     fs_.Create("in1.d", "out: ");
 
     EXPECT_TRUE(builder.Build(&err));
