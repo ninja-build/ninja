@@ -242,8 +242,8 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 ));
   // Mark all the out* nodes dirty
   for (int i = 0; i < 3; ++i) {
-    GetNode("out" + string(1, '1' + i))->MarkDirty();
-    GetNode("outb" + string(1, '1' + i))->MarkDirty();
+    GetNode("out" + string(1, '1' + static_cast<char>(i)))->MarkDirty();
+    GetNode("outb" + string(1, '1' + static_cast<char>(i)))->MarkDirty();
   }
   GetNode("allTheThings")->MarkDirty();
 
