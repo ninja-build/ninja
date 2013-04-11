@@ -33,7 +33,7 @@ parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
 # TODO: make this --platform to match configure.py.
 parser.add_option('--windows', action='store_true',
-                  help='force native Windows build (when using Cygwin Python)',
+                  help='force native Windows build',
                   default=sys.platform.startswith('win32'))
 (options, conf_args) = parser.parse_args()
 
@@ -82,15 +82,17 @@ for src in glob.glob('src/*.cc'):
 if options.windows:
     sources.append('src/getopt.c')
 
-vcdir = os.environ.get('VCINSTALLDIR')
-if vcdir:
-    if options.x64:
-        cl = [os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')]
-        if not os.path.exists(cl[0]):
-            cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
-    else:
-        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
-    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
+if options.windows:
+    cl = 'cl'
+    vcdir = os.environ.get('VCINSTALLDIR')
+    if vcdir:
+        if options.x64:
+            cl = os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')
+            if not os.path.exists(cl):
+                cl = os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')
+        else:
+            cl = os.path.join(vcdir, 'bin', 'cl.exe')
+    args = [cl, '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
@@ -107,7 +109,7 @@ binary = 'ninja.bootstrap'
 if options.windows:
     binary = 'ninja.bootstrap.exe'
 args.extend(sources)
-if vcdir:
+if options.windows:
     args.extend(['/link', '/out:' + binary])
 else:
     args.extend(['-o', binary])
