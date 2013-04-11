@@ -710,14 +710,16 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   Edge* edge = result->edge;
 
   // First try to extract dependencies from the result, if any.
-  // This must happen first as it filters the command output and
-  // can fail, which makes the command fail from a build perspective.
-
+  // This must happen first as it filters the command output (we want
+  // to filter /showIncludes output, even on compile failure) and
+  // extraction itself can fail, which makes the command fail from a
+  // build perspective.
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
-  if (result->success() && !deps_type.empty()) {
+  if (!deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err)) {
+    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err) &&
+        result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
