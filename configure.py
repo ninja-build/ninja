@@ -166,7 +166,8 @@ else:
         cflags.append('-pg')
         ldflags.append('-pg')
     elif options.profile == 'pprof':
-        libs.append('-lprofiler')
+        cflags.append('-fno-omit-frame-pointer')
+        libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by
