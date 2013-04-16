@@ -2,9 +2,9 @@
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
 " Version: 1.3
-" Last Change: 2013/04/09
+" Last Change: 2013/04/16
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
-" Version 1.2 of this script is in the upstream vim repository and will be
+" Version 1.3 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
 " upstream.
 
@@ -15,6 +15,9 @@
 if exists("b:current_syntax")
   finish
 endif
+
+let s:cpo_save = &cpo
+set cpo&vim
 
 syn case match
 
@@ -73,3 +76,6 @@ hi def link ninjaSimpleVar ninjaVar
 hi def link ninjaVar Identifier
 
 let b:current_syntax = "ninja"
+
+let &cpo = s:cpo_save
+unlet s:cpo_save
