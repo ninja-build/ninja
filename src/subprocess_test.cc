@@ -195,3 +195,23 @@ TEST_F(SubprocessTest, ReadStdin) {
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
+
+#ifdef _WIN32
+TEST_F(SubprocessTest, Environment) {
+  // Make sure we read from the parent process without any override.
+  _putenv("FOO=parent");
+  Subprocess* subproc = subprocs_.Add("cmd /c echo foo is %FOO%");
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+  EXPECT_EQ("foo is parent\r\n", subproc->GetOutput());
+
+  // Make sure that passing an environment block is handled.
+  char* env_block = "FOO=blorp\0";
+  subproc = subprocs_.Add("cmd /c echo foo is %FOO%", env_block);
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+  EXPECT_EQ("foo is blorp\r\n", subproc->GetOutput());
+}
+#endif

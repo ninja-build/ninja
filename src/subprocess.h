@@ -45,7 +45,7 @@ struct Subprocess {
 
  private:
   Subprocess();
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(struct SubprocessSet* set, const string& command, void* envblock);
   void OnPipeReady();
 
   string buf_;
@@ -75,7 +75,10 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const string& command);
+  Subprocess* Add(const string& command, void* envblock);
+  Subprocess* Add(const string& command) {
+    return Add(command, NULL);
+  }
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
