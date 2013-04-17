@@ -777,7 +777,8 @@ keys.
   is a filename. When `command` is started via
   http://msdn.microsoft.com/en-us/library/windows/desktop/ms682425.aspx[
   CreateProcess], the contents of the named file will be used as the
-  `lpEnvironment` argument. This key is only supported on Windows.
+  `lpEnvironment` argument, and so will completely replace the environment
+  inherited by `command`. This key is only supported on Windows.
 
 `generator`:: if present, specifies that this rule is used to
   re-invoke the generator program.  Files built using `generator`
