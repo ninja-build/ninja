@@ -38,6 +38,11 @@ class LaconicPrinter : public testing::EmptyTestEventListener {
     test_count_ = unit_test.test_to_run_count();
   }
 
+  virtual void OnTestIterationStart(const testing::UnitTest& test_info,
+                                    int iteration) {
+    tests_started_ = 0;
+  }
+
   virtual void OnTestStart(const testing::TestInfo& test_info) {
     ++tests_started_;
     printer_.Print(StringPrintf("[%d/%d] %s.%s", tests_started_, test_count_,
