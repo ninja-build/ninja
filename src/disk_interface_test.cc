@@ -62,10 +62,10 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
 TEST_F(DiskInterfaceTest, StatBadPath) {
 #ifdef _WIN32
   string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path));
+  EXPECT_EQ(-1, disk_.StatAndPrintError(bad_path, false));
 #else
   string too_long_name(512, 'x');
-  EXPECT_EQ(-1, disk_.Stat(too_long_name));
+  EXPECT_EQ(-1, disk_.StatAndPrintError(too_long_name, false));
 #endif
 }
 
@@ -107,7 +107,7 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, NULL, NULL, this) {}
 
   // DiskInterface implementation.
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp StatAndPrintError(const string& path, bool print_on_error);
   virtual bool WriteFile(const string& path, const string& contents) {
     assert(false);
     return true;
@@ -130,7 +130,7 @@ struct StatTest : public StateTestWithBuiltinRules,
   vector<string> stats_;
 };
 
-TimeStamp StatTest::Stat(const string& path) {
+TimeStamp StatTest::StatAndPrintError(const string& path, bool print_on_error) {
   stats_.push_back(path);
   map<string, TimeStamp>::iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
