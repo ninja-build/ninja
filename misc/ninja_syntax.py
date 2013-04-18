@@ -38,13 +38,15 @@ class Writer(object):
 
     def rule(self, name, command, description=None, depfile=None,
              generator=False, pool=None, restat=False, rspfile=None,
-             rspfile_content=None, deps=None):
+             rspfile_content=None, deps=None, environment=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
             self.variable('description', description, indent=1)
         if depfile:
             self.variable('depfile', depfile, indent=1)
+        if environment:
+            self.variable('environment', environment, indent=1)
         if generator:
             self.variable('generator', '1', indent=1)
         if pool:
