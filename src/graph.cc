@@ -50,6 +50,7 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "depfile" ||
       var == "description" ||
       var == "deps" ||
+      var == "environment" ||
       var == "generator" ||
       var == "pool" ||
       var == "restat" ||
