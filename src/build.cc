@@ -460,17 +460,21 @@ void Plan::Dump() {
 }
 
 struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
+  RealCommandRunner(const BuildConfig& config, DiskInterface* disk_interface)
+      : config_(config), disk_interface_(disk_interface_) {}
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
+  void* GetEnvironmentBlockFromFile(const string& path);
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
+  DiskInterface* disk_interface_;
+  map<string, void*> environments_;
 };
 
 vector<Edge*> RealCommandRunner::GetActiveEdges() {
@@ -485,6 +489,19 @@ void RealCommandRunner::Abort() {
   subprocs_.Clear();
 }
 
+void* RealCommandRunner::GetEnvironmentBlockFromFile(const string& path) {
+  map<string, void*>::iterator i = environments_.find(path);
+  if (i != environments_.end())
+    return i->second;
+  string err;
+  string result = disk_interface_->ReadFile(path, &err);
+  if (!err.empty())
+    Error("couldn't load environment block file %s", path.c_str());
+  char* envblock = new char[result.size()];
+  result.copy(envblock, result.size());
+  return environments_.insert(make_pair(path, envblock)).first->second;
+}
+
 bool RealCommandRunner::CanRunMore() {
   return ((int)subprocs_.running_.size()) < config_.parallelism
     && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
@@ -493,7 +510,11 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  // XXX GetEnvironmentBlockFromFile blocks, but only the first time the
+  // file's loaded. Probably not worth worrying about, assuming a very small
+  // set of environment files.
+  Subprocess* subproc = subprocs_.Add(
+      command, GetEnvironmentBlockFromFile(edge->GetBinding("environment")));
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -602,7 +623,7 @@ bool Builder::Build(string* err) {
     if (config_.dry_run)
       command_runner_.reset(new DryRunCommandRunner);
     else
-      command_runner_.reset(new RealCommandRunner(config_));
+      command_runner_.reset(new RealCommandRunner(config_, disk_interface_));
   }
 
   // This main loop runs the entire build process.
