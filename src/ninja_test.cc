@@ -33,7 +33,7 @@ std::string StringPrintf(const char* format, ...) {
 /// A test result printer that's less wordy than gtest's default.
 class LaconicPrinter : public testing::EmptyTestEventListener {
  public:
-  LaconicPrinter() : tests_started_(0), test_count_(0) {}
+  LaconicPrinter() : tests_started_(0), test_count_(0), iteration_(0) {}
   virtual void OnTestProgramStart(const testing::UnitTest& unit_test) {
     test_count_ = unit_test.test_to_run_count();
   }
@@ -41,13 +41,20 @@ class LaconicPrinter : public testing::EmptyTestEventListener {
   virtual void OnTestIterationStart(const testing::UnitTest& test_info,
                                     int iteration) {
     tests_started_ = 0;
+    iteration_ = iteration;
   }
 
   virtual void OnTestStart(const testing::TestInfo& test_info) {
     ++tests_started_;
-    printer_.Print(StringPrintf("[%d/%d] %s.%s", tests_started_, test_count_,
-                                test_info.test_case_name(), test_info.name()),
-                   LinePrinter::ELIDE);
+    printer_.Print(
+        StringPrintf("[%d/%d%s] %s.%s",
+                     tests_started_,
+                     test_count_,
+                     iteration_ ? StringPrintf(" iter %d", iteration_).c_str()
+                                : "",
+                     test_info.test_case_name(),
+                     test_info.name()),
+        LinePrinter::ELIDE);
   }
 
   virtual void OnTestPartResult(
@@ -67,6 +74,7 @@ class LaconicPrinter : public testing::EmptyTestEventListener {
   LinePrinter printer_;
   int tests_started_;
   int test_count_;
+  int iteration_;
 };
 
 int main(int argc, char **argv) {
