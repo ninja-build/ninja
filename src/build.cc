@@ -461,7 +461,7 @@ void Plan::Dump() {
 
 struct RealCommandRunner : public CommandRunner {
   RealCommandRunner(const BuildConfig& config, DiskInterface* disk_interface)
-      : config_(config), disk_interface_(disk_interface_) {}
+      : config_(config), disk_interface_(disk_interface) {}
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
