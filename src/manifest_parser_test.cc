@@ -701,7 +701,7 @@ TEST_F(ParserTest, DefaultStatements) {
 "default $third\n"));
 
   string err;
-  std::vector<Node*> nodes = state.DefaultNodes(&err);
+  vector<Node*> nodes = state.DefaultNodes(&err);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, nodes.size());
   EXPECT_EQ("a", nodes[0]->path());

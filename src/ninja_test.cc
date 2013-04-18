@@ -18,7 +18,7 @@
 #include "gtest/gtest.h"
 #include "line_printer.h"
 
-std::string StringPrintf(const char* format, ...) {
+string StringPrintf(const char* format, ...) {
   const int N = 1024;
   char buf[N];
 

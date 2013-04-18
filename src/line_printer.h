@@ -16,6 +16,7 @@
 #define NINJA_LINE_PRINTER_H_
 
 #include <string>
+using namespace std;
 
 /// Prints lines of text, possibly overprinting previously printed lines
 /// if the terminal supports it.
@@ -32,10 +33,10 @@ class LinePrinter {
   };
   /// Overprints the current line. If type is ELIDE, elides to_print to fit on
   /// one line.
-  void Print(std::string to_print, LineType type);
+  void Print(string to_print, LineType type);
 
   /// Prints a string on a new line, not overprinting previous output.
-  void PrintOnNewLine(const std::string& to_print);
+  void PrintOnNewLine(const string& to_print);
 
  private:
   /// Whether we can do fancy terminal control codes.

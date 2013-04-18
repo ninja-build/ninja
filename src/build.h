@@ -268,7 +268,7 @@ struct BuildStatus {
     double rate_;
     Stopwatch stopwatch_;
     const size_t N;
-    std::queue<double> times_;
+    queue<double> times_;
     int last_update_;
   };
 
@@ -277,4 +277,3 @@ struct BuildStatus {
 };
 
 #endif  // NINJA_BUILD_H_
-

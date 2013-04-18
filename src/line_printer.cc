@@ -42,7 +42,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true) {
 #endif
 }
 
-void LinePrinter::Print(std::string to_print, LineType type) {
+void LinePrinter::Print(string to_print, LineType type) {
 #ifdef _WIN32
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   GetConsoleScreenBufferInfo(console_, &csbi);
