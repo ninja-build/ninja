@@ -490,6 +490,8 @@ void RealCommandRunner::Abort() {
 }
 
 void* RealCommandRunner::GetEnvironmentBlockFromFile(const string& path) {
+  if (path.empty())
+    return NULL;
   map<string, void*>::iterator i = environments_.find(path);
   if (i != environments_.end())
     return i->second;
