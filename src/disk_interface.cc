@@ -24,24 +24,27 @@
 #include <windows.h>
 #include <direct.h>  // _mkdir
 #endif
-
+#include <algorithm>
 #include "util.h"
 
 namespace {
 
 string DirName(const string& path) {
-#ifdef _WIN32
-  const char kPathSeparator = '\\';
-#else
   const char kPathSeparator = '/';
+#ifdef _WIN32
+  // Let Windows support forward or back slashes in path names.
+  string slash_path = path;
+  std::replace(slash_path.begin(), slash_path.end(), '\\', kPathSeparator);
+#else
+  const string& slash_path = path;
 #endif
 
-  string::size_type slash_pos = path.rfind(kPathSeparator);
+  string::size_type slash_pos = slash_path.rfind(kPathSeparator);
   if (slash_pos == string::npos)
     return string();  // Nothing to do.
-  while (slash_pos > 0 && path[slash_pos - 1] == kPathSeparator)
+  while (slash_pos > 0 && slash_path[slash_pos - 1] == kPathSeparator)
     --slash_pos;
-  return path.substr(0, slash_pos);
+  return slash_path.substr(0, slash_pos);
 }
 
 int MakeDir(const string& path) {
