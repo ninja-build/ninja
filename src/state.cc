@@ -154,7 +154,8 @@ void State::AddOut(Edge* edge, StringPiece path) {
   edge->outputs_.push_back(node);
   if (node->in_edge()) {
     Warning("multiple rules generate %s. "
-            "build will not be correct; continuing anyway",
+            "builds involving this target will not be correct; "
+            "continuing anyway",
             path.AsString().c_str());
   }
   node->set_in_edge(edge);
