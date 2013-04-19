@@ -29,7 +29,12 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path) = 0;
+  virtual TimeStamp StatAndPrintError(const string& path,
+                                      bool print_on_error) = 0;
+
+  virtual TimeStamp Stat(const string& path) {
+    return StatAndPrintError(path, true);
+  }
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -56,7 +61,7 @@ struct DiskInterface {
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp StatAndPrintError(const string& path, bool print_on_error);
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual string ReadFile(const string& path, string* err);
