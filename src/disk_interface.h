@@ -55,12 +55,16 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
+  RealDiskInterface() : quiet_(false) {}
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual string ReadFile(const string& path, string* err);
   virtual int RemoveFile(const string& path);
+
+  /// Whether to print on errors.  Used to make a test quieter.
+  bool quiet_;
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_
