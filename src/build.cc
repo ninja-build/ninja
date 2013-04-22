@@ -787,7 +787,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
                                      restat_mtime);
   }
 
-  if (!deps_type.empty()) {
+  if (!deps_type.empty() && !config_.dry_run) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp deps_mtime = disk_interface_->Stat(out->path());
