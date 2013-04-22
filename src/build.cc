@@ -715,7 +715,9 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
   // extraction itself can fail, which makes the command fail from a
   // build perspective.
   vector<Node*> deps_nodes;
-  string deps_type = edge->GetBinding("deps");
+  string deps_type;
+  if (!config_.dry_run)
+    deps_type = edge->GetBinding("deps");
   if (!deps_type.empty()) {
     string extract_err;
     if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err) &&
