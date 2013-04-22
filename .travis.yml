@@ -1,0 +1,5 @@
+language: cpp
+compiler:
+  - gcc
+  - clang
+script: ./bootstrap.py && ./ninja ninja_test && ./ninja_test
