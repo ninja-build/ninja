@@ -1353,7 +1353,7 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
-TEST_F(BuildTest, DepsGccWithEmptyDeps) {
+TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"
 "  command = cc\n"
@@ -1553,4 +1553,33 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
 
     builder.command_runner_.release();
   }
+}
+
+TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
+  const char* manifest =
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("in1", "");
+
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+  // The deps log is NULL in dry runs.
+  config_.dry_run = true;
+  Builder builder(&state, config_, NULL, NULL, &fs_);
+  builder.command_runner_.reset(&command_runner_);
+  command_runner_.commands_ran_.clear();
+
+  string err;
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+
+  builder.command_runner_.release();
 }
