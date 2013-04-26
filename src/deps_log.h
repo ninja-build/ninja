@@ -86,6 +86,7 @@ struct DepsLog {
 
   /// Used for tests.
   const vector<Node*>& nodes() const { return nodes_; }
+  const vector<Deps*>& deps() const { return deps_; }
 
  private:
   // Write a node name record, assigning it an id.
