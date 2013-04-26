@@ -28,7 +28,7 @@ struct DepsLogTest : public testing::Test {
     unlink(kTestFilename);
   }
   virtual void TearDown() {
-    //unlink(kTestFilename);
+    unlink(kTestFilename);
   }
 };
 
