@@ -233,7 +233,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   // Abort if the node has no id (never referenced in the deps) or if
   // there's no deps recorded for the node.
-  if (node->id() < 0 || node->id() >= deps_.size())
+  if (node->id() < 0 || node->id() >= (int)deps_.size())
     return NULL;
   return deps_[node->id()];
 }
