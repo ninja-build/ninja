@@ -152,15 +152,23 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     return true;
   }
 
+  long offset;
+  bool read_failed = false;
   for (;;) {
+    offset = ftell(f);
+
     uint16_t size;
-    if (fread(&size, 2, 1, f) < 1)
+    if (fread(&size, 2, 1, f) < 1) {
+      read_failed = true;
       break;
+    }
     bool is_deps = (size >> 15) != 0;
     size = size & 0x7FFF;
 
-    if (fread(buf, size, 1, f) < 1)
+    if (fread(buf, size, 1, f) < 1) {
+      read_failed = true;
       break;
+    }
 
     if (is_deps) {
       assert(size % 4 == 0);
@@ -195,16 +203,37 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       nodes_.push_back(node);
     }
   }
-  if (ferror(f)) {
-    *err = strerror(ferror(f));
-    return false;
+
+  if (read_failed) {
+    // An error occurred while loading; try to recover by truncating the
+    // file to the last fully-read record.
+    if (ferror(f)) {
+      *err = strerror(ferror(f));
+    } else {
+      *err = "premature end of file";
+    }
+    fclose(f);
+
+    if (truncate(path.c_str(), offset) < 0) {
+      *err = strerror(errno);
+      return false;
+    }
+
+    // The truncate succeeded; we'll just report the load error as a
+    // warning because the build can proceed.
+    *err += "; recovering";
+    return true;
   }
+
   fclose(f);
+
   return true;
 }
 
 DepsLog::Deps* DepsLog::GetDeps(Node* node) {
-  if (node->id() < 0)
+  // Abort if the node has no id (never referenced in the deps) or if
+  // there's no deps recorded for the node.
+  if (node->id() < 0 || node->id() >= deps_.size())
     return NULL;
   return deps_[node->id()];
 }

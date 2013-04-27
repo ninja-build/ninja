@@ -218,8 +218,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
   }
 }
 
-// Simulate what happens if a write gets interrupted and the resulting
-// file is truncated.
+// Simulate what happens when loading a truncated log file.
 TEST_F(DepsLogTest, Truncated) {
   // Create a file with some entries.
   {
@@ -263,7 +262,7 @@ TEST_F(DepsLogTest, Truncated) {
       break;
     }
 
-    ASSERT_GE(node_count, log.nodes().size());
+    ASSERT_GE(node_count, (int)log.nodes().size());
     node_count = log.nodes().size();
 
     // Count how many non-NULL deps entries there are.
@@ -275,6 +274,72 @@ TEST_F(DepsLogTest, Truncated) {
     }
     ASSERT_GE(deps_count, new_deps_count);
     deps_count = new_deps_count;
+  }
+}
+
+// Run the truncation-recovery logic.
+TEST_F(DepsLogTest, TruncatedRecovery) {
+  // Create a file with some entries.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar.h"));
+    log.RecordDeps(state.GetNode("out.o"), 1, deps);
+
+    deps.clear();
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar2.h"));
+    log.RecordDeps(state.GetNode("out2.o"), 2, deps);
+
+    log.Close();
+  }
+
+  // Shorten the file, corrupting the last record.
+  struct stat st;
+  ASSERT_EQ(0, stat(kTestFilename, &st));
+  ASSERT_EQ(0, truncate(kTestFilename, st.st_size - 2));
+
+  // Load the file again, add an entry.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
+    ASSERT_EQ("premature end of file; recovering", err);
+    err.clear();
+
+    // The truncated entry should've been discarded.
+    EXPECT_EQ(NULL, log.GetDeps(state.GetNode("out2.o")));
+
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    // Add a new entry.
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("bar2.h"));
+    log.RecordDeps(state.GetNode("out2.o"), 3, deps);
+
+    log.Close();
+  }
+
+  // Load the file a third time to verify appending after a mangled
+  // entry doesn't break things.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
+
+    // The truncated entry should exist.
+    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out2.o"));
+    ASSERT_TRUE(deps);
   }
 }
 
