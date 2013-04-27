@@ -159,7 +159,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 
     uint16_t size;
     if (fread(&size, 2, 1, f) < 1) {
-      read_failed = true;
+      if (!feof(f))
+        read_failed = true;
       break;
     }
     bool is_deps = (size >> 15) != 0;
