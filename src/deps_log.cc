@@ -244,6 +244,11 @@ bool DepsLog::Recompact(const string& path, string* err) {
   printf("Recompacting deps...\n");
 
   string temp_path = path + ".recompact";
+
+  // OpenForWrite() opens for append.  Make sure it's not appending to a
+  // left-over file from a previous recompaction attempt that crashed somehow.
+  unlink(temp_path.c_str());
+
   DepsLog new_log;
   if (!new_log.OpenForWrite(temp_path, err))
     return false;
