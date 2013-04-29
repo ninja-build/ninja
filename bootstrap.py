@@ -35,6 +35,8 @@ parser.add_option('--x64', action='store_true',
 parser.add_option('--windows', action='store_true',
                   help='force native Windows build',
                   default=sys.platform.startswith('win32'))
+parser.add_option('--mingw', action='store_true',
+                  help='use mingw')
 (options, conf_args) = parser.parse_args()
 
 def run(*args, **kwargs):
@@ -82,7 +84,7 @@ for src in glob.glob('src/*.cc'):
 if options.windows:
     sources.append('src/getopt.c')
 
-if options.windows:
+if options.windows and not options.mingw:
     cl = 'cl'
     vcdir = os.environ.get('VCINSTALLDIR')
     if vcdir:
@@ -109,7 +111,7 @@ binary = 'ninja.bootstrap'
 if options.windows:
     binary = 'ninja.bootstrap.exe'
 args.extend(sources)
-if options.windows:
+if options.windows and not options.mingw:
     args.extend(['/link', '/out:' + binary])
 else:
     args.extend(['-o', binary])
