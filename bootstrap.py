@@ -23,19 +23,24 @@ import errno
 import shlex
 import shutil
 import subprocess
+import platformHelper
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = OptionParser()
+
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
 parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
 # TODO: make this --platform to match configure.py.
-parser.add_option('--windows', action='store_true',
-                  help='force native Windows build',
-                  default=sys.platform.startswith('win32'))
+parser.add_option('--platform',
+                  help='target platform (' + '/'.join(platformHelper.platforms()) + ')',
+                  choices=platformHelper.platforms())
 (options, conf_args) = parser.parse_args()
+
+
+platform = platformHelper.platform( options.platform )
 
 def run(*args, **kwargs):
     returncode = subprocess.call(*args, **kwargs)
@@ -46,7 +51,7 @@ def run(*args, **kwargs):
 # g++ call as well as in the later configure.py.
 cflags = os.environ.get('CFLAGS', '').split()
 ldflags = os.environ.get('LDFLAGS', '').split()
-if sys.platform.startswith('freebsd'):
+if platform.isFreebsd():
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
@@ -70,7 +75,7 @@ for src in glob.glob('src/*.cc'):
     if filename == 'browse.cc':  # Depends on generated header.
         continue
 
-    if options.windows:
+    if platform.isWindows():
         if src.endswith('-posix.cc'):
             continue
     else:
@@ -79,10 +84,10 @@ for src in glob.glob('src/*.cc'):
 
     sources.append(src)
 
-if options.windows:
+if platform.isWindows():
     sources.append('src/getopt.c')
 
-if options.windows:
+if platform.isMSVC():
     cl = 'cl'
     vcdir = os.environ.get('VCINSTALLDIR')
     if vcdir:
@@ -98,7 +103,7 @@ else:
     cflags.extend(['-Wno-deprecated',
                    '-DNINJA_PYTHON="' + sys.executable + '"',
                    '-DNINJA_BOOTSTRAP'])
-    if options.windows:
+    if platform.isWindows():
         cflags.append('-D_WIN32_WINNT=0x0501')
         conf_args.append("--platform=mingw")
     if options.x64:
@@ -106,10 +111,10 @@ else:
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
-if options.windows:
+if platform.isWindows():
     binary = 'ninja.bootstrap.exe'
 args.extend(sources)
-if options.windows:
+if platform.isMSVC():
     args.extend(['/link', '/out:' + binary])
 else:
     args.extend(['-o', binary])
@@ -127,7 +132,7 @@ verbose = []
 if options.verbose:
     verbose = ['-v']
 
-if options.windows:
+if platform.isWindows():
     print('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)
     run(['./' + binary] + verbose)
