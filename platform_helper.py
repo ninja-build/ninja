@@ -3,7 +3,7 @@ import sys
 def platforms():
     return ['linux', 'freebsd', 'solaris', 'sunos5', 'mingw', 'msvc']
         
-class platform( object ):
+class Platform( object ):
     def __init__( self, platform):
         self._platform = platform
         if not self._platform is None:
@@ -24,23 +24,23 @@ class platform( object ):
     def platform(self):
         return self._platform
 
-    def isLinux(self):
+    def is_linux(self):
         return self._platform == 'linux'
 
-    def isMingw(self):
+    def is_mingw(self):
         return self._platform == 'mingw'
 
-    def isMSVC(self):
+    def is_msvc(self):
         return self._platform == 'msvc'
 
-    def isWindows(self):
-        return self.isMingw() or self.isMSVC()
+    def is_windows(self):
+        return self.is_mingw() or self.is_msvc()
 
-    def isSolaris(self):
+    def is_solaris(self):
         return self._platform == 'solaris'
 
-    def isFreebsd(self):
+    def is_freebsd(self):
         return self._platform == 'freebsd'
 
-    def isSunos5(self):
+    def is_sunos5(self):
         return self._platform == 'sunos5'

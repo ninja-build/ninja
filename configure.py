@@ -24,7 +24,7 @@ from __future__ import print_function
 from optparse import OptionParser
 import os
 import sys
-import platformHelper
+import platform_helper
 sys.path.insert(0, 'misc')
 
 import ninja_syntax
@@ -32,11 +32,11 @@ import ninja_syntax
 parser = OptionParser()
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
-                  help='target platform (' + '/'.join(platformHelper.platforms()) + ')',
-                  choices=platformHelper.platforms())
+                  help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  choices=platform_helper.platforms())
 parser.add_option('--host',
-                  help='host platform (' + '/'.join(platformHelper.platforms()) + ')',
-                  choices=platformHelper.platforms())
+                  help='host platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  choices=platform_helper.platforms())
 parser.add_option('--debug', action='store_true',
                   help='enable debugging extras',)
 parser.add_option('--profile', metavar='TYPE',
@@ -52,9 +52,9 @@ if args:
     print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
-platform = platformHelper.platform(options.platform)
+platform = platform_helper.Platform(options.platform)
 if options.host:
-    host = platformHelper.platform(options.host)
+    host = platform_helper.Platform(options.host)
 else:
     host = platform
 
@@ -76,7 +76,7 @@ n.newline()
 
 CXX = configure_env.get('CXX', 'g++')
 objext = '.o'
-if platform.isMSVC():
+if platform.is_msvc():
     CXX = 'cl'
     objext = '.obj'
 
@@ -91,7 +91,7 @@ def cc(name, **kwargs):
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
-    if platform.isWindows():
+    if platform.is_windows():
         exe = name + '.exe'
         n.build(name, 'phony', exe)
         return exe
@@ -99,12 +99,12 @@ def binary(name):
 
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
-if platform.isMSVC():
+if platform.is_msvc():
     n.variable('ar', 'link')
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
-if platform.isMSVC():
+if platform.is_msvc():
     cflags = ['/nologo',  # Don't print startup banner.
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
@@ -140,17 +140,17 @@ else:
         cflags += ['-O2', '-DNDEBUG']
     if 'clang' in os.path.basename(CXX):
         cflags += ['-fcolor-diagnostics']
-    if platform.isMingw():
+    if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
 libs = []
 
-if platform.isMingw():
+if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
-elif platform.isSunos5():
+elif platform.is_sunos5():
     cflags.remove('-fvisibility=hidden')
-elif platform.isMSVC():
+elif platform.is_msvc():
     pass
 else:
     if options.profile == 'gmon':
@@ -165,7 +165,7 @@ def shell_escape(str):
     the shell."""
 
     # This isn't complete, but it's just enough to make NINJA_PYTHON work.
-    if platform.isWindows():
+    if platform.is_windows():
       return str
     if '"' in str:
         return "'%s'" % str.replace("'", "\\'")
@@ -179,7 +179,7 @@ if 'LDFLAGS' in configure_env:
 n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
-if platform.isMSVC():
+if platform.is_msvc():
     n.rule('cxx',
         command='$cxx /showIncludes $cflags -c $in /Fo$out',
         description='CXX $out',
@@ -192,11 +192,11 @@ else:
         description='CXX $out')
 n.newline()
 
-if host.isMSVC():
+if host.is_msvc():
     n.rule('ar',
            command='lib /nologo /ltcg /out:$out $in',
            description='LIB $out')
-elif host.isMingw():
+elif host.is_mingw():
     n.rule('ar',
            command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
            description='AR $out')
@@ -206,7 +206,7 @@ else:
            description='AR $out')
 n.newline()
 
-if platform.isMSVC():
+if platform.is_msvc():
     n.rule('link',
         command='$cxx $in $libs /nologo /link $ldflags /out:$out',
         description='LINK $out')
@@ -218,7 +218,7 @@ n.newline()
 
 objs = []
 
-if not platform.isWindows() and not platform.isSolaris():
+if not platform.is_windows() and not platform.is_solaris():
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -271,24 +271,24 @@ for name in ['build',
              'util',
              'version']:
     objs += cxx(name)
-if platform.isWindows():
+if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',
                  'msvc_helper-win32',
                  'msvc_helper_main-win32']:
         objs += cxx(name)
-    if platform.isMSVC():
+    if platform.is_msvc():
         objs += cxx('minidump-win32')
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
-if platform.isMSVC():
+if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
     ninja_lib = n.build(built('libninja.a'), 'ar', objs)
 n.newline()
 
-if platform.isMSVC():
+if platform.is_msvc():
     libs.append('ninja.lib')
 else:
     libs.append('-lninja')
@@ -313,7 +313,7 @@ if options.with_gtest:
     path = options.with_gtest
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    if platform.isMSVC():
+    if platform.is_msvc():
         gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 ' + gtest_all_incs
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
@@ -324,7 +324,7 @@ if options.with_gtest:
     test_cflags.append('-I%s' % os.path.join(path, 'include'))
 else:
     # Use gtest from system.
-    if platform.isMSVC():
+    if platform.is_msvc():
         test_libs.extend(['gtest_main.lib', 'gtest.lib'])
     else:
         test_libs.extend(['-lgtest_main', '-lgtest'])
@@ -346,11 +346,11 @@ for name in ['build_log_test',
              'test',
              'util_test']:
     objs += cxx(name, variables=[('cflags', '$test_cflags')])
-if platform.isWindows():
+if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
         objs += cxx(name, variables=[('cflags', test_cflags)])
 
-if not platform.isWindows():
+if not platform.is_windows():
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('ldflags', test_ldflags),
@@ -413,7 +413,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if not host.isMingw():
+if not host.is_mingw():
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='${configure_env}%s configure.py $configure_args' %
@@ -426,7 +426,7 @@ if not host.isMingw():
 n.default(ninja)
 n.newline()
 
-if host.isLinux():
+if host.is_linux():
     n.comment('Packaging')
     n.rule('rpmbuild',
            command="misc/packaging/rpmbuild.sh",
