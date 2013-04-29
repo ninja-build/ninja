@@ -257,6 +257,8 @@ bool DepsLog::Recompact(const string& path, string* err) {
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
+    if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
+
     if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
                             deps->node_count, deps->nodes)) {
       new_log.Close();
