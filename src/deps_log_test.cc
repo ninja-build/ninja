@@ -137,6 +137,12 @@ TEST_F(DepsLogTest, Recompact) {
     deps.push_back(state.GetNode("foo.h"));
     deps.push_back(state.GetNode("bar.h"));
     log.RecordDeps(state.GetNode("out.o"), 1, deps);
+
+    deps.clear();
+    deps.push_back(state.GetNode("foo.h"));
+    deps.push_back(state.GetNode("baz.h"));
+    log.RecordDeps(state.GetNode("other_out.o"), 1, deps);
+
     log.Close();
 
     struct stat st;
