@@ -257,11 +257,11 @@ TEST_F(DepsLogTest, Truncated) {
   int node_count = 5;
   int deps_count = 2;
   for (int size = (int)st.st_size; size > 0; --size) {
-    ASSERT_EQ(0, truncate(kTestFilename, size));
+    string err;
+    ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 
     State state;
     DepsLog log;
-    string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
     if (!err.empty()) {
       // At some point the log will be so short as to be unparseable.

@@ -215,10 +215,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     }
     fclose(f);
 
-    if (truncate(path.c_str(), offset) < 0) {
-      *err = strerror(errno);
+    if (!Truncate(path.c_str(), offset, err))
       return false;
-    }
 
     // The truncate succeeded; we'll just report the load error as a
     // warning because the build can proceed.
