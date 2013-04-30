@@ -179,10 +179,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       deps_data += 2;
       int deps_count = (size / 4) - 2;
 
-      Deps* deps = new Deps;
-      deps->mtime = mtime;
-      deps->node_count = deps_count;
-      deps->nodes = new Node*[deps_count];
+      Deps* deps = new Deps(mtime, deps_count);
       for (int i = 0; i < deps_count; ++i) {
         assert(deps_data[i] < (int)nodes_.size());
         assert(nodes_[deps_data[i]]);

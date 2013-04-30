@@ -72,7 +72,8 @@ struct DepsLog {
 
   // Reading (startup-time) interface.
   struct Deps {
-    Deps() : mtime(-1), node_count(0), nodes(NULL) {}
+    Deps(int mtime, int node_count)
+        : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
     ~Deps() { delete [] nodes; }
     int mtime;
     int node_count;
