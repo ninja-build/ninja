@@ -188,18 +188,43 @@ TEST_F(DepsLogTest, Recompact) {
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
 
-    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o"));
+    Node* out = state.GetNode("out.o");
+    DepsLog::Deps* deps = log.GetDeps(out);
     ASSERT_TRUE(deps);
     ASSERT_EQ(1, deps->mtime);
     ASSERT_EQ(1, deps->node_count);
     ASSERT_EQ("foo.h", deps->nodes[0]->path());
 
+    Node* other_out = state.GetNode("other_out.o");
+    deps = log.GetDeps(other_out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(2, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ("baz.h", deps->nodes[1]->path());
+
     ASSERT_TRUE(log.Recompact(kTestFilename, &err));
 
+    // The in-memory deps graph should still be valid after recompaction.
+    deps = log.GetDeps(out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(1, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ(out, log.nodes()[out->id()]);
+
+    deps = log.GetDeps(other_out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(2, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ("baz.h", deps->nodes[1]->path());
+    ASSERT_EQ(other_out, log.nodes()[other_out->id()]);
+
+    // The file should have shrunk a bit for the smaller deps.
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
     int file_size_3 = (int)st.st_size;
-    // The file should have shrunk a bit for the smaller deps.
     ASSERT_LT(file_size_3, file_size_2);
   }
 }

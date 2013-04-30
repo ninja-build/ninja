@@ -250,12 +250,11 @@ bool DepsLog::Recompact(const string& path, string* err) {
   if (!new_log.OpenForWrite(temp_path, err))
     return false;
 
-  // Clear all known ids so that new ones can be reassigned.
-  for (vector<Node*>::iterator i = nodes_.begin();
-       i != nodes_.end(); ++i) {
+  // Clear all known ids so that new ones can be reassigned.  The new indices
+  // will refer to the ordering in new_log, not in the current log.
+  for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
-  }
-
+  
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
@@ -269,6 +268,10 @@ bool DepsLog::Recompact(const string& path, string* err) {
   }
 
   new_log.Close();
+
+  // All nodes now have ids that refer to new_log, so steal its data.
+  deps_.swap(new_log.deps_);
+  nodes_.swap(new_log.nodes_);
 
   if (unlink(path.c_str()) < 0) {
     *err = strerror(errno);
