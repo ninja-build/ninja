@@ -37,6 +37,12 @@ DepsLog::~DepsLog() {
 }
 
 bool DepsLog::OpenForWrite(const string& path, string* err) {
+  if (needs_recompaction_) {
+    Close();
+    if (!Recompact(path, err))
+      return false;
+  }
+  
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -161,6 +167,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 
   long offset;
   bool read_failed = false;
+  int unique_dep_record_count = 0;
+  int total_dep_record_count = 0;
   for (;;) {
     offset = ftell(f);
 
@@ -193,8 +201,9 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
         deps->nodes[i] = nodes_[deps_data[i]];
       }
 
-      if (UpdateDeps(out_id, deps))
-        ++dead_record_count_;
+      total_dep_record_count++;
+      if (!UpdateDeps(out_id, deps))
+        ++unique_dep_record_count;
     } else {
       StringPiece path(buf, size);
       Node* node = state->GetNode(path);
@@ -224,6 +233,14 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   }
 
   fclose(f);
+
+  // Rebuild the log if there are too many dead records.
+  int kMinCompactionEntryCount = 1000;
+  int kCompactionRatio = 3;
+  if (total_dep_record_count > kMinCompactionEntryCount &&
+      total_dep_record_count > unique_dep_record_count * kCompactionRatio) {
+    needs_recompaction_ = true;
+  }
 
   return true;
 }
