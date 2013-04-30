@@ -106,6 +106,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   if (!made_change)
     return true;
 
+  // Update on-disk representation.
   uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
   size |= 0x8000;  // Deps record: set high bit.
   fwrite(&size, 2, 1, file_);
@@ -117,6 +118,12 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     id = nodes[i]->id();
     fwrite(&id, 4, 1, file_);
   }
+
+  // Update in-memory representation.
+  Deps* deps = new Deps(mtime, node_count);
+  for (int i = 0; i < node_count; ++i)
+    deps->nodes[i] = nodes[i];
+  UpdateDeps(node->id(), deps);
 
   return true;
 }

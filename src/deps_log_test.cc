@@ -49,6 +49,13 @@ TEST_F(DepsLogTest, WriteRead) {
     deps.push_back(state1.GetNode("foo.h"));
     deps.push_back(state1.GetNode("bar2.h"));
     log1.RecordDeps(state1.GetNode("out2.o"), 2, deps);
+
+    DepsLog::Deps* log_deps = log1.GetDeps(state1.GetNode("out.o"));
+    ASSERT_TRUE(log_deps);
+    ASSERT_EQ(1, log_deps->mtime);
+    ASSERT_EQ(2, log_deps->node_count);
+    ASSERT_EQ("foo.h", log_deps->nodes[0]->path());
+    ASSERT_EQ("bar.h", log_deps->nodes[1]->path());
   }
 
   log1.Close();
@@ -66,14 +73,13 @@ TEST_F(DepsLogTest, WriteRead) {
     ASSERT_EQ(node1->id(), node2->id());
   }
 
-  // log1 has no deps entries, as it was only used for writing.
-  // Manually check the entries in log2.
-  DepsLog::Deps* deps = log2.GetDeps(state2.GetNode("out.o"));
-  ASSERT_TRUE(deps);
-  ASSERT_EQ(1, deps->mtime);
-  ASSERT_EQ(2, deps->node_count);
-  ASSERT_EQ("foo.h", deps->nodes[0]->path());
-  ASSERT_EQ("bar.h", deps->nodes[1]->path());
+  // Spot-check the entries in log2.
+  DepsLog::Deps* log_deps = log2.GetDeps(state2.GetNode("out2.o"));
+  ASSERT_TRUE(log_deps);
+  ASSERT_EQ(2, log_deps->mtime);
+  ASSERT_EQ(2, log_deps->node_count);
+  ASSERT_EQ("foo.h", log_deps->nodes[0]->path());
+  ASSERT_EQ("bar2.h", log_deps->nodes[1]->path());
 }
 
 // Verify that adding the same deps twice doesn't grow the file.
