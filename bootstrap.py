@@ -41,6 +41,7 @@ parser.add_option('--platform',
 
 
 platform = platform_helper.Platform( options.platform )
+conf_args.append( "--platform=" + platform.platform() )
 
 def run(*args, **kwargs):
     returncode = subprocess.call(*args, **kwargs)
@@ -104,8 +105,7 @@ else:
                    '-DNINJA_PYTHON="' + sys.executable + '"',
                    '-DNINJA_BOOTSTRAP'])
     if platform.is_windows():
-        cflags.append('-D_WIN32_WINNT=0x0501')
-        conf_args.append("--platform=mingw")
+        cflags.append('-D_WIN32_WINNT=0x0501')        
     if options.x64:
         cflags.append('-m64')
 args.extend(cflags)
