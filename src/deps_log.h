@@ -90,6 +90,9 @@ struct DepsLog {
   const vector<Deps*>& deps() const { return deps_; }
 
  private:
+  // Updates the in-memory representation.  Takes ownership of |deps|.
+  // Returns true if a prior deps record was deleted.
+  bool UpdateDeps(int out_id, Deps* deps);
   // Write a node name record, assigning it an id.
   bool RecordId(Node* node);
 

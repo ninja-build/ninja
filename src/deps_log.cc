@@ -186,13 +186,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
         deps->nodes[i] = nodes_[deps_data[i]];
       }
 
-      if (out_id >= (int)deps_.size())
-        deps_.resize(out_id + 1);
-      if (deps_[out_id]) {
+      if (UpdateDeps(out_id, deps))
         ++dead_record_count_;
-        delete deps_[out_id];
-      }
-      deps_[out_id] = deps;
     } else {
       StringPiece path(buf, size);
       Node* node = state->GetNode(path);
@@ -279,6 +274,17 @@ bool DepsLog::Recompact(const string& path, string* err) {
   }
 
   return true;
+}
+
+bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
+  if (out_id >= (int)deps_.size())
+    deps_.resize(out_id + 1);
+
+  bool delete_old = deps_[out_id] != NULL;
+  if (delete_old)
+    delete deps_[out_id];
+  deps_[out_id] = deps;
+  return delete_old;
 }
 
 bool DepsLog::RecordId(Node* node) {
