@@ -61,7 +61,7 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog {
-  DepsLog() : dead_record_count_(0), file_(NULL) {}
+  DepsLog() : needs_recompaction_(false), file_(NULL) {}
   ~DepsLog();
 
   // Writing (build-time) interface.
@@ -72,7 +72,8 @@ struct DepsLog {
 
   // Reading (startup-time) interface.
   struct Deps {
-    Deps() : mtime(-1), node_count(0), nodes(NULL) {}
+    Deps(int mtime, int node_count)
+        : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
     ~Deps() { delete [] nodes; }
     int mtime;
     int node_count;
@@ -89,14 +90,15 @@ struct DepsLog {
   const vector<Deps*>& deps() const { return deps_; }
 
  private:
+  // Updates the in-memory representation.  Takes ownership of |deps|.
+  // Returns true if a prior deps record was deleted.
+  bool UpdateDeps(int out_id, Deps* deps);
   // Write a node name record, assigning it an id.
   bool RecordId(Node* node);
 
-  /// Number of deps record read while loading the file that ended up
-  /// being unused (due to a latter entry superceding it).
-  int dead_record_count_;
-
+  bool needs_recompaction_;
   FILE* file_;
+
   /// Maps id -> Node.
   vector<Node*> nodes_;
   /// Maps id -> deps of that id.

@@ -37,6 +37,12 @@ DepsLog::~DepsLog() {
 }
 
 bool DepsLog::OpenForWrite(const string& path, string* err) {
+  if (needs_recompaction_) {
+    Close();
+    if (!Recompact(path, err))
+      return false;
+  }
+  
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -106,6 +112,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   if (!made_change)
     return true;
 
+  // Update on-disk representation.
   uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
   size |= 0x8000;  // Deps record: set high bit.
   fwrite(&size, 2, 1, file_);
@@ -117,6 +124,12 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     id = nodes[i]->id();
     fwrite(&id, 4, 1, file_);
   }
+
+  // Update in-memory representation.
+  Deps* deps = new Deps(mtime, node_count);
+  for (int i = 0; i < node_count; ++i)
+    deps->nodes[i] = nodes[i];
+  UpdateDeps(node->id(), deps);
 
   return true;
 }
@@ -154,6 +167,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 
   long offset;
   bool read_failed = false;
+  int unique_dep_record_count = 0;
+  int total_dep_record_count = 0;
   for (;;) {
     offset = ftell(f);
 
@@ -179,23 +194,16 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       deps_data += 2;
       int deps_count = (size / 4) - 2;
 
-      Deps* deps = new Deps;
-      deps->mtime = mtime;
-      deps->node_count = deps_count;
-      deps->nodes = new Node*[deps_count];
+      Deps* deps = new Deps(mtime, deps_count);
       for (int i = 0; i < deps_count; ++i) {
         assert(deps_data[i] < (int)nodes_.size());
         assert(nodes_[deps_data[i]]);
         deps->nodes[i] = nodes_[deps_data[i]];
       }
 
-      if (out_id >= (int)deps_.size())
-        deps_.resize(out_id + 1);
-      if (deps_[out_id]) {
-        ++dead_record_count_;
-        delete deps_[out_id];
-      }
-      deps_[out_id] = deps;
+      total_dep_record_count++;
+      if (!UpdateDeps(out_id, deps))
+        ++unique_dep_record_count;
     } else {
       StringPiece path(buf, size);
       Node* node = state->GetNode(path);
@@ -226,6 +234,14 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
 
   fclose(f);
 
+  // Rebuild the log if there are too many dead records.
+  int kMinCompactionEntryCount = 1000;
+  int kCompactionRatio = 3;
+  if (total_dep_record_count > kMinCompactionEntryCount &&
+      total_dep_record_count > unique_dep_record_count * kCompactionRatio) {
+    needs_recompaction_ = true;
+  }
+
   return true;
 }
 
@@ -251,12 +267,11 @@ bool DepsLog::Recompact(const string& path, string* err) {
   if (!new_log.OpenForWrite(temp_path, err))
     return false;
 
-  // Clear all known ids so that new ones can be reassigned.
-  for (vector<Node*>::iterator i = nodes_.begin();
-       i != nodes_.end(); ++i) {
+  // Clear all known ids so that new ones can be reassigned.  The new indices
+  // will refer to the ordering in new_log, not in the current log.
+  for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
-  }
-
+  
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
@@ -271,6 +286,10 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   new_log.Close();
 
+  // All nodes now have ids that refer to new_log, so steal its data.
+  deps_.swap(new_log.deps_);
+  nodes_.swap(new_log.nodes_);
+
   if (unlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
@@ -282,6 +301,17 @@ bool DepsLog::Recompact(const string& path, string* err) {
   }
 
   return true;
+}
+
+bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
+  if (out_id >= (int)deps_.size())
+    deps_.resize(out_id + 1);
+
+  bool delete_old = deps_[out_id] != NULL;
+  if (delete_old)
+    delete deps_[out_id];
+  deps_[out_id] = deps;
+  return delete_old;
 }
 
 bool DepsLog::RecordId(Node* node) {

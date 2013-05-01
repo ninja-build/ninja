@@ -49,6 +49,13 @@ TEST_F(DepsLogTest, WriteRead) {
     deps.push_back(state1.GetNode("foo.h"));
     deps.push_back(state1.GetNode("bar2.h"));
     log1.RecordDeps(state1.GetNode("out2.o"), 2, deps);
+
+    DepsLog::Deps* log_deps = log1.GetDeps(state1.GetNode("out.o"));
+    ASSERT_TRUE(log_deps);
+    ASSERT_EQ(1, log_deps->mtime);
+    ASSERT_EQ(2, log_deps->node_count);
+    ASSERT_EQ("foo.h", log_deps->nodes[0]->path());
+    ASSERT_EQ("bar.h", log_deps->nodes[1]->path());
   }
 
   log1.Close();
@@ -66,14 +73,13 @@ TEST_F(DepsLogTest, WriteRead) {
     ASSERT_EQ(node1->id(), node2->id());
   }
 
-  // log1 has no deps entries, as it was only used for writing.
-  // Manually check the entries in log2.
-  DepsLog::Deps* deps = log2.GetDeps(state2.GetNode("out.o"));
-  ASSERT_TRUE(deps);
-  ASSERT_EQ(1, deps->mtime);
-  ASSERT_EQ(2, deps->node_count);
-  ASSERT_EQ("foo.h", deps->nodes[0]->path());
-  ASSERT_EQ("bar.h", deps->nodes[1]->path());
+  // Spot-check the entries in log2.
+  DepsLog::Deps* log_deps = log2.GetDeps(state2.GetNode("out2.o"));
+  ASSERT_TRUE(log_deps);
+  ASSERT_EQ(2, log_deps->mtime);
+  ASSERT_EQ(2, log_deps->node_count);
+  ASSERT_EQ("foo.h", log_deps->nodes[0]->path());
+  ASSERT_EQ("bar2.h", log_deps->nodes[1]->path());
 }
 
 // Verify that adding the same deps twice doesn't grow the file.
@@ -182,18 +188,43 @@ TEST_F(DepsLogTest, Recompact) {
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
 
-    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o"));
+    Node* out = state.GetNode("out.o");
+    DepsLog::Deps* deps = log.GetDeps(out);
     ASSERT_TRUE(deps);
     ASSERT_EQ(1, deps->mtime);
     ASSERT_EQ(1, deps->node_count);
     ASSERT_EQ("foo.h", deps->nodes[0]->path());
 
+    Node* other_out = state.GetNode("other_out.o");
+    deps = log.GetDeps(other_out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(2, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ("baz.h", deps->nodes[1]->path());
+
     ASSERT_TRUE(log.Recompact(kTestFilename, &err));
 
+    // The in-memory deps graph should still be valid after recompaction.
+    deps = log.GetDeps(out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(1, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ(out, log.nodes()[out->id()]);
+
+    deps = log.GetDeps(other_out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(2, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ("baz.h", deps->nodes[1]->path());
+    ASSERT_EQ(other_out, log.nodes()[other_out->id()]);
+
+    // The file should have shrunk a bit for the smaller deps.
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
     int file_size_3 = (int)st.st_size;
-    // The file should have shrunk a bit for the smaller deps.
     ASSERT_LT(file_size_3, file_size_2);
   }
 }
