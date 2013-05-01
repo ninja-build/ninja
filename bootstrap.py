@@ -52,7 +52,7 @@ def run(*args, **kwargs):
 # g++ call as well as in the later configure.py.
 cflags = os.environ.get('CFLAGS', '').split()
 ldflags = os.environ.get('LDFLAGS', '').split()
-if platform.is_freebsd():
+if platform.is_freebsd() or platform.is_openbsd():
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
