@@ -25,13 +25,6 @@
 #include <string.h>
 #include <sys/wait.h>
 
-// Older versions of glibc (like 2.4) won't find this in <poll.h>.  glibc
-// 2.4 keeps it in <asm-generic/poll.h>, though attempting to include that
-// will redefine the pollfd structure.
-#ifndef POLLRDHUP
-#define POLLRDHUP 0x2000
-#endif
-
 #include "util.h"
 
 Subprocess::Subprocess() : fd_(-1), pid_(-1) {
@@ -197,7 +190,7 @@ bool SubprocessSet::DoWork() {
     int fd = (*i)->fd_;
     if (fd < 0)
       continue;
-    pollfd pfd = { fd, POLLIN | POLLPRI | POLLRDHUP, 0 };
+    pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
     fds.push_back(pfd);
     ++nfds;
   }
