@@ -359,9 +359,8 @@ string ElideMiddle(const string& str, size_t width) {
 
 bool Truncate(const string& path, size_t size, string* err) {
 #ifdef _WIN32
-  int fh;
-  fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
-              _S_IREAD | _S_IWRITE);
+  int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
+                  _S_IREAD | _S_IWRITE);
   int success = _chsize(fh, size);
   _close(fh);
 #else
