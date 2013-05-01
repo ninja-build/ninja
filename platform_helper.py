@@ -18,7 +18,7 @@
 import sys
 
 def platforms():
-    return ['linux', 'freebsd', 'solaris', 'sunos5', 'mingw', 'msvc']
+    return ['linux', 'freebsd', 'openbsd', 'solaris', 'sunos5', 'mingw', 'msvc']
 
 class Platform( object ):
     def __init__( self, platform):
@@ -30,6 +30,8 @@ class Platform( object ):
             self._platform = 'linux'
         elif self._platform.startswith('freebsd'):
             self._platform = 'freebsd'
+        elif self._platform.startswith('openbsd'):
+            self._platform = 'openbsd'
         elif self._platform.startswith('solaris'):
             self._platform = 'solaris'
         elif self._platform.startswith('mingw'):
@@ -58,6 +60,9 @@ class Platform( object ):
 
     def is_freebsd(self):
         return self._platform == 'freebsd'
+
+    def is_openbsd(self):
+        return self._platform == 'openbsd'
 
     def is_sunos5(self):
         return self._platform == 'sunos5'
