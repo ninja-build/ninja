@@ -716,16 +716,19 @@ void DumpMetrics(Globals* globals) {
          count / (double) buckets, count, buckets);
 }
 
-bool ComputeTargets(Builder* builder, int argc, char** argv, string* err) {
+int RunBuild(Builder* builder, int argc, char** argv) {
+  string err;
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(builder->state_, argc, argv, &targets, err)) {
-    return false;
+  if (!CollectTargetsFromArgs(builder->state_, argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
   }
 
   for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder->AddTarget(targets[i], err)) {
-      if (!err->empty()) {
-        return false;
+    if (!builder->AddTarget(targets[i], &err)) {
+      if (!err.empty()) {
+        Error("%s", err.c_str());
+        return 1;
       } else {
         // Added a target that is already up-to-date; not really
         // an error.
@@ -733,16 +736,11 @@ bool ComputeTargets(Builder* builder, int argc, char** argv, string* err) {
     }
   }
 
-  return true;
-}
-
-int RunBuild(Builder* builder) {
   if (builder->AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
     return 0;
   }
 
-  string err;
   if (!builder->Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
@@ -936,15 +934,11 @@ reload:
 
   Builder builder(globals.state, config, &build_log, &deps_log,
                   &disk_interface);
-  if(!ComputeTargets(&builder, argc, argv, &err)) {
-    Error("computing targets: %s", err.c_str());
-    return 1;
-  }
 
   if (tool && tool->when == Tool::RUN_AFTER_LOAD)
     return tool->func(&globals, &builder, argc, argv);
 
-  int result = RunBuild(&builder);
+  int result = RunBuild(&builder, argc, argv);
   if (g_metrics)
     DumpMetrics(&globals);
   return result;
