@@ -33,7 +33,6 @@ parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
 parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
-# TODO: make this --platform to match configure.py.
 parser.add_option('--platform',
                   help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
                   choices=platform_helper.platforms())
