@@ -24,6 +24,26 @@
 // to create Nodes and Edges.
 struct PlanTest : public StateTestWithBuiltinRules {
   Plan plan_;
+
+  /// Because FindWork does not return Edges in any sort of predictable order,
+  // provide a means to get available Edges in order and in a format which is
+  // easy to write tests around.
+  void FindWorkSorted(deque<Edge*>* ret, int count) {
+    struct CompareEdgesByOutput {
+      static bool cmp(const Edge* a, const Edge* b) {
+        return a->outputs_[0]->path() < b->outputs_[0]->path();
+      }
+    };
+
+    for (int i = 0; i < count; ++i) {
+      ASSERT_TRUE(plan_.more_to_do());
+      Edge* edge = plan_.FindWork();
+      ASSERT_TRUE(edge);
+      ret->push_back(edge);
+    }
+    ASSERT_FALSE(plan_.FindWork());
+    sort(ret->begin(), ret->end(), CompareEdgesByOutput::cmp);
+  }
 };
 
 TEST_F(PlanTest, Basic) {
@@ -251,27 +271,21 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   EXPECT_TRUE(plan_.AddTarget(GetNode("allTheThings"), &err));
   ASSERT_EQ("", err);
 
-  // Grab the first 4 edges, out1 out2 outb1 outb2
   deque<Edge*> edges;
+  FindWorkSorted(&edges, 5);
+
   for (int i = 0; i < 4; ++i) {
-    ASSERT_TRUE(plan_.more_to_do());
-    Edge* edge = plan_.FindWork();
-    ASSERT_TRUE(edge);
+    Edge *edge = edges[i];
     ASSERT_EQ("in",  edge->inputs_[0]->path());
     string base_name(i < 2 ? "out" : "outb");
     ASSERT_EQ(base_name + string(1, '1' + (i % 2)), edge->outputs_[0]->path());
-    edges.push_back(edge);
   }
 
   // outb3 is exempt because it has an empty pool
-  ASSERT_TRUE(plan_.more_to_do());
-  Edge* edge = plan_.FindWork();
+  Edge* edge = edges[4];
   ASSERT_TRUE(edge);
   ASSERT_EQ("in",  edge->inputs_[0]->path());
   ASSERT_EQ("outb3", edge->outputs_[0]->path());
-  edges.push_back(edge);
-
-  ASSERT_FALSE(plan_.FindWork());
 
   // finish out1
   plan_.EdgeFinished(edges.front());
@@ -293,11 +307,11 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
     plan_.EdgeFinished(*it);
   }
 
-  Edge* final = plan_.FindWork();
-  ASSERT_TRUE(final);
-  ASSERT_EQ("allTheThings", final->outputs_[0]->path());
+  Edge* last = plan_.FindWork();
+  ASSERT_TRUE(last);
+  ASSERT_EQ("allTheThings", last->outputs_[0]->path());
 
-  plan_.EdgeFinished(final);
+  plan_.EdgeFinished(last);
 
   ASSERT_FALSE(plan_.more_to_do());
   ASSERT_FALSE(plan_.FindWork());
@@ -334,25 +348,28 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 
   Edge* edge = NULL;
 
-  edge = plan_.FindWork();
-  ASSERT_TRUE(edge);
+  deque<Edge*> initial_edges;
+  FindWorkSorted(&initial_edges, 2);
+
+  edge = initial_edges[1];  // Foo first
   ASSERT_EQ("foo.cpp", edge->outputs_[0]->path());
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
+  ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("foo.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("foo.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("foo.cpp.obj", edge->outputs_[0]->path());
   plan_.EdgeFinished(edge);
 
-  edge = plan_.FindWork();
-  ASSERT_TRUE(edge);
+  edge = initial_edges[0];  // Now for bar
   ASSERT_EQ("bar.cpp", edge->outputs_[0]->path());
   plan_.EdgeFinished(edge);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
+  ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("bar.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("bar.cpp.obj", edge->outputs_[0]->path());
@@ -360,6 +377,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
+  ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("foo.cpp.obj", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp.obj", edge->inputs_[1]->path());
   ASSERT_EQ("libfoo.a", edge->outputs_[0]->path());
@@ -367,6 +385,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
+  ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("libfoo.a", edge->inputs_[0]->path());
   ASSERT_EQ("all", edge->outputs_[0]->path());
   plan_.EdgeFinished(edge);
