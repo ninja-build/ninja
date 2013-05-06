@@ -548,7 +548,7 @@ int ToolUrtle(Globals* globals, int argc, char** argv) {
     if ('0' <= *p && *p <= '9') {
       count = count*10 + *p - '0';
     } else {
-      for (int i = 0; i < std::max(count, 1); ++i)
+      for (int i = 0; i < max(count, 1); ++i)
         printf("%c", *p);
       count = 0;
     }
