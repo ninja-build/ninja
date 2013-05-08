@@ -18,7 +18,8 @@
 import sys
 
 def platforms():
-    return ['linux', 'freebsd', 'openbsd', 'solaris', 'sunos5', 'mingw', 'msvc']
+    return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
+            'mingw', 'msvc']
 
 class Platform( object ):
     def __init__( self, platform):
