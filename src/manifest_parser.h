@@ -16,13 +16,10 @@
 #define NINJA_MANIFEST_PARSER_H_
 
 #include <string>
-#include <vector>
-#include <limits>
 
 using namespace std;
 
 #include "lexer.h"
-#include "string_piece.h"
 
 struct BindingEnv;
 struct EvalString;

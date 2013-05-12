@@ -17,8 +17,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -35,7 +33,6 @@
 #include "deps_log.h"
 #include "clean.h"
 #include "disk_interface.h"
-#include "edit_distance.h"
 #include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
