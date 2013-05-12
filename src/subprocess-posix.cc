@@ -14,8 +14,6 @@
 
 #include "subprocess.h"
 
-#include <algorithm>
-#include <map>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>

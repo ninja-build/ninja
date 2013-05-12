@@ -14,6 +14,9 @@
 
 #include "manifest_parser.h"
 
+#include <map>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "graph.h"

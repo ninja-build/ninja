@@ -16,7 +16,6 @@
 #define NINJA_STATE_H_
 
 #include <map>
-#include <deque>
 #include <set>
 #include <string>
 #include <vector>
