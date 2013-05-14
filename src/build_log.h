@@ -15,7 +15,6 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <map>
 #include <string>
 #include <stdio.h>
 using namespace std;
