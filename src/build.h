@@ -25,6 +25,7 @@
 
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
+#include "line_printer.h"
 #include "metrics.h"
 #include "util.h"  // int64_t
 
@@ -103,8 +104,18 @@ struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
-  /// Wait for a command to complete.
-  virtual Edge* WaitForCommand(ExitStatus* status, string* output) = 0;
+
+  /// The result of waiting for a command.
+  struct Result {
+    Result() : edge(NULL) {}
+    Edge* edge;
+    ExitStatus status;
+    string output;
+    bool success() const { return status == ExitSuccess; }
+  };
+  /// Wait for a command to complete, or return false if interrupted.
+  virtual bool WaitForCommand(Result* result) = 0;
+
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
 };
@@ -131,7 +142,8 @@ struct BuildConfig {
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
   Builder(State* state, const BuildConfig& config,
-          BuildLog* log, DiskInterface* disk_interface);
+          BuildLog* build_log, DepsLog* deps_log,
+          DiskInterface* disk_interface);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -151,7 +163,7 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
-  void FinishEdge(Edge* edge, bool success, const string& output);
+  void FinishCommand(CommandRunner::Result* result);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -165,6 +177,9 @@ struct Builder {
   BuildStatus* status_;
 
  private:
+  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
+                   vector<Node*>* deps_nodes, string* err);
+
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 
@@ -198,14 +213,12 @@ struct BuildStatus {
 
   int started_edges_, finished_edges_, total_edges_;
 
-  bool have_blank_line_;
-
   /// Map of running edge to time the edge started running.
   typedef map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
-  /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
+  /// Prints progress output.
+  LinePrinter printer_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
@@ -255,17 +268,12 @@ struct BuildStatus {
     double rate_;
     Stopwatch stopwatch_;
     const size_t N;
-    std::queue<double> times_;
+    queue<double> times_;
     int last_update_;
   };
 
   mutable RateInfo overall_rate_;
   mutable SlidingRateInfo current_rate_;
-
-#ifdef _WIN32
-  void* console_;
-#endif
 };
 
 #endif  // NINJA_BUILD_H_
-

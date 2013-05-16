@@ -101,7 +101,7 @@ TEST(CanonicalizePath, EmptyResult) {
 }
 
 TEST(CanonicalizePath, UpDir) {
-  std::string path, err;
+  string path, err;
   path = "../../foo/bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../../foo/bar.h", path);

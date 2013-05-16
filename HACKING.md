@@ -172,3 +172,9 @@ Then run:
 * Build `ninja.exe` using a Linux ninja binary: `/path/to/linux/ninja`
 * Run: `./ninja.exe`  (implicitly runs through wine(!))
 
+### Using Microsoft compilers on Linux (extremely flaky)
+
+The trick is to install just the compilers, and not all of Visual Studio,
+by following [these instructions][win7sdk].
+
+[win7sdk]: http://www.kegel.com/wine/cl-howto-win7sdk.html

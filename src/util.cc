@@ -17,6 +17,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
+#include <share.h>
 #endif
 
 #include <errno.h>
@@ -29,6 +30,7 @@
 #include <sys/types.h>
 
 #ifndef _WIN32
+#include <unistd.h>
 #include <sys/time.h>
 #endif
 
@@ -353,4 +355,22 @@ string ElideMiddle(const string& str, size_t width) {
       + result.substr(result.size() - elide_size, elide_size);
   }
   return result;
+}
+
+bool Truncate(const string& path, size_t size, string* err) {
+#ifdef _WIN32
+  int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
+                  _S_IREAD | _S_IWRITE);
+  int success = _chsize(fh, size);
+  _close(fh);
+#else
+  int success = truncate(path.c_str(), size);
+#endif
+  // Both truncate() and _chsize() return 0 on success and set errno and return
+  // -1 on failure.
+  if (success < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+  return true;
 }

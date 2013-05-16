@@ -143,15 +143,7 @@ TEST_F(BuildLogTest, Truncate) {
     log2.RecordCommand(state_.edges_[1], 20, 25);
     log2.Close();
 
-#ifndef _WIN32
-    ASSERT_EQ(0, truncate(kTestFilename, size));
-#else
-    int fh;
-    fh = _sopen(kTestFilename, _O_RDWR | _O_CREAT, _SH_DENYNO,
-                _S_IREAD | _S_IWRITE);
-    ASSERT_EQ(0, _chsize(fh, size));
-    _close(fh);
-#endif
+    ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 
     BuildLog log3;
     err.clear();

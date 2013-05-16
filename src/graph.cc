@@ -19,6 +19,7 @@
 
 #include "build_log.h"
 #include "depfile_parser.h"
+#include "deps_log.h"
 #include "disk_interface.h"
 #include "explain.h"
 #include "manifest_parser.h"
@@ -48,6 +49,7 @@ bool Rule::IsReservedBinding(const string& var) {
   return var == "command" ||
       var == "depfile" ||
       var == "description" ||
+      var == "deps" ||
       var == "generator" ||
       var == "pool" ||
       var == "restat" ||
@@ -59,15 +61,12 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
 
-  string depfile = edge->GetBinding("depfile");
-  if (!depfile.empty()) {
-    if (!LoadDepFile(edge, depfile, err)) {
-      if (!err->empty())
-        return false;
-      EXPLAIN("Edge targets are dirty because depfile '%s' is missing",
-              depfile.c_str());
-      dirty = true;
-    }
+  TimeStamp deps_mtime = 0;
+  if (!dep_loader_.LoadDeps(edge, &deps_mtime, err)) {
+    if (!err->empty())
+      return false;
+    // Failed to load dependency info: rebuild to regenerate it.
+    dirty = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -114,7 +113,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     for (vector<Node*>::iterator i = edge->outputs_.begin();
          i != edge->outputs_.end(); ++i) {
       (*i)->StatIfNecessary(disk_interface_);
-      if (RecomputeOutputDirty(edge, most_recent_input, command, *i)) {
+      if (RecomputeOutputDirty(edge, most_recent_input, deps_mtime,
+                               command, *i)) {
         dirty = true;
         break;
       }
@@ -143,6 +143,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,
                                           Node* most_recent_input,
+                                          TimeStamp deps_mtime,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -161,26 +162,34 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
 
   // Dirty if the output is older than the input.
   if (most_recent_input && output->mtime() < most_recent_input->mtime()) {
+    TimeStamp output_mtime = output->mtime();
+
     // If this is a restat rule, we may have cleaned the output with a restat
     // rule in a previous run and stored the most recent input mtime in the
     // build log.  Use that mtime instead, so that the file will only be
     // considered dirty if an input was modified since the previous run.
-    TimeStamp most_recent_stamp = most_recent_input->mtime();
+    bool used_restat = false;
     if (edge->GetBindingBool("restat") && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
-      if (entry->restat_mtime < most_recent_stamp) {
-        EXPLAIN("restat of output %s older than most recent input %s "
-                "(%d vs %d)",
-                output->path().c_str(), most_recent_input->path().c_str(),
-                entry->restat_mtime, most_recent_stamp);
-        return true;
-      }
-    } else {
-      EXPLAIN("output %s older than most recent input %s (%d vs %d)",
-          output->path().c_str(), most_recent_input->path().c_str(),
-          output->mtime(), most_recent_stamp);
+      output_mtime = entry->restat_mtime;
+      used_restat = true;
+    }
+
+    if (output_mtime < most_recent_input->mtime()) {
+      EXPLAIN("%soutput %s older than most recent input %s "
+              "(%d vs %d)",
+              used_restat ? "restat of " : "", output->path().c_str(),
+              most_recent_input->path().c_str(),
+              output_mtime, most_recent_input->mtime());
       return true;
     }
+  }
+
+  // Dirty if the output is newer than the deps.
+  if (deps_mtime && output->mtime() > deps_mtime) {
+    EXPLAIN("stored deps info out of date for for %s (%d vs %d)",
+            output->path().c_str(), deps_mtime, output->mtime());
+    return true;
   }
 
   // May also be dirty due to the command changing since the last build.
@@ -281,71 +290,6 @@ bool Edge::GetBindingBool(const string& key) {
   return !GetBinding(key).empty();
 }
 
-bool DependencyScan::LoadDepFile(Edge* edge, const string& path, string* err) {
-  METRIC_RECORD("depfile load");
-  string content = disk_interface_->ReadFile(path, err);
-  if (!err->empty()) {
-    *err = "loading '" + path + "': " + *err;
-    return false;
-  }
-  // On a missing depfile: return false and empty *err.
-  if (content.empty())
-    return false;
-
-  DepfileParser depfile;
-  string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
-    *err = path + ": " + depfile_err;
-    return false;
-  }
-
-  // Check that this depfile matches the edge's output.
-  Node* first_output = edge->outputs_[0];
-  StringPiece opath = StringPiece(first_output->path());
-  if (opath != depfile.out_) {
-    *err = "expected depfile '" + path + "' to mention '" +
-        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
-    return false;
-  }
-
-  // Preallocate space in edge->inputs_ to be filled in below.
-  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       depfile.ins_.size(), 0);
-  edge->implicit_deps_ += depfile.ins_.size();
-  vector<Node*>::iterator implicit_dep =
-      edge->inputs_.end() - edge->order_only_deps_ - depfile.ins_.size();
-
-  // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
-      return false;
-
-    Node* node = state_->GetNode(*i);
-    *implicit_dep = node;
-    node->AddOutEdge(edge);
-
-    // If we don't have a edge that generates this input already,
-    // create one; this makes us not abort if the input is missing,
-    // but instead will rebuild in that circumstance.
-    if (!node->in_edge()) {
-      Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
-      node->set_in_edge(phony_edge);
-      phony_edge->outputs_.push_back(node);
-
-      // RecomputeDirty might not be called for phony_edge if a previous call
-      // to RecomputeDirty had caused the file to be stat'ed.  Because previous
-      // invocations of RecomputeDirty would have seen this node without an
-      // input edge (and therefore ready), we have to set outputs_ready_ to true
-      // to avoid a potential stuck build.  If we do call RecomputeDirty for
-      // this node, it will simply set outputs_ready_ to the correct value.
-      phony_edge->outputs_ready_ = true;
-    }
-  }
-
-  return true;
-}
-
 void Edge::Dump(const char* prefix) const {
   printf("%s[ ", prefix);
   for (vector<Node*>::const_iterator i = inputs_.begin();
@@ -386,4 +330,120 @@ void Node::Dump(const char* prefix) const {
        e != out_edges().end() && *e != NULL; ++e) {
     (*e)->Dump(" +- ");
   }
+}
+
+bool ImplicitDepLoader::LoadDeps(Edge* edge, TimeStamp* mtime, string* err) {
+  string deps_type = edge->GetBinding("deps");
+  if (!deps_type.empty()) {
+    if (!LoadDepsFromLog(edge, mtime, err)) {
+      if (!err->empty())
+        return false;
+      EXPLAIN("deps for %s are missing", edge->outputs_[0]->path().c_str());
+      return false;
+    }
+    return true;
+  }
+
+  string depfile = edge->GetBinding("depfile");
+  if (!depfile.empty()) {
+    if (!LoadDepFile(edge, depfile, err)) {
+      if (!err->empty())
+        return false;
+      EXPLAIN("depfile '%s' is missing", depfile.c_str());
+      return false;
+    }
+    return true;
+  }
+
+  // No deps to load.
+  return true;
+}
+
+bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
+                                    string* err) {
+  METRIC_RECORD("depfile load");
+  string content = disk_interface_->ReadFile(path, err);
+  if (!err->empty()) {
+    *err = "loading '" + path + "': " + *err;
+    return false;
+  }
+  // On a missing depfile: return false and empty *err.
+  if (content.empty())
+    return false;
+
+  DepfileParser depfile;
+  string depfile_err;
+  if (!depfile.Parse(&content, &depfile_err)) {
+    *err = path + ": " + depfile_err;
+    return false;
+  }
+
+  // Check that this depfile matches the edge's output.
+  Node* first_output = edge->outputs_[0];
+  StringPiece opath = StringPiece(first_output->path());
+  if (opath != depfile.out_) {
+    *err = "expected depfile '" + path + "' to mention '" +
+        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
+    return false;
+  }
+
+  // Preallocate space in edge->inputs_ to be filled in below.
+  vector<Node*>::iterator implicit_dep =
+      PreallocateSpace(edge, depfile.ins_.size());
+
+  // Add all its in-edges.
+  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
+       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+      return false;
+
+    Node* node = state_->GetNode(*i);
+    *implicit_dep = node;
+    node->AddOutEdge(edge);
+    CreatePhonyInEdge(node);
+  }
+
+  return true;
+}
+
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
+                                        string* err) {
+  DepsLog::Deps* deps = deps_log_->GetDeps(edge->outputs_[0]);
+  if (!deps)
+    return false;
+
+  *deps_mtime = deps->mtime;
+
+  vector<Node*>::iterator implicit_dep =
+      PreallocateSpace(edge, deps->node_count);
+  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
+    *implicit_dep = deps->nodes[i];
+    CreatePhonyInEdge(*implicit_dep);
+  }
+  return true;
+}
+
+vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
+                                                            int count) {
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       (size_t)count, 0);
+  edge->implicit_deps_ += count;
+  return edge->inputs_.end() - edge->order_only_deps_ - count;
+}
+
+void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
+  if (node->in_edge())
+    return;
+
+  Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  node->set_in_edge(phony_edge);
+  phony_edge->outputs_.push_back(node);
+
+  // RecomputeDirty might not be called for phony_edge if a previous call
+  // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+  // invocations of RecomputeDirty would have seen this node without an
+  // input edge (and therefore ready), we have to set outputs_ready_ to true
+  // to avoid a potential stuck build.  If we do call RecomputeDirty for
+  // this node, it will simply set outputs_ready_ to the correct value.
+  phony_edge->outputs_ready_ = true;
 }

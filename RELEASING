@@ -1,9 +1,9 @@
 Notes to myself on all the steps to make for a Ninja release.
 
-1. git checkout release; git merge master
-2. fix version number in source (it will likely conflict in the above)
-3. fix version in doc/manual.asciidoc
-4. grep doc/manual.asciidoc for XXX, fix version references
+1. update src/version.cc with new version (with ".git")
+2. git checkout release; git merge master
+3. fix version number in src/version.cc (it will likely conflict in the above)
+4. fix version in doc/manual.asciidoc
 5. rebuild manual, put in place on website
 6. commit, tag, push
 7. construct release notes from prior notes

@@ -31,10 +31,10 @@ TEST_F(CleanTest, CleanAll) {
 "build out1: cat in1\n"
 "build in2: cat src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
 
@@ -61,10 +61,10 @@ TEST_F(CleanTest, CleanAllDryRun) {
 "build out1: cat in1\n"
 "build in2: cat src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   config_.dry_run = true;
   Cleaner cleaner(&state_, config_, &fs_);
@@ -92,10 +92,10 @@ TEST_F(CleanTest, CleanTarget) {
 "build out1: cat in1\n"
 "build in2: cat src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
 
@@ -122,10 +122,10 @@ TEST_F(CleanTest, CleanTargetDryRun) {
 "build out1: cat in1\n"
 "build in2: cat src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   config_.dry_run = true;
   Cleaner cleaner(&state_, config_, &fs_);
@@ -155,10 +155,10 @@ TEST_F(CleanTest, CleanRule) {
 "build out1: cat in1\n"
 "build in2: cat_e src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
 
@@ -187,10 +187,10 @@ TEST_F(CleanTest, CleanRuleDryRun) {
 "build out1: cat in1\n"
 "build in2: cat_e src2\n"
 "build out2: cat in2\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   config_.dry_run = true;
   Cleaner cleaner(&state_, config_, &fs_);
@@ -219,15 +219,15 @@ TEST_F(CleanTest, CleanRuleGenerator) {
 "  generator = 1\n"
 "build out1: cat in1\n"
 "build out2: regen in2\n"));
-  fs_.Create("out1", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(1, cleaner.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
 
-  fs_.Create("out1", 1, "");
+  fs_.Create("out1", "");
 
   EXPECT_EQ(0, cleaner.CleanAll(/*generator=*/true));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
@@ -240,8 +240,8 @@ TEST_F(CleanTest, CleanDepFile) {
 "  command = cc $in > $out\n"
 "  depfile = $out.d\n"
 "build out1: cc in1\n"));
-  fs_.Create("out1", 1, "");
-  fs_.Create("out1.d", 1, "");
+  fs_.Create("out1", "");
+  fs_.Create("out1.d", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -255,8 +255,8 @@ TEST_F(CleanTest, CleanDepFileOnCleanTarget) {
 "  command = cc $in > $out\n"
 "  depfile = $out.d\n"
 "build out1: cc in1\n"));
-  fs_.Create("out1", 1, "");
-  fs_.Create("out1.d", 1, "");
+  fs_.Create("out1", "");
+  fs_.Create("out1.d", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanTarget("out1"));
@@ -270,8 +270,8 @@ TEST_F(CleanTest, CleanDepFileOnCleanRule) {
 "  command = cc $in > $out\n"
 "  depfile = $out.d\n"
 "build out1: cc in1\n"));
-  fs_.Create("out1", 1, "");
-  fs_.Create("out1.d", 1, "");
+  fs_.Create("out1", "");
+  fs_.Create("out1.d", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanRule("cc"));
@@ -288,8 +288,8 @@ TEST_F(CleanTest, CleanRspFile) {
 "build out1: cc in1\n"
 "  rspfile = cc1.rsp\n"
 "  rspfile_content=$in\n"));
-  fs_.Create("out1", 1, "");
-  fs_.Create("cc1.rsp", 1, "");
+  fs_.Create("out1", "");
+  fs_.Create("cc1.rsp", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -311,12 +311,12 @@ TEST_F(CleanTest, CleanRsp) {
 "build out2: cat_rsp in2\n"
 "  rspfile=out2.rsp\n"
 "  rspfile_content=$in\n"));
-  fs_.Create("in1", 1, "");
-  fs_.Create("out1", 1, "");
-  fs_.Create("in2.rsp", 1, "");
-  fs_.Create("out2.rsp", 1, "");
-  fs_.Create("in2", 1, "");
-  fs_.Create("out2", 1, "");
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2.rsp", "");
+  fs_.Create("out2.rsp", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
 
   Cleaner cleaner(&state_, config_, &fs_);
   ASSERT_EQ(0, cleaner.cleaned_files_count());
@@ -354,9 +354,9 @@ TEST_F(CleanTest, CleanPhony) {
 "build t1: cat\n"
 "build t2: cat\n"));
 
-  fs_.Create("phony", 1, "");
-  fs_.Create("t1", 1, "");
-  fs_.Create("t2", 1, "");
+  fs_.Create("phony", "");
+  fs_.Create("t1", "");
+  fs_.Create("t2", "");
 
   // Check that CleanAll does not remove "phony".
   Cleaner cleaner(&state_, config_, &fs_);
@@ -364,8 +364,8 @@ TEST_F(CleanTest, CleanPhony) {
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_NE(0, fs_.Stat("phony"));
 
-  fs_.Create("t1", 1, "");
-  fs_.Create("t2", 1, "");
+  fs_.Create("t1", "");
+  fs_.Create("t2", "");
 
   // Check that CleanTarget does not remove "phony".
   EXPECT_EQ(0, cleaner.CleanTarget("phony"));

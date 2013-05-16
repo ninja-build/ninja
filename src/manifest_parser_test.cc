@@ -14,6 +14,9 @@
 
 #include "manifest_parser.h"
 
+#include <map>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "graph.h"
@@ -71,6 +74,7 @@ TEST_F(ParserTest, RuleAttributes) {
 "rule cat\n"
 "  command = a\n"
 "  depfile = a\n"
+"  deps = a\n"
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"
@@ -599,6 +603,17 @@ TEST_F(ParserTest, MultipleOutputs) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(ParserTest, MultipleOutputsWithDeps) {
+  State state;
+  ManifestParser parser(&state, NULL);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
+                               "build a.o b.o: cc c.cc\n",
+                               &err));
+  EXPECT_EQ("input:5: multiple outputs aren't (yet?) supported by depslog; "
+            "bring this up on the mailing list if it affects you\n", err);
+}
+
 TEST_F(ParserTest, SubNinja) {
   files_["test.ninja"] =
     "var = inner\n"
@@ -689,7 +704,7 @@ TEST_F(ParserTest, DefaultStatements) {
 "default $third\n"));
 
   string err;
-  std::vector<Node*> nodes = state.DefaultNodes(&err);
+  vector<Node*> nodes = state.DefaultNodes(&err);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, nodes.size());
   EXPECT_EQ("a", nodes[0]->path());
