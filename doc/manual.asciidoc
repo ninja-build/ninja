@@ -1,7 +1,7 @@
 Ninja
 =====
 Evan Martin <martine@danga.com>
-v1.2.0, April 2012
+v1.3.0, May 2013
 
 
 Introduction
