@@ -14,6 +14,8 @@
 
 #include "msvc_helper.h"
 
+#include <fcntl.h>
+#include <io.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -123,6 +125,10 @@ int MSVCHelperMain(int argc, char** argv) {
     output = parser.Parse(output);
     WriteDepFileOrDie(output_filename, parser);
   }
+
+  // CLWrapper's output already as \r\n line endings, make sure the C runtime
+  // doesn't expand this to \r\r\n.
+  _setmode(_fileno(stdout), _O_BINARY);
   printf("%s", output.c_str());
 
   return exit_code;
