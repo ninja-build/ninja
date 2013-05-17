@@ -123,7 +123,7 @@ int MSVCHelperMain(int argc, char** argv) {
     output = parser.Parse(output);
     WriteDepFileOrDie(output_filename, parser);
   }
-  printf("%s\n", output.c_str());
+  printf("%s", output.c_str());
 
   return exit_code;
 }
