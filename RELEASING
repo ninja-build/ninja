@@ -8,3 +8,5 @@ Notes to myself on all the steps to make for a Ninja release.
 6. commit, tag, push (don't forget to push --tags)
 7. construct release notes from prior notes
    credits: git shortlog -s --no-merges REV..
+8. update home page mention of latest version.
+
