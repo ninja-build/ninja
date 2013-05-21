@@ -807,9 +807,14 @@ int NinjaMain(int argc, char** argv) {
       case 'f':
         input_file = optarg;
         break;
-      case 'j':
-        config.parallelism = atoi(optarg);
+      case 'j': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0 || value <= 0)
+          Fatal("invalid -j parameter");
+        config.parallelism = value;
         break;
+      }
       case 'k': {
         char* end;
         int value = strtol(optarg, &end, 10);
