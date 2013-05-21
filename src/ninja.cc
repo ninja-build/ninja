@@ -495,9 +495,13 @@ void EncodeJSONString(const char *str) {
 
 int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
   bool first = true;
-  char cwd[PATH_MAX];
+  vector<char> cwd;
 
-  if (!getcwd(cwd, PATH_MAX)) {
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
+  if (errno != 0 && errno != ERANGE) {
     Error("cannot determine working directory: %s", strerror(errno));
     return 1;
   }
@@ -511,7 +515,7 @@ int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
           putchar(',');
 
         printf("\n  {\n    \"directory\": \"");
-        EncodeJSONString(cwd);
+        EncodeJSONString(&cwd[0]);
         printf("\",\n    \"command\": \"");
         EncodeJSONString((*e)->EvaluateCommand().c_str());
         printf("\",\n    \"file\": \"");
