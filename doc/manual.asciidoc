@@ -190,7 +190,7 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
+Ninja supports two environment variables to control its behavior:
 `NINJA_STATUS`, the progress status printed before the rule being run.
 
 Several placeholders are available:
@@ -210,6 +210,18 @@ specified by `-j` or its default)
 The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+The `NINJA_SMART_TERMINAL` environment variable controls the terminal behaviour
+when displaying progress. The default behaviour is `on`.
+There are 3 options:
+
+`off`:: Disable all smart terminal behaviour.
+Each progress notification appears on a new line
+`on`:: Enable smart terminal behaviour.
+Progress notifications overwrite the same terminal line
+`hide_newline`:: Smart terminal behaviour that ends each update 
+with \n newline + move up 1 line
+Useful if the ninja progress is piped to a line processing tool like grep or sed.
 
 Extra tools
 ~~~~~~~~~~~

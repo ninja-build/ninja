@@ -351,11 +351,12 @@ double GetLoadAverage() {
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() + kMargin > width) {
-    size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
+  if (result.size() > width) {
+    size_t elide_size_left = (width - kMargin) / 2;
+    size_t elide_size_right = width - elide_size_left - kMargin;
+    result = result.substr(0, elide_size_left)
       + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+      + result.substr(result.size() - elide_size_right, elide_size_right);
   }
   return result;
 }

@@ -160,6 +160,8 @@ TEST(ElideMiddle, NothingToElide) {
 
 TEST(ElideMiddle, ElideInTheMiddle) {
   string input = "01234567890123456789";
-  string elided = ElideMiddle(input, 10);
+  string elided = ElideMiddle(input, 9);
   EXPECT_EQ("012...789", elided);
+  elided = ElideMiddle(input, 10);
+  EXPECT_EQ("012...6789", elided);
 }

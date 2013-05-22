@@ -23,13 +23,23 @@ using namespace std;
 struct LinePrinter {
   LinePrinter();
 
-  bool is_smart_terminal() const { return smart_terminal_; }
-  void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
-
   enum LineType {
     FULL,
     ELIDE
   };
+
+  enum SmartTerminalMode {
+    SMART_TERMINAL_OFF,
+    SMART_TERMINAL_ON,
+    SMART_TERMINAL_HIDE_NEWLINE,
+  };
+
+  bool is_smart_terminal() const {
+    return ( smart_terminal_ == SMART_TERMINAL_ON || smart_terminal_ == SMART_TERMINAL_HIDE_NEWLINE );
+  }
+  SmartTerminalMode get_smart_terminal_mode() const { return smart_terminal_; }
+  void set_smart_terminal(SmartTerminalMode mode) { smart_terminal_ = mode; }
+
   /// Overprints the current line. If type is ELIDE, elides to_print to fit on
   /// one line.
   void Print(string to_print, LineType type);
@@ -39,7 +49,7 @@ struct LinePrinter {
 
  private:
   /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
+  SmartTerminalMode smart_terminal_;
 
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;

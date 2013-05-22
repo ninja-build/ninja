@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -26,10 +27,12 @@
 
 #include "util.h"
 
-LinePrinter::LinePrinter() : have_blank_line_(true) {
+LinePrinter::LinePrinter() : smart_terminal_(SMART_TERMINAL_OFF), have_blank_line_(true) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  if ( isatty(1) && term && string(term) != "dumb" ) {
+    smart_terminal_ = SMART_TERMINAL_ON;
+  }
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
@@ -38,8 +41,26 @@ LinePrinter::LinePrinter() : have_blank_line_(true) {
   setvbuf(stdout, NULL, _IONBF, 0);
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
   CONSOLE_SCREEN_BUFFER_INFO csbi;
-  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  if( GetConsoleScreenBufferInfo(console_, &csbi) ) {
+    smart_terminal_ = SMART_TERMINAL_ON;
+  }
 #endif
+
+  const char * smartTerminalEnv = getenv("NINJA_SMART_TERMINAL");
+  if (smartTerminalEnv) {
+    if( strcmp(smartTerminalEnv, "on") == 0 ) {
+      smart_terminal_ = SMART_TERMINAL_ON;
+    }
+    else if( strcmp(smartTerminalEnv, "hide_newline") == 0 ) {
+      smart_terminal_ = SMART_TERMINAL_HIDE_NEWLINE;
+    }
+    else if( strcmp(smartTerminalEnv, "off") == 0 ) {
+      smart_terminal_ = SMART_TERMINAL_OFF;
+    }
+    else {
+      printf("Invalid value for NINJA_SMART_TERMINAL. Expected (on|hide_newline|off), found \"%s\"\n", smartTerminalEnv);
+    }
+  }
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
@@ -48,7 +69,7 @@ void LinePrinter::Print(string to_print, LineType type) {
   GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
 
-  if (smart_terminal_) {
+  if (this->is_smart_terminal()) {
 #ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
 #else
@@ -57,7 +78,7 @@ void LinePrinter::Print(string to_print, LineType type) {
 #endif
   }
 
-  if (smart_terminal_ && type == ELIDE) {
+  if (this->is_smart_terminal() && type == ELIDE) {
 #ifdef _WIN32
     // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
@@ -92,6 +113,9 @@ void LinePrinter::Print(string to_print, LineType type) {
     }
     printf("%s", to_print.c_str());
     printf("\x1B[K");  // Clear to end of line.
+    if (smart_terminal_ == SMART_TERMINAL_HIDE_NEWLINE) {
+      printf("\n\x1B[1A");  // Print newline & move carat up
+    }
     fflush(stdout);
 #endif
 
