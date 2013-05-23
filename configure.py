@@ -47,6 +47,8 @@ parser.add_option('--with-gtest', metavar='PATH',
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
+parser.add_option('--force-pselect', action='store_true',
+                  help="ppoll() is used by default on Linux and OpenBSD, but older versions might need to use pselect instead",)
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -162,6 +164,9 @@ else:
     elif options.profile == 'pprof':
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
+
+if (platform.is_linux() or platform.is_openbsd()) and not options.force_pselect:
+    cflags.append('-DUSE_PPOLL')
 
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by
