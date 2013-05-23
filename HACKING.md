@@ -62,7 +62,7 @@ googletest (gtest) library.
 * On newer Ubuntus it's only distributed as source
 
         apt-get install libgtest-dev
-        ./configure --with-gtest=/usr/src/gtest
+        ./configure.py --with-gtest=/usr/src/gtest
 
 * Otherwise you need to download it, unpack it, and pass
   `--with-gtest` to `configure.py`.  Get it from [its downloads
