@@ -47,6 +47,20 @@ int MSVCHelperMain(int argc, char** argv);
 
 namespace {
 
+struct Tool;
+
+/// Command-line options.
+struct Options {
+  /// Build file to load.
+  const char* input_file;
+
+  /// Directory to change into before running.
+  const char* working_dir;
+
+  /// Tool to run rather than building.
+  const Tool* tool;
+};
+
 /// Global information passed into subtools.
 struct Globals {
   Globals() : state(new State()) {}
@@ -558,8 +572,8 @@ int ToolUrtle(Globals* globals, int argc, char** argv) {
 }
 
 /// Find the function to execute for \a tool_name and return it via \a func.
-/// If there is no tool to run (e.g.: unknown tool), returns an exit code.
-int ChooseTool(const string& tool_name, const Tool** tool_out) {
+/// Returns a Tool, or NULL if Ninja should exit.
+const Tool* ChooseTool(const string& tool_name) {
   static const Tool kTools[] = {
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
     { "browse", "browse dependency graph in a web browser",
@@ -592,14 +606,12 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
       if (tool->desc)
         printf("%10s  %s\n", tool->name, tool->desc);
     }
-    return 0;
+    return NULL;
   }
 
   for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-    if (tool->name == tool_name) {
-      *tool_out = tool;
-      return 0;
-    }
+    if (tool->name == tool_name)
+      return tool;
   }
 
   vector<const char*> words;
@@ -607,17 +619,17 @@ int ChooseTool(const string& tool_name, const Tool** tool_out) {
     words.push_back(tool->name);
   const char* suggestion = SpellcheckStringV(tool_name, words);
   if (suggestion) {
-    Error("unknown tool '%s', did you mean '%s'?",
+    Fatal("unknown tool '%s', did you mean '%s'?",
           tool_name.c_str(), suggestion);
   } else {
-    Error("unknown tool '%s'", tool_name.c_str());
+    Fatal("unknown tool '%s'", tool_name.c_str());
   }
-  return 1;
+  return NULL;  // Not reached.
 }
 
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
-bool DebugEnable(const string& name, Globals* globals) {
+bool DebugEnable(const string& name) {
   if (name == "list") {
     printf("debugging modes:\n"
 "  stats    print operation counts/timing info\n"
@@ -779,16 +791,13 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 #endif  // _MSC_VER
 
-int NinjaMain(int argc, char** argv) {
-  BuildConfig config;
-  Globals globals;
-  globals.ninja_command = argv[0];
-  globals.config = &config;
-  const char* input_file = "build.ninja";
-  const char* working_dir = NULL;
-  string tool_name;
-
-  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+/// Parse argc/argv for command-line options.
+/// Returns an exit code or -1 if Ninja should continue.
+int ReadFlags(BuildConfig* config_ptr, int* argc, char*** argv,
+              Options* options) {
+  // To reduce the churn of this code, use a reference here; this will
+  // be refactored out in a subsequent change.
+  BuildConfig& config = *config_ptr;
 
   config.parallelism = GuessParallelism();
 
@@ -800,16 +809,16 @@ int NinjaMain(int argc, char** argv) {
   };
 
   int opt;
-  while (tool_name.empty() &&
-         (opt = getopt_long(argc, argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+  while (!options->tool &&
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
-        if (!DebugEnable(optarg, &globals))
+        if (!DebugEnable(optarg))
           return 1;
         break;
       case 'f':
-        input_file = optarg;
+        options->input_file = optarg;
         break;
       case 'j': {
         char* end;
@@ -843,13 +852,15 @@ int NinjaMain(int argc, char** argv) {
         config.dry_run = true;
         break;
       case 't':
-        tool_name = optarg;
+        options->tool = ChooseTool(optarg);
+        if (!options->tool)
+          return 0;
         break;
       case 'v':
         config.verbosity = BuildConfig::VERBOSE;
         break;
       case 'C':
-        working_dir = optarg;
+        options->working_dir = optarg;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
@@ -860,31 +871,40 @@ int NinjaMain(int argc, char** argv) {
         return 1;
     }
   }
-  argv += optind;
-  argc -= optind;
+  *argv += optind;
+  *argc -= optind;
 
-  // If specified, select a tool as early as possible, so commands like
-  // -t list can run before we attempt to load build.ninja etc.
-  const Tool* tool = NULL;
-  if (!tool_name.empty()) {
-    int exit_code = ChooseTool(tool_name, &tool);
-    if (!tool)
-      return exit_code;
-  }
+  return -1;
+}
+
+int NinjaMain(int argc, char** argv) {
+  BuildConfig config;
+  Globals globals;
+  globals.ninja_command = argv[0];
+  globals.config = &config;
+  Options options = {};
+  options.input_file = "build.ninja";
+
+  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+
+  Tool* tool = NULL;
+  int exit_code = ReadFlags(&config, &argc, &argv, &options);
+  if (exit_code >= 0)
+    return exit_code;
 
   if (tool && tool->when == Tool::RUN_AFTER_FLAGS)
     return tool->func(&globals, argc, argv);
 
-  if (working_dir) {
+  if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
     if (!tool)
-      printf("ninja: Entering directory `%s'\n", working_dir);
-    if (chdir(working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", working_dir, strerror(errno));
+      printf("ninja: Entering directory `%s'\n", options.working_dir);
+    if (chdir(options.working_dir) < 0) {
+      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
 
@@ -894,7 +914,7 @@ reload:
   RealFileReader file_reader;
   ManifestParser parser(globals.state, &file_reader);
   string err;
-  if (!parser.Load(input_file, &err)) {
+  if (!parser.Load(options.input_file, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
@@ -927,12 +947,12 @@ reload:
                            // target that is never up to date.
     Builder manifest_builder(globals.state, config, &build_log, &deps_log,
                              &disk_interface);
-    if (RebuildManifest(&manifest_builder, input_file, &err)) {
+    if (RebuildManifest(&manifest_builder, options.input_file, &err)) {
       rebuilt_manifest = true;
       globals.ResetState();
       goto reload;
     } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", input_file, err.c_str());
+      Error("rebuilding '%s': %s", options.input_file, err.c_str());
       return 1;
     }
   }
