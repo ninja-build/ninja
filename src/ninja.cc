@@ -495,11 +495,26 @@ void EncodeJSONString(const char *str) {
 
 int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
   bool first = true;
-  char cwd[PATH_MAX];
+  char *cwd;
 
-  if (!getcwd(cwd, PATH_MAX)) {
-    Error("cannot determine working directory: %s", strerror(errno));
-    return 1;
+  if (!(cwd = getcwd(0, 0))) {
+     int err = errno;
+     // Most (all modern?) systems will malloc for you, POSIX still requires
+     // the following dance:
+     for (int maxlen = 256; (err == ERANGE || err == EINVAL)
+          && maxlen <= 1048576; maxlen *= 2) {
+       if ((cwd = (char*)malloc(maxlen))) {
+         if (getcwd(cwd, maxlen))
+           break;
+         err = errno;
+         free(cwd);
+         cwd = 0;
+       }
+     }
+     if (!cwd) {
+       Error("cannot determine working directory: %s", strerror(err));
+       return 1;
+     }
   }
 
   putchar('[');
@@ -524,6 +539,7 @@ int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
   }
 
   puts("\n]");
+  free(cwd);
   return 0;
 }
 
