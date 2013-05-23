@@ -40,12 +40,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
-#if !defined(linux) && !defined(__OpenBSD__)
+#if !defined(USE_PPOLL)
   // On Linux and OpenBSD, we use ppoll in DoWork(); elsewhere we use pselect
   // and so must avoid overly-large FDs.
   if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
-#endif  // !linux && !__OpenBSD__
+#endif  // !USE_PPOLL
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -178,7 +178,7 @@ Subprocess *SubprocessSet::Add(const string& command) {
   return subprocess;
 }
 
-#if defined(linux) || defined(__OpenBSD__)
+#ifdef USE_PPOLL
 bool SubprocessSet::DoWork() {
   vector<pollfd> fds;
   nfds_t nfds = 0;
