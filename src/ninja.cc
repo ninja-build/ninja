@@ -42,8 +42,13 @@
 #include "util.h"
 #include "version.h"
 
+#ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
+
+// Defined in minidump-win32.cc.
+void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
+#endif
 
 namespace {
 
@@ -762,13 +767,6 @@ int RunBuild(Builder* builder, int argc, char** argv) {
 }
 
 #ifdef _MSC_VER
-
-} // anonymous namespace
-
-// Defined in minidump-win32.cc.
-void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
-
-namespace {
 
 /// This handler processes fatal crashes that you can't catch
 /// Test example: C++ exception in a stack-unwind-block
