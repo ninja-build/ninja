@@ -69,7 +69,7 @@ struct Globals {
 };
 
 /// The type of functions that are the entry points to tools (subcommands).
-typedef int (*ToolFunc)(Globals*, int, char**);
+typedef int (*ToolFunc)(Globals*, Builder*, int, char**);
 
 /// Subtools, accessible via "-t foo".
 struct Tool {
@@ -82,9 +82,10 @@ struct Tool {
   /// When to run the tool.
   enum {
     /// Run after parsing the command-line flags (as early as possible).
+    /// Builder* arg will be NULL.
     RUN_AFTER_FLAGS,
 
-    /// Run after loading build.ninja.
+    /// Run after loading build.ninja. Gets an instance of Builder.
     RUN_AFTER_LOAD,
   } when;
 
@@ -224,7 +225,7 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   return true;
 }
 
-int ToolGraph(Globals* globals, int argc, char* argv[]) {
+int ToolGraph(Globals* globals, Builder*, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
@@ -241,13 +242,16 @@ int ToolGraph(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-int ToolQuery(Globals* globals, int argc, char* argv[]) {
+int ToolQuery(Globals* globals, Builder* builder, int argc, char* argv[]) {
   if (argc == 0) {
     Error("expected a target to query");
     return 1;
   }
+  string err;
+  if(!builder->AddTarget("all", &err)) {  // Load implicit deps for all targets
+    Error("%s", err.c_str());
+  }
   for (int i = 0; i < argc; ++i) {
-    string err;
     Node* node = CollectTarget(globals->state, argv[i], &err);
     if (!node) {
       Error("%s", err.c_str());
@@ -279,7 +283,7 @@ int ToolQuery(Globals* globals, int argc, char* argv[]) {
 }
 
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
-int ToolBrowse(Globals* globals, int argc, char* argv[]) {
+int ToolBrowse(Globals* globals, Builder*, int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
     return 1;
@@ -291,7 +295,7 @@ int ToolBrowse(Globals* globals, int argc, char* argv[]) {
 #endif  // _WIN32
 
 #if defined(_WIN32)
-int ToolMSVC(Globals* globals, int argc, char* argv[]) {
+int ToolMSVC(Globals* globals, Builder*, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
   argv--;
@@ -366,7 +370,7 @@ int ToolTargetsList(State* state) {
   return 0;
 }
 
-int ToolTargets(Globals* globals, int argc, char* argv[]) {
+int ToolTargets(Globals* globals, Builder*, int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
     string mode = argv[0];
@@ -420,7 +424,7 @@ void PrintCommands(Edge* edge, set<Edge*>* seen) {
     puts(edge->EvaluateCommand().c_str());
 }
 
-int ToolCommands(Globals* globals, int argc, char* argv[]) {
+int ToolCommands(Globals* globals, Builder*, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(globals->state, argc, argv, &nodes, &err)) {
@@ -435,7 +439,7 @@ int ToolCommands(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-int ToolClean(Globals* globals, int argc, char* argv[]) {
+int ToolClean(Globals* globals, Builder*, int argc, char* argv[]) {
   // The clean tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "clean".
   argc++;
@@ -493,7 +497,7 @@ void EncodeJSONString(const char *str) {
   }
 }
 
-int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
+int ToolCompilationDatabase(Globals* globals, Builder*, int argc, char* argv[]) {
   bool first = true;
   vector<char> cwd;
 
@@ -531,7 +535,7 @@ int ToolCompilationDatabase(Globals* globals, int argc, char* argv[]) {
   return 0;
 }
 
-int ToolUrtle(Globals* globals, int argc, char** argv) {
+int ToolUrtle(Globals* globals, Builder*, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
 " 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
@@ -873,7 +877,7 @@ int NinjaMain(int argc, char** argv) {
   }
 
   if (tool && tool->when == Tool::RUN_AFTER_FLAGS)
-    return tool->func(&globals, argc, argv);
+    return tool->func(&globals, NULL, argc, argv);
 
   if (working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -898,9 +902,6 @@ reload:
     Error("%s", err.c_str());
     return 1;
   }
-
-  if (tool && tool->when == Tool::RUN_AFTER_LOAD)
-    return tool->func(&globals, argc, argv);
 
   RealDiskInterface disk_interface;
 
@@ -939,6 +940,10 @@ reload:
 
   Builder builder(globals.state, config, &build_log, &deps_log,
                   &disk_interface);
+
+  if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+    return tool->func(&globals, &builder, argc, argv);
+
   int result = RunBuild(&builder, argc, argv);
   if (g_metrics)
     DumpMetrics(&globals);

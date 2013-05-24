@@ -418,7 +418,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
       PreallocateSpace(edge, deps->node_count);
   for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
     *implicit_dep = deps->nodes[i];
-    CreatePhonyInEdge(*implicit_dep);
+    CreatePhonyInEdge(*implicit_dep)->outputs_[0]->AddOutEdge(edge);
   }
   return true;
 }
@@ -431,19 +431,20 @@ vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
   return edge->inputs_.end() - edge->order_only_deps_ - count;
 }
 
-void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
-  if (node->in_edge())
-    return;
+Edge* ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
+  Edge* ret = node->in_edge();
+  if (!ret) {
+    ret = state_->AddEdge(&State::kPhonyRule);
+    node->set_in_edge(ret);
+    ret->outputs_.push_back(node);
 
-  Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
-  node->set_in_edge(phony_edge);
-  phony_edge->outputs_.push_back(node);
-
-  // RecomputeDirty might not be called for phony_edge if a previous call
-  // to RecomputeDirty had caused the file to be stat'ed.  Because previous
-  // invocations of RecomputeDirty would have seen this node without an
-  // input edge (and therefore ready), we have to set outputs_ready_ to true
-  // to avoid a potential stuck build.  If we do call RecomputeDirty for
-  // this node, it will simply set outputs_ready_ to the correct value.
-  phony_edge->outputs_ready_ = true;
+    // RecomputeDirty might not be called for phony_edge if a previous call
+    // to RecomputeDirty had caused the file to be stat'ed.  Because previous
+    // invocations of RecomputeDirty would have seen this node without an
+    // input edge (and therefore ready), we have to set outputs_ready_ to true
+    // to avoid a potential stuck build.  If we do call RecomputeDirty for
+    // this node, it will simply set outputs_ready_ to the correct value.
+    ret->outputs_ready_ = true;
+  }
+  return ret;
 }
