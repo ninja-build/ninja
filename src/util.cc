@@ -234,13 +234,16 @@ const char* SpellcheckStringV(const string& text,
   return result;
 }
 
-const char* SpellcheckString(const string& text, ...) {
+const char* SpellcheckString(const char* text, ...) {
+  // Note: This takes a const char* instead of a string& because using
+  // va_start() with a reference parameter is undefined behavior.
   va_list ap;
   va_start(ap, text);
   vector<const char*> words;
   const char* word;
   while ((word = va_arg(ap, const char*)))
     words.push_back(word);
+  va_end(ap);
   return SpellcheckStringV(text, words);
 }
 
