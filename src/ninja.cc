@@ -385,7 +385,7 @@ int ToolTargets(Globals* globals, int argc, char* argv[]) {
       return ToolTargetsList(globals->state);
     } else {
       const char* suggestion =
-          SpellcheckString(mode, "rule", "depth", "all", NULL);
+          SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);
       if (suggestion) {
         Error("unknown target tool mode '%s', did you mean '%s'?",
               mode.c_str(), suggestion);
@@ -628,7 +628,7 @@ bool DebugEnable(const string& name, Globals* globals) {
     return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name, "stats", "explain", NULL);
+        SpellcheckString(name.c_str(), "stats", "explain", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
