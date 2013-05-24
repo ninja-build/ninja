@@ -59,7 +59,7 @@ const char* SpellcheckStringV(const string& text,
                               const vector<const char*>& words);
 
 /// Like SpellcheckStringV, but takes a NULL-terminated list.
-const char* SpellcheckString(const string& text, ...);
+const char* SpellcheckString(const char* text, ...);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
