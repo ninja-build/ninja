@@ -14,6 +14,7 @@
 
 #include "msvc_helper.h"
 
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
@@ -63,14 +64,16 @@ string CLParser::FilterShowIncludes(const string& line) {
 }
 
 // static
-bool CLParser::IsSystemInclude(const string& path) {
+bool CLParser::IsSystemInclude(string path) {
+  transform(path.begin(), path.end(), path.begin(), ::tolower);
   // TODO: this is a heuristic, perhaps there's a better way?
   return (path.find("program files") != string::npos ||
           path.find("microsoft visual studio") != string::npos);
 }
 
 // static
-bool CLParser::FilterInputFilename(const string& line) {
+bool CLParser::FilterInputFilename(string line) {
+  transform(line.begin(), line.end(), line.begin(), ::tolower);
   // TODO: other extensions, like .asm?
   return EndsWith(line, ".c") ||
       EndsWith(line, ".cc") ||
