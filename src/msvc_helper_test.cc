@@ -35,6 +35,7 @@ TEST(CLParserTest, FilterInputFilename) {
   ASSERT_TRUE(CLParser::FilterInputFilename("foobar.cc"));
   ASSERT_TRUE(CLParser::FilterInputFilename("foo bar.cc"));
   ASSERT_TRUE(CLParser::FilterInputFilename("baz.c"));
+  ASSERT_TRUE(CLParser::FilterInputFilename("FOOBAR.CC"));
 
   ASSERT_FALSE(CLParser::FilterInputFilename(
                    "src\\cl_helper.cc(166) : fatal error C1075: end "

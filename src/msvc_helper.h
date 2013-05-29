@@ -30,15 +30,14 @@ struct CLParser {
   static string FilterShowIncludes(const string& line);
 
   /// Return true if a mentioned include file is a system path.
-  /// Expects the path to already by normalized (including lower case).
   /// Filtering these out reduces dependency information considerably.
-  static bool IsSystemInclude(const string& path);
+  static bool IsSystemInclude(string path);
 
   /// Parse a line of cl.exe output and return true if it looks like
   /// it's printing an input filename.  This is a heuristic but it appears
   /// to be the best we can do.
   /// Exposed for testing.
-  static bool FilterInputFilename(const string& line);
+  static bool FilterInputFilename(string line);
 
   /// Parse the full output of cl, returning the output (if any) that
   /// should printed.
