@@ -1604,7 +1604,30 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 }
 
 /// Check that a restat rule generating a header cancels compilations correctly.
-TEST_F(BuildWithDepsLogTest, RestatDepfileDependency) {
+TEST_F(BuildTest, RestatDepfileDependency) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build header.h: true header.in\n"
+"build out: cat in1\n"
+"  depfile = in1.d\n"));
+
+  fs_.Create("header.h", "");
+  fs_.Create("in1.d", "out: header.h");
+  fs_.Tick();
+  fs_.Create("header.in", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+}
+
+/// Check that a restat rule generating a header cancels compilations correctly,
+/// depslog case.
+TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
   string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
