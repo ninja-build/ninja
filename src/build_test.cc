@@ -1602,3 +1602,67 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 
   builder.command_runner_.release();
 }
+
+/// Check that a restat rule generating a header cancels compilations correctly.
+TEST_F(BuildWithDepsLogTest, RestatDepfileDependency) {
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest =
+      "rule true\n"
+      "  command = true\n"  // Would be "write if out-of-date" in reality.
+      "  restat = 1\n"
+      "build header.h: true header.in\n"
+      "build out: cat in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("in1.d", "out: header.h");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Touch the input of the restat rule.
+    fs_.Tick();
+    fs_.Create("header.in", "");
+
+    // Run the build again.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    ASSERT_EQ("", err);
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // Rule "true" should have run again, but the build of "out" should have
+    // been cancelled due to restat propagating through the depfile header.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
+}
