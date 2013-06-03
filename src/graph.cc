@@ -418,6 +418,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
       PreallocateSpace(edge, deps->node_count);
   for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
     *implicit_dep = deps->nodes[i];
+    deps->nodes[i]->AddOutEdge(edge);
     CreatePhonyInEdge(*implicit_dep);
   }
   return true;
