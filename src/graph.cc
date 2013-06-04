@@ -417,9 +417,10 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, deps->node_count);
   for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
-    *implicit_dep = deps->nodes[i];
-    deps->nodes[i]->AddOutEdge(edge);
-    CreatePhonyInEdge(*implicit_dep);
+    Node* node = deps->nodes[i];
+    *implicit_dep = node;
+    node->AddOutEdge(edge);
+    CreatePhonyInEdge(node);
   }
   return true;
 }
