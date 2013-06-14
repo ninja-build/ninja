@@ -32,6 +32,11 @@
 const char kFileSignature[] = "# ninjadeps\n";
 const int kCurrentVersion = 1;
 
+// Since the size field is 2 bytes and the top bit marks deps entries, a single
+// record can be at most 32 kB. Set the buffer size to this and flush the file
+// buffer after every record to make sure records aren't written partially.
+const int kMaxBufferSize = 1 << 15;
+
 DepsLog::~DepsLog() {
   Close();
 }
@@ -48,6 +53,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     *err = strerror(errno);
     return false;
   }
+  setvbuf(file_, NULL, _IOFBF, kMaxBufferSize);
   SetCloseOnExec(fileno(file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
@@ -64,6 +70,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
       return false;
     }
   }
+  fflush(file_);
 
   return true;
 }
@@ -124,6 +131,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     id = nodes[i]->id();
     fwrite(&id, 4, 1, file_);
   }
+  fflush(file_);
 
   // Update in-memory representation.
   Deps* deps = new Deps(mtime, node_count);
@@ -318,6 +326,7 @@ bool DepsLog::RecordId(Node* node) {
   uint16_t size = (uint16_t)node->path().size();
   fwrite(&size, 2, 1, file_);
   fwrite(node->path().data(), node->path().size(), 1, file_);
+  fflush(file_);
 
   node->set_id(nodes_.size());
   nodes_.push_back(node);
