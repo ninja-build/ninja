@@ -592,7 +592,8 @@ yy92:
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadEvalString(const StringPiece* varname, EvalString* eval,
+                           bool path, string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;
@@ -749,7 +750,11 @@ yy110:
 	goto yy124;
 yy111:
 	{
-      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
+      StringPiece var(start + 1, p - start - 1);
+      if (varname && var == *varname) {
+        return Error("variable cannot use itself in definition", err);
+      }
+      eval->AddSpecial(var);
       continue;
     }
 yy112:
@@ -785,7 +790,11 @@ yy118:
 yy121:
 	++p;
 	{
-      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
+      StringPiece var(start + 2, p - start - 3);
+      if (varname && var == *varname) {
+        return Error("variable cannot use itself in definition", err);
+      }
+      eval->AddSpecial(var);
       continue;
     }
 yy123:

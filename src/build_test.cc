@@ -1190,7 +1190,7 @@ TEST_F(BuildTest, RspFileSuccess)
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
     "rule cat_rsp\n"
     "  command = cat $rspfile > $out\n"
-    "  rspfile = $rspfile\n"
+    "  rspfile = rspfile\n"
     "  rspfile_content = $long_command\n"
     "build out1: cat in\n"
     "build out2: cat_rsp in\n"
@@ -1231,7 +1231,7 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
     "rule fail\n"
     "  command = fail\n"
-    "  rspfile = $rspfile\n"
+    "  rspfile = rspfile\n"
     "  rspfile_content = $long_command\n"
     "build out: fail in\n"
     "  rspfile = out.rsp\n"
@@ -1270,7 +1270,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
     "rule cat_rsp\n"
     "  command = cat $rspfile > $out\n"
-    "  rspfile = $rspfile\n"
+    "  rspfile = rspfile\n"
     "  rspfile_content = $long_command\n"
     "build out: cat_rsp in\n"
     "  rspfile = out.rsp\n"

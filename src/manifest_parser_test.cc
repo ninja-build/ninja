@@ -121,7 +121,7 @@ TEST_F(ParserTest, ResponseFiles) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat_rsp\n"
 "  command = cat $rspfile > $out\n"
-"  rspfile = $rspfile\n"
+"  rspfile = rspfile\n"
 "  rspfile_content = $in\n"
 "\n"
 "build out: cat_rsp in\n"
@@ -132,7 +132,7 @@ TEST_F(ParserTest, ResponseFiles) {
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$rspfile][ > ][$out]",
             rule->GetBinding("command")->Serialize());
-  EXPECT_EQ("[$rspfile]", rule->GetBinding("rspfile")->Serialize());
+  EXPECT_EQ("[rspfile]", rule->GetBinding("rspfile")->Serialize());
   EXPECT_EQ("[$in]", rule->GetBinding("rspfile_content")->Serialize());
 }
 

@@ -185,7 +185,7 @@ bool ManifestParser::ParseLet(string* key, EvalString* value, string* err) {
     return false;
   if (!ExpectToken(Lexer::EQUALS, err))
     return false;
-  if (!lexer_.ReadVarValue(value, err))
+  if (!lexer_.ReadVarValue(*key, value, err))
     return false;
   return true;
 }
