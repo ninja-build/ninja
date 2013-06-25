@@ -185,7 +185,8 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
-"    terminates toplevel options; further flags are passed to the tool\n",
+"    terminates toplevel options; further flags are passed to the tool\n"
+"  -W WIDTH maximum line length of output for errors.\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -863,7 +864,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:W:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -918,6 +919,14 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case 'W': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (end == optarg)
+          Fatal("-W parameter not numeric.");
+        config->max_error_width = value;
+        break;
+      }
       case 'h':
       default:
         Usage(*config);
