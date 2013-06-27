@@ -763,7 +763,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
       }
 
       string depfile = edge->GetBinding("depfile");
-      if (restat_mtime != 0 && !depfile.empty()) {
+      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
         if (depfile_mtime > restat_mtime)
           restat_mtime = depfile_mtime;
