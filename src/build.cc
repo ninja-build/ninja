@@ -431,14 +431,13 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
 
         if (scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
                                        command, *ni)) {
-          (*ni)->MarkDirty();
           all_outputs_clean = false;
         } else {
           CleanNode(scan, *ni);
         }
       }
 
-      // If we cleaned all outputs, mark the node as not wanted.
+      // If we cleaned all outputs, mark the edge as not wanted.
       if (all_outputs_clean) {
         want_i->second = false;
         --wanted_edges_;
