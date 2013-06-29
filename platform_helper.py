@@ -73,4 +73,4 @@ class Platform( object ):
         return self._platform == 'sunos5'
 
     def is_bitrig(self):
-	return self._platform == 'bitrig'
+        return self._platform == 'bitrig'

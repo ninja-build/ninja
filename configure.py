@@ -48,7 +48,7 @@ parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
 parser.add_option('--force-pselect', action='store_true',
-                  help="ppoll() is used by default on Linux, OpenBSD and Bitrig, but older versions might need to use pselect instead",)
+                  help="ppoll() is used by default where available, but some platforms may need to use pselect instead",)
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
