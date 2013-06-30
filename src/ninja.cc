@@ -104,6 +104,7 @@ struct NinjaMain {
   // The various subcommands, run via "-t XXX".
   int ToolGraph(int argc, char* argv[]);
   int ToolQuery(int argc, char* argv[]);
+  int ToolDeps(int argc, char* argv[]);
   int ToolBrowse(int argc, char* argv[]);
   int ToolMSVC(int argc, char* argv[]);
   int ToolTargets(int argc, char* argv[]);
@@ -437,6 +438,45 @@ int ToolTargetsList(State* state) {
   return 0;
 }
 
+int NinjaMain::ToolDeps(int argc, char** argv) {
+  vector<Node*> nodes;
+  if (argc == 0) {
+    for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
+         ni != deps_log_.nodes().end(); ++ni) {
+      // Only query for targets with an incoming edge and deps
+      Edge* e = (*ni)->in_edge();
+      if (e && !e->GetBinding("deps").empty())
+        nodes.push_back(*ni);
+    }
+  } else {
+    string err;
+    if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+      Error("%s", err.c_str());
+      return 1;
+    }
+  }
+
+  RealDiskInterface disk_interface;
+  for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
+       it != end; ++it) {
+    DepsLog::Deps* deps = deps_log_.GetDeps(*it);
+    if (!deps) {
+      printf("%s: deps not found\n", (*it)->path().c_str());
+      continue;
+    }
+
+    TimeStamp mtime = disk_interface.Stat((*it)->path());
+    printf("%s: #deps %d, deps mtime %d (%s)\n",
+           (*it)->path().c_str(), deps->node_count, deps->mtime,
+           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+    for (int i = 0; i < deps->node_count; ++i)
+      printf("    %s\n", deps->nodes[i]->path().c_str());
+    printf("\n");
+  }
+
+  return 0;
+}
+
 int NinjaMain::ToolTargets(int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
@@ -644,6 +684,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
+    { "deps", "show dependencies stored in the deps log",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
