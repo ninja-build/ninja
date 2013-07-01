@@ -224,7 +224,7 @@ bool SubprocessSet::DoWork() {
   return interrupted_;
 }
 
-#else  // linux || __OpenBSD__ || __Bitrig__
+#else  // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
@@ -266,7 +266,7 @@ bool SubprocessSet::DoWork() {
 
   return interrupted_;
 }
-#endif  // linux || __OpenBSD__ || __Bitrig__
+#endif  // !defined(USE_PPOLL)
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())
