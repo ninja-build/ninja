@@ -37,6 +37,9 @@ const int kCurrentVersion = 1;
 // buffer after every record to make sure records aren't written partially.
 const int kMaxBufferSize = 1 << 15;
 
+// Record size is currently limited to 15 bit
+const size_t kMaxRecordSize = (1 << 15) - 1;
+
 DepsLog::~DepsLog() {
   Close();
 }
@@ -124,9 +127,14 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     return true;
 
   // Update on-disk representation.
-  uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
+  size_t size = 4 * (1 + 1 + (uint16_t)node_count);
+  if (size > kMaxRecordSize) {
+    errno = ERANGE;
+    return false;
+  }
   size |= 0x8000;  // Deps record: set high bit.
-  if (fwrite(&size, 2, 1, file_) < 1)
+  uint16_t size16 = (uint16_t)size;
+  if (fwrite(&size16, 2, 1, file_) < 1)
     return false;
   int id = node->id();
   if (fwrite(&id, 4, 1, file_) < 1)
@@ -332,11 +340,18 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
 }
 
 bool DepsLog::RecordId(Node* node) {
-  uint16_t size = (uint16_t)node->path().size();
-  if (fwrite(&size, 2, 1, file_) < 1)
+  size_t size = node->path().size();
+  if (size > kMaxRecordSize) {
+    errno = ERANGE;
     return false;
-  if (fwrite(node->path().data(), node->path().size(), 1, file_) < 1)
-    return false; // assuming node->path().size() > 0
+  }
+  uint16_t size16 = (uint16_t)size;
+  if (fwrite(&size16, 2, 1, file_) < 1)
+    return false;
+  if (fwrite(node->path().data(), node->path().size(), 1, file_) < 1) {
+    assert(node->path().size() > 0);
+    return false;
+  }
   if (fflush(file_) != 0)
     return false;
 
