@@ -70,8 +70,10 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
       return false;
     }
   }
-  fflush(file_);
-
+  if (fflush(file_) != 0) {
+    *err = strerror(errno);
+    return false;
+  }
   return true;
 }
 
@@ -88,12 +90,14 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
 
   // Assign ids to all nodes that are missing one.
   if (node->id() < 0) {
-    RecordId(node);
+    if (!RecordId(node))
+      return false;
     made_change = true;
   }
   for (int i = 0; i < node_count; ++i) {
     if (nodes[i]->id() < 0) {
-      RecordId(nodes[i]);
+      if (!RecordId(nodes[i]))
+        return false;
       made_change = true;
     }
   }
@@ -122,16 +126,21 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   // Update on-disk representation.
   uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
   size |= 0x8000;  // Deps record: set high bit.
-  fwrite(&size, 2, 1, file_);
+  if (fwrite(&size, 2, 1, file_) < 1)
+    return false;
   int id = node->id();
-  fwrite(&id, 4, 1, file_);
+  if (fwrite(&id, 4, 1, file_) < 1)
+    return false;
   int timestamp = mtime;
-  fwrite(&timestamp, 4, 1, file_);
+  if (fwrite(&timestamp, 4, 1, file_) < 1)
+    return false;
   for (int i = 0; i < node_count; ++i) {
     id = nodes[i]->id();
-    fwrite(&id, 4, 1, file_);
+    if (fwrite(&id, 4, 1, file_) < 1)
+      return false;
   }
-  fflush(file_);
+  if (fflush(file_) != 0)
+      return false;
 
   // Update in-memory representation.
   Deps* deps = new Deps(mtime, node_count);
@@ -324,9 +333,12 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
 
 bool DepsLog::RecordId(Node* node) {
   uint16_t size = (uint16_t)node->path().size();
-  fwrite(&size, 2, 1, file_);
-  fwrite(node->path().data(), node->path().size(), 1, file_);
-  fflush(file_);
+  if (fwrite(&size, 2, 1, file_) < 1)
+    return false;
+  if (fwrite(node->path().data(), node->path().size(), 1, file_) < 1)
+    return false; // assuming node->path().size() > 0
+  if (fflush(file_) != 0)
+    return false;
 
   node->set_id(nodes_.size());
   nodes_.push_back(node);
