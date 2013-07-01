@@ -152,7 +152,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
 
 // OS X's process limit is less than 1025 by default
 // (|sysctl kern.maxprocperuid| is 709 on 10.7 and 10.8 and less prior to that).
-#if defined(linux) || defined(__OpenBSD__)
+#if !defined(__APPLE__) && !defined(_WIN32)
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.
@@ -179,7 +179,7 @@ TEST_F(SubprocessTest, SetWithLots) {
   }
   ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
 }
-#endif  // linux || __OpenBSD__
+#endif  // !__APPLE__ && !_WIN32 
 
 // TODO: this test could work on Windows, just not sure how to simply
 // read stdin.

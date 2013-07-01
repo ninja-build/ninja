@@ -41,7 +41,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
 #if !defined(USE_PPOLL)
-  // On Linux and OpenBSD, we use ppoll in DoWork(); elsewhere we use pselect
+  // If available, we use ppoll in DoWork(); otherwise we use pselect
   // and so must avoid overly-large FDs.
   if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
@@ -224,7 +224,7 @@ bool SubprocessSet::DoWork() {
   return interrupted_;
 }
 
-#else  // linux || __OpenBSD__
+#else  // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
@@ -266,7 +266,7 @@ bool SubprocessSet::DoWork() {
 
   return interrupted_;
 }
-#endif  // linux || __OpenBSD__
+#endif  // !defined(USE_PPOLL)
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())

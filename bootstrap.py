@@ -37,7 +37,7 @@ parser.add_option('--platform',
                   help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
                   choices=platform_helper.platforms())
 parser.add_option('--force-pselect', action='store_true',
-                  help="ppoll() is used by default on Linux and OpenBSD, but older versions might need to use pselect instead",)
+                  help="ppoll() is used by default on Linux, OpenBSD and Bitrig, but older versions might need to use pselect instead",)
 (options, conf_args) = parser.parse_args()
 
 
@@ -53,7 +53,7 @@ def run(*args, **kwargs):
 # g++ call as well as in the later configure.py.
 cflags = os.environ.get('CFLAGS', '').split()
 ldflags = os.environ.get('LDFLAGS', '').split()
-if platform.is_freebsd() or platform.is_openbsd():
+if platform.is_freebsd() or platform.is_openbsd() or platform.is_bitrig():
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
@@ -109,7 +109,7 @@ else:
         cflags.append('-D_WIN32_WINNT=0x0501')
     if options.x64:
         cflags.append('-m64')
-if (platform.is_linux() or platform.is_openbsd()) and not options.force_pselect:
+if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 if options.force_pselect:
     conf_args.append("--force-pselect")
