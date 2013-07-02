@@ -104,6 +104,10 @@ void LinePrinter::Print(string to_print, LineType type) {
 void LinePrinter::PrintOnNewLine(const string& to_print) {
   if (!have_blank_line_)
     printf("\n");
-  printf("%s", to_print.c_str());
+  if (!to_print.empty()) {
+    // Avoid printf and C strings, since the actual output might contain null
+    // bytes like UTF-16 does (yuck).
+    fwrite(&to_print[0], sizeof(char), to_print.size(), stdout);
+  }
   have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
 }
