@@ -146,10 +146,8 @@ bool ManifestParser::ParseRule(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (state_->LookupRule(name) != NULL) {
-    *err = "duplicate rule '" + name + "'";
-    return false;
-  }
+  if (state_->LookupRule(name) != NULL)
+    return lexer_.Error("duplicate rule '" + name + "'", err);
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 
@@ -307,7 +305,7 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!pool_name.empty()) {
     Pool* pool = state_->LookupPool(pool_name);
     if (pool == NULL)
-      return lexer_.Error("unknown pool name", err);
+      return lexer_.Error("unknown pool name '" + pool_name + "'", err);
     edge->pool_ = pool;
   }
 
