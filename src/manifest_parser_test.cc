@@ -196,6 +196,32 @@ TEST_F(ParserTest, VariableScope) {
   EXPECT_EQ("cmd bar b outer", state.edges_[1]->EvaluateCommand());
 }
 
+TEST_F(ParserTest, VariableExplicitScope) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule varref\n"
+"  command = varref $var\n"
+"var = outer\n"
+"build outer: varref\n"
+"scope\n"
+"var = inner\n"
+"build inner: varref\n"
+"scope\n"
+"var = innerer\n"
+"build innerer: varref\n"
+"endscope\n"
+"build inner2: varref\n"
+"endscope\n"
+"build outer2: varref\n"
+));
+
+  ASSERT_EQ(5u, state.edges_.size());
+  EXPECT_EQ("varref outer",   state.edges_[0]->EvaluateCommand());
+  EXPECT_EQ("varref inner",   state.edges_[1]->EvaluateCommand());
+  EXPECT_EQ("varref innerer", state.edges_[2]->EvaluateCommand());
+  EXPECT_EQ("varref inner",   state.edges_[3]->EvaluateCommand());
+  EXPECT_EQ("varref outer",   state.edges_[4]->EvaluateCommand());
+}
+
 TEST_F(ParserTest, Continuation) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
@@ -706,6 +732,29 @@ TEST_F(ParserTest, Errors) {
               "scope foo\n"
               "      ^ near here"
               , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "endscope\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("input:3: no scope to close\n"
+              "endscope\n"
+              "        ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "scope\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("input:4: eof with unclosed scopes\n", err);
   }
 }
 

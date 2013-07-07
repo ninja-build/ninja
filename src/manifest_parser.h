@@ -15,6 +15,7 @@
 #ifndef NINJA_MANIFEST_PARSER_H_
 #define NINJA_MANIFEST_PARSER_H_
 
+#include <stack>
 #include <string>
 
 using namespace std;
@@ -64,6 +65,7 @@ private:
 
   State* state_;
   BindingEnv* env_;
+  stack<BindingEnv*> scopes_;
   FileReader* file_reader_;
   Lexer lexer_;
 };

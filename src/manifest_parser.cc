@@ -107,7 +107,10 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       return lexer_.Error(lexer_.DescribeLastError(), err);
     }
     case Lexer::TEOF:
-      return true;
+      if (scopes_.empty())
+        return true;
+      // XXX Ownership? See XXX in ParseScope().
+      return lexer_.Error("eof with unclosed scopes", err);
     case Lexer::NEWLINE:
       break;
     default:
@@ -381,12 +384,22 @@ bool ManifestParser::ParseScope(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
+  scopes_.push(env_);
+  // XXX: who deletes this? (also in subninja path)
+  env_ = new BindingEnv(env_);
+
   return true;
 }
 
 bool ManifestParser::ParseEndScope(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
+
+  if (scopes_.empty())
+    return lexer_.Error("no scope to close", err);
+
+  env_ = scopes_.top();
+  scopes_.pop();
 
   return true;
 }
