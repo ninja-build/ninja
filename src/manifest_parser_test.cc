@@ -212,14 +212,19 @@ TEST_F(ParserTest, VariableExplicitScope) {
 "build inner2: varref\n"
 "endscope\n"
 "build outer2: varref\n"
+"scope\n"
+"var = inneragain\n"
+"build inneragain: varref\n"
+"endscope\n"
 ));
 
-  ASSERT_EQ(5u, state.edges_.size());
-  EXPECT_EQ("varref outer",   state.edges_[0]->EvaluateCommand());
-  EXPECT_EQ("varref inner",   state.edges_[1]->EvaluateCommand());
+  ASSERT_EQ(6u, state.edges_.size());
+  EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
   EXPECT_EQ("varref innerer", state.edges_[2]->EvaluateCommand());
-  EXPECT_EQ("varref inner",   state.edges_[3]->EvaluateCommand());
-  EXPECT_EQ("varref outer",   state.edges_[4]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[3]->EvaluateCommand());
+  EXPECT_EQ("varref outer", state.edges_[4]->EvaluateCommand());
+  EXPECT_EQ("varref inneragain", state.edges_[5]->EvaluateCommand());
 }
 
 TEST_F(ParserTest, Continuation) {
