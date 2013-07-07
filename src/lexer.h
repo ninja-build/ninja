@@ -34,6 +34,7 @@ struct Lexer {
     BUILD,
     COLON,
     DEFAULT,
+    ENDSCOPE,
     EQUALS,
     IDENT,
     INCLUDE,
@@ -44,6 +45,7 @@ struct Lexer {
     POOL,
     RULE,
     SUBNINJA,
+    SCOPE,
     TEOF,
   };
 

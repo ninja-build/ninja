@@ -52,6 +52,8 @@ private:
   bool ParseLet(string* key, EvalString* val, string* err);
   bool ParseEdge(string* err);
   bool ParseDefault(string* err);
+  bool ParseScope(string* err);
+  bool ParseEndScope(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(bool new_scope, string* err);

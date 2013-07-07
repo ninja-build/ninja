@@ -696,6 +696,17 @@ TEST_F(ParserTest, Errors) {
                                   "build out: run in\n", &err));
     EXPECT_EQ("input:5: unknown pool name 'unnamed_pool'\n", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope foo\n", &err));
+    EXPECT_EQ("input:1: expected newline, got identifier\n"
+              "scope foo\n"
+              "      ^ near here"
+              , err);
+  }
 }
 
 TEST_F(ParserTest, MissingInput) {
