@@ -94,6 +94,12 @@ class Writer(object):
     def subninja(self, path):
         self._line('subninja %s' % path)
 
+    def scope(self):
+        self._line('scope')
+
+    def endscope(self):
+        self._line('endscope')
+
     def default(self, paths):
         self._line('default %s' % ' '.join(self._as_list(paths)))
 

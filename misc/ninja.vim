@@ -1,8 +1,8 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
 "           http://martine.github.com/ninja/manual.html
-" Version: 1.3
-" Last Change: 2013/04/16
+" Version: 1.4
+" Last Change: 2013/07/07
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
 " Version 1.3 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
@@ -32,6 +32,8 @@ syn match ninjaKeyword "^pool\>"
 syn match ninjaKeyword "^default\>"
 syn match ninjaKeyword "^include\>"
 syn match ninjaKeyword "^subninja\>"
+syn match ninjaKeyword "^scope\>"
+syn match ninjaKeyword "^endscope\>"
 
 " Both 'build' and 'rule' begin a variable scope that ends
 " on the first line without indent. 'rule' allows only a
