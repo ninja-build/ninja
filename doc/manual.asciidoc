@@ -588,6 +588,7 @@ rule cc
   command = cl /showIncludes -c $in /Fo$out
 ----
 
+[[ref_pool]]
 Pools
 ~~~~~
 
@@ -667,6 +668,9 @@ A file is a series of declarations.  A declaration can be one of:
 5. References to more files, which look like +subninja _path_+ or
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
+
+6. A pool declaration, which looks like +pool _poolname_+. Pools are explained
+   <<ref_pool, in the section on pools>>.
 
 Lexical syntax
 ~~~~~~~~~~~~~~
