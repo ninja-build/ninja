@@ -111,15 +111,16 @@ struct NinjaMain {
   int ToolCommands(int argc, char* argv[]);
   int ToolClean(int argc, char* argv[]);
   int ToolCompilationDatabase(int argc, char* argv[]);
+  int ToolRecompact(int argc, char* argv[]);
   int ToolUrtle(int argc, char** argv);
 
   /// Open the build log.
   /// @return false on error.
-  bool OpenBuildLog();
+  bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
   /// @return false on error.
-  bool OpenDepsLog();
+  bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
   /// @return false on error.
@@ -642,6 +643,17 @@ int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
   return 0;
 }
 
+int NinjaMain::ToolRecompact(int argc, char* argv[]) {
+  if (!EnsureBuildDirExists())
+    return 1;
+
+  if (!OpenBuildLog(/*recompact_only=*/true) ||
+      !OpenDepsLog(/*recompact_only=*/true))
+    return 1;
+
+  return 0;
+}
+
 int NinjaMain::ToolUrtle(int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -694,6 +706,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
+    { "recompact",  "recompacts ninja-internal data structures",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
@@ -754,7 +768,7 @@ bool DebugEnable(const string& name) {
   }
 }
 
-bool NinjaMain::OpenBuildLog() {
+bool NinjaMain::OpenBuildLog(bool recompact_only) {
   string log_path = ".ninja_log";
   if (!build_dir_.empty())
     log_path = build_dir_ + "/" + log_path;
@@ -770,6 +784,13 @@ bool NinjaMain::OpenBuildLog() {
     err.clear();
   }
 
+  if (recompact_only) {
+    bool success = build_log_.Recompact(log_path, &err);
+    if (!success)
+      Error("failed recompaction: %s", err.c_str());
+    return success;
+  }
+
   if (!config_.dry_run) {
     if (!build_log_.OpenForWrite(log_path, &err)) {
       Error("opening build log: %s", err.c_str());
@@ -782,7 +803,7 @@ bool NinjaMain::OpenBuildLog() {
 
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
-bool NinjaMain::OpenDepsLog() {
+bool NinjaMain::OpenDepsLog(bool recompact_only) {
   string path = ".ninja_deps";
   if (!build_dir_.empty())
     path = build_dir_ + "/" + path;
@@ -796,6 +817,13 @@ bool NinjaMain::OpenDepsLog() {
     // Hack: Load() can return a warning via err by returning true.
     Warning("%s", err.c_str());
     err.clear();
+  }
+
+  if (recompact_only) {
+    bool success = deps_log_.Recompact(path, &err);
+    if (!success)
+      Error("failed recompaction: %s", err.c_str());
+    return success;
   }
 
   if (!config_.dry_run) {
