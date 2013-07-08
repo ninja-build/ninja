@@ -43,7 +43,6 @@ DepsLog::~DepsLog() {
 
 bool DepsLog::OpenForWrite(const string& path, string* err) {
   if (needs_recompaction_) {
-    Close();
     if (!Recompact(path, err))
       return false;
   }
@@ -265,6 +264,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_deps recompact");
   printf("Recompacting deps...\n");
 
+  Close();
   string temp_path = path + ".recompact";
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
