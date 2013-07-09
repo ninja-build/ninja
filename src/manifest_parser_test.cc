@@ -239,6 +239,15 @@ TEST_F(ParserTest, ExplicitScopeMultipeFiles) {
               "endscope\n"
               "        ^ near here", err);
   }
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("include endscope.ninja\n", &err));
+    EXPECT_EQ("endscope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
 
   files_["scope.ninja"] = "scope\n";
   {

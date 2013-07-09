@@ -57,11 +57,16 @@ private:
   bool ParseEndScope(string* err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(bool new_scope, string* err);
+  bool ParseFileInclude(string* err);
 
   /// If the next token is not \a expected, produce an error string
   /// saying "expectd foo, got bar".
   bool ExpectToken(Lexer::Token expected, string* err);
+
+  /// Opens a new variable scope.
+  void StartScope();
+  /// Closes a variable scope.  Must only be called if open scopes exist.
+  void EndScope();
 
   State* state_;
   BindingEnv* env_;
