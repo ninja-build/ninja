@@ -111,7 +111,6 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::TEOF:
       if (scopes_.empty())
         return true;
-      // XXX Ownership? See XXX in ParseScope().
       return lexer_.Error("eof with unclosed scopes", err);
     case Lexer::NEWLINE:
       break;
