@@ -227,6 +227,43 @@ TEST_F(ParserTest, VariableExplicitScope) {
   EXPECT_EQ("varref inneragain", state.edges_[5]->EvaluateCommand());
 }
 
+TEST_F(ParserTest, ExplicitScopeMultipeFiles) {
+  files_["endscope.ninja"] = "endscope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "include endscope.ninja\n", &err));
+    EXPECT_EQ("endscope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
+
+  files_["scope.ninja"] = "scope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("include scope.ninja\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("scope.ninja:2: eof with unclosed scopes\n", err);
+  }
+
+  files_["endscope_scope.ninja"] = "endscope\n"
+                                   "scope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    // An "endscope" shouldn't be able to close a subninja's implicit "scope".
+    EXPECT_FALSE(parser.ParseTest("subninja endscope_scope.ninja\n", &err));
+    EXPECT_EQ("endscope_scope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
+}
+
 TEST_F(ParserTest, Continuation) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"

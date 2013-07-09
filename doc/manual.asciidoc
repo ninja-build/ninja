@@ -907,7 +907,8 @@ variables declared in a scope shadow the values from parent scopes but won't
 affect values of the variables in the parent.
 
 To include another `.ninja` file in the current scope, much like a C
-`#include` statement, use `include` instead of `subninja`.
+`#include` statement, use `include` instead of `subninja`.  Matching
++scope+/+endscope+ pairs must be in the same file.
 
 The `subninja` keyword, also used to include another `.ninja` file,
 implicitly introduces a new scope.  +subninja _file_+ has the same behavior as
