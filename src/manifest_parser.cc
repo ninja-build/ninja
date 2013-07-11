@@ -30,6 +30,7 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
 }
 
 bool ManifestParser::Load(const string& filename, string* err) {
+  METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
   if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
@@ -41,7 +42,6 @@ bool ManifestParser::Load(const string& filename, string* err) {
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
-  METRIC_RECORD(".ninja parse");
   lexer_.Start(filename, input);
 
   for (;;) {
