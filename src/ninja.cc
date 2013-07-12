@@ -288,10 +288,27 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
   }
 
   for (int i = 0; i < argc; ++i) {
-    Node* node = CollectTarget(argv[i], err);
-    if (node == NULL)
-      return false;
-    targets->push_back(node);
+    string path = argv[i];
+    // Special syntax: "src/" means "all outputs in 'src' directory".
+    if (!path.empty() && path[path.size() - 1] == '/') {
+      if (!CanonicalizePath(&path, err))
+        return NULL;
+      for (vector<Edge*>::iterator e = state_.edges_.begin();
+           e != state_.edges_.end(); ++e) {
+        for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+             out_node != (*e)->outputs_.end(); ++out_node) {
+          if (path.compare(0, path.size(),
+                           (*out_node)->path(), 0, path.size()) == 0) {
+            targets->push_back(CollectTarget((*out_node)->path().c_str(), err));
+          }
+        }
+      }
+    } else {
+      Node* node = CollectTarget(argv[i], err);
+      if (node == NULL)
+        return false;
+      targets->push_back(node);
+    }
   }
   return true;
 }
