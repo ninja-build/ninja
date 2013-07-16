@@ -1094,6 +1094,46 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule true\n"
+    "  command = true\n"
+    "  restat = 1\n"
+    "rule touch\n"
+    "  command = touch\n"
+    "build out1: true in\n"
+    "build out2 out3: touch out1\n"
+    "build out4: touch out2\n"
+    ));
+
+  // Create the necessary files
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out4", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.RemoveFile("out3");
+
+  // Since "in" is missing, out1 will be built. Since "out3" is missing,
+  // out2 and out3 will be built even though "in" is not touched when built.
+  // Then, since out2 is rebuilt, out4 should be rebuilt -- the restat on the
+  // "true" rule should not lead to the "touch" edge writing out2 and out3 being
+  // cleard.
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out4", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+}
+
 // Test scenario, in which an input file is removed, but output isn't changed
 // https://github.com/martine/ninja/issues/295
 TEST_F(BuildWithLogTest, RestatMissingInput) {
