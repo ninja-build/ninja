@@ -37,6 +37,14 @@ bool ManifestParser::Load(const string& filename, string* err) {
     *err = "loading '" + filename + "': " + read_err;
     return false;
   }
+
+  // The lexer needs a nul byte at the end of its input, to know when it's done.
+  // It takes a StringPiece, and StringPiece's string constructor uses
+  // string::data().  data()'s return value isn't guaranteed to be
+  // null-terminated (although in practice - libc++, libstdc++, msvc's stl --
+  // it is, and C++11 demands that too), so add an explicit nul byte.
+  contents.resize(contents.size() + 1);
+
   return Parse(filename, contents, err);
 }
 
