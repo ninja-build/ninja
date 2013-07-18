@@ -28,20 +28,28 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   : state_(state), file_reader_(file_reader) {
   env_ = &state->bindings_;
 }
+
 bool ManifestParser::Load(const string& filename, string* err) {
+  METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
   if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
     *err = "loading '" + filename + "': " + read_err;
     return false;
   }
-  contents.resize(contents.size() + 10);
+
+  // The lexer needs a nul byte at the end of its input, to know when it's done.
+  // It takes a StringPiece, and StringPiece's string constructor uses
+  // string::data().  data()'s return value isn't guaranteed to be
+  // null-terminated (although in practice - libc++, libstdc++, msvc's stl --
+  // it is, and C++11 demands that too), so add an explicit nul byte.
+  contents.resize(contents.size() + 1);
+
   return Parse(filename, contents, err);
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
-  METRIC_RECORD(".ninja parse");
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -338,16 +346,10 @@ bool ManifestParser::ParseEdge(string* err) {
 }
 
 bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
-  // XXX this should use ReadPath!
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
   string path = eval.Evaluate(env_);
-
-  string contents;
-  string read_err;
-  if (!file_reader_->ReadFile(path, &contents, &read_err))
-    return lexer_.Error("loading '" + path + "': " + read_err, err);
 
   ManifestParser subparser(state_, file_reader_);
   if (new_scope) {
@@ -356,8 +358,8 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     subparser.env_ = env_;
   }
 
-  if (!subparser.Parse(path, contents, err))
-    return false;
+  if (!subparser.Load(path, err))
+    return lexer_.Error(string(*err), err);
 
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
