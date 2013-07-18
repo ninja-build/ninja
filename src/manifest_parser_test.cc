@@ -302,6 +302,17 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.ParseTest(string("subn", 4), &err));
+    EXPECT_EQ("input:1: expected '=', got eof\n"
+              "subn\n"
+              "    ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
               "foobar\n"
