@@ -35,7 +35,7 @@ struct ManifestParser {
   ManifestParser(State* state, FileReader* file_reader);
 
   /// Load and parse a file.
-  bool Load(const string& filename, string* err);
+  bool Load(const string& filename, string* err, Lexer* parent=NULL);
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const string& input, string* err) {

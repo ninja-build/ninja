@@ -762,6 +762,17 @@ TEST_F(ParserTest, Include) {
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
 }
 
+TEST_F(ParserTest, BrokenInclude) {
+  files_["include.ninja"] = "build\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
+  EXPECT_EQ("include.ninja:1: expected path\n"
+            "build\n"
+            "     ^ near here"
+            , err);
+}
+
 TEST_F(ParserTest, Implicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
