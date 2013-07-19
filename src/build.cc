@@ -422,24 +422,22 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
       }
       string command = (*ei)->EvaluateCommand(true);
 
-      // Now, recompute the dirty state of each output.
-      bool all_outputs_clean = true;
+      // Now, this edge is dirty if any of the outputs are dirty.
+      bool dirty = false;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
-           ni != (*ei)->outputs_.end(); ++ni) {
-        if (!(*ni)->dirty())
-          continue;
-
-        if (scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
-                                       command, *ni)) {
-          (*ni)->MarkDirty();
-          all_outputs_clean = false;
-        } else {
-          CleanNode(scan, *ni);
-        }
+           !dirty && ni != (*ei)->outputs_.end(); ++ni) {
+        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
+                                       command, *ni);
       }
 
-      // If we cleaned all outputs, mark the node as not wanted.
-      if (all_outputs_clean) {
+      // If the edge isn't dirty, clean the outputs and mark the node as not
+      // wanted.
+      if (!dirty) {
+        for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
+             ni != (*ei)->outputs_.end(); ++ni) {
+          CleanNode(scan, *ni);
+        }
+
         want_i->second = false;
         --wanted_edges_;
         if (!(*ei)->is_phony())
