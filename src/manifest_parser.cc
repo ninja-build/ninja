@@ -29,12 +29,14 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   env_ = &state->bindings_;
 }
 
-bool ManifestParser::Load(const string& filename, string* err) {
+bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
   if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
     *err = "loading '" + filename + "': " + read_err;
+    if (parent)
+      parent->Error(string(*err), err);
     return false;
   }
 
@@ -358,8 +360,8 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     subparser.env_ = env_;
   }
 
-  if (!subparser.Load(path, err))
-    return lexer_.Error(string(*err), err);
+  if (!subparser.Load(path, err, &lexer_))
+    return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
