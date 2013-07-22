@@ -37,6 +37,10 @@ struct LinePrinter {
   /// Prints a string on a new line, not overprinting previous output.
   void PrintOnNewLine(const string& to_print);
 
+  /// Prints the string at current cursor position as-is, not overprinting
+  /// previous output and flushes the stdout.
+  void PrintRaw(const string& to_print);
+
  private:
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;

@@ -111,3 +111,11 @@ void LinePrinter::PrintOnNewLine(const string& to_print) {
   }
   have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
 }
+
+void LinePrinter::PrintRaw(const string& to_print) {
+  if (to_print.empty())
+    return;
+  fwrite(to_print.c_str(), to_print.size(), 1, stdout);
+  fflush(stdout);
+  have_blank_line_ =  (*to_print.rbegin() == '\n');
+}
