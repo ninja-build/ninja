@@ -639,7 +639,10 @@ bool Builder::Build(string* err) {
       }
 
       --pending_commands;
-      FinishCommand(&result);
+      if (!FinishCommand(&result, err)) {
+        status_->BuildFinished();
+        return false;
+      }
 
       if (!result.success()) {
         if (failures_allowed)
@@ -702,7 +705,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
-void Builder::FinishCommand(CommandRunner::Result* result) {
+bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   METRIC_RECORD("FinishCommand");
 
   Edge* edge = result->edge;
@@ -731,7 +734,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
 
   // The rest of this function only applies to successful commands.
   if (!result->success())
-    return;
+    return true;
 
   // Restat the edge outputs, if necessary.
   TimeStamp restat_mtime = 0;
@@ -789,9 +792,12 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp deps_mtime = disk_interface_->Stat(out->path());
-    scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes);
+    if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
+      *err = string("Error writing to deps log: ") + strerror(errno);
+      return false;
+    }
   }
-
+  return true;
 }
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,

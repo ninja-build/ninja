@@ -163,7 +163,10 @@ struct Builder {
   bool Build(string* err);
 
   bool StartEdge(Edge* edge, string* err);
-  void FinishCommand(CommandRunner::Result* result);
+
+  /// Update status ninja logs following a command termination.
+  /// @return false if the build can not proceed further due to a fatal error.
+  bool FinishCommand(CommandRunner::Result* result, string* err);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
