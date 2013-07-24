@@ -136,7 +136,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   return true;
 }
 
-void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
+bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
@@ -156,9 +156,12 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
 
-    if (log_file_)
-      WriteEntry(log_file_, *log_entry);
+    if (log_file_) {
+      if (!WriteEntry(log_file_, *log_entry))
+        return false;
+    }
   }
+  return true;
 }
 
 void BuildLog::Close() {
@@ -341,10 +344,10 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   return NULL;
 }
 
-void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
-          entry.output.c_str(), entry.command_hash);
+          entry.output.c_str(), entry.command_hash) > 0;
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
@@ -366,7 +369,11 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    WriteEntry(f, *i->second);
+    if (!WriteEntry(f, *i->second)) {
+      *err = strerror(errno);
+      fclose(f);
+      return false;
+    }
   }
 
   fclose(f);
