@@ -129,7 +129,9 @@ int MSVCHelperMain(int argc, char** argv) {
   // CLWrapper's output already as \r\n line endings, make sure the C runtime
   // doesn't expand this to \r\r\n.
   _setmode(_fileno(stdout), _O_BINARY);
-  printf("%s", output.c_str());
+  // Avoid printf and C strings, since the actual output might contain null
+  // bytes like UTF-16 does (yuck).
+  fwrite(&output[0], sizeof(char), output.size(), stdout);
 
   return exit_code;
 }
