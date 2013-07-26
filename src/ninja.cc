@@ -1006,6 +1006,7 @@ int real_main(int argc, char** argv) {
   options.input_file = "build.ninja";
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  const char* ninja_command = argv[0];
 
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
@@ -1014,7 +1015,7 @@ int real_main(int argc, char** argv) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
-    NinjaMain ninja(argv[0], config);
+    NinjaMain ninja(ninja_command, config);
     return (ninja.*options.tool->func)(argc, argv);
   }
 
@@ -1034,7 +1035,7 @@ int real_main(int argc, char** argv) {
   // The build can take up to 2 passes: one to rebuild the manifest, then
   // another to build the desired target.
   for (int cycle = 0; cycle < 2; ++cycle) {
-    NinjaMain ninja(argv[0], config);
+    NinjaMain ninja(ninja_command, config);
 
     RealFileReader file_reader;
     ManifestParser parser(&ninja.state_, &file_reader);
