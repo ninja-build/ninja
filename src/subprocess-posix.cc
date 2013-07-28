@@ -193,14 +193,19 @@ bool SubprocessSet::DoWork() {
     ++nfds;
   }
 
+
   interrupted_ = false;
-  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  struct timespec timeout = { 0L, kPollTimeoutNano };
+  int ret = ppoll(&fds.front(), nfds, &timeout, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
       return false;
     }
     return interrupted_;
+  }else if (ret == 0) {
+    // Timeout
+    return false;
   }
 
   nfds_t cur_nfd = 0;
@@ -241,13 +246,17 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = false;
-  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
+  struct timespec timeout = { 0L, kPollTimeoutNano };
+  int ret = pselect(nfds, &set, 0, 0, &timeout, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
       return false;
     }
     return interrupted_;
+  }else if (ret == 0) {
+    // Timeout
+    return false;
   }
 
   for (vector<Subprocess*>::iterator i = running_.begin();

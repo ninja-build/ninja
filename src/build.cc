@@ -74,6 +74,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
+      next_progress_update_at_(0),
       progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
@@ -95,6 +96,8 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
+  RestartStillRunningDelay();
+
   PrintStatus(edge);
 }
 
@@ -113,6 +116,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   if (config_.verbosity == BuildConfig::QUIET)
     return;
+
+  RestartStillRunningDelay();
 
   if (printer_.is_smart_terminal())
     PrintStatus(edge);
@@ -141,6 +146,28 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       final_output = output;
     printer_.PrintOnNewLine(final_output);
   }
+}
+
+void BuildStatus::BuildEdgeStillRunning(Edge* edge)
+{
+  if (config_.verbosity == BuildConfig::QUIET || !printer_.is_smart_terminal())
+    return;
+
+  int64_t now = GetTimeMillis();
+  if (next_progress_update_at_ > now)
+    return;
+
+  static int ctr = 0;
+  char status[32];
+  snprintf(status, sizeof(status), " (still running.. %c)", "/-\\|"[ctr++ % 4]);
+
+  PrintStatus(edge, status);
+  next_progress_update_at_ = now + 1000/kStillRunningFPS;
+}
+
+void BuildStatus::RestartStillRunningDelay()
+{
+  next_progress_update_at_ = GetTimeMillis() + kStillRunningDelayMsec;
 }
 
 void BuildStatus::BuildFinished() {
@@ -230,7 +257,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge) {
+void BuildStatus::PrintStatus(Edge* edge, const char* trailer) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -244,7 +271,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
     overall_rate_.Restart();
     current_rate_.Restart();
   }
-  to_print = FormatProgressStatus(progress_status_format_) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_) + to_print + trailer;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
@@ -505,6 +532,9 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
     bool interrupted = subprocs_.DoWork();
     if (interrupted)
       return false;
+
+    result->status = ExitTimeout;
+    return true;
   }
 
   result->status = subproc->Finish();
@@ -636,6 +666,11 @@ bool Builder::Build(string* err) {
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
+      }
+
+      if (result.status == ExitTimeout) {
+        ReportProgress();
+        continue;
       }
 
       --pending_commands;
@@ -801,6 +836,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
   return true;
+}
+
+void Builder::ReportProgress(void)
+{
+  vector<Edge*> active_edges = command_runner_->GetActiveEdges();
+  if (active_edges.size() < 1)
+    return;
+  status_->BuildEdgeStillRunning(active_edges[0]);
 }
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,

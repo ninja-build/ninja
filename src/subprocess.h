@@ -95,4 +95,9 @@ struct SubprocessSet {
 #endif
 };
 
+/// SubprocessSet::DoWork() may return on a timeout
+///  after waiting for kPollTimeoutNano ns, allowing
+///  ninja to update progress of long-running tasks.
+const long kPollTimeoutNano = 1000000000L/20; // = 20Hz
+
 #endif // NINJA_SUBPROCESS_H_
