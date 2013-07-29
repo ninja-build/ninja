@@ -135,8 +135,8 @@ struct Rule {
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0) {}
+  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false),
+           outputs_invalid_(false), implicit_deps_(0), order_only_deps_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -157,6 +157,11 @@ struct Edge {
   vector<Node*> outputs_;
   BindingEnv* env_;
   bool outputs_ready_;
+
+  // Set if any of edge outputs is missing, or edge deps are missing/invalid, or
+  // edge command line has changed. Used to judge if the edge can ever be
+  // 'cleaned' by 'restat' logic cleaning edge inputs.
+  bool outputs_invalid_;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }

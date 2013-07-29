@@ -59,13 +59,14 @@ bool Rule::IsReservedBinding(const string& var) {
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
+  edge->outputs_invalid_ = false;
   edge->outputs_ready_ = true;
 
   if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
-    dirty = true;
+    dirty = edge->outputs_invalid_ = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -153,6 +154,7 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
 
   // Dirty if we're missing the output.
   if (!output->exists()) {
+    edge->outputs_invalid_ = true;
     EXPLAIN("output %s doesn't exist", output->path().c_str());
     return true;
   }
@@ -182,24 +184,19 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     }
   }
 
-  // Dirty if the output is newer than the deps.
-  if (deps_mtime && output->mtime() > deps_mtime) {
-    EXPLAIN("stored deps info out of date for for %s (%d vs %d)",
-            output->path().c_str(), deps_mtime, output->mtime());
-    return true;
-  }
-
   // May also be dirty due to the command changing since the last build.
   // But if this is a generator rule, the command changing does not make us
   // dirty.
   if (!edge->GetBindingBool("generator") && build_log()) {
     if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
       if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
+        edge->outputs_invalid_ = true;
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
     }
     if (!entry) {
+      edge->outputs_invalid_ = true;
       EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }

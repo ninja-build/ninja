@@ -408,6 +408,10 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
     if (want_i == want_.end() || !want_i->second)
       continue;
 
+    // Don't attempt cleaning an edge with invalid outputs.
+    if ((*ei)->outputs_invalid_)
+      continue;
+
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
     vector<Node*>::iterator
