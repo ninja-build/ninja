@@ -426,7 +426,7 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
       bool dirty = false;
       for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
            !dirty && ni != (*ei)->outputs_.end(); ++ni) {
-        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
+        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input,
                                            command, *ni);
       }
 
