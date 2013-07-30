@@ -767,13 +767,6 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
           restat_mtime = input_mtime;
       }
 
-      string depfile = edge->GetBinding("depfile");
-      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
-        TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
-        if (depfile_mtime > restat_mtime)
-          restat_mtime = depfile_mtime;
-      }
-
       // The total number of edges in the plan may have changed as a result
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
