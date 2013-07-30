@@ -158,9 +158,10 @@ struct Edge {
   BindingEnv* env_;
   bool outputs_ready_;
 
-  // Set if any of edge outputs is missing, or edge deps are missing/invalid, or
-  // edge command line has changed. Used to judge if the edge can ever be
-  // 'cleaned' by 'restat' logic cleaning edge inputs.
+  // If 'true', then any of the following holds: any of edge outputs is missing
+  // or older than one of _immediate_ edge inputs, or edge deps are
+  // missing/invalid, or edge command line has changed. And therefore, the edge
+  // can never be 'cleaned' by 'restat'.
   bool outputs_invalid_;
 
   const Rule& rule() const { return *rule_; }

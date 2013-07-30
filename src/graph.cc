@@ -151,10 +151,10 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   }
 
   BuildLog::LogEntry* entry = 0;
+  edge->outputs_invalid_ = true;
 
   // Dirty if we're missing the output.
   if (!output->exists()) {
-    edge->outputs_invalid_ = true;
     EXPLAIN("output %s doesn't exist", output->path().c_str());
     return true;
   }
@@ -190,18 +190,18 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   if (!edge->GetBindingBool("generator") && build_log()) {
     if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
       if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
-        edge->outputs_invalid_ = true;
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
     }
     if (!entry) {
-      edge->outputs_invalid_ = true;
       EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }
   }
 
+  // Outputs are clean
+  edge->outputs_invalid_ = false;
   return false;
 }
 
