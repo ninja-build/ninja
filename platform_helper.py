@@ -41,9 +41,8 @@ class Platform( object ):
             self._platform = 'mingw'
         elif self._platform.startswith('win'):
             self._platform = 'msvc'
-	elif self._platform.startswith('bitrig'):
-	    self._platform = 'bitrig'
-
+        elif self._platform.startswith('bitrig'):
+            self._platform = 'bitrig'
 
     def platform(self):
         return self._platform
