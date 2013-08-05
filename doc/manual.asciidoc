@@ -446,6 +446,11 @@ nothing, but phony rules are handled specially in that they aren't
 printed when run, logged (see below), nor do they contribute to the
 command count printed as part of the build process.
 
+When a `phony` target is used as an input to another build rule, the
+other build rule will, semantically, consider the inputs of the
+`phony` rule as its own. Therefore, `phony` rules can be used to group
+inputs, e.g. header files.
+
 `phony` can also be used to create dummy targets for files which
 may not exist at build time.  If a phony build statement is written
 without any dependencies, the target will be considered out of date if

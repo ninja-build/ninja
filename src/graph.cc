@@ -28,7 +28,10 @@
 #include "util.h"
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  METRIC_RECORD("node stat");
+  mtime_ = disk_interface->Stat(path_, err);
+  exists_ = (mtime_ > 0) ? ExistanceStatusExists : ExistanceStatusMissing;
+  return mtime_ != -1;
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
@@ -234,6 +237,13 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
               output->path().c_str());
       return true;
     }
+
+    // Update the mtime with the newest input. Dependents can thus call
+    //  mtime() on the fake node and get the latest mtime of the dependencies
+    if (most_recent_input)
+      output->UpdatePhonyMtime(most_recent_input->mtime());
+
+    // Phony edges are clean, nothing to do
     return false;
   }
 
