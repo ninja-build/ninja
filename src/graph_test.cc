@@ -231,7 +231,7 @@ TEST_F(GraphTest, DepfileOverrideParent) {
 // Verify that building a nested phony rule prints "no work to do"
 TEST_F(GraphTest, NestedPhonyPrintsDone) {
   AssertParse(&state_,
-"build n1: phony \n"
+"build n1: phony\n"
 "build n2: phony n1\n"
   );
   string err;
@@ -245,4 +245,41 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
 
   EXPECT_EQ(0, plan_.command_edge_count());
   ASSERT_FALSE(plan_.more_to_do());
+}
+
+// Check that phony's dependencies' mtimes are propagated.
+TEST_F(GraphTest, PhonyDepsMtimes) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+" command = touch $out\n"
+"build in_ph: phony in1\n"
+"build out1: touch in_ph\n"
+));
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  Node* out1 = GetNode("out1");
+  Node* in1  = GetNode("in1");
+
+  EXPECT_TRUE(scan_.RecomputeDirty(out1->in_edge(), &err));
+  EXPECT_TRUE(!out1->dirty());
+
+  // Get the mtime of out1
+  in1->Stat(&fs_);
+  out1->Stat(&fs_);
+  TimeStamp out1Mtime1 = out1->mtime();
+  TimeStamp in1Mtime1 = in1->mtime();
+
+  // Touch in1. This should cause out1 to be dirty
+  state_.Reset();
+  fs_.Tick();
+  fs_.Create("in1", "");
+
+  in1->Stat(&fs_);
+  EXPECT_GT(in1->mtime(), in1Mtime1);
+
+  EXPECT_TRUE(scan_.RecomputeDirty(out1->in_edge(), &err));
+  EXPECT_GT(in1->mtime(), in1Mtime1);
+  EXPECT_EQ(out1->mtime(), out1Mtime1);
+  EXPECT_TRUE(out1->dirty());
 }

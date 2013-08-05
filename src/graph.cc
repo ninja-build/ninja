@@ -30,7 +30,8 @@
 bool Node::Stat(DiskInterface* disk_interface) {
   METRIC_RECORD("node stat");
   mtime_ = disk_interface->Stat(path_);
-  return mtime_ > 0;
+  exists_ = mtime_ > 0;
+  return exists_;
 }
 
 void Rule::AddBinding(const string& key, const EvalString& val) {
@@ -131,7 +132,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
-                                           Node* most_recent_input) {   
+                                           Node* most_recent_input) {
   string command = edge->EvaluateCommand(true);
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
@@ -146,13 +147,23 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
                                           Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
-  if (edge->is_phony()) {
-    // Phony edges don't write any output.  Outputs are only dirty if
-    // there are no inputs and we're missing the output.
-    return edge->inputs_.empty() && !output->exists();
-  }
-
   BuildLog::LogEntry* entry = 0;
+
+  if (edge->is_phony()) {
+    // Phony edges don't write any output.  Outputs are dirty if
+    // there are no inputs and we're missing the output.
+    if (edge->inputs_.empty() && !output->exists()) {
+      return true;
+    }
+
+    // Update the mtime with the newest input. Dependents can thus call
+    //  mtime() on the fake node and get the latest mtime of the dependencies
+    if (most_recent_input)
+      output->UpdatePhonyMtime(most_recent_input->mtime());
+
+    // Phony edges are clean, nothing to do
+    return false;
+  }
 
   // Dirty if we're missing the output.
   if (!output->exists()) {

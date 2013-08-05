@@ -36,12 +36,20 @@ struct Node {
   explicit Node(const string& path)
       : path_(path),
         mtime_(-1),
+        exists_(-1),
         dirty_(false),
         in_edge_(NULL),
         id_(-1) {}
 
   /// Return true if the file exists (mtime_ got a value).
   bool Stat(DiskInterface* disk_interface);
+
+  /// If the file doesn't exist, set the mtime_ from its dependencies
+  void UpdatePhonyMtime(const TimeStamp mtime) {
+    if (!exists()) {
+      mtime_ = std::max(mtime_, mtime);
+    }
+  }
 
   /// Return true if we needed to stat.
   bool StatIfNecessary(DiskInterface* disk_interface) {
@@ -54,20 +62,24 @@ struct Node {
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
     mtime_ = -1;
+    exists_ = -1;
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    if (mtime_ < 0) {
+      mtime_ = 0;
+    }
+    exists_ = 0;
   }
 
   bool exists() const {
-    return mtime_ != 0;
+    return exists_ == 1;
   }
 
   bool status_known() const {
-    return mtime_ != -1;
+    return exists_ != -1;
   }
 
   const string& path() const { return path_; }
@@ -93,8 +105,13 @@ private:
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
+  ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
   TimeStamp mtime_;
+
+  /// -1 : The file hasn't been examined
+  ///  0 : The file doesn't exist. mtime_ will be the latest mtime of its dependencies
+  ///  1 : The path is an actual file. mtime_ will be the file's mtime
+  int exists_;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
