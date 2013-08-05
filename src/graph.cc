@@ -31,7 +31,19 @@
 using namespace std;
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  METRIC_RECORD("node stat");
+  mtime_ = disk_interface->Stat(path_, err);
+  if (mtime_ == -1) {
+    return false;
+  }
+  exists_ = (mtime_ != 0) ? ExistenceStatusExists : ExistenceStatusMissing;
+  return true;
+}
+
+void Node::UpdatePhonyMtime(TimeStamp mtime) {
+  if (!exists()) {
+    mtime_ = std::max(mtime_, mtime);
+  }
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
@@ -237,6 +249,14 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
               output->path().c_str());
       return true;
     }
+
+    // Update the mtime with the newest input. Dependents can thus call mtime()
+    // on the fake node and get the latest mtime of the dependencies
+    if (most_recent_input) {
+      output->UpdatePhonyMtime(most_recent_input->mtime());
+    }
+
+    // Phony edges are clean, nothing to do
     return false;
   }
 
@@ -487,7 +507,7 @@ string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
 void Node::Dump(const char* prefix) const {
   printf("%s <%s 0x%p> mtime: %" PRId64 "%s, (:%s), ",
          prefix, path().c_str(), this,
-         mtime(), mtime() ? "" : " (:missing)",
+         mtime(), exists() ? "" : " (:missing)",
          dirty() ? " dirty" : " clean");
   if (in_edge()) {
     in_edge()->Dump("in-edge: ");

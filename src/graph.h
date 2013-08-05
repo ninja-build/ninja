@@ -15,6 +15,7 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
+#include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,6 +41,7 @@ struct Node {
       : path_(path),
         slash_bits_(slash_bits),
         mtime_(-1),
+        exists_(ExistenceStatusUnknown),
         dirty_(false),
         dyndep_pending_(false),
         in_edge_(NULL),
@@ -47,6 +49,9 @@ struct Node {
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
+
+  /// If the file doesn't exist, set the mtime_ from its dependencies
+  void UpdatePhonyMtime(TimeStamp mtime);
 
   /// Return false on error.
   bool StatIfNecessary(DiskInterface* disk_interface, std::string* err) {
@@ -58,20 +63,24 @@ struct Node {
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
     mtime_ = -1;
+    exists_ = ExistenceStatusUnknown;
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    if (mtime_ == -1) {
+      mtime_ = 0;
+    }
+    exists_ = ExistenceStatusMissing;
   }
 
   bool exists() const {
-    return mtime_ != 0;
+    return exists_ == ExistenceStatusExists;
   }
 
   bool status_known() const {
-    return mtime_ != -1;
+    return exists_ != ExistenceStatusUnknown;
   }
 
   const std::string& path() const { return path_; }
@@ -113,8 +122,18 @@ private:
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
+  ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
   TimeStamp mtime_;
+
+  enum ExistenceStatus {
+    /// The file hasn't been examined.
+    ExistenceStatusUnknown,
+    /// The file doesn't exist. mtime_ will be the latest mtime of its dependencies.
+    ExistenceStatusMissing,
+    /// The path is an actual file. mtime_ will be the file's mtime.
+    ExistenceStatusExists
+  };
+  ExistenceStatus exists_;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
