@@ -17,10 +17,36 @@
 #include <vector>
 using namespace std;
 
+string EscapeForDepfile(const string& path);
+
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
-/// format when building with /showIncludes.  This class wraps a CL
-/// process and parses that output to extract the file list.
+/// format when building with /showIncludes.  This class parses this
+/// output.
+struct CLParser {
+  /// Parse a line of cl.exe output and extract /showIncludes info.
+  /// If a dependency is extracted, returns a nonempty string.
+  /// Exposed for testing.
+  static string FilterShowIncludes(const string& line);
+
+  /// Return true if a mentioned include file is a system path.
+  /// Filtering these out reduces dependency information considerably.
+  static bool IsSystemInclude(string path);
+
+  /// Parse a line of cl.exe output and return true if it looks like
+  /// it's printing an input filename.  This is a heuristic but it appears
+  /// to be the best we can do.
+  /// Exposed for testing.
+  static bool FilterInputFilename(string line);
+
+  /// Parse the full output of cl, returning the output (if any) that
+  /// should printed.
+  string Parse(const string& output);
+
+  set<string> includes_;
+};
+
+/// Wraps a synchronous execution of a CL subprocess.
 struct CLWrapper {
   CLWrapper() : env_block_(NULL) {}
 
@@ -28,32 +54,9 @@ struct CLWrapper {
   /// by Run().
   void SetEnvBlock(void* env_block) { env_block_ = env_block; }
 
-  /// Start a process and parse its output.  Returns its exit code.
-  /// Any non-parsed output is buffered into \a extra_output if provided,
-  /// otherwise it is printed to stdout while the process runs.
+  /// Start a process and gather its raw output.  Returns its exit code.
   /// Crashes (calls Fatal()) on error.
-  int Run(const string& command, string* extra_output=NULL);
-
-  /// Parse a line of cl.exe output and extract /showIncludes info.
-  /// If a dependency is extracted, returns a nonempty string.
-  /// Exposed for testing.
-  static string FilterShowIncludes(const string& line);
-
-  /// Return true if a mentioned include file is a system path.
-  /// Expects the path to already by normalized (including lower case).
-  /// Filtering these out reduces dependency information considerably.
-  static bool IsSystemInclude(const string& path);
-
-  /// Parse a line of cl.exe output and return true if it looks like
-  /// it's printing an input filename.  This is a heuristic but it appears
-  /// to be the best we can do.
-  /// Exposed for testing.
-  static bool FilterInputFilename(const string& line);
-
-  /// Fill a vector with the unique'd headers, escaped for output as a .d
-  /// file.
-  vector<string> GetEscapedResult();
+  int Run(const string& command, string* output);
 
   void* env_block_;
-  set<string> includes_;
 };

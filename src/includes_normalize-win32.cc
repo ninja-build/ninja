@@ -110,6 +110,6 @@ string IncludesNormalize::Normalize(const string& input,
   }
   StringPiece partially_fixed(copy, len);
   if (!SameDrive(partially_fixed, relative_to))
-    return ToLower(partially_fixed.AsString());
-  return ToLower(Relativize(partially_fixed, relative_to));
+    return partially_fixed.AsString();
+  return Relativize(partially_fixed, relative_to);
 }

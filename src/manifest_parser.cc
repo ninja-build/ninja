@@ -14,10 +14,9 @@
 
 #include "manifest_parser.h"
 
-#include <assert.h>
-#include <errno.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
+#include <vector>
 
 #include "graph.h"
 #include "metrics.h"
@@ -29,20 +28,30 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   : state_(state), file_reader_(file_reader) {
   env_ = &state->bindings_;
 }
-bool ManifestParser::Load(const string& filename, string* err) {
+
+bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
+  METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
   if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
     *err = "loading '" + filename + "': " + read_err;
+    if (parent)
+      parent->Error(string(*err), err);
     return false;
   }
-  contents.resize(contents.size() + 10);
+
+  // The lexer needs a nul byte at the end of its input, to know when it's done.
+  // It takes a StringPiece, and StringPiece's string constructor uses
+  // string::data().  data()'s return value isn't guaranteed to be
+  // null-terminated (although in practice - libc++, libstdc++, msvc's stl --
+  // it is, and C++11 demands that too), so add an explicit nul byte.
+  contents.resize(contents.size() + 1);
+
   return Parse(filename, contents, err);
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
-  METRIC_RECORD(".ninja parse");
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -147,10 +156,8 @@ bool ManifestParser::ParseRule(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (state_->LookupRule(name) != NULL) {
-    *err = "duplicate rule '" + name + "'";
-    return false;
-  }
+  if (state_->LookupRule(name) != NULL)
+    return lexer_.Error("duplicate rule '" + name + "'", err);
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 
@@ -308,7 +315,7 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!pool_name.empty()) {
     Pool* pool = state_->LookupPool(pool_name);
     if (pool == NULL)
-      return lexer_.Error("unknown pool name", err);
+      return lexer_.Error("unknown pool name '" + pool_name + "'", err);
     edge->pool_ = pool;
   }
 
@@ -329,20 +336,22 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
+  // Multiple outputs aren't (yet?) supported with depslog.
+  string deps_type = edge->GetBinding("deps");
+  if (!deps_type.empty() && edge->outputs_.size() > 1) {
+    return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
+                        "bring this up on the mailing list if it affects you",
+                        err);
+  }
+
   return true;
 }
 
 bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
-  // XXX this should use ReadPath!
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
   string path = eval.Evaluate(env_);
-
-  string contents;
-  string read_err;
-  if (!file_reader_->ReadFile(path, &contents, &read_err))
-    return lexer_.Error("loading '" + path + "': " + read_err, err);
 
   ManifestParser subparser(state_, file_reader_);
   if (new_scope) {
@@ -351,7 +360,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     subparser.env_ = env_;
   }
 
-  if (!subparser.Parse(path, contents, err))
+  if (!subparser.Load(path, err, &lexer_))
     return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))

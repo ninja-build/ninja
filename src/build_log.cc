@@ -54,26 +54,27 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
   uint64_t h = seed ^ (len * m);
-  const uint64_t * data = (const uint64_t *)key;
-  const uint64_t * end = data + (len/8);
-  while (data != end) {
-    uint64_t k = *data++;
+  const unsigned char * data = (const unsigned char *)key;
+  while (len >= 8) {
+    uint64_t k;
+    memcpy(&k, data, sizeof k);
     k *= m;
     k ^= k >> r;
     k *= m;
     h ^= k;
     h *= m;
+    data += 8;
+    len -= 8;
   }
-  const unsigned char* data2 = (const unsigned char*)data;
   switch (len & 7)
   {
-  case 7: h ^= uint64_t(data2[6]) << 48;
-  case 6: h ^= uint64_t(data2[5]) << 40;
-  case 5: h ^= uint64_t(data2[4]) << 32;
-  case 4: h ^= uint64_t(data2[3]) << 24;
-  case 3: h ^= uint64_t(data2[2]) << 16;
-  case 2: h ^= uint64_t(data2[1]) << 8;
-  case 1: h ^= uint64_t(data2[0]);
+  case 7: h ^= uint64_t(data[6]) << 48;
+  case 6: h ^= uint64_t(data[5]) << 40;
+  case 5: h ^= uint64_t(data[4]) << 32;
+  case 4: h ^= uint64_t(data[3]) << 24;
+  case 3: h ^= uint64_t(data[2]) << 16;
+  case 2: h ^= uint64_t(data[1]) << 8;
+  case 1: h ^= uint64_t(data[0]);
           h *= m;
   };
   h ^= h >> r;
@@ -109,7 +110,6 @@ BuildLog::~BuildLog() {
 
 bool BuildLog::OpenForWrite(const string& path, string* err) {
   if (needs_recompaction_) {
-    Close();
     if (!Recompact(path, err))
       return false;
   }
@@ -136,7 +136,7 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
   return true;
 }
 
-void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
+bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
@@ -156,9 +156,12 @@ void BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->end_time = end_time;
     log_entry->restat_mtime = restat_mtime;
 
-    if (log_file_)
-      WriteEntry(log_file_, *log_entry);
+    if (log_file_) {
+      if (!WriteEntry(log_file_, *log_entry))
+        return false;
+    }
   }
+  return true;
 }
 
 void BuildLog::Close() {
@@ -341,16 +344,17 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   return NULL;
 }
 
-void BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
-          entry.output.c_str(), entry.command_hash);
+          entry.output.c_str(), entry.command_hash) > 0;
 }
 
 bool BuildLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_log recompact");
   printf("Recompacting log...\n");
 
+  Close();
   string temp_path = path + ".recompact";
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
@@ -365,7 +369,11 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    WriteEntry(f, *i->second);
+    if (!WriteEntry(f, *i->second)) {
+      *err = strerror(errno);
+      fclose(f);
+      return false;
+    }
   }
 
   fclose(f);

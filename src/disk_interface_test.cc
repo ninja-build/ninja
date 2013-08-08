@@ -60,6 +60,7 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
 }
 
 TEST_F(DiskInterfaceTest, StatBadPath) {
+  disk_.quiet_ = true;
 #ifdef _WIN32
   string bad_path("cc:\\foo");
   EXPECT_EQ(-1, disk_.Stat(bad_path));
@@ -67,6 +68,7 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
   string too_long_name(512, 'x');
   EXPECT_EQ(-1, disk_.Stat(too_long_name));
 #endif
+  disk_.quiet_ = false;
 }
 
 TEST_F(DiskInterfaceTest, StatExistingFile) {
@@ -104,7 +106,7 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
-  StatTest() : scan_(&state_, NULL, this) {}
+  StatTest() : scan_(&state_, NULL, NULL, this) {}
 
   // DiskInterface implementation.
   virtual TimeStamp Stat(const string& path);

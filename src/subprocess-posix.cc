@@ -14,9 +14,7 @@
 
 #include "subprocess.h"
 
-#include <algorithm>
 #include <vector>
-#include <map>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -30,13 +28,6 @@
 #include <strstream>
 #include <sys/wait.h>
 #include <sys/user.h>
-
-// Older versions of glibc (like 2.4) won't find this in <poll.h>.  glibc
-// 2.4 keeps it in <asm-generic/poll.h>, though attempting to include that
-// will redefine the pollfd structure.
-#ifndef POLLRDHUP
-#define POLLRDHUP 0x2000
-#endif
 
 #include "util.h"
 
@@ -91,12 +82,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
-#if !defined(linux)
-  // On linux we use ppoll in DoWork(); elsewhere we use pselect and so must
-  // avoid overly-large FDs.
+#if !defined(USE_PPOLL)
+  // If available, we use ppoll in DoWork(); otherwise we use pselect
+  // and so must avoid overly-large FDs.
   if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
-#endif  // !linux
+#endif  // !USE_PPOLL
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -210,8 +201,6 @@ void SubprocessSet::SetInterruptedFlag(int signum) {
 }
 
 SubprocessSet::SubprocessSet() {
-  interrupted_ = false;
-
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
@@ -244,7 +233,7 @@ Subprocess *SubprocessSet::Add(const string& command) {
   return subprocess;
 }
 
-#ifdef linux
+#ifdef USE_PPOLL
 bool SubprocessSet::DoWork() {
   vector<pollfd> fds;
   nfds_t nfds = 0;
@@ -254,20 +243,19 @@ bool SubprocessSet::DoWork() {
     int fd = (*i)->fd_;
     if (fd < 0)
       continue;
-    pollfd pfd = { fd, POLLIN | POLLPRI | POLLRDHUP, 0 };
+    pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
     fds.push_back(pfd);
     ++nfds;
   }
 
+  interrupted_ = false;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
       return false;
     }
-    bool interrupted = interrupted_;
-    interrupted_ = false;
-    return interrupted;
+    return interrupted_;
   }
 
   nfds_t cur_nfd = 0;
@@ -288,10 +276,10 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return false;
+  return interrupted_;
 }
 
-#else  // linux
+#else  // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
@@ -307,15 +295,14 @@ bool SubprocessSet::DoWork() {
     }
   }
 
+  interrupted_ = false;
   int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
       return false;
     }
-    bool interrupted = interrupted_;
-    interrupted_ = false;
-    return interrupted;
+    return interrupted_;
   }
 
   for (vector<Subprocess*>::iterator i = running_.begin();
@@ -332,9 +319,9 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return false;
+  return interrupted_;
 }
-#endif  // linux
+#endif  // !defined(USE_PPOLL)
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())

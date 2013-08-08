@@ -15,7 +15,6 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <map>
 #include <string>
 #include <stdio.h>
 using namespace std;
@@ -38,7 +37,7 @@ struct BuildLog {
   ~BuildLog();
 
   bool OpenForWrite(const string& path, string* err);
-  void RecordCommand(Edge* edge, int start_time, int end_time,
+  bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp restat_mtime = 0);
   void Close();
 
@@ -70,7 +69,7 @@ struct BuildLog {
   LogEntry* LookupByOutput(const string& path);
 
   /// Serialize an entry into a log file.
-  void WriteEntry(FILE* f, const LogEntry& entry);
+  bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);

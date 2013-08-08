@@ -1,0 +1,8 @@
+language: cpp
+compiler:
+  - gcc
+  - clang
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install libgtest-dev
+script: ./bootstrap.py && ./configure.py --with-gtest=/usr/src/gtest && ./ninja ninja_test && ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots

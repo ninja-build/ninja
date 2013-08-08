@@ -23,19 +23,26 @@ import errno
 import shlex
 import shutil
 import subprocess
+import platform_helper
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = OptionParser()
+
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build',)
 parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
-# TODO: make this --platform to match configure.py.
-parser.add_option('--windows', action='store_true',
-                  help='force native Windows build (when using Cygwin Python)',
-                  default=sys.platform.startswith('win32'))
+parser.add_option('--platform',
+                  help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  choices=platform_helper.platforms())
+parser.add_option('--force-pselect', action='store_true',
+                  help="ppoll() is used by default on Linux, OpenBSD and Bitrig, but older versions might need to use pselect instead",)
 (options, conf_args) = parser.parse_args()
+
+
+platform = platform_helper.Platform(options.platform)
+conf_args.append("--platform=" + platform.platform())
 
 def run(*args, **kwargs):
     returncode = subprocess.call(*args, **kwargs)
@@ -46,7 +53,7 @@ def run(*args, **kwargs):
 # g++ call as well as in the later configure.py.
 cflags = os.environ.get('CFLAGS', '').split()
 ldflags = os.environ.get('LDFLAGS', '').split()
-if sys.platform.startswith('freebsd'):
+if platform.is_freebsd() or platform.is_openbsd() or platform.is_bitrig():
     cflags.append('-I/usr/local/include')
     ldflags.append('-L/usr/local/lib')
 
@@ -70,7 +77,7 @@ for src in glob.glob('src/*.cc'):
     if filename == 'browse.cc':  # Depends on generated header.
         continue
 
-    if options.windows:
+    if platform.is_windows():
         if src.endswith('-posix.cc'):
             continue
     else:
@@ -79,35 +86,40 @@ for src in glob.glob('src/*.cc'):
 
     sources.append(src)
 
-if options.windows:
+if platform.is_windows():
     sources.append('src/getopt.c')
 
-vcdir = os.environ.get('VCINSTALLDIR')
-if vcdir:
-    if options.x64:
-        cl = [os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')]
-        if not os.path.exists(cl[0]):
-            cl = [os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')]
-    else:
-        cl = [os.path.join(vcdir, 'bin', 'cl.exe')]
-    args = cl + ['/nologo', '/EHsc', '/DNOMINMAX']
+if platform.is_msvc():
+    cl = 'cl'
+    vcdir = os.environ.get('VCINSTALLDIR')
+    if vcdir:
+        if options.x64:
+            cl = os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')
+            if not os.path.exists(cl):
+                cl = os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')
+        else:
+            cl = os.path.join(vcdir, 'bin', 'cl.exe')
+    args = [cl, '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
                    '-DNINJA_PYTHON="' + sys.executable + '"',
                    '-DNINJA_BOOTSTRAP'])
-    if options.windows:
+    if platform.is_windows():
         cflags.append('-D_WIN32_WINNT=0x0501')
-        conf_args.append("--platform=mingw")
     if options.x64:
         cflags.append('-m64')
+if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and not options.force_pselect:
+    cflags.append('-DUSE_PPOLL')
+if options.force_pselect:
+    conf_args.append("--force-pselect")
 args.extend(cflags)
 args.extend(ldflags)
 binary = 'ninja.bootstrap'
-if options.windows:
+if platform.is_windows():
     binary = 'ninja.bootstrap.exe'
 args.extend(sources)
-if vcdir:
+if platform.is_msvc():
     args.extend(['/link', '/out:' + binary])
 else:
     args.extend(['-o', binary])
@@ -125,10 +137,9 @@ verbose = []
 if options.verbose:
     verbose = ['-v']
 
-if options.windows:
+if platform.is_windows():
     print('Building ninja using itself...')
-    run([sys.executable, 'configure.py', '--with-ninja=%s' % binary] +
-        conf_args)
+    run([sys.executable, 'configure.py'] + conf_args)
     run(['./' + binary] + verbose)
 
     # Copy the new executable over the bootstrap one.
@@ -143,9 +154,7 @@ Done!
 
 Note: to work around Windows file locking, where you can't rebuild an
 in-use binary, to run ninja after making any changes to build ninja itself
-you should run ninja.bootstrap instead.  Your build is also configured to
-use ninja.bootstrap.exe as the MSVC helper; see the --with-ninja flag of
-the --help output of configure.py.""")
+you should run ninja.bootstrap instead.""")
 else:
     print('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)
