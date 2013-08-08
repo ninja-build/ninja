@@ -28,6 +28,7 @@
 #include <strstream>
 #include <sys/wait.h>
 #include <sys/user.h>
+#include <stdlib.h>
 
 #include "util.h"
 
