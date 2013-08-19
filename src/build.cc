@@ -362,8 +362,11 @@ void Plan::ResumeDelayedJobs(Edge* edge) {
 void Plan::EdgeFinished(Edge* edge) {
   map<Edge*, bool>::iterator i = want_.find(edge);
   assert(i != want_.end());
-  if (i->second)
+  if (i->second) {
     --wanted_edges_;
+    if (!edge->is_phony())
+      --command_edges_;
+  }
   want_.erase(i);
   edge->outputs_ready_ = true;
 

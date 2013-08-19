@@ -54,7 +54,7 @@ Here are the design goals of Ninja:
   higher-level build systems have different opinions about how code
   should be built; for example, should built objects live alongside
   the sources or should all build output go into a separate directory?
-  Is there an "package" rule that builds a distributable package of
+  Is there a "package" rule that builds a distributable package of
   the project?  Sidestep these decisions by trying to allow either to
   be implemented, rather than choosing, even if that results in
   more verbosity.
