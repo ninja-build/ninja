@@ -1018,6 +1018,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
+  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]"));
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
