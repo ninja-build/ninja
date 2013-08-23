@@ -51,7 +51,7 @@ struct Plan {
   Edge* FindWork();
 
   /// Returns true if there's more work to be done.
-  bool more_to_do() const { return (wanted_edges_ > 0) && (command_edges_ > 0); }
+  bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
   /// Dumps the current state of the plan.
   void Dump();

@@ -54,7 +54,7 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
   uint64_t h = seed ^ (len * m);
-  const unsigned char * data = (const unsigned char *)key;
+  const unsigned char* data = (const unsigned char*)key;
   while (len >= 8) {
     uint64_t k;
     memcpy(&k, data, sizeof k);

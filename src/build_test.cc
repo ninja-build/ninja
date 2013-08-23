@@ -1167,7 +1167,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
 
   // See that an entry in the logfile is created, capturing
   // the right mtime
-  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out1");
+  BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
 
@@ -1338,7 +1338,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
 
   // 3. Alter the entry in the logfile
   // (to simulate a change in the command line between 2 builds)
-  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out");
+  BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_NO_FATAL_FAILURE(AssertHash(
         "cat out.rsp > out;rspfile=Original very long command",
