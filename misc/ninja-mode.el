@@ -19,7 +19,7 @@
       (list
        '("^#.*" . font-lock-comment-face)
        (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
-                                       "pool" "default")
+                                       "pool" "default" "scope" "endscope")
                                      'words))
              font-lock-keyword-face)
        '("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))

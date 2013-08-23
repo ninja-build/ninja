@@ -88,18 +88,30 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       break;
     }
     case Lexer::INCLUDE:
-      if (!ParseFileInclude(false, err))
+      if (!ParseFileInclude(err))
         return false;
       break;
     case Lexer::SUBNINJA:
-      if (!ParseFileInclude(true, err))
+      StartScope();
+      if (!ParseFileInclude(err))
+        return false;
+      EndScope();
+      break;
+    case Lexer::SCOPE:
+      if (!ParseScope(err))
+        return false;
+      break;
+    case Lexer::ENDSCOPE:
+      if (!ParseEndScope(err))
         return false;
       break;
     case Lexer::ERROR: {
       return lexer_.Error(lexer_.DescribeLastError(), err);
     }
     case Lexer::TEOF:
-      return true;
+      if (scopes_.empty())
+        return true;
+      return lexer_.Error("eof with unclosed scopes", err);
     case Lexer::NEWLINE:
       break;
     default:
@@ -347,18 +359,14 @@ bool ManifestParser::ParseEdge(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
+bool ManifestParser::ParseFileInclude(string* err) {
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
   string path = eval.Evaluate(env_);
 
   ManifestParser subparser(state_, file_reader_);
-  if (new_scope) {
-    subparser.env_ = new BindingEnv(env_);
-  } else {
-    subparser.env_ = env_;
-  }
+  subparser.env_ = env_;
 
   if (!subparser.Load(path, err, &lexer_))
     return false;
@@ -366,6 +374,25 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
+  return true;
+}
+
+bool ManifestParser::ParseScope(string* err) {
+  if (!ExpectToken(Lexer::NEWLINE, err))
+    return false;
+
+  StartScope();
+  return true;
+}
+
+bool ManifestParser::ParseEndScope(string* err) {
+  if (!ExpectToken(Lexer::NEWLINE, err))
+    return false;
+
+  if (scopes_.empty())
+    return lexer_.Error("no scope to close", err);
+
+  EndScope();
   return true;
 }
 
@@ -378,4 +405,15 @@ bool ManifestParser::ExpectToken(Lexer::Token expected, string* err) {
     return lexer_.Error(message, err);
   }
   return true;
+}
+
+void ManifestParser::StartScope() {
+  scopes_.push(env_);
+  // XXX: Ownership?
+  env_ = new BindingEnv(env_);
+}
+
+void ManifestParser::EndScope() {
+  env_ = scopes_.top();
+  scopes_.pop();
 }

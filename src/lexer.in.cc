@@ -75,6 +75,7 @@ const char* Lexer::TokenName(Token t) {
   case BUILD:    return "'build'";
   case COLON:    return "':'";
   case DEFAULT:  return "'default'";
+  case ENDSCOPE: return "'endscope'";
   case EQUALS:   return "'='";
   case IDENT:    return "identifier";
   case INCLUDE:  return "'include'";
@@ -84,6 +85,7 @@ const char* Lexer::TokenName(Token t) {
   case PIPE:     return "'|'";
   case POOL:     return "'pool'";
   case RULE:     return "'rule'";
+  case SCOPE:    return "'scope'";
   case SUBNINJA: return "'subninja'";
   case TEOF:     return "eof";
   }
@@ -145,6 +147,8 @@ Lexer::Token Lexer::ReadToken() {
     "|"        { token = PIPE;     break; }
     "include"  { token = INCLUDE;  break; }
     "subninja" { token = SUBNINJA; break; }
+    "scope"    { token = SCOPE;    break; }
+    "endscope" { token = ENDSCOPE; break; }
     varname    { token = IDENT;    break; }
     nul        { token = TEOF;     break; }
     [^]        { token = ERROR;    break; }

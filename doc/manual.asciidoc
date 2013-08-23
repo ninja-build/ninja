@@ -665,7 +665,10 @@ A file is a series of declarations.  A declaration can be one of:
 
 4. Default target statements, which look like +default _target1_ _target2_+.
 
-5. References to more files, which look like +subninja _path_+ or
+5. Scope declarations. A scope is started with +scope+ and ends with +endscope+.
+   Scoping is explained <<ref_scope,in the discussion about scoping>>.
+
+6. References to more files, which look like +subninja _path_+ or
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
 
@@ -893,13 +896,27 @@ Evaluation and scoping
 
 Top-level variable declarations are scoped to the file they occur in.
 
-The `subninja` keyword, used to include another `.ninja` file,
-introduces a new scope.  The included `subninja` file may use the
-variables from the parent file, and shadow their values for the file's
-scope, but it won't affect values of the variables in the parent.
+Local scopes are introduced by the +scope+ keyword and closed by the +endscope+
+keyword.  Scopes can be nested. +endscope+ closes the most recently opened
+scope.  It is an error to write +endscope+ without a pending scope opened by
++scope+, and it is an error if some scopes have not been closed at the end of a
+ninja file.
+
+Rules in a local scope may use the variables from all parent scopes, and
+variables declared in a scope shadow the values from parent scopes but won't
+affect values of the variables in the parent.
 
 To include another `.ninja` file in the current scope, much like a C
-`#include` statement, use `include` instead of `subninja`.
+`#include` statement, use `include` instead of `subninja`.  Matching
++scope+/+endscope+ pairs must be in the same file.
+
+The `subninja` keyword, also used to include another `.ninja` file,
+implicitly introduces a new scope.  +subninja _file_+ has the same behavior as
+----------------
+scope
+include _file_
+endscope
+----------------
 
 Variable declarations indented in a `build` block are scoped to the
 `build` block.  The full lookup order for a variable expanded in a
@@ -915,6 +932,5 @@ Variable declarations indented in a `build` block are scoped to the
 
 4. File-level variables from the file that the `build` line was in.
 
-5. Variables from the file that included that file using the
-   `subninja` keyword.
+5. Variables from parent scopes.
 

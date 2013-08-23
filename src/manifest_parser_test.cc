@@ -196,6 +196,83 @@ TEST_F(ParserTest, VariableScope) {
   EXPECT_EQ("cmd bar b outer", state.edges_[1]->EvaluateCommand());
 }
 
+TEST_F(ParserTest, VariableExplicitScope) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule varref\n"
+"  command = varref $var\n"
+"var = outer\n"
+"build outer: varref\n"
+"scope\n"
+"var = inner\n"
+"build inner: varref\n"
+"scope\n"
+"var = innerer\n"
+"build innerer: varref\n"
+"endscope\n"
+"build inner2: varref\n"
+"endscope\n"
+"build outer2: varref\n"
+"scope\n"
+"var = inneragain\n"
+"build inneragain: varref\n"
+"endscope\n"
+));
+
+  ASSERT_EQ(6u, state.edges_.size());
+  EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[1]->EvaluateCommand());
+  EXPECT_EQ("varref innerer", state.edges_[2]->EvaluateCommand());
+  EXPECT_EQ("varref inner", state.edges_[3]->EvaluateCommand());
+  EXPECT_EQ("varref outer", state.edges_[4]->EvaluateCommand());
+  EXPECT_EQ("varref inneragain", state.edges_[5]->EvaluateCommand());
+}
+
+TEST_F(ParserTest, ExplicitScopeMultipeFiles) {
+  files_["endscope.ninja"] = "endscope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "include endscope.ninja\n", &err));
+    EXPECT_EQ("endscope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("include endscope.ninja\n", &err));
+    EXPECT_EQ("endscope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
+
+  files_["scope.ninja"] = "scope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("include scope.ninja\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("scope.ninja:2: eof with unclosed scopes\n", err);
+  }
+
+  files_["endscope_scope.ninja"] = "endscope\n"
+                                   "scope\n";
+  {
+    State state;
+    ManifestParser parser(&state, this);
+    string err;
+    // An "endscope" shouldn't be able to close a subninja's implicit "scope".
+    EXPECT_FALSE(parser.ParseTest("subninja endscope_scope.ninja\n", &err));
+    EXPECT_EQ("endscope_scope.ninja:1: no scope to close\n"
+              "endscope\n"
+              "        ^ near here", err);
+  }
+}
+
 TEST_F(ParserTest, Continuation) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule link\n"
@@ -695,6 +772,40 @@ TEST_F(ParserTest, Errors) {
                                   "  pool = unnamed_pool\n"
                                   "build out: run in\n", &err));
     EXPECT_EQ("input:5: unknown pool name 'unnamed_pool'\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope foo\n", &err));
+    EXPECT_EQ("input:1: expected newline, got identifier\n"
+              "scope foo\n"
+              "      ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "endscope\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("input:3: no scope to close\n"
+              "endscope\n"
+              "        ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("scope\n"
+                                  "scope\n"
+                                  "endscope\n", &err));
+    EXPECT_EQ("input:4: eof with unclosed scopes\n", err);
   }
 }
 
