@@ -30,7 +30,7 @@
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 1;
+const int kCurrentVersion = 2;
 
 // Since the size field is 2 bytes and the top bit marks deps entries, a single
 // record can be at most 32 kB. Set the buffer size to this and flush the file
@@ -179,9 +179,15 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   int version = 0;
   if (!fgets(buf, sizeof(buf), f) || fread(&version, 4, 1, f) < 1)
     valid_header = false;
+  // Note: For version differences, this should migrate to the new format.
+  // But the v1 format could sometimes (rarely) end up with invalid data, so
+  // don't migrate v1 to v2 to force a rebuild.
   if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
       version != kCurrentVersion) {
-    *err = "bad deps log signature or version; starting over";
+    if (version == 1)
+      *err = "deps log potentially corrupt; rebuilding";
+    else
+      *err = "bad deps log signature or version; starting over";
     fclose(f);
     unlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
@@ -229,10 +235,25 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       if (!UpdateDeps(out_id, deps))
         ++unique_dep_record_count;
     } else {
-      StringPiece path(buf, size);
+      int path_size = size - 4;
+      StringPiece path(buf, path_size);
       Node* node = state->GetNode(path);
+
+      // Check that the expected index matches the actual index. This can only
+      // happen if two ninja processes write to the same deps log concurrently.
+      // (This uses unary complement to make the checksum look less like a
+      // dependency record entry.)
+      unsigned checksum;
+      memcpy(&checksum, buf + path_size, sizeof checksum);
+      int expected_id = ~checksum;
+      int id = nodes_.size();
+      if (id != expected_id) {
+        read_failed = true;
+        break;
+      }
+
       assert(node->id() < 0);
-      node->set_id(nodes_.size());
+      node->set_id(id);
       nodes_.push_back(node);
     }
   }
@@ -340,7 +361,7 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
 }
 
 bool DepsLog::RecordId(Node* node) {
-  size_t size = node->path().size();
+  size_t size = node->path().size() + 4;
   if (size > kMaxRecordSize) {
     errno = ERANGE;
     return false;
@@ -352,10 +373,14 @@ bool DepsLog::RecordId(Node* node) {
     assert(node->path().size() > 0);
     return false;
   }
+  int id = nodes_.size();
+  unsigned checksum = ~(unsigned)id;
+  if (fwrite(&checksum, 4, 1, file_) < 1)
+    return false;
   if (fflush(file_) != 0)
     return false;
 
-  node->set_id(nodes_.size());
+  node->set_id(id);
   nodes_.push_back(node);
 
   return true;
