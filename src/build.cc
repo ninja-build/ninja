@@ -427,16 +427,9 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
       string command = (*ei)->EvaluateCommand(true);
 
       // Now, this edge is dirty if any of the outputs are dirty.
-      bool dirty = false;
-      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
-           !dirty && ni != (*ei)->outputs_.end(); ++ni) {
-        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input,
-                                           command, *ni);
-      }
-
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
-      if (!dirty) {
+      if (!scan->RecomputeOutputsDirty(*ei, most_recent_input)) {
         for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
              ni != (*ei)->outputs_.end(); ++ni) {
           CleanNode(scan, *ni);
