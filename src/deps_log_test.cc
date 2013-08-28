@@ -82,6 +82,39 @@ TEST_F(DepsLogTest, WriteRead) {
   ASSERT_EQ("bar2.h", log_deps->nodes[1]->path());
 }
 
+TEST_F(DepsLogTest, LotsOfDeps) {
+  const int kNumDeps = 100000;  // More than 64k.
+
+  State state1;
+  DepsLog log1;
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  {
+    vector<Node*> deps;
+    for (int i = 0; i < kNumDeps; ++i) {
+      char buf[32];
+      sprintf(buf, "file%d.h", i);
+      deps.push_back(state1.GetNode(buf));
+    }
+    log1.RecordDeps(state1.GetNode("out.o"), 1, deps);
+
+    DepsLog::Deps* log_deps = log1.GetDeps(state1.GetNode("out.o"));
+    ASSERT_EQ(kNumDeps, log_deps->node_count);
+  }
+
+  log1.Close();
+
+  State state2;
+  DepsLog log2;
+  EXPECT_TRUE(log2.Load(kTestFilename, &state2, &err));
+  ASSERT_EQ("", err);
+
+  DepsLog::Deps* log_deps = log2.GetDeps(state2.GetNode("out.o"));
+  ASSERT_EQ(kNumDeps, log_deps->node_count);
+}
+
 // Verify that adding the same deps twice doesn't grow the file.
 TEST_F(DepsLogTest, DoubleEntry) {
   // Write some deps to the file and grab its size.
