@@ -124,7 +124,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     return true;
 
   // Update on-disk representation.
-  unsigned size = 4 * (1 + 1 + (uint16_t)node_count);
+  unsigned size = 4 * (1 + 1 + node_count);
   if (size > kMaxRecordSize) {
     errno = ERANGE;
     return false;
