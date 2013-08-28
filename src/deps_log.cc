@@ -234,6 +234,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
         ++unique_dep_record_count;
     } else {
       int path_size = size - 4;
+      assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
       // There can be up to 3 bytes of padding.
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
