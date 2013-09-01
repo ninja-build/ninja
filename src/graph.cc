@@ -59,14 +59,14 @@ bool Rule::IsReservedBinding(const string& var) {
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
-  edge->outputs_invalid_ = false;
+  edge->deps_missing_ = false;
   edge->outputs_ready_ = true;
 
   if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
-    dirty = edge->outputs_invalid_ = true;
+    dirty = edge->deps_missing_ = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -139,7 +139,6 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
        i != edge->outputs_.end(); ++i) {
     (*i)->StatIfNecessary(disk_interface_);
     if (RecomputeOutputDirty(edge, most_recent_input, command, *i)) {
-      edge->outputs_invalid_ = true;
       return true;
     }
   }

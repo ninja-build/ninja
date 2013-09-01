@@ -408,8 +408,8 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
     if (want_i == want_.end() || !want_i->second)
       continue;
 
-    // Don't attempt cleaning an edge with invalid outputs.
-    if ((*ei)->outputs_invalid_)
+    // Don't attempt cleaning an edge if failed to load deps
+    if ((*ei)->deps_missing_)
       continue;
 
     // If all non-order-only inputs for this edge are now clean,
