@@ -60,12 +60,13 @@ bool Rule::IsReservedBinding(const string& var) {
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
+  edge->deps_missing_ = false;
 
   if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
-    dirty = true;
+    dirty = edge->deps_missing_ = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
