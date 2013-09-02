@@ -192,10 +192,10 @@ struct ImplicitDepLoader {
                     DiskInterface* disk_interface)
       : state_(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
 
-  /// Load implicit dependencies for \a edge.  May fill in \a mtime with
-  /// the timestamp of the loaded information.
-  /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDeps(Edge* edge, TimeStamp* mtime, string* err);
+  /// Load implicit dependencies for \a edge.
+  /// @return false on error (without filling \a err if info is just missing
+  //                          or out of date).
+  bool LoadDeps(Edge* edge, string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -208,7 +208,7 @@ struct ImplicitDepLoader {
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, TimeStamp* mtime, string* err);
+  bool LoadDepsFromLog(Edge* edge, string* err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
@@ -243,7 +243,6 @@ struct DependencyScan {
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
   bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
-                            TimeStamp deps_mtime,
                             const string& command, Node* output);
 
   BuildLog* build_log() const {
