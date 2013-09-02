@@ -331,7 +331,6 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
     if (!LoadDepsFromLog(edge, err)) {
       if (!err->empty())
         return false;
-      EXPLAIN("deps for %s are missing", edge->outputs_[0]->path().c_str());
       return false;
     }
     return true;
