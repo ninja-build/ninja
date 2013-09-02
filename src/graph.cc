@@ -106,18 +106,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
-  if (!dirty) {
-    string command = edge->EvaluateCommand(true);
-
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface_);
-      if (RecomputeOutputDirty(edge, most_recent_input, command, *i)) {
-        dirty = true;
-        break;
-      }
-    }
-  }
+  if (!dirty)
+    dirty = RecomputeOutputsDirty(edge, most_recent_input);
 
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
@@ -137,6 +127,18 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     edge->outputs_ready_ = false;
 
   return true;
+}
+
+bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
+                                           Node* most_recent_input) {   
+  string command = edge->EvaluateCommand(true);
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    (*i)->StatIfNecessary(disk_interface_);
+    if (RecomputeOutputDirty(edge, most_recent_input, command, *i))
+      return true;
+  }
+  return false;
 }
 
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,

@@ -240,10 +240,9 @@ struct DependencyScan {
   /// Returns false on failure.
   bool RecomputeDirty(Edge* edge, string* err);
 
-  /// Recompute whether a given single output should be marked dirty.
+  /// Recompute whether any output of the edge is dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
-                            const string& command, Node* output);
+  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -257,6 +256,11 @@ struct DependencyScan {
   }
 
  private:
+  /// Recompute whether a given single output should be marked dirty.
+  /// Returns true if so.
+  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
+                            const string& command, Node* output);
+
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
