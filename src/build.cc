@@ -408,31 +408,27 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
     if (want_i == want_.end() || !want_i->second)
       continue;
 
+    // Don't attempt cleaning an edge if failed to load deps
+    if ((*ei)->deps_missing_)
+      continue;
+
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
     vector<Node*>::iterator
         begin = (*ei)->inputs_.begin(),
         end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
-      // Recompute most_recent_input and command.
+      // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
         if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
           most_recent_input = *ni;
       }
-      string command = (*ei)->EvaluateCommand(true);
 
       // Now, this edge is dirty if any of the outputs are dirty.
-      bool dirty = false;
-      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
-           !dirty && ni != (*ei)->outputs_.end(); ++ni) {
-        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
-                                           command, *ni);
-      }
-
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
-      if (!dirty) {
+      if (!scan->RecomputeOutputsDirty(*ei, most_recent_input)) {
         for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
              ni != (*ei)->outputs_.end(); ++ni) {
           CleanNode(scan, *ni);
@@ -761,13 +757,6 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
         TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
         if (input_mtime > restat_mtime)
           restat_mtime = input_mtime;
-      }
-
-      string depfile = edge->GetBinding("depfile");
-      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
-        TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
-        if (depfile_mtime > restat_mtime)
-          restat_mtime = depfile_mtime;
       }
 
       // The total number of edges in the plan may have changed as a result
