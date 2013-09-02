@@ -327,25 +327,12 @@ void Node::Dump(const char* prefix) const {
 
 bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty()) {
-    if (!LoadDepsFromLog(edge, err)) {
-      if (!err->empty())
-        return false;
-      return false;
-    }
-    return true;
-  }
+  if (!deps_type.empty())
+    return LoadDepsFromLog(edge, err);
 
   string depfile = edge->GetBinding("depfile");
-  if (!depfile.empty()) {
-    if (!LoadDepFile(edge, depfile, err)) {
-      if (!err->empty())
-        return false;
-      EXPLAIN("depfile '%s' is missing", depfile.c_str());
-      return false;
-    }
-    return true;
-  }
+  if (!depfile.empty())
+    return LoadDepFile(edge, depfile, err);
 
   // No deps to load.
   return true;
@@ -360,8 +347,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
   // On a missing depfile: return false and empty *err.
-  if (content.empty())
+  if (content.empty()) {
+    EXPLAIN("depfile '%s' is missing", path.c_str());
     return false;
+  }
 
   DepfileParser depfile;
   string depfile_err;
