@@ -300,35 +300,15 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux) || defined(__GLIBC__)
 int GetProcessorCount() {
-  return get_nprocs();
-}
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-int GetProcessorCount() {
-  int processors;
-  size_t processors_size = sizeof(processors);
-  int name[] = {CTL_HW, HW_NCPU};
-  if (sysctl(name, sizeof(name) / sizeof(int),
-             &processors, &processors_size,
-             NULL, 0) < 0) {
-    return 0;
-  }
-  return processors;
-}
-#elif defined(_WIN32)
-int GetProcessorCount() {
+#ifdef _WIN32
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   return info.dwNumberOfProcessors;
-}
 #else
-// This is what get_nprocs() should be doing in the Linux implementation
-// above, but in a more standard way.
-int GetProcessorCount() {
   return sysconf(_SC_NPROCESSORS_ONLN);
-}
 #endif
+}
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 double GetLoadAverage() {
