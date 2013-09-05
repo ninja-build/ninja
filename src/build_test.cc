@@ -503,6 +503,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   if (edge->rule().name() == "cat"  ||
       edge->rule().name() == "cat_rsp" ||
       edge->rule().name() == "cc" ||
+      edge->rule().name() == "cc_dep" ||
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -510,12 +511,20 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       fs_->Create((*out)->path(), "");
     }
   } else if (edge->rule().name() == "true" ||
+             edge->rule().name() == "true_dep" ||
              edge->rule().name() == "fail" ||
              edge->rule().name() == "interrupt") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
     return false;
+  }
+
+  if(edge->rule().name() == "cc_dep" || edge->rule().name() == "true_dep") {
+    // In addition, create a depfile by copying file $depfile.in to $depfile.
+    string depfile = edge->GetBinding("depfile");
+    string dep_contents = fs_->ReadFile(depfile + ".in", NULL);
+    fs_->WriteFile(depfile, dep_contents);
   }
 
   last_command_ = edge;
@@ -1906,4 +1915,54 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   // And this build should be NOOP again
   RebuildTarget("out", manifest, "build_log", "ninja_deps2");
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+}
+
+// See https://github.com/martine/ninja/issues/144
+TEST_F(BuildWithDepsLogTest, RestatWithDiscoveredDependecies) {
+const char* manifest =
+"rule true_dep\n"     // Note: writes depfile
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build tst.o: true_dep tst.c\n"
+"  depfile = tst.d\n"
+"build tst: cat tst.o\n";
+
+  // Step #1
+  // Start with .c file which doesn't include anything, and build once to
+  // populate log. tst.d will be created from tst.d.in
+  fs_.Create("tst.d.in", "tst.o: ");
+  fs_.Create("tst.c", "");
+  fs_.Create("tst.o", "");
+  fs_.Tick();
+  RebuildTarget("tst", manifest, "build_log");
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Step #2
+  // Edit a .c file to include a header, then create the header. The header is
+  // now is most recent input, and ninja doesn't know about it yet (depfile was
+  // not updated).
+  fs_.Tick();
+  fs_.Create("tst.c", "");
+  fs_.Create("tst.d.in", "tst.o: tst.h");
+  fs_.Tick();
+  fs_.Create("tst.h", "");
+  fs_.Tick();
+
+  // Expected behavior: tst.o is rebuilt, as its restat_mtime in the log is
+  // older than mtime of the known input 'tst.c'. 'tst' is not rebuilt, as it is
+  // cleaned by 'restat'.
+  // Also, tst.d is updated, making tst.o depending on tst.h
+  RebuildTarget("tst", manifest, "build_log");
+  ASSERT_EQ(1, command_runner_.commands_ran_.size());
+
+  // Step #3
+  // Now, this rebuild should be noop, despite depfile update at step #2
+  RebuildTarget("tst", manifest, "build_log");
+  ASSERT_EQ(0, command_runner_.commands_ran_.size());
+
+  // Sanity: touch tst.h, tst.o should now be rebuilt.
+  fs_.Tick();
+  fs_.Create("tst.h", "");
+  RebuildTarget("tst", manifest, "build_log");
+  ASSERT_EQ(1, command_runner_.commands_ran_.size());
 }
