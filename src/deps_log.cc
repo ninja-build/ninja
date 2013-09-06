@@ -183,7 +183,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
       version != kCurrentVersion) {
     if (version == 1)
-      *err = "deps log potentially corrupt; rebuilding";
+      *err = "deps log version change; rebuilding";
     else
       *err = "bad deps log signature or version; starting over";
     fclose(f);
