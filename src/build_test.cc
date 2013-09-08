@@ -487,12 +487,11 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
 
   command_runner_.commands_ran_.clear();
   builder.command_runner_.reset(&command_runner_);
-  bool build_res = true;
   if (!builder.AlreadyUpToDate()) {
-    build_res = builder.Build(&err);
+    bool build_res = builder.Build(&err);
+    EXPECT_TRUE(build_res) << "builder.Build(&err)";
   }
   builder.command_runner_.release();
-  EXPECT_TRUE(build_res) << "builder.Build(&err)";
 }
 
 bool FakeCommandRunner::CanRunMore() {
