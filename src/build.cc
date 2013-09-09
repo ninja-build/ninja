@@ -759,6 +759,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
           restat_mtime = input_mtime;
       }
 
+      // In 'deps' mode stat updated dependencies (in deps_nodes).
+      for (vector<Node*>::iterator i = deps_nodes.begin();
+           i != deps_nodes.end(); ++i) {
+        TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
+        if (input_mtime > restat_mtime)
+          restat_mtime = input_mtime;
+      }
+
       string depfile = edge->GetBinding("depfile");
       if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
