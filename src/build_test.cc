@@ -1966,3 +1966,55 @@ const char* manifest =
   RebuildTarget("tst", manifest, "build_log");
   ASSERT_EQ(1, command_runner_.commands_ran_.size());
 }
+
+// Test for https://github.com/martine/ninja/issues/652
+// (as 'RestatWithDiscoveredDependecies' with depslog)
+TEST_F(BuildWithDepsLogTest, RestatWithDiscoveredDependeciesAndDepsLog) {
+const char* manifest =
+"rule true_dep\n"     // Note: writes depfile
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build tst.o: true_dep tst.c\n"
+"  depfile = tst.d\n"
+"  deps = gcc\n"
+"build tst: cat tst.o\n";
+
+  // Step #1
+  // Start with .c file which doesn't include anything, and build once to
+  // populate log. tst.d will be created from tst.d.in
+  fs_.Create("tst.d.in", "tst.o: ");
+  fs_.Create("tst.c", "");
+  fs_.Create("tst.o", "");
+  fs_.Tick();
+  RebuildTarget("tst", manifest, "build_log", "depslog");
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Step #2
+  // Edit a .c file to include a header, then create the header. The header is
+  // now is most recent input, and ninja doesn't know about it yet (depfile was
+  // not updated).
+  fs_.Tick();
+  fs_.Create("tst.c", "");
+  fs_.Create("tst.d.in", "tst.o: tst.h");
+  fs_.Tick();
+  fs_.Create("tst.h", "");
+  fs_.Tick();
+
+  // Expected behavior: tst.o is rebuilt, as its restat_mtime in the log is
+  // older than mtime of the known input 'tst.c'. 'tst' is not rebuilt, as it is
+  // cleaned by 'restat'.
+  // Also, tst.d is updated, making tst.o depending on tst.h
+  RebuildTarget("tst", manifest, "build_log", "depslog");
+  ASSERT_EQ(1, command_runner_.commands_ran_.size());
+
+  // Step #3
+  // Now, this rebuild should be noop, despite depfile update at step #2
+  RebuildTarget("tst", manifest, "build_log", "depslog");
+  ASSERT_EQ(0, command_runner_.commands_ran_.size());
+
+  // Sanity: touch tst.h, tst.o should now be rebuilt.
+  fs_.Tick();
+  fs_.Create("tst.h", "");
+  RebuildTarget("tst", manifest, "build_log", "depslog");
+  ASSERT_EQ(1, command_runner_.commands_ran_.size());
+}
