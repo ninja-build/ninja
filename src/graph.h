@@ -136,7 +136,7 @@ struct Rule {
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), deps_missing_(false),
-           implicit_deps_(0), order_only_deps_(0) {}
+           implicit_deps_(0), order_only_deps_(0), depfile_deps_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -174,6 +174,9 @@ struct Edge {
   // #2 and #3 when we need to access the various subsets.
   int implicit_deps_;
   int order_only_deps_;
+
+  // 'depfile_deps_' counts number of dependencies loaded from depfile/deplog
+  int depfile_deps_;
   bool is_implicit(size_t index) {
     return index >= inputs_.size() - order_only_deps_ - implicit_deps_ &&
         !is_order_only(index);

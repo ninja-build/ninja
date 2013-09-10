@@ -752,8 +752,16 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     if (node_cleaned) {
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
+
+      // If with depslog updated deps are loaded into 'deps_nodes',
+      // therefore - no need to stat outdated deps.
+      vector<Node*>::iterator real_deps_end = \
+        edge->inputs_.end() - (!deps_nodes.size() ?
+                               edge->order_only_deps_ :
+                               edge->order_only_deps_ + edge->depfile_deps_);
+
       for (vector<Node*>::iterator i = edge->inputs_.begin();
-           i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+           i != real_deps_end; ++i) {
         TimeStamp input_mtime = disk_interface_->Stat((*i)->path());
         if (input_mtime > restat_mtime)
           restat_mtime = input_mtime;

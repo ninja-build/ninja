@@ -371,6 +371,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, depfile.ins_.size());
+  edge->depfile_deps_ += depfile.ins_.size();
 
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
@@ -405,6 +406,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
 
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, deps->node_count);
+  edge->depfile_deps_ += deps->node_count;
   for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
     Node* node = deps->nodes[i];
     *implicit_dep = node;
