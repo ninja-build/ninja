@@ -13,3 +13,5 @@
 // limitations under the License.
 
 bool g_explaining = false;
+
+bool g_keep_rsp = false;
