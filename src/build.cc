@@ -29,6 +29,7 @@
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
+#include "keep_rsp.h"
 #include "msvc_helper.h"
 #include "state.h"
 #include "subprocess.h"
@@ -776,7 +777,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // Delete any left over response file.
   string rspfile = edge->GetBinding("rspfile");
-  if (!rspfile.empty())
+  if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
