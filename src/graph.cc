@@ -18,10 +18,10 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
-#include "explain.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"

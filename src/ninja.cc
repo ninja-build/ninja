@@ -32,8 +32,8 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "clean.h"
+#include "debug_flags.h"
 #include "disk_interface.h"
-#include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "manifest_parser.h"
@@ -747,6 +747,7 @@ bool DebugEnable(const string& name) {
     printf("debugging modes:\n"
 "  stats    print operation counts/timing info\n"
 "  explain  explain what caused a command to execute\n"
+"  keeprsp  don't delete @response files on success\n"
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -754,6 +755,9 @@ bool DebugEnable(const string& name) {
     return true;
   } else if (name == "explain") {
     g_explaining = true;
+    return true;
+  } else if (name == "keeprsp") {
+    g_keep_rsp = true;
     return true;
   } else {
     const char* suggestion =
