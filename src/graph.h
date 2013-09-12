@@ -135,8 +135,8 @@ struct Rule {
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), implicit_deps_(0),
-           order_only_deps_(0) {}
+  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), deps_missing_(false),
+           implicit_deps_(0), order_only_deps_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -157,6 +157,7 @@ struct Edge {
   vector<Node*> outputs_;
   BindingEnv* env_;
   bool outputs_ready_;
+  bool deps_missing_;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }
@@ -192,10 +193,10 @@ struct ImplicitDepLoader {
                     DiskInterface* disk_interface)
       : state_(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
 
-  /// Load implicit dependencies for \a edge.  May fill in \a mtime with
-  /// the timestamp of the loaded information.
-  /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDeps(Edge* edge, TimeStamp* mtime, string* err);
+  /// Load implicit dependencies for \a edge.
+  /// @return false on error (without filling \a err if info is just missing
+  //                          or out of date).
+  bool LoadDeps(Edge* edge, string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -208,7 +209,7 @@ struct ImplicitDepLoader {
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, TimeStamp* mtime, string* err);
+  bool LoadDepsFromLog(Edge* edge, string* err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
@@ -240,11 +241,9 @@ struct DependencyScan {
   /// Returns false on failure.
   bool RecomputeDirty(Edge* edge, string* err);
 
-  /// Recompute whether a given single output should be marked dirty.
+  /// Recompute whether any output of the edge is dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
-                            TimeStamp deps_mtime,
-                            const string& command, Node* output);
+  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -258,6 +257,11 @@ struct DependencyScan {
   }
 
  private:
+  /// Recompute whether a given single output should be marked dirty.
+  /// Returns true if so.
+  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
+                            const string& command, Node* output);
+
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;

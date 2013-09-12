@@ -30,7 +30,11 @@
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 1;
+const int kCurrentVersion = 3;
+
+// Record size is currently limited to less than the full 32 bit, due to
+// internal buffers having to have this size.
+const unsigned kMaxRecordSize = (1 << 19) - 1;
 
 DepsLog::~DepsLog() {
   Close();
@@ -38,7 +42,6 @@ DepsLog::~DepsLog() {
 
 bool DepsLog::OpenForWrite(const string& path, string* err) {
   if (needs_recompaction_) {
-    Close();
     if (!Recompact(path, err))
       return false;
   }
@@ -48,6 +51,9 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     *err = strerror(errno);
     return false;
   }
+  // Set the buffer size to this and flush the file buffer after every record
+  // to make sure records aren't written partially.
+  setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1);
   SetCloseOnExec(fileno(file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
@@ -64,7 +70,10 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
       return false;
     }
   }
-
+  if (fflush(file_) != 0) {
+    *err = strerror(errno);
+    return false;
+  }
   return true;
 }
 
@@ -81,12 +90,14 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
 
   // Assign ids to all nodes that are missing one.
   if (node->id() < 0) {
-    RecordId(node);
+    if (!RecordId(node))
+      return false;
     made_change = true;
   }
   for (int i = 0; i < node_count; ++i) {
     if (nodes[i]->id() < 0) {
-      RecordId(nodes[i]);
+      if (!RecordId(nodes[i]))
+        return false;
       made_change = true;
     }
   }
@@ -113,17 +124,27 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     return true;
 
   // Update on-disk representation.
-  uint16_t size = 4 * (1 + 1 + (uint16_t)node_count);
-  size |= 0x8000;  // Deps record: set high bit.
-  fwrite(&size, 2, 1, file_);
+  unsigned size = 4 * (1 + 1 + node_count);
+  if (size > kMaxRecordSize) {
+    errno = ERANGE;
+    return false;
+  }
+  size |= 0x80000000;  // Deps record: set high bit.
+  if (fwrite(&size, 4, 1, file_) < 1)
+    return false;
   int id = node->id();
-  fwrite(&id, 4, 1, file_);
+  if (fwrite(&id, 4, 1, file_) < 1)
+    return false;
   int timestamp = mtime;
-  fwrite(&timestamp, 4, 1, file_);
+  if (fwrite(&timestamp, 4, 1, file_) < 1)
+    return false;
   for (int i = 0; i < node_count; ++i) {
     id = nodes[i]->id();
-    fwrite(&id, 4, 1, file_);
+    if (fwrite(&id, 4, 1, file_) < 1)
+      return false;
   }
+  if (fflush(file_) != 0)
+    return false;
 
   // Update in-memory representation.
   Deps* deps = new Deps(mtime, node_count);
@@ -142,7 +163,7 @@ void DepsLog::Close() {
 
 bool DepsLog::Load(const string& path, State* state, string* err) {
   METRIC_RECORD(".ninja_deps load");
-  char buf[32 << 10];
+  char buf[kMaxRecordSize + 1];
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
@@ -155,9 +176,16 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   int version = 0;
   if (!fgets(buf, sizeof(buf), f) || fread(&version, 4, 1, f) < 1)
     valid_header = false;
+  // Note: For version differences, this should migrate to the new format.
+  // But the v1 format could sometimes (rarely) end up with invalid data, so
+  // don't migrate v1 to v3 to force a rebuild. (v2 only existed for a few days,
+  // and there was no release with it, so pretend that it never happened.)
   if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
       version != kCurrentVersion) {
-    *err = "bad deps log signature or version; starting over";
+    if (version == 1)
+      *err = "deps log version change; rebuilding";
+    else
+      *err = "bad deps log signature or version; starting over";
     fclose(f);
     unlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
@@ -172,16 +200,16 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   for (;;) {
     offset = ftell(f);
 
-    uint16_t size;
-    if (fread(&size, 2, 1, f) < 1) {
+    unsigned size;
+    if (fread(&size, 4, 1, f) < 1) {
       if (!feof(f))
         read_failed = true;
       break;
     }
-    bool is_deps = (size >> 15) != 0;
-    size = size & 0x7FFF;
+    bool is_deps = (size >> 31) != 0;
+    size = size & 0x7FFFFFFF;
 
-    if (fread(buf, size, 1, f) < 1) {
+    if (fread(buf, size, 1, f) < 1 || size > kMaxRecordSize) {
       read_failed = true;
       break;
     }
@@ -205,10 +233,29 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       if (!UpdateDeps(out_id, deps))
         ++unique_dep_record_count;
     } else {
-      StringPiece path(buf, size);
+      int path_size = size - 4;
+      assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
+      // There can be up to 3 bytes of padding.
+      if (buf[path_size - 1] == '\0') --path_size;
+      if (buf[path_size - 1] == '\0') --path_size;
+      if (buf[path_size - 1] == '\0') --path_size;
+      StringPiece path(buf, path_size);
       Node* node = state->GetNode(path);
+
+      // Check that the expected index matches the actual index. This can only
+      // happen if two ninja processes write to the same deps log concurrently.
+      // (This uses unary complement to make the checksum look less like a
+      // dependency record entry.)
+      unsigned checksum = *reinterpret_cast<unsigned*>(buf + size - 4);
+      int expected_id = ~checksum;
+      int id = nodes_.size();
+      if (id != expected_id) {
+        read_failed = true;
+        break;
+      }
+
       assert(node->id() < 0);
-      node->set_id(nodes_.size());
+      node->set_id(id);
       nodes_.push_back(node);
     }
   }
@@ -257,6 +304,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_deps recompact");
   printf("Recompacting deps...\n");
 
+  Close();
   string temp_path = path + ".recompact";
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
@@ -315,11 +363,30 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
 }
 
 bool DepsLog::RecordId(Node* node) {
-  uint16_t size = (uint16_t)node->path().size();
-  fwrite(&size, 2, 1, file_);
-  fwrite(node->path().data(), node->path().size(), 1, file_);
+  int path_size = node->path().size();
+  int padding = (4 - path_size % 4) % 4;  // Pad path to 4 byte boundary.
 
-  node->set_id(nodes_.size());
+  unsigned size = path_size + padding + 4;
+  if (size > kMaxRecordSize) {
+    errno = ERANGE;
+    return false;
+  }
+  if (fwrite(&size, 4, 1, file_) < 1)
+    return false;
+  if (fwrite(node->path().data(), path_size, 1, file_) < 1) {
+    assert(node->path().size() > 0);
+    return false;
+  }
+  if (padding && fwrite("\0\0", padding, 1, file_) < 1)
+    return false;
+  int id = nodes_.size();
+  unsigned checksum = ~(unsigned)id;
+  if (fwrite(&checksum, 4, 1, file_) < 1)
+    return false;
+  if (fflush(file_) != 0)
+    return false;
+
+  node->set_id(id);
   nodes_.push_back(node);
 
   return true;

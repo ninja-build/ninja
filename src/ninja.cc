@@ -32,8 +32,8 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "clean.h"
+#include "debug_flags.h"
 #include "disk_interface.h"
-#include "explain.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "manifest_parser.h"
@@ -104,21 +104,23 @@ struct NinjaMain {
   // The various subcommands, run via "-t XXX".
   int ToolGraph(int argc, char* argv[]);
   int ToolQuery(int argc, char* argv[]);
+  int ToolDeps(int argc, char* argv[]);
   int ToolBrowse(int argc, char* argv[]);
   int ToolMSVC(int argc, char* argv[]);
   int ToolTargets(int argc, char* argv[]);
   int ToolCommands(int argc, char* argv[]);
   int ToolClean(int argc, char* argv[]);
   int ToolCompilationDatabase(int argc, char* argv[]);
+  int ToolRecompact(int argc, char* argv[]);
   int ToolUrtle(int argc, char** argv);
 
   /// Open the build log.
   /// @return false on error.
-  bool OpenBuildLog();
+  bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
   /// @return false on error.
-  bool OpenDepsLog();
+  bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
   /// @return false on error.
@@ -437,6 +439,45 @@ int ToolTargetsList(State* state) {
   return 0;
 }
 
+int NinjaMain::ToolDeps(int argc, char** argv) {
+  vector<Node*> nodes;
+  if (argc == 0) {
+    for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
+         ni != deps_log_.nodes().end(); ++ni) {
+      // Only query for targets with an incoming edge and deps
+      Edge* e = (*ni)->in_edge();
+      if (e && !e->GetBinding("deps").empty())
+        nodes.push_back(*ni);
+    }
+  } else {
+    string err;
+    if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+      Error("%s", err.c_str());
+      return 1;
+    }
+  }
+
+  RealDiskInterface disk_interface;
+  for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
+       it != end; ++it) {
+    DepsLog::Deps* deps = deps_log_.GetDeps(*it);
+    if (!deps) {
+      printf("%s: deps not found\n", (*it)->path().c_str());
+      continue;
+    }
+
+    TimeStamp mtime = disk_interface.Stat((*it)->path());
+    printf("%s: #deps %d, deps mtime %d (%s)\n",
+           (*it)->path().c_str(), deps->node_count, deps->mtime,
+           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+    for (int i = 0; i < deps->node_count; ++i)
+      printf("    %s\n", deps->nodes[i]->path().c_str());
+    printf("\n");
+  }
+
+  return 0;
+}
+
 int NinjaMain::ToolTargets(int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
@@ -602,6 +643,17 @@ int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
   return 0;
 }
 
+int NinjaMain::ToolRecompact(int argc, char* argv[]) {
+  if (!EnsureBuildDirExists())
+    return 1;
+
+  if (!OpenBuildLog(/*recompact_only=*/true) ||
+      !OpenDepsLog(/*recompact_only=*/true))
+    return 1;
+
+  return 0;
+}
+
 int NinjaMain::ToolUrtle(int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -644,6 +696,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
+    { "deps", "show dependencies stored in the deps log",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
@@ -652,6 +706,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
+    { "recompact",  "recompacts ninja-internal data structures",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
@@ -691,6 +747,7 @@ bool DebugEnable(const string& name) {
     printf("debugging modes:\n"
 "  stats    print operation counts/timing info\n"
 "  explain  explain what caused a command to execute\n"
+"  keeprsp  don't delete @response files on success\n"
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -698,6 +755,9 @@ bool DebugEnable(const string& name) {
     return true;
   } else if (name == "explain") {
     g_explaining = true;
+    return true;
+  } else if (name == "keeprsp") {
+    g_keep_rsp = true;
     return true;
   } else {
     const char* suggestion =
@@ -712,7 +772,7 @@ bool DebugEnable(const string& name) {
   }
 }
 
-bool NinjaMain::OpenBuildLog() {
+bool NinjaMain::OpenBuildLog(bool recompact_only) {
   string log_path = ".ninja_log";
   if (!build_dir_.empty())
     log_path = build_dir_ + "/" + log_path;
@@ -728,6 +788,13 @@ bool NinjaMain::OpenBuildLog() {
     err.clear();
   }
 
+  if (recompact_only) {
+    bool success = build_log_.Recompact(log_path, &err);
+    if (!success)
+      Error("failed recompaction: %s", err.c_str());
+    return success;
+  }
+
   if (!config_.dry_run) {
     if (!build_log_.OpenForWrite(log_path, &err)) {
       Error("opening build log: %s", err.c_str());
@@ -740,7 +807,7 @@ bool NinjaMain::OpenBuildLog() {
 
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
-bool NinjaMain::OpenDepsLog() {
+bool NinjaMain::OpenDepsLog(bool recompact_only) {
   string path = ".ninja_deps";
   if (!build_dir_.empty())
     path = build_dir_ + "/" + path;
@@ -754,6 +821,13 @@ bool NinjaMain::OpenDepsLog() {
     // Hack: Load() can return a warning via err by returning true.
     Warning("%s", err.c_str());
     err.clear();
+  }
+
+  if (recompact_only) {
+    bool success = deps_log_.Recompact(path, &err);
+    if (!success)
+      Error("failed recompaction: %s", err.c_str());
+    return success;
   }
 
   if (!config_.dry_run) {
@@ -936,6 +1010,7 @@ int real_main(int argc, char** argv) {
   options.input_file = "build.ninja";
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  const char* ninja_command = argv[0];
 
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
@@ -944,7 +1019,7 @@ int real_main(int argc, char** argv) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
-    NinjaMain ninja(argv[0], config);
+    NinjaMain ninja(ninja_command, config);
     return (ninja.*options.tool->func)(argc, argv);
   }
 
@@ -964,7 +1039,7 @@ int real_main(int argc, char** argv) {
   // The build can take up to 2 passes: one to rebuild the manifest, then
   // another to build the desired target.
   for (int cycle = 0; cycle < 2; ++cycle) {
-    NinjaMain ninja(argv[0], config);
+    NinjaMain ninja(ninja_command, config);
 
     RealFileReader file_reader;
     ManifestParser parser(&ninja.state_, &file_reader);

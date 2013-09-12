@@ -50,9 +50,12 @@ struct State;
 /// A dependency list maps an output id to a list of input ids.
 ///
 /// Concretely, a record is:
-///    two bytes record length, high bit indicates record type
-///      (implies max record length 32k)
-///    path records contain just the string name of the path
+///    four bytes record length, high bit indicates record type
+///      (but max record sizes are capped at 512kB)
+///    path records contain the string name of the path, followed by up to 3
+///      padding bytes to align on 4 byte boundaries, followed by the
+///      one's complement of the expected index of the record (to detect
+///      concurrent writes of multiple ninja processes to the log).
 ///    dependency records are an array of 4-byte integers
 ///      [output path id, output path mtime, input path id, input path id...]
 ///      (The mtime is compared against the on-disk output path mtime

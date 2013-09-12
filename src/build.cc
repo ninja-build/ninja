@@ -25,6 +25,7 @@
 #endif
 
 #include "build_log.h"
+#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
@@ -408,38 +409,32 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
     if (want_i == want_.end() || !want_i->second)
       continue;
 
+    // Don't attempt to clean an edge if it failed to load deps.
+    if ((*ei)->deps_missing_)
+      continue;
+
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
     vector<Node*>::iterator
         begin = (*ei)->inputs_.begin(),
         end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
-      // Recompute most_recent_input and command.
+      // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
         if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
           most_recent_input = *ni;
       }
-      string command = (*ei)->EvaluateCommand(true);
 
-      // Now, recompute the dirty state of each output.
-      bool all_outputs_clean = true;
-      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
-           ni != (*ei)->outputs_.end(); ++ni) {
-        if (!(*ni)->dirty())
-          continue;
-
-        if (scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
-                                       command, *ni)) {
-          (*ni)->MarkDirty();
-          all_outputs_clean = false;
-        } else {
+      // Now, this edge is dirty if any of the outputs are dirty.
+      // If the edge isn't dirty, clean the outputs and mark the edge as not
+      // wanted.
+      if (!scan->RecomputeOutputsDirty(*ei, most_recent_input)) {
+        for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
+             ni != (*ei)->outputs_.end(); ++ni) {
           CleanNode(scan, *ni);
         }
-      }
 
-      // If we cleaned all outputs, mark the node as not wanted.
-      if (all_outputs_clean) {
         want_i->second = false;
         --wanted_edges_;
         if (!(*ei)->is_phony())
@@ -641,7 +636,10 @@ bool Builder::Build(string* err) {
       }
 
       --pending_commands;
-      FinishCommand(&result);
+      if (!FinishCommand(&result, err)) {
+        status_->BuildFinished();
+        return false;
+      }
 
       if (!result.success()) {
         if (failures_allowed)
@@ -704,7 +702,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
-void Builder::FinishCommand(CommandRunner::Result* result) {
+bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   METRIC_RECORD("FinishCommand");
 
   Edge* edge = result->edge;
@@ -733,7 +731,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
 
   // The rest of this function only applies to successful commands.
   if (!result->success())
-    return;
+    return true;
 
   // Restat the edge outputs, if necessary.
   TimeStamp restat_mtime = 0;
@@ -763,7 +761,7 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
       }
 
       string depfile = edge->GetBinding("depfile");
-      if (restat_mtime != 0 && !depfile.empty()) {
+      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
         if (depfile_mtime > restat_mtime)
           restat_mtime = depfile_mtime;
@@ -779,21 +777,27 @@ void Builder::FinishCommand(CommandRunner::Result* result) {
 
   // Delete any left over response file.
   string rspfile = edge->GetBinding("rspfile");
-  if (!rspfile.empty())
+  if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    scan_.build_log()->RecordCommand(edge, start_time, end_time,
-                                     restat_mtime);
+    if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
+                                          restat_mtime)) {
+      *err = string("Error writing to build log: ") + strerror(errno);
+      return false;
+    }
   }
 
   if (!deps_type.empty() && !config_.dry_run) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp deps_mtime = disk_interface_->Stat(out->path());
-    scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes);
+    if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
+      *err = string("Error writing to deps log: ") + strerror(errno);
+      return false;
+    }
   }
-
+  return true;
 }
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,

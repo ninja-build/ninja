@@ -1,7 +1,7 @@
 Ninja
 =====
 Evan Martin <martine@danga.com>
-v1.3.0, May 2013
+v1.4.0, September 2013
 
 
 Introduction
@@ -55,7 +55,7 @@ Here are the design goals of Ninja:
   higher-level build systems have different opinions about how code
   should be built; for example, should built objects live alongside
   the sources or should all build output go into a separate directory?
-  Is there an "package" rule that builds a distributable package of
+  Is there a "package" rule that builds a distributable package of
   the project?  Sidestep these decisions by trying to allow either to
   be implemented, rather than choosing, even if that results in
   more verbosity.
@@ -589,6 +589,7 @@ rule cc
   command = cl /showIncludes -c $in /Fo$out
 ----
 
+[[ref_pool]]
 Pools
 ~~~~~
 
@@ -668,6 +669,9 @@ A file is a series of declarations.  A declaration can be one of:
 5. References to more files, which look like +subninja _path_+ or
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
+
+6. A pool declaration, which looks like +pool _poolname_+. Pools are explained
+   <<ref_pool, in the section on pools>>.
 
 Lexical syntax
 ~~~~~~~~~~~~~~

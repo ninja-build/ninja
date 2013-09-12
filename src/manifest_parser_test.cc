@@ -302,6 +302,17 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.ParseTest(string("subn", 4), &err));
+    EXPECT_EQ("input:1: expected '=', got eof\n"
+              "subn\n"
+              "    ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
               "foobar\n"
@@ -377,6 +388,17 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.ParseTest("build\n", &err));
+    EXPECT_EQ("input:1: expected path\n"
+              "build\n"
+              "     ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
     EXPECT_EQ("input:1: unknown build rule 'y'\n"
               "build x: y z\n"
@@ -415,6 +437,32 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("rule cat\n",
                                   &err));
     EXPECT_EQ("input:2: expected 'command =' line\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = echo\n"
+                                  "rule cat\n"
+                                  "  command = echo\n", &err));
+    EXPECT_EQ("input:3: duplicate rule 'cat'\n"
+              "rule cat\n"
+              "        ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = echo\n"
+                                  "  rspfile = cat.rsp\n", &err));
+    EXPECT_EQ(
+        "input:4: rspfile and rspfile_content need to be both specified\n",
+        err);
   }
 
   {
@@ -583,6 +631,71 @@ TEST_F(ParserTest, Errors) {
                                   "  generator = 1\n", &err));
     EXPECT_EQ("input:4: unexpected indent\n", err);
   }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool\n", &err));
+    EXPECT_EQ("input:1: expected pool name\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool foo\n", &err));
+    EXPECT_EQ("input:2: expected 'depth =' line\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool foo\n"
+                                  "  depth = 4\n"
+                                  "pool foo\n", &err));
+    EXPECT_EQ("input:3: duplicate pool 'foo'\n"
+              "pool foo\n"
+              "        ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool foo\n"
+                                  "  depth = -1\n", &err));
+    EXPECT_EQ("input:2: invalid pool depth\n"
+              "  depth = -1\n"
+              "            ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool foo\n"
+                                  "  bar = 1\n", &err));
+    EXPECT_EQ("input:2: unexpected variable 'bar'\n"
+              "  bar = 1\n"
+              "         ^ near here"
+              , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    // Pool names are dereferenced at edge parsing time.
+    EXPECT_FALSE(parser.ParseTest("rule run\n"
+                                  "  command = echo\n"
+                                  "  pool = unnamed_pool\n"
+                                  "build out: run in\n", &err));
+    EXPECT_EQ("input:5: unknown pool name 'unnamed_pool'\n", err);
+  }
 }
 
 TEST_F(ParserTest, MissingInput) {
@@ -658,6 +771,17 @@ TEST_F(ParserTest, Include) {
   ASSERT_EQ(1u, files_read_.size());
   EXPECT_EQ("include.ninja", files_read_[0]);
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
+}
+
+TEST_F(ParserTest, BrokenInclude) {
+  files_["include.ninja"] = "build\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
+  EXPECT_EQ("include.ninja:1: expected path\n"
+            "build\n"
+            "     ^ near here"
+            , err);
 }
 
 TEST_F(ParserTest, Implicit) {

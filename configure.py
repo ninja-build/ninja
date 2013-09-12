@@ -48,7 +48,7 @@ parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
 parser.add_option('--force-pselect', action='store_true',
-                  help="ppoll() is used by default on Linux and OpenBSD, but older versions might need to use pselect instead",)
+                  help="ppoll() is used by default where available, but some platforms may need to use pselect instead",)
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -165,7 +165,7 @@ else:
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
-if (platform.is_linux() or platform.is_openbsd()) and not options.force_pselect:
+if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 
 def shell_escape(str):
@@ -263,12 +263,12 @@ n.comment('Core source files all build into ninja library.')
 for name in ['build',
              'build_log',
              'clean',
+             'debug_flags',
              'depfile_parser',
              'deps_log',
              'disk_interface',
              'edit_distance',
              'eval_env',
-             'explain',
              'graph',
              'graphviz',
              'lexer',

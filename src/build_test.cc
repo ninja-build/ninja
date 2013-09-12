@@ -435,6 +435,13 @@ struct BuildTest : public StateTestWithBuiltinRules {
     builder_.command_runner_.release();
   }
 
+  /// Rebuild target in the 'working tree' (fs_).
+  /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
+  /// Handy to check for NOOP builds, and higher-level rebuild tests.
+  void RebuildTarget(const string& target, const char* manifest,
+                     const char* log_path = NULL,
+                     const char* deps_path = NULL);
+
   // Mark a path dirty.
   void Dirty(const string& path);
 
@@ -451,6 +458,41 @@ struct BuildTest : public StateTestWithBuiltinRules {
 
   BuildStatus status_;
 };
+
+void BuildTest::RebuildTarget(const string& target, const char* manifest,
+                              const char* log_path, const char* deps_path) {
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+  AssertParse(&state, manifest);
+
+  string err;
+  BuildLog build_log, *pbuild_log = NULL;
+  if (log_path) {
+    ASSERT_TRUE(build_log.Load(log_path, &err));
+    ASSERT_TRUE(build_log.OpenForWrite(log_path, &err));
+    ASSERT_EQ("", err);
+    pbuild_log = &build_log;
+  }
+
+  DepsLog deps_log, *pdeps_log = NULL;
+  if (deps_path) {
+    ASSERT_TRUE(deps_log.Load(deps_path, &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_path, &err));
+    ASSERT_EQ("", err);
+    pdeps_log = &deps_log;
+  }
+
+  Builder builder(&state, config_, pbuild_log, pdeps_log, &fs_);
+  EXPECT_TRUE(builder.AddTarget(target, &err));
+
+  command_runner_.commands_ran_.clear();
+  builder.command_runner_.reset(&command_runner_);
+  if (!builder.AlreadyUpToDate()) {
+    bool build_res = builder.Build(&err);
+    EXPECT_TRUE(build_res) << "builder.Build(&err)";
+  }
+  builder.command_runner_.release();
+}
 
 bool FakeCommandRunner::CanRunMore() {
   // Only run one at a time.
@@ -1018,6 +1060,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
+  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]"));
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1094,6 +1137,46 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule true\n"
+    "  command = true\n"
+    "  restat = 1\n"
+    "rule touch\n"
+    "  command = touch\n"
+    "build out1: true in\n"
+    "build out2 out3: touch out1\n"
+    "build out4: touch out2\n"
+    ));
+
+  // Create the necessary files
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out4", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.RemoveFile("out3");
+
+  // Since "in" is missing, out1 will be built. Since "out3" is missing,
+  // out2 and out3 will be built even though "in" is not touched when built.
+  // Then, since out2 is rebuilt, out4 should be rebuilt -- the restat on the
+  // "true" rule should not lead to the "touch" edge writing out2 and out3 being
+  // cleard.
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out4", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+}
+
 // Test scenario, in which an input file is removed, but output isn't changed
 // https://github.com/martine/ninja/issues/295
 TEST_F(BuildWithLogTest, RestatMissingInput) {
@@ -1126,7 +1209,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
 
   // See that an entry in the logfile is created, capturing
   // the right mtime
-  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out1");
+  BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
 
@@ -1297,7 +1380,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
 
   // 3. Alter the entry in the logfile
   // (to simulate a change in the command line between 2 builds)
-  BuildLog::LogEntry * log_entry = build_log_.LookupByOutput("out");
+  BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_NO_FATAL_FAILURE(AssertHash(
         "cat out.rsp > out;rspfile=Original very long command",
@@ -1604,7 +1687,30 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 }
 
 /// Check that a restat rule generating a header cancels compilations correctly.
-TEST_F(BuildWithDepsLogTest, RestatDepfileDependency) {
+TEST_F(BuildTest, RestatDepfileDependency) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build header.h: true header.in\n"
+"build out: cat in1\n"
+"  depfile = in1.d\n"));
+
+  fs_.Create("header.h", "");
+  fs_.Create("in1.d", "out: header.h");
+  fs_.Tick();
+  fs_.Create("header.in", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+}
+
+/// Check that a restat rule generating a header cancels compilations correctly,
+/// depslog case.
+TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
   string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
@@ -1665,4 +1771,141 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependency) {
 
     builder.command_runner_.release();
   }
+}
+
+TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
+  string err;
+  const char* manifest =
+      "rule cc\n  command = cc $in\n  depfile = $out.d\n  deps = gcc\n"
+      "build foo.o: cc foo.c\n";
+
+  fs_.Create("foo.c", "");
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("foo.o", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+
+    Edge* edge = state.edges_.back();
+
+    state.GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+    EXPECT_TRUE(builder.AddTarget("foo.o", &err));
+    ASSERT_EQ("", err);
+
+    // Expect three new edges: one generating foo.o, and two more from
+    // loading the depfile.
+    ASSERT_EQ(3u, state.edges_.size());
+    // Expect our edge to now have three inputs: foo.c and two headers.
+    ASSERT_EQ(3u, edge->inputs_.size());
+
+    // Expect the command line we generate to only use the original input.
+    ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+}
+
+/// Check that a restat rule doesn't clear an edge if the depfile is missing.
+/// Follows from: https://github.com/martine/ninja/issues/603
+TEST_F(BuildTest, RestatMissingDepfile) {
+const char* manifest =
+"rule true\n"
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build header.h: true header.in\n"
+"build out: cat header.h\n"
+"  depfile = out.d\n";
+
+  fs_.Create("header.h", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+  fs_.Create("header.in", "");
+
+  // Normally, only 'header.h' would be rebuilt, as
+  // its rule doesn't touch the output and has 'restat=1' set.
+  // But we are also missing the depfile for 'out',
+  // which should force its command to run anyway!
+  RebuildTarget("out", manifest);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+}
+
+/// Check that a restat rule doesn't clear an edge if the deps are missing.
+/// https://github.com/martine/ninja/issues/603
+TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
+  string err;
+  const char* manifest =
+"rule true\n"
+"  command = true\n"  // Would be "write if out-of-date" in reality.
+"  restat = 1\n"
+"build header.h: true header.in\n"
+"build out: cat header.h\n"
+"  deps = gcc\n"
+"  depfile = out.d\n";
+
+  // Build once to populate ninja deps logs from out.d
+  fs_.Create("header.in", "");
+  fs_.Create("out.d", "out: header.h");
+  fs_.Create("header.h", "");
+
+  RebuildTarget("out", manifest, "build_log", "ninja_deps");
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Sanity: this rebuild should be NOOP
+  RebuildTarget("out", manifest, "build_log", "ninja_deps");
+  ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+
+  // Touch 'header.in', blank dependencies log (create a different one).
+  // Building header.h triggers 'restat' outputs cleanup.
+  // Validate that out is rebuilt netherless, as deps are missing.
+  fs_.Tick();
+  fs_.Create("header.in", "");
+
+  // (switch to a new blank deps_log "ninja_deps2")
+  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Sanity: this build should be NOOP
+  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+
+  // Check that invalidating deps by target timestamp also works here
+  // Repeat the test but touch target instead of blanking the log.
+  fs_.Tick();
+  fs_.Create("header.in", "");
+  fs_.Create("out", "");
+  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // And this build should be NOOP again
+  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  ASSERT_EQ(0u, command_runner_.commands_ran_.size());
 }
