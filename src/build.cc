@@ -123,6 +123,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     printer_.PrintOnNewLine("FAILED: " + edge->EvaluateCommand() + "\n");
 
   if (!output.empty()) {
+    if (success)
+      printer_.PrintOnNewLine("SUCCESS: " + edge->EvaluateCommand() + "\n");
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
     // isatty(stderr) to decide if they should print colored output.
