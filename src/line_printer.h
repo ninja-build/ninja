@@ -23,8 +23,16 @@ using namespace std;
 struct LinePrinter {
   LinePrinter();
 
-  bool is_smart_terminal() const { return smart_terminal_; }
-  void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
+  enum TerminalType {
+    TERM_DUMB,
+#ifdef _WIN32
+    TERM_CMD,
+#endif
+    TERM_ANSI
+  };
+
+  bool is_smart_terminal() const { return terminal_type_ != TERM_DUMB; }
+  void set_smart_terminal(bool smart) { terminal_type_ = TERM_DUMB; }
 
   enum LineType {
     FULL,
@@ -39,7 +47,7 @@ struct LinePrinter {
 
  private:
   /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
+  TerminalType terminal_type_;
 
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
