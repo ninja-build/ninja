@@ -16,6 +16,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <Psapi.h>
 #include <io.h>
 #include <share.h>
 #endif
@@ -36,6 +37,7 @@
 
 #include <vector>
 
+// to determine the load average
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
 #elif defined(__SVR4) && defined(__sun)
@@ -43,6 +45,13 @@
 #include <sys/loadavg.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
+#endif
+
+// to determine the memory usage
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#elif defined(linux)
+#include <fstream>
 #endif
 
 #include "edit_distance.h"
@@ -328,6 +337,63 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
+double GetMemoryUsage() {
+#if defined(__APPLE__)
+  // total memory
+  uint64_t physical_memory;
+  {
+    size_t length = sizeof(physical_memory);
+    if (!(sysctlbyname("hw.memsize",
+                       &physical_memory, &length, NULL, 0) == 0)) {
+      return -0.0f;
+    }
+  }
+
+  // pagesize
+  unsigned pagesize = 0;
+  {
+    size_t length = sizeof(pagesize);
+    if (!(sysctlbyname("hw.pagesize",
+                       &pagesize, &length, NULL, 0) == 0)) {
+      return -0.0f;
+    }
+  }
+
+  // current free memory
+  vm_statistics_data_t vm;
+  mach_msg_type_number_t ic = HOST_VM_INFO_COUNT;
+  host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t) &vm, &ic);
+
+  return 1.0 - static_cast<double>(pagesize) * vm.free_count / physical_memory;
+#elif defined(linux)
+  ifstream meminfo("/proc/meminfo", ifstream::in);
+  string token;
+  uint64_t free(0), total(0), cached(0);
+  while (meminfo >> token) {
+    if (token == "MemFree:") {
+      meminfo >> free;
+    } else if (token == "Cached:") {
+      meminfo >> cached;
+    } else if (token == "MemTotal:") {
+      meminfo >> total;
+    } else {
+      continue;
+    }
+    if (free > 0 && cached > 0 && total > 0) {
+      return 1.0 - (double(free+cached)/total);
+    }
+  }
+  return -0.0f; // this is the fallback in case the API has changed
+#elif (_WIN32)
+  PERFORMANCE_INFORMATION perf;
+  GetPerformanceInfo(&perf, sizeof(PERFORMANCE_INFORMATION));
+  return 1.0 - static_cast<double>(perf.PhysicalAvailable) /
+               static_cast<double>(perf.PhysicalTotal);
+#else // any unsupported platform
+  return -0.0f;
+#endif
+}
+
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
@@ -357,3 +423,5 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
+// vim: et sts=2 st=2 sw=2:

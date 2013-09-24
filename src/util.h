@@ -69,8 +69,12 @@ string StripAnsiEscapeCodes(const string& in);
 int GetProcessorCount();
 
 /// @return the load average of the machine. A negative value is returned
-/// on error.
+/// on error or if the feature is not supported on this platform.
 double GetLoadAverage();
+
+/// @return the memory usage of the machine. A negative value is returned
+/// on error or if the feature is not supported on this platform.
+double GetMemoryUsage();
 
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.

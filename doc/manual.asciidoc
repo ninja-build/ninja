@@ -186,6 +186,14 @@ match those of Make; e.g `ninja -C build -j 20` changes into the
 Ninja defaults to running commands in parallel anyway, so typically
 you don't need to pass `-j`.)
 
+In certain environments it might be helpful to dynamically limit the
+amount of running jobs depending on the currently available resources.
+Thus `ninja` can be started with `-l` and/or `-m` options to prevent
+from starting new jobs in case load average or memory usage exceed
+the defined limit. `-l` takes one single numeric argument defining
+the limit for the typical unix load average. `-m` takes one single
+numeric argument within [0,100] as a percentage of the memory usage
+(reduced by caches) on the host.
 
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
