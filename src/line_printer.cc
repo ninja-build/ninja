@@ -27,11 +27,7 @@
 
 #include "util.h"
 
-#ifdef _WIN32
-static bool IsCygwinTTY(HANDLE Handle);
-#endif
-
-LinePrinter::LinePrinter() : have_blank_line_(true), terminal_type_(TERM_DUMB) {
+LinePrinter::LinePrinter() : have_blank_line_(true) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   bool smart = isatty(1) && term && string(term) != "dumb";
@@ -43,13 +39,21 @@ LinePrinter::LinePrinter() : have_blank_line_(true), terminal_type_(TERM_DUMB) {
   // - Full Buffering."
   setvbuf(stdout, NULL, _IONBF, 0);
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  bool is_cmd = GetConsoleScreenBufferInfo(console_, &csbi);
-  if (is_cmd) {
-    terminal_type_ = TERM_CMD;
-  } else if (IsCygwinTTY(console_)) {
-    // Cygwin uses mintty by default these days, and it understands ANSI codes.
-    terminal_type_ = TERM_ANSI;
+
+  // Allow the user to override our terminal type auto-detection.
+  const char* ninja_term = getenv("NINJA_TERM");
+  if (!ninja_term || ninja_term[0] == '\0') {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    bool is_cmd = GetConsoleScreenBufferInfo(console_, &csbi);
+    terminal_type_ = is_cmd ? TERM_CMD : TERM_DUMB;
+  } else {
+    if (strcmp("cmd", ninja_term) == 0) {
+      terminal_type_ = TERM_CMD;
+    } else if (strcmp("ansi", ninja_term) == 0) {
+      terminal_type_ = TERM_ANSI;
+    } else {
+      terminal_type_ = TERM_DUMB;
+    }
   }
 #endif
 }
@@ -128,68 +132,3 @@ void LinePrinter::PrintOnNewLine(const string& to_print) {
   }
   have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
 }
-
-#ifdef _WIN32
-// Hide these types in an anonymous namespace so we don't conflict with whatever
-// comes out of windows.h.
-namespace {
-
-struct UNICODE_STRING {
-  USHORT Length;
-  USHORT MaximumLength;
-  PWSTR  Buffer;
-};
-
-// This is a custom definition.
-struct OBJECT_NAME_INFORMATION {
-  UNICODE_STRING          Name;
-  WCHAR                   NameBuffer[MAX_PATH];
-};
-
-enum OBJECT_INFORMATION_CLASS { ObjectNameInformation = 1 };
-
-typedef NTSTATUS (__stdcall *NtQueryObjectType)(
-    /* IN  */ HANDLE ObjectHandle,
-    /* IN  */ OBJECT_INFORMATION_CLASS ObjectInformationClass,
-    /* OUT */ PVOID ObjectInformation,
-    /* IN  */ ULONG ObjectInformationLength,
-    /* OUT */ ULONG *ReturnLength);
-
-}
-
-// Figures out if the given handle points to a pipe pty created by a Cygwin
-// shell.  Cygwin sets stdout to a named pipe with a name in a parsable format,
-// which is how it later decides if stdout is a tty or not.
-// TODO: Make this work for MSys bash.
-static bool IsCygwinTTY(HANDLE handle) {
-  // Use GetProcAddress to find NtQueryObject so we don't have to link against
-  // ntdll directly, which is only present in the WDK or Win8 SDK.
-  HMODULE mod = LoadLibrary("ntdll");
-  if (!mod)
-    return false;
-  NtQueryObjectType query =
-      NtQueryObjectType(GetProcAddress(mod, "NtQueryObject"));
-  if (!query)
-    return false;
-
-  // The result is a UNICODE_STRING where the storage for the name directly
-  // follows the struct.  We pass the size of the whole thing into
-  // NtQueryObject.
-  OBJECT_NAME_INFORMATION name_info;
-  ULONG len;
-  NTSTATUS status = query(handle, ObjectNameInformation, (void *)&name_info,
-                          sizeof(name_info), &len);
-  if (status != 0)
-    return false;
-
-  // If the handle represents a named pipe starting with "cygwin-", this was
-  // created by Cygwin.
-  wchar_t pty_prefix[] = L"\\Device\\NamedPipe\\cygwin-";
-  if (wcsncmp(name_info.NameBuffer, pty_prefix, wcslen(pty_prefix)) != 0)
-    return false;
-
-  // If it also has "-pty" in it, that's a strong signal that it's a pseudo-tty.
-  return wcsstr(name_info.NameBuffer, L"-pty");
-}
-
-#endif

@@ -190,10 +190,11 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
-`NINJA_STATUS`, the progress status printed before the rule being run.
+The output of ninja can be controlled with two environment variables.
+`NINJA_STATUS` controls the progress status printed before the rule being run,
+and `NINJA_TERM` can be used to override ninja's tty detection logic.
 
-Several placeholders are available:
+Several `NINJA_STATUS` placeholders are available:
 
 `%s`:: The number of started edges.
 `%t`:: The total number of edges that must be run to complete the build.
@@ -210,6 +211,11 @@ specified by `-j` or its default)
 The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+The possible values of `NINJA_TERM` are currently "ansi", "dumb", and "cmd"
+(only on Windows).  On Windows, there are many terminals that support ANSI
+codes, but are not easy to detect.  Setting `NINJA_TERM=ansi` in the environment
+allows the user to override ninja's detection logic.
 
 Extra tools
 ~~~~~~~~~~~
