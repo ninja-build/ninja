@@ -714,9 +714,10 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   // build perspective.
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
+  const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err) &&
+    if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes, &extract_err) &&
         result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
@@ -802,12 +803,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const string& deps_type,
+                          const string& deps_prefix,
                           vector<Node*>* deps_nodes,
                           string* err) {
 #ifdef _WIN32
   if (deps_type == "msvc") {
     CLParser parser;
-    result->output = parser.Parse(result->output);
+    result->output = parser.Parse(result->output, deps_prefix);
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
       deps_nodes->push_back(state_->GetNode(*i));

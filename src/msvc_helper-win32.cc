@@ -48,14 +48,13 @@ string EscapeForDepfile(const string& path) {
 }
 
 // static
-string CLParser::FilterShowIncludes(const string& line) {
-  static const char kMagicPrefix[] = "Note: including file: ";
+string CLParser::FilterShowIncludes(const string& line, const string& deps_prefix) {
+  static const string deps_prefix_english = "Note: including file: ";
   const char* in = line.c_str();
   const char* end = in + line.size();
-
-  if (end - in > (int)sizeof(kMagicPrefix) - 1 &&
-      memcmp(in, kMagicPrefix, sizeof(kMagicPrefix) - 1) == 0) {
-    in += sizeof(kMagicPrefix) - 1;
+  const string& prefix = deps_prefix.empty() ? deps_prefix_english : deps_prefix;
+  if (end - in > (int)prefix.size() && memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
+    in += prefix.size();
     while (*in == ' ')
       ++in;
     return line.substr(in - line.c_str());
@@ -81,7 +80,7 @@ bool CLParser::FilterInputFilename(string line) {
       EndsWith(line, ".cpp");
 }
 
-string CLParser::Parse(const string& output) {
+string CLParser::Parse(const string& output, const string& deps_prefix) {
   string filtered_output;
 
   // Loop over all lines in the output to process them.
@@ -92,7 +91,7 @@ string CLParser::Parse(const string& output) {
       end = output.size();
     string line = output.substr(start, end - start);
 
-    string include = FilterShowIncludes(line);
+    string include = FilterShowIncludes(line, deps_prefix);
     if (!include.empty()) {
       include = IncludesNormalize::Normalize(include, NULL);
       if (!IsSystemInclude(include))

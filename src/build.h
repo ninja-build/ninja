@@ -180,7 +180,7 @@ struct Builder {
   BuildStatus* status_;
 
  private:
-  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
+  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type, const string& deps_prefix,
                    vector<Node*>* deps_nodes, string* err);
 
   DiskInterface* disk_interface_;
