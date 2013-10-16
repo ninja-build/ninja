@@ -245,6 +245,17 @@ string EdgeEnv::LookupVariable(const string& var) {
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
+static inline bool ContainsSpace(const string& str)
+{
+  const char* ptr = str.c_str();
+  const char*const end = ptr + str.size();
+  for (; ptr < end; ptr++) {
+    if (*ptr == ' ')
+      return true;
+  }
+  return false;
+}
+
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
                              vector<Node*>::iterator end,
                              char sep) {
@@ -253,7 +264,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
     if (!result.empty())
       result.push_back(sep);
     const string& path = (*i)->path();
-    if (path.find(" ") != string::npos) {
+    if (ContainsSpace(path)) {
       result.append("\"");
       result.append(path);
       result.append("\"");
