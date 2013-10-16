@@ -112,8 +112,19 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   char* start = path;
   char* dst = start;
   const char* src = start;
-  const char* end = start + *len;
+  const char*const end = start + *len;
 
+  bool nothing_todo = true;
+  for (;src < end - 1; src++) {
+    if (*src == '.' && src[1] == '.') {
+      nothing_todo = false;
+      break;
+    }
+  }
+  if (nothing_todo)
+    return true;
+
+  src = start;
   if (*src == '/') {
 #ifdef _WIN32
     // network path starts with //
