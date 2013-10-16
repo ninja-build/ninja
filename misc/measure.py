@@ -20,10 +20,11 @@
 import time
 import subprocess
 import sys
+import math
 
 devnull = open('/dev/null', 'w')
 
-def run(cmd, repeat=10):
+def run(cmd, repeat):
     print 'sampling:',
     sys.stdout.flush()
 
@@ -33,7 +34,7 @@ def run(cmd, repeat=10):
         subprocess.call(cmd, stdout=devnull, stderr=devnull)
         end = time.time()
         dt = (end - start) * 1000
-        print '%dms' % int(dt),
+        print '#%d:%dms' % (_, int(dt)),
         sys.stdout.flush()
         samples.append(dt)
     print
@@ -42,13 +43,21 @@ def run(cmd, repeat=10):
     # conceptually the smallest time we'd see if we ran it enough times
     # such that it got the perfect time slices / disk cache hits.
     best = min(samples)
+    print 'best: %dms' % (best)
+    
     # Also print how varied the outputs were in an attempt to make it
     # more obvious if something has gone terribly wrong.
-    err = sum(s - best for s in samples) / float(len(samples))
-    print 'estimate: %dms (mean err %.1fms)' % (best, err)
+    N = float(len(samples))
+    avg = float(sum(samples)) / N
+    varsum = 0.0;
+    # standard deviation
+    for dt in samples:
+        varsum = varsum + (float(dt) - avg)**2
+    dev = math.sqrt(varsum / N)
+    print 'mean: %dms +- %.1fms' % (avg, dev)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print 'usage: measure.py command args...'
+    if len(sys.argv) < 3:
+        print 'usage: measure.py <number of runs> command args...'
         sys.exit(1)
-    run(cmd=sys.argv[1:])
+    run(cmd=sys.argv[2:], repeat=int(sys.argv[1]))
