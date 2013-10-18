@@ -125,6 +125,8 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_VARIADIC_MAX=10',
               '/DNINJA_PYTHON="%s"' % options.with_python]
+    if platform.msvc_needs_fs():
+        cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
