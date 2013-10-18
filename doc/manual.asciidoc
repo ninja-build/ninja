@@ -580,9 +580,13 @@ Ninja supports this processing in two forms.
    http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
    flag].  Briefly, this means the tool outputs specially-formatted lines
    to its stdout.  Ninja then filters these lines from the displayed
-   output.  No `depfile` attribute is necessary.
+   output.  No `depfile` attribute is necessary, but the localized string
+   in front of the the header file path. For instance
+   `msvc_deps_prefix = Note: including file: `
+   for a English Visual Studio (the default). Should be globally defined.
 +
 ----
+msvc_deps_prefix = Note: including file:
 rule cc
   deps = msvc
   command = cl /showIncludes -c $in /Fo$out
@@ -771,6 +775,10 @@ keys.
    <<ref_headers,the full discussion>>.  The generated database is
    stored as `.ninja_deps` in the `builddir`, see <<ref_toplevel,the
    discussion of `builddir`>>.
+
+`msvc_deps_prefix`:: _(Available since Ninja 1.5.)_ defines the string
+  which should be stripped from msvc's /showIncludes output. Only
+  needed when `deps = msvc` and no English Visual Studio version is used.
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
