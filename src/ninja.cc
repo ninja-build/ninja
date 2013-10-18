@@ -187,7 +187,10 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
-"    terminates toplevel options; further flags are passed to the tool\n",
+"    terminates toplevel options; further flags are passed to the tool\n"
+"\n"
+"  --no-strip-ansi-escapes  don't strip ANSI escapes (only relevant if output\n"
+"                           isn't to a smart terminal)\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -928,10 +931,11 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_NO_STRIP_ANSI_ESCAPES = 2 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
+    { "no-strip-ansi-escapes", no_argument, NULL, OPT_NO_STRIP_ANSI_ESCAPES },
     { NULL, 0, NULL, 0 }
   };
 
@@ -992,6 +996,9 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_NO_STRIP_ANSI_ESCAPES:
+        config->no_strip_ansi_escapes = true;
+        break;
       case 'h':
       default:
         Usage(*config);
