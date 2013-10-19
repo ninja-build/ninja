@@ -27,7 +27,8 @@ struct CLParser {
   /// Parse a line of cl.exe output and extract /showIncludes info.
   /// If a dependency is extracted, returns a nonempty string.
   /// Exposed for testing.
-  static string FilterShowIncludes(const string& line, const string& deps_prefix);
+  static string FilterShowIncludes(const string& line,
+                                   const string& deps_prefix);
 
   /// Return true if a mentioned include file is a system path.
   /// Filtering these out reduces dependency information considerably.
