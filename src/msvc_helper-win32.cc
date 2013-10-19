@@ -48,12 +48,14 @@ string EscapeForDepfile(const string& path) {
 }
 
 // static
-string CLParser::FilterShowIncludes(const string& line, const string& deps_prefix) {
-  static const string deps_prefix_english = "Note: including file: ";
+string CLParser::FilterShowIncludes(const string& line,
+                                    const string& deps_prefix) {
+  const string kDepsPrefixEnglish = "Note: including file: ";
   const char* in = line.c_str();
   const char* end = in + line.size();
-  const string& prefix = deps_prefix.empty() ? deps_prefix_english : deps_prefix;
-  if (end - in > (int)prefix.size() && memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
+  const string& prefix = deps_prefix.empty() ? kDepsPrefixEnglish : deps_prefix;
+  if (end - in > (int)prefix.size() &&
+      memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
     in += prefix.size();
     while (*in == ' ')
       ++in;
