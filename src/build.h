@@ -208,7 +208,7 @@ struct BuildStatus {
   string FormatProgressStatus(const char* progress_status_format) const;
 
  private:
-  void PrintStatus(Edge* edge);
+  void PrintStatus(Edge* edge, bool waiting_for);
 
   const BuildConfig& config_;
 

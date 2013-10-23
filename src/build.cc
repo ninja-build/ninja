@@ -96,7 +96,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
-  PrintStatus(edge);
+  PrintStatus(edge, false);
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
@@ -116,7 +116,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     return;
 
   if (printer_.is_smart_terminal())
-    PrintStatus(edge);
+    PrintStatus(edge, false);
 
   // Print the command that is spewing before printing its output.
   if (!success)
@@ -141,6 +141,15 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     else
       final_output = output;
     printer_.PrintOnNewLine(final_output);
+  }
+
+  // If we're waiting on some long-running command, print that.
+  if (running_edges_.size() == 1 && printer_.is_smart_terminal()) {
+    RunningEdgeMap::iterator i = running_edges_.begin();
+    int pending_edge_start_time = i->second;
+    if (*end_time - pending_edge_start_time > 3 * 1000) {
+      PrintStatus(i->first, true);
+    }
   }
 }
 
@@ -231,7 +240,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge) {
+void BuildStatus::PrintStatus(Edge* edge, bool waiting_for) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -240,6 +249,8 @@ void BuildStatus::PrintStatus(Edge* edge) {
   string to_print = edge->GetBinding("description");
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
+  if (waiting_for)
+    to_print = "... still waiting for " + to_print;
 
   if (finished_edges_ == 0) {
     overall_rate_.Restart();
