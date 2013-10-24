@@ -68,7 +68,7 @@ TEST_F(DepfileParserTest, BackSlashes) {
 "  Project\\Thing\\Bar.tlb \\\n",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res",
+  EXPECT_EQ("Project\\Dir\\Build\\Release8\\Foo\\Foo.res ",
             parser_.out_.AsString());
   EXPECT_EQ(4u, parser_.ins_.size());
 }
@@ -121,19 +121,14 @@ TEST_F(DepfileParserTest, SpecialChars) {
             parser_.ins_[1].AsString());
 }
 
-TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
-  // check that multiple duplicate targets are properly unified
+TEST_F(DepfileParserTest, SpaceInOutputPath) {
   string err;
-  EXPECT_TRUE(Parse("foo foo: x y z", &err));
-  ASSERT_EQ(parser_.out_.AsString(), "foo");
-  ASSERT_EQ(parser_.ins_.size(), 3u);
-  EXPECT_EQ("x", parser_.ins_[0].AsString());
-  EXPECT_EQ("y", parser_.ins_[1].AsString());
-  EXPECT_EQ("z", parser_.ins_[2].AsString());
-}
-
-TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
-  // check that multiple different outputs are rejected by the parser
-  string err;
-  EXPECT_FALSE(Parse("foo bar: x y z", &err));
+  // spaces within and at the end of the target path are possible
+  // (touch "x " and touch "x" generates two files)
+  EXPECT_TRUE(Parse(
+"build/foo a bb ccc/ninja.o : ninja.cc ninja.h\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("build/foo a bb ccc/ninja.o ", parser_.out_.AsString());
+  EXPECT_EQ(2u, parser_.ins_.size());
 }

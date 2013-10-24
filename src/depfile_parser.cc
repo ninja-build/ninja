@@ -42,6 +42,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     char* out = in;
     // filename: start of the current parsed filename.
     char* filename = out;
+    bool is_space = false;
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
@@ -84,27 +85,31 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= '[') {
-        if (yych <= '$') {
+      if (yych <= 'Z') {
+        if (yych <= '#') {
           if (yych <= 0x00) goto yy7;
+          if (yych <= 0x1F) goto yy11;
           if (yych <= ' ') goto yy9;
-          if (yych <= '#') goto yy6;
-          goto yy4;
+          goto yy6;
         } else {
+          if (yych <= '$') goto yy4;
           if (yych <= '=') goto yy6;
-          if (yych <= '?') goto yy9;
-          if (yych <= 'Z') goto yy6;
-          goto yy9;
+          if (yych <= '?') goto yy11;
+          goto yy6;
         }
       } else {
-        if (yych <= '`') {
-          if (yych <= '\\') goto yy2;
-          if (yych == '_') goto yy6;
-          goto yy9;
+        if (yych <= '_') {
+          if (yych == '\\') goto yy2;
+          if (yych <= '^') goto yy11;
+          goto yy6;
         } else {
-          if (yych <= 'z') goto yy6;
-          if (yych == '~') goto yy6;
-          goto yy9;
+          if (yych <= 'z') {
+            if (yych <= '`') goto yy11;
+            goto yy6;
+          } else {
+            if (yych == '~') goto yy6;
+            goto yy11;
+          }
         }
       }
 yy2:
@@ -112,20 +117,20 @@ yy2:
       if ((yych = *in) <= '#') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy14;
+          if (yych <= '\t') goto yy16;
         } else {
-          if (yych == ' ') goto yy16;
-          if (yych <= '"') goto yy14;
-          goto yy16;
+          if (yych == ' ') goto yy18;
+          if (yych <= '"') goto yy16;
+          goto yy18;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych == '*') goto yy16;
-          goto yy14;
+          if (yych == '*') goto yy18;
+          goto yy16;
         } else {
-          if (yych <= '\\') goto yy16;
-          if (yych == '|') goto yy16;
-          goto yy14;
+          if (yych <= '\\') goto yy18;
+          if (yych == '|') goto yy18;
+          goto yy16;
         }
       }
 yy3:
@@ -136,8 +141,8 @@ yy3:
       }
 yy4:
       ++in;
-      if ((yych = *in) == '$') goto yy12;
-      goto yy11;
+      if ((yych = *in) == '$') goto yy14;
+      goto yy13;
 yy5:
       {
         // Got a span of plain text.
@@ -150,34 +155,48 @@ yy5:
       }
 yy6:
       yych = *++in;
-      goto yy11;
+      goto yy13;
 yy7:
       ++in;
       {
         break;
       }
 yy9:
+      ++in;
+      {
+        // track whitespace because it is allowed in target path
+        if (!parsing_targets)
+          break;
+        int len = (int)(in - start);
+        // Need to shift it over if we're overwriting backslashes.
+        if (out < start)
+          memmove(out, start, len);
+        out += len;
+        is_space = true;
+        break;
+      }
+yy11:
       yych = *++in;
       goto yy3;
-yy10:
-      ++in;
-      yych = *in;
-yy11:
-      if (yybm[0+yych] & 128) {
-        goto yy10;
-      }
-      goto yy5;
 yy12:
       ++in;
+      yych = *in;
+yy13:
+      if (yybm[0+yych] & 128) {
+        goto yy12;
+      }
+      goto yy5;
+yy14:
+      ++in;
       if (yybm[0+(yych = *in)] & 128) {
-        goto yy10;
+        goto yy12;
       }
       {
         // De-escape dollar character.
         *out++ = '$';
         continue;
       }
-yy14:
+yy16:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -185,7 +204,7 @@ yy14:
         *out++ = yych;
         continue;
       }
-yy16:
+yy18:
       ++in;
       {
         // De-escape backslashed character.
@@ -198,9 +217,14 @@ yy16:
 
     int len = (int)(out - filename);
     const bool is_target = parsing_targets;
-    if (len > 0 && filename[len - 1] == ':') {
-      len--;  // Strip off trailing colon, if any.
-      parsing_targets = false;
+    if (len > 0) {
+      if (filename[len - 1] == ':') {
+        len--;  // Strip off trailing colon, if any.
+        parsing_targets = false;
+      } else if (len > 1 && filename[len - 2] == ':') {
+        len -= 2;  // Strip off trailing colon, if any.
+        parsing_targets = false;
+      }
     }
 
     if (len == 0)
@@ -211,8 +235,12 @@ yy16:
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
-      return false;
+      if (is_space) {
+        out_ = StringPiece(out_.str_, out_.len_ + len);
+      } else {
+        *err = "depfile has multiple output paths.";
+        return false;
+      }
     }
   }
   return true;
