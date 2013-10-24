@@ -41,6 +41,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     char* out = in;
     // filename: start of the current parsed filename.
     char* filename = out;
+    bool is_space = false;
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
@@ -85,6 +86,18 @@ bool DepfileParser::Parse(string* content, string* err) {
       nul {
         break;
       }
+      ' ' {
+        // track whitespace because it is allowed in target path
+        if (!parsing_targets)
+          break;
+        int len = (int)(in - start);
+        // Need to shift it over if we're overwriting backslashes.
+        if (out < start)
+          memmove(out, start, len);
+        out += len;
+        is_space = true;
+        break;
+      }
       [^] {
         // For any other character (e.g. whitespace), swallow it here,
         // allowing the outer logic to loop around again.
@@ -95,9 +108,14 @@ bool DepfileParser::Parse(string* content, string* err) {
 
     int len = (int)(out - filename);
     const bool is_target = parsing_targets;
-    if (len > 0 && filename[len - 1] == ':') {
-      len--;  // Strip off trailing colon, if any.
-      parsing_targets = false;
+    if (len > 0) {
+      if (filename[len - 1] == ':') {
+        len--;  // Strip off trailing colon, if any.
+        parsing_targets = false;
+      } else if (len > 1 && filename[len - 2] == ':') {
+        len -= 2;  // Strip off trailing colon, if any.
+        parsing_targets = false;
+      }
     }
 
     if (len == 0)
@@ -108,8 +126,12 @@ bool DepfileParser::Parse(string* content, string* err) {
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
-      return false;
+      if (is_space) {
+        out_ = StringPiece(out_.str_, out_.len_ + len);
+      } else {
+        *err = "depfile has multiple output paths.";
+        return false;
+      }
     }
   }
   return true;
