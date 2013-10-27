@@ -762,6 +762,21 @@ TEST_F(ParserTest, MissingSubNinja) {
             , err);
 }
 
+TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
+  // Test that rules live in a global namespace and aren't scoped to subninjas.
+  files_["test.ninja"] = "rule cat\n"
+                         "  command = cat\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                "  command = cat\n"
+                                "subninja test.ninja\n", &err));
+  EXPECT_EQ("test.ninja:1: duplicate rule 'cat'\n"
+            "rule cat\n"
+            "        ^ near here"
+            , err);
+}
+
 TEST_F(ParserTest, Include) {
   files_["include.ninja"] = "var = inner\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
