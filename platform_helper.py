@@ -62,7 +62,7 @@ class Platform(object):
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
-        return '/FS ' in out
+        return '/FS ' in out.decode("utf-8", "ignore")
 
     def is_windows(self):
         return self.is_mingw() or self.is_msvc()
