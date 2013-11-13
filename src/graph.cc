@@ -85,6 +85,10 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
       }
     }
 
+    // Ignore dirty order-only inputs if normal (and implicit) inputs are clean
+    if (edge->is_order_only(i - edge->inputs_.begin()) && edge->outputs_ready_)
+      continue;
+
     // If an input is not ready, neither are our outputs.
     if (Edge* in_edge = (*i)->in_edge()) {
       if (!in_edge->outputs_ready_)

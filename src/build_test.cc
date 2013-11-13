@@ -865,11 +865,12 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
-TEST_F(BuildTest, RebuildOrderOnlyDeps) {
+TEST_F(BuildTest, DontRebuildOrderOnlyDeps) {
+  // Verify that we don't rebuild order-only deps on each and every occasion.
+  // They should only be rebuilt if we are going to compile main target
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n"
-"rule true\n  command = true\n"
 "build oo.h: cc oo.h.in\n"
 "build foo.o: cc foo.c || oo.h\n"));
 
@@ -889,27 +890,118 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
-  // order-only dep missing, build it only.
-  fs_.RemoveFile("oo.h");
-  command_runner_.commands_ran_.clear();
-  state_.Reset();
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ("", err);
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
-
+  // foo.c && order-only deps dirty, rebuild both.
   fs_.Tick();
-
-  // order-only dep dirty, build it only.
+  fs_.Create("foo.c", "");
   fs_.Create("oo.h.in", "");
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
+  ASSERT_EQ("cc foo.c", command_runner_.commands_ran_[1]);
+
+  // foo.c dirty, order-only deps missing; rebuild both.
+  fs_.Tick();
+  fs_.Create("foo.c", "");
+  fs_.RemoveFile("oo.h");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
+  ASSERT_EQ("cc foo.c", command_runner_.commands_ran_[1]);
+
+  // order-only dep dirty, foo.c up to date; do nothing.
+  fs_.Tick();
+  fs_.Create("oo.h.in", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // order-only dep missing, foo.c up to date; do nothing.
+  fs_.Tick();
+  fs_.RemoveFile("oo.h");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
+TEST_F(BuildTest, RebuildOrderOnlyViaDepfile) {
+  // Verify that implicit (depfile) dependencies correctly override order-only deps
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  depfile = $out.d\n  command = cc $in\n"
+"build oo.h: cat oo.h.in\n"
+"build o2.h: cat o2.h.in\n"
+"build foo.o: cc foo.c || oo.h o2.h\n"));
+
+  fs_.Create("foo.c", "");
+  fs_.Create("foo.o.d", "foo.o: oo.h\n");
+  fs_.Create("oo.h.in", "");
+  fs_.Create("o2.h.in", "");
+
+  // foo.o and order-only dep dirty, build both.
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+
+  // all clean, no rebuild.
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // oo.h is dirty, rebuild due to depfile dependency.
+  fs_.Tick();
+  fs_.Create("oo.h.in", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cat oo.h.in > oo.h", command_runner_.commands_ran_[0]);
+  ASSERT_EQ("cc foo.c", command_runner_.commands_ran_[1]);
+
+  // o2.h is dirty, foo.c is up to date; do nothing.
+  fs_.Tick();
+  fs_.Create("o2.h.in", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  // o2.h is dirty, foo.c is dirty; rebuild both of them.
+  // Reason: rebuilding foo.c might introduce implicit dependency on o2.h
+  fs_.Tick();
+  fs_.Create("o2.h.in", "");
+  fs_.Create("foo.c", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // both oo.h and o2.h are dirty, rebuild everything.
+  fs_.Tick();
+  fs_.Create("oo.h.in", "");
+  fs_.Create("o2.h.in", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, Phony) {
