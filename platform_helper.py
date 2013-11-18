@@ -58,7 +58,7 @@ class Platform(object):
 
     def msvc_needs_fs(self):
         import subprocess
-        popen = subprocess.Popen('cl /nologo /?',
+        popen = subprocess.Popen(['cl', '/nologo', '/?'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
