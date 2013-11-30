@@ -250,16 +250,13 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
                              char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
-    if (!result.empty())
-      result.push_back(sep);
+    if (!result.empty()) result.push_back(sep);
     const string& path = (*i)->path();
-    if (path.find(" ") != string::npos) {
-      result.append("\"");
-      result.append(path);
-      result.append("\"");
-    } else {
-      result.append(path);
-    }
+#if _WIN32
+    GetWin32EscapedString(path, &result);
+#else
+    GetShellEscapedString(path, &result);
+#endif
   }
   return result;
 }
