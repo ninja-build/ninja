@@ -79,6 +79,8 @@ struct BuildLog {
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }
 
+  void FilesMustExist(bool value) { files_must_exist_ = value; }
+
  private:
   void ClearEntries();
 
@@ -89,7 +91,7 @@ struct BuildLog {
   DiskInterface* disk_interface_;
   /// Controls whether output files are tested for existence,
   /// before adding a corresponding log entry.
-  const bool files_must_exist_;
+  bool files_must_exist_;
 };
 
 #endif // NINJA_BUILD_LOG_H_
