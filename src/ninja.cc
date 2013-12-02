@@ -70,7 +70,8 @@ struct Options {
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config) {}
+      ninja_command_(ninja_command), config_(config),
+      disk_interface_(), build_log_(&disk_interface_) {}
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -130,6 +131,14 @@ struct NinjaMain {
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
   bool RebuildManifest(const char* input_file, string* err);
+
+  /// Remove all previously declared outputs that are no longer produced
+  /// or referenced.  Performed by diffing build log with current build graph.
+  /// @return Number of stale outputs removed.
+  int RemoveOrphanedOutputs();
+
+  /// Recompact build log, then reopen for normal writing.
+  bool RecompactAndReopenBuildLog();
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -805,6 +814,14 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
   return true;
 }
 
+bool NinjaMain::RecompactAndReopenBuildLog() {
+  if (!OpenBuildLog(true))
+    return false;
+  if (!OpenBuildLog())
+    return false;
+  return true;
+}
+
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
 bool NinjaMain::OpenDepsLog(bool recompact_only) {
@@ -860,6 +877,27 @@ bool NinjaMain::EnsureBuildDirExists() {
     }
   }
   return true;
+}
+
+int NinjaMain::RemoveOrphanedOutputs() {
+  int unlink_count = 0;
+  for (BuildLog::Entries::const_iterator i = build_log_.entries().begin();
+       i != build_log_.entries().end(); ++i) {
+    const BuildLog::LogEntry* log_entry = i->second;
+    const Node* node = state_.LookupNode(log_entry->output);
+    if (node) {
+      continue; // file is still referenced
+    }
+
+    if (config_.verbosity == BuildConfig::VERBOSE) {
+      printf("ninja removing orphaned output: %s\n", log_entry->output.c_str());
+    }
+    if (!config_.dry_run) {
+      disk_interface_.RemoveFile(log_entry->output.c_str());
+      unlink_count++;
+    }
+  }
+  return unlink_count;
 }
 
 int NinjaMain::RunBuild(int argc, char** argv) {
@@ -1071,6 +1109,12 @@ int real_main(int argc, char** argv) {
         Error("rebuilding '%s': %s", options.input_file, err.c_str());
         return 1;
       }
+    }
+
+    int unlink_count = ninja.RemoveOrphanedOutputs();
+    if (unlink_count) {
+      if (!ninja.RecompactAndReopenBuildLog())
+        return 1;
     }
 
     int result = ninja.RunBuild(argc, argv);

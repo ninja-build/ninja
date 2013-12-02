@@ -28,6 +28,7 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
+#include "disk_interface.h"
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -101,8 +102,9 @@ BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
     start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
 {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog(DiskInterface* disk_interface)
+  : log_file_(NULL), needs_recompaction_(false),
+    disk_interface_(disk_interface) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -113,6 +115,8 @@ bool BuildLog::OpenForWrite(const string& path, string* err) {
     if (!Recompact(path, err))
       return false;
   }
+
+  Close();
 
   log_file_ = fopen(path.c_str(), "ab");
   if (!log_file_) {
@@ -231,6 +235,8 @@ bool BuildLog::Load(const string& path, string* err) {
     return false;
   }
 
+  ClearEntries();
+
   int log_version = 0;
   int unique_entry_count = 0;
   int total_entry_count = 0;
@@ -345,6 +351,10 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+  const TimeStamp mtime = disk_interface_->Stat(entry.output);
+  if (mtime == 0) {
+    return true; // don't record non-existent files
+  }
   return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
           entry.output.c_str(), entry.command_hash) > 0;
@@ -369,6 +379,10 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    const TimeStamp mtime = disk_interface_->Stat(i->second->output);
+    if (mtime == 0) {
+      continue; // skip non-existent files; could be an orphaned output
+    }
     if (!WriteEntry(f, *i->second)) {
       *err = strerror(errno);
       fclose(f);
@@ -387,5 +401,14 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
+  needs_recompaction_ = false;
   return true;
+}
+
+void BuildLog::ClearEntries()
+{
+  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    delete i->second;
+  }
+  entries_.clear();
 }

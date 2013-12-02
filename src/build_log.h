@@ -24,6 +24,7 @@ using namespace std;
 #include "util.h"  // uint64_t
 
 struct Edge;
+struct DiskInterface;
 
 /// Store a log of every command ran for every build.
 /// It has a few uses:
@@ -33,7 +34,7 @@ struct Edge;
 /// 2) timing information, perhaps for generating reports
 /// 3) restat information
 struct BuildLog {
-  BuildLog();
+  BuildLog(DiskInterface* disk_interface);
   ~BuildLog();
 
   bool OpenForWrite(const string& path, string* err);
@@ -78,9 +79,13 @@ struct BuildLog {
   const Entries& entries() const { return entries_; }
 
  private:
+  void ClearEntries();
+
+ private:
   Entries entries_;
   FILE* log_file_;
   bool needs_recompaction_;
+  DiskInterface* disk_interface_;
 };
 
 #endif // NINJA_BUILD_LOG_H_
