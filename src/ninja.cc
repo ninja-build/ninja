@@ -135,7 +135,7 @@ struct NinjaMain {
   /// Remove all previously declared outputs that are no longer produced
   /// or referenced.  Performed by diffing build log with current build graph.
   /// @return Number of stale outputs removed.
-  int RemoveOrphanedOutputs();
+  int RemoveAbandonedOutputs();
 
   /// Recompact build log, then reopen for normal writing.
   bool RecompactAndReopenBuildLog();
@@ -879,7 +879,7 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RemoveOrphanedOutputs() {
+int NinjaMain::RemoveAbandonedOutputs() {
   int unlink_count = 0;
   for (BuildLog::Entries::const_iterator i = build_log_.entries().begin();
        i != build_log_.entries().end(); ++i) {
@@ -890,7 +890,7 @@ int NinjaMain::RemoveOrphanedOutputs() {
     }
 
     if (config_.verbosity == BuildConfig::VERBOSE) {
-      printf("ninja removing orphaned output: %s\n", log_entry->output.c_str());
+      printf("ninja removing abandoned output: %s\n", log_entry->output.c_str());
     }
     if (!config_.dry_run) {
       disk_interface_.RemoveFile(log_entry->output.c_str());
@@ -1111,7 +1111,7 @@ int real_main(int argc, char** argv) {
       }
     }
 
-    int unlink_count = ninja.RemoveOrphanedOutputs();
+    int unlink_count = ninja.RemoveAbandonedOutputs();
     if (unlink_count) {
       if (!ninja.RecompactAndReopenBuildLog())
         return 1;
