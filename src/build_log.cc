@@ -102,9 +102,10 @@ BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
     start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
 {}
 
-BuildLog::BuildLog(DiskInterface* disk_interface)
+BuildLog::BuildLog(DiskInterface* disk_interface, bool files_must_exist)
   : log_file_(NULL), needs_recompaction_(false),
-    disk_interface_(disk_interface) {}
+    disk_interface_(disk_interface),
+    files_must_exist_(files_must_exist) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -351,9 +352,11 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  const TimeStamp mtime = disk_interface_->Stat(entry.output);
-  if (mtime == 0) {
-    return true; // don't record non-existent files
+  if (files_must_exist_) {
+    const TimeStamp mtime = disk_interface_->Stat(entry.output);
+    if (mtime == 0) {
+      return true; // don't record non-existent files
+    }
   }
   return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.restat_mtime,
@@ -379,10 +382,6 @@ bool BuildLog::Recompact(const string& path, string* err) {
   }
 
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    const TimeStamp mtime = disk_interface_->Stat(i->second->output);
-    if (mtime == 0) {
-      continue; // skip non-existent files; could be an orphaned output
-    }
     if (!WriteEntry(f, *i->second)) {
       *err = strerror(errno);
       fclose(f);

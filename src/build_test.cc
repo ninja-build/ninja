@@ -466,7 +466,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   AssertParse(&state, manifest);
 
   string err;
-  BuildLog build_log, *pbuild_log = NULL;
+  BuildLog build_log(&fs_), *pbuild_log = NULL;
   if (log_path) {
     ASSERT_TRUE(build_log.Load(log_path, &err));
     ASSERT_TRUE(build_log.OpenForWrite(log_path, &err));
@@ -1000,7 +1000,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
 }
 
 struct BuildWithLogTest : public BuildTest {
-  BuildWithLogTest() {
+  BuildWithLogTest() : build_log_(&fs_) {
     builder_.SetBuildLog(&build_log_);
   }
 

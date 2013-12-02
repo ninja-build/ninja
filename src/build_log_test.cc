@@ -38,6 +38,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void TearDown() {
     unlink(kTestFilename);
   }
+  VirtualFileSystem fs_;
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -45,7 +46,7 @@ TEST_F(BuildLogTest, WriteRead) {
 "build out: cat mid\n"
 "build mid: cat in\n");
 
-  BuildLog log1;
+  BuildLog log1(&fs_, false);
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -53,7 +54,7 @@ TEST_F(BuildLogTest, WriteRead) {
   log1.RecordCommand(state_.edges_[1], 20, 25);
   log1.Close();
 
-  BuildLog log2;
+  BuildLog log2(&fs_, false);
   EXPECT_TRUE(log2.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
@@ -72,7 +73,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   const char kExpectedVersion[] = "# ninja log vX\n";
   const size_t kVersionPos = strlen(kExpectedVersion) - 2;  // Points at 'X'.
 
-  BuildLog log;
+  BuildLog log(&fs_, false);
   string contents, err;
 
   EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -106,7 +107,7 @@ TEST_F(BuildLogTest, DoubleEntry) {
   fclose(f);
 
   string err;
-  BuildLog log;
+  BuildLog log(&fs_, false);
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
@@ -120,7 +121,7 @@ TEST_F(BuildLogTest, Truncate) {
 "build out: cat mid\n"
 "build mid: cat in\n");
 
-  BuildLog log1;
+  BuildLog log1(&fs_, false);
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -135,7 +136,7 @@ TEST_F(BuildLogTest, Truncate) {
   // For all possible truncations of the input file, assert that we don't
   // crash when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
-    BuildLog log2;
+    BuildLog log2(&fs_, false);
     string err;
     EXPECT_TRUE(log2.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
@@ -145,7 +146,7 @@ TEST_F(BuildLogTest, Truncate) {
 
     ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 
-    BuildLog log3;
+    BuildLog log3(&fs_, false);
     err.clear();
     ASSERT_TRUE(log3.Load(kTestFilename, &err) || !err.empty());
   }
@@ -158,7 +159,7 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
   fclose(f);
 
   string err;
-  BuildLog log;
+  BuildLog log(&fs_, false);
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_NE(err.find("version"), string::npos);
 }
@@ -170,7 +171,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   fclose(f);
 
   string err;
-  BuildLog log;
+  BuildLog log(&fs_, false);
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
@@ -194,7 +195,7 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   fclose(f);
 
   string err;
-  BuildLog log;
+  BuildLog log(&fs_, false);
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
@@ -226,7 +227,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   fclose(f);
 
   string err;
-  BuildLog log;
+  BuildLog log(&fs_, false);
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
@@ -245,7 +246,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
   AssertParse(&state_,
 "build out out.d: cat\n");
 
-  BuildLog log;
+  BuildLog log(&fs_, false);
   log.RecordCommand(state_.edges_[0], 21, 22);
 
   ASSERT_EQ(2u, log.entries().size());
@@ -259,6 +260,48 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
   ASSERT_EQ(21, e2->start_time);
   ASSERT_EQ(22, e2->end_time);
   ASSERT_EQ(22, e2->end_time);
+}
+
+TEST_F(BuildLogTest, EmitExistentFiles) {
+  AssertParse(&state_,
+"build out1: cat\n"
+"build out2: cat\n"
+"build out3: cat in3\n");
+
+  // Emulate 2 files being written to disk.
+  VirtualFileSystem fs;
+  fs.Create("out1", "");
+  fs.Create("out2", "");
+  BuildLog log1(&fs, true);
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  log1.RecordCommand(state_.edges_[0], 21, 22);
+  log1.RecordCommand(state_.edges_[1], 23, 24);
+  log1.RecordCommand(state_.edges_[2], 25, 26);
+  ASSERT_EQ(3u, log1.entries().size());
+  BuildLog::LogEntry* e1 = log1.LookupByOutput("out1");
+  ASSERT_TRUE(e1);
+  ASSERT_EQ(21, e1->start_time);
+  BuildLog::LogEntry* e2 = log1.LookupByOutput("out2");
+  ASSERT_TRUE(e2);
+  ASSERT_EQ(23, e2->start_time);
+  BuildLog::LogEntry* e3 = log1.LookupByOutput("out3");
+  ASSERT_TRUE(e3);
+  ASSERT_EQ(25, e3->start_time);
+  log1.Close();
+
+  // All entries in the log must be in the (virtual) disk.
+  BuildLog log2(&fs, true);
+  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  ASSERT_EQ(2u, log2.entries().size());
+  e1 = log2.LookupByOutput("out1");
+  ASSERT_TRUE(e1);
+  ASSERT_EQ(21, e1->start_time);
+  e2 = log2.LookupByOutput("out2");
+  ASSERT_TRUE(e2);
+  ASSERT_EQ(23, e2->start_time);
+  e3 = log2.LookupByOutput("out3");
+  ASSERT_FALSE(e3);
 }
 
 }  // anonymous namespace

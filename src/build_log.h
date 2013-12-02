@@ -34,7 +34,8 @@ struct DiskInterface;
 /// 2) timing information, perhaps for generating reports
 /// 3) restat information
 struct BuildLog {
-  BuildLog(DiskInterface* disk_interface);
+  BuildLog(DiskInterface* disk_interface,
+           bool files_must_exist = true);
   ~BuildLog();
 
   bool OpenForWrite(const string& path, string* err);
@@ -86,6 +87,9 @@ struct BuildLog {
   FILE* log_file_;
   bool needs_recompaction_;
   DiskInterface* disk_interface_;
+  /// Controls whether output files are tested for existence,
+  /// before adding a corresponding log entry.
+  const bool files_must_exist_;
 };
 
 #endif // NINJA_BUILD_LOG_H_
