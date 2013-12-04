@@ -35,7 +35,7 @@ struct DiskInterface;
 /// 3) restat information
 struct BuildLog {
   BuildLog(DiskInterface* disk_interface,
-           bool files_must_exist = true);
+           bool files_must_exist = false);
   ~BuildLog();
 
   bool OpenForWrite(const string& path, string* err);

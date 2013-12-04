@@ -135,10 +135,7 @@ struct NinjaMain {
   /// Remove all previously declared outputs that are no longer produced
   /// or referenced.  Performed by diffing build log with current build graph.
   /// @return Number of stale outputs removed.
-  int RemoveAbandonedOutputs();
-
-  /// Recompact build log, then reopen for normal writing.
-  bool RecompactAndReopenBuildLog();
+  void RemoveAbandonedOutputs(const char* input_file);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -818,14 +815,6 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
   return true;
 }
 
-bool NinjaMain::RecompactAndReopenBuildLog() {
-  if (!OpenBuildLog(true))
-    return false;
-  if (!OpenBuildLog())
-    return false;
-  return true;
-}
-
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
 bool NinjaMain::OpenDepsLog(bool recompact_only) {
@@ -883,7 +872,15 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RemoveAbandonedOutputs() {
+void NinjaMain::RemoveAbandonedOutputs(const char* input_file) {
+  // TimeStamp comparison defends against CTRL+C during RebuildManifest.
+  TimeStamp regen_mtime = disk_interface_.Stat(".ninja_regen");
+  TimeStamp input_mtime = disk_interface_.Stat(input_file);
+  bool manifest_rebuilt = (regen_mtime < input_mtime);
+  if (!manifest_rebuilt) {
+    return;
+  }
+
   int unlink_count = 0;
   for (BuildLog::Entries::const_iterator i = build_log_.entries().begin();
        i != build_log_.entries().end(); ++i) {
@@ -894,14 +891,24 @@ int NinjaMain::RemoveAbandonedOutputs() {
     }
 
     if (config_.verbosity == BuildConfig::VERBOSE) {
-      printf("ninja removing abandoned output: %s\n", log_entry->output.c_str());
+      printf("ninja rm abandoned output: %s\n", log_entry->output.c_str());
     }
     if (!config_.dry_run) {
       disk_interface_.RemoveFile(log_entry->output.c_str());
       unlink_count++;
     }
   }
-  return unlink_count;
+
+  if (unlink_count) {
+    // remove abandoned outputs from the build log file
+    build_log_.FilesMustExist(true);
+    OpenBuildLog(true);
+    build_log_.FilesMustExist(false);
+    // re-open the build log normally, making it usable for build
+    OpenBuildLog();
+  }
+
+  disk_interface_.WriteFile(".ninja_regen", "");
 }
 
 int NinjaMain::RunBuild(int argc, char** argv) {
@@ -1115,11 +1122,7 @@ int real_main(int argc, char** argv) {
       }
     }
 
-    int unlink_count = ninja.RemoveAbandonedOutputs();
-    if (unlink_count) {
-      if (!ninja.RecompactAndReopenBuildLog())
-        return 1;
-    }
+    ninja.RemoveAbandonedOutputs(options.input_file);
 
     int result = ninja.RunBuild(argc, argv);
     if (g_metrics)
