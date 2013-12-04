@@ -653,10 +653,6 @@ int NinjaMain::ToolRecompact(int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  // Make recompacting non-destructive, so that abandoned outputs can
-  // still be removed upon the next build.
-  build_log_.FilesMustExist(false);
-
   if (!OpenBuildLog(/*recompact_only=*/true) ||
       !OpenDepsLog(/*recompact_only=*/true))
     return 1;
