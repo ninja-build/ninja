@@ -21,6 +21,7 @@
 #include "state.h"
 #include "util.h"
 #include "metrics.h"
+#include "disk_interface.h"
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -29,7 +30,8 @@
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 bool WriteTestData(string* err) {
-  BuildLog log;
+  RealDiskInterface fs;
+  BuildLog log(&fs);
 
   if (!log.OpenForWrite(kTestFilename, err))
     return false;
@@ -104,7 +106,8 @@ int main() {
 
   {
     // Read once to warm up disk cache.
-    BuildLog log;
+    RealDiskInterface fs;
+    BuildLog log(&fs);
     if (!log.Load(kTestFilename, &err)) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
@@ -113,7 +116,8 @@ int main() {
   const int kNumRepetitions = 5;
   for (int i = 0; i < kNumRepetitions; ++i) {
     int64_t start = GetTimeMillis();
-    BuildLog log;
+    RealDiskInterface fs;
+    BuildLog log(&fs);
     if (!log.Load(kTestFilename, &err)) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
