@@ -357,3 +357,19 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
+string BaseName(const char* path, size_t length)
+{
+  size_t i = length;
+  while (i --> 0) {
+    if (path[i] == '/' || path[i] == '\\') {
+      break;
+    }
+  }
+  return string(&path[i+1]);
+}
+
+string BaseName(const char* path)
+{
+  return BaseName(path, strlen(path));
+}

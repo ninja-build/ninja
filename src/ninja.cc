@@ -69,15 +69,20 @@ struct Options {
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain {
-  NinjaMain(const char* ninja_command, const BuildConfig& config) :
+  NinjaMain(const char* ninja_command, const BuildConfig& config,
+            const char* input_file) :
       ninja_command_(ninja_command), config_(config),
-      disk_interface_(), build_log_(&disk_interface_) {}
+      input_file_(input_file), disk_interface_(),
+      build_log_(&disk_interface_) {}
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
 
   /// Build configuration set from flags (e.g. parallelism).
   const BuildConfig& config_;
+
+  /// The input file, e.g. "build.ninja".
+  const char* input_file_;
 
   /// Loaded state (rules, nodes).
   State state_;
@@ -130,12 +135,12 @@ struct NinjaMain {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err);
+  bool RebuildManifest(string* err);
 
   /// Remove all previously declared outputs that are no longer produced
   /// or referenced.  Performed by diffing build log with current build graph.
   /// @return Number of stale outputs removed.
-  void RemoveAbandonedOutputs(const char* input_file);
+  void RemoveAbandonedOutputs();
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -220,8 +225,8 @@ struct RealFileReader : public ManifestParser::FileReader {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
-  string path = input_file;
+bool NinjaMain::RebuildManifest(string* err) {
+  string path = input_file_;
   if (!CanonicalizePath(&path, err))
     return false;
   Node* node = state_.LookupNode(path);
@@ -778,8 +783,19 @@ bool DebugEnable(const string& name) {
   }
 }
 
+static string MakePrivateFileName(const char* prefix, const char* refPath)
+{
+  if (!refPath || !*refPath || !strcmp(refPath, "build.ninja")) {
+    return string(prefix);
+  }
+  string fname = prefix;
+  fname += '-';
+  fname += BaseName(refPath);
+  return fname;
+}
+
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
-  string log_path = ".ninja_log";
+  string log_path = MakePrivateFileName(".ninja_log", input_file_);
   if (!build_dir_.empty())
     log_path = build_dir_ + "/" + log_path;
 
@@ -814,7 +830,7 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
 bool NinjaMain::OpenDepsLog(bool recompact_only) {
-  string path = ".ninja_deps";
+  string path = MakePrivateFileName(".ninja_deps", input_file_);
   if (!build_dir_.empty())
     path = build_dir_ + "/" + path;
 
@@ -868,10 +884,12 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-void NinjaMain::RemoveAbandonedOutputs(const char* input_file) {
+void NinjaMain::RemoveAbandonedOutputs() {
+  string regen_path = MakePrivateFileName(".ninja_regen", input_file_);
+
   // TimeStamp comparison defends against CTRL+C during RebuildManifest.
-  TimeStamp regen_mtime = disk_interface_.Stat(".ninja_regen");
-  TimeStamp input_mtime = disk_interface_.Stat(input_file);
+  TimeStamp regen_mtime = disk_interface_.Stat(regen_path);
+  TimeStamp input_mtime = disk_interface_.Stat(input_file_);
   bool manifest_rebuilt = (regen_mtime < input_mtime);
   if (!manifest_rebuilt) {
     return;
@@ -904,7 +922,7 @@ void NinjaMain::RemoveAbandonedOutputs(const char* input_file) {
     OpenBuildLog();
   }
 
-  disk_interface_.WriteFile(".ninja_regen", "");
+  disk_interface_.WriteFile(regen_path, "");
 }
 
 int NinjaMain::RunBuild(int argc, char** argv) {
@@ -1064,7 +1082,7 @@ int real_main(int argc, char** argv) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, config, options.input_file);
     return (ninja.*options.tool->func)(argc, argv);
   }
 
@@ -1084,7 +1102,7 @@ int real_main(int argc, char** argv) {
   // The build can take up to 2 passes: one to rebuild the manifest, then
   // another to build the desired target.
   for (int cycle = 0; cycle < 2; ++cycle) {
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, config, options.input_file);
 
     RealFileReader file_reader;
     ManifestParser parser(&ninja.state_, &file_reader);
@@ -1109,7 +1127,7 @@ int real_main(int argc, char** argv) {
     // The first time through, attempt to rebuild the manifest before
     // building anything else.
     if (cycle == 0) {
-      if (ninja.RebuildManifest(options.input_file, &err)) {
+      if (ninja.RebuildManifest(&err)) {
         // Start the build over with the new manifest.
         continue;
       } else if (!err.empty()) {
@@ -1118,7 +1136,7 @@ int real_main(int argc, char** argv) {
       }
     }
 
-    ninja.RemoveAbandonedOutputs(options.input_file);
+    ninja.RemoveAbandonedOutputs();
 
     int result = ninja.RunBuild(argc, argv);
     if (g_metrics)

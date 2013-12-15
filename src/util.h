@@ -79,6 +79,8 @@ string ElideMiddle(const string& str, size_t width);
 /// Truncates a file to the given size.
 bool Truncate(const string& path, size_t size, string* err);
 
+string BaseName(const char* path);
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
