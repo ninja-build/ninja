@@ -64,6 +64,9 @@ struct Options {
 
   /// Tool to run rather than building.
   const Tool* tool;
+
+  /// If true, remove outputs that are no longer produced.
+  bool remove_abandoned_outputs;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1064,6 +1067,7 @@ int ReadFlags(int* argc, char*** argv,
   *argv += optind;
   *argc -= optind;
 
+  options->remove_abandoned_outputs = !!getenv("NINJA_RAO");
   return -1;
 }
 
@@ -1136,7 +1140,9 @@ int real_main(int argc, char** argv) {
       }
     }
 
-    ninja.RemoveAbandonedOutputs();
+    if (options.remove_abandoned_outputs) {
+      ninja.RemoveAbandonedOutputs();
+    }
 
     int result = ninja.RunBuild(argc, argv);
     if (g_metrics)
