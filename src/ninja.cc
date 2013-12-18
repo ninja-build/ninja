@@ -198,6 +198,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  -r [N]   remove abandoned outputs [0=disable]\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -993,6 +994,7 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
+  options->remove_abandoned_outputs = !!getenv("NINJA_RAO");
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -1003,7 +1005,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:r::h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1058,6 +1060,18 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case 'r': {
+        if (!optarg) {
+          options->remove_abandoned_outputs = true;
+          break;
+        }
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0)
+          Fatal("-r parameter not numeric; did you mean -r 0?");
+        options->remove_abandoned_outputs = !!value;
+        break;
+      }
       case 'h':
       default:
         Usage(*config);
@@ -1067,7 +1081,6 @@ int ReadFlags(int* argc, char*** argv,
   *argv += optind;
   *argc -= optind;
 
-  options->remove_abandoned_outputs = !!getenv("NINJA_RAO");
   return -1;
 }
 
