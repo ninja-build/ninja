@@ -1069,6 +1069,8 @@ int ReadFlags(int* argc, char*** argv,
         int value = strtol(optarg, &end, 10);
         if (*end != 0)
           Fatal("-r parameter not numeric; did you mean -r 0?");
+        if (value != 0 && value != 1)
+          Fatal("-r parameter must be 0 or 1 if supplied");
         options->remove_abandoned_outputs = !!value;
         break;
       }
