@@ -25,6 +25,10 @@ using namespace std;
 
 struct Edge;
 
+struct IsDead {
+  virtual bool IsPathDead(StringPiece s) = 0;
+};
+
 /// Store a log of every command ran for every build.
 /// It has a few uses:
 ///
@@ -36,7 +40,7 @@ struct BuildLog {
   BuildLog();
   ~BuildLog();
 
-  bool OpenForWrite(const string& path, string* err);
+  bool OpenForWrite(const string& path, IsDead* is_dead, string* err);  // XXX
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp restat_mtime = 0);
   void Close();
@@ -72,7 +76,7 @@ struct BuildLog {
   bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const string& path, string* err);
+  bool Recompact(const string& path, IsDead* is_dead, string* err);  // XXX
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }

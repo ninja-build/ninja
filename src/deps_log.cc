@@ -325,6 +325,13 @@ bool DepsLog::Recompact(const string& path, string* err) {
     Deps* deps = deps_[old_id];
     if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
 
+    Node* n = nodes_[old_id];
+    Edge* e = n->in_edge();
+    // FIXME: move this condition to a helper: (also used in src/ninja.cc)
+    if (!e || e->GetBinding("deps").empty()) {
+      continue;
+    }
+
     if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
                             deps->node_count, deps->nodes)) {
       new_log.Close();

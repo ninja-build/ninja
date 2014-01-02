@@ -108,9 +108,9 @@ BuildLog::~BuildLog() {
   Close();
 }
 
-bool BuildLog::OpenForWrite(const string& path, string* err) {
+bool BuildLog::OpenForWrite(const string& path, IsDead* is_dead, string* err) {
   if (needs_recompaction_) {
-    if (!Recompact(path, err))
+    if (!Recompact(path, is_dead, err))
       return false;
   }
 
@@ -350,7 +350,7 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
-bool BuildLog::Recompact(const string& path, string* err) {
+bool BuildLog::Recompact(const string& path, IsDead* is_dead, string* err) {
   METRIC_RECORD(".ninja_log recompact");
   printf("Recompacting log...\n");
 
@@ -368,13 +368,22 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
+  vector<StringPiece> dead_outputs;
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    if (is_dead->IsPathDead(i->first)) {
+      dead_outputs.push_back(i->first);
+      continue;
+    }
+
     if (!WriteEntry(f, *i->second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
+
+  for (size_t i = 0; i < dead_outputs.size(); ++i)
+    entries_.erase(dead_outputs[i]);
 
   fclose(f);
   if (unlink(path.c_str()) < 0) {
