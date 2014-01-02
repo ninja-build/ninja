@@ -30,7 +30,7 @@ namespace {
 
 const char kTestFilename[] = "BuildLogTest-tempfile";
 
-struct BuildLogTest : public StateTestWithBuiltinRules {
+struct BuildLogTest : public StateTestWithBuiltinRules, public IsDead {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
@@ -38,6 +38,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules {
   virtual void TearDown() {
     unlink(kTestFilename);
   }
+  virtual bool IsPathDead(StringPiece s) { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -47,7 +48,7 @@ TEST_F(BuildLogTest, WriteRead) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
   log1.RecordCommand(state_.edges_[1], 20, 25);
@@ -75,7 +76,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   BuildLog log;
   string contents, err;
 
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
@@ -86,7 +87,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   EXPECT_EQ(kExpectedVersion, contents);
 
   // Opening the file anew shouldn't add a second version string.
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
@@ -122,7 +123,7 @@ TEST_F(BuildLogTest, Truncate) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
   log1.RecordCommand(state_.edges_[1], 20, 25);
@@ -137,7 +138,7 @@ TEST_F(BuildLogTest, Truncate) {
   for (off_t size = statbuf.st_size; size > 0; --size) {
     BuildLog log2;
     string err;
-    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, &err));
+    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, this, &err));
     ASSERT_EQ("", err);
     log2.RecordCommand(state_.edges_[0], 15, 18);
     log2.RecordCommand(state_.edges_[1], 20, 25);
