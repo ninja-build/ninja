@@ -163,10 +163,18 @@ TEST_F(DepsLogTest, DoubleEntry) {
 
 // Verify that adding the new deps works and can be compacted away.
 TEST_F(DepsLogTest, Recompact) {
+  const char kManifest[] =
+"rule cc\n"
+"  command = cc\n"
+"  deps = gcc\n"
+"build out.o: cc\n"
+"build other_out.o: cc\n";
+
   // Write some deps to the file and grab its size.
   int file_size;
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -194,6 +202,7 @@ TEST_F(DepsLogTest, Recompact) {
   int file_size_2;
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -217,6 +226,7 @@ TEST_F(DepsLogTest, Recompact) {
   // recompact.
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
