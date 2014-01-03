@@ -329,6 +329,12 @@ bool DepsLog::Recompact(const string& path, string* err) {
     Edge* e = n->in_edge();
     // FIXME: move this condition to a helper: (also used in src/ninja.cc)
     if (!e || e->GetBinding("deps").empty()) {
+      // Skip entries that don't have in-edges or whose edges don't have a
+      // "deps" attribute. They were in the deps log from previous builds, but
+      // the the files they were for were removed from the build and their deps
+      // entries are no longer needed.
+      // (Without the check for "deps", a chain of two or more nodes that each
+      // had deps wouldn't be collected in a single recompaction.)
       continue;
     }
 
