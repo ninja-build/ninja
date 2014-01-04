@@ -262,4 +262,44 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
   ASSERT_EQ(22, e2->end_time);
 }
 
+struct BuildLogRecompactTest : public BuildLogTest {
+  virtual bool IsPathDead(StringPiece s) { return s == "out2"; }
+};
+
+TEST_F(BuildLogRecompactTest, Recompact) {
+  AssertParse(&state_,
+"build out: cat in\n"
+"build out2: cat in\n");
+
+  BuildLog log1;
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
+  ASSERT_EQ("", err);
+  // Record the same edge several times, to trigger recompaction
+  // the next time the log is opened.
+  for (int i = 0; i < 200; ++i)
+    log1.RecordCommand(state_.edges_[0], 15, 18 + i);
+  log1.RecordCommand(state_.edges_[1], 21, 22);
+  log1.Close();
+
+  // Load...
+  BuildLog log2;
+  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, log2.entries().size());
+  ASSERT_TRUE(log2.LookupByOutput("out"));
+  ASSERT_TRUE(log2.LookupByOutput("out2"));
+  // ...and force a recompaction.
+  EXPECT_TRUE(log2.OpenForWrite(kTestFilename, this, &err));
+  log2.Close();
+
+  // "out2" is dead, it should've been removed.
+  BuildLog log3;
+  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, log2.entries().size());
+  ASSERT_TRUE(log2.LookupByOutput("out"));
+  ASSERT_FALSE(log2.LookupByOutput("out2"));
+}
+
 }  // anonymous namespace
