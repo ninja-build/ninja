@@ -325,18 +325,8 @@ bool DepsLog::Recompact(const string& path, string* err) {
     Deps* deps = deps_[old_id];
     if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
 
-    Node* n = nodes_[old_id];
-    Edge* e = n->in_edge();
-    // FIXME: move this condition to a helper: (also used in src/ninja.cc)
-    if (!e || e->GetBinding("deps").empty()) {
-      // Skip entries that don't have in-edges or whose edges don't have a
-      // "deps" attribute. They were in the deps log from previous builds, but
-      // the the files they were for were removed from the build and their deps
-      // entries are no longer needed.
-      // (Without the check for "deps", a chain of two or more nodes that each
-      // had deps wouldn't be collected in a single recompaction.)
+    if (!IsDepsEntryLiveFor(nodes_[old_id]))
       continue;
-    }
 
     if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
                             deps->node_count, deps->nodes)) {
@@ -362,6 +352,16 @@ bool DepsLog::Recompact(const string& path, string* err) {
   }
 
   return true;
+}
+
+bool DepsLog::IsDepsEntryLiveFor(Node* node) {
+  // Skip entries that don't have in-edges or whose edges don't have a
+  // "deps" attribute. They were in the deps log from previous builds, but
+  // the the files they were for were removed from the build and their deps
+  // entries are no longer needed.
+  // (Without the check for "deps", a chain of two or more nodes that each
+  // had deps wouldn't be collected in a single recompaction.)
+  return node->in_edge() && !node->in_edge()->GetBinding("deps").empty();
 }
 
 bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
