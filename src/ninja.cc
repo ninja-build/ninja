@@ -140,6 +140,13 @@ struct NinjaMain : public BuildLogUser {
 
   virtual bool IsPathDead(StringPiece s) {
     Node* n = state_.LookupNode(s);
+    // Just checking n isn't enough: If an old output is both in the build log
+    // and in the deps log, it will have a Node object in state_.  (It will also
+    // have an in edge if one of its inputs is another output that's in the deps
+    // log, but having a deps edge product an output thats input to another deps
+    // edge is rare, and the first recompaction will delete all old outputs from
+    // the deps log, and then a second recompaction will clear the build log,
+    // which seems good enough for this corner case.)
     return !n || !n->in_edge();
   }
 };
