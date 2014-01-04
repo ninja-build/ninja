@@ -28,10 +28,15 @@
 
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
+struct NoDeadPaths : public BuildLogUser {
+  virtual bool IsPathDead(StringPiece) { return false; }
+};
+
 bool WriteTestData(string* err) {
   BuildLog log;
 
-  if (!log.OpenForWrite(kTestFilename, err))
+  NoDeadPaths no_dead_paths;
+  if (!log.OpenForWrite(kTestFilename, no_dead_paths, err))
     return false;
 
   /*

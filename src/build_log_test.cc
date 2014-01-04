@@ -30,7 +30,7 @@ namespace {
 
 const char kTestFilename[] = "BuildLogTest-tempfile";
 
-struct BuildLogTest : public StateTestWithBuiltinRules, public IsDead {
+struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
@@ -48,7 +48,7 @@ TEST_F(BuildLogTest, WriteRead) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
   log1.RecordCommand(state_.edges_[1], 20, 25);
@@ -76,7 +76,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   BuildLog log;
   string contents, err;
 
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
@@ -87,7 +87,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   EXPECT_EQ(kExpectedVersion, contents);
 
   // Opening the file anew shouldn't add a second version string.
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
@@ -123,7 +123,7 @@ TEST_F(BuildLogTest, Truncate) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
   log1.RecordCommand(state_.edges_[1], 20, 25);
@@ -138,7 +138,7 @@ TEST_F(BuildLogTest, Truncate) {
   for (off_t size = statbuf.st_size; size > 0; --size) {
     BuildLog log2;
     string err;
-    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, this, &err));
+    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
     ASSERT_EQ("", err);
     log2.RecordCommand(state_.edges_[0], 15, 18);
     log2.RecordCommand(state_.edges_[1], 20, 25);
@@ -273,7 +273,7 @@ TEST_F(BuildLogRecompactTest, Recompact) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   // Record the same edge several times, to trigger recompaction
   // the next time the log is opened.
@@ -290,7 +290,7 @@ TEST_F(BuildLogRecompactTest, Recompact) {
   ASSERT_TRUE(log2.LookupByOutput("out"));
   ASSERT_TRUE(log2.LookupByOutput("out2"));
   // ...and force a recompaction.
-  EXPECT_TRUE(log2.OpenForWrite(kTestFilename, this, &err));
+  EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
   log2.Close();
 
   // "out2" is dead, it should've been removed.

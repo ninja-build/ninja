@@ -68,7 +68,7 @@ struct Options {
 
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
-struct NinjaMain : public IsDead {
+struct NinjaMain : public BuildLogUser {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
       ninja_command_(ninja_command), config_(config) {}
 
@@ -792,14 +792,14 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
   }
 
   if (recompact_only) {
-    bool success = build_log_.Recompact(log_path, this, &err);
+    bool success = build_log_.Recompact(log_path, *this, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path, this, &err)) {
+    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
       Error("opening build log: %s", err.c_str());
       return false;
     }
