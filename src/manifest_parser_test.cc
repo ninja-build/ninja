@@ -236,7 +236,11 @@ TEST_F(ParserTest, Dollars) {
 "build $x: foo y\n"
 ));
   EXPECT_EQ("$dollar", state.bindings_.LookupVariable("x"));
+#ifdef _WIN32
   EXPECT_EQ("$dollarbar$baz$blah", state.edges_[0]->EvaluateCommand());
+#else
+  EXPECT_EQ("'$dollar'bar$baz$blah", state.edges_[0]->EvaluateCommand());
+#endif
 }
 
 TEST_F(ParserTest, EscapeSpaces) {
