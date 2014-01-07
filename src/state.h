@@ -95,7 +95,7 @@ struct State {
   Edge* AddEdge(const Rule* rule);
 
   Node* GetNode(StringPiece path);
-  Node* LookupNode(StringPiece path);
+  Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path);

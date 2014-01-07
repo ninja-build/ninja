@@ -412,7 +412,7 @@ struct FakeCommandRunner : public CommandRunner {
   VirtualFileSystem* fs_;
 };
 
-struct BuildTest : public StateTestWithBuiltinRules {
+struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
                 builder_(&state_, config_, NULL, NULL, &fs_),
                 status_(config_) {
@@ -434,6 +434,8 @@ struct BuildTest : public StateTestWithBuiltinRules {
   ~BuildTest() {
     builder_.command_runner_.release();
   }
+
+  virtual bool IsPathDead(StringPiece s) const { return false; }
 
   /// Rebuild target in the 'working tree' (fs_).
   /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
@@ -469,7 +471,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   BuildLog build_log, *pbuild_log = NULL;
   if (log_path) {
     ASSERT_TRUE(build_log.Load(log_path, &err));
-    ASSERT_TRUE(build_log.OpenForWrite(log_path, &err));
+    ASSERT_TRUE(build_log.OpenForWrite(log_path, *this, &err));
     ASSERT_EQ("", err);
     pbuild_log = &build_log;
   }
