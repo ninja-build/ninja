@@ -138,7 +138,7 @@ struct NinjaMain : public BuildLogUser {
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
 
-  virtual bool IsPathDead(StringPiece s) {
+  virtual bool IsPathDead(StringPiece s) const {
     Node* n = state_.LookupNode(s);
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
