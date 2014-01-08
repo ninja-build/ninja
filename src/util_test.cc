@@ -159,6 +159,14 @@ TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
   EXPECT_EQ(path, result);
 }
 
+TEST(PathEscaping, SensibleWin32PathsAreNotNeedlesslyEscaped) {
+  const char* path = "some\\sensible\\path\\without\\crazy\\characters.cc";
+  string result;
+
+  GetWin32EscapedString(path, &result);
+  EXPECT_EQ(path, result);
+}
+
 TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
   string stripped = StripAnsiEscapeCodes("foo\33");
   EXPECT_EQ("foo", stripped);
