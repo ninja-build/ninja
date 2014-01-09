@@ -194,7 +194,6 @@ static inline bool IsKnownShellSafeCharacter(char ch) {
 
 static inline bool IsKnownWin32SafeCharacter(char ch) {
   switch (ch) {
-    case '\\':
     case ' ':
     case '"':
       return false;
