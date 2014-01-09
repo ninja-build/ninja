@@ -328,7 +328,10 @@ if options.with_gtest:
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform.is_msvc():
-        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 ' + gtest_all_incs
+        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 '
+        if platform.msvc_needs_fs():
+          gtest_cflags += '/FS '
+        gtest_cflags += gtest_all_incs
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
