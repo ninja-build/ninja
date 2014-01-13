@@ -1,4 +1,5 @@
 *.pyc
+*.obj
 *.exe
 *.pdb
 *.ilk
