@@ -137,3 +137,30 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
 }
+
+TEST_F(DepfileParserTest, UnifyMultipleRules) {
+  string err;
+  EXPECT_TRUE(Parse(
+"foo.o: foo.cpp\n"
+"foo.o: foo.h\n"
+"foo.o: bar.h\n"
+"foo.o: hoge/foobar.h\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("foo.o",
+            parser_.out_.AsString());
+  ASSERT_EQ(parser_.ins_.size(), 4u);
+  EXPECT_EQ("foo.cpp", parser_.ins_[0].AsString());
+  EXPECT_EQ("foo.h", parser_.ins_[1].AsString());
+  EXPECT_EQ("bar.h", parser_.ins_[2].AsString());
+  EXPECT_EQ("hoge/foobar.h", parser_.ins_[3].AsString());
+}
+
+TEST_F(DepfileParserTest, RejectMultipleRulesDifferentOutputs) {
+  string err;
+  EXPECT_FALSE(Parse(
+"foo.o: foo.cpp\n"
+"bar.o: bar.h\n"
+"hoge.o: hoge/foobar.h\n",
+      &err));
+}

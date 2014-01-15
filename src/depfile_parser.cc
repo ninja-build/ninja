@@ -33,9 +33,11 @@ bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
+  // new_target: whether we should start parsing targets again next iteration.
   char* in = &(*content)[0];
   char* end = in + content->size();
   bool parsing_targets = true;
+  bool new_target = false;
   while (in < end) {
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
@@ -84,42 +86,43 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= '=') {
-        if (yych <= '$') {
-          if (yych <= ' ') {
+      if (yych <= '<') {
+        if (yych <= '#') {
+          if (yych <= '\n') {
             if (yych <= 0x00) goto yy7;
+            if (yych <= '\t') goto yy10;
             goto yy9;
           } else {
-            if (yych <= '!') goto yy5;
-            if (yych <= '#') goto yy9;
-            goto yy4;
+            if (yych == '!') goto yy5;
+            goto yy10;
           }
         } else {
-          if (yych <= '*') {
-            if (yych <= '\'') goto yy9;
-            if (yych <= ')') goto yy5;
-            goto yy9;
-          } else {
-            if (yych <= ':') goto yy5;
-            if (yych <= '<') goto yy9;
+          if (yych <= ')') {
+            if (yych <= '$') goto yy4;
+            if (yych <= '\'') goto yy10;
             goto yy5;
+          } else {
+            if (yych <= '*') goto yy10;
+            if (yych <= ':') goto yy5;
+            goto yy10;
           }
         }
       } else {
         if (yych <= '^') {
           if (yych <= 'Z') {
-            if (yych <= '?') goto yy9;
+            if (yych <= '=') goto yy5;
+            if (yych <= '?') goto yy10;
             goto yy5;
           } else {
-            if (yych != '\\') goto yy9;
+            if (yych != '\\') goto yy10;
           }
         } else {
           if (yych <= 'z') {
-            if (yych == '`') goto yy9;
+            if (yych == '`') goto yy10;
             goto yy5;
           } else {
             if (yych == '~') goto yy5;
-            goto yy9;
+            goto yy10;
           }
         }
       }
@@ -127,20 +130,20 @@ bool DepfileParser::Parse(string* content, string* err) {
       if ((yych = *in) <= '#') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy14;
+          if (yych <= '\t') goto yy17;
         } else {
-          if (yych == ' ') goto yy16;
-          if (yych <= '"') goto yy14;
-          goto yy16;
+          if (yych == ' ') goto yy19;
+          if (yych <= '"') goto yy17;
+          goto yy19;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych == '*') goto yy16;
-          goto yy14;
+          if (yych == '*') goto yy19;
+          goto yy17;
         } else {
-          if (yych <= '\\') goto yy16;
-          if (yych == '|') goto yy16;
-          goto yy14;
+          if (yych <= '\\') goto yy19;
+          if (yych == '|') goto yy19;
+          goto yy17;
         }
       }
 yy3:
@@ -151,12 +154,12 @@ yy3:
       }
 yy4:
       yych = *++in;
-      if (yych == '$') goto yy12;
+      if (yych == '$') goto yy15;
       goto yy3;
 yy5:
       ++in;
       yych = *in;
-      goto yy11;
+      goto yy14;
 yy6:
       {
         // Got a span of plain text.
@@ -174,23 +177,36 @@ yy7:
       }
 yy9:
       yych = *++in;
-      goto yy3;
+      if (yych == '\t') goto yy3;
+      if (yych == ' ') goto yy3;
+      goto yy11;
 yy10:
+      yych = *++in;
+      goto yy3;
+yy11:
+      ++in;
+      {
+        // For non-indented lines, reset the parsing_targets flag.
+        --in; //Backtrack the lexer
+        new_target = true;
+        break;
+      }
+yy13:
       ++in;
       yych = *in;
-yy11:
+yy14:
       if (yybm[0+yych] & 128) {
-        goto yy10;
+        goto yy13;
       }
       goto yy6;
-yy12:
+yy15:
       ++in;
       {
         // De-escape dollar character.
         *out++ = '$';
         continue;
       }
-yy14:
+yy17:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -198,7 +214,7 @@ yy14:
         *out++ = yych;
         continue;
       }
-yy16:
+yy19:
       ++in;
       {
         // De-escape backslashed character.
@@ -214,6 +230,11 @@ yy16:
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
+    }
+
+    if(new_target) {
+      parsing_targets = true;
+      new_target = false;
     }
 
     if (len == 0)

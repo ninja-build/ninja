@@ -32,9 +32,11 @@ bool DepfileParser::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
+  // new_target: whether we should start parsing targets again next iteration.
   char* in = &(*content)[0];
   char* end = in + content->size();
   bool parsing_targets = true;
+  bool new_target = false;
   while (in < end) {
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
@@ -85,6 +87,12 @@ bool DepfileParser::Parse(string* content, string* err) {
       nul {
         break;
       }
+      '\n' [^ \t] {
+        // For non-indented lines, reset the parsing_targets flag.
+        --in; //Backtrack the lexer
+        new_target = true;
+        break;
+      }
       [^] {
         // For any other character (e.g. whitespace), swallow it here,
         // allowing the outer logic to loop around again.
@@ -98,6 +106,11 @@ bool DepfileParser::Parse(string* content, string* err) {
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
+    }
+
+    if(new_target) {
+      parsing_targets = true;
+      new_target = false;
     }
 
     if (len == 0)
