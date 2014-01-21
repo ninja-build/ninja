@@ -21,7 +21,7 @@
 
 ;;; Code:
 
-(setq ninja-keywords
+(defvar ninja-keywords
       (list
        '("^#.*" . font-lock-comment-face)
        (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
