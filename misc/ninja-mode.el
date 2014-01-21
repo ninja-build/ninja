@@ -35,8 +35,8 @@
   (setq font-lock-defaults '(ninja-keywords t))
   )
 
-(provide 'ninja-mode)
-
 ;; Run ninja-mode for files ending in .ninja.
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ninja$" . ninja-mode))
+
+(provide 'ninja-mode)
