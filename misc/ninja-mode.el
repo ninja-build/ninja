@@ -34,6 +34,8 @@
        ;; Rule names
        '("rule \\([[:alnum:]_]+\\)" . (1 font-lock-function-name-face))
        ))
+
+;;;###autoload
 (define-derived-mode ninja-mode fundamental-mode "ninja"
   (setq comment-start "#")
   ; Pass extra "t" to turn off syntax-based fontification -- we don't want
