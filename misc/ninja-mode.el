@@ -1,3 +1,5 @@
+;;; ninja-mode.el --- Major mode for editing .ninja files
+
 ;; Copyright 2011 Google Inc. All Rights Reserved.
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +14,12 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 
+;;; Commentary:
+
 ;; Simple emacs mode for editing .ninja files.
 ;; Just some syntax highlighting for now.
+
+;;; Code:
 
 (setq ninja-keywords
       (list
@@ -40,3 +46,5 @@
 ;; Run ninja-mode for files ending in .ninja.
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ninja$" . ninja-mode))
+
+;;; ninja-mode.el ends here
