@@ -15,7 +15,7 @@
 ;; Simple emacs mode for editing .ninja files.
 ;; Just some syntax highlighting for now.
 
-(setq ninja-keywords
+(defvar ninja-keywords
       (list
        '("^#.*" . font-lock-comment-face)
        (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
