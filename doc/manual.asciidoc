@@ -648,6 +648,23 @@ build heavy_object2.obj: cc heavy_obj2.cc
 
 ----------------
 
+The `console` pool
+^^^^^^^^^^^^^^^^^^
+
+_Available since Ninja 1.5._
+
+There exists a pre-defined pool named `console` with a depth of 1. It has
+the special property that any task in the pool has direct access to the
+standard input, output and error streams provided to Ninja, which are
+normally connected to the user's console (hence the name) but could be
+redirected. This can be useful for interactive tasks or long-running tasks
+which produce status updates on the console (such as test suites).
+
+While a task in the `console` pool is running, Ninja's regular output (such
+as progress status and output from concurrent tasks) is buffered until
+it completes.
+
+This feature is not yet available on Windows.
 
 Ninja file reference
 --------------------

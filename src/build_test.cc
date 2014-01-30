@@ -44,6 +44,8 @@ struct PlanTest : public StateTestWithBuiltinRules {
     ASSERT_FALSE(plan_.FindWork());
     sort(ret->begin(), ret->end(), CompareEdgesByOutput::cmp);
   }
+
+  void TestPoolWithDepthOne(const char *test_case);
 };
 
 TEST_F(PlanTest, Basic) {
@@ -197,15 +199,8 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
-TEST_F(PlanTest, PoolWithDepthOne) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"pool foobar\n"
-"  depth = 1\n"
-"rule poolcat\n"
-"  command = cat $in > $out\n"
-"  pool = foobar\n"
-"build out1: poolcat in\n"
-"build out2: poolcat in\n"));
+void PlanTest::TestPoolWithDepthOne(const char* test_case) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, test_case));
   GetNode("out1")->MarkDirty();
   GetNode("out2")->MarkDirty();
   string err;
@@ -238,6 +233,28 @@ TEST_F(PlanTest, PoolWithDepthOne) {
   edge = plan_.FindWork();
   ASSERT_EQ(0, edge);
 }
+
+TEST_F(PlanTest, PoolWithDepthOne) {
+  TestPoolWithDepthOne(
+"pool foobar\n"
+"  depth = 1\n"
+"rule poolcat\n"
+"  command = cat $in > $out\n"
+"  pool = foobar\n"
+"build out1: poolcat in\n"
+"build out2: poolcat in\n");
+}
+
+#ifndef _WIN32
+TEST_F(PlanTest, ConsolePool) {
+  TestPoolWithDepthOne(
+"rule poolcat\n"
+"  command = cat $in > $out\n"
+"  pool = console\n"
+"build out1: poolcat in\n"
+"build out2: poolcat in\n");
+}
+#endif
 
 TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -515,7 +532,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
-             edge->rule().name() == "interrupt") {
+             edge->rule().name() == "interrupt" ||
+             edge->rule().name() == "console") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -536,6 +554,15 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   if (edge->rule().name() == "interrupt" ||
       edge->rule().name() == "touch-interrupt") {
     result->status = ExitInterrupted;
+    return true;
+  }
+
+  if (edge->rule().name() == "console") {
+    if (edge->use_console())
+      result->status = ExitSuccess;
+    else
+      result->status = ExitFailure;
+    last_command_ = NULL;
     return true;
   }
 
@@ -1910,4 +1937,21 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   // And this build should be NOOP again
   RebuildTarget("out", manifest, "build_log", "ninja_deps2");
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildTest, Console) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule console\n"
+"  command = console\n"
+"  pool = console\n"
+"build con: console in.txt\n"));
+
+  fs_.Create("in.txt", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("con", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }

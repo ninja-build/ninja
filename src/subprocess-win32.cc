@@ -14,6 +14,7 @@
 
 #include "subprocess.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -213,7 +214,9 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
+Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+  assert(!use_console); // We don't support this yet on Windows.
+
   Subprocess *subprocess = new Subprocess;
   if (!subprocess->Start(this, command)) {
     delete subprocess;

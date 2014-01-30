@@ -305,6 +305,10 @@ bool Edge::is_phony() const {
   return rule_ == &State::kPhonyRule;
 }
 
+bool Edge::use_console() const {
+  return pool() == &State::kConsolePool;
+}
+
 void Node::Dump(const char* prefix) const {
   printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
          prefix, path().c_str(), this,

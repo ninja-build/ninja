@@ -95,6 +95,21 @@ TEST_F(SubprocessTest, InterruptParent) {
   ADD_FAILURE() << "We should have been interrupted";
 }
 
+TEST_F(SubprocessTest, Console) {
+  // Skip test if we don't have the console ourselves.
+  if (isatty(0) && isatty(1) && isatty(2)) {
+    Subprocess* subproc = subprocs_.Add("test -t 0 -a -t 1 -a -t 2",
+                                        /*use_console=*/true);
+    ASSERT_NE((Subprocess *) 0, subproc);
+
+    while (!subproc->Done()) {
+      subprocs_.DoWork();
+    }
+
+    EXPECT_EQ(ExitSuccess, subproc->Finish());
+  }
+}
+
 #endif
 
 TEST_F(SubprocessTest, SetWithSingle) {

@@ -97,6 +97,9 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   ++started_edges_;
 
   PrintStatus(edge);
+
+  if (edge->use_console())
+    printer_.SetConsoleLocked(true);
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
@@ -112,10 +115,13 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   *end_time = (int)(now - start_time_millis_);
   running_edges_.erase(i);
 
+  if (edge->use_console())
+    printer_.SetConsoleLocked(false);
+
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (printer_.is_smart_terminal())
+  if (!edge->use_console() && printer_.is_smart_terminal())
     PrintStatus(edge);
 
   // Print the command that is spewing before printing its output.
@@ -145,6 +151,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 }
 
 void BuildStatus::BuildFinished() {
+  printer_.SetConsoleLocked(false);
   printer_.PrintOnNewLine("");
 }
 
@@ -488,7 +495,7 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  Subprocess* subproc = subprocs_.Add(command, edge->use_console());
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -610,6 +617,7 @@ bool Builder::Build(string* err) {
     if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
         if (!StartEdge(edge, err)) {
+          Cleanup();
           status_->BuildFinished();
           return false;
         }
@@ -630,6 +638,7 @@ bool Builder::Build(string* err) {
       CommandRunner::Result result;
       if (!command_runner_->WaitForCommand(&result) ||
           result.status == ExitInterrupted) {
+        Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
@@ -637,6 +646,7 @@ bool Builder::Build(string* err) {
 
       --pending_commands;
       if (!FinishCommand(&result, err)) {
+        Cleanup();
         status_->BuildFinished();
         return false;
       }
