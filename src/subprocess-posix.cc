@@ -58,8 +58,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
+#     ifndef _CYGWIN_
       if (setpgid(0, 0) < 0)
         break;
+#     endif
 
       if (sigaction(SIGINT, &set->old_act_, 0) < 0)
         break;
