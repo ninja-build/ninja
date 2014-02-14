@@ -101,9 +101,14 @@ struct NinjaMain : public BuildLogUser {
   bool CollectTargetsFromArgs(int argc, char* argv[],
                               vector<Node*>* targets, string* err);
 
+  /// Add all of \a targets to \a builder.
+  bool AddTargetsToBuilder(const vector<Node*>& targets, Builder *builder,
+                           string *err);
+
   // The various subcommands, run via "-t XXX".
   int ToolGraph(int argc, char* argv[]);
   int ToolQuery(int argc, char* argv[]);
+  int ToolQuestion(int argc, char* argv[]);
   int ToolDeps(int argc, char* argv[]);
   int ToolBrowse(int argc, char* argv[]);
   int ToolMSVC(int argc, char* argv[]);
@@ -308,6 +313,22 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
   return true;
 }
 
+bool NinjaMain::AddTargetsToBuilder(const vector<Node*>& targets,
+                                    Builder *builder, string* err) {
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder->AddTarget(targets[i], err)) {
+      if (!err->empty()) {
+        return false;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+  return true;
+}
+
+
 int NinjaMain::ToolGraph(int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
@@ -361,6 +382,29 @@ int NinjaMain::ToolQuery(int argc, char* argv[]) {
     }
   }
   return 0;
+}
+
+int NinjaMain::ToolQuestion(int argc, char* argv[]) {
+  string err;
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  if (!AddTargetsToBuilder(targets, &builder, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  if (builder.AlreadyUpToDate()) {
+    printf("ninja: no work to do.\n");
+    return 0;
+  }
+
+  printf("ninja: not up to date.\n");
+  return 1;
 }
 
 #if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
@@ -712,6 +756,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
+    { "question", "non-zero exit status means not up to date",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuestion },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
@@ -881,16 +927,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   }
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
-  for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
-    }
+  if (!AddTargetsToBuilder(targets, &builder, &err)) {
+    Error("%s", err.c_str());
+    return 1;
   }
 
   if (builder.AlreadyUpToDate()) {
