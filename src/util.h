@@ -45,6 +45,13 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, size_t* len, string* err);
 
+/// Appends |input| to |*result|, escaping according to the whims of either
+/// Bash, or Win32's CommandLineToArgvW().
+/// Appends the string directly to |result| without modification if we can
+/// determine that it contains no problematic characters.
+void GetShellEscapedString(const string& input, string* result);
+void GetWin32EscapedString(const string& input, string* result);
+
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.

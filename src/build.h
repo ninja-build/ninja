@@ -51,7 +51,7 @@ struct Plan {
   Edge* FindWork();
 
   /// Returns true if there's more work to be done.
-  bool more_to_do() const { return wanted_edges_; }
+  bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
   /// Dumps the current state of the plan.
   void Dump();
@@ -180,8 +180,9 @@ struct Builder {
   BuildStatus* status_;
 
  private:
-  bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
-                   vector<Node*>* deps_nodes, string* err);
+   bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
+                    const string& deps_prefix, vector<Node*>* deps_nodes,
+                    string* err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;

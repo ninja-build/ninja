@@ -73,7 +73,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = yych;
         continue;
       }
-      [a-zA-Z0-9+,/_:.~()@=-!]+ {
+      [a-zA-Z0-9+,/_:.~()@=!-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.

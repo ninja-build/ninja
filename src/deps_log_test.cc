@@ -82,6 +82,39 @@ TEST_F(DepsLogTest, WriteRead) {
   ASSERT_EQ("bar2.h", log_deps->nodes[1]->path());
 }
 
+TEST_F(DepsLogTest, LotsOfDeps) {
+  const int kNumDeps = 100000;  // More than 64k.
+
+  State state1;
+  DepsLog log1;
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  {
+    vector<Node*> deps;
+    for (int i = 0; i < kNumDeps; ++i) {
+      char buf[32];
+      sprintf(buf, "file%d.h", i);
+      deps.push_back(state1.GetNode(buf));
+    }
+    log1.RecordDeps(state1.GetNode("out.o"), 1, deps);
+
+    DepsLog::Deps* log_deps = log1.GetDeps(state1.GetNode("out.o"));
+    ASSERT_EQ(kNumDeps, log_deps->node_count);
+  }
+
+  log1.Close();
+
+  State state2;
+  DepsLog log2;
+  EXPECT_TRUE(log2.Load(kTestFilename, &state2, &err));
+  ASSERT_EQ("", err);
+
+  DepsLog::Deps* log_deps = log2.GetDeps(state2.GetNode("out.o"));
+  ASSERT_EQ(kNumDeps, log_deps->node_count);
+}
+
 // Verify that adding the same deps twice doesn't grow the file.
 TEST_F(DepsLogTest, DoubleEntry) {
   // Write some deps to the file and grab its size.
@@ -130,10 +163,18 @@ TEST_F(DepsLogTest, DoubleEntry) {
 
 // Verify that adding the new deps works and can be compacted away.
 TEST_F(DepsLogTest, Recompact) {
+  const char kManifest[] =
+"rule cc\n"
+"  command = cc\n"
+"  deps = gcc\n"
+"build out.o: cc\n"
+"build other_out.o: cc\n";
+
   // Write some deps to the file and grab its size.
   int file_size;
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -161,6 +202,7 @@ TEST_F(DepsLogTest, Recompact) {
   int file_size_2;
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -182,8 +224,10 @@ TEST_F(DepsLogTest, Recompact) {
 
   // Now reload the file, verify the new deps have replaced the old, then
   // recompact.
+  int file_size_3;
   {
     State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -224,8 +268,52 @@ TEST_F(DepsLogTest, Recompact) {
     // The file should have shrunk a bit for the smaller deps.
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    int file_size_3 = (int)st.st_size;
+    file_size_3 = (int)st.st_size;
     ASSERT_LT(file_size_3, file_size_2);
+  }
+
+  // Now reload the file and recompact with an empty manifest. The previous
+  // entries should be removed.
+  {
+    State state;
+    // Intentionally not parsing kManifest here.
+    DepsLog log;
+    string err;
+    ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
+
+    Node* out = state.GetNode("out.o");
+    DepsLog::Deps* deps = log.GetDeps(out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(1, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+
+    Node* other_out = state.GetNode("other_out.o");
+    deps = log.GetDeps(other_out);
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->mtime);
+    ASSERT_EQ(2, deps->node_count);
+    ASSERT_EQ("foo.h", deps->nodes[0]->path());
+    ASSERT_EQ("baz.h", deps->nodes[1]->path());
+
+    ASSERT_TRUE(log.Recompact(kTestFilename, &err));
+
+    // The previous entries should have been removed.
+    deps = log.GetDeps(out);
+    ASSERT_FALSE(deps);
+
+    deps = log.GetDeps(other_out);
+    ASSERT_FALSE(deps);
+
+    // The .h files pulled in via deps should no longer have ids either.
+    ASSERT_EQ(-1, state.LookupNode("foo.h")->id());
+    ASSERT_EQ(-1, state.LookupNode("baz.h")->id());
+
+    // The file should have shrunk more.
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    int file_size_4 = (int)st.st_size;
+    ASSERT_LT(file_size_4, file_size_3);
   }
 }
 

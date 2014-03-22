@@ -236,7 +236,11 @@ TEST_F(ParserTest, Dollars) {
 "build $x: foo y\n"
 ));
   EXPECT_EQ("$dollar", state.bindings_.LookupVariable("x"));
+#ifdef _WIN32
   EXPECT_EQ("$dollarbar$baz$blah", state.edges_[0]->EvaluateCommand());
+#else
+  EXPECT_EQ("'$dollar'bar$baz$blah", state.edges_[0]->EvaluateCommand());
+#endif
 }
 
 TEST_F(ParserTest, EscapeSpaces) {
@@ -759,6 +763,21 @@ TEST_F(ParserTest, MissingSubNinja) {
   EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
             "subninja foo.ninja\n"
             "                  ^ near here"
+            , err);
+}
+
+TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
+  // Test that rules live in a global namespace and aren't scoped to subninjas.
+  files_["test.ninja"] = "rule cat\n"
+                         "  command = cat\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                "  command = cat\n"
+                                "subninja test.ninja\n", &err));
+  EXPECT_EQ("test.ninja:1: duplicate rule 'cat'\n"
+            "rule cat\n"
+            "        ^ near here"
             , err);
 }
 

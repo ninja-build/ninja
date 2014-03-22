@@ -31,6 +31,7 @@ void Usage() {
 "options:\n"
 "  -e ENVFILE load environment block from ENVFILE as environment\n"
 "  -o FILE    write output dependency information to FILE.d\n"
+"  -p STRING  localized prefix of msvc's /showIncludes output\n"
          );
 }
 
@@ -84,13 +85,17 @@ int MSVCHelperMain(int argc, char** argv) {
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "e:o:h", kLongOptions, NULL)) != -1) {
+  string deps_prefix;
+  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'e':
         envfile = optarg;
         break;
       case 'o':
         output_filename = optarg;
+        break;
+      case 'p':
+        deps_prefix = optarg;
         break;
       case 'h':
       default:
@@ -122,14 +127,19 @@ int MSVCHelperMain(int argc, char** argv) {
 
   if (output_filename) {
     CLParser parser;
-    output = parser.Parse(output);
+    output = parser.Parse(output, deps_prefix);
     WriteDepFileOrDie(output_filename, parser);
   }
+
+  if (output.empty())
+    return exit_code;
 
   // CLWrapper's output already as \r\n line endings, make sure the C runtime
   // doesn't expand this to \r\r\n.
   _setmode(_fileno(stdout), _O_BINARY);
-  printf("%s", output.c_str());
+  // Avoid printf and C strings, since the actual output might contain null
+  // bytes like UTF-16 does (yuck).
+  fwrite(&output[0], 1, output.size(), stdout);
 
   return exit_code;
 }

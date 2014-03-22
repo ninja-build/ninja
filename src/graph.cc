@@ -18,10 +18,10 @@
 #include <stdio.h>
 
 #include "build_log.h"
+#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
-#include "explain.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
@@ -60,13 +60,13 @@ bool Rule::IsReservedBinding(const string& var) {
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
+  edge->deps_missing_ = false;
 
-  TimeStamp deps_mtime = 0;
-  if (!dep_loader_.LoadDeps(edge, &deps_mtime, err)) {
+  if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
-    dirty = true;
+    dirty = edge->deps_missing_ = true;
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -107,19 +107,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
-  if (!dirty) {
-    string command = edge->EvaluateCommand(true);
-
-    for (vector<Node*>::iterator i = edge->outputs_.begin();
-         i != edge->outputs_.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface_);
-      if (RecomputeOutputDirty(edge, most_recent_input, deps_mtime,
-                               command, *i)) {
-        dirty = true;
-        break;
-      }
-    }
-  }
+  if (!dirty)
+    dirty = RecomputeOutputsDirty(edge, most_recent_input);
 
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
@@ -141,9 +130,20 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   return true;
 }
 
+bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
+                                           Node* most_recent_input) {   
+  string command = edge->EvaluateCommand(true);
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i) {
+    (*i)->StatIfNecessary(disk_interface_);
+    if (RecomputeOutputDirty(edge, most_recent_input, command, *i))
+      return true;
+  }
+  return false;
+}
+
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,
                                           Node* most_recent_input,
-                                          TimeStamp deps_mtime,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -183,13 +183,6 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
               output_mtime, most_recent_input->mtime());
       return true;
     }
-  }
-
-  // Dirty if the output is newer than the deps.
-  if (deps_mtime && output->mtime() > deps_mtime) {
-    EXPLAIN("stored deps info out of date for for %s (%d vs %d)",
-            output->path().c_str(), deps_mtime, output->mtime());
-    return true;
   }
 
   // May also be dirty due to the command changing since the last build.
@@ -257,16 +250,13 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
                              char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
-    if (!result.empty())
-      result.push_back(sep);
+    if (!result.empty()) result.push_back(sep);
     const string& path = (*i)->path();
-    if (path.find(" ") != string::npos) {
-      result.append("\"");
-      result.append(path);
-      result.append("\"");
-    } else {
-      result.append(path);
-    }
+#if _WIN32
+    GetWin32EscapedString(path, &result);
+#else
+    GetShellEscapedString(path, &result);
+#endif
   }
   return result;
 }
@@ -332,28 +322,14 @@ void Node::Dump(const char* prefix) const {
   }
 }
 
-bool ImplicitDepLoader::LoadDeps(Edge* edge, TimeStamp* mtime, string* err) {
+bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty()) {
-    if (!LoadDepsFromLog(edge, mtime, err)) {
-      if (!err->empty())
-        return false;
-      EXPLAIN("deps for %s are missing", edge->outputs_[0]->path().c_str());
-      return false;
-    }
-    return true;
-  }
+  if (!deps_type.empty())
+    return LoadDepsFromLog(edge, err);
 
   string depfile = edge->GetBinding("depfile");
-  if (!depfile.empty()) {
-    if (!LoadDepFile(edge, depfile, err)) {
-      if (!err->empty())
-        return false;
-      EXPLAIN("depfile '%s' is missing", depfile.c_str());
-      return false;
-    }
-    return true;
-  }
+  if (!depfile.empty())
+    return LoadDepFile(edge, depfile, err);
 
   // No deps to load.
   return true;
@@ -368,8 +344,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
   // On a missing depfile: return false and empty *err.
-  if (content.empty())
+  if (content.empty()) {
+    EXPLAIN("depfile '%s' is missing", path.c_str());
     return false;
+  }
 
   DepfileParser depfile;
   string depfile_err;
@@ -406,13 +384,21 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   return true;
 }
 
-bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, TimeStamp* deps_mtime,
-                                        string* err) {
-  DepsLog::Deps* deps = deps_log_->GetDeps(edge->outputs_[0]);
-  if (!deps)
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
+  // NOTE: deps are only supported for single-target edges.
+  Node* output = edge->outputs_[0];
+  DepsLog::Deps* deps = deps_log_->GetDeps(output);
+  if (!deps) {
+    EXPLAIN("deps for '%s' are missing", output->path().c_str());
     return false;
+  }
 
-  *deps_mtime = deps->mtime;
+  // Deps are invalid if the output is newer than the deps.
+  if (output->mtime() > deps->mtime) {
+    EXPLAIN("stored deps info out of date for for '%s' (%d vs %d)",
+            output->path().c_str(), deps->mtime, output->mtime());
+    return false;
+  }
 
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, deps->node_count);

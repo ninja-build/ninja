@@ -14,6 +14,7 @@
 
 #include "edit_distance.h"
 
+#include <algorithm>
 #include <vector>
 
 int EditDistance(const StringPiece& s1,

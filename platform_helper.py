@@ -21,8 +21,8 @@ def platforms():
     return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
             'mingw', 'msvc', 'gnukfreebsd8', 'bitrig']
 
-class Platform( object ):
-    def __init__( self, platform):
+class Platform(object):
+    def __init__(self, platform):
         self._platform = platform
         if not self._platform is None:
             return
@@ -55,6 +55,14 @@ class Platform( object ):
 
     def is_msvc(self):
         return self._platform == 'msvc'
+
+    def msvc_needs_fs(self):
+        import subprocess
+        popen = subprocess.Popen(['cl', '/nologo', '/?'],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        out, err = popen.communicate()
+        return '/FS ' in str(out)
 
     def is_windows(self):
         return self.is_mingw() or self.is_msvc()

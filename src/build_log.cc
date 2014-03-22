@@ -54,7 +54,7 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
   uint64_t h = seed ^ (len * m);
-  const unsigned char * data = (const unsigned char *)key;
+  const unsigned char* data = (const unsigned char*)key;
   while (len >= 8) {
     uint64_t k;
     memcpy(&k, data, sizeof k);
@@ -108,9 +108,10 @@ BuildLog::~BuildLog() {
   Close();
 }
 
-bool BuildLog::OpenForWrite(const string& path, string* err) {
+bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
+                            string* err) {
   if (needs_recompaction_) {
-    if (!Recompact(path, err))
+    if (!Recompact(path, user, err))
       return false;
   }
 
@@ -350,7 +351,8 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
-bool BuildLog::Recompact(const string& path, string* err) {
+bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
+                         string* err) {
   METRIC_RECORD(".ninja_log recompact");
   printf("Recompacting log...\n");
 
@@ -368,13 +370,22 @@ bool BuildLog::Recompact(const string& path, string* err) {
     return false;
   }
 
+  vector<StringPiece> dead_outputs;
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    if (user.IsPathDead(i->first)) {
+      dead_outputs.push_back(i->first);
+      continue;
+    }
+
     if (!WriteEntry(f, *i->second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
+
+  for (size_t i = 0; i < dead_outputs.size(); ++i)
+    entries_.erase(dead_outputs[i]);
 
   fclose(f);
   if (unlink(path.c_str()) < 0) {

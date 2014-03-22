@@ -118,9 +118,9 @@ Node* State::GetNode(StringPiece path) {
   return node;
 }
 
-Node* State::LookupNode(StringPiece path) {
+Node* State::LookupNode(StringPiece path) const {
   METRIC_RECORD("lookup node");
-  Paths::iterator i = paths_.find(path);
+  Paths::const_iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
   return NULL;

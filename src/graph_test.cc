@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "graph.h"
+#include "build.h"
 
 #include "test.h"
 
@@ -138,13 +139,18 @@ TEST_F(GraphTest, RootNodes) {
   }
 }
 
-TEST_F(GraphTest, VarInOutQuoteSpaces) {
+TEST_F(GraphTest, VarInOutPathEscaping) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a$ b: cat nospace with$ space nospace2\n"));
+"build a$ b: cat no'space with$ space$$ no\"space2\n"));
 
   Edge* edge = GetNode("a b")->in_edge();
-  EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
+#if _WIN32
+  EXPECT_EQ("cat no'space \"with space$\" \"no\\\"space2\" > \"a b\"",
       edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cat 'no'\\''space' 'with space$' 'no\"space2' > 'a b'",
+      edge->EvaluateCommand());
+#endif
 }
 
 // Regression test for https://github.com/martine/ninja/issues/380
@@ -225,4 +231,23 @@ TEST_F(GraphTest, DepfileOverrideParent) {
 "  depfile = y\n"));
   Edge* edge = GetNode("out")->in_edge();
   EXPECT_EQ("depfile is y", edge->GetBinding("command"));
+}
+
+// Verify that building a nested phony rule prints "no work to do"
+TEST_F(GraphTest, NestedPhonyPrintsDone) {
+  AssertParse(&state_,
+"build n1: phony \n"
+"build n2: phony n1\n"
+  );
+  string err;
+  Edge* edge = GetNode("n2")->in_edge();
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+
+  Plan plan_;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("n2"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_EQ(0, plan_.command_edge_count());
+  ASSERT_FALSE(plan_.more_to_do());
 }

@@ -15,6 +15,7 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
+#include <algorithm>
 #include <string.h>
 #include "string_piece.h"
 
@@ -25,7 +26,7 @@ unsigned int MurmurHash2(const void* key, size_t len) {
   const unsigned int m = 0x5bd1e995;
   const int r = 24;
   unsigned int h = seed ^ len;
-  const unsigned char * data = (const unsigned char *)key;
+  const unsigned char* data = (const unsigned char*)key;
   while (len >= 4) {
     unsigned int k;
     memcpy(&k, data, sizeof k);

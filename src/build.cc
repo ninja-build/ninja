@@ -25,6 +25,7 @@
 #endif
 
 #include "build_log.h"
+#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
@@ -408,31 +409,27 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
     if (want_i == want_.end() || !want_i->second)
       continue;
 
+    // Don't attempt to clean an edge if it failed to load deps.
+    if ((*ei)->deps_missing_)
+      continue;
+
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
     vector<Node*>::iterator
         begin = (*ei)->inputs_.begin(),
         end = (*ei)->inputs_.end() - (*ei)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
-      // Recompute most_recent_input and command.
+      // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator ni = begin; ni != end; ++ni) {
         if (!most_recent_input || (*ni)->mtime() > most_recent_input->mtime())
           most_recent_input = *ni;
       }
-      string command = (*ei)->EvaluateCommand(true);
 
       // Now, this edge is dirty if any of the outputs are dirty.
-      bool dirty = false;
-      for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
-           !dirty && ni != (*ei)->outputs_.end(); ++ni) {
-        dirty = scan->RecomputeOutputDirty(*ei, most_recent_input, 0,
-                                           command, *ni);
-      }
-
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
-      if (!dirty) {
+      if (!scan->RecomputeOutputsDirty(*ei, most_recent_input)) {
         for (vector<Node*>::iterator ni = (*ei)->outputs_.begin();
              ni != (*ei)->outputs_.end(); ++ni) {
           CleanNode(scan, *ni);
@@ -717,9 +714,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   // build perspective.
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
+  const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err) &&
+    if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
+                     &extract_err) &&
         result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
@@ -780,7 +779,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // Delete any left over response file.
   string rspfile = edge->GetBinding("rspfile");
-  if (!rspfile.empty())
+  if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
@@ -805,12 +804,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const string& deps_type,
+                          const string& deps_prefix,
                           vector<Node*>* deps_nodes,
                           string* err) {
 #ifdef _WIN32
   if (deps_type == "msvc") {
     CLParser parser;
-    result->output = parser.Parse(result->output);
+    result->output = parser.Parse(result->output, deps_prefix);
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
       deps_nodes->push_back(state_->GetNode(*i));
