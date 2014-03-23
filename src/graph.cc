@@ -19,7 +19,8 @@
 
 #include "build_log.h"
 #include "debug_flags.h"
-#include "depfile_parser.h"
+#include "depfile_parser_dmd.h"
+#include "depfile_parser_gcc.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "manifest_parser.h"
@@ -349,7 +350,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
-  DepfileParser depfile;
+  DepfileParserGCC depfile;
   string depfile_err;
   if (!depfile.Parse(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;

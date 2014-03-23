@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "depfile_parser.h"
+#include "depfile_parser_gcc.h"
 
 #include <gtest/gtest.h>
 
-struct DepfileParserTest : public testing::Test {
+struct DepfileParserGCCTest : public testing::Test {
   bool Parse(const char* input, string* err);
 
-  DepfileParser parser_;
+  DepfileParserGCC parser_;
   string input_;
 };
 
-bool DepfileParserTest::Parse(const char* input, string* err) {
+bool DepfileParserGCCTest::Parse(const char* input, string* err) {
   input_ = input;
   return parser_.Parse(&input_, err);
 }
 
-TEST_F(DepfileParserTest, Basic) {
+TEST_F(DepfileParserGCCTest, Basic) {
   string err;
   EXPECT_TRUE(Parse(
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
@@ -38,7 +38,7 @@ TEST_F(DepfileParserTest, Basic) {
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 
-TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
+TEST_F(DepfileParserGCCTest, EarlyNewlineAndWhitespace) {
   string err;
   EXPECT_TRUE(Parse(
 " \\\n"
@@ -47,7 +47,7 @@ TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
   ASSERT_EQ("", err);
 }
 
-TEST_F(DepfileParserTest, Continuation) {
+TEST_F(DepfileParserGCCTest, Continuation) {
   string err;
   EXPECT_TRUE(Parse(
 "foo.o: \\\n"
@@ -58,7 +58,7 @@ TEST_F(DepfileParserTest, Continuation) {
   EXPECT_EQ(2u, parser_.ins_.size());
 }
 
-TEST_F(DepfileParserTest, BackSlashes) {
+TEST_F(DepfileParserGCCTest, BackSlashes) {
   string err;
   EXPECT_TRUE(Parse(
 "Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
@@ -73,7 +73,7 @@ TEST_F(DepfileParserTest, BackSlashes) {
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 
-TEST_F(DepfileParserTest, Spaces) {
+TEST_F(DepfileParserGCCTest, Spaces) {
   string err;
   EXPECT_TRUE(Parse(
 "a\\ bc\\ def:   a\\ b c d",
@@ -90,7 +90,7 @@ TEST_F(DepfileParserTest, Spaces) {
             parser_.ins_[2].AsString());
 }
 
-TEST_F(DepfileParserTest, Escapes) {
+TEST_F(DepfileParserGCCTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
   string err;
@@ -103,7 +103,7 @@ TEST_F(DepfileParserTest, Escapes) {
   ASSERT_EQ(0u, parser_.ins_.size());
 }
 
-TEST_F(DepfileParserTest, SpecialChars) {
+TEST_F(DepfileParserGCCTest, SpecialChars) {
   // See filenames like istreambuf.iterator_op!= in
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
   string err;
@@ -121,7 +121,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
             parser_.ins_[1].AsString());
 }
 
-TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
+TEST_F(DepfileParserGCCTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
   string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
@@ -132,7 +132,7 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   EXPECT_EQ("z", parser_.ins_[2].AsString());
 }
 
-TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
+TEST_F(DepfileParserGCCTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));

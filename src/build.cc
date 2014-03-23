@@ -26,7 +26,8 @@
 
 #include "build_log.h"
 #include "debug_flags.h"
-#include "depfile_parser.h"
+#include "depfile_parser_dmd.h"
+#include "depfile_parser_gcc.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
@@ -817,10 +818,22 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     }
   } else
 #endif
-  if (deps_type == "gcc") {
+  {
+    auto_ptr<DepfileParser> deps;
+
+    if (deps_type == "gcc") {
+      deps.reset(new DepfileParserGCC);
+    } else if (deps_type == "dmd") {
+      deps.reset(new DepfileParserDMD);
+    }
+
+    if (!deps.get()) {
+      Fatal("unknown deps type '%s'", deps_type.c_str());
+    }
+
     string depfile = result->edge->GetBinding("depfile");
     if (depfile.empty()) {
-      *err = string("edge with deps=gcc but no depfile makes no sense");
+      *err = "edge with deps=" + deps_type + " but no depfile makes no sense";
       return false;
     }
 
@@ -830,14 +843,13 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     if (content.empty())
       return true;
 
-    DepfileParser deps;
-    if (!deps.Parse(&content, err))
+    if (!deps->Parse(&content, err))
       return false;
 
     // XXX check depfile matches expected output.
-    deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
-         i != deps.ins_.end(); ++i) {
+    deps_nodes->reserve(deps->ins_.size());
+    for (vector<StringPiece>::iterator i = deps->ins_.begin();
+         i != deps->ins_.end(); ++i) {
       if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
         return false;
       deps_nodes->push_back(state_->GetNode(*i));
@@ -847,8 +859,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       *err = string("deleting depfile: ") + strerror(errno) + string("\n");
       return false;
     }
-  } else {
-    Fatal("unknown deps type '%s'", deps_type.c_str());
   }
 
   return true;

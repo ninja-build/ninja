@@ -258,7 +258,8 @@ if has_re2c():
            command='re2c -b -i --no-generation-date -o $out $in',
            description='RE2C $out')
     # Generate the .cc files in the source directory so we can check them in.
-    n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
+    n.build(src('depfile_parser_dmd.cc'), 're2c', src('depfile_parser_dmd.in.cc'))
+    n.build(src('depfile_parser_gdc.cc'), 're2c', src('depfile_parser_gcc.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
     print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
@@ -270,7 +271,8 @@ for name in ['build',
              'build_log',
              'clean',
              'debug_flags',
-             'depfile_parser',
+             'depfile_parser_dmd',
+             'depfile_parser_gcc',
              'deps_log',
              'disk_interface',
              'edit_distance',
@@ -350,7 +352,7 @@ n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
              'build_test',
              'clean_test',
-             'depfile_parser_test',
+             'depfile_parser_gcc_test',
              'deps_log_test',
              'disk_interface_test',
              'edit_distance_test',

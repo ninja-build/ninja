@@ -771,10 +771,10 @@ keys.
   dependencies; see <<ref_headers,the full discussion>>.
 
 `deps`:: _(Available since Ninja 1.3.)_ if present, must be one of
-  `gcc` or `msvc` to specify special dependency processing.  See
-   <<ref_headers,the full discussion>>.  The generated database is
-   stored as `.ninja_deps` in the `builddir`, see <<ref_toplevel,the
-   discussion of `builddir`>>.
+  `gcc`, `dmd` _(since Ninja 1.6)_, or `msvc` to specify special
+  dependency processing.  See <<ref_headers,the full discussion>>.
+  The generated database is stored as `.ninja_deps` in the `builddir`,
+  see <<ref_toplevel,the discussion of `builddir`>>.
 
 `msvc_deps_prefix`:: _(Available since Ninja 1.5.)_ defines the string
   which should be stripped from msvc's /showIncludes output. Only

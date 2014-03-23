@@ -12,24 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_DEPFILE_PARSER_H_
-#define NINJA_DEPFILE_PARSER_H_
+#ifndef NINJA_DEPFILE_PARSER_GCC_H_
+#define NINJA_DEPFILE_PARSER_GCC_H_
 
-#include <string>
-#include <vector>
-using namespace std;
-
-#include "string_piece.h"
+#include "depfile_parser.h"
 
 /// Parser for the dependency information emitted by gcc's -M flags.
-struct DepfileParser {
+struct DepfileParserGCC : public DepfileParser {
   /// Parse an input file.  Input must be NUL-terminated.
   /// Warning: may mutate the content in-place and parsed StringPieces are
   /// pointers within it.
-  virtual bool Parse(string* content, string* err) = 0;
-
-  StringPiece out_;
-  vector<StringPiece> ins_;
+  bool Parse(string* content, string* err);
 };
 
-#endif // NINJA_DEPFILE_PARSER_H_
+#endif // NINJA_DEPFILE_PARSER_GCC_H_

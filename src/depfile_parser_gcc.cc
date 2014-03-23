@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "depfile_parser.h"
+#include "depfile_parser_gcc.h"
 
 // A note on backslashes in Makefiles, from reading the docs:
 // Backslash-newline is the line continuation character.
@@ -29,7 +29,7 @@
 // otherwise they are passed through verbatim.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(string* content, string* err) {
+bool DepfileParserGCC::Parse(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
