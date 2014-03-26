@@ -27,6 +27,11 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
+#include <map>
+#include <stack>
+#include <vector>
+
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
@@ -104,6 +109,7 @@ struct NinjaMain : public BuildLogUser {
   // The various subcommands, run via "-t XXX".
   int ToolGraph(int argc, char* argv[]);
   int ToolQuery(int argc, char* argv[]);
+  int ToolFindDependency(int argc, char* argv[]);
   int ToolDeps(int argc, char* argv[]);
   int ToolBrowse(int argc, char* argv[]);
   int ToolMSVC(int argc, char* argv[]);
@@ -360,6 +366,109 @@ int NinjaMain::ToolQuery(int argc, char* argv[]) {
       }
     }
   }
+  return 0;
+}
+
+void PrintNodePath(const map<Node*,Node*>& parent_map, Node* child) {
+  stack<Node*> reverse_path;
+  Node* node = child;
+  while (node != NULL) {
+    reverse_path.push(node);
+    node = parent_map.at(node);
+  }
+
+  printf("Path: %s\n", reverse_path.top()->path().c_str());
+  reverse_path.pop();
+  while (!reverse_path.empty()) {
+    printf("    > %s\n", reverse_path.top()->path().c_str());
+    reverse_path.pop();
+  }
+  printf("\n");
+}
+
+void SearchBreadthFirst(Node* start, const vector<Node*>& targets) {
+  queue<Node*> queue;
+  map<Node*,Node*> parent_map;
+  queue.push(start);
+  parent_map.insert(make_pair<Node*,Node*>(start, NULL));
+
+  while (!queue.empty()) {
+    Node* node = queue.front();
+    queue.pop();
+    if (node !=start &&
+        find(targets.begin(), targets.end(), node) != targets.end()) {
+      PrintNodePath(parent_map, node);
+      return;
+    }
+    if (Edge* edge = node->in_edge()) {
+      for (std::vector<Node*>::const_iterator it = edge->inputs_.begin();
+          it != edge->inputs_.end(); ++it) {
+        pair<map<Node*, Node*>::iterator, bool> result =
+            parent_map.insert(make_pair(*it, node));
+        if (result.second) {
+          // Only add to queue if this is a new node.
+          queue.push(*it);
+        }
+      }
+    }
+  }
+}
+
+vector<Node*> ExpandIfPhony(Node* node) {
+  vector<Node*> expansion;
+
+  Edge* edge = node->in_edge();
+  if (!edge || !edge->is_phony()) {
+    expansion.push_back(node);
+    return expansion;
+  }
+
+  if (edge->inputs_.empty()) {
+    Error("[To] target is phony, but does not have any dependencies.");
+    return expansion;
+  }
+
+  printf("Expanding phony target: %s to [", node->path().c_str());
+  for (vector<Node*>::const_iterator it = edge->inputs_.begin();
+      it != edge->inputs_.end(); ++it) {
+    printf("%s,", (*it)->path().c_str());
+    expansion.push_back(*it);
+  }
+  printf("\b]\n");
+  return expansion;
+}
+
+int NinjaMain::ToolFindDependency(int argc, char* argv[]) {
+  if (argc != 2) {
+    Error("please list 2 targets [from, to] to find the dependency.");
+    return 1;
+  }
+
+  string err;
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  if (targets.size() != 2) {
+    Error("please list 2 valid targets [from, to] to find the dependency.");
+    return 1;
+  }
+
+  Node* from = targets.at(0);
+  Node* to = targets.at(1);
+
+  // For the first target (from), a phony is fine since it will expand its deps.
+  // However, the 2nd target (to) might not be directly referenced in the tree,
+  // and so will need expansion.
+  targets = ExpandIfPhony(to);
+  if (targets.empty()) {
+    Error("Not enough targets found to calculate dependency graph.");
+    return 1;
+  }
+
+  SearchBreadthFirst(from, targets);
   return 0;
 }
 
@@ -712,6 +821,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
+    { "finddeps", "show the dependency path from one node to another.",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolFindDependency },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
