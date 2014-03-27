@@ -61,7 +61,9 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       if (setpgid(0, 0) < 0)
         break;
 
-      if (sigaction(SIGINT, &set->old_act_, 0) < 0)
+      if (sigaction(SIGINT, &set->old_int_act_, 0) < 0)
+        break;
+      if (sigaction(SIGTERM, &set->old_term_act_, 0) < 0)
         break;
       if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
         break;
@@ -124,7 +126,8 @@ ExitStatus Subprocess::Finish() {
     if (exit == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT)
+    if (WTERMSIG(status) == SIGINT
+        || WTERMSIG(status) == SIGTERM)
       return ExitInterrupted;
   }
   return ExitFailure;
@@ -149,20 +152,25 @@ SubprocessSet::SubprocessSet() {
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
+  sigaddset(&set, SIGTERM);
   if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   act.sa_handler = SetInterruptedFlag;
-  if (sigaction(SIGINT, &act, &old_act_) < 0)
+  if (sigaction(SIGINT, &act, &old_int_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGTERM, &act, &old_term_act_) < 0)
     Fatal("sigaction: %s", strerror(errno));
 }
 
 SubprocessSet::~SubprocessSet() {
   Clear();
 
-  if (sigaction(SIGINT, &old_act_, 0) < 0)
+  if (sigaction(SIGINT, &old_int_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
   if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
