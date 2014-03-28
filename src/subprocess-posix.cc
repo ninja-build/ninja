@@ -275,10 +275,12 @@ void SubprocessSet::Clear() {
   // Kill all sub-processes of the group. It includes us but since we have
   // a signal handler installed until this object is destroyed we are prepared
   // to received it.
-  int signal = interrupted_;
-  if (signal == 0)
-    signal = SIGTERM;
-  kill(0, signal);
+  if (running_.size() > 0) {
+    int signal = interrupted_;
+    if (signal == 0)
+      signal = SIGTERM;
+    kill(0, signal);
+  }
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
