@@ -98,14 +98,22 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
 void Subprocess::OnPipeReady() {
   char buf[4 << 10];
-  ssize_t len = read(fd_, buf, sizeof(buf));
-  if (len > 0) {
-    buf_.append(buf, len);
-  } else {
-    if (len < 0)
-      Fatal("read: %s", strerror(errno));
-    close(fd_);
-    fd_ = -1;
+  while (1) {
+    ssize_t len = read(fd_, buf, sizeof(buf));
+    if (len > 0) {
+      buf_.append(buf, len);
+    } else {
+      if (len < 0) {
+        // If this function were called that is because there is something
+        // to read, so we have to retry if got interrupted.
+        if (errno == EINTR)
+          continue;
+        Fatal("read: %s", strerror(errno));
+      }
+      close(fd_);
+      fd_ = -1;
+    }
+    return;
   }
 }
 
