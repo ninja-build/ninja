@@ -95,6 +95,30 @@ TEST_F(SubprocessTest, InterruptParent) {
   ADD_FAILURE() << "We should have been interrupted";
 }
 
+TEST_F(SubprocessTest, InterruptChildSigTerm) {
+  Subprocess* subproc = subprocs_.Add("kill -TERM $$");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+
+  EXPECT_EQ(ExitInterrupted, subproc->Finish());
+}
+
+TEST_F(SubprocessTest, InterruptParentSigTerm) {
+  Subprocess* subproc = subprocs_.Add("kill -TERM $PPID ; sleep 1");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    bool interrupted = subprocs_.DoWork();
+    if (interrupted)
+      return;
+  }
+
+  ADD_FAILURE() << "We should have been interrupted";
+}
+
 #endif
 
 TEST_F(SubprocessTest, SetWithSingle) {
@@ -179,7 +203,7 @@ TEST_F(SubprocessTest, SetWithLots) {
   }
   ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
 }
-#endif  // !__APPLE__ && !_WIN32 
+#endif  // !__APPLE__ && !_WIN32
 
 // TODO: this test could work on Windows, just not sure how to simply
 // read stdin.

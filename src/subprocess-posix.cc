@@ -58,12 +58,9 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
-      if (setpgid(0, 0) < 0)
+      if (sigaction(SIGINT, &set->old_int_act_, 0) < 0)
         break;
-
-      if (sigaction(SIGINT, &set->old_act_, 0) < 0)
-        break;
-      if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
+      if (sigaction(SIGTERM, &set->old_term_act_, 0) < 0)
         break;
 
       // Open /dev/null over stdin.
@@ -124,7 +121,7 @@ ExitStatus Subprocess::Finish() {
     if (exit == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT)
+    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM)
       return ExitInterrupted;
   }
   return ExitFailure;
@@ -138,34 +135,34 @@ const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
-bool SubprocessSet::interrupted_;
+int SubprocessSet::interrupted_ = 0;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
-  (void) signum;
-  interrupted_ = true;
+  interrupted_ = signum;
 }
 
 SubprocessSet::SubprocessSet() {
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, SIGINT);
-  if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
+  interrupted_ = 0;
+  // Get current mask.
+  if (sigprocmask(0, NULL, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   act.sa_handler = SetInterruptedFlag;
-  if (sigaction(SIGINT, &act, &old_act_) < 0)
+  if (sigaction(SIGINT, &act, &old_int_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGTERM, &act, &old_term_act_) < 0)
     Fatal("sigaction: %s", strerror(errno));
 }
 
 SubprocessSet::~SubprocessSet() {
   Clear();
 
-  if (sigaction(SIGINT, &old_act_, 0) < 0)
+  if (sigaction(SIGINT, &old_int_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
-  if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
-    Fatal("sigprocmask: %s", strerror(errno));
+  if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
 }
 
 Subprocess *SubprocessSet::Add(const string& command) {
@@ -193,14 +190,13 @@ bool SubprocessSet::DoWork() {
     ++nfds;
   }
 
-  interrupted_ = false;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
       return false;
     }
-    return interrupted_;
+    return IsInterrupted();
   }
 
   nfds_t cur_nfd = 0;
@@ -221,7 +217,7 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return interrupted_;
+  return IsInterrupted();
 }
 
 #else  // !defined(USE_PPOLL)
@@ -240,14 +236,13 @@ bool SubprocessSet::DoWork() {
     }
   }
 
-  interrupted_ = false;
   int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
       return false;
     }
-    return interrupted_;
+    return IsInterrupted();
   }
 
   for (vector<Subprocess*>::iterator i = running_.begin();
@@ -264,7 +259,7 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return interrupted_;
+  return IsInterrupted();
 }
 #endif  // !defined(USE_PPOLL)
 
@@ -277,9 +272,15 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
-    kill(-(*i)->pid_, SIGINT);
+  // Kill all sub-processes of the group. It includes us but since we have
+  // a signal handler installed until this object is destroyed we are prepared
+  // to received it.
+  if (running_.size() > 0) {
+    int signal = interrupted_;
+    if (signal == 0)
+      signal = SIGTERM;
+    kill(0, signal);
+  }
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
