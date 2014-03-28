@@ -58,9 +58,6 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
-      if (setpgid(0, 0) < 0)
-        break;
-
       if (sigaction(SIGINT, &set->old_act_, 0) < 0)
         break;
 
@@ -270,9 +267,10 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
-    kill(-(*i)->pid_, SIGINT);
+  // Kill all sub-processes of the group. It includes us but since we have
+  // a signal handler installed until this object is destroyed we are prepared
+  // to received it.
+  kill(0, SIGINT);
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
