@@ -58,9 +58,6 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
-      if (setpgid(0, 0) < 0)
-        break;
-
       if (sigaction(SIGINT, &set->old_act_, 0) < 0)
         break;
 
@@ -272,7 +269,7 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
-    kill(-(*i)->pid_, SIGINT);
+    kill((*i)->pid_, SIGTERM);
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
