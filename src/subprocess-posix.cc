@@ -112,8 +112,14 @@ void Subprocess::OnPipeReady() {
 ExitStatus Subprocess::Finish() {
   assert(pid_ != -1);
   int status;
-  if (waitpid(pid_, &status, 0) < 0)
+  int ret = waitpid(pid_, &status, 0);
+  if (ret < 0) {
+    if (errno == EINTR) {
+      // This branch is triggered by manifest such as misc/die-hard.ninja.
+      return ExitInterrupted;
+    }
     Fatal("waitpid(%d): %s", pid_, strerror(errno));
+  }
   pid_ = -1;
 
   if (WIFEXITED(status)) {
