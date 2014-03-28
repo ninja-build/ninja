@@ -63,8 +63,6 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
       if (sigaction(SIGINT, &set->old_act_, 0) < 0)
         break;
-      if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
-        break;
 
       // Open /dev/null over stdin.
       int devnull = open("/dev/null", O_RDONLY);
@@ -146,10 +144,9 @@ void SubprocessSet::SetInterruptedFlag(int signum) {
 }
 
 SubprocessSet::SubprocessSet() {
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, SIGINT);
-  if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
+  interrupted_ = false;
+  // Get current mask.
+  if (sigprocmask(0, NULL, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
   struct sigaction act;
@@ -164,8 +161,6 @@ SubprocessSet::~SubprocessSet() {
 
   if (sigaction(SIGINT, &old_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
-  if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
-    Fatal("sigprocmask: %s", strerror(errno));
 }
 
 Subprocess *SubprocessSet::Add(const string& command) {
@@ -193,7 +188,6 @@ bool SubprocessSet::DoWork() {
     ++nfds;
   }
 
-  interrupted_ = false;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
@@ -240,7 +234,6 @@ bool SubprocessSet::DoWork() {
     }
   }
 
-  interrupted_ = false;
   int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
