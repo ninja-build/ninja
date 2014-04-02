@@ -93,7 +93,18 @@ TEST_F(DiskInterfaceTest, ReadFile) {
 }
 
 TEST_F(DiskInterfaceTest, MakeDirs) {
-  EXPECT_TRUE(disk_.MakeDirs("path/with/double//slash/"));
+  string path = "path/with/double//slash/";
+  EXPECT_TRUE(disk_.MakeDirs(path.c_str()));
+  FILE* f = fopen((path + "a_file").c_str(), "w");
+  EXPECT_TRUE(f);
+  EXPECT_EQ(0, fclose(f));
+#ifdef _WIN32
+  string path2 = "another\\with\\back\\\\slashes\\";
+  EXPECT_TRUE(disk_.MakeDirs(path2.c_str()));
+  FILE* f2 = fopen((path2 + "a_file").c_str(), "w");
+  EXPECT_TRUE(f2);
+  EXPECT_EQ(0, fclose(f2));
+#endif
 }
 
 TEST_F(DiskInterfaceTest, RemoveFile) {
