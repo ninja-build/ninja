@@ -108,6 +108,10 @@ class Writer(object):
 
     def _line(self, text, indent=0):
         """Write 'text' word-wrapped at self.width characters."""
+
+        # FIXME: This code is very slow. For something of the size of
+        # Chromium with requested width 120 chars, this code consumes
+        # 1 CPU second on a normal computer.
         leading_space = '  ' * indent
         while len(leading_space) + len(text) > self.width:
             # The text is too wide; wrap if possible.
