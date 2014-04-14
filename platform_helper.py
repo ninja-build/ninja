@@ -19,7 +19,7 @@ import sys
 
 def platforms():
     return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-            'mingw', 'msvc', 'gnukfreebsd8', 'bitrig']
+            'mingw', 'msvc', 'gnukfreebsd8', 'bitrig', 'cygwin']
 
 class Platform(object):
     def __init__(self, platform):
@@ -43,6 +43,8 @@ class Platform(object):
             self._platform = 'msvc'
         elif self._platform.startswith('bitrig'):
             self._platform = 'bitrig'
+        elif self._platform.startswith('cygwin'):
+            self._platform = 'cygwin'
 
     def platform(self):
         return self._platform
@@ -81,3 +83,6 @@ class Platform(object):
 
     def is_bitrig(self):
         return self._platform == 'bitrig'
+
+    def is_cygwin(self):
+        return self._platform == 'cygwin'

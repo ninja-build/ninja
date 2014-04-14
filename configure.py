@@ -99,7 +99,7 @@ def cc(name, **kwargs):
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
-    if platform.is_windows():
+    if platform.is_windows() or platform.is_cygwin():
         exe = name + '.exe'
         n.build(name, 'phony', exe)
         return exe
