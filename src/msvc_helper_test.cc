@@ -119,10 +119,3 @@ TEST(MSVCHelperTest, EnvBlock) {
   cl.Run("cmd /c \"echo foo is %foo%", &output);
   ASSERT_EQ("foo is bar\r\n", output);
 }
-
-TEST(MSVCHelperTest, NoReadOfStderr) {
-  CLWrapper cl;
-  string output;
-  cl.Run("cmd /c \"echo to stdout&& echo to stderr 1>&2", &output);
-  ASSERT_EQ("to stdout\r\n", output);
-}
