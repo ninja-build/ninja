@@ -61,16 +61,15 @@ class Writer(object):
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
         outputs = self._as_list(outputs)
-        all_inputs = self._as_list(inputs)[:]
-        out_outputs = list(map(escape_path, outputs))
-        all_inputs = list(map(escape_path, all_inputs))
+        out_outputs = [escape_path(x) for x in outputs]
+        all_inputs = [escape_path(x) for x in self._as_list(inputs)]
 
         if implicit:
-            implicit = map(escape_path, self._as_list(implicit))
+            implicit = [escape_path(x) for x in self._as_list(implicit)]
             all_inputs.append('|')
             all_inputs.extend(implicit)
         if order_only:
-            order_only = map(escape_path, self._as_list(order_only))
+            order_only = [escape_path(x) for x in self._as_list(order_only)]
             all_inputs.append('||')
             all_inputs.extend(order_only)
 
