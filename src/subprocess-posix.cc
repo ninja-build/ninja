@@ -25,7 +25,7 @@
 
 #include "util.h"
 
-Subprocess::Subprocess() : fd_(-1), pid_(-1) {
+Subprocess::Subprocess() : directio_(false), fd_(-1), pid_(-1) {
 }
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
@@ -35,8 +35,9 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command, bool directio) {
   int output_pipe[2];
+  directio_ = directio;
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
   fd_ = output_pipe[0];
@@ -102,6 +103,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 void Subprocess::OnPipeReady() {
   char buf[4 << 10];
   ssize_t len = read(fd_, buf, sizeof(buf));
+  if(directio_) {
+    string tmp(buf, len);
+    printf("%s", tmp.c_str());
+  }
   if (len > 0) {
     buf_.append(buf, len);
   } else {
@@ -168,9 +173,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
+Subprocess *SubprocessSet::Add(const string& command, bool directio) {
   Subprocess *subprocess = new Subprocess;
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, directio)) {
     delete subprocess;
     return 0;
   }

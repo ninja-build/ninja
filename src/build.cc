@@ -488,7 +488,8 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  bool directio = edge->GetBindingBool("directio");
+  Subprocess* subproc = subprocs_.Add(command, directio);
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -505,7 +506,9 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   }
 
   result->status = subproc->Finish();
-  result->output = subproc->GetOutput();
+  if (!subproc->IsDirectIO()) {
+      result->output = subproc->GetOutput();
+  }
 
   map<Subprocess*, Edge*>::iterator i = subproc_to_edge_.find(subproc);
   result->edge = i->second;

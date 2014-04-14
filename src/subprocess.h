@@ -42,13 +42,15 @@ struct Subprocess {
   bool Done() const;
 
   const string& GetOutput() const;
+  bool IsDirectIO() const { return directio_; }
 
- private:
+private:
   Subprocess();
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(struct SubprocessSet* set, const string& command, bool directio);
   void OnPipeReady();
 
   string buf_;
+  bool directio_;
 
 #ifdef _WIN32
   /// Set up pipe_ as the parent-side pipe of the subprocess; return the
@@ -75,7 +77,7 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const string& command);
+  Subprocess* Add(const string& command, bool directio);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
