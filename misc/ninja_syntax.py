@@ -72,8 +72,10 @@ class Writer(object):
             all_inputs.append('||')
             all_inputs.extend(order_only)
 
-        self._line('build %s: %s' % (' '.join(out_outputs),
-                                     ' '.join([rule] + all_inputs)))
+        self.output.write('build ' +
+                          ' $\n    '.join([""] + out_outputs) +
+                          ': $\n    ' +
+                          ' $\n    '.join([rule] + all_inputs) + '\n')
 
         if variables:
             if isinstance(variables, dict):
