@@ -26,7 +26,7 @@ _ninja_target() {
 			dir="."
 			line=$(echo ${COMP_LINE} | cut -d" " -f 2-)
 			# filter out all non relevant arguments but keep C for dirs
-			while getopts C:f:j:l:k:nvd:t: opt "${line[@]}"; do
+			while getopts C:f:j:l:k:nvd:t: opt $line; do
 				case $opt in
 					C) dir="$OPTARG" ;;
 				esac
