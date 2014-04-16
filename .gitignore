@@ -10,7 +10,7 @@ TAGS
 /canon_perftest
 /hash_collision_bench
 /ninja_test
-/parser_perftest
+/depfile_parser_perftest
 /graph.png
 /doc/manual.html
 /doc/doxygen
