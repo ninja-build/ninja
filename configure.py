@@ -377,8 +377,8 @@ all_targets += ninja_test
 
 
 n.comment('Ancillary executables.')
-objs = cxx('parser_perftest')
-all_targets += n.build(binary('parser_perftest'), 'link', objs,
+objs = cxx('depfile_parser_perftest')
+all_targets += n.build(binary('depfile_parser_perftest'), 'link', objs,
                        implicit=ninja_lib, variables=[('libs', libs)])
 objs = cxx('build_log_perftest')
 all_targets += n.build(binary('build_log_perftest'), 'link', objs,
