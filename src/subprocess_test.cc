@@ -98,6 +98,30 @@ TEST_F(SubprocessTest, InterruptParent) {
   ASSERT_FALSE("We should have been interrupted");
 }
 
+TEST_F(SubprocessTest, InterruptChildWithSigTerm) {
+  Subprocess* subproc = subprocs_.Add("kill -TERM $$");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+
+  EXPECT_EQ(ExitInterrupted, subproc->Finish());
+}
+
+TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
+  Subprocess* subproc = subprocs_.Add("kill -TERM $PPID ; sleep 1");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    bool interrupted = subprocs_.DoWork();
+    if (interrupted)
+      return;
+  }
+
+  ASSERT_FALSE("We should have been interrupted");
+}
+
 // A shell command to check if the current process is connected to a terminal.
 // This is different from having stdin/stdout/stderr be a terminal. (For
 // instance consider the command "yes < /dev/null > /dev/null 2>&1".
@@ -221,7 +245,7 @@ TEST_F(SubprocessTest, SetWithLots) {
   }
   ASSERT_EQ(kNumProcs, subprocs_.finished_.size());
 }
-#endif  // !__APPLE__ && !_WIN32 
+#endif  // !__APPLE__ && !_WIN32
 
 // TODO: this test could work on Windows, just not sure how to simply
 // read stdin.

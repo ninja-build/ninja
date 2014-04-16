@@ -91,7 +91,8 @@ struct SubprocessSet {
   static void SetInterruptedFlag(int signum);
   static bool interrupted_;
 
-  struct sigaction old_act_;
+  struct sigaction old_int_act_;
+  struct sigaction old_term_act_;
   sigset_t old_mask_;
 #endif
 };
