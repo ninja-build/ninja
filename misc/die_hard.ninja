@@ -1,0 +1,10 @@
+# This manifest is useful to trigger a long waitpid() call so that
+# we can interrupt it.
+
+# Print message, close stdout, close stderr and sleep before to die.
+rule DIEHARD
+     command = echo die hard; exec 1>&-; exec 2>&-; sleep $delay
+     description = Dieing in $delay
+
+build output: DIEHARD
+      delay = 30
