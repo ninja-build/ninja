@@ -25,20 +25,6 @@
 
 #include "util.h"
 
-namespace {
-
-bool HasPendingInterruption() {
-  sigset_t pending;
-  sigemptyset(&pending);
-  if (sigpending(&pending) == -1) {
-    perror("ninja: sigpending");
-    return false;
-  }
-  return sigismember(&pending, SIGINT);
-}
-
-}  // anonymous namespace
-
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }
@@ -164,11 +150,23 @@ const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
-bool SubprocessSet::interrupted_;
+int SubprocessSet::interrupted_;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
-  (void) signum;
-  interrupted_ = true;
+  interrupted_ = signum;
+}
+
+void SubprocessSet::HandlePendingInterruption() {
+  sigset_t pending;
+  sigemptyset(&pending);
+  if (sigpending(&pending) == -1) {
+    perror("ninja: sigpending");
+    return;
+  }
+  if (sigismember(&pending, SIGINT))
+    interrupted_ = SIGINT;
+  else if (sigismember(&pending, SIGTERM))
+    interrupted_ = SIGTERM;
 }
 
 SubprocessSet::SubprocessSet() {
@@ -224,17 +222,18 @@ bool SubprocessSet::DoWork() {
     ++nfds;
   }
 
-  interrupted_ = false;
+  interrupted_ = 0;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
       return false;
     }
-    return interrupted_;
+    return IsInterrupted();
   }
 
-  if (HasPendingInterruption())
+  HandlePendingInterruption();
+  if (IsInterrupted())
     return true;
 
   nfds_t cur_nfd = 0;
@@ -255,7 +254,7 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return interrupted_;
+  return IsInterrupted();
 }
 
 #else  // !defined(USE_PPOLL)
@@ -274,17 +273,18 @@ bool SubprocessSet::DoWork() {
     }
   }
 
-  interrupted_ = false;
+  interrupted_ = 0;
   int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
       return false;
     }
-    return interrupted_;
+    return IsInterrupted();
   }
 
-  if (HasPendingInterruption())
+  HandlePendingInterruption();
+  if (IsInterrupted())
     return true;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
@@ -301,7 +301,7 @@ bool SubprocessSet::DoWork() {
     ++i;
   }
 
-  return interrupted_;
+  return IsInterrupted();
 }
 #endif  // !defined(USE_PPOLL)
 
@@ -316,10 +316,10 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
-    // Since the foreground process is in our process group, it will receive a
-    // SIGINT at the same time as us.
+    // Since the foreground process is in our process group, it will receive
+    // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
     if (!(*i)->use_console_)
-      kill(-(*i)->pid_, SIGINT);
+      kill(-(*i)->pid_, interrupted_);
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
