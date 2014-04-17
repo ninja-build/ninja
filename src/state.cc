@@ -69,11 +69,13 @@ bool Pool::WeightedEdgeCmp(const Edge* a, const Edge* b) {
 }
 
 Pool State::kDefaultPool("", 0);
+Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
 State::State() {
   AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
+  AddPool(&kConsolePool);
 }
 
 void State::AddRule(const Rule* rule) {
