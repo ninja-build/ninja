@@ -24,6 +24,7 @@
 #endif
 
 #include "disk_interface.h"
+#include "graph.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
@@ -46,11 +47,26 @@ bool WriteFakeManifests(const string& dir) {
   return err == 0;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+  bool measure_command_evaluation = true;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("fh"))) != -1) {
+    switch (opt) {
+    case 'f':
+      measure_command_evaluation = false;
+      break;
+    case 'h':
+    default:
+      printf("usage: manifest_parser_perftest\n"
+"\n"
+"options:\n"
+"  -f     only measure manifest load time, not command evaluation time\n"
+             );
+    return 1;
+    }
+  }
+
   const char kManifestDir[] = "build/manifest_perftest";
-  RealFileReader file_reader;
-  vector<int> times;
-  string err;
 
   if (!WriteFakeManifests(kManifestDir)) {
     fprintf(stderr, "Failed to write test data\n");
@@ -60,6 +76,9 @@ int main() {
   chdir(kManifestDir);
 
   const int kNumRepetitions = 5;
+  RealFileReader file_reader;
+  vector<int> times;
+  string err;
   for (int i = 0; i < kNumRepetitions; ++i) {
     int64_t start = GetTimeMillis();
 
@@ -69,9 +88,16 @@ int main() {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
+    // Doing an empty build involves reading the manifest and evaluating all
+    // commands required for the requested targets. So include command
+    // evaluation in the perftest by default.
+    int optimization_guard = 0;
+    if (measure_command_evaluation)
+      for (size_t i = 0; i < state.edges_.size(); ++i)
+        optimization_guard += state.edges_[i]->EvaluateCommand().size();
 
     int delta = (int)(GetTimeMillis() - start);
-    printf("%dms\n", delta);
+    printf("%dms (hash: %x)\n", delta, optimization_guard);
     times.push_back(delta);
   }
 
