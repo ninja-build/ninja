@@ -8,9 +8,10 @@ TAGS
 /ninja
 /build_log_perftest
 /canon_perftest
+/depfile_parser_perftest
 /hash_collision_bench
 /ninja_test
-/depfile_parser_perftest
+/manifest_parser_perftest
 /graph.png
 /doc/manual.html
 /doc/doxygen
