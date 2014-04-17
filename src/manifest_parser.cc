@@ -296,16 +296,17 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  // XXX scoped_ptr to handle error case.
-  BindingEnv* env = new BindingEnv(env_);
-
-  while (lexer_.PeekToken(Lexer::INDENT)) {
+  // Bindings on edges are rare, so allocate per-edge envs only when needed.
+  bool hasIdent = lexer_.PeekToken(Lexer::INDENT);
+  BindingEnv* env = hasIdent ? new BindingEnv(env_) : env_;
+  while (hasIdent) {
     string key;
     EvalString val;
     if (!ParseLet(&key, &val, err))
       return false;
 
     env->AddBinding(key, val.Evaluate(env_));
+    hasIdent = lexer_.PeekToken(Lexer::INDENT);
   }
 
   Edge* edge = state_->AddEdge(rule);
