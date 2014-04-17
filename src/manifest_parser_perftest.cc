@@ -47,6 +47,25 @@ bool WriteFakeManifests(const string& dir) {
   return err == 0;
 }
 
+int LoadManifests(bool measure_command_evaluation) {
+  string err;
+  RealFileReader file_reader;
+  State state;
+  ManifestParser parser(&state, &file_reader);
+  if (!parser.Load("build.ninja", &err)) {
+    fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
+    exit(1);
+  }
+  // Doing an empty build involves reading the manifest and evaluating all
+  // commands required for the requested targets. So include command
+  // evaluation in the perftest by default.
+  int optimization_guard = 0;
+  if (measure_command_evaluation)
+    for (size_t i = 0; i < state.edges_.size(); ++i)
+      optimization_guard += state.edges_[i]->EvaluateCommand().size();
+  return optimization_guard;
+}
+
 int main(int argc, char* argv[]) {
   bool measure_command_evaluation = true;
   int opt;
@@ -76,26 +95,10 @@ int main(int argc, char* argv[]) {
   chdir(kManifestDir);
 
   const int kNumRepetitions = 5;
-  RealFileReader file_reader;
   vector<int> times;
-  string err;
   for (int i = 0; i < kNumRepetitions; ++i) {
     int64_t start = GetTimeMillis();
-
-    State state;
-    ManifestParser parser(&state, &file_reader);
-    if (!parser.Load("build.ninja", &err)) {
-      fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
-      return 1;
-    }
-    // Doing an empty build involves reading the manifest and evaluating all
-    // commands required for the requested targets. So include command
-    // evaluation in the perftest by default.
-    int optimization_guard = 0;
-    if (measure_command_evaluation)
-      for (size_t i = 0; i < state.edges_.size(); ++i)
-        optimization_guard += state.edges_[i]->EvaluateCommand().size();
-
+    int optimization_guard = LoadManifests(measure_command_evaluation);
     int delta = (int)(GetTimeMillis() - start);
     printf("%dms (hash: %x)\n", delta, optimization_guard);
     times.push_back(delta);
