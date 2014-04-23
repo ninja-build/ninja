@@ -137,6 +137,9 @@ struct BuildConfig {
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
   double max_load_average;
+  /// The number of emitted lines per second we should not exceed.  A negative
+  /// value means no limit.
+  double lines_per_second;
 };
 
 /// Builder wraps the build process: starting commands, updating status.

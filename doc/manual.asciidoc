@@ -190,10 +190,11 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
-`NINJA_STATUS`, the progress status printed before the rule being run.
+Ninja supports environment variables to control its behavior:
+`NINJA_STATUS`:: the progress status printed before the rule being run; and
+`NINJA_LINES_PER_SECOND`:: a cap on how verbose ninja should be.
 
-Several placeholders are available:
+Several placeholders are available for `NINJA_STATUS`:
 
 `%s`:: The number of started edges.
 `%t`:: The total number of edges that must be run to complete the build.
@@ -210,6 +211,10 @@ specified by `-j` or its default)
 The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+The default for `NINJA_LINES_PER_SECOND` is -1 (no throttling).  A positive
+value means try to emit no more than that many lines per second; a value of 0
+means emit no status lines.
 
 Extra tools
 ~~~~~~~~~~~

@@ -938,6 +938,16 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
+  double lines_per_second = -1;
+  const char* ninja_lines_per_second = getenv("NINJA_LINES_PER_SECOND");
+  if (ninja_lines_per_second) {
+    char* endptr = NULL;
+    lines_per_second = strtod(ninja_lines_per_second, &endptr);
+    if (errno || endptr == ninja_lines_per_second || *endptr)
+      Fatal("Invalid NINJA_LINES_PER_SECOND environment variable");
+  }
+  config->lines_per_second = lines_per_second;
+
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },

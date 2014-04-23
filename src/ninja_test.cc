@@ -32,7 +32,8 @@ string StringPrintf(const char* format, ...) {
 
 /// A test result printer that's less wordy than gtest's default.
 struct LaconicPrinter : public testing::EmptyTestEventListener {
-  LaconicPrinter() : tests_started_(0), test_count_(0), iteration_(0) {}
+  LaconicPrinter()
+      : printer_(-1), tests_started_(0), test_count_(0), iteration_(0) {}
   virtual void OnTestProgramStart(const testing::UnitTest& unit_test) {
     test_count_ = unit_test.test_to_run_count();
   }

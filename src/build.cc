@@ -75,6 +75,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
+      printer_(config.lines_per_second),
       progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 

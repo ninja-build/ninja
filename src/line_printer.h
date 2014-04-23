@@ -17,12 +17,17 @@
 
 #include <stddef.h>
 #include <string>
+#include "metrics.h"
+
 using namespace std;
 
 /// Prints lines of text, possibly overprinting previously printed lines
 /// if the terminal supports it.
 struct LinePrinter {
-  LinePrinter();
+  /// Request this printer emit no more frequently than |lines_per_second|.
+  /// Note that multi-line output can violate this request; it is a soft limit
+  /// only.
+  explicit LinePrinter(double lines_per_second);
 
   bool is_smart_terminal() const { return smart_terminal_; }
   void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
@@ -60,6 +65,11 @@ struct LinePrinter {
 
   /// Buffered console output while console is locked.
   string output_buffer_;
+
+  /// Throttling helpers: the inverse of the contructor-requested limit and the
+  /// Stopwatch that helps enforce it.
+  const double seconds_per_line_;  // \inf==silence, <0==no throttle.
+  Stopwatch stopwatch_;
 
 #ifdef _WIN32
   void* console_;

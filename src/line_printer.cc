@@ -26,7 +26,9 @@
 
 #include "util.h"
 
-LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
+LinePrinter::LinePrinter(double lines_per_second)
+    : have_blank_line_(true), console_locked_(false),
+      seconds_per_line_(1/lines_per_second) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -49,6 +51,9 @@ void LinePrinter::Print(string to_print, LineType type) {
     return;
   }
 
+  if (stopwatch_.Elapsed() < seconds_per_line_)
+    return;
+  stopwatch_.Restart();
 #ifdef _WIN32
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   GetConsoleScreenBufferInfo(console_, &csbi);
