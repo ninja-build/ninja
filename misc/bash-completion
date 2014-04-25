@@ -16,8 +16,25 @@
 #   . path/to/ninja/misc/bash-completion
 
 _ninja_target() {
-    local cur targets dir line targets_command OPTIND
-    cur="${COMP_WORDS[COMP_CWORD]}"
+    local cur prev targets dir line targets_command OPTIND
+
+    # When available, use bash_completion to:
+    #   1) Complete words when the cursor is in the middle of the word
+    #   2) Complete paths with files or directories, as appropriate
+    if _get_comp_words_by_ref cur prev &>/dev/null ; then
+        case $prev in
+            -f)
+                _filedir
+                return 0
+                ;;
+            -C)
+                _filedir -d
+                return 0
+                ;;
+        esac
+    else
+        cur="${COMP_WORDS[COMP_CWORD]}"
+    fi
 
     if [[ "$cur" == "--"* ]]; then
         # there is currently only one argument that takes --
