@@ -28,7 +28,8 @@ _ninja_target() {
 			# filter out all non relevant arguments but keep C for dirs
 			while getopts C:f:j:l:k:nvd:t: opt $line; do
 				case $opt in
-					C) dir="$OPTARG" ;;
+					# eval for tilde expansion
+					C) eval dir="$OPTARG" ;;
 				esac
 			done;
 			targets_command="eval ninja -C \"${dir}\" -t targets all"
