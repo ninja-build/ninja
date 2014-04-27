@@ -19,8 +19,10 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+#include "getopt.h"
 #include <direct.h>
 #else
+#include <getopt.h>
 #include <unistd.h>
 #endif
 
@@ -107,6 +109,6 @@ int main(int argc, char* argv[]) {
 
   int min = *min_element(times.begin(), times.end());
   int max = *max_element(times.begin(), times.end());
-  float total = accumulate(times.begin(), times.end(), 0);
+  float total = accumulate(times.begin(), times.end(), 0.0f);
   printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
 }
