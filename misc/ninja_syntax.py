@@ -11,7 +11,9 @@ import textwrap
 import re
 
 def escape_path(word):
-    return word.replace('$ ','$$ ').replace(' ','$ ').replace(':', '$:')
+    if '$' in word or ' ' in word or ':' in word:
+        return word.replace('$ ','$$ ').replace(' ','$ ').replace(':', '$:')
+    return word
 
 class Writer(object):
     def __init__(self, output, width=78):
