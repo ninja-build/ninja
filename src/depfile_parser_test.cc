@@ -58,6 +58,17 @@ TEST_F(DepfileParserTest, Continuation) {
   EXPECT_EQ(2u, parser_.ins_.size());
 }
 
+TEST_F(DepfileParserTest, CarriageReturnContinuation) {
+  string err;
+  EXPECT_TRUE(Parse(
+"foo.o: \\\r\n"
+"  bar.h baz.h\r\n",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("foo.o", parser_.out_.AsString());
+  EXPECT_EQ(2u, parser_.ins_.size());
+}
+
 TEST_F(DepfileParserTest, BackSlashes) {
   string err;
   EXPECT_TRUE(Parse(
@@ -136,4 +147,5 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
+  ASSERT_EQ("depfile has multiple output paths", err);
 }
