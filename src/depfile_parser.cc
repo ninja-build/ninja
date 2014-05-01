@@ -84,42 +84,43 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= '=') {
-        if (yych <= '$') {
-          if (yych <= ' ') {
-            if (yych <= 0x00) goto yy7;
-            goto yy9;
+      if (yych <= '<') {
+        if (yych <= '#') {
+          if (yych <= '\r') {
+            if (yych <= 0x00) goto yy9;
+            if (yych <= '\f') goto yy11;
+            goto yy7;
           } else {
-            if (yych <= '!') goto yy5;
-            if (yych <= '#') goto yy9;
-            goto yy4;
+            if (yych == '!') goto yy5;
+            goto yy11;
           }
         } else {
-          if (yych <= '*') {
-            if (yych <= '\'') goto yy9;
-            if (yych <= ')') goto yy5;
-            goto yy9;
-          } else {
-            if (yych <= ':') goto yy5;
-            if (yych <= '<') goto yy9;
+          if (yych <= ')') {
+            if (yych <= '$') goto yy4;
+            if (yych <= '\'') goto yy11;
             goto yy5;
+          } else {
+            if (yych <= '*') goto yy11;
+            if (yych <= ':') goto yy5;
+            goto yy11;
           }
         }
       } else {
         if (yych <= '^') {
           if (yych <= 'Z') {
-            if (yych <= '?') goto yy9;
+            if (yych <= '=') goto yy5;
+            if (yych <= '?') goto yy11;
             goto yy5;
           } else {
-            if (yych != '\\') goto yy9;
+            if (yych != '\\') goto yy11;
           }
         } else {
           if (yych <= 'z') {
-            if (yych == '`') goto yy9;
+            if (yych == '`') goto yy11;
             goto yy5;
           } else {
             if (yych == '~') goto yy5;
-            goto yy9;
+            goto yy11;
           }
         }
       }
@@ -127,20 +128,20 @@ bool DepfileParser::Parse(string* content, string* err) {
       if ((yych = *in) <= '#') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy14;
+          if (yych <= '\t') goto yy16;
         } else {
-          if (yych == ' ') goto yy16;
-          if (yych <= '"') goto yy14;
-          goto yy16;
+          if (yych == ' ') goto yy18;
+          if (yych <= '"') goto yy16;
+          goto yy18;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych == '*') goto yy16;
-          goto yy14;
+          if (yych == '*') goto yy18;
+          goto yy16;
         } else {
-          if (yych <= '\\') goto yy16;
-          if (yych == '|') goto yy16;
-          goto yy14;
+          if (yych <= '\\') goto yy18;
+          if (yych == '|') goto yy18;
+          goto yy16;
         }
       }
 yy3:
@@ -151,12 +152,12 @@ yy3:
       }
 yy4:
       yych = *++in;
-      if (yych == '$') goto yy12;
+      if (yych == '$') goto yy14;
       goto yy3;
 yy5:
       ++in;
       yych = *in;
-      goto yy11;
+      goto yy13;
 yy6:
       {
         // Got a span of plain text.
@@ -170,27 +171,33 @@ yy6:
 yy7:
       ++in;
       {
-        break;
+        *err = "carriage returns are not allowed, use newlines";
+        return false;
       }
 yy9:
+      ++in;
+      {
+        break;
+      }
+yy11:
       yych = *++in;
       goto yy3;
-yy10:
+yy12:
       ++in;
       yych = *in;
-yy11:
+yy13:
       if (yybm[0+yych] & 128) {
-        goto yy10;
+        goto yy12;
       }
       goto yy6;
-yy12:
+yy14:
       ++in;
       {
         // De-escape dollar character.
         *out++ = '$';
         continue;
       }
-yy14:
+yy16:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -198,7 +205,7 @@ yy14:
         *out++ = yych;
         continue;
       }
-yy16:
+yy18:
       ++in;
       {
         // De-escape backslashed character.
@@ -224,7 +231,7 @@ yy16:
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
+      *err = "depfile has multiple output paths";
       return false;
     }
   }
