@@ -136,4 +136,14 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
+  ASSERT_EQ("depfile has multiple output paths", err);
+}
+
+TEST_F(DepfileParserTest, RejectCarriageReturn) {
+  string err;
+  EXPECT_FALSE(Parse(
+"foo: bar \\\r\n"
+"  baz\r\n",
+      &err));
+  ASSERT_EQ("carriage returns are not allowed, use newlines", err);
 }
