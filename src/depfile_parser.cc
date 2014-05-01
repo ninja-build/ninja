@@ -124,17 +124,18 @@ bool DepfileParser::Parse(string* content, string* err) {
         }
       }
       ++in;
-      if ((yych = *in) <= '#') {
-        if (yych <= '\n') {
+      if ((yych = *in) <= '"') {
+        if (yych <= '\f') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy14;
+          if (yych != '\n') goto yy14;
         } else {
+          if (yych <= '\r') goto yy3;
           if (yych == ' ') goto yy16;
-          if (yych <= '"') goto yy14;
-          goto yy16;
+          goto yy14;
         }
       } else {
         if (yych <= 'Z') {
+          if (yych <= '#') goto yy16;
           if (yych == '*') goto yy16;
           goto yy14;
         } else {
@@ -224,7 +225,7 @@ yy16:
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
+      *err = "depfile has multiple output paths";
       return false;
     }
   }
