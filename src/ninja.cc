@@ -161,7 +161,8 @@ struct Tool {
 
   /// When to run the tool.
   enum {
-    /// Run after parsing the command-line flags (as early as possible).
+    /// Run after parsing the command-line flags and potentially changing
+    /// the current working directory (as early as possible).
     RUN_AFTER_FLAGS,
 
     /// Run after loading build.ninja.
@@ -1026,13 +1027,6 @@ int real_main(int argc, char** argv) {
   if (exit_code >= 0)
     return exit_code;
 
-  if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
-    // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
-    // by other tools.
-    NinjaMain ninja(ninja_command, config);
-    return (ninja.*options.tool->func)(argc, argv);
-  }
-
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -1044,6 +1038,13 @@ int real_main(int argc, char** argv) {
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
+  }
+
+  if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
+    // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
+    // by other tools.
+    NinjaMain ninja(ninja_command, config);
+    return (ninja.*options.tool->func)(argc, argv);
   }
 
   // The build can take up to 2 passes: one to rebuild the manifest, then
