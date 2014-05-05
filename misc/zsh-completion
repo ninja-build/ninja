@@ -1,3 +1,4 @@
+#compdef ninja
 # Copyright 2011 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,47 @@
 # Add the following to your .zshrc to tab-complete ninja targets
 #   . path/to/ninja/misc/zsh-completion
 
-_ninja() {
-  reply=(`(ninja -t targets all 2&>/dev/null) | awk -F: '{print $1}'`)
+__get_targets() {
+  ninja -t targets 2>/dev/null | while read -r a b; do echo $a | cut -d ':' -f1; done;
 }
-compctl -K _ninja ninja
+
+__get_tools() {
+  ninja -t list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2
+}
+
+__get_modes() {
+  ninja -d list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2 | head -n -1
+}
+
+__modes() {
+  local -a modes
+  modes=(${(fo)"$(__get_modes)"})
+  _describe 'modes' modes
+}
+
+__tools() {
+  local -a tools
+  tools=(${(fo)"$(__get_tools)"})
+  _describe 'tools' tools
+}
+
+__targets() {
+  local -a targets
+  targets=(${(fo)"$(__get_targets)"})
+  _describe 'targets' targets
+}
+
+_arguments \
+  {-h,--help}'[Show help]' \
+  '--version[Print ninja version]' \
+  '-C+[Change to directory before doing anything else]:directories:_directories' \
+  '-f+[Specify input build file (default=build.ninja)]:files:_files' \
+  '-j+[Run N jobs in parallel (default=number of CPUs available)]:number of jobs' \
+  '-l+[Do not start new jobs if the load average is greater than N]:number of jobs' \
+  '-k+[Keep going until N jobs fail (default=1)]:number of jobs' \
+  '-n[Dry run (do not run commands but act like they succeeded)]' \
+  '-v[Show all command lines while building]' \
+  '-d+[Enable debugging (use -d list to list modes)]:modes:__modes' \
+  '-t+[Run a subtool (use -t list to list subtools)]:tools:__tools' \
+  '*::targets:__targets'
+
