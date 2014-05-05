@@ -8,7 +8,6 @@ use Python.
 """
 
 import textwrap
-import re
 
 def escape_path(word):
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
