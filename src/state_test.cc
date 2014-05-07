@@ -32,12 +32,17 @@ TEST(State, Basic) {
   rule->AddBinding("command", command);
   state.AddRule(rule);
 
+  EXPECT_EQ(rule, state.LookupRule("cat"));
+
   Edge* edge = state.AddEdge(rule);
   state.AddIn(edge, "in1");
   state.AddIn(edge, "in2");
   state.AddOut(edge, "out");
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
+
+  // Release the edge after we are done with it.
+  delete edge;
 
   EXPECT_FALSE(state.GetNode("in1")->dirty());
   EXPECT_FALSE(state.GetNode("in2")->dirty());
