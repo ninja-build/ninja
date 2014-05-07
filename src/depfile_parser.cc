@@ -64,7 +64,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           0, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0,   0, 128,   0, 
+        128, 128, 128, 128,   0, 128, 128,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -114,11 +114,12 @@ bool DepfileParser::Parse(string* content, string* err) {
             if (yych != '\\') goto yy9;
           }
         } else {
-          if (yych <= 'z') {
+          if (yych <= '{') {
             if (yych == '`') goto yy9;
             goto yy5;
           } else {
-            if (yych == '~') goto yy5;
+            if (yych <= '|') goto yy9;
+            if (yych <= '~') goto yy5;
             goto yy9;
           }
         }
