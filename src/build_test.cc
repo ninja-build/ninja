@@ -245,7 +245,6 @@ TEST_F(PlanTest, PoolWithDepthOne) {
 "build out2: poolcat in\n");
 }
 
-#ifndef _WIN32
 TEST_F(PlanTest, ConsolePool) {
   TestPoolWithDepthOne(
 "rule poolcat\n"
@@ -254,7 +253,6 @@ TEST_F(PlanTest, ConsolePool) {
 "build out1: poolcat in\n"
 "build out2: poolcat in\n");
 }
-#endif
 
 TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -1944,12 +1942,12 @@ TEST_F(BuildTest, Console) {
 "rule console\n"
 "  command = console\n"
 "  pool = console\n"
-"build con: console in.txt\n"));
+"build cons: console in.txt\n"));
 
   fs_.Create("in.txt", "");
 
   string err;
-  EXPECT_TRUE(builder_.AddTarget("con", &err));
+  EXPECT_TRUE(builder_.AddTarget("cons", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
