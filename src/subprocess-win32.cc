@@ -101,10 +101,13 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   PROCESS_INFORMATION process_info;
   memset(&process_info, 0, sizeof(process_info));
 
+  // Ninja handles ctrl-c, except for subprocesses in console pools.
+  DWORD process_flags = use_console_ ? 0 : CREATE_NEW_PROCESS_GROUP;
+
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
-                      /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
+                      /* inherit handles */ TRUE, process_flags,
                       NULL, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
