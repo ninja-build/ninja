@@ -65,6 +65,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         break;
 
       if (!use_console_) {
+        // Put the child in its own process group, so ctrl-c won't reach it.
         if (setpgid(0, 0) < 0)
           break;
 

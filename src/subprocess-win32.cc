@@ -277,7 +277,7 @@ void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     // Since the foreground process is in our process group, it will receive a
-    // SIGINT at the same time as us.  XXX is this true on windows?
+    // CTRL_BREAK_EVENT at the same time as us.
     if ((*i)->child_ && !(*i)->use_console_) {
       if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
                                     GetProcessId((*i)->child_))) {
