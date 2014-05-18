@@ -664,8 +664,6 @@ While a task in the `console` pool is running, Ninja's regular output (such
 as progress status and output from concurrent tasks) is buffered until
 it completes.
 
-This feature is not yet available on Windows.
-
 Ninja file reference
 --------------------
 

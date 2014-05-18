@@ -317,10 +317,6 @@ bool ManifestParser::ParseEdge(string* err) {
     Pool* pool = state_->LookupPool(pool_name);
     if (pool == NULL)
       return lexer_.Error("unknown pool name '" + pool_name + "'", err);
-#ifdef _WIN32
-    if (pool == &State::kConsolePool)
-      return lexer_.Error("console pool unsupported on Windows", err);
-#endif
     edge->pool_ = pool;
   }
 
