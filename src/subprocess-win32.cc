@@ -277,7 +277,7 @@ void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     // Since the foreground process is in our process group, it will receive a
-    // CTRL_BREAK_EVENT at the same time as us.
+    // CTRL_C_EVENT or CTRL_BREAK_EVENT at the same time as us.
     if ((*i)->child_ && !(*i)->use_console_) {
       if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
                                     GetProcessId((*i)->child_))) {
