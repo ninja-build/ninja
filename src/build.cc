@@ -541,7 +541,7 @@ void Builder::Cleanup() {
 
     for (vector<Edge*>::iterator i = active_edges.begin();
          i != active_edges.end(); ++i) {
-      string depfile = (*i)->GetBinding("depfile");
+      string depfile = (*i)->GetUnescapedDepfile();
       for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
            ni != (*i)->outputs_.end(); ++ni) {
         // Only delete this output if it was actually modified.  This is
@@ -696,7 +696,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
-  string rspfile = edge->GetBinding("rspfile");
+  string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
     if (!disk_interface_->WriteFile(rspfile, content))
@@ -772,7 +772,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
           restat_mtime = input_mtime;
       }
 
-      string depfile = edge->GetBinding("depfile");
+      string depfile = edge->GetUnescapedDepfile();
       if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
         if (depfile_mtime > restat_mtime)
@@ -788,7 +788,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   plan_.EdgeFinished(edge);
 
   // Delete any left over response file.
-  string rspfile = edge->GetBinding("rspfile");
+  string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
@@ -828,7 +828,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   } else
 #endif
   if (deps_type == "gcc") {
-    string depfile = result->edge->GetBinding("depfile");
+    string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");
       return false;

@@ -146,8 +146,14 @@ struct Edge {
   /// full contents of a response file (if applicable)
   string EvaluateCommand(bool incl_rsp_file = false);
 
+  /// Returns the shell-escaped value of |key|.
   string GetBinding(const string& key);
   bool GetBindingBool(const string& key);
+
+  /// Like GetBinding("depfile"), but without shell escaping.
+  string GetUnescapedDepfile();
+  /// Like GetBinding("rspfile"), but without shell escaping.
+  string GetUnescapedRspfile();
 
   void Dump(const char* prefix="") const;
 
