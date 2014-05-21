@@ -286,8 +286,7 @@ TEST_F(CleanTest, CleanRspFile) {
 "  rspfile = $rspfile\n"
 "  rspfile_content=$in\n"
 "build out1: cc in1\n"
-"  rspfile = cc1.rsp\n"
-"  rspfile_content=$in\n"));
+"  rspfile = cc1.rsp\n"));
   fs_.Create("out1", "");
   fs_.Create("cc1.rsp", "");
 
@@ -307,10 +306,9 @@ TEST_F(CleanTest, CleanRsp) {
 "build out1: cat in1\n"
 "build in2: cat_rsp src2\n"
 "  rspfile=in2.rsp\n"
-"  rspfile_content=$in\n"
 "build out2: cat_rsp in2\n"
 "  rspfile=out2.rsp\n"
-"  rspfile_content=$in\n"));
+));
   fs_.Create("in1", "");
   fs_.Create("out1", "");
   fs_.Create("in2.rsp", "");
@@ -336,8 +334,6 @@ TEST_F(CleanTest, CleanRsp) {
   EXPECT_EQ(0, fs_.Stat("out2"));
   EXPECT_EQ(0, fs_.Stat("in2.rsp"));
   EXPECT_EQ(0, fs_.Stat("out2.rsp"));
-
-  fs_.files_removed_.clear();
 }
 
 TEST_F(CleanTest, CleanFailure) {
