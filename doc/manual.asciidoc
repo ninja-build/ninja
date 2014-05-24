@@ -783,8 +783,7 @@ keys.
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
   dependency types>>).  This is explicitly to support C/C++ header
-  dependencies; see <<ref_headers,the full discussion>>.  `out`, `in`, and
-  `in_newline` are not shell-quoted when used to set `depfile`.
+  dependencies; see <<ref_headers,the full discussion>>.
 
 `deps`:: _(Available since Ninja 1.3.)_ if present, must be one of
   `gcc` or `msvc` to specify special dependency processing.  See
@@ -807,9 +806,9 @@ keys.
   rebuilt if the command line changes; and secondly, they are not
   cleaned by default.
 
-`in`:: the shell-quoted space-separated list of files provided as
-  inputs to the build line referencing this `rule`.  (`$in` is provided
-  solely for convenience; if you need some subset or variant of this
+`in`:: the space-separated list of files provided as inputs to the build line
+  referencing this `rule`, shell-quoted if it appears in commands.  (`$in` is
+  provided solely for convenience; if you need some subset or variant of this
   list of files, just construct a new variable with that list and use
   that instead.)
 
@@ -818,8 +817,8 @@ keys.
   `$rspfile_content`; this works around a bug in the MSVC linker where
   it uses a fixed-size buffer for processing input.)
 
-`out`:: the shell-quoted space-separated list of files provided as
-  outputs to the build line referencing this `rule`.
+`out`:: the space-separated list of files provided as outputs to the build line
+  referencing this `rule`, shell-quoted if it appears in commands.
 
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
@@ -831,8 +830,7 @@ keys.
   response file for the given command, i.e. write the selected string
   (`rspfile_content`) to the given file (`rspfile`) before calling the
   command and delete the file after successful execution of the
-  command.  `out`, `in`, and `in_newline` are not shell-quoted when used to set
-  `rspfile`.
+  command.
 +
 This is particularly useful on Windows OS, where the maximal length of
 a command line is limited and response files must be used instead.
