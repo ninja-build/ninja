@@ -15,6 +15,7 @@
 #ifndef NINJA_DISK_INTERFACE_H_
 #define NINJA_DISK_INTERFACE_H_
 
+#include <map>
 #include <string>
 using namespace std;
 
@@ -55,7 +56,7 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface() : quiet_(false) {}
+  RealDiskInterface() : quiet_(false), use_cache_(false) {}
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
@@ -65,6 +66,12 @@ struct RealDiskInterface : public DiskInterface {
 
   /// Whether to print on errors.  Used to make a test quieter.
   bool quiet_;
+  /// Whether stat information can be cached.
+  bool use_cache_;
+
+  typedef map<string, TimeStamp> DirCache;
+  typedef map<string, DirCache*> Cache;
+  Cache cache_;
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_

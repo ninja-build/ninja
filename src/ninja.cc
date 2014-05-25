@@ -882,6 +882,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 1;
   }
 
+// XXX allow stat caching
+  //disk_interface_.use_cache_ = true;
+
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -894,6 +897,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
       }
     }
   }
+
+// XXX disallow stat caching
+  disk_interface_.use_cache_ = false;
 
   if (builder.AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
