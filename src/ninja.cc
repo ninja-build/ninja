@@ -883,7 +883,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   }
 
 // XXX allow stat caching
-  //disk_interface_.use_cache_ = true;
+  disk_interface_.use_cache_ = true;
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
