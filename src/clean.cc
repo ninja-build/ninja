@@ -80,11 +80,11 @@ bool Cleaner::IsAlreadyRemoved(const string& path) {
 }
 
 void Cleaner::RemoveEdgeFiles(Edge* edge) {
-  string depfile = edge->GetBinding("depfile");
+  string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
     Remove(depfile);
 
-  string rspfile = edge->GetBinding("rspfile");
+  string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
 }

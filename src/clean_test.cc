@@ -368,3 +368,31 @@ TEST_F(CleanTest, CleanPhony) {
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_NE(0, fs_.Stat("phony"));
 }
+
+TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc_dep\n"
+"  command = cc $in > $out\n"
+"  depfile = $out.d\n"
+"rule cc_rsp\n"
+"  command = cc $in > $out\n"
+"  rspfile = $out.rsp\n"
+"  rspfile_content = $in\n"
+"build out$ 1: cc_dep in$ 1\n"
+"build out$ 2: cc_rsp in$ 1\n"
+));
+  fs_.Create("out 1", "");
+  fs_.Create("out 2", "");
+  fs_.Create("out 1.d", "");
+  fs_.Create("out 2.rsp", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(4u, fs_.files_removed_.size());
+
+  EXPECT_EQ(0, fs_.Stat("out 1"));
+  EXPECT_EQ(0, fs_.Stat("out 2"));
+  EXPECT_EQ(0, fs_.Stat("out 1.d"));
+  EXPECT_EQ(0, fs_.Stat("out 2.rsp"));
+}
