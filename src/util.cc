@@ -183,6 +183,7 @@ static inline bool IsKnownShellSafeCharacter(char ch) {
 
   switch (ch) {
     case '_':
+    case '+':
     case '-':
     case '.':
     case '/':
