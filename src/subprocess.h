@@ -44,14 +44,13 @@ struct Subprocess {
   const string& GetOutput() const;
 
  private:
+  Subprocess(bool use_console);
   bool Start(struct SubprocessSet* set, const string& command);
   void OnPipeReady();
 
   string buf_;
 
 #ifdef _WIN32
-  Subprocess();
-
   /// Set up pipe_ as the parent-side pipe of the subprocess; return the
   /// other end of the pipe, usable in the child process.
   HANDLE SetupPipe(HANDLE ioport);
@@ -62,8 +61,6 @@ struct Subprocess {
   char overlapped_buf_[4 << 10];
   bool is_reading_;
 #else
-  Subprocess(bool use_console);
-
   int fd_;
   pid_t pid_;
 #endif
