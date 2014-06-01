@@ -14,13 +14,16 @@
 
 #include "subprocess.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <algorithm>
 
 #include "util.h"
 
-Subprocess::Subprocess() : child_(NULL) , overlapped_(), is_reading_(false) {
+Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
+                                           is_reading_(false),
+                                           use_console_(use_console) {
 }
 
 Subprocess::~Subprocess() {
@@ -86,18 +89,25 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   STARTUPINFOA startup_info;
   memset(&startup_info, 0, sizeof(startup_info));
   startup_info.cb = sizeof(STARTUPINFO);
-  startup_info.dwFlags = STARTF_USESTDHANDLES;
-  startup_info.hStdInput = nul;
-  startup_info.hStdOutput = child_pipe;
-  startup_info.hStdError = child_pipe;
+  if (!use_console_) {
+    startup_info.dwFlags = STARTF_USESTDHANDLES;
+    startup_info.hStdInput = nul;
+    startup_info.hStdOutput = child_pipe;
+    startup_info.hStdError = child_pipe;
+  }
+  // In the console case, child_pipe is still inherited by the child and closed
+  // when the subprocess finishes, which then notifies ninja.
 
   PROCESS_INFORMATION process_info;
   memset(&process_info, 0, sizeof(process_info));
 
+  // Ninja handles ctrl-c, except for subprocesses in console pools.
+  DWORD process_flags = use_console_ ? 0 : CREATE_NEW_PROCESS_GROUP;
+
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
-                      /* inherit handles */ TRUE, CREATE_NEW_PROCESS_GROUP,
+                      /* inherit handles */ TRUE, process_flags,
                       NULL, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
@@ -213,8 +223,8 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
-  Subprocess *subprocess = new Subprocess;
+Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+  Subprocess *subprocess = new Subprocess(use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
@@ -266,7 +276,9 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
-    if ((*i)->child_) {
+    // Since the foreground process is in our process group, it will receive a
+    // CTRL_C_EVENT or CTRL_BREAK_EVENT at the same time as us.
+    if ((*i)->child_ && !(*i)->use_console_) {
       if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
                                     GetProcessId((*i)->child_))) {
         Win32Fatal("GenerateConsoleCtrlEvent");

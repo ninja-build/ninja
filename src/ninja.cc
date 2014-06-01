@@ -631,6 +631,8 @@ int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
   putchar('[');
   for (vector<Edge*>::iterator e = state_.edges_.begin();
        e != state_.edges_.end(); ++e) {
+    if ((*e)->inputs_.empty())
+      continue;
     for (int i = 0; i != argc; ++i) {
       if ((*e)->rule_->name() == argv[i]) {
         if (!first)

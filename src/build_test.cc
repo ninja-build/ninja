@@ -44,6 +44,8 @@ struct PlanTest : public StateTestWithBuiltinRules {
     ASSERT_FALSE(plan_.FindWork());
     sort(ret->begin(), ret->end(), CompareEdgesByOutput::cmp);
   }
+
+  void TestPoolWithDepthOne(const char *test_case);
 };
 
 TEST_F(PlanTest, Basic) {
@@ -197,15 +199,8 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
-TEST_F(PlanTest, PoolWithDepthOne) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"pool foobar\n"
-"  depth = 1\n"
-"rule poolcat\n"
-"  command = cat $in > $out\n"
-"  pool = foobar\n"
-"build out1: poolcat in\n"
-"build out2: poolcat in\n"));
+void PlanTest::TestPoolWithDepthOne(const char* test_case) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, test_case));
   GetNode("out1")->MarkDirty();
   GetNode("out2")->MarkDirty();
   string err;
@@ -237,6 +232,26 @@ TEST_F(PlanTest, PoolWithDepthOne) {
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
   ASSERT_EQ(0, edge);
+}
+
+TEST_F(PlanTest, PoolWithDepthOne) {
+  TestPoolWithDepthOne(
+"pool foobar\n"
+"  depth = 1\n"
+"rule poolcat\n"
+"  command = cat $in > $out\n"
+"  pool = foobar\n"
+"build out1: poolcat in\n"
+"build out2: poolcat in\n");
+}
+
+TEST_F(PlanTest, ConsolePool) {
+  TestPoolWithDepthOne(
+"rule poolcat\n"
+"  command = cat $in > $out\n"
+"  pool = console\n"
+"build out1: poolcat in\n"
+"build out2: poolcat in\n");
 }
 
 TEST_F(PlanTest, PoolsWithDepthTwo) {
@@ -506,6 +521,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule().name() == "cat"  ||
       edge->rule().name() == "cat_rsp" ||
+      edge->rule().name() == "cat_rsp_out" ||
       edge->rule().name() == "cc" ||
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt") {
@@ -515,7 +531,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
-             edge->rule().name() == "interrupt") {
+             edge->rule().name() == "interrupt" ||
+             edge->rule().name() == "console") {
     // Don't do anything.
   } else {
     printf("unknown command\n");
@@ -536,6 +553,15 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   if (edge->rule().name() == "interrupt" ||
       edge->rule().name() == "touch-interrupt") {
     result->status = ExitInterrupted;
+    return true;
+  }
+
+  if (edge->rule().name() == "console") {
+    if (edge->use_console())
+      result->status = ExitSuccess;
+    else
+      result->status = ExitFailure;
+    last_command_ = NULL;
     return true;
   }
 
@@ -750,13 +776,13 @@ TEST_F(BuildTest, DepFileMissing) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
-"build foo.o: cc foo.c\n"));
+"build fo$ o.o: cc foo.c\n"));
   fs_.Create("foo.c", "");
 
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  EXPECT_TRUE(builder_.AddTarget("fo o.o", &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, fs_.files_read_.size());
-  EXPECT_EQ("foo.o.d", fs_.files_read_[0]);
+  EXPECT_EQ("fo o.o.d", fs_.files_read_[0]);
 }
 
 TEST_F(BuildTest, DepFileOK) {
@@ -1277,14 +1303,20 @@ TEST_F(BuildTest, RspFileSuccess)
     "  command = cat $rspfile > $out\n"
     "  rspfile = $rspfile\n"
     "  rspfile_content = $long_command\n"
+    "rule cat_rsp_out\n"
+    "  command = cat $rspfile > $out\n"
+    "  rspfile = $out.rsp\n"
+    "  rspfile_content = $long_command\n"
     "build out1: cat in\n"
     "build out2: cat_rsp in\n"
-    "  rspfile = out2.rsp\n"
+    "  rspfile = out 2.rsp\n"
+    "  long_command = Some very long command\n"
+    "build out$ 3: cat_rsp_out in\n"
     "  long_command = Some very long command\n"));
 
   fs_.Create("out1", "");
   fs_.Create("out2", "");
-  fs_.Create("out3", "");
+  fs_.Create("out 3", "");
 
   fs_.Tick();
 
@@ -1295,20 +1327,24 @@ TEST_F(BuildTest, RspFileSuccess)
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("out 3", &err));
+  ASSERT_EQ("", err);
 
   size_t files_created = fs_.files_created_.size();
   size_t files_removed = fs_.files_removed_.size();
 
   EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ(2u, command_runner_.commands_ran_.size()); // cat + cat_rsp
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 
-  // The RSP file was created
-  ASSERT_EQ(files_created + 1, fs_.files_created_.size());
-  ASSERT_EQ(1u, fs_.files_created_.count("out2.rsp"));
+  // The RSP files were created
+  ASSERT_EQ(files_created + 2, fs_.files_created_.size());
+  ASSERT_EQ(1u, fs_.files_created_.count("out 2.rsp"));
+  ASSERT_EQ(1u, fs_.files_created_.count("out 3.rsp"));
 
-  // The RSP file was removed
-  ASSERT_EQ(files_removed + 1, fs_.files_removed_.size());
-  ASSERT_EQ(1u, fs_.files_removed_.count("out2.rsp"));
+  // The RSP files were removed
+  ASSERT_EQ(files_removed + 2, fs_.files_removed_.size());
+  ASSERT_EQ(1u, fs_.files_removed_.count("out 2.rsp"));
+  ASSERT_EQ(1u, fs_.files_removed_.count("out 3.rsp"));
 }
 
 // Test that RSP file is created but not removed for commands, which fail
@@ -1779,7 +1815,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
   string err;
   const char* manifest =
       "rule cc\n  command = cc $in\n  depfile = $out.d\n  deps = gcc\n"
-      "build foo.o: cc foo.c\n";
+      "build fo$ o.o: cc foo.c\n";
 
   fs_.Create("foo.c", "");
 
@@ -1794,9 +1830,9 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_);
     builder.command_runner_.reset(&command_runner_);
-    EXPECT_TRUE(builder.AddTarget("foo.o", &err));
+    EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
-    fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
+    fs_.Create("fo o.o.d", "fo\\ o.o: blah.h bar.h\n");
     EXPECT_TRUE(builder.Build(&err));
     EXPECT_EQ("", err);
 
@@ -1819,10 +1855,10 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     Edge* edge = state.edges_.back();
 
     state.GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
-    EXPECT_TRUE(builder.AddTarget("foo.o", &err));
+    EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
-    // Expect three new edges: one generating foo.o, and two more from
+    // Expect three new edges: one generating fo o.o, and two more from
     // loading the depfile.
     ASSERT_EQ(3u, state.edges_.size());
     // Expect our edge to now have three inputs: foo.c and two headers.
@@ -1910,4 +1946,21 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   // And this build should be NOOP again
   RebuildTarget("out", manifest, "build_log", "ninja_deps2");
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildTest, Console) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule console\n"
+"  command = console\n"
+"  pool = console\n"
+"build cons: console in.txt\n"));
+
+  fs_.Create("in.txt", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("cons", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }

@@ -64,7 +64,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           0, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0,   0, 128,   0, 
+        128, 128, 128, 128,   0, 128, 128,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
@@ -114,27 +114,29 @@ bool DepfileParser::Parse(string* content, string* err) {
             if (yych != '\\') goto yy9;
           }
         } else {
-          if (yych <= 'z') {
+          if (yych <= '{') {
             if (yych == '`') goto yy9;
             goto yy5;
           } else {
-            if (yych == '~') goto yy5;
+            if (yych <= '|') goto yy9;
+            if (yych <= '~') goto yy5;
             goto yy9;
           }
         }
       }
       ++in;
-      if ((yych = *in) <= '#') {
-        if (yych <= '\n') {
+      if ((yych = *in) <= '"') {
+        if (yych <= '\f') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy14;
+          if (yych != '\n') goto yy14;
         } else {
+          if (yych <= '\r') goto yy3;
           if (yych == ' ') goto yy16;
-          if (yych <= '"') goto yy14;
-          goto yy16;
+          goto yy14;
         }
       } else {
         if (yych <= 'Z') {
+          if (yych <= '#') goto yy16;
           if (yych == '*') goto yy16;
           goto yy14;
         } else {
@@ -224,7 +226,7 @@ yy16:
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
+      *err = "depfile has multiple output paths";
       return false;
     }
   }

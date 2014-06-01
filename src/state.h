@@ -82,6 +82,7 @@ struct Pool {
 /// Global state (file status, loaded rules) for a single run.
 struct State {
   static Pool kDefaultPool;
+  static Pool kConsolePool;
   static const Rule kPhonyRule;
 
   State();
