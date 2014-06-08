@@ -126,6 +126,10 @@ struct NinjaMain : public BuildLogUser {
   /// @return false on error.
   bool EnsureBuildDirExists();
 
+  /// Get the value of the "ninja_max_iterations" variable.
+  /// @return the maximum of the ninja_max_iterations value and 2
+  int GetMaxIterations();
+
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
@@ -874,6 +878,16 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
+int NinjaMain::GetMaxIterations() {
+  int max_iterations = 2;
+  string max_iterations_str =
+    state_.bindings_.LookupVariable("ninja_max_iterations");
+  if (!max_iterations_str.empty()) {
+    max_iterations = std::max(2, atoi(max_iterations_str.c_str()));
+  }
+  return max_iterations;
+}
+
 int NinjaMain::RunBuild(int argc, char** argv) {
   string err;
   vector<Node*> targets;
@@ -1048,9 +1062,10 @@ int real_main(int argc, char** argv) {
     }
   }
 
-  // The build can take up to 2 passes: one to rebuild the manifest, then
-  // another to build the desired target.
-  for (int cycle = 0; cycle < 2; ++cycle) {
+  // The build can take up to numPasses passes. All but the last one may
+  // rebuild the manifest, while the final one must build the desired target.
+  int numPasses = 2;
+  for (int cycle = 0; cycle < numPasses; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
     RealFileReader file_reader;
@@ -1064,6 +1079,9 @@ int real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       return (ninja.*options.tool->func)(argc, argv);
 
+    if (cycle == 0)
+      numPasses = ninja.GetMaxIterations();
+
     if (!ninja.EnsureBuildDirExists())
       return 1;
 
@@ -1073,9 +1091,9 @@ int real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
       return (ninja.*options.tool->func)(argc, argv);
 
-    // The first time through, attempt to rebuild the manifest before
-    // building anything else.
-    if (cycle == 0) {
+    // Attempt to rebuild the manifest before building anything else unless
+    // we're about to hit the iteration limit.
+    if (cycle < numPasses-1) {
       if (ninja.RebuildManifest(options.input_file, &err)) {
         // Start the build over with the new manifest.
         continue;
