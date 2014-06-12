@@ -4,7 +4,7 @@
 " Version: 1.4
 " Last Change: 2014/05/13
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
-" Version 1.3 of this script is in the upstream vim repository and will be
+" Version 1.4 of this script is in the upstream vim repository and will be
 " included in the next vim release. If you change this, please send your change
 " upstream.
 
