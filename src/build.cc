@@ -598,6 +598,7 @@ bool Builder::Build(string* err) {
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
   int failures_allowed = config_.failures_allowed;
+  bool noisy_output = false;
 
   // Set up the command runner if we haven't done so already.
   if (!command_runner_.get()) {
@@ -656,6 +657,10 @@ bool Builder::Build(string* err) {
           failures_allowed--;
       }
 
+      if (!result.output.empty()) {
+        noisy_output = true;
+      }
+
       // We made some progress; start the main loop over.
       continue;
     }
@@ -676,6 +681,11 @@ bool Builder::Build(string* err) {
   }
 
   status_->BuildFinished();
+  if (noisy_output && !config_.tolerate_noise) {
+    *err = "subcommands produced noise";
+    return false;
+  }
+
   return true;
 }
 
