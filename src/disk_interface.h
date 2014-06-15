@@ -56,7 +56,11 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface() : quiet_(false), use_cache_(false) {}
+  RealDiskInterface() : quiet_(false)
+#ifdef _WIN32
+                      , use_cache_(false)
+#endif
+                      {}
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
@@ -71,6 +75,8 @@ struct RealDiskInterface : public DiskInterface {
   bool use_cache_;
 
   typedef map<string, TimeStamp> DirCache;
+  // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
+  // works out, come up with a better data structure.
   typedef map<string, DirCache*> Cache;
   Cache cache_;
 #endif
