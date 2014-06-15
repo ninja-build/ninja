@@ -365,7 +365,7 @@ for name in ['build_log_test',
     objs += cxx(name, variables=[('cflags', '$test_cflags')])
 if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=[('cflags', test_cflags)])
+        objs += cxx(name, variables=[('cflags', '$test_cflags')])
 
 if not platform.is_windows():
     test_libs.append('-lpthread')
