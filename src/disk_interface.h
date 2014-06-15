@@ -61,7 +61,7 @@ struct RealDiskInterface : public DiskInterface {
                       , use_cache_(false)
 #endif
                       {}
-  virtual ~RealDiskInterface() {}
+  virtual ~RealDiskInterface() { ClearCache(); }
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
@@ -70,6 +70,9 @@ struct RealDiskInterface : public DiskInterface {
 
   /// Whether to print on errors.  Used to make a test quieter.
   bool quiet_;
+
+  /// Whether stat information can be cached.
+  void AllowCache(bool allow);
 #ifdef _WIN32
   /// Whether stat information can be cached.
   bool use_cache_;
@@ -80,6 +83,7 @@ struct RealDiskInterface : public DiskInterface {
   typedef map<string, DirCache*> Cache;
   Cache cache_;
 #endif
+  void ClearCache();
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_

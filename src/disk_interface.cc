@@ -230,3 +230,19 @@ int RealDiskInterface::RemoveFile(const string& path) {
     return 0;
   }
 }
+
+void RealDiskInterface::AllowCache(bool allow) {
+#ifdef _WIN32
+  use_cache_ = allow;
+  if (!use_cache_)
+    ClearCache();
+#endif
+}
+
+void RealDiskInterface::ClearCache() {
+#ifdef _WIN32
+  for (Cache::iterator it = cache_.begin(), end = cache_.end(); it != end; ++it)
+    delete it->second;
+  cache_.clear();
+#endif
+}

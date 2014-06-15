@@ -889,10 +889,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 1;
   }
 
-#ifdef _WIN32
-  if (g_experimental_win_statcache)
-    disk_interface_.use_cache_ = true;
-#endif
+  disk_interface_.AllowCache(g_experimental_win_statcache);
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
@@ -907,10 +904,8 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     }
   }
 
-#ifdef _WIN32
   // Make sure restat rules do not see stale timestamps.
-  disk_interface_.use_cache_ = false;
-#endif
+  disk_interface_.AllowCache(false);
 
   if (builder.AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
