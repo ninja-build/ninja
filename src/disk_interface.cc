@@ -86,10 +86,10 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                        bool quiet) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   WIN32_FIND_DATAA ffd;
-  HANDLE hFind = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic, &ffd,
-                                  FindExSearchNameMatch, NULL, 0);
+  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic,
+                                        &ffd, FindExSearchNameMatch, NULL, 0);
 
-  if (hFind == INVALID_HANDLE_VALUE) {
+  if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
       return true;
@@ -106,8 +106,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFileA(hFind, &ffd));
-  FindClose(hFind);
+  } while (FindNextFileA(find_handle, &ffd));
+  FindClose(find_handle);
   return true;
 }
 #endif  // _WIN32
