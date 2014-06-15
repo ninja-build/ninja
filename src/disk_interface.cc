@@ -55,6 +55,17 @@ int MakeDir(const string& path) {
 #endif
 }
 
+TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime;
+}
+
 TimeStamp StatSingleFile(const string& path, bool quiet) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
@@ -67,15 +78,32 @@ TimeStamp StatSingleFile(const string& path, bool quiet) {
     }
     return -1;
   }
-  const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
-  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  return TimeStampFromFileTime(attrs.ftLastWriteTime);
+}
+
+void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps) {
+  HANDLE hFind = INVALID_HANDLE_VALUE;
+  WIN32_FIND_DATAA ffd;
+
+  // FindExInfoBasic is 30% faster than FindExInfoStandard.
+  hFind = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic, &ffd,
+                           FindExSearchNameMatch, NULL, 0);
+
+  if (hFind == INVALID_HANDLE_VALUE) {
+    fprintf(stderr, "fail %s", dir.c_str());
+    exit(-1);
+  }
+  do {
+    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+      continue;
+
+    string lowername = ffd.cFileName;
+    transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
+
+    const FILETIME& filetime = ffd.ftLastWriteTime;
+    (*stamps).insert(make_pair(lowername, TimeStampFromFileTime(filetime)));
+  } while (FindNextFileA(hFind, &ffd));
+  FindClose(hFind);
 }
 
 }  // namespace
@@ -120,8 +148,8 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   if (offs) ++offs;  // skip \ too
   string base(path.substr(offs));
 
-  std::transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
-  std::transform(base.begin(), base.end(), base.begin(), ::tolower);
+  transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
+  transform(base.begin(), base.end(), base.begin(), ::tolower);
 
   Cache::iterator ci = cache_.find(dir);
   if (ci != cache_.end()) {
@@ -133,52 +161,8 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 
   if (dir.empty())
     dir = ".";
-  // XXX fill in dir using FFF / FNF
-  HANDLE hFind = INVALID_HANDLE_VALUE;
-  WIN32_FIND_DATAA ffd;
-
-#if 0
-  hFind = FindFirstFileA((dir + "\\*").c_str(), &ffd);
-#else
-  hFind = FindFirstFileExA((dir + "\\*").c_str(),
-                 //FindExInfoStandard,
-                 FindExInfoBasic,  // 30% faster than FindExInfoStandard!
-                 &ffd, 
-                 FindExSearchNameMatch, 
-                 NULL, 
-                 0 );  // XXX: check FIND_FIRST_EX_LARGE_FETCH
-#endif
-
-  if (hFind == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "fail %s", dir.c_str());
-    exit(-1);
-  }
   DirCache* dc = new DirCache;
-  do {
-    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-      continue;
-
-    string lowername = ffd.cFileName;
-    std::transform(lowername.begin(), lowername.end(),
-                   lowername.begin(), ::tolower);
-
-//fprintf(stderr, "%s %s\n", dir.c_str(), lowername.c_str());
-
-    const FILETIME& filetime = ffd.ftLastWriteTime;
-    // FILETIME is in 100-nanosecond increments since the Windows epoch.
-    // We don't much care about epoch correctness but we do want the
-    // resulting value to fit in an integer.
-    uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-        ((uint64_t)filetime.dwLowDateTime);
-    mtime /= 1000000000LL / 100; // 100ns -> s.
-//if(mtime == 0)
-//printf("   asdasdfadsfsadf\n");
-
-    mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-
-    (*dc).insert(make_pair(lowername, (TimeStamp)mtime));
-  } while (FindNextFileA(hFind, &ffd));
-  FindClose(hFind);
+  StatAllFilesInDir(dir, dc);
 
   if (dir == ".")
     cache_.insert(make_pair("", dc));
