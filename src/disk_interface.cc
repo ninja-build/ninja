@@ -82,12 +82,10 @@ TimeStamp StatSingleFile(const string& path, bool quiet) {
 }
 
 void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps) {
-  HANDLE hFind = INVALID_HANDLE_VALUE;
-  WIN32_FIND_DATAA ffd;
-
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
-  hFind = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic, &ffd,
-                           FindExSearchNameMatch, NULL, 0);
+  WIN32_FIND_DATAA ffd;
+  HANDLE hFind = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic, &ffd,
+                                  FindExSearchNameMatch, NULL, 0);
 
   if (hFind == INVALID_HANDLE_VALUE) {
     fprintf(stderr, "fail %s", dir.c_str());
@@ -154,26 +152,15 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   Cache::iterator ci = cache_.find(dir);
   if (ci != cache_.end()) {
     DirCache::iterator di = ci->second->find(base);
-    if (di != ci->second->end())
-      return di->second;
-    return 0;
+    return di != ci->second->end() ? di->second : 0;
   }
 
-  if (dir.empty())
-    dir = ".";
   DirCache* dc = new DirCache;
-  StatAllFilesInDir(dir, dc);
-
-  if (dir == ".")
-    cache_.insert(make_pair("", dc));
-  else
-    cache_.insert(make_pair(dir, dc));
+  StatAllFilesInDir(dir.empty() ? "." : dir, dc);
+  cache_.insert(make_pair(dir, dc));
 
   DirCache::iterator di = dc->find(base);
-  if (di != dc->end())
-    return di->second;
-  return 0;
-
+  return di != dc->end() ? di->second : 0;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
