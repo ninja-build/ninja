@@ -773,7 +773,7 @@ bool DebugEnable(const string& name) {
     return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name.c_str(), "stats", "explain", NULL);
+        SpellcheckString(name.c_str(), "stats", "explain", "keeprsp", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
