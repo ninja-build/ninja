@@ -150,17 +150,13 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   transform(base.begin(), base.end(), base.begin(), ::tolower);
 
   Cache::iterator ci = cache_.find(dir);
-  if (ci != cache_.end()) {
-    DirCache::iterator di = ci->second->find(base);
-    return di != ci->second->end() ? di->second : 0;
+  if (ci == cache_.end()) {
+    DirCache* dc = new DirCache;
+    StatAllFilesInDir(dir.empty() ? "." : dir, dc);
+    ci = cache_.insert(make_pair(dir, dc)).first;
   }
-
-  DirCache* dc = new DirCache;
-  StatAllFilesInDir(dir.empty() ? "." : dir, dc);
-  cache_.insert(make_pair(dir, dc));
-
-  DirCache::iterator di = dc->find(base);
-  return di != dc->end() ? di->second : 0;
+  DirCache::iterator di = ci->second->find(base);
+  return di != ci->second->end() ? di->second : 0;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
