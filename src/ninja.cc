@@ -760,6 +760,9 @@ bool DebugEnable(const string& name) {
 "  stats    print operation counts/timing info\n"
 "  explain  explain what caused a command to execute\n"
 "  keeprsp  don't delete @response files on success\n"
+#ifdef _WIN32
+"  experimentalwinstatcache  use an alternative method for stat()ing files\n"
+#endif
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -771,9 +774,13 @@ bool DebugEnable(const string& name) {
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
+  } else if (name == "experimentalwinstatcache") {
+    g_experimental_win_statcache = true;
+    return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name.c_str(), "stats", "explain", "keeprsp", NULL);
+        SpellcheckString(name.c_str(), "stats", "explain", "keeprsp",
+        "experimentalwinstatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
@@ -882,8 +889,8 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 1;
   }
 
-// XXX allow stat caching
-  disk_interface_.use_cache_ = true;
+  if (g_experimental_win_statcache)
+    disk_interface_.use_cache_ = true;
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
@@ -898,7 +905,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     }
   }
 
-// XXX disallow stat caching
+  // Make sure restat rules do not see stale timestamps.
   disk_interface_.use_cache_ = false;
 
   if (builder.AlreadyUpToDate()) {

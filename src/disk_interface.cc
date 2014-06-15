@@ -142,9 +142,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     return StatSingleFile(path, quiet_);
 
   string dir = DirName(path);
-  int offs = dir.size();
-  if (offs) ++offs;  // skip \ too
-  string base(path.substr(offs));
+  string base(path.substr(dir.size() ? dir.size() + 1 : 0));
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
