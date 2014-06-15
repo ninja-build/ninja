@@ -72,7 +72,9 @@ struct RealDiskInterface : public DiskInterface {
   bool quiet_;
 
   /// Whether stat information can be cached.
-  void AllowCache(bool allow);
+  void AllowStatCache(bool allow);
+
+ private:
 #ifdef _WIN32
   /// Whether stat information can be cached.
   bool use_cache_;

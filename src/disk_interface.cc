@@ -81,7 +81,7 @@ TimeStamp StatSingleFile(const string& path, bool quiet) {
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
 }
 
-void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
+bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                        bool quiet) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   WIN32_FIND_DATAA ffd;
@@ -90,11 +90,13 @@ void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 
   if (hFind == INVALID_HANDLE_VALUE) {
     DWORD err = GetLastError();
-    if (err != ERROR_FILE_NOT_FOUND && err != ERROR_PATH_NOT_FOUND && !quiet) {
+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+      return true;
+    if (!quiet) {
       Error("FindFirstFileExA(%s): %s", dir.c_str(),
             GetLastErrorString().c_str());
     }
-    return;
+    return false;
   }
   do {
     if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
@@ -105,6 +107,7 @@ void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
   } while (FindNextFileA(hFind, &ffd));
   FindClose(hFind);
+  return true;
 }
 
 }  // namespace
@@ -153,7 +156,10 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
     DirCache* dc = new DirCache;
-    StatAllFilesInDir(dir.empty() ? "." : dir, dc, quiet_);
+    if (!StatAllFilesInDir(dir.empty() ? "." : dir, dc, quiet_)) {
+      delete dc;
+      return -1;
+    }
     ci = cache_.insert(make_pair(dir, dc)).first;
   }
   DirCache::iterator di = ci->second->find(base);
@@ -231,7 +237,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
   }
 }
 
-void RealDiskInterface::AllowCache(bool allow) {
+void RealDiskInterface::AllowStatCache(bool allow) {
 #ifdef _WIN32
   use_cache_ = allow;
   if (!use_cache_)
