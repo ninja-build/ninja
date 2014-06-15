@@ -66,12 +66,14 @@ struct RealDiskInterface : public DiskInterface {
 
   /// Whether to print on errors.  Used to make a test quieter.
   bool quiet_;
+#ifdef _WIN32
   /// Whether stat information can be cached.
   bool use_cache_;
 
   typedef map<string, TimeStamp> DirCache;
   typedef map<string, DirCache*> Cache;
   Cache cache_;
+#endif
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_
