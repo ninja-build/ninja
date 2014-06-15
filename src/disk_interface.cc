@@ -55,6 +55,7 @@ int MakeDir(const string& path) {
 #endif
 }
 
+#ifdef _WIN32
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
@@ -109,6 +110,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   FindClose(hFind);
   return true;
 }
+#endif  // _WIN32
 
 }  // namespace
 
