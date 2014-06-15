@@ -71,7 +71,7 @@ struct RealDiskInterface : public DiskInterface {
   /// Whether to print on errors.  Used to make a test quieter.
   bool quiet_;
 
-  /// Whether stat information can be cached.
+  /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);
 
  private:

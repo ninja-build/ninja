@@ -26,8 +26,6 @@ extern bool g_explaining;
 
 extern bool g_keep_rsp;
 
-#ifdef _WIN32
 extern bool g_experimental_win_statcache;
-#endif  // _WIN32
 
 #endif // NINJA_EXPLAIN_H_
