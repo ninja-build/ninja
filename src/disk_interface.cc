@@ -81,25 +81,28 @@ TimeStamp StatSingleFile(const string& path, bool quiet) {
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
 }
 
-void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps) {
+void StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
+                       bool quiet) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   WIN32_FIND_DATAA ffd;
   HANDLE hFind = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic, &ffd,
                                   FindExSearchNameMatch, NULL, 0);
 
   if (hFind == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "fail %s", dir.c_str());
-    exit(-1);
+    DWORD err = GetLastError();
+    if (err != ERROR_FILE_NOT_FOUND && err != ERROR_PATH_NOT_FOUND && !quiet) {
+      Error("FindFirstFileExA(%s): %s", dir.c_str(),
+            GetLastErrorString().c_str());
+    }
+    return;
   }
   do {
     if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
       continue;
-
     string lowername = ffd.cFileName;
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-
-    const FILETIME& filetime = ffd.ftLastWriteTime;
-    (*stamps).insert(make_pair(lowername, TimeStampFromFileTime(filetime)));
+    stamps->insert(make_pair(lowername,
+                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
   } while (FindNextFileA(hFind, &ffd));
   FindClose(hFind);
 }
@@ -150,7 +153,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
     DirCache* dc = new DirCache;
-    StatAllFilesInDir(dir.empty() ? "." : dir, dc);
+    StatAllFilesInDir(dir.empty() ? "." : dir, dc, quiet_);
     ci = cache_.insert(make_pair(dir, dc)).first;
   }
   DirCache::iterator di = ci->second->find(base);
