@@ -55,6 +55,63 @@ int MakeDir(const string& path) {
 #endif
 }
 
+#ifdef _WIN32
+TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
+  // FILETIME is in 100-nanosecond increments since the Windows epoch.
+  // We don't much care about epoch correctness but we do want the
+  // resulting value to fit in an integer.
+  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
+    ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100; // 100ns -> s.
+  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime;
+}
+
+TimeStamp StatSingleFile(const string& path, bool quiet) {
+  WIN32_FILE_ATTRIBUTE_DATA attrs;
+  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
+    DWORD err = GetLastError();
+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+      return 0;
+    if (!quiet) {
+      Error("GetFileAttributesEx(%s): %s", path.c_str(),
+            GetLastErrorString().c_str());
+    }
+    return -1;
+  }
+  return TimeStampFromFileTime(attrs.ftLastWriteTime);
+}
+
+bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
+                       bool quiet) {
+  // FindExInfoBasic is 30% faster than FindExInfoStandard.
+  WIN32_FIND_DATAA ffd;
+  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), FindExInfoBasic,
+                                        &ffd, FindExSearchNameMatch, NULL, 0);
+
+  if (find_handle == INVALID_HANDLE_VALUE) {
+    DWORD err = GetLastError();
+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+      return true;
+    if (!quiet) {
+      Error("FindFirstFileExA(%s): %s", dir.c_str(),
+            GetLastErrorString().c_str());
+    }
+    return false;
+  }
+  do {
+    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+      continue;
+    string lowername = ffd.cFileName;
+    transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
+    stamps->insert(make_pair(lowername,
+                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
+  } while (FindNextFileA(find_handle, &ffd));
+  FindClose(find_handle);
+  return true;
+}
+#endif  // _WIN32
+
 }  // namespace
 
 // DiskInterface ---------------------------------------------------------------
@@ -89,26 +146,26 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     }
     return -1;
   }
-  WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
-    DWORD err = GetLastError();
-    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
-      return 0;
-    if (!quiet_) {
-      Error("GetFileAttributesEx(%s): %s", path.c_str(),
-            GetLastErrorString().c_str());
+  if (!use_cache_)
+    return StatSingleFile(path, quiet_);
+
+  string dir = DirName(path);
+  string base(path.substr(dir.size() ? dir.size() + 1 : 0));
+
+  transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
+  transform(base.begin(), base.end(), base.begin(), ::tolower);
+
+  Cache::iterator ci = cache_.find(dir);
+  if (ci == cache_.end()) {
+    DirCache* dc = new DirCache;
+    if (!StatAllFilesInDir(dir.empty() ? "." : dir, dc, quiet_)) {
+      delete dc;
+      return -1;
     }
-    return -1;
+    ci = cache_.insert(make_pair(dir, dc)).first;
   }
-  const FILETIME& filetime = attrs.ftLastWriteTime;
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
-  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  DirCache::iterator di = ci->second->find(base);
+  return di != ci->second->end() ? di->second : 0;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
@@ -180,4 +237,20 @@ int RealDiskInterface::RemoveFile(const string& path) {
   } else {
     return 0;
   }
+}
+
+void RealDiskInterface::AllowStatCache(bool allow) {
+#ifdef _WIN32
+  use_cache_ = allow;
+  if (!use_cache_)
+    ClearCache();
+#endif
+}
+
+void RealDiskInterface::ClearCache() {
+#ifdef _WIN32
+  for (Cache::iterator it = cache_.begin(), end = cache_.end(); it != end; ++it)
+    delete it->second;
+  cache_.clear();
+#endif
 }

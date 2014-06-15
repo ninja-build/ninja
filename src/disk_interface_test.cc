@@ -76,6 +76,33 @@ TEST_F(DiskInterfaceTest, StatExistingFile) {
   EXPECT_GT(disk_.Stat("file"), 1);
 }
 
+#ifdef _WIN32
+TEST_F(DiskInterfaceTest, StatCache) {
+  disk_.AllowStatCache(true);
+
+  ASSERT_TRUE(Touch("file1"));
+  ASSERT_TRUE(Touch("fiLE2"));
+  ASSERT_TRUE(disk_.MakeDir("subdir"));
+  ASSERT_TRUE(Touch("subdir\\subfile1"));
+  ASSERT_TRUE(Touch("subdir\\SUBFILE2"));
+  ASSERT_TRUE(Touch("subdir\\SUBFILE3"));
+
+  EXPECT_GT(disk_.Stat("FIle1"), 1);
+  EXPECT_GT(disk_.Stat("file1"), 1);
+
+  EXPECT_GT(disk_.Stat("subdir/subfile2"), 1);
+  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1"), 1);
+
+  // Test error cases.
+  disk_.quiet_ = true;
+  string bad_path("cc:\\foo");
+  EXPECT_EQ(-1, disk_.Stat(bad_path));
+  EXPECT_EQ(-1, disk_.Stat(bad_path));
+  EXPECT_EQ(0, disk_.Stat("nosuchfile"));
+  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile"));
+}
+#endif
+
 TEST_F(DiskInterfaceTest, ReadFile) {
   string err;
   EXPECT_EQ("", disk_.ReadFile("foobar", &err));
