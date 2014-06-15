@@ -761,7 +761,7 @@ bool DebugEnable(const string& name) {
 "  explain  explain what caused a command to execute\n"
 "  keeprsp  don't delete @response files on success\n"
 #ifdef _WIN32
-"  experimentalwinstatcache  use an alternative method for stat()ing files\n"
+"  nowinstatcache  don't batch stat() calls per directory and cache them\n"
 #endif
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
@@ -774,13 +774,13 @@ bool DebugEnable(const string& name) {
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
-  } else if (name == "experimentalwinstatcache") {
-    g_experimental_win_statcache = true;
+  } else if (name == "nowinstatcache") {
+    g_experimental_win_statcache = false;
     return true;
   } else {
     const char* suggestion =
         SpellcheckString(name.c_str(), "stats", "explain", "keeprsp",
-        "experimentalwinstatcache", NULL);
+        "nowinstatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
