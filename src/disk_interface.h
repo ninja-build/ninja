@@ -61,7 +61,7 @@ struct RealDiskInterface : public DiskInterface {
                       , use_cache_(false)
 #endif
                       {}
-  virtual ~RealDiskInterface() { ClearCache(); }
+  virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const string& path);
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
@@ -82,10 +82,9 @@ struct RealDiskInterface : public DiskInterface {
   typedef map<string, TimeStamp> DirCache;
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
   // works out, come up with a better data structure.
-  typedef map<string, DirCache*> Cache;
+  typedef map<string, DirCache> Cache;
   Cache cache_;
 #endif
-  void ClearCache();
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_
