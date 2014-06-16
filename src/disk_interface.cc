@@ -168,15 +168,14 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
-    DirCache* dc = new DirCache;
-    if (!StatAllFilesInDir(dir.empty() ? "." : dir, dc, quiet_)) {
-      delete dc;
+    ci = cache_.insert(make_pair(dir, DirCache())).first;
+    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, quiet_)) {
+      cache_.erase(ci);
       return -1;
     }
-    ci = cache_.insert(make_pair(dir, dc)).first;
   }
-  DirCache::iterator di = ci->second->find(base);
-  return di != ci->second->end() ? di->second : 0;
+  DirCache::iterator di = ci->second.find(base);
+  return di != ci->second.end() ? di->second : 0;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
@@ -254,14 +253,6 @@ void RealDiskInterface::AllowStatCache(bool allow) {
 #ifdef _WIN32
   use_cache_ = allow;
   if (!use_cache_)
-    ClearCache();
-#endif
-}
-
-void RealDiskInterface::ClearCache() {
-#ifdef _WIN32
-  for (Cache::iterator it = cache_.begin(), end = cache_.end(); it != end; ++it)
-    delete it->second;
-  cache_.clear();
+    cache_.clear();
 #endif
 }
