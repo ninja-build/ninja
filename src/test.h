@@ -59,7 +59,7 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp Stat(const string& path) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
