@@ -147,7 +147,9 @@ struct NinjaMain : public BuildLogUser {
     // edge is rare, and the first recompaction will delete all old outputs from
     // the deps log, and then a second recompaction will clear the build log,
     // which seems good enough for this corner case.)
-    return !n || !n->in_edge();
+    // Do keep entries around for files which still exist on disk, for
+    // generators that want to use this information.
+    return (!n || !n->in_edge()) && disk_interface_.Stat(s.AsString()) == 0;
   }
 };
 
