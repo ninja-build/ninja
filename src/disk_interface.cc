@@ -97,8 +97,11 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                        bool quiet) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
+  // This is not in earlier SDKs.
+  const FINDEX_INFO_LEVELS kFindExInfoBasic =
+      static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
-      can_use_basic_info ? FindExInfoBasic : FindExInfoStandard;
+      can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
   WIN32_FIND_DATAA ffd;
   HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
                                         FindExSearchNameMatch, NULL, 0);
