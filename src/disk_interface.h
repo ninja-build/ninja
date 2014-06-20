@@ -30,7 +30,7 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path) = 0;
+  virtual TimeStamp Stat(const string& path) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -62,7 +62,7 @@ struct RealDiskInterface : public DiskInterface {
 #endif
                       {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp Stat(const string& path) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual string ReadFile(const string& path, string* err);
@@ -83,7 +83,7 @@ struct RealDiskInterface : public DiskInterface {
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
   // works out, come up with a better data structure.
   typedef map<string, DirCache> Cache;
-  Cache cache_;
+  mutable Cache cache_;
 #endif
 };
 

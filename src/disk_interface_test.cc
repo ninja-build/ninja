@@ -147,7 +147,7 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, NULL, NULL, this) {}
 
   // DiskInterface implementation.
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp Stat(const string& path) const;
   virtual bool WriteFile(const string& path, const string& contents) {
     assert(false);
     return true;
@@ -167,12 +167,12 @@ struct StatTest : public StateTestWithBuiltinRules,
 
   DependencyScan scan_;
   map<string, TimeStamp> mtimes_;
-  vector<string> stats_;
+  mutable vector<string> stats_;
 };
 
-TimeStamp StatTest::Stat(const string& path) {
+TimeStamp StatTest::Stat(const string& path) const {
   stats_.push_back(path);
-  map<string, TimeStamp>::iterator i = mtimes_.find(path);
+  map<string, TimeStamp>::const_iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
     return 0;  // File not found.
   return i->second;
