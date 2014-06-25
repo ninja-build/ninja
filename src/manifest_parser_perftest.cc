@@ -16,7 +16,10 @@
 // directory.
 
 #include <numeric>
+
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -95,7 +98,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  chdir(kManifestDir);
+  if (chdir(kManifestDir) < 0)
+    Fatal("chdir: %s", strerror(errno));
 
   const int kNumRepetitions = 5;
   vector<int> times;
