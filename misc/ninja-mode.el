@@ -32,7 +32,11 @@
        ;; Variable expansion.
        '("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
        ;; Rule names
-       '("rule \\([[:alnum:]_-]+\\)" . (1 font-lock-function-name-face))
+       '("rule +\\([[:alnum:]_.-]+\\)" . (1 font-lock-function-name-face))
+       ;; Build Statement - highlight the rule used, allow for escaped $,: in outputs
+       '("build +\\(?:[^:$\n]\\|$[:$]\\)+ *: *\\([[:alnum:]_.-]+\\)" .
+         (1 font-lock-function-name-face))
+       
        ))
 
 ;;;###autoload       
