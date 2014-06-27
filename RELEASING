@@ -8,11 +8,10 @@ Push new release branch:
 4. fix version number in src/version.cc (it will likely conflict in the above)
 5. fix version in doc/manual.asciidoc
 6. commit, tag, push (don't forget to push --tags)
-       git commit -a -m v1.5.0
-       git tag v1.5.0
-       git push --tags
-       git checkout master
-       git push origin master  # Push the 1.5.0.git change on master too
+       git commit -a -m v1.5.0; git push origin release
+       git tag v1.5.0; git push --tags
+       # Push the 1.5.0.git change on master too:
+       git checkout master; git push origin master
 7. construct release notes from prior notes
    credits: git shortlog -s --no-merges REV..
 
