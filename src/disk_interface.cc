@@ -117,8 +117,6 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     return false;
   }
   do {
-    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-      continue;
     string lowername = ffd.cFileName;
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
