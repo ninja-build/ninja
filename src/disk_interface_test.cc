@@ -76,6 +76,11 @@ TEST_F(DiskInterfaceTest, StatExistingFile) {
   EXPECT_GT(disk_.Stat("file"), 1);
 }
 
+TEST_F(DiskInterfaceTest, StatExistingDir) {
+  ASSERT_TRUE(disk_.MakeDir("subdir"));
+  EXPECT_GT(disk_.Stat("subdir"), 1);
+}
+
 #ifdef _WIN32
 TEST_F(DiskInterfaceTest, StatCache) {
   disk_.AllowStatCache(true);
@@ -90,6 +95,7 @@ TEST_F(DiskInterfaceTest, StatCache) {
   EXPECT_GT(disk_.Stat("FIle1"), 1);
   EXPECT_GT(disk_.Stat("file1"), 1);
 
+  EXPECT_GT(disk_.Stat("subdir"), 1);
   EXPECT_GT(disk_.Stat("subdir/subfile2"), 1);
   EXPECT_GT(disk_.Stat("sUbdir\\suBFile1"), 1);
 
