@@ -78,7 +78,14 @@ TEST_F(DiskInterfaceTest, StatExistingFile) {
 
 TEST_F(DiskInterfaceTest, StatExistingDir) {
   ASSERT_TRUE(disk_.MakeDir("subdir"));
+  ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
+  EXPECT_GT(disk_.Stat("."), 1);
   EXPECT_GT(disk_.Stat("subdir"), 1);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir"), 1);
+
+  EXPECT_EQ(disk_.Stat("subdir"), disk_.Stat("subdir/."));
+  EXPECT_EQ(disk_.Stat("subdir"), disk_.Stat("subdir/subsubdir/.."));
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir"), disk_.Stat("subdir/subsubdir/."));
 }
 
 #ifdef _WIN32
@@ -88,6 +95,7 @@ TEST_F(DiskInterfaceTest, StatCache) {
   ASSERT_TRUE(Touch("file1"));
   ASSERT_TRUE(Touch("fiLE2"));
   ASSERT_TRUE(disk_.MakeDir("subdir"));
+  ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
   ASSERT_TRUE(Touch("subdir\\subfile1"));
   ASSERT_TRUE(Touch("subdir\\SUBFILE2"));
   ASSERT_TRUE(Touch("subdir\\SUBFILE3"));
@@ -95,9 +103,16 @@ TEST_F(DiskInterfaceTest, StatCache) {
   EXPECT_GT(disk_.Stat("FIle1"), 1);
   EXPECT_GT(disk_.Stat("file1"), 1);
 
-  EXPECT_GT(disk_.Stat("subdir"), 1);
   EXPECT_GT(disk_.Stat("subdir/subfile2"), 1);
   EXPECT_GT(disk_.Stat("sUbdir\\suBFile1"), 1);
+
+  EXPECT_GT(disk_.Stat("."), 1);
+  EXPECT_GT(disk_.Stat("subdir"), 1);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir"), 1);
+
+  EXPECT_EQ(disk_.Stat("subdir"), disk_.Stat("subdir/."));
+  EXPECT_EQ(disk_.Stat("subdir"), disk_.Stat("subdir/subsubdir/.."));
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir"), disk_.Stat("subdir/subsubdir/."));
 
   // Test error cases.
   disk_.quiet_ = true;
