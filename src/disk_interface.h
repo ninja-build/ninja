@@ -15,6 +15,7 @@
 #ifndef NINJA_DISK_INTERFACE_H_
 #define NINJA_DISK_INTERFACE_H_
 
+#include <map>
 #include <string>
 using namespace std;
 
@@ -29,7 +30,7 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path) = 0;
+  virtual TimeStamp Stat(const string& path) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -55,9 +56,13 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface() : quiet_(false) {}
+  RealDiskInterface() : quiet_(false)
+#ifdef _WIN32
+                      , use_cache_(false)
+#endif
+                      {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path);
+  virtual TimeStamp Stat(const string& path) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual string ReadFile(const string& path, string* err);
@@ -65,6 +70,21 @@ struct RealDiskInterface : public DiskInterface {
 
   /// Whether to print on errors.  Used to make a test quieter.
   bool quiet_;
+
+  /// Whether stat information can be cached.  Only has an effect on Windows.
+  void AllowStatCache(bool allow);
+
+ private:
+#ifdef _WIN32
+  /// Whether stat information can be cached.
+  bool use_cache_;
+
+  typedef map<string, TimeStamp> DirCache;
+  // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
+  // works out, come up with a better data structure.
+  typedef map<string, DirCache> Cache;
+  mutable Cache cache_;
+#endif
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_

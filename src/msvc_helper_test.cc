@@ -20,15 +20,19 @@
 #include "util.h"
 
 TEST(CLParserTest, ShowIncludes) {
-  ASSERT_EQ("", CLParser::FilterShowIncludes(""));
+  ASSERT_EQ("", CLParser::FilterShowIncludes("", ""));
 
-  ASSERT_EQ("", CLParser::FilterShowIncludes("Sample compiler output"));
+  ASSERT_EQ("", CLParser::FilterShowIncludes("Sample compiler output", ""));
   ASSERT_EQ("c:\\Some Files\\foobar.h",
             CLParser::FilterShowIncludes("Note: including file: "
-                                         "c:\\Some Files\\foobar.h"));
+                                         "c:\\Some Files\\foobar.h", ""));
   ASSERT_EQ("c:\\initspaces.h",
             CLParser::FilterShowIncludes("Note: including file:    "
-                                         "c:\\initspaces.h"));
+                                         "c:\\initspaces.h", ""));
+  ASSERT_EQ("c:\\initspaces.h",
+            CLParser::FilterShowIncludes("Non-default prefix: inc file:    "
+                                         "c:\\initspaces.h",
+                    "Non-default prefix: inc file:"));
 }
 
 TEST(CLParserTest, FilterInputFilename) {
@@ -46,8 +50,9 @@ TEST(CLParserTest, ParseSimple) {
   CLParser parser;
   string output = parser.Parse(
       "foo\r\n"
-      "Note: including file:  foo.h\r\n"
-      "bar\r\n");
+      "Note: inc file prefix:  foo.h\r\n"
+      "bar\r\n",
+      "Note: inc file prefix:");
 
   ASSERT_EQ("foo\nbar\n", output);
   ASSERT_EQ(1u, parser.includes_.size());
@@ -58,7 +63,8 @@ TEST(CLParserTest, ParseFilenameFilter) {
   CLParser parser;
   string output = parser.Parse(
       "foo.cc\r\n"
-      "cl: warning\r\n");
+      "cl: warning\r\n",
+      "");
   ASSERT_EQ("cl: warning\n", output);
 }
 
@@ -67,7 +73,8 @@ TEST(CLParserTest, ParseSystemInclude) {
   string output = parser.Parse(
       "Note: including file: c:\\Program Files\\foo.h\r\n"
       "Note: including file: d:\\Microsoft Visual Studio\\bar.h\r\n"
-      "Note: including file: path.h\r\n");
+      "Note: including file: path.h\r\n",
+      "");
   // We should have dropped the first two includes because they look like
   // system headers.
   ASSERT_EQ("", output);
@@ -80,7 +87,8 @@ TEST(CLParserTest, DuplicatedHeader) {
   string output = parser.Parse(
       "Note: including file: foo.h\r\n"
       "Note: including file: bar.h\r\n"
-      "Note: including file: foo.h\r\n");
+      "Note: including file: foo.h\r\n",
+      "");
   // We should have dropped one copy of foo.h.
   ASSERT_EQ("", output);
   ASSERT_EQ(2u, parser.includes_.size());
@@ -91,7 +99,8 @@ TEST(CLParserTest, DuplicatedHeaderPathConverted) {
   string output = parser.Parse(
       "Note: including file: sub/foo.h\r\n"
       "Note: including file: bar.h\r\n"
-      "Note: including file: sub\\foo.h\r\n");
+      "Note: including file: sub\\foo.h\r\n",
+      "");
   // We should have dropped one copy of foo.h.
   ASSERT_EQ("", output);
   ASSERT_EQ(2u, parser.includes_.size());
@@ -109,4 +118,11 @@ TEST(MSVCHelperTest, EnvBlock) {
   string output;
   cl.Run("cmd /c \"echo foo is %foo%", &output);
   ASSERT_EQ("foo is bar\r\n", output);
+}
+
+TEST(MSVCHelperTest, NoReadOfStderr) {
+  CLWrapper cl;
+  string output;
+  cl.Run("cmd /c \"echo to stdout&& echo to stderr 1>&2", &output);
+  ASSERT_EQ("to stdout\r\n", output);
 }

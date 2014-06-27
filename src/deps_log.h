@@ -88,6 +88,14 @@ struct DepsLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
+  /// Returns if the deps entry for a node is still reachable from the manifest.
+  ///
+  /// The deps log can contain deps entries for files that were built in the
+  /// past but are no longer part of the manifest.  This function returns if
+  /// this is the case for a given node.  This function is slow, don't call
+  /// it from code that runs on every build.
+  bool IsDepsEntryLiveFor(Node* node);
+
   /// Used for tests.
   const vector<Node*>& nodes() const { return nodes_; }
   const vector<Deps*>& deps() const { return deps_; }

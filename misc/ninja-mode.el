@@ -1,3 +1,5 @@
+;;; ninja-mode.el --- Major mode for editing .ninja files
+
 ;; Copyright 2011 Google Inc. All Rights Reserved.
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,10 +14,14 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 
+;;; Commentary:
+
 ;; Simple emacs mode for editing .ninja files.
 ;; Just some syntax highlighting for now.
 
-(setq ninja-keywords
+;;; Code:
+
+(defvar ninja-keywords
       (list
        '("^#.*" . font-lock-comment-face)
        (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
@@ -26,8 +32,10 @@
        ;; Variable expansion.
        '("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
        ;; Rule names
-       '("rule \\([[:alnum:]_]+\\)" . (1 font-lock-function-name-face))
+       '("rule \\([[:alnum:]_-]+\\)" . (1 font-lock-function-name-face))
        ))
+
+;;;###autoload       
 (define-derived-mode ninja-mode fundamental-mode "ninja"
   (setq comment-start "#")
   ; Pass extra "t" to turn off syntax-based fontification -- we don't want
@@ -35,8 +43,10 @@
   (setq font-lock-defaults '(ninja-keywords t))
   )
 
-(provide 'ninja-mode)
-
 ;; Run ninja-mode for files ending in .ninja.
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.ninja$" . ninja-mode))
+
+(provide 'ninja-mode)
+
+;;; ninja-mode.el ends here

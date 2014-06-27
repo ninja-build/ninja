@@ -24,6 +24,8 @@
 #include <windows.h>
 #endif
 
+#include <algorithm>
+
 #include "util.h"
 
 Metrics* g_metrics = NULL;

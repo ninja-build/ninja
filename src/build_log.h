@@ -25,6 +25,13 @@ using namespace std;
 
 struct Edge;
 
+/// Can answer questions about the manifest for the BuildLog.
+struct BuildLogUser {
+  /// Return if a given output no longer part of the build manifest.
+  /// This is only called during recompaction and doesn't have to be fast.
+  virtual bool IsPathDead(StringPiece s) const = 0;
+};
+
 /// Store a log of every command ran for every build.
 /// It has a few uses:
 ///
@@ -36,7 +43,7 @@ struct BuildLog {
   BuildLog();
   ~BuildLog();
 
-  bool OpenForWrite(const string& path, string* err);
+  bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp restat_mtime = 0);
   void Close();
@@ -72,7 +79,7 @@ struct BuildLog {
   bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const string& path, string* err);
+  bool Recompact(const string& path, const BuildLogUser& user, string* err);
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }

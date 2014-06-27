@@ -97,6 +97,9 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   ++started_edges_;
 
   PrintStatus(edge);
+
+  if (edge->use_console())
+    printer_.SetConsoleLocked(true);
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
@@ -112,10 +115,13 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   *end_time = (int)(now - start_time_millis_);
   running_edges_.erase(i);
 
+  if (edge->use_console())
+    printer_.SetConsoleLocked(false);
+
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (printer_.is_smart_terminal())
+  if (!edge->use_console() && printer_.is_smart_terminal())
     PrintStatus(edge);
 
   // Print the command that is spewing before printing its output.
@@ -145,6 +151,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 }
 
 void BuildStatus::BuildFinished() {
+  printer_.SetConsoleLocked(false);
   printer_.PrintOnNewLine("");
 }
 
@@ -488,7 +495,7 @@ bool RealCommandRunner::CanRunMore() {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command);
+  Subprocess* subproc = subprocs_.Add(command, edge->use_console());
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -534,7 +541,7 @@ void Builder::Cleanup() {
 
     for (vector<Edge*>::iterator i = active_edges.begin();
          i != active_edges.end(); ++i) {
-      string depfile = (*i)->GetBinding("depfile");
+      string depfile = (*i)->GetUnescapedDepfile();
       for (vector<Node*>::iterator ni = (*i)->outputs_.begin();
            ni != (*i)->outputs_.end(); ++ni) {
         // Only delete this output if it was actually modified.  This is
@@ -610,6 +617,7 @@ bool Builder::Build(string* err) {
     if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
         if (!StartEdge(edge, err)) {
+          Cleanup();
           status_->BuildFinished();
           return false;
         }
@@ -630,6 +638,7 @@ bool Builder::Build(string* err) {
       CommandRunner::Result result;
       if (!command_runner_->WaitForCommand(&result) ||
           result.status == ExitInterrupted) {
+        Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
@@ -637,6 +646,7 @@ bool Builder::Build(string* err) {
 
       --pending_commands;
       if (!FinishCommand(&result, err)) {
+        Cleanup();
         status_->BuildFinished();
         return false;
       }
@@ -686,7 +696,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
-  string rspfile = edge->GetBinding("rspfile");
+  string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
     if (!disk_interface_->WriteFile(rspfile, content))
@@ -714,9 +724,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   // build perspective.
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
+  const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
     string extract_err;
-    if (!ExtractDeps(result, deps_type, &deps_nodes, &extract_err) &&
+    if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
+                     &extract_err) &&
         result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
@@ -760,7 +772,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
           restat_mtime = input_mtime;
       }
 
-      string depfile = edge->GetBinding("depfile");
+      string depfile = edge->GetUnescapedDepfile();
       if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile);
         if (depfile_mtime > restat_mtime)
@@ -776,7 +788,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   plan_.EdgeFinished(edge);
 
   // Delete any left over response file.
-  string rspfile = edge->GetBinding("rspfile");
+  string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
@@ -802,12 +814,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const string& deps_type,
+                          const string& deps_prefix,
                           vector<Node*>* deps_nodes,
                           string* err) {
 #ifdef _WIN32
   if (deps_type == "msvc") {
     CLParser parser;
-    result->output = parser.Parse(result->output);
+    result->output = parser.Parse(result->output, deps_prefix);
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
       deps_nodes->push_back(state_->GetNode(*i));
@@ -815,7 +828,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   } else
 #endif
   if (deps_type == "gcc") {
-    string depfile = result->edge->GetBinding("depfile");
+    string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");
       return false;

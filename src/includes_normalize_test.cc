@@ -38,7 +38,7 @@ string GetCurDir() {
 }  // namespace
 
 TEST(IncludesNormalize, WithRelative) {
-  string currentdir = IncludesNormalize::ToLower(GetCurDir());
+  string currentdir = GetCurDir();
   EXPECT_EQ("c", IncludesNormalize::Normalize("a/b/c", "a/b"));
   EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"),
                                               NULL));

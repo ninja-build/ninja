@@ -68,7 +68,7 @@ struct Options {
 
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
-struct NinjaMain {
+struct NinjaMain : public BuildLogUser {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
       ninja_command_(ninja_command), config_(config) {}
 
@@ -137,6 +137,20 @@ struct NinjaMain {
 
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
+
+  virtual bool IsPathDead(StringPiece s) const {
+    Node* n = state_.LookupNode(s);
+    // Just checking n isn't enough: If an old output is both in the build log
+    // and in the deps log, it will have a Node object in state_.  (It will also
+    // have an in edge if one of its inputs is another output that's in the deps
+    // log, but having a deps edge product an output thats input to another deps
+    // edge is rare, and the first recompaction will delete all old outputs from
+    // the deps log, and then a second recompaction will clear the build log,
+    // which seems good enough for this corner case.)
+    // Do keep entries around for files which still exist on disk, for
+    // generators that want to use this information.
+    return (!n || !n->in_edge()) && disk_interface_.Stat(s.AsString()) == 0;
+  }
 };
 
 /// Subtools, accessible via "-t foo".
@@ -444,9 +458,7 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
   if (argc == 0) {
     for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
          ni != deps_log_.nodes().end(); ++ni) {
-      // Only query for targets with an incoming edge and deps
-      Edge* e = (*ni)->in_edge();
-      if (e && !e->GetBinding("deps").empty())
+      if (deps_log_.IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
     }
   } else {
@@ -621,6 +633,8 @@ int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
   putchar('[');
   for (vector<Edge*>::iterator e = state_.edges_.begin();
        e != state_.edges_.end(); ++e) {
+    if ((*e)->inputs_.empty())
+      continue;
     for (int i = 0; i != argc; ++i) {
       if ((*e)->rule_->name() == argv[i]) {
         if (!first)
@@ -748,6 +762,9 @@ bool DebugEnable(const string& name) {
 "  stats    print operation counts/timing info\n"
 "  explain  explain what caused a command to execute\n"
 "  keeprsp  don't delete @response files on success\n"
+#ifdef _WIN32
+"  nostatcache  don't batch stat() calls per directory and cache them\n"
+#endif
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -759,9 +776,13 @@ bool DebugEnable(const string& name) {
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
+  } else if (name == "nostatcache") {
+    g_experimental_statcache = false;
+    return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name.c_str(), "stats", "explain", NULL);
+        SpellcheckString(name.c_str(), "stats", "explain", "keeprsp",
+        "nostatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
@@ -789,14 +810,14 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
   }
 
   if (recompact_only) {
-    bool success = build_log_.Recompact(log_path, &err);
+    bool success = build_log_.Recompact(log_path, *this, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path, &err)) {
+    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
       Error("opening build log: %s", err.c_str());
       return false;
     }
@@ -870,6 +891,8 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 1;
   }
 
+  disk_interface_.AllowStatCache(g_experimental_statcache);
+
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -882,6 +905,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
       }
     }
   }
+
+  // Make sure restat rules do not see stale timestamps.
+  disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");

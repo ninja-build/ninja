@@ -15,6 +15,7 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
+#include <algorithm>
 #include <string.h>
 #include "string_piece.h"
 

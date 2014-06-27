@@ -34,10 +34,12 @@ parser.add_option('--verbose', action='store_true',
 parser.add_option('--x64', action='store_true',
                   help='force 64-bit build (Windows)',)
 parser.add_option('--platform',
-                  help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  help='target platform (' +
+                       '/'.join(platform_helper.platforms()) + ')',
                   choices=platform_helper.platforms())
 parser.add_option('--force-pselect', action='store_true',
-                  help="ppoll() is used by default on Linux, OpenBSD and Bitrig, but older versions might need to use pselect instead",)
+                  help='ppoll() is used by default where available, '
+                       'but some platforms might need to use pselect instead',)
 (options, conf_args) = parser.parse_args()
 
 
@@ -109,7 +111,8 @@ else:
         cflags.append('-D_WIN32_WINNT=0x0501')
     if options.x64:
         cflags.append('-m64')
-if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and not options.force_pselect:
+if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and \
+        not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 if options.force_pselect:
     conf_args.append("--force-pselect")
@@ -153,8 +156,8 @@ if platform.is_windows():
 Done!
 
 Note: to work around Windows file locking, where you can't rebuild an
-in-use binary, to run ninja after making any changes to build ninja itself
-you should run ninja.bootstrap instead.""")
+in-use binary, to run ninja after making any changes to build ninja
+itself you should run ninja.bootstrap instead.""")
 else:
     print('Building ninja using itself...')
     run([sys.executable, 'configure.py'] + conf_args)

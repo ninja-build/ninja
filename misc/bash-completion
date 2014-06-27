@@ -16,25 +16,43 @@
 #   . path/to/ninja/misc/bash-completion
 
 _ninja_target() {
-    local cur targets dir line targets_command OPTIND
-    cur="${COMP_WORDS[COMP_CWORD]}"
+    local cur prev targets dir line targets_command OPTIND
 
-		if [[ "$cur" == "--"* ]]; then
-			# there is currently only one argument that takes --
-			COMPREPLY=($(compgen -P '--' -W 'version' -- "${cur:2}"))
-		else
-			dir="."
-			line=$(echo ${COMP_LINE} | cut -d" " -f 2-)
-			# filter out all non relevant arguments but keep C for dirs
-			while getopts C:f:j:l:k:nvd:t: opt "${line[@]}"; do
-				case $opt in
-					C) dir="$OPTARG" ;;
-				esac
-			done;
-			targets_command="ninja -C ${dir} -t targets all"
-			targets=$((${targets_command} 2>/dev/null) | awk -F: '{print $1}')
-			COMPREPLY=($(compgen -W "$targets" -- "$cur"))
-		fi
+    # When available, use bash_completion to:
+    #   1) Complete words when the cursor is in the middle of the word
+    #   2) Complete paths with files or directories, as appropriate
+    if _get_comp_words_by_ref cur prev &>/dev/null ; then
+        case $prev in
+            -f)
+                _filedir
+                return 0
+                ;;
+            -C)
+                _filedir -d
+                return 0
+                ;;
+        esac
+    else
+        cur="${COMP_WORDS[COMP_CWORD]}"
+    fi
+
+    if [[ "$cur" == "--"* ]]; then
+        # there is currently only one argument that takes --
+	COMPREPLY=($(compgen -P '--' -W 'version' -- "${cur:2}"))
+    else
+	dir="."
+	line=$(echo ${COMP_LINE} | cut -d" " -f 2-)
+        # filter out all non relevant arguments but keep C for dirs
+	while getopts :C:f:j:l:k:nvd:t: opt $line; do
+	    case $opt in
+                # eval for tilde expansion
+		C) eval dir="$OPTARG" ;;
+	    esac
+	done;
+	targets_command="eval ninja -C \"${dir}\" -t targets all"
+	targets=$((${targets_command} 2>/dev/null) | awk -F: '{print $1}')
+	COMPREPLY=($(compgen -W "$targets" -- "$cur"))
+    fi
     return
 }
 complete -F _ninja_target ninja

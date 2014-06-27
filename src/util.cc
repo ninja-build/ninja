@@ -20,6 +20,7 @@
 #include <share.h>
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -173,6 +174,109 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
 
   *len = dst - start - 1;
   return true;
+}
+
+static inline bool IsKnownShellSafeCharacter(char ch) {
+  if ('A' <= ch && ch <= 'Z') return true;
+  if ('a' <= ch && ch <= 'z') return true;
+  if ('0' <= ch && ch <= '9') return true;
+
+  switch (ch) {
+    case '_':
+    case '+':
+    case '-':
+    case '.':
+    case '/':
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline bool IsKnownWin32SafeCharacter(char ch) {
+  switch (ch) {
+    case ' ':
+    case '"':
+      return false;
+    default:
+      return true;
+  }
+}
+
+static inline bool StringNeedsShellEscaping(const string& input) {
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (!IsKnownShellSafeCharacter(input[i])) return true;
+  }
+  return false;
+}
+
+static inline bool StringNeedsWin32Escaping(const string& input) {
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (!IsKnownWin32SafeCharacter(input[i])) return true;
+  }
+  return false;
+}
+
+void GetShellEscapedString(const string& input, string* result) {
+  assert(result);
+
+  if (!StringNeedsShellEscaping(input)) {
+    result->append(input);
+    return;
+  }
+
+  const char kQuote = '\'';
+  const char kEscapeSequence[] = "'\\'";
+
+  result->push_back(kQuote);
+
+  string::const_iterator span_begin = input.begin();
+  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+       ++it) {
+    if (*it == kQuote) {
+      result->append(span_begin, it);
+      result->append(kEscapeSequence);
+      span_begin = it;
+    }
+  }
+  result->append(span_begin, input.end());
+  result->push_back(kQuote);
+}
+
+
+void GetWin32EscapedString(const string& input, string* result) {
+  assert(result);
+  if (!StringNeedsWin32Escaping(input)) {
+    result->append(input);
+    return;
+  }
+
+  const char kQuote = '"';
+  const char kBackslash = '\\';
+
+  result->push_back(kQuote);
+  size_t consecutive_backslash_count = 0;
+  string::const_iterator span_begin = input.begin();
+  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+       ++it) {
+    switch (*it) {
+      case kBackslash:
+        ++consecutive_backslash_count;
+        break;
+      case kQuote:
+        result->append(span_begin, it);
+        result->append(consecutive_backslash_count + 1, kBackslash);
+        span_begin = it;
+        consecutive_backslash_count = 0;
+        break;
+      default:
+        consecutive_backslash_count = 0;
+        break;
+    }
+  }
+  result->append(span_begin, input.end());
+  result->append(consecutive_backslash_count, kBackslash);
+  result->push_back(kQuote);
 }
 
 int ReadFile(const string& path, string* contents, string* err) {

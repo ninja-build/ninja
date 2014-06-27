@@ -139,13 +139,18 @@ TEST_F(GraphTest, RootNodes) {
   }
 }
 
-TEST_F(GraphTest, VarInOutQuoteSpaces) {
+TEST_F(GraphTest, VarInOutPathEscaping) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a$ b: cat nospace with$ space nospace2\n"));
+"build a$ b: cat no'space with$ space$$ no\"space2\n"));
 
   Edge* edge = GetNode("a b")->in_edge();
-  EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
+#if _WIN32
+  EXPECT_EQ("cat no'space \"with space$\" \"no\\\"space2\" > \"a b\"",
       edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cat 'no'\\''space' 'with space$' 'no\"space2' > 'a b'",
+      edge->EvaluateCommand());
+#endif
 }
 
 // Regression test for https://github.com/martine/ninja/issues/380

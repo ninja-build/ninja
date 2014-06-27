@@ -67,13 +67,13 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '$';
         continue;
       }
-      '\\' [^\000\n] {
+      '\\' [^\000\r\n] {
         // Let backslash before other characters through verbatim.
         *out++ = '\\';
         *out++ = yych;
         continue;
       }
-      [a-zA-Z0-9+,/_:.~()@=-!]+ {
+      [a-zA-Z0-9+,/_:.~()}{@=!-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
@@ -108,7 +108,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     } else if (!out_.str_) {
       out_ = StringPiece(filename, len);
     } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths.";
+      *err = "depfile has multiple output paths";
       return false;
     }
   }

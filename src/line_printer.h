@@ -15,6 +15,7 @@
 #ifndef NINJA_LINE_PRINTER_H_
 #define NINJA_LINE_PRINTER_H_
 
+#include <stddef.h>
 #include <string>
 using namespace std;
 
@@ -37,6 +38,10 @@ struct LinePrinter {
   /// Prints a string on a new line, not overprinting previous output.
   void PrintOnNewLine(const string& to_print);
 
+  /// Lock or unlock the console.  Any output sent to the LinePrinter while the
+  /// console is locked will not be printed until it is unlocked.
+  void SetConsoleLocked(bool locked);
+
  private:
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
@@ -44,9 +49,24 @@ struct LinePrinter {
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
 
+  /// Whether console is locked.
+  bool console_locked_;
+
+  /// Buffered current line while console is locked.
+  string line_buffer_;
+
+  /// Buffered line type while console is locked.
+  LineType line_type_;
+
+  /// Buffered console output while console is locked.
+  string output_buffer_;
+
 #ifdef _WIN32
   void* console_;
 #endif
+
+  /// Print the given data to the console, or buffer it if it is locked.
+  void PrintOrBuffer(const char *data, size_t size);
 };
 
 #endif  // NINJA_LINE_PRINTER_H_

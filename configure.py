@@ -32,10 +32,12 @@ import ninja_syntax
 parser = OptionParser()
 profilers = ['gmon', 'pprof']
 parser.add_option('--platform',
-                  help='target platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  help='target platform (' +
+                       '/'.join(platform_helper.platforms()) + ')',
                   choices=platform_helper.platforms())
 parser.add_option('--host',
-                  help='host platform (' + '/'.join(platform_helper.platforms()) + ')',
+                  help='host platform (' +
+                       '/'.join(platform_helper.platforms()) + ')',
                   choices=platform_helper.platforms())
 parser.add_option('--debug', action='store_true',
                   help='enable debugging extras',)
@@ -48,7 +50,8 @@ parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
 parser.add_option('--force-pselect', action='store_true',
-                  help="ppoll() is used by default where available, but some platforms may need to use pselect instead",)
+                  help='ppoll() is used by default where available, '
+                       'but some platforms may need to use pselect instead',)
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -125,6 +128,8 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_VARIADIC_MAX=10',
               '/DNINJA_PYTHON="%s"' % options.with_python]
+    if platform.msvc_needs_fs():
+        cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
@@ -165,7 +170,8 @@ else:
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
-if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and not options.force_pselect:
+if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and \
+        not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 
 def shell_escape(str):
@@ -322,7 +328,10 @@ if options.with_gtest:
 
     gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
     if platform.is_msvc():
-        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 ' + gtest_all_incs
+        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 '
+        if platform.msvc_needs_fs():
+          gtest_cflags += '/FS '
+        gtest_cflags += gtest_all_incs
     else:
         gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
     objs += n.build(built('gtest-all' + objext), 'cxx',
@@ -356,7 +365,7 @@ for name in ['build_log_test',
     objs += cxx(name, variables=[('cflags', '$test_cflags')])
 if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=[('cflags', test_cflags)])
+        objs += cxx(name, variables=[('cflags', '$test_cflags')])
 
 if not platform.is_windows():
     test_libs.append('-lpthread')
@@ -368,17 +377,20 @@ all_targets += ninja_test
 
 
 n.comment('Ancillary executables.')
-objs = cxx('parser_perftest')
-all_targets += n.build(binary('parser_perftest'), 'link', objs,
-                       implicit=ninja_lib, variables=[('libs', libs)])
 objs = cxx('build_log_perftest')
 all_targets += n.build(binary('build_log_perftest'), 'link', objs,
                        implicit=ninja_lib, variables=[('libs', libs)])
 objs = cxx('canon_perftest')
 all_targets += n.build(binary('canon_perftest'), 'link', objs,
                        implicit=ninja_lib, variables=[('libs', libs)])
+objs = cxx('depfile_parser_perftest')
+all_targets += n.build(binary('depfile_parser_perftest'), 'link', objs,
+                       implicit=ninja_lib, variables=[('libs', libs)])
 objs = cxx('hash_collision_bench')
 all_targets += n.build(binary('hash_collision_bench'), 'link', objs,
+                              implicit=ninja_lib, variables=[('libs', libs)])
+objs = cxx('manifest_parser_perftest')
+all_targets += n.build(binary('manifest_parser_perftest'), 'link', objs,
                               implicit=ninja_lib, variables=[('libs', libs)])
 n.newline()
 
