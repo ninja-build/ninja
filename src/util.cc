@@ -415,10 +415,51 @@ int GetProcessorCount() {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
+static double CalculateProcessorLoad(uint64_t idleTicks, uint64_t totalTicks)
+{
+  static uint64_t previousIdleTicks = 0;
+  static uint64_t previousTotalTicks = 0;
+
+  uint64_t idleTicksSinceLastTime = idleTicks - previousIdleTicks;
+  uint64_t totalTicksSinceLastTime = totalTicks - previousTotalTicks;
+  
+  double load;
+  if( previousTotalTicks > 0) {
+    //return error for first call
+    load = -0.0;
+  } else if(totalTicksSinceLastTime == 0) {
+    //return error when load cannot be calculated
+    load = -0.0;
+  } else {
+    double idleToTotalRatio = ((double)idleTicksSinceLastTime) / totalTicksSinceLastTime;
+    load = 1.0 - idleToTotalRatio;
+  }
+
+  previousTotalTicks = totalTicks;
+  previousIdleTicks = idleTicks;
+  return load;
+}
+
+static uint64_t FileTimeToTickCount(const FILETIME & ft)
+{
+  uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
+  uint64_t low  = ft.dwLowDateTime;
+  return (high | low);
+}
+
 double GetLoadAverage() {
-  // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
-  // Remember to also update Usage() when this is fixed.
-  return -0.0f;
+  FILETIME idleTime, kernelTime, userTime;
+  BOOL getSystemTimeSucceeded = GetSystemTimes(&idleTime, &kernelTime, &userTime);
+  
+  double result;
+  if (getSystemTimeSucceeded) {
+    uint64_t idleTicks = FileTimeToTickCount(idleTime);
+    uint64_t totalTicks = FileTimeToTickCount(kernelTime) + FileTimeToTickCount(userTime);
+    result = CalculateProcessorLoad(idleTicks, totalTicks);
+  } else {
+    result = -0.0;
+  }
+  return result;
 }
 #else
 double GetLoadAverage() {
