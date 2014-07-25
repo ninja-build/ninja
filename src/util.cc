@@ -424,7 +424,7 @@ static double CalculateProcessorLoad(uint64_t idleTicks, uint64_t totalTicks)
   uint64_t totalTicksSinceLastTime = totalTicks - previousTotalTicks;
   
   double load;
-  if( previousTotalTicks > 0) {
+  if (previousTotalTicks == 0) {
     //return error for first call
     load = -0.0;
   } else if(totalTicksSinceLastTime == 0) {
@@ -454,7 +454,10 @@ double GetLoadAverage() {
   double result;
   if (getSystemTimeSucceeded) {
     uint64_t idleTicks = FileTimeToTickCount(idleTime);
+    
+    //kernelTime from GetSystemTimes already includes idleTime
     uint64_t totalTicks = FileTimeToTickCount(kernelTime) + FileTimeToTickCount(userTime);
+    
     result = CalculateProcessorLoad(idleTicks, totalTicks);
   } else {
     result = -0.0;
