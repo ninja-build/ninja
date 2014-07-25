@@ -419,24 +419,34 @@ static double CalculateProcessorLoad(uint64_t idleTicks, uint64_t totalTicks)
 {
   static uint64_t previousIdleTicks = 0;
   static uint64_t previousTotalTicks = 0;
-
+  static double previousLoad = -0.0f;
+  
   uint64_t idleTicksSinceLastTime = idleTicks - previousIdleTicks;
   uint64_t totalTicksSinceLastTime = totalTicks - previousTotalTicks;
   
+  bool firstCall = (previousTotalTicks == 0);
+  bool ticksNotUpdatedSinceLastCall = (totalTicksSinceLastTime == 0);
+  
   double load;
-  if (previousTotalTicks == 0) {
-    //return error for first call
-    load = -0.0;
-  } else if(totalTicksSinceLastTime == 0) {
-    //return error when load cannot be calculated
-    load = -0.0;
+  if (firstCall || ticksNotUpdatedSinceLastCall) {
+    load = previousLoad;
   } else {
+    //calculate load
     double idleToTotalRatio = ((double)idleTicksSinceLastTime) / totalTicksSinceLastTime;
-    load = 1.0 - idleToTotalRatio;
+    double loadSinceLastCall = 1.0 - idleToTotalRatio;
+    
+    //filter/smooth result when possible
+    if(previousLoad > 0) {
+      load = 0.9 * previousLoad + 0.1 * loadSinceLastCall;
+    } else {
+      load = loadSinceLastCall;
+    }
   }
-
+  
+  previousLoad = load;
   previousTotalTicks = totalTicks;
   previousIdleTicks = idleTicks;
+  
   return load;
 }
 
@@ -462,6 +472,7 @@ double GetLoadAverage() {
   } else {
     result = -0.0;
   }
+  
   return result;
 }
 #else
