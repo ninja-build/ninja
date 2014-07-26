@@ -193,9 +193,6 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
-#ifdef _WIN32
-"           (N can be between 0.0 for all processors being IDLE to 1.0 for all processors 100%% busy)\n"
-#endif
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
