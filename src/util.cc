@@ -461,19 +461,21 @@ double GetLoadAverage() {
   FILETIME idle_time, kernel_time, user_time;
   BOOL get_system_time_succeeded = GetSystemTimes(&idle_time, &kernel_time, &user_time);
   
-  double result;
+  double posix_compatible_load;
   if (get_system_time_succeeded) {
     uint64_t idle_ticks = FileTimeToTickCount(idle_time);
     
     //kernel_time from GetSystemTimes already includes idle_time
     uint64_t total_ticks = FileTimeToTickCount(kernel_time) + FileTimeToTickCount(user_time);
     
-    result = CalculateProcessorLoad(idle_ticks, total_ticks);
+    double processor_load = CalculateProcessorLoad(idle_ticks, total_ticks);
+    posix_compatible_load = processor_load * GetProcessorCount();
+
   } else {
-    result = -0.0;
+    posix_compatible_load = -0.0;
   }
   
-  return result;
+  return posix_compatible_load;
 }
 #else
 double GetLoadAverage() {
