@@ -415,37 +415,37 @@ int GetProcessorCount() {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-static double CalculateProcessorLoad(uint64_t idleTicks, uint64_t totalTicks)
+static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
 {
-  static uint64_t previousIdleTicks = 0;
-  static uint64_t previousTotalTicks = 0;
-  static double previousLoad = -0.0f;
+  static uint64_t previous_idle_ticks = 0;
+  static uint64_t previous_total_ticks = 0;
+  static double previous_load = -0.0;
   
-  uint64_t idleTicksSinceLastTime = idleTicks - previousIdleTicks;
-  uint64_t totalTicksSinceLastTime = totalTicks - previousTotalTicks;
+  uint64_t idle_ticks_since_last_time = idle_ticks - previous_idle_ticks;
+  uint64_t total_ticks_since_last_time = total_ticks - previous_total_ticks;
   
-  bool firstCall = (previousTotalTicks == 0);
-  bool ticksNotUpdatedSinceLastCall = (totalTicksSinceLastTime == 0);
+  bool first_call = (previous_total_ticks == 0);
+  bool ticks_not_updated_since_last_call = (total_ticks_since_last_time == 0);
   
   double load;
-  if (firstCall || ticksNotUpdatedSinceLastCall) {
-    load = previousLoad;
+  if (first_call || ticks_not_updated_since_last_call) {
+    load = previous_load;
   } else {
     //calculate load
-    double idleToTotalRatio = ((double)idleTicksSinceLastTime) / totalTicksSinceLastTime;
-    double loadSinceLastCall = 1.0 - idleToTotalRatio;
+    double idle_to_total_ratio = ((double)idle_ticks_since_last_time) / total_ticks_since_last_time;
+    double load_since_last_call = 1.0 - idle_to_total_ratio;
     
     //filter/smooth result when possible
-    if(previousLoad > 0) {
-      load = 0.9 * previousLoad + 0.1 * loadSinceLastCall;
+    if(previous_load > 0) {
+      load = 0.9 * previous_load + 0.1 * load_since_last_call;
     } else {
-      load = loadSinceLastCall;
+      load = load_since_last_call;
     }
   }
   
-  previousLoad = load;
-  previousTotalTicks = totalTicks;
-  previousIdleTicks = idleTicks;
+  previous_load = load;
+  previous_total_ticks = total_ticks;
+  previous_idle_ticks = idle_ticks;
   
   return load;
 }
@@ -458,17 +458,17 @@ static uint64_t FileTimeToTickCount(const FILETIME & ft)
 }
 
 double GetLoadAverage() {
-  FILETIME idleTime, kernelTime, userTime;
-  BOOL getSystemTimeSucceeded = GetSystemTimes(&idleTime, &kernelTime, &userTime);
+  FILETIME idle_time, kernel_time, user_time;
+  BOOL get_system_time_succeeded = GetSystemTimes(&idle_time, &kernel_time, &user_time);
   
   double result;
-  if (getSystemTimeSucceeded) {
-    uint64_t idleTicks = FileTimeToTickCount(idleTime);
+  if (get_system_time_succeeded) {
+    uint64_t idle_ticks = FileTimeToTickCount(idle_time);
     
-    //kernelTime from GetSystemTimes already includes idleTime
-    uint64_t totalTicks = FileTimeToTickCount(kernelTime) + FileTimeToTickCount(userTime);
+    //kernel_time from GetSystemTimes already includes idle_time
+    uint64_t total_ticks = FileTimeToTickCount(kernel_time) + FileTimeToTickCount(user_time);
     
-    result = CalculateProcessorLoad(idleTicks, totalTicks);
+    result = CalculateProcessorLoad(idle_ticks, total_ticks);
   } else {
     result = -0.0;
   }
