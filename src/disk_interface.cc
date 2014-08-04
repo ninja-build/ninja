@@ -89,7 +89,7 @@ bool IsWindows7OrLater() {
   if (!GetVersionEx(&version_info))
     Fatal("GetVersionEx: %s", GetLastErrorString().c_str());
   return version_info.dwMajorVersion > 6 ||
-         version_info.dwMajorVersion == 6 && version_info.dwMinorVersion >= 1;
+         (version_info.dwMajorVersion == 6 && version_info.dwMinorVersion >= 1);
 }
 #pragma warning(pop)
 
