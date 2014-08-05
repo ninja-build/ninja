@@ -167,6 +167,12 @@ Setup on Ubuntu Precise:
 * `sudo apt-get install gcc-mingw-w64-i686 g++-mingw-w64-i686 wine`
 * `export CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ AR=i686-w64-mingw32-ar`
 
+Setup on Arch:
+* Uncomment the `[multilib]` section of `/etc/pacman.conf` and `sudo pacman -Sy`.
+* `sudo pacman -S mingw-w64-gcc wine`
+* `export CC=x86_64-w64-mingw32-cc CXX=x86_64-w64-mingw32-c++ AR=x86_64-w64-mingw32-ar`
+* `export CFLAGS=-I/usr/x86_64-w64-mingw32/include`
+
 Then run:
 * `./configure.py --platform=mingw --host=linux`
 * Build `ninja.exe` using a Linux ninja binary: `/path/to/linux/ninja`
