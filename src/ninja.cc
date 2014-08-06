@@ -16,6 +16,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -42,15 +43,33 @@
 #include "util.h"
 #include "version.h"
 
+#define INT64_PRINT "jd"
+
 #ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
 
 // Defined in minidump-win32.cc.
 void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
+
+#undef INT64_PRINT
+#define INT64_PRINT "I64d"
+
 #endif
 
 namespace {
+
+void PrintTime(int64_t time_start) {
+    int64_t time = GetTimeMillis() - time_start;
+    int64_t ms = time;
+    int32_t sec = (int32_t)(ms / 1000);
+    ms -= sec * 1000;
+    int32_t min = sec / 60;
+    sec -= min * 60;
+    int32_t h = min / 60;
+    min -= h * 60;
+    printf("build time: %02d:%02d:%02d.%03" INT64_PRINT " (%" INT64_PRINT " ms)\n", h, min, sec, ms, time);
+}
 
 struct Tool;
 
@@ -64,6 +83,9 @@ struct Options {
 
   /// Tool to run rather than building.
   const Tool* tool;
+
+  /// Show build time
+  bool bt;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -133,7 +155,7 @@ struct NinjaMain : public BuildLogUser {
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
-  int RunBuild(int argc, char** argv);
+  int RunBuild(int argc, char** argv, Options *opt);
 
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
@@ -186,7 +208,8 @@ void Usage(const BuildConfig& config) {
 "if targets are unspecified, builds the 'default' target (see manual).\n"
 "\n"
 "options:\n"
-"  --version  print ninja version (\"%s\")\n"
+"  --version    print ninja version (\"%s\")\n"
+"  --buildtime  show build time\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -881,7 +904,8 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RunBuild(int argc, char** argv) {
+int NinjaMain::RunBuild(int argc, char** argv, Options *opt) {
+  int64_t time_start = GetTimeMillis();
   string err;
   vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
@@ -909,6 +933,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
 
   if (builder.AlreadyUpToDate()) {
     printf("ninja: no work to do.\n");
+    if (opt->bt) PrintTime(time_start);
     return 0;
   }
 
@@ -920,6 +945,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 1;
   }
 
+  if (opt->bt) PrintTime(time_start);
   return 0;
 }
 
@@ -952,13 +978,15 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_BUILD_TIME = 2 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
+    { "buildtime", no_argument, NULL, OPT_BUILD_TIME },
     { NULL, 0, NULL, 0 }
   };
 
+  options->bt = false;
   int opt;
   while (!options->tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
@@ -1016,6 +1044,9 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_BUILD_TIME:
+        options->bt = true;
+        break;
       case 'h':
       default:
         Usage(*config);
@@ -1097,7 +1128,7 @@ int real_main(int argc, char** argv) {
       }
     }
 
-    int result = ninja.RunBuild(argc, argv);
+    int result = ninja.RunBuild(argc, argv, &options);
     if (g_metrics)
       ninja.DumpMetrics();
     return result;
