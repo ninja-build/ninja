@@ -183,6 +183,7 @@ static inline bool IsKnownShellSafeCharacter(char ch) {
 
   switch (ch) {
     case '_':
+    case '+':
     case '-':
     case '.':
     case '/':
@@ -414,10 +415,67 @@ int GetProcessorCount() {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
+static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
+{
+  static uint64_t previous_idle_ticks = 0;
+  static uint64_t previous_total_ticks = 0;
+  static double previous_load = -0.0;
+  
+  uint64_t idle_ticks_since_last_time = idle_ticks - previous_idle_ticks;
+  uint64_t total_ticks_since_last_time = total_ticks - previous_total_ticks;
+  
+  bool first_call = (previous_total_ticks == 0);
+  bool ticks_not_updated_since_last_call = (total_ticks_since_last_time == 0);
+  
+  double load;
+  if (first_call || ticks_not_updated_since_last_call) {
+    load = previous_load;
+  } else {
+    //calculate load
+    double idle_to_total_ratio = ((double)idle_ticks_since_last_time) / total_ticks_since_last_time;
+    double load_since_last_call = 1.0 - idle_to_total_ratio;
+    
+    //filter/smooth result when possible
+    if(previous_load > 0) {
+      load = 0.9 * previous_load + 0.1 * load_since_last_call;
+    } else {
+      load = load_since_last_call;
+    }
+  }
+  
+  previous_load = load;
+  previous_total_ticks = total_ticks;
+  previous_idle_ticks = idle_ticks;
+  
+  return load;
+}
+
+static uint64_t FileTimeToTickCount(const FILETIME & ft)
+{
+  uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
+  uint64_t low  = ft.dwLowDateTime;
+  return (high | low);
+}
+
 double GetLoadAverage() {
-  // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
-  // Remember to also update Usage() when this is fixed.
-  return -0.0f;
+  FILETIME idle_time, kernel_time, user_time;
+  BOOL get_system_time_succeeded = GetSystemTimes(&idle_time, &kernel_time, &user_time);
+  
+  double posix_compatible_load;
+  if (get_system_time_succeeded) {
+    uint64_t idle_ticks = FileTimeToTickCount(idle_time);
+    
+    //kernel_time from GetSystemTimes already includes idle_time
+    uint64_t total_ticks = FileTimeToTickCount(kernel_time) + FileTimeToTickCount(user_time);
+    
+    double processor_load = CalculateProcessorLoad(idle_ticks, total_ticks);
+    posix_compatible_load = processor_load * GetProcessorCount();
+
+  } else {
+    posix_compatible_load = -0.0;
+  }
+  
+  return posix_compatible_load;
 }
 #else
 double GetLoadAverage() {

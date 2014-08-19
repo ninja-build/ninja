@@ -26,7 +26,7 @@
 
 #include "util.h"
 
-LinePrinter::LinePrinter() : have_blank_line_(true) {
+LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
@@ -43,6 +43,12 @@ LinePrinter::LinePrinter() : have_blank_line_(true) {
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
+  if (console_locked_) {
+    line_buffer_ = to_print;
+    line_type_ = type;
+    return;
+  }
+
 #ifdef _WIN32
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   GetConsoleScreenBufferInfo(console_, &csbi);
@@ -101,13 +107,46 @@ void LinePrinter::Print(string to_print, LineType type) {
   }
 }
 
-void LinePrinter::PrintOnNewLine(const string& to_print) {
-  if (!have_blank_line_)
-    printf("\n");
-  if (!to_print.empty()) {
+void LinePrinter::PrintOrBuffer(const char* data, size_t size) {
+  if (console_locked_) {
+    output_buffer_.append(data, size);
+  } else {
     // Avoid printf and C strings, since the actual output might contain null
     // bytes like UTF-16 does (yuck).
-    fwrite(&to_print[0], sizeof(char), to_print.size(), stdout);
+    fwrite(data, 1, size, stdout);
+  }
+}
+
+void LinePrinter::PrintOnNewLine(const string& to_print) {
+  if (console_locked_ && !line_buffer_.empty()) {
+    output_buffer_.append(line_buffer_);
+    output_buffer_.append(1, '\n');
+    line_buffer_.clear();
+  }
+  if (!have_blank_line_) {
+    PrintOrBuffer("\n", 1);
+  }
+  if (!to_print.empty()) {
+    PrintOrBuffer(&to_print[0], to_print.size());
   }
   have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
+}
+
+void LinePrinter::SetConsoleLocked(bool locked) {
+  if (locked == console_locked_)
+    return;
+
+  if (locked)
+    PrintOnNewLine("");
+
+  console_locked_ = locked;
+
+  if (!locked) {
+    PrintOnNewLine(output_buffer_);
+    if (!line_buffer_.empty()) {
+      Print(line_buffer_, line_type_);
+    }
+    output_buffer_.clear();
+    line_buffer_.clear();
+  }
 }

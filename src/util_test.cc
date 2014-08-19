@@ -148,7 +148,7 @@ TEST(PathEscaping, TortureTest) {
 }
 
 TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
-  const char* path = "some/sensible/path/without/crazy/characters.cc";
+  const char* path = "some/sensible/path/without/crazy/characters.c++";
   string result;
 
   GetWin32EscapedString(path, &result);
@@ -160,7 +160,7 @@ TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
 }
 
 TEST(PathEscaping, SensibleWin32PathsAreNotNeedlesslyEscaped) {
-  const char* path = "some\\sensible\\path\\without\\crazy\\characters.cc";
+  const char* path = "some\\sensible\\path\\without\\crazy\\characters.c++";
   string result;
 
   GetWin32EscapedString(path, &result);

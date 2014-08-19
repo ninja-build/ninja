@@ -32,7 +32,8 @@
 
 #include "util.h"
 
-Subprocess::Subprocess() : fd_(-1), pid_(-1) {
+Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
+                                           use_console_(use_console) {
 }
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
@@ -101,29 +102,34 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
-      if (setpgid(0, 0) < 0)
-        break;
-
       if (sigaction(SIGINT, &set->old_act_, 0) < 0)
         break;
       if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
         break;
 
-      // Open /dev/null over stdin.
-      int devnull = open("/dev/null", O_RDONLY);
-      if (devnull < 0)
-        break;
-      if (dup2(devnull, 0) < 0)
-        break;
-      close(devnull);
+      if (!use_console_) {
+        // Put the child in its own process group, so ctrl-c won't reach it.
+        if (setpgid(0, 0) < 0)
+          break;
 
-      if (dup2(output_pipe[1], 1) < 0 ||
-          dup2(output_pipe[1], 2) < 0)
-        break;
+        // Open /dev/null over stdin.
+        int devnull = open("/dev/null", O_RDONLY);
+        if (devnull < 0)
+          break;
+        if (dup2(devnull, 0) < 0)
+          break;
+        close(devnull);
 
-      // Now can use stderr for errors.
-      error_pipe = 2;
-      close(output_pipe[1]);
+        if (dup2(output_pipe[1], 1) < 0 ||
+            dup2(output_pipe[1], 2) < 0)
+          break;
+
+        // Now can use stderr for errors.
+        error_pipe = 2;
+        close(output_pipe[1]);
+      }
+      // In the console case, output_pipe is still inherited by the child and
+      // closed when the subprocess finishes, which then notifies ninja.
 
       if (command.length () < /*MAX_ARG_STRLEN*/ static_cast < size_t > (PAGE_SIZE * 32))
         execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
@@ -224,8 +230,8 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command) {
-  Subprocess *subprocess = new Subprocess;
+Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+  Subprocess *subprocess = new Subprocess(use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
@@ -335,7 +341,10 @@ Subprocess* SubprocessSet::NextFinished() {
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
-    kill(-(*i)->pid_, SIGINT);
+    // Since the foreground process is in our process group, it will receive a
+    // SIGINT at the same time as us.
+    if (!(*i)->use_console_)
+      kill(-(*i)->pid_, SIGINT);
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;

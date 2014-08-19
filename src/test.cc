@@ -105,8 +105,8 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path) {
-  FileMap::iterator i = files_.find(path);
+TimeStamp VirtualFileSystem::Stat(const string& path) const {
+  FileMap::const_iterator i = files_.find(path);
   if (i != files_.end())
     return i->second.mtime;
   return 0;

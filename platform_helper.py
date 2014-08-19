@@ -19,7 +19,7 @@ import sys
 
 def platforms():
     return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-            'mingw', 'msvc', 'gnukfreebsd8', 'bitrig']
+            'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
 
 class Platform(object):
     def __init__(self, platform):
@@ -31,7 +31,7 @@ class Platform(object):
             self._platform = 'linux'
         elif self._platform.startswith('freebsd'):
             self._platform = 'freebsd'
-        elif self._platform.startswith('gnukfreebsd8'):
+        elif self._platform.startswith('gnukfreebsd'):
             self._platform = 'freebsd'
         elif self._platform.startswith('openbsd'):
             self._platform = 'openbsd'
@@ -43,6 +43,8 @@ class Platform(object):
             self._platform = 'msvc'
         elif self._platform.startswith('bitrig'):
             self._platform = 'bitrig'
+        elif self._platform.startswith('netbsd'):
+            self._platform = 'netbsd'
 
     def platform(self):
         return self._platform
@@ -81,3 +83,6 @@ class Platform(object):
 
     def is_bitrig(self):
         return self._platform == 'bitrig'
+
+    def is_netbsd(self):
+        return self._platform == 'netbsd'
