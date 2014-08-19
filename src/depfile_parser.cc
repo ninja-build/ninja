@@ -53,7 +53,7 @@ bool DepfileParser::Parse(string* content, string* err) {
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
           0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0,   0,   0,   0,   0,   0, 
+          0, 128,   0,   0,   0,   0,   0,   0, 
         128, 128,   0, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128,   0,   0, 128,   0,   0, 
@@ -84,56 +84,63 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
 
       yych = *in;
-      if (yych <= 'Z') {
-        if (yych <= '*') {
-          if (yych <= 0x00) goto yy6;
-          if (yych <= '\'') goto yy8;
-          if (yych <= ')') goto yy4;
-          goto yy8;
-        } else {
-          if (yych <= '<') {
-            if (yych <= ':') goto yy4;
-            goto yy8;
+      if (yych <= '=') {
+        if (yych <= '$') {
+          if (yych <= ' ') {
+            if (yych <= 0x00) goto yy7;
+            goto yy9;
           } else {
-            if (yych <= '=') goto yy4;
-            if (yych <= '?') goto yy8;
+            if (yych <= '!') goto yy5;
+            if (yych <= '#') goto yy9;
             goto yy4;
+          }
+        } else {
+          if (yych <= '*') {
+            if (yych <= '\'') goto yy9;
+            if (yych <= ')') goto yy5;
+            goto yy9;
+          } else {
+            if (yych <= ':') goto yy5;
+            if (yych <= '<') goto yy9;
+            goto yy5;
           }
         }
       } else {
-        if (yych <= '_') {
-          if (yych == '\\') goto yy2;
-          if (yych <= '^') goto yy8;
-          goto yy4;
+        if (yych <= '^') {
+          if (yych <= 'Z') {
+            if (yych <= '?') goto yy9;
+            goto yy5;
+          } else {
+            if (yych != '\\') goto yy9;
+          }
         } else {
           if (yych <= 'z') {
-            if (yych <= '`') goto yy8;
-            goto yy4;
+            if (yych == '`') goto yy9;
+            goto yy5;
           } else {
-            if (yych == '~') goto yy4;
-            goto yy8;
+            if (yych == '~') goto yy5;
+            goto yy9;
           }
         }
       }
-yy2:
       ++in;
-      if ((yych = *in) <= '$') {
+      if ((yych = *in) <= '#') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy3;
-          if (yych <= '\t') goto yy11;
+          if (yych <= '\t') goto yy14;
         } else {
-          if (yych == ' ') goto yy13;
-          if (yych <= '"') goto yy11;
-          goto yy13;
+          if (yych == ' ') goto yy16;
+          if (yych <= '"') goto yy14;
+          goto yy16;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych == '*') goto yy13;
-          goto yy11;
+          if (yych == '*') goto yy16;
+          goto yy14;
         } else {
-          if (yych <= '\\') goto yy13;
-          if (yych == '|') goto yy13;
-          goto yy11;
+          if (yych <= '\\') goto yy16;
+          if (yych == '|') goto yy16;
+          goto yy14;
         }
       }
 yy3:
@@ -143,10 +150,14 @@ yy3:
         break;
       }
 yy4:
+      yych = *++in;
+      if (yych == '$') goto yy12;
+      goto yy3;
+yy5:
       ++in;
       yych = *in;
-      goto yy10;
-yy5:
+      goto yy11;
+yy6:
       {
         // Got a span of plain text.
         int len = (int)(in - start);
@@ -156,23 +167,30 @@ yy5:
         out += len;
         continue;
       }
-yy6:
+yy7:
       ++in;
       {
         break;
       }
-yy8:
+yy9:
       yych = *++in;
       goto yy3;
-yy9:
+yy10:
       ++in;
       yych = *in;
-yy10:
-      if (yybm[0+yych] & 128) {
-        goto yy9;
-      }
-      goto yy5;
 yy11:
+      if (yybm[0+yych] & 128) {
+        goto yy10;
+      }
+      goto yy6;
+yy12:
+      ++in;
+      {
+        // De-escape dollar character.
+        *out++ = '$';
+        continue;
+      }
+yy14:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -180,7 +198,7 @@ yy11:
         *out++ = yych;
         continue;
       }
-yy13:
+yy16:
       ++in;
       {
         // De-escape backslashed character.

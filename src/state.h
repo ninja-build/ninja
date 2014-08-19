@@ -16,7 +16,6 @@
 #define NINJA_STATE_H_
 
 #include <map>
-#include <deque>
 #include <set>
 #include <string>
 #include <vector>
@@ -39,7 +38,7 @@ struct Rule;
 /// completes).
 struct Pool {
   explicit Pool(const string& name, int depth)
-    : name_(name), current_use_(0), depth_(depth) { }
+    : name_(name), current_use_(0), depth_(depth), delayed_(&WeightedEdgeCmp) { }
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
@@ -66,9 +65,7 @@ struct Pool {
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
 
-private:
-  int UnitsWaiting() { return delayed_.size(); }
-
+ private:
   string name_;
 
   /// |current_use_| is the total of the weights of the edges which are
@@ -76,7 +73,10 @@ private:
   int current_use_;
   int depth_;
 
-  deque<Edge*> delayed_;
+  static bool WeightedEdgeCmp(const Edge* a, const Edge* b);
+
+  typedef set<Edge*,bool(*)(const Edge*, const Edge*)> DelayedEdges;
+  DelayedEdges delayed_;
 };
 
 /// Global state (file status, loaded rules) for a single run.
@@ -92,10 +92,10 @@ struct State {
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
 
-  Edge* AddEdge(const Rule* rule, Pool* pool);
+  Edge* AddEdge(const Rule* rule);
 
   Node* GetNode(StringPiece path);
-  Node* LookupNode(StringPiece path);
+  Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path);

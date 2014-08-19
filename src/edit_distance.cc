@@ -14,6 +14,7 @@
 
 #include "edit_distance.h"
 
+#include <algorithm>
 #include <vector>
 
 int EditDistance(const StringPiece& s1,
@@ -32,8 +33,8 @@ int EditDistance(const StringPiece& s1,
   int m = s1.len_;
   int n = s2.len_;
 
-  std::vector<int> previous(n + 1);
-  std::vector<int> current(n + 1);
+  vector<int> previous(n + 1);
+  vector<int> current(n + 1);
 
   for (int i = 0; i <= n; ++i)
     previous[i] = i;

@@ -55,11 +55,16 @@ bool DepfileParser::Parse(string* content, string* err) {
       re2c:indent:string = "  ";
 
       nul = "\000";
-      escape = [ \\#*$[|];
+      escape = [ \\#*[|];
 
       '\\' escape {
         // De-escape backslashed character.
         *out++ = yych;
+        continue;
+      }
+      '$$' {
+        // De-escape dollar character.
+        *out++ = '$';
         continue;
       }
       '\\' [^\000\n] {
@@ -68,7 +73,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = yych;
         continue;
       }
-      [a-zA-Z0-9+,/_:.~()@=-]+ {
+      [a-zA-Z0-9+,/_:.~()@=!-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.

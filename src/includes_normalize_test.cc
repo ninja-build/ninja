@@ -38,7 +38,7 @@ string GetCurDir() {
 }  // namespace
 
 TEST(IncludesNormalize, WithRelative) {
-  string currentdir = IncludesNormalize::ToLower(GetCurDir());
+  string currentdir = GetCurDir();
   EXPECT_EQ("c", IncludesNormalize::Normalize("a/b/c", "a/b"));
   EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"),
                                               NULL));
@@ -52,11 +52,11 @@ TEST(IncludesNormalize, WithRelative) {
 
 TEST(IncludesNormalize, Case) {
   EXPECT_EQ("b", IncludesNormalize::Normalize("Abc\\..\\b", NULL));
-  EXPECT_EQ("bdef", IncludesNormalize::Normalize("Abc\\..\\BdEf", NULL));
-  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\.\\b", NULL));
-  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\./b", NULL));
-  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\.\\B", NULL));
-  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("A\\./B", NULL));
+  EXPECT_EQ("BdEf", IncludesNormalize::Normalize("Abc\\..\\BdEf", NULL));
+  EXPECT_EQ("A\\b", IncludesNormalize::Normalize("A\\.\\b", NULL));
+  EXPECT_EQ("a\\b", IncludesNormalize::Normalize("a\\./b", NULL));
+  EXPECT_EQ("A\\B", IncludesNormalize::Normalize("A\\.\\B", NULL));
+  EXPECT_EQ("A\\B", IncludesNormalize::Normalize("A\\./B", NULL));
 }
 
 TEST(IncludesNormalize, Join) {
@@ -91,12 +91,12 @@ TEST(IncludesNormalize, DifferentDrive) {
   EXPECT_EQ("stuff.h",
       IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "p:\\vs08"));
   EXPECT_EQ("stuff.h",
-      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "p:\\vs08"));
+      IncludesNormalize::Normalize("P:\\Vs08\\stuff.h", "p:\\vs08"));
   EXPECT_EQ("p:\\vs08\\stuff.h",
-      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "c:\\vs08"));
-  EXPECT_EQ("p:\\vs08\\stuff.h",
-      IncludesNormalize::Normalize("P:\\vs08\\stuff.h", "D:\\stuff/things"));
-  EXPECT_EQ("p:\\vs08\\stuff.h",
+      IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "c:\\vs08"));
+  EXPECT_EQ("P:\\vs08\\stufF.h",
+      IncludesNormalize::Normalize("P:\\vs08\\stufF.h", "D:\\stuff/things"));
+  EXPECT_EQ("P:\\vs08\\stuff.h",
       IncludesNormalize::Normalize("P:/vs08\\stuff.h", "D:\\stuff/things"));
   // TODO: this fails; fix it.
   //EXPECT_EQ("P:\\wee\\stuff.h",

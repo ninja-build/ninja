@@ -101,7 +101,7 @@ TEST(CanonicalizePath, EmptyResult) {
 }
 
 TEST(CanonicalizePath, UpDir) {
-  std::string path, err;
+  string path, err;
   path = "../../foo/bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../../foo/bar.h", path);
@@ -134,6 +134,37 @@ TEST(CanonicalizePath, NotNullTerminated) {
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
   EXPECT_EQ(strlen("file"), len);
   EXPECT_EQ("file ./file bar/.", string(path));
+}
+
+TEST(PathEscaping, TortureTest) {
+  string result;
+  
+  GetWin32EscapedString("foo bar\\\"'$@d!st!c'\\path'\\", &result);
+  EXPECT_EQ("\"foo bar\\\\\\\"'$@d!st!c'\\path'\\\\\"", result);
+  result.clear();  
+
+  GetShellEscapedString("foo bar\"/'$@d!st!c'/path'", &result);
+  EXPECT_EQ("'foo bar\"/'\\''$@d!st!c'\\''/path'\\'''", result);
+}
+
+TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
+  const char* path = "some/sensible/path/without/crazy/characters.cc";
+  string result;
+
+  GetWin32EscapedString(path, &result);
+  EXPECT_EQ(path, result);
+  result.clear();
+
+  GetShellEscapedString(path, &result);
+  EXPECT_EQ(path, result);
+}
+
+TEST(PathEscaping, SensibleWin32PathsAreNotNeedlesslyEscaped) {
+  const char* path = "some\\sensible\\path\\without\\crazy\\characters.cc";
+  string result;
+
+  GetWin32EscapedString(path, &result);
+  EXPECT_EQ(path, result);
 }
 
 TEST(StripAnsiEscapeCodes, EscapeAtEnd) {

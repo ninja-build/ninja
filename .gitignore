@@ -15,8 +15,16 @@ TAGS
 /doc/manual.html
 /doc/doxygen
 /gtest-1.6.0
+*.patch
 
 # Eclipse project files
 .project
 .cproject
 
+# SublimeText project files
+*.sublime-project
+*.sublime-workspace
+
+# Ninja output
+.ninja_deps
+.ninja_log

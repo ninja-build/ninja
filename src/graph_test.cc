@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "graph.h"
+#include "build.h"
 
 #include "test.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, NULL, &fs_) {}
+  GraphTest() : scan_(&state_, NULL, NULL, &fs_) {}
 
   VirtualFileSystem fs_;
   DependencyScan scan_;
@@ -26,8 +27,8 @@ struct GraphTest : public StateTestWithBuiltinRules {
 TEST_F(GraphTest, MissingImplicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in | implicit\n"));
-  fs_.Create("in", 1, "");
-  fs_.Create("out", 1, "");
+  fs_.Create("in", "");
+  fs_.Create("out", "");
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
@@ -43,9 +44,10 @@ TEST_F(GraphTest, MissingImplicit) {
 TEST_F(GraphTest, ModifiedImplicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in | implicit\n"));
-  fs_.Create("in", 1, "");
-  fs_.Create("out", 1, "");
-  fs_.Create("implicit", 2, "");
+  fs_.Create("in", "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("implicit", "");
 
   Edge* edge = GetNode("out")->in_edge();
   string err;
@@ -62,10 +64,11 @@ TEST_F(GraphTest, FunkyMakefilePath) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build out.o: catdep foo.cc\n"));
-  fs_.Create("implicit.h", 2, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: ./foo/../implicit.h\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc",  "");
+  fs_.Create("out.o.d", "out.o: ./foo/../implicit.h\n");
+  fs_.Create("out.o", "");
+  fs_.Tick();
+  fs_.Create("implicit.h", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -84,11 +87,12 @@ TEST_F(GraphTest, ExplicitImplicit) {
 "  command = cat $in > $out\n"
 "build implicit.h: cat data\n"
 "build out.o: catdep foo.cc || implicit.h\n"));
-  fs_.Create("data", 2, "");
-  fs_.Create("implicit.h", 1, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: implicit.h\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("implicit.h", "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: implicit.h\n");
+  fs_.Create("out.o", "");
+  fs_.Tick();
+  fs_.Create("data", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -107,9 +111,9 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: foo.cc\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: foo.cc\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -135,13 +139,18 @@ TEST_F(GraphTest, RootNodes) {
   }
 }
 
-TEST_F(GraphTest, VarInOutQuoteSpaces) {
+TEST_F(GraphTest, VarInOutPathEscaping) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a$ b: cat nospace with$ space nospace2\n"));
+"build a$ b: cat no'space with$ space$$ no\"space2\n"));
 
   Edge* edge = GetNode("a b")->in_edge();
-  EXPECT_EQ("cat nospace \"with space\" nospace2 > \"a b\"",
+#if _WIN32
+  EXPECT_EQ("cat no'space \"with space$\" \"no\\\"space2\" > \"a b\"",
       edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cat 'no'\\''space' 'with space$' 'no\"space2' > 'a b'",
+      edge->EvaluateCommand());
+#endif
 }
 
 // Regression test for https://github.com/martine/ninja/issues/380
@@ -151,9 +160,9 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 1, "out.o: bar/../foo.cc\n");
-  fs_.Create("out.o", 1, "");
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: bar/../foo.cc\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -170,10 +179,11 @@ TEST_F(GraphTest, DepfileRemoved) {
 "  depfile = $out.d\n"
 "  command = cat $in > $out\n"
 "build ./out.o: catdep ./foo.cc\n"));
-  fs_.Create("foo.h", 1, "");
-  fs_.Create("foo.cc", 1, "");
-  fs_.Create("out.o.d", 2, "out.o: foo.h\n");
-  fs_.Create("out.o", 2, "");
+  fs_.Create("foo.h", "");
+  fs_.Create("foo.cc", "");
+  fs_.Tick();
+  fs_.Create("out.o.d", "out.o: foo.h\n");
+  fs_.Create("out.o", "");
 
   Edge* edge = GetNode("out.o")->in_edge();
   string err;
@@ -186,4 +196,58 @@ TEST_F(GraphTest, DepfileRemoved) {
   EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(GetNode("out.o")->dirty());
+}
+
+// Check that rule-level variables are in scope for eval.
+TEST_F(GraphTest, RuleVariablesInScope) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = depfile is $depfile\n"
+"build out: r in\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("depfile is x", edge->EvaluateCommand());
+}
+
+// Check that build statements can override rule builtins like depfile.
+TEST_F(GraphTest, DepfileOverride) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = unused\n"
+"build out: r in\n"
+"  depfile = y\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("y", edge->GetBinding("depfile"));
+}
+
+// Check that overridden values show up in expansion of rule-level bindings.
+TEST_F(GraphTest, DepfileOverrideParent) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  depfile = x\n"
+"  command = depfile is $depfile\n"
+"build out: r in\n"
+"  depfile = y\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  EXPECT_EQ("depfile is y", edge->GetBinding("command"));
+}
+
+// Verify that building a nested phony rule prints "no work to do"
+TEST_F(GraphTest, NestedPhonyPrintsDone) {
+  AssertParse(&state_,
+"build n1: phony \n"
+"build n2: phony n1\n"
+  );
+  string err;
+  Edge* edge = GetNode("n2")->in_edge();
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+
+  Plan plan_;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("n2"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_EQ(0, plan_.command_edge_count());
+  ASSERT_FALSE(plan_.more_to_do());
 }

@@ -62,7 +62,7 @@ googletest (gtest) library.
 * On newer Ubuntus it's only distributed as source
 
         apt-get install libgtest-dev
-        ./configure --with-gtest=/usr/src/gtest
+        ./configure.py --with-gtest=/usr/src/gtest
 
 * Otherwise you need to download it, unpack it, and pass
   `--with-gtest` to `configure.py`.  Get it from [its downloads
@@ -172,3 +172,9 @@ Then run:
 * Build `ninja.exe` using a Linux ninja binary: `/path/to/linux/ninja`
 * Run: `./ninja.exe`  (implicitly runs through wine(!))
 
+### Using Microsoft compilers on Linux (extremely flaky)
+
+The trick is to install just the compilers, and not all of Visual Studio,
+by following [these instructions][win7sdk].
+
+[win7sdk]: http://www.kegel.com/wine/cl-howto-win7sdk.html

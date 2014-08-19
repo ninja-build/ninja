@@ -16,8 +16,8 @@ to be fast.  It is born from
 http://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
 work on the Chromium browser project], which has over 30,000 source
 files and whose other build systems (including one built from custom
-non-recursive Makefiles) can take ten seconds to start building after
-changing one file.  Ninja is under a second.
+non-recursive Makefiles) would take ten seconds to start building
+after changing one file.  Ninja is under a second.
 
 Philosophical overview
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +55,7 @@ Here are the design goals of Ninja:
   higher-level build systems have different opinions about how code
   should be built; for example, should built objects live alongside
   the sources or should all build output go into a separate directory?
-  Is there an "package" rule that builds a distributable package of
+  Is there a "package" rule that builds a distributable package of
   the project?  Sidestep these decisions by trying to allow either to
   be implemented, rather than choosing, even if that results in
   more verbosity.
@@ -90,7 +90,7 @@ create your project's `.ninja` files.
 Comparison to Make
 ~~~~~~~~~~~~~~~~~~
 
-Ninja is closest in spirit and functionality to make, relying on
+Ninja is closest in spirit and functionality to Make, relying on
 simple dependencies between file timestamps.
 
 But fundamentally, make has a lot of _features_: suffix rules,
@@ -103,13 +103,13 @@ builds correct while punting most complexity to generation of the
 ninja input files.  Ninja by itself is unlikely to be useful for most
 projects.
 
-Here are some of the features Ninja adds to make.  (These sorts of
+Here are some of the features Ninja adds to Make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
 but they are not part of make itself.)
 
-* A Ninja rule may point at a path for extra implicit dependency
-  information.  This makes it easy to get header dependencies correct
-  for C/C++ code.
+* Ninja has special support for discovering extra dependencies at build
+  time, making it easy to get <<ref_headers,header dependencies>>
+  correct for C/C++ code.
 
 * A build edge may have multiple outputs.
 
@@ -137,19 +137,15 @@ but they are not part of make itself.)
 Using Ninja for your project
 ----------------------------
 
-Ninja currently works on Unix-like systems. It's seen the most testing
-on Linux (and has the best performance there) but it runs fine on Mac
-OS X and FreeBSD.  Ninja has some preliminary Windows support but the
-full details of the implementation -- like how to get C header
-interdependencies correct and fast when using MSVC's compiler -- is
-not yet complete.
+Ninja currently works on Unix-like systems and Windows. It's seen the
+most testing on Linux (and has the best performance there) but it runs
+fine on Mac OS X and FreeBSD.
 
 If your project is small, Ninja's speed impact is likely unnoticeable.
-Some build timing numbers are included below.  (However, even for
-small projects it sometimes turns out that Ninja's limited syntax
-forces simpler build rules that result in faster builds.)  Another way
-to say this is that if you're happy with the edit-compile cycle time
-of your project already then Ninja won't help.
+(However, even for small projects it sometimes turns out that Ninja's
+limited syntax forces simpler build rules that result in faster
+builds.)  Another way to say this is that if you're happy with the
+edit-compile cycle time of your project already then Ninja won't help.
 
 There are many other build systems that are more user-friendly or
 featureful than Ninja itself.  For some recommendations: the Ninja
@@ -161,21 +157,11 @@ Ninja's benefit comes from using it in conjunction with a smarter
 meta-build system.
 
 http://code.google.com/p/gyp/[gyp]:: The meta-build system used to
-generate build files for Google Chrome.  gyp can generate Ninja files
-for Linux and Mac and is used by many Chrome developers; support for
-Windows is in progress.  See the
+generate build files for Google Chrome and related projects (v8,
+node.js).  gyp can generate Ninja files for all platforms supported by
+Chrome. See the
 http://code.google.com/p/chromium/wiki/NinjaBuild[Chromium Ninja
-documentation for more details].  gyp is relatively unpopular outside
-of the Chrome and v8 world.
-
-* For Chrome (~30k source files), Ninja reduced no-op builds from
-  around 15 seconds to under one second.
-* https://plus.google.com/108996039294665965197/posts/SfhrFAhRyyd[A
-  Mozilla developer compares build systems]: "While chromium's full
-  build is 2.15x slower than firefox's, a nop build is 78.2x faster!
-  That is really noticeable during development. No incremental build
-  of firefox can be faster than 57.9s, which means that in practice
-  almost all of them will be over a minute."
+documentation for more details].
 
 http://www.cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  (There
@@ -183,11 +169,6 @@ is some Mac and Windows support -- http://www.reactos.org[ReactOS]
 uses Ninja on Windows for their buildbots, but those platforms are not
 yet officially supported by CMake as the full test suite doesn't
 pass.)
-
-* For building Blender, one user reported "Single file rebuild is 0.97
-  sec, same on makefiles was 3.7sec."
-* For building LLVM on Windows, one user reported no-op build times:
-  "ninja: 0.4s / MSBuild: 11s / jom: 53s".
 
 others:: Ninja ought to fit perfectly into other meta-build software
 like http://industriousone.com/premake[premake].  If you do this work,
@@ -210,20 +191,24 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior.
+Ninja supports one environment variable to control its behavior:
+`NINJA_STATUS`, the progress status printed before the rule being run.
 
-`NINJA_STATUS`:: The progress status printed before the rule being run.
 Several placeholders are available:
-* `%s`: The number of started edges.
-* `%t`: The total number of edges that must be run to complete the build.
-* `%p`: The percentage of started edges.
-* `%r`: The number of currently running edges.
-* `%u`: The number of remaining edges to start.
-* `%f`: The number of finished edges.
-* `%o`: Overall rate of finished edges per second
-* `%c`: Current rate of finished edges per second (average over builds specified by -j or its default)
-* `%%`: A plain `%` character.
-* The default progress status is `"[%s/%t] "` (note the trailing space
+
+`%s`:: The number of started edges.
+`%t`:: The total number of edges that must be run to complete the build.
+`%p`:: The percentage of started edges.
+`%r`:: The number of currently running edges.
+`%u`:: The number of remaining edges to start.
+`%f`:: The number of finished edges.
+`%o`:: Overall rate of finished edges per second
+`%c`:: Current rate of finished edges per second (average over builds
+specified by `-j` or its default)
+`%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
+`%%`:: A plain `%` character.
+
+The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
 
@@ -264,10 +249,6 @@ several times. If used like this +ninja -t targets all+ it
 prints all the targets available without indentation and it is faster
 than the _depth_ mode.
 
-`rules`:: output the list of all rules with their description if they have
-one.  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+.
-
 `commands`:: given a list of targets, print a list of commands which, if
 executed in order, may be used to rebuild those targets, assuming that all
 output files are out of date.
@@ -286,6 +267,12 @@ Files created but not referenced in the graph are not removed. This
 tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
 
+`compdb`:: given a list of rules, each of which is expected to be a
+C family language compiler rule whose first input is the name of the
+source file, prints on standard output a compilation database in the
+http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
+by the Clang tooling interface.
+_Available since Ninja 1.2._
 
 
 Writing your own Ninja files
@@ -299,8 +286,9 @@ Conceptual overview
 ~~~~~~~~~~~~~~~~~~~
 
 Ninja evaluates a graph of dependencies between files, and runs
-whichever commands are necessary to make your build target up to date.
-If you are familiar with Make, Ninja is very similar.
+whichever commands are necessary to make your build target up to date
+as determined by file modification times.  If you are familiar with
+Make, Ninja is very similar.
 
 A build file (default name: `build.ninja`) provides a list of _rules_
 -- short names for longer commands, like how to run the compiler --
@@ -359,17 +347,11 @@ consisting of the `rule` keyword and a name for the rule.  Then
 follows an indented set of `variable = value` lines.
 
 The basic example above declares a new rule named `cc`, along with the
-command to run.  (In the context of a rule, the `command` variable is
-special and defines the command to run.  A full list of special
-variables is provided in <<ref_rule,the reference>>.)
-
-Within the context of a rule, three additional special variables are
-available: `$in` expands to the list of input files (`foo.c`) and
-`$out` to the output file (`foo.o`) for the command. For use with
-`$rspfile_content`, there is also `$in_newline`, which is the same as
-`$in`, except that multiple inputs are separated by `\n`, rather than
-spaces.
-
+command to run.  In the context of a rule, the `command` variable
+defines the command to run, `$in` expands to the list of
+input files (`foo.c`), and `$out` to the output files (`foo.o`) for the
+command.  A full list of special variables is provided in
+<<ref_rule,the reference>>.
 
 Build statements
 ~~~~~~~~~~~~~~~~
@@ -400,7 +382,7 @@ rule cc
 # If left unspecified, builds get the outer $cflags.
 build foo.o: cc foo.c
 
-# But you can can shadow variables like cflags for a particular build.
+# But you can shadow variables like cflags for a particular build.
 build special.o: cc special.c
   cflags = -Wall
 
@@ -422,64 +404,10 @@ If the top-level Ninja file is specified as an output of any build
 statement and it is out of date, Ninja will rebuild and reload it
 before building the targets requested by the user.
 
-Pools
-~~~~~
 
 *Note: pools were added as an experiment and may be removed in a future
 version of Ninja.  Are they useful for you?  Let us know on the mailing
 list.*
-
-Pools allow you to allocate one or more rules or edges a finite number
-of concurrent jobs which is more tightly restricted than the default
-parallelism.
-
-This can be useful, for example, to restrict a particular expensive rule
-(like link steps for huge executables), or to restrict particular build
-statements which you know perform poorly when run concurrently.
-
-Each pool has a `depth` variable which is specified in the build file.
-The pool is then referred to with the `pool` variable on either a rule
-or a build statement.
-
-No matter what pools you specify, ninja will never run more concurrent jobs
-than the default parallelism, or the number of jobs specified on the command
-line (with -j).
-
-----------------
-# No more than 4 links at a time.
-pool link_pool
-  depth = 4
-
-# No more than 1 heavy object at a time.
-pool heavy_object_pool
-  depth = 1
-
-rule link
-  ...
-  pool = link_pool
-
-rule cc
-  ...
-
-# The link_pool is used here. Only 4 links will run concurrently.
-build foo.exe: link input.obj
-
-# A build statement can be exempted from its rule's pool by setting an
-# empty pool. This effectively puts the build statement back into the default
-# pool, which has infinite depth.
-build other.exe: link input.obj
-  pool =
-
-# A build statement can specify a pool directly.
-# Only one of these builds will run at a time.
-build heavy_object1.obj: cc heavy_obj1.cc
-  pool = heavy_object_pool
-build heavy_object2.obj: cc heavy_obj2.cc
-  pool = heavy_object_pool
-
-----------------
-
-
 Generating Ninja files from code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -541,6 +469,7 @@ This causes Ninja to build the `foo`, `bar` and `baz` targets by
 default.
 
 
+[[ref_log]]
 The Ninja log
 ~~~~~~~~~~~~~
 
@@ -552,6 +481,177 @@ command line changed) and knows to rebuild the file.
 The log file is kept in the build root in a file called `.ninja_log`.
 If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
+
+
+[[ref_versioning]]
+Version compatibility
+~~~~~~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.2._
+
+Ninja version labels follow the standard major.minor.patch format,
+where the major version is increased on backwards-incompatible
+syntax/behavioral changes and the minor version is increased on new
+behaviors.  Your `build.ninja` may declare a variable named
+`ninja_required_version` that asserts the minimum Ninja version
+required to use the generated file.  For example,
+
+-----
+ninja_required_version = 1.1
+-----
+
+declares that the build file relies on some feature that was
+introduced in Ninja 1.1 (perhaps the `pool` syntax), and that
+Ninja 1.1 or greater must be used to build.  Unlike other Ninja
+variables, this version requirement is checked immediately when
+the variable is encountered in parsing, so it's best to put it
+at the top of the build file.
+
+Ninja always warns if the major versions of Ninja and the
+`ninja_required_version` don't match; a major version change hasn't
+come up yet so it's difficult to predict what behavior might be
+required.
+
+[[ref_headers]]
+C/C++ header dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To get C/C++ header dependencies (or any other build dependency that
+works in a similar way) correct Ninja has some extra functionality.
+
+The problem with headers is that the full list of files that a given
+source file depends on can only be discovered by the compiler:
+different preprocessor defines and include paths cause different files
+to be used.  Some compilers can emit this information while building,
+and Ninja can use that to get its dependencies perfect.
+
+Consider: if the file has never been compiled, it must be built anyway,
+generating the header dependencies as a side effect.  If any file is
+later modified (even in a way that changes which headers it depends
+on) the modification will cause a rebuild as well, keeping the
+dependencies up to date.
+
+When loading these special dependencies, Ninja implicitly adds extra
+build edges such that it is not an error if the listed dependency is
+missing.  This allows you to delete a header file and rebuild without
+the build aborting due to a missing input.
+
+depfile
+^^^^^^^
+
+`gcc` (and other compilers like `clang`) support emitting dependency
+information in the syntax of a Makefile.  (Any command that can write
+dependencies in this form can be used, not just `gcc`.)
+
+To bring this information into Ninja requires cooperation.  On the
+Ninja side, the `depfile` attribute on the `build` must point to a
+path where this data is written.  (Ninja only supports the limited
+subset of the Makefile syntax emitted by compilers.)  Then the command
+must know to write dependencies into the `depfile` path.
+Use it like in the following example:
+
+----
+rule cc
+  depfile = $out.d
+  command = gcc -MMD -MF $out.d [other gcc flags here]
+----
+
+The `-MMD` flag to `gcc` tells it to output header dependencies, and
+the `-MF` flag tells it where to write them.
+
+deps
+^^^^
+
+_(Available since Ninja 1.3.)_
+
+It turns out that for large projects (and particularly on Windows,
+where the file system is slow) loading these dependency files on
+startup is slow.
+
+Ninja 1.3 can instead process dependencies just after they're generated
+and save a compacted form of the same information in a Ninja-internal
+database.
+
+Ninja supports this processing in two forms.
+
+1. `deps = gcc` specifies that the tool outputs `gcc`-style dependencies
+   in the form of Makefiles.  Adding this to the above example will
+   cause Ninja to process the `depfile` immediately after the
+   compilation finishes, then delete the `.d` file (which is only used
+   as a temporary).
+
+2. `deps = msvc` specifies that the tool outputs header dependencies
+   in the form produced by Visual Studio's compiler's
+   http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
+   flag].  Briefly, this means the tool outputs specially-formatted lines
+   to its stdout.  Ninja then filters these lines from the displayed
+   output.  No `depfile` attribute is necessary, but the localized string
+   in front of the the header file path. For instance
+   `msvc_deps_prefix = Note: including file: `
+   for a English Visual Studio (the default). Should be globally defined.
++
+----
+msvc_deps_prefix = Note: including file:
+rule cc
+  deps = msvc
+  command = cl /showIncludes -c $in /Fo$out
+----
+
+[[ref_pool]]
+Pools
+~~~~~
+
+_Available since Ninja 1.1._
+
+Pools allow you to allocate one or more rules or edges a finite number
+of concurrent jobs which is more tightly restricted than the default
+parallelism.
+
+This can be useful, for example, to restrict a particular expensive rule
+(like link steps for huge executables), or to restrict particular build
+statements which you know perform poorly when run concurrently.
+
+Each pool has a `depth` variable which is specified in the build file.
+The pool is then referred to with the `pool` variable on either a rule
+or a build statement.
+
+No matter what pools you specify, ninja will never run more concurrent jobs
+than the default parallelism, or the number of jobs specified on the command
+line (with `-j`).
+
+----------------
+# No more than 4 links at a time.
+pool link_pool
+  depth = 4
+
+# No more than 1 heavy object at a time.
+pool heavy_object_pool
+  depth = 1
+
+rule link
+  ...
+  pool = link_pool
+
+rule cc
+  ...
+
+# The link_pool is used here. Only 4 links will run concurrently.
+build foo.exe: link input.obj
+
+# A build statement can be exempted from its rule's pool by setting an
+# empty pool. This effectively puts the build statement back into the default
+# pool, which has infinite depth.
+build other.exe: link input.obj
+  pool =
+
+# A build statement can specify a pool directly.
+# Only one of these builds will run at a time.
+build heavy_object1.obj: cc heavy_obj1.cc
+  pool = heavy_object_pool
+build heavy_object2.obj: cc heavy_obj2.cc
+  pool = heavy_object_pool
+
+----------------
 
 
 Ninja file reference
@@ -577,6 +677,9 @@ A file is a series of declarations.  A declaration can be one of:
 5. References to more files, which look like +subninja _path_+ or
    +include _path_+.  The difference between these is explained below
    <<ref_scope,in the discussion about scoping>>.
+
+6. A pool declaration, which looks like +pool _poolname_+. Pools are explained
+   <<ref_pool, in the section on pools>>.
 
 Lexical syntax
 ~~~~~~~~~~~~~~
@@ -608,7 +711,7 @@ across a line break).
 paths, where a space would otherwise separate filenames.  See below.)
 
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
-would otherwise terminate the list of inputs.)
+would otherwise terminate the list of outputs.)
 
 `$$`:: a literal `$`.
 
@@ -639,9 +742,23 @@ line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
 previous one, it closes the previous scope.
 
+[[ref_toplevel]]
+Top-level variables
+~~~~~~~~~~~~~~~~~~~
+
+Two variables are significant when declared in the outermost file scope.
+
+`builddir`:: a directory for some Ninja output files.  See <<ref_log,the
+  discussion of the build log>>.  (You can also store other build output
+  in this directory.)
+
+`ninja_required_version`:: the minimum version of Ninja required to process
+  the build correctly.  See <<ref_versioning,the discussion of versioning>>.
+
+
+[[ref_rule]]
 Rule variables
 ~~~~~~~~~~~~~~
-[[ref_rule]]
 
 A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
@@ -651,26 +768,22 @@ keys.
   $variables are expanded) is passed directly to `sh -c` without
   interpretation by Ninja. Each `rule` may have only one `command`
   declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations. 
+  concatenate operations.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
-  dependency types>>).  This is explicitly to support `gcc` and its `-M`
-  family of flags, which output the list of headers a given `.c` file
-  depends on.
-+
-Use it like in the following example:
-+
-----
-rule cc
-  depfile = $out.d
-  command = gcc -MMD -MF $out.d [other gcc flags here]
-----
-+
-When loading a `depfile`, Ninja implicitly adds edges such that it is
-not an error if the listed dependency is missing.  This allows you to
-delete a depfile-discovered header file and rebuild, without the build
-aborting due to a missing input.
+  dependency types>>).  This is explicitly to support C/C++ header
+  dependencies; see <<ref_headers,the full discussion>>.
+
+`deps`:: _(Available since Ninja 1.3.)_ if present, must be one of
+  `gcc` or `msvc` to specify special dependency processing.  See
+   <<ref_headers,the full discussion>>.  The generated database is
+   stored as `.ninja_deps` in the `builddir`, see <<ref_toplevel,the
+   discussion of `builddir`>>.
+
+`msvc_deps_prefix`:: _(Available since Ninja 1.5.)_ defines the string
+  which should be stripped from msvc's /showIncludes output. Only
+  needed when `deps = msvc` and no English Visual Studio version is used.
 
 `description`:: a short description of the command, used to pretty-print
   the command as it's running.  The `-v` flag controls whether to print
@@ -682,6 +795,20 @@ aborting due to a missing input.
   rules are treated specially in two ways: firstly, they will not be
   rebuilt if the command line changes; and secondly, they are not
   cleaned by default.
+
+`in`:: the shell-quoted space-separated list of files provided as
+  inputs to the build line referencing this `rule`.  (`$in` is provided
+  solely for convenience; if you need some subset or variant of this
+  list of files, just construct a new variable with that list and use
+  that instead.)
+
+`in_newline`:: the same as `$in` except that multiple inputs are
+  separated by newlines rather than spaces.  (For use with
+  `$rspfile_content`; this works around a bug in the MSVC linker where
+  it uses a fixed-size buffer for processing input.)
+
+`out`:: the shell-quoted space-separated list of files provided as
+  outputs to the build line referencing this `rule`.
 
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
@@ -709,13 +836,9 @@ rule link
 build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 ----
 
-Finally, the special `$in` and `$out` variables expand to the
-shell-quoted space-separated list of files provided to the `build`
-line referencing this `rule`.
-
+[[ref_dependencies]]
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
-[[ref_dependencies]]
 
 There are three types of build dependencies which are subtly different.
 
@@ -752,9 +875,34 @@ header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
 
+Variable expansion
+~~~~~~~~~~~~~~~~~~
+
+Variables are expanded in paths (in a `build` or `default` statement)
+and on the right side of a `name = value` statement.
+
+When a `name = value` statement is evaluated, its right-hand side is
+expanded immediately (according to the below scoping rules), and
+from then on `$name` expands to the static string as the result of the
+expansion.  It is never the case that you'll need to "double-escape" a
+value to prevent it from getting expanded twice.
+
+All variables are expanded immediately as they're encountered in parsing,
+with one important exception: variables in `rule` blocks are expanded
+when the rule is _used_, not when it is declared.  In the following
+example, the `demo` rule prints "this is a demo of bar".
+
+----
+rule demo
+  command = echo "this is a demo of $foo"
+
+build out: demo
+  foo = bar
+----
+
+[[ref_scope]]
 Evaluation and scoping
 ~~~~~~~~~~~~~~~~~~~~~~
-[[ref_scope]]
 
 Top-level variable declarations are scoped to the file they occur in.
 
@@ -767,26 +915,19 @@ To include another `.ninja` file in the current scope, much like a C
 `#include` statement, use `include` instead of `subninja`.
 
 Variable declarations indented in a `build` block are scoped to the
-`build` block.  This scope is inherited by the `rule`.  The full
-lookup order for a variable referenced in a rule is:
+`build` block.  The full lookup order for a variable expanded in a
+`build` block (or the `rule` is uses) is:
 
-1. Rule-level variables (i.e. `$in`, `$command`).
+1. Special built-in variables (`$in`, `$out`).
 
-2. Build-level variables from the `build` that references this rule.
+2. Build-level variables from the `build` block.
 
-3. File-level variables from the file that the `build` line was in.
+3. Rule-level variables from the `rule` block (i.e. `$command`).
+   (Note from the above discussion on expansion that these are
+   expanded "late", and may make use of in-scope bindings like `$in`.)
 
-4. Variables from the file that included that file using the
+4. File-level variables from the file that the `build` line was in.
+
+5. Variables from the file that included that file using the
    `subninja` keyword.
 
-Variable expansion
-~~~~~~~~~~~~~~~~~~
-
-Variables are expanded in paths (in a `build` or `default` statement)
-and on the right side of a `name = value` statement.
-
-When a `name = value` statement is evaluated, its right-hand side is
-expanded once (according to the above scoping rules) immediately, and
-from then on `$name` expands to the static string as the result of the
-expansion.  It is never the case that you'll need to "double-escape" a
-value to prevent it from getting expanded twice.

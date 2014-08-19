@@ -80,8 +80,10 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
-    Error("Stat(%s): Filename longer than %i characters",
-          path.c_str(), MAX_PATH);
+    if (!quiet_) {
+      Error("Stat(%s): Filename longer than %i characters",
+            path.c_str(), MAX_PATH);
+    }
     return -1;
   }
   WIN32_FILE_ATTRIBUTE_DATA attrs;
@@ -89,8 +91,10 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
       return 0;
-    Error("GetFileAttributesEx(%s): %s", path.c_str(),
-          GetLastErrorString().c_str());
+    if (!quiet_) {
+      Error("GetFileAttributesEx(%s): %s", path.c_str(),
+            GetLastErrorString().c_str());
+    }
     return -1;
   }
   const FILETIME& filetime = attrs.ftLastWriteTime;
@@ -107,7 +111,9 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
-    Error("stat(%s): %s", path.c_str(), strerror(errno));
+    if (!quiet_) {
+      Error("stat(%s): %s", path.c_str(), strerror(errno));
+    }
     return -1;
   }
   return st.st_mtime;
@@ -115,7 +121,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE * fp = fopen(path.c_str(), "w");
+  FILE* fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));

@@ -14,6 +14,8 @@
 
 #include "msvc_helper.h"
 
+#include <fcntl.h>
+#include <io.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -29,6 +31,7 @@ void Usage() {
 "options:\n"
 "  -e ENVFILE load environment block from ENVFILE as environment\n"
 "  -o FILE    write output dependency information to FILE.d\n"
+"  -p STRING  localized prefix of msvc's /showIncludes output\n"
          );
 }
 
@@ -44,6 +47,33 @@ void PushPathIntoEnvironment(const string& env_block) {
   }
 }
 
+void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
+  string depfile_path = string(object_path) + ".d";
+  FILE* depfile = fopen(depfile_path.c_str(), "w");
+  if (!depfile) {
+    unlink(object_path);
+    Fatal("opening %s: %s", depfile_path.c_str(),
+          GetLastErrorString().c_str());
+  }
+  if (fprintf(depfile, "%s: ", object_path) < 0) {
+    unlink(object_path);
+    fclose(depfile);
+    unlink(depfile_path.c_str());
+    Fatal("writing %s", depfile_path.c_str());
+  }
+  const set<string>& headers = parse.includes_;
+  for (set<string>::const_iterator i = headers.begin();
+       i != headers.end(); ++i) {
+    if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
+      unlink(object_path);
+      fclose(depfile);
+      unlink(depfile_path.c_str());
+      Fatal("writing %s", depfile_path.c_str());
+    }
+  }
+  fclose(depfile);
+}
+
 }  // anonymous namespace
 
 int MSVCHelperMain(int argc, char** argv) {
@@ -55,7 +85,8 @@ int MSVCHelperMain(int argc, char** argv) {
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  while ((opt = getopt_long(argc, argv, "e:o:h", kLongOptions, NULL)) != -1) {
+  string deps_prefix;
+  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'e':
         envfile = optarg;
@@ -63,16 +94,14 @@ int MSVCHelperMain(int argc, char** argv) {
       case 'o':
         output_filename = optarg;
         break;
+      case 'p':
+        deps_prefix = optarg;
+        break;
       case 'h':
       default:
         Usage();
         return 0;
     }
-  }
-
-  if (!output_filename) {
-    Usage();
-    Fatal("-o required");
   }
 
   string env;
@@ -93,19 +122,24 @@ int MSVCHelperMain(int argc, char** argv) {
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
-  int exit_code = cl.Run(command);
+  string output;
+  int exit_code = cl.Run(command, &output);
 
-  string depfile = string(output_filename) + ".d";
-  FILE* output = fopen(depfile.c_str(), "w");
-  if (!output) {
-    Fatal("opening %s: %s", depfile.c_str(), GetLastErrorString().c_str());
+  if (output_filename) {
+    CLParser parser;
+    output = parser.Parse(output, deps_prefix);
+    WriteDepFileOrDie(output_filename, parser);
   }
-  fprintf(output, "%s: ", output_filename);
-  vector<string> headers = cl.GetEscapedResult();
-  for (vector<string>::iterator i = headers.begin(); i != headers.end(); ++i) {
-    fprintf(output, "%s\n", i->c_str());
-  }
-  fclose(output);
+
+  if (output.empty())
+    return exit_code;
+
+  // CLWrapper's output already as \r\n line endings, make sure the C runtime
+  // doesn't expand this to \r\r\n.
+  _setmode(_fileno(stdout), _O_BINARY);
+  // Avoid printf and C strings, since the actual output might contain null
+  // bytes like UTF-16 does (yuck).
+  fwrite(&output[0], 1, output.size(), stdout);
 
   return exit_code;
 }

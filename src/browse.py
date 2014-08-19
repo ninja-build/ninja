@@ -26,9 +26,12 @@ try:
     import http.server as httpserver
 except ImportError:
     import BaseHTTPServer as httpserver
+import os
+import socket
 import subprocess
 import sys
 import webbrowser
+import urllib2
 from collections import namedtuple
 
 Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
@@ -151,7 +154,7 @@ def ninja_dump(target):
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path[0] == '/'
-        target = self.path[1:]
+        target = urllib2.unquote(self.path[1:])
 
         if target == '':
             self.send_response(302)
@@ -182,8 +185,10 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
 port = 8000
 httpd = httpserver.HTTPServer(('',port), RequestHandler)
 try:
-    print('Web server running on port %d, ctl-C to abort...' % port)
-    webbrowser.open_new('http://localhost:%s' % port)
+    hostname = socket.gethostname()
+    print('Web server running on %s:%d, ctl-C to abort...' % (hostname,port) )
+    print('Web server pid %d' % os.getpid(), file=sys.stderr )
+    webbrowser.open_new('http://%s:%s' % (hostname, port) )
     httpd.serve_forever()
 except KeyboardInterrupt:
     print()

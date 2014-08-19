@@ -1,0 +1,22 @@
+Notes to myself on all the steps to make for a Ninja release.
+
+Push new release branch:
+1. update src/version.cc with new version (with ".git")
+2. git checkout release; git merge master
+3. fix version number in src/version.cc (it will likely conflict in the above)
+4. fix version in doc/manual.asciidoc
+5. commit, tag, push (don't forget to push --tags)
+6. construct release notes from prior notes
+   credits: git shortlog -s --no-merges REV..
+
+Release on github:
+1. (haven't tried this yet)
+   https://github.com/blog/1547-release-your-software
+
+Make announcement on mailing list:
+1. copy old mail
+
+Update website:
+(note to self: website is now in github.com/martine/martine.github.io)
+1. rebuild manual, put in place on website
+2. update home page mention of latest version.

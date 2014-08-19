@@ -17,8 +17,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
+#include <share.h>
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -29,6 +31,7 @@
 #include <sys/types.h>
 
 #ifndef _WIN32
+#include <unistd.h>
 #include <sys/time.h>
 #endif
 
@@ -39,7 +42,7 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
-#elif defined(linux)
+#elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
 #endif
 
@@ -173,6 +176,108 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   return true;
 }
 
+static inline bool IsKnownShellSafeCharacter(char ch) {
+  if ('A' <= ch && ch <= 'Z') return true;
+  if ('a' <= ch && ch <= 'z') return true;
+  if ('0' <= ch && ch <= '9') return true;
+
+  switch (ch) {
+    case '_':
+    case '-':
+    case '.':
+    case '/':
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline bool IsKnownWin32SafeCharacter(char ch) {
+  switch (ch) {
+    case ' ':
+    case '"':
+      return false;
+    default:
+      return true;
+  }
+}
+
+static inline bool StringNeedsShellEscaping(const string& input) {
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (!IsKnownShellSafeCharacter(input[i])) return true;
+  }
+  return false;
+}
+
+static inline bool StringNeedsWin32Escaping(const string& input) {
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (!IsKnownWin32SafeCharacter(input[i])) return true;
+  }
+  return false;
+}
+
+void GetShellEscapedString(const string& input, string* result) {
+  assert(result);
+
+  if (!StringNeedsShellEscaping(input)) {
+    result->append(input);
+    return;
+  }
+
+  const char kQuote = '\'';
+  const char kEscapeSequence[] = "'\\'";
+
+  result->push_back(kQuote);
+
+  string::const_iterator span_begin = input.begin();
+  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+       ++it) {
+    if (*it == kQuote) {
+      result->append(span_begin, it);
+      result->append(kEscapeSequence);
+      span_begin = it;
+    }
+  }
+  result->append(span_begin, input.end());
+  result->push_back(kQuote);
+}
+
+
+void GetWin32EscapedString(const string& input, string* result) {
+  assert(result);
+  if (!StringNeedsWin32Escaping(input)) {
+    result->append(input);
+    return;
+  }
+
+  const char kQuote = '"';
+  const char kBackslash = '\\';
+
+  result->push_back(kQuote);
+  size_t consecutive_backslash_count = 0;
+  string::const_iterator span_begin = input.begin();
+  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+       ++it) {
+    switch (*it) {
+      case kBackslash:
+        ++consecutive_backslash_count;
+        break;
+      case kQuote:
+        result->append(span_begin, it);
+        result->append(consecutive_backslash_count + 1, kBackslash);
+        span_begin = it;
+        consecutive_backslash_count = 0;
+        break;
+      default:
+        consecutive_backslash_count = 0;
+        break;
+    }
+  }
+  result->append(span_begin, input.end());
+  result->append(consecutive_backslash_count, kBackslash);
+  result->push_back(kQuote);
+}
+
 int ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
@@ -232,13 +337,16 @@ const char* SpellcheckStringV(const string& text,
   return result;
 }
 
-const char* SpellcheckString(const string& text, ...) {
+const char* SpellcheckString(const char* text, ...) {
+  // Note: This takes a const char* instead of a string& because using
+  // va_start() with a reference parameter is undefined behavior.
   va_list ap;
   va_start(ap, text);
   vector<const char*> words;
   const char* word;
   while ((word = va_arg(ap, const char*)))
     words.push_back(word);
+  va_end(ap);
   return SpellcheckStringV(text, words);
 }
 
@@ -295,37 +403,17 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux)
 int GetProcessorCount() {
-  return get_nprocs();
-}
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-int GetProcessorCount() {
-  int processors;
-  size_t processors_size = sizeof(processors);
-  int name[] = {CTL_HW, HW_NCPU};
-  if (sysctl(name, sizeof(name) / sizeof(int),
-             &processors, &processors_size,
-             NULL, 0) < 0) {
-    return 0;
-  }
-  return processors;
-}
-#elif defined(_WIN32)
-int GetProcessorCount() {
+#ifdef _WIN32
   SYSTEM_INFO info;
   GetSystemInfo(&info);
   return info.dwNumberOfProcessors;
-}
 #else
-// This is what get_nprocs() should be doing in the Linux implementation
-// above, but in a more standard way.
-int GetProcessorCount() {
   return sysconf(_SC_NPROCESSORS_ONLN);
-}
 #endif
+}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__)
 double GetLoadAverage() {
   // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
   // Remember to also update Usage() when this is fixed.
@@ -353,4 +441,22 @@ string ElideMiddle(const string& str, size_t width) {
       + result.substr(result.size() - elide_size, elide_size);
   }
   return result;
+}
+
+bool Truncate(const string& path, size_t size, string* err) {
+#ifdef _WIN32
+  int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
+                  _S_IREAD | _S_IWRITE);
+  int success = _chsize(fh, size);
+  _close(fh);
+#else
+  int success = truncate(path.c_str(), size);
+#endif
+  // Both truncate() and _chsize() return 0 on success and set errno and return
+  // -1 on failure.
+  if (success < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+  return true;
 }

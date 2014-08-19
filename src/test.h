@@ -29,6 +29,12 @@ struct Node;
 /// builtin "cat" rule.
 struct StateTestWithBuiltinRules : public testing::Test {
   StateTestWithBuiltinRules();
+
+  /// Add a "cat" rule to \a state.  Used by some tests; it's
+  /// otherwise done by the ctor to state_.
+  void AddCatRule(State* state);
+
+  /// Short way to get a Node by its path from state_.
   Node* GetNode(const string& path);
 
   State state_;
@@ -41,8 +47,16 @@ void AssertHash(const char* expected, uint64_t actual);
 /// of disk state.  It also logs file accesses and directory creations
 /// so it can be used by tests to verify disk access patterns.
 struct VirtualFileSystem : public DiskInterface {
-  /// "Create" a file with a given mtime and contents.
-  void Create(const string& path, int time, const string& contents);
+  VirtualFileSystem() : now_(1) {}
+
+  /// "Create" a file with contents.
+  void Create(const string& path, const string& contents);
+
+  /// Tick "time" forwards; subsequent file operations will be newer than
+  /// previous ones.
+  int Tick() {
+    return ++now_;
+  }
 
   // DiskInterface
   virtual TimeStamp Stat(const string& path);
@@ -63,6 +77,9 @@ struct VirtualFileSystem : public DiskInterface {
   FileMap files_;
   set<string> files_removed_;
   set<string> files_created_;
+
+  /// A simple fake timestamp for file operations.
+  int now_;
 };
 
 struct ScopedTempDir {

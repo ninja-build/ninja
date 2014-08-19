@@ -1,0 +1,35 @@
+body {
+    margin: 5ex 10ex;
+    max-width: 80ex;
+    line-height: 1.5;
+    font-family: sans-serif;
+}
+h1, h2, h3 {
+    font-weight: normal;
+}
+pre, code {
+    font-family: x, monospace;
+}
+pre {
+    padding: 1ex;
+    background: #eee;
+    border: solid 1px #ddd;
+    min-width: 0;
+    font-size: 90%;
+}
+code {
+    color: #007;
+}
+div.chapter {
+    margin-top: 4em;
+    border-top: solid 2px black;
+}
+.section .title {
+    font-size: 1.3em;
+}
+.section .section .title {
+    font-size: 1.2em;
+}
+p {
+    margin-top: 0;
+}
