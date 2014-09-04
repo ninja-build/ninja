@@ -553,6 +553,15 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
+    EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  && bar",
+                                  &err));
+    EXPECT_EQ("input:3: expected variable name\n", err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
                                   "build $: cc bar.cc\n",
                                   &err));
