@@ -191,7 +191,7 @@ bool ManifestParser::ParseRule(string* err) {
 
 bool ManifestParser::ParseLet(string* key, EvalString* value, string* err) {
   if (!lexer_.ReadIdent(key))
-    return false;
+    return lexer_.Error("expected variable name", err);
   if (!ExpectToken(Lexer::EQUALS, err))
     return false;
   if (!lexer_.ReadVarValue(value, err))
