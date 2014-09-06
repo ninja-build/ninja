@@ -22,6 +22,9 @@ using namespace std;
 
 #include "string_piece.h"
 
+
+namespace ninja {
+
 struct EvalString;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
@@ -74,5 +77,7 @@ private:
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_EVAL_ENV_H_

@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 
+namespace ninja {
+
 #define EXPLAIN(fmt, ...) {                                             \
   if (g_explaining)                                                     \
     fprintf(stderr, "ninja explain: " fmt "\n", __VA_ARGS__);           \
@@ -27,5 +29,7 @@ extern bool g_explaining;
 extern bool g_keep_rsp;
 
 extern bool g_experimental_statcache;
+
+}; /*namespace ninja*/
 
 #endif // NINJA_EXPLAIN_H_

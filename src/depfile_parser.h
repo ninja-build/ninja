@@ -21,6 +21,8 @@ using namespace std;
 
 #include "string_piece.h"
 
+namespace ninja {
+
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
   /// Parse an input file.  Input must be NUL-terminated.
@@ -31,5 +33,7 @@ struct DepfileParser {
   StringPiece out_;
   vector<StringPiece> ins_;
 };
+
+}; /*namespace ninja*/
 
 #endif // NINJA_DEPFILE_PARSER_H_

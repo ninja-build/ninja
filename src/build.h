@@ -29,6 +29,8 @@
 #include "metrics.h"
 #include "util.h"  // int64_t
 
+namespace ninja {
+
 struct BuildLog;
 struct BuildStatus;
 struct DiskInterface;
@@ -279,5 +281,7 @@ struct BuildStatus {
   mutable RateInfo overall_rate_;
   mutable SlidingRateInfo current_rate_;
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_BUILD_H_

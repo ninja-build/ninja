@@ -23,6 +23,8 @@ using namespace std;
 #include "timestamp.h"
 #include "util.h"  // uint64_t
 
+namespace ninja {
+
 struct Edge;
 
 /// Can answer questions about the manifest for the BuildLog.
@@ -89,5 +91,7 @@ struct BuildLog {
   FILE* log_file_;
   bool needs_recompaction_;
 };
+
+}; /*namespace ninja*/
 
 #endif // NINJA_BUILD_LOG_H_

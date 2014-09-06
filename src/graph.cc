@@ -27,6 +27,8 @@
 #include "state.h"
 #include "util.h"
 
+using namespace ninja;
+
 bool Node::Stat(DiskInterface* disk_interface) {
   METRIC_RECORD("node stat");
   mtime_ = disk_interface->Stat(path_);

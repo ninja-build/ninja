@@ -15,6 +15,8 @@
 
 #include "depfile_parser.h"
 
+using namespace ninja;
+
 // A note on backslashes in Makefiles, from reading the docs:
 // Backslash-newline is the line continuation character.
 // Backslash-# escapes a # (otherwise meaningful as a comment start).

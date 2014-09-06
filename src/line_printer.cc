@@ -26,6 +26,8 @@
 
 #include "util.h"
 
+using namespace ninja;
+
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifndef _WIN32
   const char* term = getenv("TERM");

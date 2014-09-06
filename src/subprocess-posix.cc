@@ -25,6 +25,8 @@
 
 #include "util.h"
 
+using namespace ninja;
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }

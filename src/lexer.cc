@@ -20,6 +20,8 @@
 #include "eval_env.h"
 #include "util.h"
 
+using namespace ninja;
+
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
   int line = 1;

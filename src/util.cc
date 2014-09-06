@@ -49,7 +49,9 @@
 #include "edit_distance.h"
 #include "metrics.h"
 
-void Fatal(const char* msg, ...) {
+using namespace ninja;
+
+void ninja::Fatal(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: fatal: ");
   va_start(ap, msg);
@@ -67,7 +69,7 @@ void Fatal(const char* msg, ...) {
 #endif
 }
 
-void Warning(const char* msg, ...) {
+void ninja::Warning(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: warning: ");
   va_start(ap, msg);
@@ -76,7 +78,7 @@ void Warning(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-void Error(const char* msg, ...) {
+void ninja::Error(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: error: ");
   va_start(ap, msg);
@@ -85,7 +87,7 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, string* err) {
+bool ninja::CanonicalizePath(string* path, string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
@@ -97,7 +99,7 @@ bool CanonicalizePath(string* path, string* err) {
   return true;
 }
 
-bool CanonicalizePath(char* path, size_t* len, string* err) {
+bool ninja::CanonicalizePath(char* path, size_t* len, string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");
@@ -217,7 +219,7 @@ static inline bool StringNeedsWin32Escaping(const string& input) {
   return false;
 }
 
-void GetShellEscapedString(const string& input, string* result) {
+void ninja::GetShellEscapedString(const string& input, string* result) {
   assert(result);
 
   if (!StringNeedsShellEscaping(input)) {
@@ -244,7 +246,7 @@ void GetShellEscapedString(const string& input, string* result) {
 }
 
 
-void GetWin32EscapedString(const string& input, string* result) {
+void ninja::GetWin32EscapedString(const string& input, string* result) {
   assert(result);
   if (!StringNeedsWin32Escaping(input)) {
     result->append(input);
@@ -279,7 +281,7 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
+int ninja::ReadFile(const string& path, string* contents, string* err) {
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
     err->assign(strerror(errno));
@@ -301,7 +303,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   return 0;
 }
 
-void SetCloseOnExec(int fd) {
+void ninja::SetCloseOnExec(int fd) {
 #ifndef _WIN32
   int flags = fcntl(fd, F_GETFD);
   if (flags < 0) {
@@ -319,7 +321,7 @@ void SetCloseOnExec(int fd) {
 }
 
 
-const char* SpellcheckStringV(const string& text,
+const char* ninja::SpellcheckStringV(const string& text,
                               const vector<const char*>& words) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
@@ -338,7 +340,7 @@ const char* SpellcheckStringV(const string& text,
   return result;
 }
 
-const char* SpellcheckString(const char* text, ...) {
+const char* ninja::SpellcheckString(const char* text, ...) {
   // Note: This takes a const char* instead of a string& because using
   // va_start() with a reference parameter is undefined behavior.
   va_list ap;
@@ -371,7 +373,7 @@ string GetLastErrorString() {
   return msg;
 }
 
-void Win32Fatal(const char* function) {
+void ninja::Win32Fatal(const char* function) {
   Fatal("%s: %s", function, GetLastErrorString().c_str());
 }
 #endif
@@ -381,7 +383,7 @@ static bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-string StripAnsiEscapeCodes(const string& in) {
+string ninja::StripAnsiEscapeCodes(const string& in) {
   string stripped;
   stripped.reserve(in.size());
 
@@ -404,7 +406,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-int GetProcessorCount() {
+int ninja::GetProcessorCount() {
 #ifdef _WIN32
   SYSTEM_INFO info;
   GetSystemInfo(&info);
@@ -450,14 +452,14 @@ static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
   return load;
 }
 
-static uint64_t FileTimeToTickCount(const FILETIME & ft)
+static uint64_t ninja::FileTimeToTickCount(const FILETIME & ft)
 {
   uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
   uint64_t low  = ft.dwLowDateTime;
   return (high | low);
 }
 
-double GetLoadAverage() {
+double ninja::GetLoadAverage() {
   FILETIME idle_time, kernel_time, user_time;
   BOOL get_system_time_succeeded = GetSystemTimes(&idle_time, &kernel_time, &user_time);
   
@@ -478,7 +480,7 @@ double GetLoadAverage() {
   return posix_compatible_load;
 }
 #else
-double GetLoadAverage() {
+double ninja::GetLoadAverage() {
   double loadavg[3] = { 0.0f, 0.0f, 0.0f };
   if (getloadavg(loadavg, 3) < 0) {
     // Maybe we should return an error here or the availability of
@@ -489,7 +491,7 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-string ElideMiddle(const string& str, size_t width) {
+string ninja::ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
   if (result.size() + kMargin > width) {
@@ -501,7 +503,7 @@ string ElideMiddle(const string& str, size_t width) {
   return result;
 }
 
-bool Truncate(const string& path, size_t size, string* err) {
+bool ninja::Truncate(const string& path, size_t size, string* err) {
 #ifdef _WIN32
   int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);

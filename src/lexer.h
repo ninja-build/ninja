@@ -22,6 +22,8 @@
 #undef ERROR
 #endif
 
+namespace ninja {
+
 struct EvalString;
 
 struct Lexer {
@@ -101,5 +103,7 @@ private:
   const char* ofs_;
   const char* last_token_;
 };
+
+}; /*namespace ninja*/
 
 #endif // NINJA_LEXER_H_

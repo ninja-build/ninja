@@ -22,6 +22,8 @@
 #include "state.h"
 #include "util.h"
 
+using namespace ninja;
+
 Cleaner::Cleaner(State* state, const BuildConfig& config)
   : state_(state),
     config_(config),
