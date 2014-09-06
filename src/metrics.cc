@@ -28,7 +28,9 @@
 
 #include "util.h"
 
-Metrics* g_metrics = NULL;
+using namespace ninja;
+
+Metrics* ninja::g_metrics = NULL;
 
 namespace {
 
@@ -121,7 +123,7 @@ uint64_t Stopwatch::Now() const {
   return TimerToMicros(HighResTimer());
 }
 
-int64_t GetTimeMillis() {
+int64_t ninja::GetTimeMillis() {
   return TimerToMicros(HighResTimer()) / 1000;
 }
 

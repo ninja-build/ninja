@@ -24,6 +24,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace ninja;
+
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
   : state_(state), file_reader_(file_reader) {
   env_ = &state->bindings_;

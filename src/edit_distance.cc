@@ -17,10 +17,10 @@
 #include <algorithm>
 #include <vector>
 
-int EditDistance(const StringPiece& s1,
-                 const StringPiece& s2,
-                 bool allow_replacements,
-                 int max_edit_distance) {
+int ninja::EditDistance(const StringPiece& s1,
+                        const StringPiece& s2,
+                        bool allow_replacements,
+                        int max_edit_distance) {
   // The algorithm implemented below is the "classic"
   // dynamic-programming algorithm for computing the Levenshtein
   // distance, which is described here:

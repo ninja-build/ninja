@@ -36,7 +36,7 @@
 // Once the number of redundant entries exceeds a threshold, we write
 // out a new file and replace the existing one with it.
 
-namespace {
+using namespace ninja;
 
 const char kFileSignature[] = "# ninja log v%d\n";
 const int kOldestSupportedVersion = 4;
@@ -83,9 +83,6 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   return h;
 }
 #undef BIG_CONSTANT
-
-
-}  // namespace
 
 // static
 uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {

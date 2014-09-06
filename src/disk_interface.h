@@ -21,6 +21,8 @@ using namespace std;
 
 #include "timestamp.h"
 
+namespace ninja {
+
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
@@ -86,5 +88,7 @@ struct RealDiskInterface : public DiskInterface {
   mutable Cache cache_;
 #endif
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_DISK_INTERFACE_H_

@@ -18,9 +18,11 @@
 
 #include "util.h"
 
-const char* kNinjaVersion = "1.5.1.git";
+using namespace ninja;
 
-void ParseVersion(const string& version, int* major, int* minor) {
+const char* ninja::kNinjaVersion = "1.5.1.git";
+
+void ninja::ParseVersion(const string& version, int* major, int* minor) {
   size_t end = version.find('.');
   *major = atoi(version.substr(0, end).c_str());
   *minor = 0;
@@ -31,7 +33,7 @@ void ParseVersion(const string& version, int* major, int* minor) {
   }
 }
 
-void CheckNinjaVersion(const string& version) {
+void ninja::CheckNinjaVersion(const string& version) {
   int bin_major, bin_minor;
   ParseVersion(kNinjaVersion, &bin_major, &bin_minor);
   int file_major, file_minor;

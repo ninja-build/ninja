@@ -35,7 +35,7 @@
 #include "subprocess.h"
 #include "util.h"
 
-namespace {
+using namespace ninja;
 
 /// A CommandRunner that doesn't actually run the commands.
 struct DryRunCommandRunner : public CommandRunner {
@@ -68,8 +68,6 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
    finished_.pop();
    return true;
 }
-
-}  // namespace
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),

@@ -17,6 +17,7 @@ TAGS
 /doc/doxygen
 /gtest-1.6.0
 *.patch
+.DS_Store
 
 # Eclipse project files
 .project

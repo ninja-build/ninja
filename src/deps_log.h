@@ -23,6 +23,8 @@ using namespace std;
 
 #include "timestamp.h"
 
+namespace ninja {
+
 struct Node;
 struct State;
 
@@ -116,6 +118,8 @@ struct DepsLog {
   vector<Deps*> deps_;
 
   friend struct DepsLogTest;
+};
+
 };
 
 #endif  // NINJA_DEPS_LOG_H_

@@ -15,10 +15,14 @@
 #ifndef NINJA_EXIT_STATUS_H_
 #define NINJA_EXIT_STATUS_H_
 
+namespace ninja {
+
 enum ExitStatus {
   ExitSuccess,
   ExitFailure,
   ExitInterrupted
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_EXIT_STATUS_H_

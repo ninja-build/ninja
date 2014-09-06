@@ -22,6 +22,8 @@
 
 using namespace std;
 
+namespace ninja {
+
 struct State;
 struct Node;
 struct Rule;
@@ -103,5 +105,7 @@ struct Cleaner {
   DiskInterface* disk_interface_;
   int status_;
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_CLEAN_H_

@@ -21,6 +21,8 @@ using namespace std;
 
 #include "util.h"  // For int64_t.
 
+namespace ninja {
+
 /// The Metrics module is used for the debug mode that dumps timing stats of
 /// various actions.  To use, see METRIC_RECORD below.
 
@@ -88,5 +90,7 @@ struct Stopwatch {
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
 extern Metrics* g_metrics;
+
+}; /*namespace ninja*/
 
 #endif // NINJA_METRICS_H_

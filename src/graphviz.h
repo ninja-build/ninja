@@ -18,6 +18,8 @@
 #include <set>
 using namespace std;
 
+namespace ninja {
+
 struct Node;
 struct Edge;
 
@@ -30,5 +32,7 @@ struct GraphViz {
   set<Node*> visited_nodes_;
   set<Edge*> visited_edges_;
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_GRAPHVIZ_H_

@@ -21,6 +21,8 @@ using namespace std;
 
 #include "lexer.h"
 
+namespace ninja {
+
 struct BindingEnv;
 struct EvalString;
 struct State;
@@ -65,5 +67,7 @@ private:
   FileReader* file_reader_;
   Lexer lexer_;
 };
+
+}; /*namespace ninja*/
 
 #endif  // NINJA_MANIFEST_PARSER_H_

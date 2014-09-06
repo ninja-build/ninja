@@ -29,7 +29,7 @@
 
 #include "util.h"
 
-namespace {
+using namespace ninja;
 
 string DirName(const string& path) {
 #ifdef _WIN32
@@ -126,8 +126,6 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   return true;
 }
 #endif  // _WIN32
-
-}  // namespace
 
 // DiskInterface ---------------------------------------------------------------
 
