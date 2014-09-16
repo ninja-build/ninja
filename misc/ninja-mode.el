@@ -39,8 +39,8 @@
        
        ))
 
-;;;###autoload       
-(define-derived-mode ninja-mode fundamental-mode "ninja"
+;;;###autoload
+(define-derived-mode ninja-mode prog-mode "ninja"
   (setq comment-start "#")
   ; Pass extra "t" to turn off syntax-based fontification -- we don't want
   ; quoted strings highlighted.
