@@ -15,22 +15,35 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include "getopt.h"
+#else
+#include <getopt.h>
+#endif
+
 #include "test.h"
 #include "line_printer.h"
 
+struct RegisteredTest {
+  testing::Test* (*factory)();
+  const char *name;
+  bool should_run;
+};
 // This can't be a vector because tests call RegisterTest from static
 // initializers and the order static initializers run it isn't specified. So
 // the vector constructor isn't guaranteed to run before all of the
 // RegisterTest() calls.
-static testing::Test* (*tests[10000])();
+static RegisteredTest tests[10000];
 testing::Test* g_current_test;
 static int ntests;
 static LinePrinter printer;
 
-void RegisterTest(testing::Test* (*factory)()) {
-  tests[ntests++] = factory;
+void RegisterTest(testing::Test* (*factory)(), const char* name) {
+  tests[ntests].factory = factory;
+  tests[ntests++].name = name;
 }
 
+namespace {
 string StringPrintf(const char* format, ...) {
   const int N = 1024;
   char buf[N];
@@ -42,6 +55,74 @@ string StringPrintf(const char* format, ...) {
 
   return buf;
 }
+
+void Usage() {
+  fprintf(stderr,
+"usage: ninja_tests [options]\n"
+"\n"
+"options:\n"
+"  --gtest_filter=POSTIVE_PATTERNS[-NEGATIVE_PATTERNS]\n"
+"      Run only the tests whose name matches one of the positive patterns but\n"
+"      none of the negative patterns. '?' matches any single character; '*'\n"
+"      matches any substring; ':' separates two patterns.\n");
+}
+
+bool PatternMatchesString(const char* pattern, const char* str) {
+  switch (*pattern) {
+    case '\0':
+    case '-':
+    case ':': return *str == '\0';
+    case '?': return *str != '\0' && PatternMatchesString(pattern + 1, str + 1);
+    case '*': return (*str != '\0' && PatternMatchesString(pattern, str + 1)) ||
+                     PatternMatchesString(pattern + 1, str);
+    default:  return *pattern == *str &&
+                     PatternMatchesString(pattern + 1, str + 1);
+  }
+}
+
+bool MatchesFilter(const char* name, const char* filter) {
+  for (const char* cur_pattern = filter - 1; cur_pattern != NULL;
+       cur_pattern = strchr(cur_pattern, ':')) {
+    cur_pattern++;  // Skip the pattern separator (the ':' character).
+    if (PatternMatchesString(cur_pattern, name))
+      return true;
+  }
+  return false;
+}
+
+bool TestMatchesFilter(const char* test, const char* filter) {
+  // Split --gtest_filter at '-' into positive and negative filters.
+  const char* const dash = strchr(filter, '-');
+  const char* positive =  // Treat '-test1' as '*-test1':
+      dash == filter ? "*" : filter;
+  const char* negative = dash ? dash + 1 : "";
+  return MatchesFilter(test, positive) && !MatchesFilter(test, negative);
+}
+
+bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
+  enum { OPT_GTEST_FILTER = 1 };
+  const option kLongOptions[] = {
+    { "gtest_filter", required_argument, NULL, OPT_GTEST_FILTER },
+    { NULL, 0, NULL, 0 }
+  };
+
+  int opt;
+  while ((opt = getopt_long(*argc, *argv, "h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case OPT_GTEST_FILTER:
+      *test_filter = optarg;
+      break;
+    default:
+      Usage();
+      return false;
+    }
+  }
+  *argv += optind;
+  *argc -= optind;
+  return true;
+}
+
+}  // namespace
 
 bool testing::Test::Check(bool condition, const char* file, int line,
                           const char* error) {
@@ -56,16 +137,24 @@ bool testing::Test::Check(bool condition, const char* file, int line,
 int main(int argc, char **argv) {
   int tests_started = 0;
 
+  const char* test_filter = "*";
+  if (!ReadFlags(&argc, &argv, &test_filter))
+    return 1;
+
+  int nactivetests = 0;
+  for (int i = 0; i < ntests; i++)
+    if ((tests[i].should_run = TestMatchesFilter(tests[i].name, test_filter)))
+      ++nactivetests;
+
   bool passed = true;
   for (int i = 0; i < ntests; i++) {
+    if (!tests[i].should_run) continue;
+
     ++tests_started;
-
-    testing::Test* test = tests[i]();
-
+    testing::Test* test = tests[i].factory();
     printer.Print(
-        StringPrintf("[%d/%d] %s", tests_started, ntests, test->Name()),
+        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name),
         LinePrinter::ELIDE);
-
     test->SetUp();
     test->Run();
     test->TearDown();

@@ -35,7 +35,6 @@ class Test {
   virtual void SetUp() {}
   virtual void TearDown() {}
   virtual void Run() = 0;
-  virtual const char* Name() const = 0;
 
   bool Failed() const { return failed_; }
   int AssertionFailures() const { return assertion_failures_; }
@@ -44,17 +43,16 @@ class Test {
 };
 }
 
-void RegisterTest(testing::Test* (*)());
+void RegisterTest(testing::Test* (*)(), const char*);
 
 extern testing::Test* g_current_test;
 #define TEST_F_(x, y, name)                                           \
   struct y : public x {                                               \
     static testing::Test* Create() { return g_current_test = new y; } \
     virtual void Run();                                               \
-    virtual const char* Name() const { return name; }                 \
   };                                                                  \
   struct Register##y {                                                \
-    Register##y() { RegisterTest(y::Create); }                        \
+    Register##y() { RegisterTest(y::Create, name); }                  \
   };                                                                  \
   Register##y g_register_##y;                                         \
   void y::Run()
