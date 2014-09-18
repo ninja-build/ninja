@@ -299,7 +299,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
           return (optopt = '?');
         }
       has_arg = ((cp[1] == ':')
-                 ? ((cp[2] == ':') ? OPTIONAL_ARG : REQUIRED_ARG) : no_argument);
+                 ? ((cp[2] == ':') ? OPTIONAL_ARG : required_argument) : no_argument);
       possible_arg = argv[optind] + optwhere + 1;
       optopt = *cp;
     }
@@ -318,7 +318,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
       else
         optarg = NULL;
       break;
-    case REQUIRED_ARG:
+    case required_argument:
       if (*possible_arg == '=')
         possible_arg++;
       if (*possible_arg != '\0')

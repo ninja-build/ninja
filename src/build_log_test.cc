@@ -17,12 +17,12 @@
 #include "util.h"
 #include "test.h"
 
+#include <sys/stat.h>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <share.h>
 #else
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #endif
 

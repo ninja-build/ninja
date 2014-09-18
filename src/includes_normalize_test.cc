@@ -14,6 +14,8 @@
 
 #include "includes_normalize.h"
 
+#include <direct.h>
+
 #include "test.h"
 #include "util.h"
 

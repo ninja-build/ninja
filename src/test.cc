@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+#include <direct.h>  // Has to be before util.h is included.
+#endif
+
 #include "test.h"
 
 #include <algorithm>
 
 #include <errno.h>
-
-#include "build_log.h"
-#include "manifest_parser.h"
-#include "util.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <unistd.h>
 #endif
+
+#include "build_log.h"
+#include "manifest_parser.h"
+#include "util.h"
 
 namespace {
 
