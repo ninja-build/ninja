@@ -14,9 +14,8 @@
 
 #include "lexer.h"
 
-#include <gtest/gtest.h>
-
 #include "eval_env.h"
+#include "test.h"
 
 TEST(Lexer, ReadVarValue) {
   Lexer lexer("plain text $var $VaR ${x}\n");

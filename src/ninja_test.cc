@@ -15,8 +15,21 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "gtest/gtest.h"
+#include "test.h"
 #include "line_printer.h"
+
+// This can't be a vector because tests call RegisterTest from static
+// initializers and the order static initializers run it isn't specified. So
+// the vector constructor isn't guaranteed to run before all of the
+// RegisterTest() calls.
+static testing::Test* (*tests[10000])();
+testing::Test* g_current_test;
+static int ntests;
+static LinePrinter printer;
+
+void RegisterTest(testing::Test* (*factory)()) {
+  tests[ntests++] = factory;
+}
 
 string StringPrintf(const char* format, ...) {
   const int N = 1024;
@@ -30,59 +43,37 @@ string StringPrintf(const char* format, ...) {
   return buf;
 }
 
-/// A test result printer that's less wordy than gtest's default.
-struct LaconicPrinter : public testing::EmptyTestEventListener {
-  LaconicPrinter() : tests_started_(0), test_count_(0), iteration_(0) {}
-  virtual void OnTestProgramStart(const testing::UnitTest& unit_test) {
-    test_count_ = unit_test.test_to_run_count();
+bool testing::Test::Check(bool condition, const char* file, int line,
+                          const char* error) {
+  if (!condition) {
+    printer.PrintOnNewLine(
+        StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
+    failed_ = true;
   }
-
-  virtual void OnTestIterationStart(const testing::UnitTest& test_info,
-                                    int iteration) {
-    tests_started_ = 0;
-    iteration_ = iteration;
-  }
-
-  virtual void OnTestStart(const testing::TestInfo& test_info) {
-    ++tests_started_;
-    printer_.Print(
-        StringPrintf("[%d/%d%s] %s.%s",
-                     tests_started_,
-                     test_count_,
-                     iteration_ ? StringPrintf(" iter %d", iteration_).c_str()
-                                : "",
-                     test_info.test_case_name(),
-                     test_info.name()),
-        LinePrinter::ELIDE);
-  }
-
-  virtual void OnTestPartResult(
-      const testing::TestPartResult& test_part_result) {
-    if (!test_part_result.failed())
-      return;
-    printer_.PrintOnNewLine(StringPrintf(
-        "*** Failure in %s:%d\n%s\n", test_part_result.file_name(),
-        test_part_result.line_number(), test_part_result.summary()));
-  }
-
-  virtual void OnTestProgramEnd(const testing::UnitTest& unit_test) {
-    printer_.PrintOnNewLine(unit_test.Passed() ? "passed\n" : "failed\n");
-  }
-
- private:
-  LinePrinter printer_;
-  int tests_started_;
-  int test_count_;
-  int iteration_;
-};
+  return condition;
+}
 
 int main(int argc, char **argv) {
-  testing::InitGoogleTest(&argc, argv);
+  int tests_started = 0;
 
-  testing::TestEventListeners& listeners =
-      testing::UnitTest::GetInstance()->listeners();
-  delete listeners.Release(listeners.default_result_printer());
-  listeners.Append(new LaconicPrinter);
+  bool passed = true;
+  for (int i = 0; i < ntests; i++) {
+    ++tests_started;
 
-  return RUN_ALL_TESTS();
+    testing::Test* test = tests[i]();
+
+    printer.Print(
+        StringPrintf("[%d/%d] %s", tests_started, ntests, test->Name()),
+        LinePrinter::ELIDE);
+
+    test->SetUp();
+    test->Run();
+    test->TearDown();
+    if (test->Failed())
+      passed = false;
+    delete test;
+  }
+
+  printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
+  return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

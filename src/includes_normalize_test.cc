@@ -14,8 +14,6 @@
 
 #include "includes_normalize.h"
 
-#include <gtest/gtest.h>
-
 #include "test.h"
 #include "util.h"
 

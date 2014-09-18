@@ -14,7 +14,7 @@
 
 #include "depfile_parser.h"
 
-#include <gtest/gtest.h>
+#include "test.h"
 
 struct DepfileParserTest : public testing::Test {
   bool Parse(const char* input, string* err);

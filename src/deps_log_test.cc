@@ -14,6 +14,11 @@
 
 #include "deps_log.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#include <sys/stat.h>
+#endif
+
 #include "graph.h"
 #include "util.h"
 #include "test.h"
