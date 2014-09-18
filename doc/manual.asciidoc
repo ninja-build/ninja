@@ -190,7 +190,8 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
+Ninja supports two environment variables to control its behavior:
+
 `NINJA_STATUS`, the progress status printed before the rule being run.
 
 Several placeholders are available:
@@ -210,6 +211,12 @@ specified by `-j` or its default)
 The default progress status is `"[%s/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+`NINJA_PARALLELISM`, the number of jobs run in parallel.
+
+The value must be greater than 0. The default value is the based on the number
+of CPUs your system has.
+
 
 Extra tools
 ~~~~~~~~~~~
