@@ -15,9 +15,35 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "gtest/gtest.h"
+#ifdef _WIN32
+#include "getopt.h"
+#else
+#include <getopt.h>
+#endif
+
+#include "test.h"
 #include "line_printer.h"
 
+struct RegisteredTest {
+  testing::Test* (*factory)();
+  const char *name;
+  bool should_run;
+};
+// This can't be a vector because tests call RegisterTest from static
+// initializers and the order static initializers run it isn't specified. So
+// the vector constructor isn't guaranteed to run before all of the
+// RegisterTest() calls.
+static RegisteredTest tests[10000];
+testing::Test* g_current_test;
+static int ntests;
+static LinePrinter printer;
+
+void RegisterTest(testing::Test* (*factory)(), const char* name) {
+  tests[ntests].factory = factory;
+  tests[ntests++].name = name;
+}
+
+namespace {
 string StringPrintf(const char* format, ...) {
   const int N = 1024;
   char buf[N];
@@ -30,59 +56,101 @@ string StringPrintf(const char* format, ...) {
   return buf;
 }
 
-/// A test result printer that's less wordy than gtest's default.
-struct LaconicPrinter : public testing::EmptyTestEventListener {
-  LaconicPrinter() : tests_started_(0), test_count_(0), iteration_(0) {}
-  virtual void OnTestProgramStart(const testing::UnitTest& unit_test) {
-    test_count_ = unit_test.test_to_run_count();
-  }
+void Usage() {
+  fprintf(stderr,
+"usage: ninja_tests [options]\n"
+"\n"
+"options:\n"
+"  --gtest_filter=POSTIVE_PATTERN[-NEGATIVE_PATTERN]\n"
+"      Run tests whose names match the positive but not the negative pattern.\n"
+"      '*' matches any substring. (gtest's ':', '?' are not implemented).\n");
+}
 
-  virtual void OnTestIterationStart(const testing::UnitTest& test_info,
-                                    int iteration) {
-    tests_started_ = 0;
-    iteration_ = iteration;
+bool PatternMatchesString(const char* pattern, const char* str) {
+  switch (*pattern) {
+    case '\0':
+    case '-': return *str == '\0';
+    case '*': return (*str != '\0' && PatternMatchesString(pattern, str + 1)) ||
+                     PatternMatchesString(pattern + 1, str);
+    default:  return *pattern == *str &&
+                     PatternMatchesString(pattern + 1, str + 1);
   }
+}
 
-  virtual void OnTestStart(const testing::TestInfo& test_info) {
-    ++tests_started_;
-    printer_.Print(
-        StringPrintf("[%d/%d%s] %s.%s",
-                     tests_started_,
-                     test_count_,
-                     iteration_ ? StringPrintf(" iter %d", iteration_).c_str()
-                                : "",
-                     test_info.test_case_name(),
-                     test_info.name()),
-        LinePrinter::ELIDE);
+bool TestMatchesFilter(const char* test, const char* filter) {
+  // Split --gtest_filter at '-' into positive and negative filters.
+  const char* const dash = strchr(filter, '-');
+  const char* pos = dash == filter ? "*" : filter; //Treat '-test1' as '*-test1'
+  const char* neg = dash ? dash + 1 : "";
+  return PatternMatchesString(pos, test) && !PatternMatchesString(neg, test);
+}
+
+bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
+  enum { OPT_GTEST_FILTER = 1 };
+  const option kLongOptions[] = {
+    { "gtest_filter", required_argument, NULL, OPT_GTEST_FILTER },
+    { NULL, 0, NULL, 0 }
+  };
+
+  int opt;
+  while ((opt = getopt_long(*argc, *argv, "h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case OPT_GTEST_FILTER:
+      if (strchr(optarg, '?') == NULL && strchr(optarg, ':') == NULL) {
+        *test_filter = optarg;
+        break;
+      }  // else fall through.
+    default:
+      Usage();
+      return false;
+    }
   }
+  *argv += optind;
+  *argc -= optind;
+  return true;
+}
 
-  virtual void OnTestPartResult(
-      const testing::TestPartResult& test_part_result) {
-    if (!test_part_result.failed())
-      return;
-    printer_.PrintOnNewLine(StringPrintf(
-        "*** Failure in %s:%d\n%s\n", test_part_result.file_name(),
-        test_part_result.line_number(), test_part_result.summary()));
+}  // namespace
+
+bool testing::Test::Check(bool condition, const char* file, int line,
+                          const char* error) {
+  if (!condition) {
+    printer.PrintOnNewLine(
+        StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
+    failed_ = true;
   }
-
-  virtual void OnTestProgramEnd(const testing::UnitTest& unit_test) {
-    printer_.PrintOnNewLine(unit_test.Passed() ? "passed\n" : "failed\n");
-  }
-
- private:
-  LinePrinter printer_;
-  int tests_started_;
-  int test_count_;
-  int iteration_;
-};
+  return condition;
+}
 
 int main(int argc, char **argv) {
-  testing::InitGoogleTest(&argc, argv);
+  int tests_started = 0;
 
-  testing::TestEventListeners& listeners =
-      testing::UnitTest::GetInstance()->listeners();
-  delete listeners.Release(listeners.default_result_printer());
-  listeners.Append(new LaconicPrinter);
+  const char* test_filter = "*";
+  if (!ReadFlags(&argc, &argv, &test_filter))
+    return 1;
 
-  return RUN_ALL_TESTS();
+  int nactivetests = 0;
+  for (int i = 0; i < ntests; i++)
+    if ((tests[i].should_run = TestMatchesFilter(tests[i].name, test_filter)))
+      ++nactivetests;
+
+  bool passed = true;
+  for (int i = 0; i < ntests; i++) {
+    if (!tests[i].should_run) continue;
+
+    ++tests_started;
+    testing::Test* test = tests[i].factory();
+    printer.Print(
+        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name),
+        LinePrinter::ELIDE);
+    test->SetUp();
+    test->Run();
+    test->TearDown();
+    if (test->Failed())
+      passed = false;
+    delete test;
+  }
+
+  printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
+  return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -24,6 +24,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 namespace {
@@ -90,7 +92,7 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
 void AssertParse(State* state, const char* input) {
   ManifestParser parser(state, NULL);
   string err;
-  ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
+  EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
 }
 

@@ -14,6 +14,8 @@
 
 #include "build.h"
 
+#include <assert.h>
+
 #include "build_log.h"
 #include "deps_log.h"
 #include "graph.h"
@@ -506,7 +508,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   builder.command_runner_.reset(&command_runner_);
   if (!builder.AlreadyUpToDate()) {
     bool build_res = builder.Build(&err);
-    EXPECT_TRUE(build_res) << "builder.Build(&err)";
+    EXPECT_TRUE(build_res);
   }
   builder.command_runner_.release();
 }

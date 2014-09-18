@@ -44,8 +44,7 @@ parser.add_option('--debug', action='store_true',
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
-parser.add_option('--with-gtest', metavar='PATH',
-                  help='use gtest unpacked in directory PATH')
+parser.add_option('--with-gtest', metavar='PATH', help='ignored')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -319,34 +318,10 @@ all_targets += ninja
 n.comment('Tests all build into ninja_test executable.')
 
 variables = []
-test_cflags = cflags + ['-DGTEST_HAS_RTTI=0']
 test_ldflags = None
 test_libs = libs
 objs = []
-if options.with_gtest:
-    path = options.with_gtest
 
-    gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    if platform.is_msvc():
-        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 '
-        if platform.msvc_needs_fs():
-          gtest_cflags += '/FS '
-        gtest_cflags += gtest_all_incs
-    else:
-        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src', 'gtest-all.cc'),
-                    variables=[('cflags', gtest_cflags)])
-
-    test_cflags.append('-I%s' % os.path.join(path, 'include'))
-else:
-    # Use gtest from system.
-    if platform.is_msvc():
-        test_libs.extend(['gtest_main.lib', 'gtest.lib'])
-    else:
-        test_libs.extend(['-lgtest_main', '-lgtest'])
-
-n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
              'build_test',
              'clean_test',
@@ -362,10 +337,10 @@ for name in ['build_log_test',
              'subprocess_test',
              'test',
              'util_test']:
-    objs += cxx(name, variables=[('cflags', '$test_cflags')])
+    objs += cxx(name)
 if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=[('cflags', '$test_cflags')])
+        objs += cxx(name)
 
 if not platform.is_windows():
     test_libs.append('-lpthread')

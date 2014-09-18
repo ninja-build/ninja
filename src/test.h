@@ -15,11 +15,93 @@
 #ifndef NINJA_TEST_H_
 #define NINJA_TEST_H_
 
-#include <gtest/gtest.h>
-
 #include "disk_interface.h"
 #include "state.h"
 #include "util.h"
+
+// A tiny testing framework inspired by googletest, but much simpler and
+// faster to compile. It supports most things commonly used from googltest. The
+// most noticeable things missing: EXPECT_* and ASSERT_* don't support
+// streaming notes to them with operator<<, and for failing tests the lhs and
+// rhs are not printed. That's so that this header does not have to include
+// sstream, which slows down building ninja_test almost 20%.
+namespace testing {
+class Test {
+  bool failed_;
+  int assertion_failures_;
+ public:
+  Test() : failed_(false), assertion_failures_(0) {}
+  virtual ~Test() {}
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+  virtual void Run() = 0;
+
+  bool Failed() const { return failed_; }
+  int AssertionFailures() const { return assertion_failures_; }
+  void AddAssertionFailure() { assertion_failures_++; }
+  bool Check(bool condition, const char* file, int line, const char* error);
+};
+}
+
+void RegisterTest(testing::Test* (*)(), const char*);
+
+extern testing::Test* g_current_test;
+#define TEST_F_(x, y, name)                                           \
+  struct y : public x {                                               \
+    static testing::Test* Create() { return g_current_test = new y; } \
+    virtual void Run();                                               \
+  };                                                                  \
+  struct Register##y {                                                \
+    Register##y() { RegisterTest(y::Create, name); }                  \
+  };                                                                  \
+  Register##y g_register_##y;                                         \
+  void y::Run()
+
+#define TEST_F(x, y) TEST_F_(x, x##y, #x "." #y)
+#define TEST(x, y) TEST_F_(testing::Test, x##y, #x "." #y)
+
+#define EXPECT_EQ(a, b) \
+  g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
+#define EXPECT_NE(a, b) \
+  g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
+#define EXPECT_GT(a, b) \
+  g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
+#define EXPECT_LT(a, b) \
+  g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
+#define EXPECT_GE(a, b) \
+  g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
+#define EXPECT_LE(a, b) \
+  g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
+#define EXPECT_TRUE(a) \
+  g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
+#define EXPECT_FALSE(a) \
+  g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
+
+#define ASSERT_EQ(a, b) \
+  if (!EXPECT_EQ(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_NE(a, b) \
+  if (!EXPECT_NE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_GT(a, b) \
+  if (!EXPECT_GT(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_LT(a, b) \
+  if (!EXPECT_LT(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_GE(a, b) \
+  if (!EXPECT_GE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_LE(a, b) \
+  if (!EXPECT_LE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_TRUE(a)  \
+  if (!EXPECT_TRUE(a))  { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_FALSE(a) \
+  if (!EXPECT_FALSE(a)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_NO_FATAL_FAILURE(a)                  \
+  {                                                 \
+    int f = g_current_test->AssertionFailures();    \
+    a;                                              \
+    if (f != g_current_test->AssertionFailures()) { \
+      g_current_test->AddAssertionFailure();        \
+      return;                                       \
+    }                                               \
+  }
 
 // Support utilites for tests.
 

@@ -14,8 +14,6 @@
 
 #include "msvc_helper.h"
 
-#include <gtest/gtest.h>
-
 #include "test.h"
 #include "util.h"
 

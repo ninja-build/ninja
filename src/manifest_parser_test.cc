@@ -17,17 +17,16 @@
 #include <map>
 #include <vector>
 
-#include <gtest/gtest.h>
-
 #include "graph.h"
 #include "state.h"
+#include "test.h"
 
 struct ParserTest : public testing::Test,
                     public ManifestParser::FileReader {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, this);
     string err;
-    ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
+    EXPECT_TRUE(parser.ParseTest(input, &err));
     ASSERT_EQ("", err);
   }
 
