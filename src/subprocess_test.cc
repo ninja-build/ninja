@@ -172,7 +172,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.
-  const size_t kNumProcs = 1025;
+  const unsigned kNumProcs = 1025;
 
   // Make sure [ulimit -n] isn't going to stop us from working.
   rlimit rlim;
