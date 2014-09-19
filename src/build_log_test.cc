@@ -290,6 +290,7 @@ TEST_F(BuildLogRecompactTest, Recompact) {
   ASSERT_TRUE(log2.LookupByOutput("out"));
   ASSERT_TRUE(log2.LookupByOutput("out2"));
   // ...and force a recompaction.
+  log2.set_quiet(true);
   EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
   log2.Close();
 

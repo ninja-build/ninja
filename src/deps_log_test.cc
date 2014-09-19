@@ -252,6 +252,7 @@ TEST_F(DepsLogTest, Recompact) {
     ASSERT_EQ("foo.h", deps->nodes[0]->path());
     ASSERT_EQ("baz.h", deps->nodes[1]->path());
 
+    log.set_quiet(true);
     ASSERT_TRUE(log.Recompact(kTestFilename, &err));
 
     // The in-memory deps graph should still be valid after recompaction.
@@ -301,6 +302,7 @@ TEST_F(DepsLogTest, Recompact) {
     ASSERT_EQ("foo.h", deps->nodes[0]->path());
     ASSERT_EQ("baz.h", deps->nodes[1]->path());
 
+    log.set_quiet(true);
     ASSERT_TRUE(log.Recompact(kTestFilename, &err));
 
     // The previous entries should have been removed.
