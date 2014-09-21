@@ -16,6 +16,7 @@
 #define NINJA_BUILD_H_
 
 #include <cstdio>
+#include <list>
 #include <map>
 #include <memory>
 #include <queue>
@@ -75,6 +76,7 @@ struct Plan {
 
   /// Reset state.  Clears want and ready sets.
   void Reset();
+  void ComputePriorityList(BuildLog* build_log);
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
@@ -122,6 +124,9 @@ private:
   EdgeSet ready_;
 
   Builder* builder_;
+  /// user provided targets in build order, earlier one have higher priority
+  vector<Node*> targets_;
+  list<Edge*> priority_list_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
