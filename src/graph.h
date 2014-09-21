@@ -43,7 +43,8 @@ struct Node {
         dirty_(false),
         dyndep_pending_(false),
         in_edge_(NULL),
-        id_(-1) {}
+        id_(-1),
+        critical_time_(-1) {}
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, string* err);
@@ -62,17 +63,11 @@ struct Node {
   }
 
   /// Mark the Node as already-stat()ed and missing.
-  void MarkMissing() {
-    mtime_ = 0;
-  }
+  void MarkMissing() { mtime_ = 0; }
 
-  bool exists() const {
-    return mtime_ != 0;
-  }
+  bool exists() const { return mtime_ != 0; }
 
-  bool status_known() const {
-    return mtime_ != -1;
-  }
+  bool status_known() const { return mtime_ != -1; }
 
   const string& path() const { return path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
@@ -97,6 +92,9 @@ struct Node {
 
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
+
+  int critical_time() const { return critical_time_; }
+  void set_critical_time(int critical_time) { critical_time_ = critical_time; }
 
   const vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
@@ -134,6 +132,8 @@ private:
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
+
+  int critical_time_;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
@@ -144,10 +144,10 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL),
-           mark_(VisitNone), outputs_ready_(false), deps_loaded_(false),
-           deps_missing_(false), implicit_deps_(0), order_only_deps_(0),
-           implicit_outs_(0) {}
+  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), 
+           mark_(VisitNone), run_time_ms_(0), outputs_ready_(false),
+           deps_loaded_(false), deps_missing_(false), implicit_deps_(0),
+           order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -177,6 +177,7 @@ struct Edge {
   Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
+  int run_time_ms_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;

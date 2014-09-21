@@ -78,6 +78,7 @@ struct Plan {
 
   /// Reset state.  Clears want and ready sets.
   void Reset();
+  void ComputePriorityList(BuildLog* build_log);
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
@@ -125,6 +126,9 @@ private:
   set<Edge*> ready_;
 
   Builder* builder_;
+  set<Node*> targets_;
+  vector<Edge*> priority_list_;
+  int priority_list_index_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
