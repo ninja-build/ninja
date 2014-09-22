@@ -675,14 +675,40 @@ bool EdgeCom(const Edge* lhs, const Edge* rhs) {
 }  // namespace
 
 void Plan::ComputePriorityList(BuildLog* build_log) {
-  // XXX: doesn't work yet if the plan contains nodes with several output edges
+  // XXX: doesn't work yet if there's a dep path from any target in targets_
+  // to another.
 
   vector<Edge*> edges;
+  map<Node*, int> num_out_edges;
   for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
        it != end; ++it) {
     if (it->second != kWantNothing)
-      edges.push_back(it->first);
+      continue;
+    Edge* e = it->first;
+    edges.push_back(e);
+    //printf("in\n");
+    set<Node*> ins; // protect against #308; also sanity
+    for (size_t nit = 0;
+         nit < e->inputs_.size() - e->implicit_deps_ - e->order_only_deps_;
+         ++nit) {
+      Node* n = e->inputs_[nit];
+      if (ins.count(n) == 0) {
+        //printf("%s %s\n", (*nit)->path().c_str(), e->rule().name().c_str());
+        num_out_edges[n]++;
+        ins.insert(n);
+      }
+    }
+    //printf("\n");
   }
+
+  if (true) {
+    for (map<Node*, int>::iterator it = num_out_edges.begin(),
+                                   end = num_out_edges.end();
+         it != end; ++it) {
+      printf("%s %d\n", it->first->path().c_str(), it->second);
+    }
+  }
+
   // Critical path scheduling.
   // 0. Assign costs to all edges, using:
   // a) The time the edge needed last time, if available.
@@ -733,11 +759,28 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   }
   while (!edgesQ.empty()) {
     Edge* e = edgesQ.front(); edgesQ.pop();
+    bool all_nodes_ready = true;
+    for (vector<Node*>::iterator it = e->inputs_.begin(),
+                                 end = e->inputs_.end();
+         it != end; ++it) {
+      // XXX: skip implicit; order-only
+      if (num_out_edges[*it] > 1)
+        all_nodes_ready = false;
+    }
+    if (!all_nodes_ready) {
+      // To the back it goes.
+      // XXX: think about how often this can happen.
+      edgesQ.push(e);
+      //printf
+      continue;
+    }
+
     int crit_out = e->outputs_[0]->critical_time();  // XXX not good enough
     for (vector<Node*>::iterator it = e->inputs_.begin(),
                                  end = e->inputs_.end();
          it != end; ++it) {
       (*it)->set_critical_time(crit_out + e->run_time_ms_);
+      num_out_edges[*it]--;
       if ((*it)->in_edge())
         edgesQ.push((*it)->in_edge());
     }
