@@ -746,10 +746,20 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   // from the destination nodes.
   // XXX: ignores pools
   queue<Edge*> edgesQ;
+
+  // Makes sure that each edge is added to the queue just once. This is needed
+  // for example if a binary is used to generate 50 source files, and all the
+  // source file cxx lines are added. Without this, the edge generating that
+  // binary would be added ot the queue 50 times.
+  set<Edge*> done;
+
   for (set<Node*>::iterator it = targets_.begin(), end = targets_.end();
        it != end; ++it) {
-    if ((*it)->in_edge()) {
-      edgesQ.push((*it)->in_edge());
+    if (Edge* in = (*it)->in_edge()) {
+      if (done.count(in) == 0) {
+        edgesQ.push(in);
+        done.insert(in);
+      }
     }
   }
   while (!edgesQ.empty()) {
@@ -781,8 +791,12 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
                                  end = e->inputs_.end();
          it != end; ++it) {
       num_out_edges[*it]--;
-      if ((*it)->in_edge())
-        edgesQ.push((*it)->in_edge());
+      if (Edge* in = (*it)->in_edge()) {
+        if (done.count(in) == 0) {
+          edgesQ.push(in);
+          done.insert(in);
+        }
+      }
     }
   }
 
