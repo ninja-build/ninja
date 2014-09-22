@@ -43,8 +43,7 @@ struct Node {
         dirty_(false),
         dyndep_pending_(false),
         in_edge_(NULL),
-        id_(-1),
-        critical_time_(-1) {}
+        id_(-1) {}
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, string* err);
@@ -93,9 +92,6 @@ struct Node {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  int critical_time() const { return critical_time_; }
-  void set_critical_time(int critical_time) { critical_time_ = critical_time; }
-
   const vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
 
@@ -132,8 +128,6 @@ private:
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
-
-  int critical_time_;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
@@ -170,6 +164,9 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
+  int critical_time() const { return critical_time_; }
+  void set_critical_time(int critical_time) { critical_time_ = critical_time; }
+
   const Rule* rule_;
   Pool* pool_;
   vector<Node*> inputs_;
@@ -178,6 +175,7 @@ struct Edge {
   BindingEnv* env_;
   VisitMark mark_;
   int run_time_ms_;
+  int critical_time_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;

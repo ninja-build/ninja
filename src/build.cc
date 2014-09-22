@@ -670,14 +670,11 @@ void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
 namespace {
 bool EdgeCom(const Edge* lhs, const Edge* rhs) {
   // Note: > to sort in decreasing order.
-  return lhs->inputs_[0]->critical_time() > rhs->inputs_[0]->critical_time();
+  return lhs->critical_time() > rhs->critical_time();
 }
 }  // namespace
 
 void Plan::ComputePriorityList(BuildLog* build_log) {
-  // XXX: doesn't work yet if there's a dep path from any target in targets_
-  // to another.
-
   vector<Edge*> edges;
   map<Node*, int> num_out_edges;
   for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
@@ -699,7 +696,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     //printf("\n");
   }
 
-  if (true) {
+  if (false) {
     for (map<Node*, int>::iterator it = num_out_edges.begin(),
                                    end = num_out_edges.end();
          it != end; ++it) {
@@ -748,35 +745,41 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   // 1. Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes.
   // XXX: ignores pools
-  queue<Edge*> edgesQ; // XXX: this isn't quite good enough
+  queue<Edge*> edgesQ;
   for (set<Node*>::iterator it = targets_.begin(), end = targets_.end();
        it != end; ++it) {
-    (*it)->set_critical_time(0);
-    if ((*it)->in_edge())
+    if ((*it)->in_edge()) {
       edgesQ.push((*it)->in_edge());
+    }
   }
   while (!edgesQ.empty()) {
     Edge* e = edgesQ.front(); edgesQ.pop();
     bool all_nodes_ready = true;
+    int max_crit = 0;
     for (vector<Node*>::iterator it = e->outputs_.begin(),
                                  end = e->outputs_.end();
          it != end; ++it) {
-      if (num_out_edges[*it] > 1)
+      if (num_out_edges[*it] > 0) {
         all_nodes_ready = false;
+        continue;
+      }
+      for (vector<Edge*>::const_iterator eit = (*it)->out_edges().begin(),
+                                         eend = (*it)->out_edges().end();
+           eit != eend; ++eit) {
+        max_crit = max((*eit)->critical_time(), max_crit);
+      }
     }
     if (!all_nodes_ready) {
       // To the back it goes.
       // XXX: think about how often this can happen.
       edgesQ.push(e);
-      //printf
       continue;
     }
+    e->set_critical_time(max_crit + e->run_time_ms_);
 
-    int crit_out = e->outputs_[0]->critical_time();  // XXX not good enough
     for (vector<Node*>::iterator it = e->inputs_.begin(),
                                  end = e->inputs_.end();
          it != end; ++it) {
-      (*it)->set_critical_time(crit_out + e->run_time_ms_);
       num_out_edges[*it]--;
       if ((*it)->in_edge())
         edgesQ.push((*it)->in_edge());
@@ -793,7 +796,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       Node* input = edge->inputs_[0];
       Node* output = edge->outputs_[0];
       printf("%s %s crit %d edge %d\n", input->path().c_str(),
-             output->path().c_str(), input->critical_time(),
+             output->path().c_str(), edge->critical_time(),
              edge->run_time_ms_);
     }
   }
