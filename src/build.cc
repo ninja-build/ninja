@@ -308,7 +308,6 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
 Plan::Plan(Builder* builder)
   : builder_(builder)
-  , priority_list_index_(0)
   , command_edges_(0)
   , wanted_edges_(0)
 {}
@@ -385,13 +384,14 @@ Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
   set<Edge*>::iterator i;
-  // XXX: this is o(n^2), have some low watermark or something
-  for (vector<Edge*>::iterator it = priority_list_.begin(),
-                               end = priority_list_.end();
+  for (list<Edge*>::iterator it = priority_list_.begin(),
+                             end = priority_list_.end();
        it != end; ++it) {
     i = ready_.find(*it);
-    if (i != ready_.end())
+    if (i != ready_.end()) {
+      priority_list_.erase(it);
       break;
+    }
   }
   if (i == ready_.end())
     return NULL;  // Shouldn't happen.
@@ -814,7 +814,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
              edge->run_time_ms_);
     }
   }
-  priority_list_.swap(edges);
+  priority_list_ = list<Edge*>(edges.begin(), edges.end());
 }
 
 void Plan::Dump() {
