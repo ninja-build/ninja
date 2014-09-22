@@ -688,9 +688,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     edges.push_back(e);
     //printf("in\n");
     set<Node*> ins; // protect against #308; also sanity
-    for (size_t nit = 0;
-         nit < e->inputs_.size() - e->implicit_deps_ - e->order_only_deps_;
-         ++nit) {
+    for (size_t nit = 0; nit < e->inputs_.size(); ++nit) {
       Node* n = e->inputs_[nit];
       if (ins.count(n) == 0) {
         //printf("%s %s\n", (*nit)->path().c_str(), e->rule().name().c_str());
@@ -760,10 +758,9 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   while (!edgesQ.empty()) {
     Edge* e = edgesQ.front(); edgesQ.pop();
     bool all_nodes_ready = true;
-    for (vector<Node*>::iterator it = e->inputs_.begin(),
-                                 end = e->inputs_.end();
+    for (vector<Node*>::iterator it = e->outputs_.begin(),
+                                 end = e->outputs_.end();
          it != end; ++it) {
-      // XXX: skip implicit; order-only
       if (num_out_edges[*it] > 1)
         all_nodes_ready = false;
     }
