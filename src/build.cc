@@ -725,7 +725,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   for (vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
        ++it) {
     Edge* edge = *it;
-    if (edge->run_time_ms_ == -1)
+    if (edge->run_time_ms_ == 0)
       edge->run_time_ms_ = 1;  // XXX: smarter
   }
 
