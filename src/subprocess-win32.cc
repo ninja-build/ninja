@@ -72,7 +72,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command, const string& shell) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   SECURITY_ATTRIBUTES security_attributes;

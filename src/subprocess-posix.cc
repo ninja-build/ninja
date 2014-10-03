@@ -36,7 +36,7 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command, const string& shell) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -88,7 +88,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       // In the console case, output_pipe is still inherited by the child and
       // closed when the subprocess finishes, which then notifies ninja.
 
-      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
+      const char* sh = shell.empty() ? "/bin/sh" : shell.c_str();
+      execl(sh, sh, "-c", command.c_str(), (char *) NULL);
     } while (false);
 
     // If we get here, something went wrong; the execl should have
@@ -174,9 +175,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+Subprocess *SubprocessSet::Add(const string& command, bool use_console, const string& shell) {
   Subprocess *subprocess = new Subprocess(use_console);
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, shell)) {
     delete subprocess;
     return 0;
   }
