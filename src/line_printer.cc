@@ -21,6 +21,7 @@
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <sys/time.h>
 #endif
 
