@@ -22,7 +22,7 @@
 varname="$1"
 echo "const char $varname[] ="
 od -t x1 -A n -v |
-  awk '{printf "\""; for(i=1; i<=NF; i++){ printf "\x"$i}; print "\"";  }'
+  awk '{printf "\""; for(i=1; i<=NF; i++){ printf "\\x"$i}; print "\"";  }'
 echo ";"
 
 
