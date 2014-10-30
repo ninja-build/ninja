@@ -106,6 +106,12 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     return false;
   }
 
+#ifdef _WIN32
+  for (char* c = path; *c; ++c)
+    if (*c == '\\')
+      *c = '/';
+#endif
+
   const int kMaxPathComponents = 30;
   char* components[kMaxPathComponents];
   int component_count = 0;
@@ -280,7 +286,38 @@ void GetWin32EscapedString(const string& input, string* result) {
 }
 
 int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
+#ifdef _WIN32
+  // This makes a ninja run on a set of 1500 manifest files about 4% faster
+  // than using the generic fopen code below.
+  err->clear();
+  HANDLE f = ::CreateFile(path.c_str(),
+                          GENERIC_READ,
+                          FILE_SHARE_READ,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_SEQUENTIAL_SCAN,
+                          NULL);
+  if (f == INVALID_HANDLE_VALUE) {
+    err->assign(GetLastErrorString());
+    return -ENOENT;
+  }
+
+  for (;;) {
+    DWORD len;
+    char buf[64 << 10];
+    if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
+      err->assign(GetLastErrorString());
+      contents->clear();
+      return -1;
+    }
+    if (len == 0)
+      break;
+    contents->append(buf, len);
+  }
+  ::CloseHandle(f);
+  return 0;
+#else
+  FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -299,6 +336,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   }
   fclose(f);
   return 0;
+#endif
 }
 
 void SetCloseOnExec(int fd) {

@@ -696,9 +696,7 @@ Lexical syntax
 
 Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
 about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
-ISO-8859-1 input files ought to work.  (To simplify some code, tabs
-and carriage returns are currently disallowed; this could be fixed if
-it really mattered to you.)
+ISO-8859-1 input files ought to work.
 
 Comments begin with `#` and extend to the end of the line.
 
