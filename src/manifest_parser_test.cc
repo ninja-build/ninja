@@ -870,22 +870,18 @@ TEST_F(ParserTest, UTF8) {
 "  description = compilaci\xC3\xB3\n"));
 }
 
-// We might want to eventually allow CRLF to be nice to Windows developers,
-// but for now just verify we error out with a nice message.
 TEST_F(ParserTest, CRLF) {
   State state;
   ManifestParser parser(&state, NULL);
   string err;
 
-  EXPECT_FALSE(parser.ParseTest("# comment with crlf\r\n",
-                                &err));
-  EXPECT_EQ("input:1: lexing error\n",
-            err);
-
-  EXPECT_FALSE(parser.ParseTest("foo = foo\nbar = bar\r\n",
-                                &err));
-  EXPECT_EQ("input:2: carriage returns are not allowed, use newlines\n"
-            "bar = bar\r\n"
-            "         ^ near here",
-            err);
+  EXPECT_TRUE(parser.ParseTest("# comment with crlf\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest("foo = foo\nbar = bar\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest(
+      "pool link_pool\r\n"
+      "  depth = 15\r\n\r\n"
+      "rule xyz\r\n"
+      "  command = something$expand \r\n"
+      "  description = YAY!\r\n",
+      &err));
 }
