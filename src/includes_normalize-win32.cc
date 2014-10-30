@@ -68,6 +68,9 @@ string IncludesNormalize::ToLower(const string& s) {
 string IncludesNormalize::AbsPath(StringPiece s) {
   char result[_MAX_PATH];
   GetFullPathName(s.AsString().c_str(), sizeof(result), result, NULL);
+  for (char* c = result; *c; ++c)
+    if (*c == '\\')
+      *c = '/';
   return result;
 }
 
@@ -94,7 +97,6 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
 string IncludesNormalize::Normalize(const string& input,
                                     const char* relative_to) {
   char copy[_MAX_PATH];
-  char relative_copy[_MAX_PATH];
   size_t len = input.size();
   strncpy(copy, input.c_str(), input.size() + 1);
   string err;
@@ -107,11 +109,7 @@ string IncludesNormalize::Normalize(const string& input,
     curdir = AbsPath(".");
     relative_to = curdir.c_str();
   }
-  strcpy(relative_copy, relative_to);
-  if (!CanonicalizePath(relative_copy, &len, &err))
-    Warning("couldn't canonicalize '%s': %s\n", relative_copy, err.c_str());
-
-  if (!SameDrive(partially_fixed, relative_copy))
+  if (!SameDrive(partially_fixed, relative_to))
     return partially_fixed.AsString();
-  return Relativize(partially_fixed, relative_copy);
+  return Relativize(partially_fixed, relative_to);
 }
