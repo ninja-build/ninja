@@ -102,8 +102,6 @@ const char* Lexer::TokenErrorHint(Token expected) {
 string Lexer::DescribeLastError() {
   if (last_token_) {
     switch (last_token_[0]) {
-    case '\r':
-      return "carriage returns are not allowed, use newlines";
     case '\t':
       return "tabs are not allowed, use spaces";
     }
@@ -132,8 +130,8 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    [ ]*"#"[^\000\r\n]*"\n" { continue; }
-    [ ]*[\n]   { token = NEWLINE;  break; }
+    [ ]*"#"[^\000\n]*"\n" { continue; }
+    [ \r]*[\n] { token = NEWLINE;  break; }
     [ ]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
     "pool"     { token = POOL;     break; }
@@ -155,6 +153,12 @@ Lexer::Token Lexer::ReadToken() {
   ofs_ = p;
   if (token != NEWLINE && token != TEOF)
     EatWhitespace();
+  static const char* tokname[] = {
+    "ERROR", "BUILD",   "COLON",  "DEFAULT",  "EQUALS",
+    "IDENT", "INCLUDE", "INDENT", "NEWLINE",  "PIPE",
+    "PIPE2", "POOL",    "RULE",   "SUBNINJA", "TEOF",
+  };
+  printf("Returning: %s\n", tokname[token]);
   return token;
 }
 
@@ -168,13 +172,15 @@ bool Lexer::PeekToken(Token token) {
 
 void Lexer::EatWhitespace() {
   const char* p = ofs_;
+  const char* q;
   for (;;) {
     ofs_ = p;
     /*!re2c
-    [ ]+  { continue; }
-    "$\n" { continue; }
-    nul   { break; }
-    [^]   { break; }
+    [ ]+    { continue; }
+    "$\r\n" { continue; }
+    "$\n"   { continue; }
+    nul     { break; }
+    [^]     { break; }
     */
   }
 }
@@ -207,11 +213,13 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
       eval->AddText(StringPiece(start, p - start));
       continue;
     }
-    [ :|\n] {
+    [ :|\r\n] {
       if (path) {
         p = start;
         break;
       } else {
+        if (*start == '\r' && *(start + 1) == '\n')
+          break;
         if (*start == '\n')
           break;
         eval->AddText(StringPiece(start, 1));
@@ -224,6 +232,9 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     }
     "$ " {
       eval->AddText(StringPiece(" ", 1));
+      continue;
+    }
+    "$\r\n"[ ]* {
       continue;
     }
     "$\n"[ ]* {

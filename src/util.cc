@@ -115,29 +115,39 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == '/') {
 #ifdef _WIN32
+  if (*src == '/' || *src == '\\') {
     // network path starts with //
-    if (*len > 1 && *(src + 1) == '/') {
+    if (*len > 1 && (*(src + 1) == '/' || *(src + 1) == '\\')) {
       src += 2;
       dst += 2;
     } else {
       ++src;
       ++dst;
     }
+  }
 #else
+  if (*src == '/') {
     ++src;
     ++dst;
-#endif
   }
+#endif
 
   while (src < end) {
     if (*src == '.') {
-      if (src + 1 == end || src[1] == '/') {
+      if (src + 1 == end || src[1] == '/'
+#ifdef _WIN32
+          || src[1] == '\\'
+#endif
+          ) {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
+      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/'
+#ifdef _WIN32
+            || src[2] == '\\'
+#endif
+            )) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
@@ -152,7 +162,11 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
       }
     }
 
-    if (*src == '/') {
+    if (*src == '/'
+#ifdef _WIN32
+        || *src == '\\'
+#endif
+        ) {
       src++;
       continue;
     }
@@ -162,9 +176,13 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     components[component_count] = dst;
     ++component_count;
 
-    while (*src != '/' && src != end)
+    while (*src != '/'
+#ifdef _WIN32
+        && *src != '\\'
+#endif
+        && src != end)
       *dst++ = *src++;
-    *dst++ = *src++;  // Copy '/' or final \0 character as well.
+    *dst++ = *src++;  // Copy slash or final \0 character as well.
   }
 
   if (dst == start) {
@@ -280,6 +298,35 @@ void GetWin32EscapedString(const string& input, string* result) {
 }
 
 int ReadFile(const string& path, string* contents, string* err) {
+#ifdef _WIN32
+  err->clear();
+  HANDLE f = ::CreateFile(path.c_str(),
+                          GENERIC_READ,
+                          FILE_SHARE_READ,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_SEQUENTIAL_SCAN,
+                          NULL);
+  if (f == INVALID_HANDLE_VALUE) {
+    err->assign(GetLastErrorString());
+    return -ENOENT;
+  }
+
+  for (;;) {
+    DWORD len;
+    char buf[64 << 10];
+    if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
+      err->assign(GetLastErrorString());
+      contents->clear();
+      return -1;
+    }
+    if (len == 0)
+      break;
+    contents->append(buf, len);
+  }
+  ::CloseHandle(f);
+  return 0;
+#else
   FILE* f = fopen(path.c_str(), "r");
   if (!f) {
     err->assign(strerror(errno));
@@ -299,6 +346,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   }
   fclose(f);
   return 0;
+#endif
 }
 
 void SetCloseOnExec(int fd) {
