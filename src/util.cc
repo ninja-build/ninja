@@ -317,7 +317,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   ::CloseHandle(f);
   return 0;
 #else
-  FILE* f = fopen(path.c_str(), "r");
+  FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
