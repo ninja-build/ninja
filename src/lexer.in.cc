@@ -154,19 +154,10 @@ Lexer::Token Lexer::ReadToken() {
   ofs_ = p;
   if (token != NEWLINE && token != TEOF)
     EatWhitespace();
-  /*
-  static const char* tokname[] = {
-    "ERROR", "BUILD",   "COLON",  "DEFAULT",  "EQUALS",
-    "IDENT", "INCLUDE", "INDENT", "NEWLINE",  "PIPE",
-    "PIPE2", "POOL",    "RULE",   "SUBNINJA", "TEOF",
-  };
-  printf("%s\n", tokname[token]);
-  */
   return token;
 }
 
 bool Lexer::PeekToken(Token token) {
-  //printf("peek: ");
   Token t = ReadToken();
   if (t == token)
     return true;
@@ -202,7 +193,6 @@ bool Lexer::ReadIdent(string* out) {
     */
   }
   ofs_ = p;
-  //printf("IDENT: '%s'\n", out->c_str());
   EatWhitespace();
   return true;
 }
@@ -275,7 +265,6 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     */
   }
   last_token_ = start;
-  //printf("EVAL_STRING: '%s'\n", StringPiece(ofs_, p - ofs_).AsString().c_str());
   ofs_ = p;
   if (path)
     EatWhitespace();
