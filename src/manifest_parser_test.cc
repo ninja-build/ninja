@@ -875,14 +875,13 @@ TEST_F(ParserTest, CRLF) {
   ManifestParser parser(&state, NULL);
   string err;
 
-  //EXPECT_TRUE(parser.ParseTest("# comment with crlf\r\n", &err));
-  //EXPECT_TRUE(parser.ParseTest("foo = foo\nbar = bar\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest("# comment with crlf\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest("foo = foo\nbar = bar\r\n", &err));
   EXPECT_TRUE(parser.ParseTest(
-      "pool link_pool\n"
-      "  depth = 15\n\n"
-      "rule xyz\n"
-      "  command = something$expand \n"
-      "  description = YAY!\n",
+      "pool link_pool\r\n"
+      "  depth = 15\r\n\r\n"
+      "rule xyz\r\n"
+      "  command = something$expand \r\n"
+      "  description = YAY!\r\n",
       &err));
-  fprintf(stderr, "%s\n", err.c_str());
 }
