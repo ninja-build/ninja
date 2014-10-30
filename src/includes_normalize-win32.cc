@@ -72,8 +72,8 @@ string IncludesNormalize::AbsPath(StringPiece s) {
 }
 
 string IncludesNormalize::Relativize(StringPiece path, const string& start) {
-  vector<string> start_list = Split(AbsPath(start), '\\');
-  vector<string> path_list = Split(AbsPath(path), '\\');
+  vector<string> start_list = Split(AbsPath(start), '/');
+  vector<string> path_list = Split(AbsPath(path), '/');
   int i;
   for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size()));
        ++i) {
@@ -88,28 +88,30 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
     rel_list.push_back(path_list[j]);
   if (rel_list.size() == 0)
     return ".";
-  return Join(rel_list, '\\');
+  return Join(rel_list, '/');
 }
 
 string IncludesNormalize::Normalize(const string& input,
                                     const char* relative_to) {
   char copy[_MAX_PATH];
+  char relative_copy[_MAX_PATH];
   size_t len = input.size();
   strncpy(copy, input.c_str(), input.size() + 1);
-  for (size_t j = 0; j < len; ++j)
-    if (copy[j] == '/')
-      copy[j] = '\\';
   string err;
-  if (!CanonicalizePath(copy, &len, &err)) {
-    Warning("couldn't canonicalize '%s: %s\n", input.c_str(), err.c_str());
-  }
+  if (!CanonicalizePath(copy, &len, &err))
+    Warning("couldn't canonicalize '%s': %s\n", input.c_str(), err.c_str());
+  StringPiece partially_fixed(copy, len);
+
   string curdir;
   if (!relative_to) {
     curdir = AbsPath(".");
     relative_to = curdir.c_str();
   }
-  StringPiece partially_fixed(copy, len);
-  if (!SameDrive(partially_fixed, relative_to))
+  strcpy(relative_copy, relative_to);
+  if (!CanonicalizePath(relative_copy, &len, &err))
+    Warning("couldn't canonicalize '%s': %s\n", relative_copy, err.c_str());
+
+  if (!SameDrive(partially_fixed, relative_copy))
     return partially_fixed.AsString();
-  return Relativize(partially_fixed, relative_to);
+  return Relativize(partially_fixed, relative_copy);
 }

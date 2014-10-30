@@ -106,6 +106,12 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     return false;
   }
 
+#ifdef _WIN32
+  for (char* c = path; *c; ++c)
+    if (*c == '\\')
+      *c = '/';
+#endif
+
   const int kMaxPathComponents = 30;
   char* components[kMaxPathComponents];
   int component_count = 0;
@@ -115,39 +121,29 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
+  if (*src == '/') {
 #ifdef _WIN32
-  if (*src == '/' || *src == '\\') {
     // network path starts with //
-    if (*len > 1 && (*(src + 1) == '/' || *(src + 1) == '\\')) {
+    if (*len > 1 && *(src + 1) == '/') {
       src += 2;
       dst += 2;
     } else {
       ++src;
       ++dst;
     }
-  }
 #else
-  if (*src == '/') {
     ++src;
     ++dst;
-  }
 #endif
+  }
 
   while (src < end) {
     if (*src == '.') {
-      if (src + 1 == end || src[1] == '/'
-#ifdef _WIN32
-          || src[1] == '\\'
-#endif
-          ) {
+      if (src + 1 == end || src[1] == '/') {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/'
-#ifdef _WIN32
-            || src[2] == '\\'
-#endif
-            )) {
+      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
@@ -162,11 +158,7 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
       }
     }
 
-    if (*src == '/'
-#ifdef _WIN32
-        || *src == '\\'
-#endif
-        ) {
+    if (*src == '/') {
       src++;
       continue;
     }
@@ -176,13 +168,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     components[component_count] = dst;
     ++component_count;
 
-    while (*src != '/'
-#ifdef _WIN32
-        && *src != '\\'
-#endif
-        && src != end)
+    while (*src != '/' && src != end)
       *dst++ = *src++;
-    *dst++ = *src++;  // Copy slash or final \0 character as well.
+    *dst++ = *src++;  // Copy '/' or final \0 character as well.
   }
 
   if (dst == start) {
@@ -299,6 +287,7 @@ void GetWin32EscapedString(const string& input, string* result) {
 
 int ReadFile(const string& path, string* contents, string* err) {
 #ifdef _WIN32
+  // This is about 4% faster than using the generic fopen code below.
   err->clear();
   HANDLE f = ::CreateFile(path.c_str(),
                           GENERIC_READ,
