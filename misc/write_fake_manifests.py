@@ -182,7 +182,7 @@ def FileWriter(path):
 
 
 def random_targets():
-    num_targets = 800
+    num_targets = 1500
     gen = GenRandom()
 
     # N-1 static libraries, and 1 executable depending on all of them.
