@@ -287,7 +287,8 @@ void GetWin32EscapedString(const string& input, string* result) {
 
 int ReadFile(const string& path, string* contents, string* err) {
 #ifdef _WIN32
-  // This is about 4% faster than using the generic fopen code below.
+  // This makes a ninja run on a set of 1500 manifest files about 4% faster
+  // than using the generic fopen code below.
   err->clear();
   HANDLE f = ::CreateFile(path.c_str(),
                           GENERIC_READ,
