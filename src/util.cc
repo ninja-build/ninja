@@ -107,9 +107,8 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   }
 
 #ifdef _WIN32
-  for (char* c = path; *c; ++c)
-    if (*c == '\\')
-      *c = '/';
+  for (char* c = path; (c = strchr(c, '\\')) != NULL;)
+    *c = '/';
 #endif
 
   const int kMaxPathComponents = 30;
