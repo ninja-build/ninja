@@ -75,7 +75,7 @@ n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
 n.variable('configure_args', ' '.join(sys.argv[1:]))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
+env_keys = set(['CXX', 'AR', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + pipes.quote(configure_env[k])
@@ -188,9 +188,14 @@ def shell_escape(str):
 
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
+    ldflags.append(configure_env['CFLAGS'])
 n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
 if 'LDFLAGS' in configure_env:
     ldflags.append(configure_env['LDFLAGS'])
+if 'CXXFLAGS' in configure_env:
+    cflags.append(configure_env['CXXFLAGS'])
+    ldflags.append(configure_env['CXXFLAGS'])
+n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
 n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
 n.newline()
 
