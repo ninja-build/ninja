@@ -258,7 +258,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
       result.push_back(sep);
     const string& path = (*i)->path();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
