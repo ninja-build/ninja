@@ -107,8 +107,11 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   }
 
 #ifdef _WIN32
-  for (char* c = path; (c = strchr(c, '\\')) != NULL;)
-    *c = '/';
+  for (char* c = path; (c = strchr(c, '/')) != NULL;)
+    *c = '\\';
+#define STANDARD_SLASH '\\'
+#else
+#define STANDARD_SLASH '/'
 #endif
 
   const int kMaxPathComponents = 30;
@@ -120,10 +123,10 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
-  if (*src == '/') {
+  if (*src == STANDARD_SLASH) {
 #ifdef _WIN32
     // network path starts with //
-    if (*len > 1 && *(src + 1) == '/') {
+    if (*len > 1 && *(src + 1) == STANDARD_SLASH) {
       src += 2;
       dst += 2;
     } else {
@@ -138,11 +141,12 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
 
   while (src < end) {
     if (*src == '.') {
-      if (src + 1 == end || src[1] == '/') {
+      if (src + 1 == end || src[1] == STANDARD_SLASH) {
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
+      } else if (src[1] == '.' &&
+                 (src + 2 == end || src[2] == STANDARD_SLASH)) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
@@ -157,7 +161,7 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
       }
     }
 
-    if (*src == '/') {
+    if (*src == STANDARD_SLASH) {
       src++;
       continue;
     }
@@ -167,9 +171,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
     components[component_count] = dst;
     ++component_count;
 
-    while (*src != '/' && src != end)
+    while (*src != STANDARD_SLASH && src != end)
       *dst++ = *src++;
-    *dst++ = *src++;  // Copy '/' or final \0 character as well.
+    *dst++ = *src++;  // Copy slash or final \0 character as well.
   }
 
   if (dst == start) {

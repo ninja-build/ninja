@@ -33,11 +33,19 @@ TEST(CanonicalizePath, PathSamples) {
 
   path = "./foo/./bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("foo\\bar.h", path);
+#else
   EXPECT_EQ("foo/bar.h", path);
+#endif
 
   path = "./x/foo/../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("x\\bar.h", path);
+#else
   EXPECT_EQ("x/bar.h", path);
+#endif
 
   path = "./x/foo/../../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -45,7 +53,11 @@ TEST(CanonicalizePath, PathSamples) {
 
   path = "foo//bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("foo\\bar", path);
+#else
   EXPECT_EQ("foo/bar", path);
+#endif
 
   path = "foo//.//..///bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -53,7 +65,11 @@ TEST(CanonicalizePath, PathSamples) {
 
   path = "./x/../foo/../../bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("..\\bar.h", path);
+#else
   EXPECT_EQ("../bar.h", path);
+#endif
 
   path = "foo/./.";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -65,16 +81,24 @@ TEST(CanonicalizePath, PathSamples) {
 
   path = "foo/.hidden_bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("foo\\.hidden_bar", path);
+#else
   EXPECT_EQ("foo/.hidden_bar", path);
+#endif
 
   path = "/foo";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("\\foo", path);
+#else
   EXPECT_EQ("/foo", path);
+#endif
 
   path = "//foo";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
 #ifdef _WIN32
-  EXPECT_EQ("//foo", path);
+  EXPECT_EQ("\\\\foo", path);
 #else
   EXPECT_EQ("/foo", path);
 #endif
@@ -102,11 +126,11 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = ".\\foo\\.\\bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("foo/bar.h", path);
+  EXPECT_EQ("foo\\bar.h", path);
 
   path = ".\\x\\foo\\..\\bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("x/bar.h", path);
+  EXPECT_EQ("x\\bar.h", path);
 
   path = ".\\x\\foo\\..\\..\\bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -114,7 +138,7 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = "foo\\\\bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("foo/bar", path);
+  EXPECT_EQ("foo\\bar", path);
 
   path = "foo\\\\.\\\\..\\\\\\bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -122,7 +146,7 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = ".\\x\\..\\foo\\..\\..\\bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("../bar.h", path);
+  EXPECT_EQ("..\\bar.h", path);
 
   path = "foo\\.\\.";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -134,15 +158,15 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = "foo\\.hidden_bar";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("foo/.hidden_bar", path);
+  EXPECT_EQ("foo\\.hidden_bar", path);
 
   path = "\\foo";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("/foo", path);
+  EXPECT_EQ("\\foo", path);
 
   path = "\\\\foo";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("//foo", path);
+  EXPECT_EQ("\\\\foo", path);
 
   path = "\\";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
@@ -170,18 +194,30 @@ TEST(CanonicalizePath, UpDir) {
   string path, err;
   path = "../../foo/bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("..\\..\\foo\\bar.h", path);
+#else
   EXPECT_EQ("../../foo/bar.h", path);
+#endif
 
   path = "test/../../foo/bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("..\\foo\\bar.h", path);
+#else
   EXPECT_EQ("../foo/bar.h", path);
+#endif
 }
 
 TEST(CanonicalizePath, AbsolutePath) {
   string path = "/usr/include/stdio.h";
   string err;
   EXPECT_TRUE(CanonicalizePath(&path, &err));
+#ifdef _WIN32
+  EXPECT_EQ("\\usr\\include\\stdio.h", path);
+#else
   EXPECT_EQ("/usr/include/stdio.h", path);
+#endif
 }
 
 TEST(CanonicalizePath, NotNullTerminated) {
@@ -193,13 +229,21 @@ TEST(CanonicalizePath, NotNullTerminated) {
   len = strlen("foo/.");  // Canonicalize only the part before the space.
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
   EXPECT_EQ(strlen("foo"), len);
+#ifdef _WIN32
+  EXPECT_EQ("foo\\. bar\\.", string(path));
+#else
   EXPECT_EQ("foo/. bar/.", string(path));
+#endif
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
   EXPECT_EQ(strlen("file"), len);
+#ifdef _WIN32
+  EXPECT_EQ("file .\\file bar\\.", string(path));
+#else
   EXPECT_EQ("file ./file bar/.", string(path));
+#endif
 }
 
 TEST(PathEscaping, TortureTest) {

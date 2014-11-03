@@ -258,7 +258,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
       result.push_back(sep);
     const string& path = (*i)->path();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
@@ -382,6 +382,9 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // Check that this depfile matches the edge's output.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
+  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
+                        &depfile.out_.len_, err))
+    return false;
   if (opath != depfile.out_) {
     *err = "expected depfile '" + path + "' to mention '" +
         first_output->path() + "', got '" + depfile.out_.AsString() + "'";

@@ -263,8 +263,13 @@ TEST_F(ParserTest, CanonicalizeFile) {
 "build in/1: cat\n"
 "build in/2: cat\n"));
 
+#ifdef _WIN32
+  EXPECT_TRUE(state.LookupNode("in\\1"));
+  EXPECT_TRUE(state.LookupNode("in\\2"));
+#else
   EXPECT_TRUE(state.LookupNode("in/1"));
   EXPECT_TRUE(state.LookupNode("in/2"));
+#endif
   EXPECT_FALSE(state.LookupNode("in//1"));
   EXPECT_FALSE(state.LookupNode("in//2"));
 }
@@ -276,8 +281,13 @@ TEST_F(ParserTest, PathVariables) {
 "dir = out\n"
 "build $dir/exe: cat src\n"));
 
+#ifdef _WIN32
+  EXPECT_FALSE(state.LookupNode("$dir\\exe"));
+  EXPECT_TRUE(state.LookupNode("out\\exe"));
+#else
   EXPECT_FALSE(state.LookupNode("$dir/exe"));
   EXPECT_TRUE(state.LookupNode("out/exe"));
+#endif
 }
 
 TEST_F(ParserTest, CanonicalizePaths) {
@@ -286,10 +296,17 @@ TEST_F(ParserTest, CanonicalizePaths) {
 "  command = cat $in > $out\n"
 "build ./out.o: cat ./bar/baz/../foo.cc\n"));
 
+#ifdef _WIN32
+  EXPECT_FALSE(state.LookupNode(".\\out.o"));
+  EXPECT_TRUE(state.LookupNode("out.o"));
+  EXPECT_FALSE(state.LookupNode(".\\bar\\baz\\..\\foo.cc"));
+  EXPECT_TRUE(state.LookupNode("bar\\foo.cc"));
+#else
   EXPECT_FALSE(state.LookupNode("./out.o"));
   EXPECT_TRUE(state.LookupNode("out.o"));
   EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
   EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
+#endif
 }
 
 TEST_F(ParserTest, ReservedWords) {
@@ -754,9 +771,15 @@ TEST_F(ParserTest, SubNinja) {
   ASSERT_EQ(1u, files_read_.size());
 
   EXPECT_EQ("test.ninja", files_read_[0]);
+#ifdef _WIN32
+  EXPECT_TRUE(state.LookupNode("some_dir\\outer"));
+  // Verify our builddir setting is inherited.
+  EXPECT_TRUE(state.LookupNode("some_dir\\inner"));
+#else
   EXPECT_TRUE(state.LookupNode("some_dir/outer"));
   // Verify our builddir setting is inherited.
   EXPECT_TRUE(state.LookupNode("some_dir/inner"));
+#endif
 
   ASSERT_EQ(3u, state.edges_.size());
   EXPECT_EQ("varref outer", state.edges_[0]->EvaluateCommand());
