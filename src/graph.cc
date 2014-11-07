@@ -131,7 +131,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
-                                           Node* most_recent_input) {   
+                                           Node* most_recent_input) {
   string command = edge->EvaluateCommand(true);
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {
@@ -378,6 +378,9 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     *err = path + ": " + depfile_err;
     return false;
   }
+  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
+                        &depfile.out_.len_, err))
+    return false;
 
   // Check that this depfile matches the edge's output.
   Node* first_output = edge->outputs_[0];
