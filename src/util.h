@@ -45,6 +45,12 @@ bool CanonicalizePath(string* path, string* err);
 
 bool CanonicalizePath(char* path, size_t* len, string* err);
 
+/// |slash_bits| has bits set starting from lowest for a backslash that was
+/// normalized to a forward slash. (only used on Windows)
+bool CanonicalizePath(string* path, string* err, unsigned int* slash_bits);
+bool CanonicalizePath(char* path, size_t* len, string* err,
+                      unsigned int* slash_bits);
+
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
 /// Appends the string directly to |result| without modification if we can
