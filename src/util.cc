@@ -194,7 +194,7 @@ bool CanonicalizePath(char* path, size_t* len, string* err,
 
     if (*src == '/') {
       src++;
-      bits_offset++;
+      bits = ShiftOverBit(bits_offset, bits);
       continue;
     }
 

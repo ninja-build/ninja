@@ -319,7 +319,7 @@ TEST_F(ParserTest, CanonicalizePathsBackslashes) {
 "  command = cat $in > $out\n"
 "build ./out.o: cat ./bar/baz/../foo.cc\n"
 "build .\\out2.o: cat .\\bar/baz\\..\\foo.cc\n"
-"build .\\out3.o: cat .\\bar/baz\\..\\foo3.cc\n"
+"build .\\out3.o: cat .\\bar\\baz\\..\\foo3.cc\n"
 ));
 
   EXPECT_FALSE(state.LookupNode("./out.o"));
@@ -336,7 +336,7 @@ TEST_F(ParserTest, CanonicalizePathsBackslashes) {
   EXPECT_EQ(0, node->slash_bits());
   node = state.LookupNode("bar/foo3.cc");
   EXPECT_TRUE(node);
-  EXPECT_EQ(1, node->slash_bits());  // First seen determines slashes.
+  EXPECT_EQ(1, node->slash_bits());
 }
 #endif
 

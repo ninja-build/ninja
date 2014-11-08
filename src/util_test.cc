@@ -218,6 +218,21 @@ TEST(CanonicalizePath, SlashTracking) {
   EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
   EXPECT_EQ("a/g/foo.h", path);
   EXPECT_EQ(1, slash_bits);
+
+  path = "a\\\\\\foo.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_EQ("a/foo.h", path);
+  EXPECT_EQ(1, slash_bits);
+
+  path = "a/\\\\foo.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_EQ("a/foo.h", path);
+  EXPECT_EQ(0, slash_bits);
+
+  path = "a\\//foo.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_EQ("a/foo.h", path);
+  EXPECT_EQ(1, slash_bits);
 }
 
 #endif
