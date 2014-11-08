@@ -269,6 +269,26 @@ TEST_F(ParserTest, CanonicalizeFile) {
   EXPECT_FALSE(state.LookupNode("in//2"));
 }
 
+#ifdef _WIN32
+TEST_F(ParserTest, CanonicalizeFileBackslashes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out: cat in\\1 in\\\\2\n"
+"build in\\1: cat\n"
+"build in\\2: cat\n"));
+
+  Node* node = state.LookupNode("in/1");;
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());
+  node = state.LookupNode("in/2");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());
+  EXPECT_FALSE(state.LookupNode("in//1"));
+  EXPECT_FALSE(state.LookupNode("in//2"));
+}
+#endif
+
 TEST_F(ParserTest, PathVariables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
@@ -291,6 +311,34 @@ TEST_F(ParserTest, CanonicalizePaths) {
   EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
   EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
 }
+
+#ifdef _WIN32
+TEST_F(ParserTest, CanonicalizePathsBackslashes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build ./out.o: cat ./bar/baz/../foo.cc\n"
+"build .\\out2.o: cat .\\bar/baz\\..\\foo.cc\n"
+"build .\\out3.o: cat .\\bar/baz\\..\\foo3.cc\n"
+));
+
+  EXPECT_FALSE(state.LookupNode("./out.o"));
+  EXPECT_FALSE(state.LookupNode(".\\out2.o"));
+  EXPECT_FALSE(state.LookupNode(".\\out3.o"));
+  EXPECT_TRUE(state.LookupNode("out.o"));
+  EXPECT_TRUE(state.LookupNode("out2.o"));
+  EXPECT_TRUE(state.LookupNode("out3.o"));
+  EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
+  EXPECT_FALSE(state.LookupNode(".\\bar/baz\\..\\foo.cc"));
+  EXPECT_FALSE(state.LookupNode(".\\bar/baz\\..\\foo3.cc"));
+  Node* node = state.LookupNode("bar/foo.cc");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(0, node->slash_bits());
+  node = state.LookupNode("bar/foo3.cc");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());  // First seen determines slashes.
+}
+#endif
 
 TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(

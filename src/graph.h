@@ -33,8 +33,9 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  explicit Node(const string& path)
+  Node(const string& path, unsigned int slash_bits)
       : path_(path),
+        slash_bits_(slash_bits),
         mtime_(-1),
         dirty_(false),
         in_edge_(NULL),
@@ -71,6 +72,7 @@ struct Node {
   }
 
   const string& path() const { return path_; }
+  unsigned int slash_bits() const { return slash_bits_; }
   TimeStamp mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
@@ -90,6 +92,10 @@ struct Node {
 
 private:
   string path_;
+
+  /// XXX See CanonicalizePath.
+  unsigned int slash_bits_;
+
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist

@@ -112,10 +112,14 @@ Edge* State::AddEdge(const Rule* rule) {
 }
 
 Node* State::GetNode(StringPiece path) {
+  return GetNode(path, 0);
+}
+
+Node* State::GetNode(StringPiece path, unsigned int slash_bits) {
   Node* node = LookupNode(path);
   if (node)
     return node;
-  node = new Node(path.AsString());
+  node = new Node(path.AsString(), slash_bits);
   paths_[node->path()] = node;
   return node;
 }
@@ -145,14 +149,14 @@ Node* State::SpellcheckNode(const string& path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, StringPiece path) {
-  Node* node = GetNode(path);
+void State::AddIn(Edge* edge, StringPiece path, unsigned int slash_bits) {
+  Node* node = GetNode(path, slash_bits);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
 
-void State::AddOut(Edge* edge, StringPiece path) {
-  Node* node = GetNode(path);
+void State::AddOut(Edge* edge, StringPiece path, unsigned int slash_bits) {
+  Node* node = GetNode(path, slash_bits);
   edge->outputs_.push_back(node);
   if (node->in_edge()) {
     Warning("multiple rules generate %s. "
