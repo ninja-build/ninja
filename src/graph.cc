@@ -256,7 +256,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
       result.push_back(sep);
-    const string& path = (*i)->path();
+    const string& path = (*i)->PathDecanonicalized();
     if (escape_in_out_ == kShellEscape) {
 #if _WIN32
       GetWin32EscapedString(path, &result);
@@ -326,6 +326,18 @@ bool Edge::is_phony() const {
 
 bool Edge::use_console() const {
   return pool() == &State::kConsolePool;
+}
+
+string Node::PathDecanonicalized() const {
+  string result = path_;
+  unsigned int mask = 1;
+  for (char* c = &result[0]; (c = strpbrk(c, "/\\")) != NULL;) {
+    if (slash_bits_ & mask)
+      *c = '\\';
+    c++;
+    mask <<= 1;
+  }
+  return result;
 }
 
 void Node::Dump(const char* prefix) const {

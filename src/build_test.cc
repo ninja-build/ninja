@@ -755,12 +755,11 @@ TEST_F(BuildTest, MakeDirs) {
 #ifdef _WIN32
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build subdir\\dir2\\file: cat in1\n"));
-  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 #else
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build subdir/dir2/file: cat in1\n"));
-  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 #endif
+  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));

@@ -72,6 +72,8 @@ struct Node {
   }
 
   const string& path() const { return path_; }
+  /// Get |path()| but use slash_bits to convert back to original slash styles.
+  string PathDecanonicalized() const;
   unsigned int slash_bits() const { return slash_bits_; }
   TimeStamp mtime() const { return mtime_; }
 
@@ -93,7 +95,8 @@ struct Node {
 private:
   string path_;
 
-  /// XXX See CanonicalizePath.
+  /// Set bits starting from lowest for backslashes that were normalized to
+  /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
   unsigned int slash_bits_;
 
   /// Possible values of mtime_:
