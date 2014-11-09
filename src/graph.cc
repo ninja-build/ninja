@@ -393,7 +393,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   unsigned int unused;
   if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, err, &unused))
+                        &depfile.out_.len_, &unused, err))
     return false;
 
   // Check that this depfile matches the edge's output.
@@ -413,8 +413,8 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
     unsigned int slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err,
-                          &slash_bits))
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
+                          err))
       return false;
 
     Node* node = state_->GetNode(*i, slash_bits);

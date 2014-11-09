@@ -85,13 +85,13 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, string* err, unsigned int* slash_bits) {
+bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
     str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, err, slash_bits))
+  if (!CanonicalizePath(str, &len, slash_bits, err))
     return false;
   path->resize(len);
   return true;
@@ -108,8 +108,8 @@ unsigned int ShiftOverBit(int offset, unsigned int bits) {
   return (above >> 1) | below;
 }
 
-bool CanonicalizePath(char* path, size_t* len, string* err,
-                      unsigned int* slash_bits) {
+bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
+                      string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");

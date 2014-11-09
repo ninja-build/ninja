@@ -20,7 +20,7 @@ namespace {
 
 bool CanonicalizePath(string* path, string* err) {
   unsigned int unused;
-  return ::CanonicalizePath(path, err, &unused);
+  return ::CanonicalizePath(path, &unused, err);
 }
 
 }  // namespace
@@ -164,82 +164,82 @@ TEST(CanonicalizePath, SlashTracking) {
   unsigned int slash_bits;
 
   path = "foo.h"; err = "";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("foo.h", path);
   EXPECT_EQ(0, slash_bits);
 
   path = "a\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a/bcd/efh\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/bcd/efh/foo.h", path);
   EXPECT_EQ(4, slash_bits);
 
   path = "a\\bcd/efh\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/bcd/efh/foo.h", path);
   EXPECT_EQ(5, slash_bits);
 
   path = "a\\bcd\\efh\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/bcd/efh/foo.h", path);
   EXPECT_EQ(7, slash_bits);
 
   path = "a/bcd/efh/foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/bcd/efh/foo.h", path);
   EXPECT_EQ(0, slash_bits);
 
   path = "a\\./efh\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/efh/foo.h", path);
   EXPECT_EQ(3, slash_bits);
 
   path = "a\\../efh\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("efh/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a\\b\\c\\d\\e\\f\\g\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/b/c/d/e/f/g/foo.h", path);
   EXPECT_EQ(127, slash_bits);
 
   path = "a\\b\\c\\..\\..\\..\\g\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("g/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a\\b/c\\../../..\\g\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("g/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a\\b/c\\./../..\\g\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/g/foo.h", path);
   EXPECT_EQ(3, slash_bits);
 
   path = "a\\b/c\\./../..\\g/foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/g/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a\\\\\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 
   path = "a/\\\\foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/foo.h", path);
   EXPECT_EQ(0, slash_bits);
 
   path = "a\\//foo.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &err, &slash_bits));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("a/foo.h", path);
   EXPECT_EQ(1, slash_bits);
 }
@@ -288,13 +288,13 @@ TEST(CanonicalizePath, NotNullTerminated) {
 
   path = "foo/. bar/.";
   len = strlen("foo/.");  // Canonicalize only the part before the space.
-  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err, &unused));
+  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("foo"), len);
   EXPECT_EQ("foo/. bar/.", string(path));
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
-  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err, &unused));
+  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("file"), len);
   EXPECT_EQ("file ./file bar/.", string(path));
 }

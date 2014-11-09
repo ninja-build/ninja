@@ -35,7 +35,7 @@ int main() {
     int64_t start = GetTimeMillis();
     unsigned int slash_bits;
     for (int i = 0; i < kNumRepetitions; ++i) {
-      CanonicalizePath(buf, &len, &err, &slash_bits);
+      CanonicalizePath(buf, &len, &slash_bits, &err);
     }
     int delta = (int)(GetTimeMillis() - start);
     times.push_back(delta);

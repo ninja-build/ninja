@@ -229,7 +229,7 @@ struct RealFileReader : public ManifestParser::FileReader {
 bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
   string path = input_file;
   unsigned int slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, err, &slash_bits))
+  if (!CanonicalizePath(&path, &slash_bits, err))
     return false;
   Node* node = state_.LookupNode(path);
   if (!node)
@@ -252,7 +252,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
   unsigned int slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, err, &slash_bits))
+  if (!CanonicalizePath(&path, &slash_bits, err))
     return NULL;
 
   // Special syntax: "foo.cc^" means "the first output of foo.cc".
