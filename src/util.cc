@@ -97,6 +97,7 @@ bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
   return true;
 }
 
+#ifdef _WIN32
 unsigned int ShiftOverBit(int offset, unsigned int bits) {
   // e.g. for |offset| == 2:
   // | ... 9 8 7 6 5 4 3 2 1 0 |
@@ -107,6 +108,7 @@ unsigned int ShiftOverBit(int offset, unsigned int bits) {
   unsigned int below = bits & ((1 << offset) - 1);
   return (above >> 1) | below;
 }
+#endif
 
 bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
                       string* err) {
@@ -162,7 +164,9 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
       if (src + 1 == end || src[1] == '/') {
         // '.' component; eliminate.
         src += 2;
+#ifdef _WIN32
         bits = ShiftOverBit(bits_offset, bits);
+#endif
         continue;
       } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
         // '..' component.  Back up if possible.
@@ -170,9 +174,11 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
           dst = components[component_count - 1];
           src += 3;
           --component_count;
+#ifdef _WIN32
           bits = ShiftOverBit(bits_offset, bits);
           bits_offset--;
           bits = ShiftOverBit(bits_offset, bits);
+#endif
         } else {
           *dst++ = *src++;
           *dst++ = *src++;
@@ -184,7 +190,9 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
 
     if (*src == '/') {
       src++;
+#ifdef _WIN32
       bits = ShiftOverBit(bits_offset, bits);
+#endif
       continue;
     }
 
@@ -195,7 +203,9 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
 
     while (*src != '/' && src != end)
       *dst++ = *src++;
+#ifdef _WIN32
     bits_offset++;
+#endif
     *dst++ = *src++;  // Copy '/' or final \0 character as well.
   }
 
