@@ -391,6 +391,11 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
+  unsigned int unused;
+  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
+                        &depfile.out_.len_, err, &unused))
+    return false;
+
   // Check that this depfile matches the edge's output.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
@@ -407,10 +412,12 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+    unsigned int slash_bits;
+    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err,
+                          &slash_bits))
       return false;
 
-    Node* node = state_->GetNode(*i);
+    Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
     CreatePhonyInEdge(node);

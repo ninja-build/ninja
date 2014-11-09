@@ -209,7 +209,8 @@ bool ManifestParser::ParseDefault(string* err) {
   do {
     string path = eval.Evaluate(env_);
     string path_err;
-    if (!CanonicalizePath(&path, &path_err))
+    unsigned int slash_bits;  // Unused because this only does lookup.
+    if (!CanonicalizePath(&path, &path_err, &slash_bits))
       return lexer_.Error(path_err, err);
     if (!state_->AddDefault(path, &path_err))
       return lexer_.Error(path_err, err);

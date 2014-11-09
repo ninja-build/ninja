@@ -937,6 +937,35 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
 }
 
+#ifdef _WIN32
+TEST_F(BuildTest, DepFileCanonicalize) {
+  string err;
+  int orig_edges = state_.edges_.size();
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
+"build gen/stuff/foo.o: cc foo.c\n"));
+  Edge* edge = state_.edges_.back();
+
+  fs_.Create("foo.c", "");
+  GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+  // Note, different slashes from manifest.
+  fs_.Create("gen/stuff/foo.o.d", "gen\\stuff\\foo.o: blah.h bar.h\n");
+  EXPECT_TRUE(builder_.AddTarget("gen/stuff/foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, fs_.files_read_.size());
+  EXPECT_EQ("gen/stuff/foo.o.d", fs_.files_read_[0]);
+
+  // Expect three new edges: one generating foo.o, and two more from
+  // loading the depfile.
+  ASSERT_EQ(orig_edges + 3, (int)state_.edges_.size());
+  // Expect our edge to now have three inputs: foo.c and two headers.
+  ASSERT_EQ(3u, edge->inputs_.size());
+
+  // Expect the command line we generate to only use the original input.
+  ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
+}
+#endif
+
 TEST_F(BuildTest, Phony) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

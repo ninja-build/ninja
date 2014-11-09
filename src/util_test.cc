@@ -16,6 +16,15 @@
 
 #include "test.h"
 
+namespace {
+
+bool CanonicalizePath(string* path, string* err) {
+  unsigned int unused;
+  return ::CanonicalizePath(path, err, &unused);
+}
+
+}  // namespace
+
 TEST(CanonicalizePath, PathSamples) {
   string path;
   string err;
@@ -275,16 +284,17 @@ TEST(CanonicalizePath, NotNullTerminated) {
   string path;
   string err;
   size_t len;
+  unsigned int unused;
 
   path = "foo/. bar/.";
   len = strlen("foo/.");  // Canonicalize only the part before the space.
-  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
+  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err, &unused));
   EXPECT_EQ(strlen("foo"), len);
   EXPECT_EQ("foo/. bar/.", string(path));
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
-  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err));
+  EXPECT_TRUE(CanonicalizePath(&path[0], &len, &err, &unused));
   EXPECT_EQ(strlen("file"), len);
   EXPECT_EQ("file ./file bar/.", string(path));
 }
