@@ -112,6 +112,9 @@ Edge* State::AddEdge(const Rule* rule) {
 }
 
 Node* State::GetNode(StringPiece path) {
+#if defined(_WIN32) && !defined(NDEBUG)
+  assert(strpbrk(path.AsString().c_str(), "/\\") == NULL);
+#endif
   return GetNode(path, 0);
 }
 
