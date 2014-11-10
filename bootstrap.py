@@ -92,16 +92,7 @@ if platform.is_windows():
     sources.append('src/getopt.c')
 
 if platform.is_msvc():
-    cl = 'cl'
-    vcdir = os.environ.get('VCINSTALLDIR')
-    if vcdir:
-        if options.x64:
-            cl = os.path.join(vcdir, 'bin', 'x86_amd64', 'cl.exe')
-            if not os.path.exists(cl):
-                cl = os.path.join(vcdir, 'bin', 'amd64', 'cl.exe')
-        else:
-            cl = os.path.join(vcdir, 'bin', 'cl.exe')
-    args = [cl, '/nologo', '/EHsc', '/DNOMINMAX']
+    args = ['cl', '/nologo', '/EHsc', '/DNOMINMAX']
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
