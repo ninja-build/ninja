@@ -217,6 +217,8 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   *len = dst - start - 1;
 #ifdef _WIN32
   *slash_bits = bits;
+#else
+  *slash_bits = 0;
 #endif
   return true;
 }
