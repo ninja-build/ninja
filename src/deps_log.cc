@@ -233,14 +233,20 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       if (!UpdateDeps(out_id, deps))
         ++unique_dep_record_count;
     } else {
-      int path_size = size - 4;
+      size_t path_size = size - 4;
       assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
       // There can be up to 3 bytes of padding.
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
+      unsigned int slash_bits;
+      string err;
+      if (!CanonicalizePath(&buf[0], &path_size, &slash_bits, &err)) {
+        read_failed = true;
+        break;
+      }
       StringPiece path(buf, path_size);
-      Node* node = state->GetNode(path);
+      Node* node = state->GetNode(path, slash_bits);
 
       // Check that the expected index matches the actual index. This can only
       // happen if two ninja processes write to the same deps log concurrently.

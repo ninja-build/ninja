@@ -825,7 +825,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     result->output = parser.Parse(result->output, deps_prefix);
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
-      deps_nodes->push_back(state_->GetNode(*i));
+      // ~0 is assuming that with MSVC-parsed headers, it's ok to always make
+      // all backslashes (as some of the slashes will certainly be backslashes
+      // anyway). This could be fixed if necessary with some additional
+      // complexity in IncludesNormalize::Relativize.
+      deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
   } else
 #endif

@@ -331,7 +331,7 @@ bool Edge::use_console() const {
 string Node::PathDecanonicalized() const {
   string result = path_;
   unsigned int mask = 1;
-  for (char* c = &result[0]; (c = strpbrk(c, "/\\")) != NULL;) {
+  for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
     if (slash_bits_ & mask)
       *c = '\\';
     c++;

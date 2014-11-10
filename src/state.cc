@@ -111,13 +111,6 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(StringPiece path) {
-#if defined(_WIN32) && !defined(NDEBUG)
-  assert(strpbrk(path.AsString().c_str(), "/\\") == NULL);
-#endif
-  return GetNode(path, 0);
-}
-
 Node* State::GetNode(StringPiece path, unsigned int slash_bits) {
   Node* node = LookupNode(path);
   if (node)

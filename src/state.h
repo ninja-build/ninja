@@ -95,7 +95,6 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(StringPiece path);
   Node* GetNode(StringPiece path, unsigned int slash_bits);
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const string& path);

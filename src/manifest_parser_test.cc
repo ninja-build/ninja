@@ -96,7 +96,7 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name());
-  Edge* edge = state.GetNode("result")->in_edge();
+  Edge* edge = state.GetNode("result", 0)->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
   EXPECT_FALSE(edge->GetBindingBool("generator"));
 }
