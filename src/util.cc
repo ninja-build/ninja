@@ -129,6 +129,8 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   unsigned int bits = 0;
   int bits_offset = 0;
   for (char* c = path; (c = strpbrk(c, "/\\")) != NULL;) {
+    if (static_cast<size_t>(c - path) >= *len)
+      break;
     bits |= (*c == '\\') << bits_offset;
     *c++ = '/';
     bits_offset++;

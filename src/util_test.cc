@@ -244,6 +244,16 @@ TEST(CanonicalizePath, SlashTracking) {
   EXPECT_EQ(1, slash_bits);
 }
 
+TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
+  // Make sure searching \/ doesn't go past supplied len.
+  char buf[] = "foo/bar\\baz.h\\";  // Last \ past end.
+  unsigned int slash_bits;
+  string err;
+  size_t size = 13;
+  EXPECT_TRUE(::CanonicalizePath(buf, &size, &slash_bits, &err));
+  EXPECT_EQ(0, strncmp("foo/bar/baz.h", buf, size));
+  EXPECT_EQ(2, slash_bits);  // Not including the trailing one.
+}
 #endif
 
 TEST(CanonicalizePath, EmptyResult) {
