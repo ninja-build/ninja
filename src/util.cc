@@ -98,7 +98,7 @@ bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
 }
 
 #ifdef _WIN32
-unsigned int ShiftOverBit(int offset, unsigned int bits) {
+static unsigned int ShiftOverBit(int offset, unsigned int bits) {
   // e.g. for |offset| == 2:
   // | ... 9 8 7 6 5 4 3 2 1 0 |
   // \_________________/   \_/
@@ -124,24 +124,28 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   char* components[kMaxPathComponents];
   int component_count = 0;
 
-#ifdef _WIN32
-  // kMaxPathComponents protects this from overflowing.
-  unsigned int bits = 0;
-  int bits_offset = 0;
-  for (char* c = path; (c = strpbrk(c, "/\\")) != NULL;) {
-    if (static_cast<size_t>(c - path) >= *len)
-      break;
-    bits |= (*c == '\\') << bits_offset;
-    *c++ = '/';
-    bits_offset++;
-  }
-  bits_offset = 0;
-#endif
-
   char* start = path;
   char* dst = start;
   const char* src = start;
   const char* end = start + *len;
+
+#ifdef _WIN32
+  // kMaxPathComponents protects this from overflowing.
+  unsigned int bits = 0;
+  unsigned int bits_mask = 1;
+  // Convert \ to /, setting a bit in |bits| for each \ encountered.
+  for (char* c = path; c < end; ++c) {
+    switch (*c) {
+      case '\\':
+        bits |= bits_mask;
+        *c = '/';
+        // Intentional fallthrough.
+      case '/':
+        bits_mask <<= 1;
+    }
+  }
+  int bits_offset = 0;
+#endif
 
   if (*src == '/') {
 #ifdef _WIN32
