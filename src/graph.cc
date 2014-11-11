@@ -330,6 +330,7 @@ bool Edge::use_console() const {
 
 string Node::PathDecanonicalized() const {
   string result = path_;
+#ifdef _WIN32
   unsigned int mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
     if (slash_bits_ & mask)
@@ -337,6 +338,7 @@ string Node::PathDecanonicalized() const {
     c++;
     mask <<= 1;
   }
+#endif
   return result;
 }
 
