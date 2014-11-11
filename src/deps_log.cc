@@ -30,7 +30,7 @@
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 3;
+const int kCurrentVersion = 4;
 
 // Record size is currently limited to less than the full 32 bit, due to
 // internal buffers having to have this size.
@@ -233,19 +233,15 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       if (!UpdateDeps(out_id, deps))
         ++unique_dep_record_count;
     } else {
-      size_t path_size = size - 4;
+      int path_size = size - 8;
       assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
       // There can be up to 3 bytes of padding.
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
-      unsigned int slash_bits;
-      string err;
-      if (!CanonicalizePath(&buf[0], &path_size, &slash_bits, &err)) {
-        read_failed = true;
-        break;
-      }
       StringPiece path(buf, path_size);
+      unsigned int slash_bits =
+          *reinterpret_cast<unsigned int*>(buf + size - 8);
       Node* node = state->GetNode(path, slash_bits);
 
       // Check that the expected index matches the actual index. This can only
@@ -386,7 +382,7 @@ bool DepsLog::RecordId(Node* node) {
   int path_size = node->path().size();
   int padding = (4 - path_size % 4) % 4;  // Pad path to 4 byte boundary.
 
-  unsigned size = path_size + padding + 4;
+  unsigned size = path_size + padding + 4 + 4;
   if (size > kMaxRecordSize) {
     errno = ERANGE;
     return false;
@@ -398,6 +394,9 @@ bool DepsLog::RecordId(Node* node) {
     return false;
   }
   if (padding && fwrite("\0\0", padding, 1, file_) < 1)
+    return false;
+  unsigned int slash_bits = node->slash_bits();
+  if (fwrite(&slash_bits, 4, 1, file_) < 1)
     return false;
   int id = nodes_.size();
   unsigned checksum = ~(unsigned)id;
