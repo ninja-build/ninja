@@ -100,7 +100,8 @@ string IncludesNormalize::Normalize(const string& input,
   size_t len = input.size();
   strncpy(copy, input.c_str(), input.size() + 1);
   string err;
-  if (!CanonicalizePath(copy, &len, &err))
+  unsigned int slash_bits;
+  if (!CanonicalizePath(copy, &len, &slash_bits, &err))
     Warning("couldn't canonicalize '%s': %s\n", input.c_str(), err.c_str());
   StringPiece partially_fixed(copy, len);
 

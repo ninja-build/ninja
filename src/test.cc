@@ -89,7 +89,8 @@ void StateTestWithBuiltinRules::AddCatRule(State* state) {
 }
 
 Node* StateTestWithBuiltinRules::GetNode(const string& path) {
-  return state_.GetNode(path);
+  EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
+  return state_.GetNode(path, 0);
 }
 
 void AssertParse(State* state, const char* input) {
