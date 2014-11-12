@@ -272,15 +272,19 @@ TEST(CanonicalizePath, TooManyComponents) {
   EXPECT_EQ(slash_bits, 0xffff);
 
   // 33 is not.
+  err = "";
   path =
       "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/x.h";
   EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(err, "too many path components");
 
   // Backslashes version.
+  err = "";
   path =
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\."
       "\\a\\.\\a\\.\\a\\.\\a\\.\\a\\x.h";
   EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(err, "too many path components");
 }
 #endif
 
