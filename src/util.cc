@@ -145,8 +145,10 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
         bits_offset++;
     }
   }
-  if (bits_offset > 32)
+  if (bits_offset > 32) {
+    *err = "too many path components";
     return false;
+  }
   bits_offset = 0;
 #endif
 
