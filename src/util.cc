@@ -130,9 +130,9 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   const char* end = start + *len;
 
 #ifdef _WIN32
-  // kMaxPathComponents protects this from overflowing.
   unsigned int bits = 0;
   unsigned int bits_mask = 1;
+  int bits_offset = 0;
   // Convert \ to /, setting a bit in |bits| for each \ encountered.
   for (char* c = path; c < end; ++c) {
     switch (*c) {
@@ -142,9 +142,12 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
         // Intentional fallthrough.
       case '/':
         bits_mask <<= 1;
+        bits_offset++;
     }
   }
-  int bits_offset = 0;
+  if (bits_offset > 32)
+    return false;
+  bits_offset = 0;
 #endif
 
   if (*src == '/') {

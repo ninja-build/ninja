@@ -254,6 +254,34 @@ TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
   EXPECT_EQ(0, strncmp("foo/bar/baz.h", buf, size));
   EXPECT_EQ(2, slash_bits);  // Not including the trailing one.
 }
+
+TEST(CanonicalizePath, TooManyComponents) {
+  string path;
+  string err;
+  unsigned int slash_bits;
+
+  // 32 is OK.
+  path = "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./x.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+
+  // Backslashes version.
+  path =
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\."
+      "\\a\\.\\a\\.\\a\\.\\a\\.\\x.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0xffff);
+
+  // 33 is not.
+  path =
+      "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/x.h";
+  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
+
+  // Backslashes version.
+  path =
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\."
+      "\\a\\.\\a\\.\\a\\.\\a\\.\\a\\x.h";
+  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
+}
 #endif
 
 TEST(CanonicalizePath, EmptyResult) {
