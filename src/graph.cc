@@ -131,7 +131,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
-                                           Node* most_recent_input) {   
+                                           Node* most_recent_input) {
   string command = edge->EvaluateCommand(true);
   for (vector<Node*>::iterator i = edge->outputs_.begin();
        i != edge->outputs_.end(); ++i) {

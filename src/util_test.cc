@@ -339,10 +339,10 @@ TEST(CanonicalizePath, NotNullTerminated) {
 
 TEST(PathEscaping, TortureTest) {
   string result;
-  
+
   GetWin32EscapedString("foo bar\\\"'$@d!st!c'\\path'\\", &result);
   EXPECT_EQ("\"foo bar\\\\\\\"'$@d!st!c'\\path'\\\\\"", result);
-  result.clear();  
+  result.clear();
 
   GetShellEscapedString("foo bar\"/'$@d!st!c'/path'", &result);
   EXPECT_EQ("'foo bar\"/'\\''$@d!st!c'\\''/path'\\'''", result);
