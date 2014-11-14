@@ -14,12 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This quick script converts a text file into an #include-able header.
-# It expects the name of the variable as its first argument, and reads
-# stdin and writes stdout.
+# This quick script converts a text file into an #include-able header,
+# by hex-string encoding it.
+# It expects the name of a variable holding the file as its first argument,
+# reads the file from stdin, and writes stdout.
 
 varname="$1"
 echo "const char $varname[] ="
-od -t x1 -A n -v | sed -e 's| ||g; s|..|\\x&|g; s|^|"|; s|$|"|'
+od -t x1 -A n -v |
+  awk '{printf "\""; for(i=1; i<=NF; i++){ printf "\\x"$i}; print "\"";  }'
 echo ";"
+
 
