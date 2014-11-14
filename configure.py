@@ -159,7 +159,7 @@ libs = []
 if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
-elif platform.is_sunos5():
+elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass

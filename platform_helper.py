@@ -35,7 +35,7 @@ class Platform(object):
             self._platform = 'freebsd'
         elif self._platform.startswith('openbsd'):
             self._platform = 'openbsd'
-        elif self._platform.startswith('solaris'):
+        elif self._platform.startswith('solaris') or self._platform == 'sunos5':
             self._platform = 'solaris'
         elif self._platform.startswith('mingw'):
             self._platform = 'mingw'
@@ -77,9 +77,6 @@ class Platform(object):
 
     def is_openbsd(self):
         return self._platform == 'openbsd'
-
-    def is_sunos5(self):
-        return self._platform == 'sunos5'
 
     def is_bitrig(self):
         return self._platform == 'bitrig'
