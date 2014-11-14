@@ -319,8 +319,6 @@ all_targets += ninja
 
 n.comment('Tests all build into ninja_test executable.')
 
-variables = []
-test_ldflags = None
 test_libs = libs
 objs = []
 
@@ -347,8 +345,7 @@ if platform.is_windows():
 if not platform.is_windows():
     test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-                     variables=[('ldflags', test_ldflags),
-                                ('libs', test_libs)])
+                     variables=[('libs', test_libs)])
 n.newline()
 all_targets += ninja_test
 
