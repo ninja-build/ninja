@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_BOOTSTRAP
+#if defined(_MSC_VER)
 
 #include <windows.h>
 #include <DbgHelp.h>
@@ -85,4 +85,4 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   Warning("minidump created: %s", temp_file);
 }
 
-#endif  // NINJA_BOOTSTRAP
+#endif  // _MSC_VER
