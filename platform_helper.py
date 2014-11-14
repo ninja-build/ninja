@@ -19,7 +19,7 @@ import sys
 
 def platforms():
     return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-            'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+            'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'midnightbsd']
 
 class Platform(object):
     def __init__(self, platform):
@@ -45,6 +45,8 @@ class Platform(object):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
             self._platform = 'netbsd'
+        elif self._platform.startswith('midnightbsd'):
+            self._platform = 'midnightbsd'
 
     def platform(self):
         return self._platform
@@ -83,3 +85,6 @@ class Platform(object):
 
     def is_netbsd(self):
         return self._platform == 'netbsd'
+
+    def is_midnightbsd(self):
+        return self._platform == 'midnightbsd'
