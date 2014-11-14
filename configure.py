@@ -175,6 +175,10 @@ if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and \
         not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 
+have_browse = not platform.is_windows() and not platform.is_solaris()
+if have_browse:
+    cflags.append('-DNINJA_HAVE_BROWSE')
+
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by
     the shell."""
@@ -233,7 +237,7 @@ n.newline()
 
 objs = []
 
-if not platform.is_windows() and not platform.is_solaris():
+if have_browse:
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',

@@ -365,7 +365,7 @@ int NinjaMain::ToolQuery(int argc, char* argv[]) {
   return 0;
 }
 
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if defined(NINJA_HAVE_BROWSE)
 int NinjaMain::ToolBrowse(int argc, char* argv[]) {
   if (argc < 1) {
     Error("expected a target to browse");
@@ -698,7 +698,7 @@ int NinjaMain::ToolUrtle(int argc, char** argv) {
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const string& tool_name) {
   static const Tool kTools[] = {
-#if !defined(_WIN32) && !defined(NINJA_BOOTSTRAP)
+#if defined(NINJA_HAVE_BROWSE)
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolBrowse },
 #endif
