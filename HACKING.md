@@ -7,10 +7,6 @@ The primary build target of interest is `ninja`, but when hacking on
 Ninja your changes should be testable so it's more useful to build
 and run `ninja_test` when developing.
 
-(`./bootstrap.py` creates a bootstrap `ninja` and runs the above
-process; it's only necessary to run if you don't have a copy of
-`ninja` to build with.)
-
 ### Adjusting build flags
 
 Build in "debug" mode while developing (disables optimizations and builds
@@ -126,14 +122,15 @@ it's locked while in use.
 
 * Install Visual Studio (Express is fine), [Python for Windows][],
   and (if making changes) googletest (see above instructions)
-* In a Visual Studio command prompt: `python bootstrap.py`
+* In a Visual Studio command prompt: `python configure.py --bootstrap`
 
 [Python for Windows]: http://www.python.org/getit/windows/
 
 ### Via mingw on Windows (not well supported)
 
 * Install mingw, msys, and python
-* In the mingw shell, put Python in your path, and `python bootstrap.py`
+* In the mingw shell, put Python in your path, and
+  `python configure.py --bootstrap`
 * To reconfigure, run `python configure.py`
 * Remember to strip the resulting executable if size matters to you
 
