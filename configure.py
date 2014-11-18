@@ -27,10 +27,73 @@ import pipes
 import string
 import subprocess
 import sys
-import platform_helper
-sys.path.insert(0, 'misc')
 
+sys.path.insert(0, 'misc')
 import ninja_syntax
+
+
+class Platform(object):
+    """Represents a host/target platform and its specific build attributes."""
+    def __init__(self, platform):
+        self._platform = platform
+        if self._platform is not None:
+            return
+        self._platform = sys.platform
+        if self._platform.startswith('linux'):
+            self._platform = 'linux'
+        elif self._platform.startswith('freebsd'):
+            self._platform = 'freebsd'
+        elif self._platform.startswith('gnukfreebsd'):
+            self._platform = 'freebsd'
+        elif self._platform.startswith('openbsd'):
+            self._platform = 'openbsd'
+        elif self._platform.startswith('solaris') or self._platform == 'sunos5':
+            self._platform = 'solaris'
+        elif self._platform.startswith('mingw'):
+            self._platform = 'mingw'
+        elif self._platform.startswith('win'):
+            self._platform = 'msvc'
+        elif self._platform.startswith('bitrig'):
+            self._platform = 'bitrig'
+        elif self._platform.startswith('netbsd'):
+            self._platform = 'netbsd'
+
+    @staticmethod
+    def known_platforms():
+      return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+
+    def platform(self):
+        return self._platform
+
+    def is_linux(self):
+        return self._platform == 'linux'
+
+    def is_mingw(self):
+        return self._platform == 'mingw'
+
+    def is_msvc(self):
+        return self._platform == 'msvc'
+
+    def msvc_needs_fs(self):
+        import subprocess
+        popen = subprocess.Popen(['cl', '/nologo', '/?'],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        out, err = popen.communicate()
+        return '/FS ' in str(out)
+
+    def is_windows(self):
+        return self.is_mingw() or self.is_msvc()
+
+    def is_solaris(self):
+        return self._platform == 'solaris'
+
+    def uses_usr_local(self):
+        return self._platform in ('freebsd', 'openbsd', 'bitrig')
+
+    def supports_ppoll(self):
+        return self._platform in ('linux', 'openbsd', 'bitrig')
 
 
 class Bootstrap:
@@ -110,12 +173,12 @@ parser.add_option('--bootstrap', action='store_true',
                   help='bootstrap a ninja binary from nothing')
 parser.add_option('--platform',
                   help='target platform (' +
-                       '/'.join(platform_helper.platforms()) + ')',
-                  choices=platform_helper.platforms())
+                       '/'.join(Platform.known_platforms()) + ')',
+                  choices=Platform.known_platforms())
 parser.add_option('--host',
                   help='host platform (' +
-                       '/'.join(platform_helper.platforms()) + ')',
-                  choices=platform_helper.platforms())
+                       '/'.join(Platform.known_platforms()) + ')',
+                  choices=Platform.known_platforms())
 parser.add_option('--debug', action='store_true',
                   help='enable debugging extras',)
 parser.add_option('--profile', metavar='TYPE',
@@ -133,9 +196,9 @@ if args:
     print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
-platform = platform_helper.Platform(options.platform)
+platform = Platform(options.platform)
 if options.host:
-    host = platform_helper.Platform(options.host)
+    host = Platform(options.host)
 else:
     host = platform
 
@@ -250,6 +313,10 @@ else:
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
+    if platform.uses_usr_local():
+        cflags.append('-I/usr/local/include')
+        ldflags.append('-L/usr/local/lib')
+
 libs = []
 
 if platform.is_mingw():
@@ -267,8 +334,7 @@ else:
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
-if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and \
-        not options.force_pselect:
+if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 
 have_browse = not platform.is_windows() and not platform.is_solaris()
