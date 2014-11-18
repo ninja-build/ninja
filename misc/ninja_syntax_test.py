@@ -148,5 +148,31 @@ build out: cc in
 ''',
                          self.out.getvalue())
 
+class TestExpand(unittest.TestCase):
+    def test_basic(self):
+        vars = {'x': 'X'}
+        self.assertEqual('foo', ninja_syntax.expand('foo', vars))
+
+    def test_var(self):
+        vars = {'xyz': 'XYZ'}
+        self.assertEqual('fooXYZ', ninja_syntax.expand('foo$xyz', vars))
+
+    def test_vars(self):
+        vars = {'x': 'X', 'y': 'YYY'}
+        self.assertEqual('XYYY', ninja_syntax.expand('$x$y', vars))
+
+    def test_space(self):
+        vars = {}
+        self.assertEqual('x y z', ninja_syntax.expand('x$ y$ z', vars))
+
+    def test_locals(self):
+        vars = {'x': 'a'}
+        local_vars = {'x': 'b'}
+        self.assertEqual('a', ninja_syntax.expand('$x', vars))
+        self.assertEqual('b', ninja_syntax.expand('$x', vars, local_vars))
+
+    def test_double(self):
+        self.assertEqual('a b$c', ninja_syntax.expand('a$ b$$c', {}))
+
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,7 @@ just a helpful utility for build-file-generation systems that already
 use Python.
 """
 
+import re
 import textwrap
 
 def escape_path(word):
@@ -154,3 +155,17 @@ def escape(string):
     assert '\n' not in string, 'Ninja syntax does not allow newlines'
     # We only have one special metacharacter: '$'.
     return string.replace('$', '$$')
+
+
+def expand(string, vars, local_vars={}):
+    """Expand a string containing $vars as Ninja would.
+
+    Note: doesn't handle the full Ninja variable syntax, but it's enough
+    to make configure.py's use of it work.
+    """
+    def exp(m):
+        var = m.group(1)
+        if var == '$':
+            return '$'
+        return local_vars.get(var, vars.get(var, ''))
+    return re.sub(r'\$(\$|\w*)', exp, string)
