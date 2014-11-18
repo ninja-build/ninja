@@ -105,8 +105,7 @@ if platform.is_msvc():
 else:
     args = shlex.split(os.environ.get('CXX', 'g++'))
     cflags.extend(['-Wno-deprecated',
-                   '-DNINJA_PYTHON="' + sys.executable + '"',
-                   '-DNINJA_BOOTSTRAP'])
+                   '-DNINJA_PYTHON="' + sys.executable + '"'])
     if platform.is_windows():
         cflags.append('-D_WIN32_WINNT=0x0501')
     if options.x64:
