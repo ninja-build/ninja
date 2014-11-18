@@ -2,4 +2,4 @@ language: cpp
 compiler:
   - gcc
   - clang
-script: ./bootstrap.py && ./configure.py && ./ninja ninja_test && ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots && ./misc/ninja_syntax_test.py
+script: ./configure.py --bootstrap && ./ninja ninja_test && ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots && ./misc/ninja_syntax_test.py
