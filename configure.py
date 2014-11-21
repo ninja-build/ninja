@@ -94,6 +94,9 @@ class Platform(object):
     def supports_ppoll(self):
         return self._platform in ('linux', 'openbsd', 'bitrig')
 
+    def supports_ninja_browse(self):
+        return self._platform not in ('windows', 'solaris')
+
 
 class Bootstrap:
     """API shim for ninja_syntax.Writer that instead runs the commands.
@@ -335,9 +338,7 @@ else:
 
 if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
-
-have_browse = not platform.is_windows() and not platform.is_solaris()
-if have_browse:
+if platform.supports_ninja_browse():
     cflags.append('-DNINJA_HAVE_BROWSE')
 
 def shell_escape(str):
@@ -399,7 +400,7 @@ n.newline()
 
 objs = []
 
-if have_browse:
+if platform.supports_ninja_browse():
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
