@@ -42,8 +42,8 @@
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
   (setq comment-start "#")
-  ; Pass extra "t" to turn off syntax-based fontification -- we don't want
-  ; quoted strings highlighted.
+  ;; Pass extra "t" to turn off syntax-based fontification -- we don't want
+  ;; quoted strings highlighted.
   (setq font-lock-defaults '(ninja-keywords t)))
 
 ;; Run ninja-mode for files ending in .ninja.
