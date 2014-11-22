@@ -28,8 +28,8 @@
      . font-lock-keyword-face)
     ("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
     ;; Variable expansion.
-    ("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
-    ("\\(${[[:alnum:]._]+}\\)" . (1 font-lock-variable-name-face)
+    ("$[[:alnum:]_]+" . font-lock-variable-name-face)
+    ("${[[:alnum:]._]+}" . font-lock-variable-name-face)
     ;; Rule names
     ("rule +\\([[:alnum:]_.-]+\\)" . (1 font-lock-function-name-face))
     ;; Build Statement - highlight the rule used,
