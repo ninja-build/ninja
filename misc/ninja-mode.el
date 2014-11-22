@@ -40,7 +40,7 @@
 
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
-  (setq comment-start "#")
+  (set (make-local-variable 'comment-start) "#")
   ;; Pass extra "t" to turn off syntax-based fontification -- we don't want
   ;; quoted strings highlighted.
   (setq font-lock-defaults '(ninja-keywords t)))
