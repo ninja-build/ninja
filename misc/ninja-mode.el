@@ -56,7 +56,10 @@
                  (not (eq ?$ (char-before (line-end-position 0)))))
             (put-text-property match-pos (1+ match-pos) 'syntax-table '(11))
             (let ((line-end (line-end-position)))
-              (put-text-property line-end (1+ line-end) 'syntax-table '(12)))))))))
+              ;; Avoid putting properties past the end of the buffer.
+              ;; Otherwise we get an `args-out-of-range' error.
+              (unless (= line-end (1+ (buffer-size)))
+                (put-text-property line-end (1+ line-end) 'syntax-table '(12))))))))))
 
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
