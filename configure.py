@@ -490,7 +490,6 @@ if options.bootstrap:
 
 n.comment('Tests all build into ninja_test executable.')
 
-test_libs = libs
 objs = []
 
 for name in ['build_log_test',
@@ -514,7 +513,7 @@ if platform.is_windows():
         objs += cxx(name)
 
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-                     variables=[('libs', test_libs)])
+                     variables=[('libs', libs)])
 n.newline()
 all_targets += ninja_test
 
