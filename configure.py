@@ -95,7 +95,8 @@ class Platform(object):
         return self._platform in ('linux', 'openbsd', 'bitrig')
 
     def supports_ninja_browse(self):
-        return self._platform not in ('windows', 'solaris')
+        print ('PL:', self._platform)
+        return self._platform not in ('msvc', 'solaris')
 
 
 class Bootstrap:
