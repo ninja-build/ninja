@@ -22,8 +22,7 @@
 ;;; Code:
 
 (defvar ninja-keywords
-  `(("^#.*" . font-lock-comment-face)
-    (,(concat "^" (regexp-opt '("rule" "build" "subninja" "include"
+  `((,(concat "^" (regexp-opt '("rule" "build" "subninja" "include"
                                 "pool" "default")
                               'words))
      . font-lock-keyword-face)
@@ -38,12 +37,16 @@
     ("build +\\(?:[^:$\n]\\|$[:$]\\)+ *: *\\([[:alnum:]_.-]+\\)" .
      (1 font-lock-function-name-face))))
 
+(defvar ninja-mode-syntax-table
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?\" "." table)
+    table)
+  "Syntax table used in `ninja-mode'.")
+
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
   (set (make-local-variable 'comment-start) "#")
-  ;; Pass extra "t" to turn off syntax-based fontification -- we don't want
-  ;; quoted strings highlighted.
-  (setq font-lock-defaults '(ninja-keywords t)))
+  (setq font-lock-defaults '(ninja-keywords)))
 
 ;; Run ninja-mode for files ending in .ninja.
 ;;;###autoload
