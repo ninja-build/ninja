@@ -22,22 +22,22 @@
 ;;; Code:
 
 (defvar ninja-keywords
-      (list
-       '("^#.*" . font-lock-comment-face)
-       (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
-                                       "pool" "default")
-                                     'words))
-             font-lock-keyword-face)
-       '("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
-       ;; Variable expansion.
-       '("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
-       '("\\(${[[:alnum:]._]+}\\)" . (1 font-lock-variable-name-face))
-       ;; Rule names
-       '("rule +\\([[:alnum:]_.-]+\\)" . (1 font-lock-function-name-face))
-       ;; Build Statement - highlight the rule used,
-       ;; allow for escaped $,: in outputs.
-       '("build +\\(?:[^:$\n]\\|$[:$]\\)+ *: *\\([[:alnum:]_.-]+\\)" .
-         (1 font-lock-function-name-face))))
+  (list
+   '("^#.*" . font-lock-comment-face)
+   (cons (concat "^" (regexp-opt '("rule" "build" "subninja" "include"
+                                   "pool" "default")
+                                 'words))
+         font-lock-keyword-face)
+   '("\\([[:alnum:]_]+\\) =" . (1 font-lock-variable-name-face))
+   ;; Variable expansion.
+   '("\\($[[:alnum:]_]+\\)" . (1 font-lock-variable-name-face))
+   '("\\(${[[:alnum:]._]+}\\)" . (1 font-lock-variable-name-face))
+   ;; Rule names
+   '("rule +\\([[:alnum:]_.-]+\\)" . (1 font-lock-function-name-face))
+   ;; Build Statement - highlight the rule used,
+   ;; allow for escaped $,: in outputs.
+   '("build +\\(?:[^:$\n]\\|$[:$]\\)+ *: *\\([[:alnum:]_.-]+\\)" .
+     (1 font-lock-function-name-face))))
 
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
