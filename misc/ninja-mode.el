@@ -1,4 +1,4 @@
-;;; ninja-mode.el --- Major mode for editing .ninja files
+;;; ninja-mode.el --- Major mode for editing .ninja files -*- lexical-binding: t -*-
 
 ;; Package-Requires: ((emacs "24"))
 
