@@ -52,8 +52,15 @@
           (when (and
                  ;; Is it the first non-white character on the line?
                  (eq match-pos (save-excursion (back-to-indentation) (point)))
-                 ;; Are we *not* continuing the previous line?
-                 (not (eq ?$ (char-before (line-end-position 0)))))
+                 (save-excursion
+                   (goto-char (line-end-position 0))
+                   (or
+                    ;; If we're continuting the previous line, it's not a
+                    ;; comment.
+                    (not (eq ?$ (char-before)))
+                    ;; Except if the previous line is a comment as well, as the
+                    ;; continuation dollar is ignored then.
+                    (nth 4 (syntax-ppss)))))
             (put-text-property match-pos (1+ match-pos) 'syntax-table '(11))
             (let ((line-end (line-end-position)))
               ;; Avoid putting properties past the end of the buffer.
