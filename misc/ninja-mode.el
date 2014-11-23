@@ -1,5 +1,7 @@
 ;;; ninja-mode.el --- Major mode for editing .ninja files
 
+;; Package-Requires: ((emacs "24"))
+
 ;; Copyright 2011 Google Inc. All Rights Reserved.
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
