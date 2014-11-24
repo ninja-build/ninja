@@ -85,19 +85,33 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, string* err) {
+bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
     str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, err))
+  if (!CanonicalizePath(str, &len, slash_bits, err))
     return false;
   path->resize(len);
   return true;
 }
 
-bool CanonicalizePath(char* path, size_t* len, string* err) {
+#ifdef _WIN32
+static unsigned int ShiftOverBit(int offset, unsigned int bits) {
+  // e.g. for |offset| == 2:
+  // | ... 9 8 7 6 5 4 3 2 1 0 |
+  // \_________________/   \_/
+  //        above         below
+  // So we drop the bit at offset and move above "down" into its place.
+  unsigned int above = bits & ~((1 << (offset + 1)) - 1);
+  unsigned int below = bits & ((1 << offset) - 1);
+  return (above >> 1) | below;
+}
+#endif
+
+bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
+                      string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");
@@ -115,12 +129,37 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   const char* src = start;
   const char* end = start + *len;
 
+#ifdef _WIN32
+  unsigned int bits = 0;
+  unsigned int bits_mask = 1;
+  int bits_offset = 0;
+  // Convert \ to /, setting a bit in |bits| for each \ encountered.
+  for (char* c = path; c < end; ++c) {
+    switch (*c) {
+      case '\\':
+        bits |= bits_mask;
+        *c = '/';
+        // Intentional fallthrough.
+      case '/':
+        bits_mask <<= 1;
+        bits_offset++;
+    }
+  }
+  if (bits_offset > 32) {
+    *err = "too many path components";
+    return false;
+  }
+  bits_offset = 0;
+#endif
+
   if (*src == '/') {
 #ifdef _WIN32
+    bits_offset++;
     // network path starts with //
     if (*len > 1 && *(src + 1) == '/') {
       src += 2;
       dst += 2;
+      bits_offset++;
     } else {
       ++src;
       ++dst;
@@ -136,6 +175,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
       if (src + 1 == end || src[1] == '/') {
         // '.' component; eliminate.
         src += 2;
+#ifdef _WIN32
+        bits = ShiftOverBit(bits_offset, bits);
+#endif
         continue;
       } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
         // '..' component.  Back up if possible.
@@ -143,6 +185,11 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
           dst = components[component_count - 1];
           src += 3;
           --component_count;
+#ifdef _WIN32
+          bits = ShiftOverBit(bits_offset, bits);
+          bits_offset--;
+          bits = ShiftOverBit(bits_offset, bits);
+#endif
         } else {
           *dst++ = *src++;
           *dst++ = *src++;
@@ -154,6 +201,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
 
     if (*src == '/') {
       src++;
+#ifdef _WIN32
+      bits = ShiftOverBit(bits_offset, bits);
+#endif
       continue;
     }
 
@@ -164,6 +214,9 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
 
     while (*src != '/' && src != end)
       *dst++ = *src++;
+#ifdef _WIN32
+    bits_offset++;
+#endif
     *dst++ = *src++;  // Copy '/' or final \0 character as well.
   }
 
@@ -173,6 +226,11 @@ bool CanonicalizePath(char* path, size_t* len, string* err) {
   }
 
   *len = dst - start - 1;
+#ifdef _WIN32
+  *slash_bits = bits;
+#else
+  *slash_bits = 0;
+#endif
   return true;
 }
 
@@ -280,7 +338,38 @@ void GetWin32EscapedString(const string& input, string* result) {
 }
 
 int ReadFile(const string& path, string* contents, string* err) {
-  FILE* f = fopen(path.c_str(), "r");
+#ifdef _WIN32
+  // This makes a ninja run on a set of 1500 manifest files about 4% faster
+  // than using the generic fopen code below.
+  err->clear();
+  HANDLE f = ::CreateFile(path.c_str(),
+                          GENERIC_READ,
+                          FILE_SHARE_READ,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_SEQUENTIAL_SCAN,
+                          NULL);
+  if (f == INVALID_HANDLE_VALUE) {
+    err->assign(GetLastErrorString());
+    return -ENOENT;
+  }
+
+  for (;;) {
+    DWORD len;
+    char buf[64 << 10];
+    if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
+      err->assign(GetLastErrorString());
+      contents->clear();
+      return -1;
+    }
+    if (len == 0)
+      break;
+    contents->append(buf, len);
+  }
+  ::CloseHandle(f);
+  return 0;
+#else
+  FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -299,6 +388,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   }
   fclose(f);
   return 0;
+#endif
 }
 
 void SetCloseOnExec(int fd) {
@@ -415,10 +505,70 @@ int GetProcessorCount() {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
+static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
+{
+  static uint64_t previous_idle_ticks = 0;
+  static uint64_t previous_total_ticks = 0;
+  static double previous_load = -0.0;
+
+  uint64_t idle_ticks_since_last_time = idle_ticks - previous_idle_ticks;
+  uint64_t total_ticks_since_last_time = total_ticks - previous_total_ticks;
+
+  bool first_call = (previous_total_ticks == 0);
+  bool ticks_not_updated_since_last_call = (total_ticks_since_last_time == 0);
+
+  double load;
+  if (first_call || ticks_not_updated_since_last_call) {
+    load = previous_load;
+  } else {
+    // Calculate load.
+    double idle_to_total_ratio =
+        ((double)idle_ticks_since_last_time) / total_ticks_since_last_time;
+    double load_since_last_call = 1.0 - idle_to_total_ratio;
+
+    // Filter/smooth result when possible.
+    if(previous_load > 0) {
+      load = 0.9 * previous_load + 0.1 * load_since_last_call;
+    } else {
+      load = load_since_last_call;
+    }
+  }
+
+  previous_load = load;
+  previous_total_ticks = total_ticks;
+  previous_idle_ticks = idle_ticks;
+
+  return load;
+}
+
+static uint64_t FileTimeToTickCount(const FILETIME & ft)
+{
+  uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
+  uint64_t low  = ft.dwLowDateTime;
+  return (high | low);
+}
+
 double GetLoadAverage() {
-  // TODO(nicolas.despres@gmail.com): Find a way to implement it on Windows.
-  // Remember to also update Usage() when this is fixed.
-  return -0.0f;
+  FILETIME idle_time, kernel_time, user_time;
+  BOOL get_system_time_succeeded =
+      GetSystemTimes(&idle_time, &kernel_time, &user_time);
+
+  double posix_compatible_load;
+  if (get_system_time_succeeded) {
+    uint64_t idle_ticks = FileTimeToTickCount(idle_time);
+
+    // kernel_time from GetSystemTimes already includes idle_time.
+    uint64_t total_ticks =
+        FileTimeToTickCount(kernel_time) + FileTimeToTickCount(user_time);
+
+    double processor_load = CalculateProcessorLoad(idle_ticks, total_ticks);
+    posix_compatible_load = processor_load * GetProcessorCount();
+
+  } else {
+    posix_compatible_load = -0.0;
+  }
+
+  return posix_compatible_load;
 }
 #else
 double GetLoadAverage() {

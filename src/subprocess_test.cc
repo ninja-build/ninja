@@ -18,6 +18,7 @@
 
 #ifndef _WIN32
 // SetWithLots need setrlimit.
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -92,7 +93,7 @@ TEST_F(SubprocessTest, InterruptParent) {
       return;
   }
 
-  ADD_FAILURE() << "We should have been interrupted";
+  ASSERT_FALSE("We should have been interrupted");
 }
 
 TEST_F(SubprocessTest, Console) {
@@ -171,14 +172,15 @@ TEST_F(SubprocessTest, SetWithMulti) {
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.
-  const size_t kNumProcs = 1025;
+  const unsigned kNumProcs = 1025;
 
   // Make sure [ulimit -n] isn't going to stop us from working.
   rlimit rlim;
   ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlim));
-  ASSERT_GT(rlim.rlim_cur, kNumProcs)
-      << "Raise [ulimit -n] well above " << kNumProcs
-      << " to make this test go";
+  if (!EXPECT_GT(rlim.rlim_cur, kNumProcs)) {
+    printf("Raise [ulimit -n] well above %u to make this test go\n", kNumProcs);
+    return;
+  }
 
   vector<Subprocess*> procs;
   for (size_t i = 0; i < kNumProcs; ++i) {

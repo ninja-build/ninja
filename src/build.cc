@@ -488,7 +488,9 @@ void RealCommandRunner::Abort() {
 }
 
 bool RealCommandRunner::CanRunMore() {
-  return ((int)subprocs_.running_.size()) < config_.parallelism
+  size_t subproc_number =
+      subprocs_.running_.size() + subprocs_.finished_.size();
+  return (int)subproc_number < config_.parallelism
     && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
         || GetLoadAverage() < config_.max_load_average);
 }
@@ -823,7 +825,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     result->output = parser.Parse(result->output, deps_prefix);
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
-      deps_nodes->push_back(state_->GetNode(*i));
+      // ~0 is assuming that with MSVC-parsed headers, it's ok to always make
+      // all backslashes (as some of the slashes will certainly be backslashes
+      // anyway). This could be fixed if necessary with some additional
+      // complexity in IncludesNormalize::Relativize.
+      deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
   } else
 #endif
@@ -848,9 +854,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->reserve(deps.ins_.size());
     for (vector<StringPiece>::iterator i = deps.ins_.begin();
          i != deps.ins_.end(); ++i) {
-      if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, err))
+      unsigned int slash_bits;
+      if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
+                            err))
         return false;
-      deps_nodes->push_back(state_->GetNode(*i));
+      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
     }
 
     if (disk_interface_->RemoveFile(depfile) < 0) {

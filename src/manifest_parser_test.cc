@@ -17,17 +17,16 @@
 #include <map>
 #include <vector>
 
-#include <gtest/gtest.h>
-
 #include "graph.h"
 #include "state.h"
+#include "test.h"
 
 struct ParserTest : public testing::Test,
                     public ManifestParser::FileReader {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, this);
     string err;
-    ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
+    EXPECT_TRUE(parser.ParseTest(input, &err));
     ASSERT_EQ("", err);
   }
 
@@ -97,7 +96,7 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_EQ(2u, state.rules_.size());
   const Rule* rule = state.rules_.begin()->second;
   EXPECT_EQ("cat", rule->name());
-  Edge* edge = state.GetNode("result")->in_edge();
+  Edge* edge = state.GetNode("result", 0)->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
   EXPECT_FALSE(edge->GetBindingBool("generator"));
 }
@@ -270,6 +269,26 @@ TEST_F(ParserTest, CanonicalizeFile) {
   EXPECT_FALSE(state.LookupNode("in//2"));
 }
 
+#ifdef _WIN32
+TEST_F(ParserTest, CanonicalizeFileBackslashes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out: cat in\\1 in\\\\2\n"
+"build in\\1: cat\n"
+"build in\\2: cat\n"));
+
+  Node* node = state.LookupNode("in/1");;
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());
+  node = state.LookupNode("in/2");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());
+  EXPECT_FALSE(state.LookupNode("in//1"));
+  EXPECT_FALSE(state.LookupNode("in//2"));
+}
+#endif
+
 TEST_F(ParserTest, PathVariables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
@@ -292,6 +311,34 @@ TEST_F(ParserTest, CanonicalizePaths) {
   EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
   EXPECT_TRUE(state.LookupNode("bar/foo.cc"));
 }
+
+#ifdef _WIN32
+TEST_F(ParserTest, CanonicalizePathsBackslashes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build ./out.o: cat ./bar/baz/../foo.cc\n"
+"build .\\out2.o: cat .\\bar/baz\\..\\foo.cc\n"
+"build .\\out3.o: cat .\\bar\\baz\\..\\foo3.cc\n"
+));
+
+  EXPECT_FALSE(state.LookupNode("./out.o"));
+  EXPECT_FALSE(state.LookupNode(".\\out2.o"));
+  EXPECT_FALSE(state.LookupNode(".\\out3.o"));
+  EXPECT_TRUE(state.LookupNode("out.o"));
+  EXPECT_TRUE(state.LookupNode("out2.o"));
+  EXPECT_TRUE(state.LookupNode("out3.o"));
+  EXPECT_FALSE(state.LookupNode("./bar/baz/../foo.cc"));
+  EXPECT_FALSE(state.LookupNode(".\\bar/baz\\..\\foo.cc"));
+  EXPECT_FALSE(state.LookupNode(".\\bar/baz\\..\\foo3.cc"));
+  Node* node = state.LookupNode("bar/foo.cc");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(0, node->slash_bits());
+  node = state.LookupNode("bar/foo3.cc");
+  EXPECT_TRUE(node);
+  EXPECT_EQ(1, node->slash_bits());
+}
+#endif
 
 TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
@@ -547,6 +594,15 @@ TEST_F(ParserTest, Errors) {
               "build $.: cc bar.cc\n"
               "      ^ near here"
               , err);
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  && bar",
+                                  &err));
+    EXPECT_EQ("input:3: expected variable name\n", err);
   }
 
   {
@@ -862,22 +918,18 @@ TEST_F(ParserTest, UTF8) {
 "  description = compilaci\xC3\xB3\n"));
 }
 
-// We might want to eventually allow CRLF to be nice to Windows developers,
-// but for now just verify we error out with a nice message.
 TEST_F(ParserTest, CRLF) {
   State state;
   ManifestParser parser(&state, NULL);
   string err;
 
-  EXPECT_FALSE(parser.ParseTest("# comment with crlf\r\n",
-                                &err));
-  EXPECT_EQ("input:1: lexing error\n",
-            err);
-
-  EXPECT_FALSE(parser.ParseTest("foo = foo\nbar = bar\r\n",
-                                &err));
-  EXPECT_EQ("input:2: carriage returns are not allowed, use newlines\n"
-            "bar = bar\r\n"
-            "         ^ near here",
-            err);
+  EXPECT_TRUE(parser.ParseTest("# comment with crlf\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest("foo = foo\nbar = bar\r\n", &err));
+  EXPECT_TRUE(parser.ParseTest(
+      "pool link_pool\r\n"
+      "  depth = 15\r\n\r\n"
+      "rule xyz\r\n"
+      "  command = something$expand \r\n"
+      "  description = YAY!\r\n",
+      &err));
 }

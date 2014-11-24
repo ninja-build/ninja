@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-
 #include "graph.h"
 #include "state.h"
+#include "test.h"
 
 namespace {
 
@@ -33,15 +32,15 @@ TEST(State, Basic) {
   state.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);
-  state.AddIn(edge, "in1");
-  state.AddIn(edge, "in2");
-  state.AddOut(edge, "out");
+  state.AddIn(edge, "in1", 0);
+  state.AddIn(edge, "in2", 0);
+  state.AddOut(edge, "out", 0);
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 
-  EXPECT_FALSE(state.GetNode("in1")->dirty());
-  EXPECT_FALSE(state.GetNode("in2")->dirty());
-  EXPECT_FALSE(state.GetNode("out")->dirty());
+  EXPECT_FALSE(state.GetNode("in1", 0)->dirty());
+  EXPECT_FALSE(state.GetNode("in2", 0)->dirty());
+  EXPECT_FALSE(state.GetNode("out", 0)->dirty());
 }
 
 }  // namespace

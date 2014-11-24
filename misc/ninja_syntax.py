@@ -7,6 +7,7 @@ just a helpful utility for build-file-generation systems that already
 use Python.
 """
 
+import re
 import textwrap
 
 def escape_path(word):
@@ -59,16 +60,16 @@ class Writer(object):
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
-        outputs = self._as_list(outputs)
+        outputs = as_list(outputs)
         out_outputs = [escape_path(x) for x in outputs]
-        all_inputs = [escape_path(x) for x in self._as_list(inputs)]
+        all_inputs = [escape_path(x) for x in as_list(inputs)]
 
         if implicit:
-            implicit = [escape_path(x) for x in self._as_list(implicit)]
+            implicit = [escape_path(x) for x in as_list(implicit)]
             all_inputs.append('|')
             all_inputs.extend(implicit)
         if order_only:
-            order_only = [escape_path(x) for x in self._as_list(order_only)]
+            order_only = [escape_path(x) for x in as_list(order_only)]
             all_inputs.append('||')
             all_inputs.extend(order_only)
 
@@ -93,7 +94,7 @@ class Writer(object):
         self._line('subninja %s' % path)
 
     def default(self, paths):
-        self._line('default %s' % ' '.join(self._as_list(paths)))
+        self._line('default %s' % ' '.join(as_list(paths)))
 
     def _count_dollars_before_index(self, s, i):
         """Returns the number of '$' characters right in front of s[i]."""
@@ -140,12 +141,16 @@ class Writer(object):
 
         self.output.write(leading_space + text + '\n')
 
-    def _as_list(self, input):
-        if input is None:
-            return []
-        if isinstance(input, list):
-            return input
-        return [input]
+    def close(self):
+        self.output.close()
+
+
+def as_list(input):
+    if input is None:
+        return []
+    if isinstance(input, list):
+        return input
+    return [input]
 
 
 def escape(string):
@@ -154,3 +159,17 @@ def escape(string):
     assert '\n' not in string, 'Ninja syntax does not allow newlines'
     # We only have one special metacharacter: '$'.
     return string.replace('$', '$$')
+
+
+def expand(string, vars, local_vars={}):
+    """Expand a string containing $vars as Ninja would.
+
+    Note: doesn't handle the full Ninja variable syntax, but it's enough
+    to make configure.py's use of it work.
+    """
+    def exp(m):
+        var = m.group(1)
+        if var == '$':
+            return '$'
+        return local_vars.get(var, vars.get(var, ''))
+    return re.sub(r'\$(\$|\w*)', exp, string)

@@ -14,6 +14,8 @@
 
 #include "build.h"
 
+#include <assert.h>
+
 #include "build_log.h"
 #include "deps_log.h"
 #include "graph.h"
@@ -506,7 +508,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   builder.command_runner_.reset(&command_runner_);
   if (!builder.AlreadyUpToDate()) {
     bool build_res = builder.Build(&err);
-    EXPECT_TRUE(build_res) << "builder.Build(&err)";
+    EXPECT_TRUE(build_res);
   }
   builder.command_runner_.release();
 }
@@ -753,23 +755,18 @@ TEST_F(BuildTest, MakeDirs) {
 #ifdef _WIN32
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build subdir\\dir2\\file: cat in1\n"));
-  EXPECT_TRUE(builder_.AddTarget("subdir\\dir2\\file", &err));
 #else
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build subdir/dir2/file: cat in1\n"));
-  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 #endif
+  EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
-#ifdef _WIN32
-  EXPECT_EQ("subdir\\dir2", fs_.directories_made_[1]);
-#else
   EXPECT_EQ("subdir/dir2", fs_.directories_made_[1]);
-#endif
 }
 
 TEST_F(BuildTest, DepFileMissing) {
@@ -939,6 +936,38 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
 }
+
+#ifdef _WIN32
+TEST_F(BuildTest, DepFileCanonicalize) {
+  string err;
+  int orig_edges = state_.edges_.size();
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
+"build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
+  Edge* edge = state_.edges_.back();
+
+  fs_.Create("x/y/z/foo.c", "");
+  GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+  // Note, different slashes from manifest.
+  fs_.Create("gen/stuff\\things/foo.o.d",
+             "gen\\stuff\\things\\foo.o: blah.h bar.h\n");
+  EXPECT_TRUE(builder_.AddTarget("gen/stuff/things/foo.o", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, fs_.files_read_.size());
+  // The depfile path does not get Canonicalize as it seems unnecessary.
+  EXPECT_EQ("gen/stuff\\things/foo.o.d", fs_.files_read_[0]);
+
+  // Expect three new edges: one generating foo.o, and two more from
+  // loading the depfile.
+  ASSERT_EQ(orig_edges + 3, (int)state_.edges_.size());
+  // Expect our edge to now have three inputs: foo.c and two headers.
+  ASSERT_EQ(3u, edge->inputs_.size());
+
+  // Expect the command line we generate to only use the original input, and
+  // using the slashes from the manifest.
+  ASSERT_EQ("cc x\\y/z\\foo.c", edge->EvaluateCommand());
+}
+#endif
 
 TEST_F(BuildTest, Phony) {
   string err;
@@ -1854,7 +1883,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -1871,6 +1900,72 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     builder.command_runner_.release();
   }
 }
+
+#ifdef _WIN32
+TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
+  string err;
+  const char* manifest =
+      "rule cc\n  command = cc $in\n  depfile = $out.d\n  deps = gcc\n"
+      "build a/b\\c\\d/e/fo$ o.o: cc x\\y/z\\foo.c\n";
+
+  fs_.Create("x/y/z/foo.c", "");
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
+    ASSERT_EQ("", err);
+    // Note, different slashes from manifest.
+    fs_.Create("a/b\\c\\d/e/fo o.o.d",
+               "a\\b\\c\\d\\e\\fo\\ o.o: blah.h bar.h\n");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+
+    Edge* edge = state.edges_.back();
+
+    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
+    ASSERT_EQ("", err);
+
+    // Expect three new edges: one generating fo o.o, and two more from
+    // loading the depfile.
+    ASSERT_EQ(3u, state.edges_.size());
+    // Expect our edge to now have three inputs: foo.c and two headers.
+    ASSERT_EQ(3u, edge->inputs_.size());
+
+    // Expect the command line we generate to only use the original input.
+    // Note, slashes from manifest, not .d.
+    ASSERT_EQ("cc x\\y/z\\foo.c", edge->EvaluateCommand());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+}
+#endif
 
 /// Check that a restat rule doesn't clear an edge if the depfile is missing.
 /// Follows from: https://github.com/martine/ninja/issues/603

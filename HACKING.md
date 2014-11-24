@@ -7,10 +7,6 @@ The primary build target of interest is `ninja`, but when hacking on
 Ninja your changes should be testable so it's more useful to build
 and run `ninja_test` when developing.
 
-(`./bootstrap.py` creates a bootstrap `ninja` and runs the above
-process; it's only necessary to run if you don't have a copy of
-`ninja` to build with.)
-
 ### Adjusting build flags
 
 Build in "debug" mode while developing (disables optimizations and builds
@@ -49,26 +45,6 @@ discuss new feature ideas on the mailing list before I shoot down your
 patch.
 
 ## Testing
-
-### Installing gtest
-
-The `ninja_test` binary, containing all the tests, depends on the
-googletest (gtest) library.
-
-* On older Ubuntus it'll install as libraries into `/usr/lib`:
-
-        apt-get install libgtest
-
-* On newer Ubuntus it's only distributed as source
-
-        apt-get install libgtest-dev
-        ./configure.py --with-gtest=/usr/src/gtest
-
-* Otherwise you need to download it, unpack it, and pass
-  `--with-gtest` to `configure.py`.  Get it from [its downloads
-  page](http://code.google.com/p/googletest/downloads/list); [this
-  direct download link might work
-  too](http://googletest.googlecode.com/files/gtest-1.6.0.zip).
 
 ### Test-driven development
 
@@ -146,14 +122,15 @@ it's locked while in use.
 
 * Install Visual Studio (Express is fine), [Python for Windows][],
   and (if making changes) googletest (see above instructions)
-* In a Visual Studio command prompt: `python bootstrap.py`
+* In a Visual Studio command prompt: `python configure.py --bootstrap`
 
 [Python for Windows]: http://www.python.org/getit/windows/
 
 ### Via mingw on Windows (not well supported)
 
 * Install mingw, msys, and python
-* In the mingw shell, put Python in your path, and `python bootstrap.py`
+* In the mingw shell, put Python in your path, and
+  `python configure.py --bootstrap`
 * To reconfigure, run `python configure.py`
 * Remember to strip the resulting executable if size matters to you
 
@@ -166,6 +143,12 @@ Setup on Ubuntu Lucid:
 Setup on Ubuntu Precise:
 * `sudo apt-get install gcc-mingw-w64-i686 g++-mingw-w64-i686 wine`
 * `export CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ AR=i686-w64-mingw32-ar`
+
+Setup on Arch:
+* Uncomment the `[multilib]` section of `/etc/pacman.conf` and `sudo pacman -Sy`.
+* `sudo pacman -S mingw-w64-gcc wine`
+* `export CC=x86_64-w64-mingw32-cc CXX=x86_64-w64-mingw32-c++ AR=x86_64-w64-mingw32-ar`
+* `export CFLAGS=-I/usr/x86_64-w64-mingw32/include`
 
 Then run:
 * `./configure.py --platform=mingw --host=linux`

@@ -23,29 +23,170 @@ from __future__ import print_function
 
 from optparse import OptionParser
 import os
+import pipes
+import string
+import subprocess
 import sys
-import platform_helper
-sys.path.insert(0, 'misc')
 
+sys.path.insert(0, 'misc')
 import ninja_syntax
+
+
+class Platform(object):
+    """Represents a host/target platform and its specific build attributes."""
+    def __init__(self, platform):
+        self._platform = platform
+        if self._platform is not None:
+            return
+        self._platform = sys.platform
+        if self._platform.startswith('linux'):
+            self._platform = 'linux'
+        elif self._platform.startswith('freebsd'):
+            self._platform = 'freebsd'
+        elif self._platform.startswith('gnukfreebsd'):
+            self._platform = 'freebsd'
+        elif self._platform.startswith('openbsd'):
+            self._platform = 'openbsd'
+        elif self._platform.startswith('solaris') or self._platform == 'sunos5':
+            self._platform = 'solaris'
+        elif self._platform.startswith('mingw'):
+            self._platform = 'mingw'
+        elif self._platform.startswith('win'):
+            self._platform = 'msvc'
+        elif self._platform.startswith('bitrig'):
+            self._platform = 'bitrig'
+        elif self._platform.startswith('netbsd'):
+            self._platform = 'netbsd'
+
+    @staticmethod
+    def known_platforms():
+      return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+
+    def platform(self):
+        return self._platform
+
+    def is_linux(self):
+        return self._platform == 'linux'
+
+    def is_mingw(self):
+        return self._platform == 'mingw'
+
+    def is_msvc(self):
+        return self._platform == 'msvc'
+
+    def msvc_needs_fs(self):
+        popen = subprocess.Popen(['cl', '/nologo', '/?'],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        out, err = popen.communicate()
+        return '/FS ' in str(out)
+
+    def is_windows(self):
+        return self.is_mingw() or self.is_msvc()
+
+    def is_solaris(self):
+        return self._platform == 'solaris'
+
+    def uses_usr_local(self):
+        return self._platform in ('freebsd', 'openbsd', 'bitrig')
+
+    def supports_ppoll(self):
+        return self._platform in ('linux', 'openbsd', 'bitrig')
+
+    def supports_ninja_browse(self):
+        return not self.is_windows() and not self.is_solaris()
+
+
+class Bootstrap:
+    """API shim for ninja_syntax.Writer that instead runs the commands.
+
+    Used to bootstrap Ninja from scratch.  In --bootstrap mode this
+    class is used to execute all the commands to build an executable.
+    It also proxies all calls to an underlying ninja_syntax.Writer, to
+    behave like non-bootstrap mode.
+    """
+    def __init__(self, writer):
+        self.writer = writer
+        # Map of variable name => expanded variable value.
+        self.vars = {}
+        # Map of rule name => dict of rule attributes.
+        self.rules = {
+            'phony': {}
+        }
+
+    def comment(self, text):
+        return self.writer.comment(text)
+
+    def newline(self):
+        return self.writer.newline()
+
+    def variable(self, key, val):
+        self.vars[key] = self._expand(val)
+        return self.writer.variable(key, val)
+
+    def rule(self, name, **kwargs):
+        self.rules[name] = kwargs
+        return self.writer.rule(name, **kwargs)
+
+    def build(self, outputs, rule, inputs=None, **kwargs):
+        ruleattr = self.rules[rule]
+        cmd = ruleattr.get('command')
+        if cmd is None:  # A phony rule, for example.
+            return
+
+        # Implement just enough of Ninja variable expansion etc. to
+        # make the bootstrap build work.
+        local_vars = {
+            'in': self._expand_paths(inputs),
+            'out': self._expand_paths(outputs)
+        }
+        for key, val in kwargs.get('variables', []):
+            local_vars[key] = ' '.join(ninja_syntax.as_list(val))
+
+        self._run_command(self._expand(cmd, local_vars))
+
+        return self.writer.build(outputs, rule, inputs, **kwargs)
+
+    def default(self, paths):
+        return self.writer.default(paths)
+
+    def _expand_paths(self, paths):
+        """Expand $vars in an array of paths, e.g. from a 'build' block."""
+        paths = ninja_syntax.as_list(paths)
+        return ' '.join(map(self._expand, paths))
+
+    def _expand(self, str, local_vars={}):
+        """Expand $vars in a string."""
+        return ninja_syntax.expand(str, self.vars, local_vars)
+
+    def _run_command(self, cmdline):
+        """Run a subcommand, quietly.  Prints the full command on error."""
+        try:
+            subprocess.check_call(cmdline, shell=True)
+        except subprocess.CalledProcessError, e:
+            print('when running: ', cmdline)
+            raise
+
 
 parser = OptionParser()
 profilers = ['gmon', 'pprof']
+parser.add_option('--bootstrap', action='store_true',
+                  help='bootstrap a ninja binary from nothing')
 parser.add_option('--platform',
                   help='target platform (' +
-                       '/'.join(platform_helper.platforms()) + ')',
-                  choices=platform_helper.platforms())
+                       '/'.join(Platform.known_platforms()) + ')',
+                  choices=Platform.known_platforms())
 parser.add_option('--host',
                   help='host platform (' +
-                       '/'.join(platform_helper.platforms()) + ')',
-                  choices=platform_helper.platforms())
+                       '/'.join(Platform.known_platforms()) + ')',
+                  choices=Platform.known_platforms())
 parser.add_option('--debug', action='store_true',
                   help='enable debugging extras',)
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
-parser.add_option('--with-gtest', metavar='PATH',
-                  help='use gtest unpacked in directory PATH')
+parser.add_option('--with-gtest', metavar='PATH', help='ignored')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -57,15 +198,27 @@ if args:
     print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
-platform = platform_helper.Platform(options.platform)
+platform = Platform(options.platform)
 if options.host:
-    host = platform_helper.Platform(options.host)
+    host = Platform(options.host)
 else:
     host = platform
 
 BUILD_FILENAME = 'build.ninja'
-buildfile = open(BUILD_FILENAME, 'w')
-n = ninja_syntax.Writer(buildfile)
+ninja_writer = ninja_syntax.Writer(open(BUILD_FILENAME, 'w'))
+n = ninja_writer
+
+if options.bootstrap:
+    # Make the build directory.
+    try:
+        os.mkdir('build')
+    except OSError:
+        pass
+    # Wrap ninja_writer with the Bootstrapper, which also executes the
+    # commands.
+    print('bootstrapping ninja...')
+    n = Bootstrap(n)
+
 n.comment('This file is used to build ninja itself.')
 n.comment('It is generated by ' + os.path.basename(__file__) + '.')
 n.newline()
@@ -74,11 +227,15 @@ n.variable('ninja_required_version', '1.3')
 n.newline()
 
 n.comment('The arguments passed to configure.py, for rerunning it.')
-n.variable('configure_args', ' '.join(sys.argv[1:]))
+configure_args = sys.argv[1:]
+if '--bootstrap' in configure_args:
+    configure_args.remove('--bootstrap')
+n.variable('configure_args', ' '.join(configure_args))
 env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
-    config_str = ' '.join([k + '=' + configure_env[k] for k in configure_env])
+    config_str = ' '.join([k + '=' + pipes.quote(configure_env[k])
+                           for k in configure_env])
     n.variable('configure_env', config_str + '$ ')
 n.newline()
 
@@ -113,7 +270,8 @@ else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
 if platform.is_msvc():
-    cflags = ['/nologo',  # Don't print startup banner.
+    cflags = ['/showIncludes',
+              '/nologo',  # Don't print startup banner.
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
@@ -128,6 +286,10 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_VARIADIC_MAX=10',
               '/DNINJA_PYTHON="%s"' % options.with_python]
+    if options.bootstrap:
+        # In bootstrap mode, we have no ninja process to catch /showIncludes
+        # output.
+        cflags.remove('/showIncludes')
     if platform.msvc_needs_fs():
         cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
@@ -153,12 +315,16 @@ else:
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
+    if platform.uses_usr_local():
+        cflags.append('-I/usr/local/include')
+        ldflags.append('-L/usr/local/lib')
+
 libs = []
 
 if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
-elif platform.is_sunos5():
+elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass
@@ -170,9 +336,10 @@ else:
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
-if (platform.is_linux() or platform.is_openbsd() or platform.is_bitrig()) and \
-        not options.force_pselect:
+if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
+if platform.supports_ninja_browse():
+    cflags.append('-DNINJA_HAVE_BROWSE')
 
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by
@@ -195,9 +362,10 @@ n.newline()
 
 if platform.is_msvc():
     n.rule('cxx',
-        command='$cxx /showIncludes $cflags -c $in /Fo$out',
+        command='$cxx $cflags -c $in /Fo$out',
         description='CXX $out',
-        deps='msvc')
+        deps='msvc'  # /showIncludes is included in $cflags.
+    )
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
@@ -232,7 +400,7 @@ n.newline()
 
 objs = []
 
-if not platform.is_windows() and not platform.is_solaris():
+if platform.supports_ninja_browse():
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
            command='src/inline.sh $varname < $in > $out',
@@ -247,7 +415,6 @@ if not platform.is_windows() and not platform.is_solaris():
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 def has_re2c():
-    import subprocess
     try:
         proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
         return int(proc.communicate()[0], 10) >= 1103
@@ -316,37 +483,16 @@ ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
 n.newline()
 all_targets += ninja
 
+if options.bootstrap:
+    # We've built the ninja binary.  Don't run any more commands
+    # through the bootstrap executor, but continue writing the
+    # build.ninja file.
+    n = ninja_writer
+
 n.comment('Tests all build into ninja_test executable.')
 
-variables = []
-test_cflags = cflags + ['-DGTEST_HAS_RTTI=0']
-test_ldflags = None
-test_libs = libs
 objs = []
-if options.with_gtest:
-    path = options.with_gtest
 
-    gtest_all_incs = '-I%s -I%s' % (path, os.path.join(path, 'include'))
-    if platform.is_msvc():
-        gtest_cflags = '/nologo /EHsc /Zi /D_VARIADIC_MAX=10 '
-        if platform.msvc_needs_fs():
-          gtest_cflags += '/FS '
-        gtest_cflags += gtest_all_incs
-    else:
-        gtest_cflags = '-fvisibility=hidden ' + gtest_all_incs
-    objs += n.build(built('gtest-all' + objext), 'cxx',
-                    os.path.join(path, 'src', 'gtest-all.cc'),
-                    variables=[('cflags', gtest_cflags)])
-
-    test_cflags.append('-I%s' % os.path.join(path, 'include'))
-else:
-    # Use gtest from system.
-    if platform.is_msvc():
-        test_libs.extend(['gtest_main.lib', 'gtest.lib'])
-    else:
-        test_libs.extend(['-lgtest_main', '-lgtest'])
-
-n.variable('test_cflags', test_cflags)
 for name in ['build_log_test',
              'build_test',
              'clean_test',
@@ -362,16 +508,13 @@ for name in ['build_log_test',
              'subprocess_test',
              'test',
              'util_test']:
-    objs += cxx(name, variables=[('cflags', '$test_cflags')])
+    objs += cxx(name)
 if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=[('cflags', '$test_cflags')])
+        objs += cxx(name)
 
-if not platform.is_windows():
-    test_libs.append('-lpthread')
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-                     variables=[('ldflags', test_ldflags),
-                                ('libs', test_libs)])
+                     variables=[('libs', libs)])
 n.newline()
 all_targets += ninja_test
 
@@ -456,4 +599,16 @@ if host.is_linux():
 
 n.build('all', 'phony', all_targets)
 
+n.close()
 print('wrote %s.' % BUILD_FILENAME)
+
+if options.bootstrap:
+    print('bootstrap complete.  rebuilding...')
+    if platform.is_windows():
+        bootstrap_exe = 'ninja.bootstrap.exe'
+        if os.path.exists(bootstrap_exe):
+            os.unlink(bootstrap_exe)
+        os.rename('ninja.exe', bootstrap_exe)
+        subprocess.check_call('ninja.bootstrap.exe', shell=True)
+    else:
+        subprocess.check_call('./ninja', shell=True)

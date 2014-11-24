@@ -23,7 +23,7 @@ seconds to start building after changing one file. Ninja is under a second.
 
 %build
 echo Building..
-./bootstrap.py
+./configure.py --bootstrap
 ./ninja manual
 
 %install

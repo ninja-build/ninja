@@ -5,12 +5,16 @@ See the manual -- http://martine.github.com/ninja/manual.html or
 doc/manual.asciidoc included in the distribution -- for background
 and more details.
 
-To build, run ./bootstrap.py.  It first blindly compiles all non-test
+To build, run ./configure.py --bootstrap.  It first compiles all non-test
 source files together, then re-builds Ninja using itself.  You should
-end up with a 'ninja' binary in the source root.  Run './ninja -h' for
-help.
+end up with a 'ninja' binary in the source root.
 
-There is no installation step.  The only file of interest to a user
-is the resulting ninja binary.
+Run './configure.py --help' for more configuration options.
+Run './ninja -h' for Ninja help.
+
+Installation is not necessary because the only required file is is the
+resulting ninja binary. However, to enable features like Bash
+completion and Emacs and Vim editing modes, some files in misc/ must be
+copied to appropriate locations.
 
 If you're interested in making changes to Ninja, read HACKING.md first.

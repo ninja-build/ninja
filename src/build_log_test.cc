@@ -17,12 +17,12 @@
 #include "util.h"
 #include "test.h"
 
+#include <sys/stat.h>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <share.h>
 #else
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -290,6 +290,7 @@ TEST_F(BuildLogRecompactTest, Recompact) {
   ASSERT_TRUE(log2.LookupByOutput("out"));
   ASSERT_TRUE(log2.LookupByOutput("out2"));
   // ...and force a recompaction.
+  log2.set_quiet(true);
   EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
   log2.Close();
 

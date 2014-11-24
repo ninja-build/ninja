@@ -50,7 +50,7 @@ _ninja_target() {
 	    esac
 	done;
 	targets_command="eval ninja -C \"${dir}\" -t targets all"
-	targets=$((${targets_command} 2>/dev/null) | awk -F: '{print $1}')
+	targets=$(${targets_command} 2>/dev/null | awk -F: '{print $1}')
 	COMPREPLY=($(compgen -W "$targets" -- "$cur"))
     fi
     return

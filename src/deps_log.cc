@@ -240,7 +240,12 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       StringPiece path(buf, path_size);
-      Node* node = state->GetNode(path);
+      // It is not necessary to pass in a correct slash_bits here. It will
+      // either be a Node that's in the manifest (in which case it will already
+      // have a correct slash_bits that GetNode will look up), or it is an
+      // implicit dependency from a .d which does not affect the build command
+      // (and so need not have its slashes maintained).
+      Node* node = state->GetNode(path, 0);
 
       // Check that the expected index matches the actual index. This can only
       // happen if two ninja processes write to the same deps log concurrently.
@@ -302,7 +307,8 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
 
 bool DepsLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_deps recompact");
-  printf("Recompacting deps...\n");
+  if (!quiet_)
+    printf("Recompacting deps...\n");
 
   Close();
   string temp_path = path + ".recompact";

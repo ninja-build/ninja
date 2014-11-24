@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+#include <direct.h>  // Has to be before util.h is included.
+#endif
+
 #include "test.h"
 
 #include <algorithm>
 
 #include <errno.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "build_log.h"
 #include "manifest_parser.h"
 #include "util.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 namespace {
 
@@ -84,13 +89,14 @@ void StateTestWithBuiltinRules::AddCatRule(State* state) {
 }
 
 Node* StateTestWithBuiltinRules::GetNode(const string& path) {
-  return state_.GetNode(path);
+  EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
+  return state_.GetNode(path, 0);
 }
 
 void AssertParse(State* state, const char* input) {
   ManifestParser parser(state, NULL);
   string err;
-  ASSERT_TRUE(parser.ParseTest(input, &err)) << err;
+  EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
 }
 

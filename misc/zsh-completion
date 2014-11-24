@@ -17,7 +17,14 @@
 #   . path/to/ninja/misc/zsh-completion
 
 __get_targets() {
-  ninja -t targets 2>/dev/null | while read -r a b; do echo $a | cut -d ':' -f1; done;
+  dir="."
+  if [ -n "${opt_args[-C]}" ];
+  then
+    eval dir="${opt_args[-C]}"
+  fi
+  targets_command="ninja -C \"${dir}\" -t targets"
+  eval ${targets_command} 2>/dev/null | while read -r a b; do echo $a | cut -d ':' -f1; done;
+
 }
 
 __get_tools() {
