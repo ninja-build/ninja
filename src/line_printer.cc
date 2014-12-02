@@ -75,16 +75,12 @@ void LinePrinter::Print(string to_print, LineType type) {
       static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
       csbi.dwCursorPosition.Y
     };
-    CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
-    memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
-    for (int i = 0; i < csbi.dwSize.X; ++i) {
-      char_data[i].Char.AsciiChar = ' ';
+    vector<CHAR_INFO> char_data(csbi.dwSize.X);
+    for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
+      char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
       char_data[i].Attributes = csbi.wAttributes;
     }
-    for (size_t i = 0; i < to_print.size(); ++i)
-      char_data[i].Char.AsciiChar = to_print[i];
-    WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
-    delete[] char_data;
+    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
 #else
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
