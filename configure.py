@@ -21,7 +21,7 @@ or use a meta-build system that supports Ninja output."""
 
 from __future__ import print_function
 
-from optparse import OptionParser
+import argparse
 import os
 import pipes
 import string
@@ -164,39 +164,24 @@ class Bootstrap:
         """Run a subcommand, quietly.  Prints the full command on error."""
         try:
             subprocess.check_call(cmdline, shell=True)
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             print('when running: ', cmdline)
             raise
 
 
-parser = OptionParser()
+parser = argparse.ArgumentParser()
 profilers = ['gmon', 'pprof']
-parser.add_option('--bootstrap', action='store_true',
-                  help='bootstrap a ninja binary from nothing')
-parser.add_option('--platform',
-                  help='target platform (' +
-                       '/'.join(Platform.known_platforms()) + ')',
-                  choices=Platform.known_platforms())
-parser.add_option('--host',
-                  help='host platform (' +
-                       '/'.join(Platform.known_platforms()) + ')',
-                  choices=Platform.known_platforms())
-parser.add_option('--debug', action='store_true',
-                  help='enable debugging extras',)
-parser.add_option('--profile', metavar='TYPE',
-                  choices=profilers,
-                  help='enable profiling (' + '/'.join(profilers) + ')',)
-parser.add_option('--with-gtest', metavar='PATH', help='ignored')
-parser.add_option('--with-python', metavar='EXE',
-                  help='use EXE as the Python interpreter',
-                  default=os.path.basename(sys.executable))
-parser.add_option('--force-pselect', action='store_true',
-                  help='ppoll() is used by default where available, '
-                       'but some platforms may need to use pselect instead',)
-(options, args) = parser.parse_args()
-if args:
-    print('ERROR: extra unparsed command-line arguments:', args)
-    sys.exit(1)
+parser.add_argument('--bootstrap', action='store_true', help='bootstrap a ninja binary from nothing')
+parser.add_argument('--platform', help='target platform', choices=Platform.known_platforms())
+parser.add_argument('--host', help='host platform', choices=Platform.known_platforms())
+parser.add_argument('--debug', action='store_true', help='enable debugging extras')
+parser.add_argument('--profile', metavar='TYPE', choices=profilers, help='enable profiling')
+parser.add_argument('--with-gtest', metavar='PATH', help='ignored')
+parser.add_argument('--with-python', metavar='EXE', help='use EXE as the Python interpreter',
+    default=os.path.basename(sys.executable))
+parser.add_argument('--force-pselect', action='store_true', help='ppoll() is used by default where'
+    ' available, but some platforms may need to use pselect instead')
+options = parser.parse_args()
 
 platform = Platform(options.platform)
 if options.host:
