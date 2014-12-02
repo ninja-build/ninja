@@ -61,13 +61,10 @@ void LinePrinter::Print(string to_print, LineType type) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(console_, &csbi);
 
-    // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
-    to_print = ElideMiddle(to_print, width);
-    // We don't want to have the cursor spamming back and forth, so
-    // use WriteConsoleOutput instead which updates the contents of
-    // the buffer, but doesn't move the cursor position.
-    GetConsoleScreenBufferInfo(console_, &csbi);
+    to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
+    // We don't want to have the cursor spamming back and forth, so instead of
+    // printf use WriteConsoleOutput which updates the contents of the buffer,
+    // but doesn't move the cursor position.
     COORD buf_size = { csbi.dwSize.X, 1 };
     COORD zero_zero = { 0, 0 };
     SMALL_RECT target = {
