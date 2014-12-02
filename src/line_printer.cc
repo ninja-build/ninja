@@ -50,22 +50,17 @@ void LinePrinter::Print(string to_print, LineType type) {
     return;
   }
 
-#ifdef _WIN32
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(console_, &csbi);
-#endif
-
   if (smart_terminal_) {
-#ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
-#else
-    csbi.dwCursorPosition.X = 0;
-    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
-#endif
+    // On Windows, calling a C library function writing to stdout also handles
+    // pausing the executable when the "Pause" key or Ctrl-S is pressed.
   }
 
   if (smart_terminal_ && type == ELIDE) {
 #ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(console_, &csbi);
+
     // Don't use the full width or console will move to next line.
     size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
     to_print = ElideMiddle(to_print, width);
