@@ -164,7 +164,7 @@ class Bootstrap:
         """Run a subcommand, quietly.  Prints the full command on error."""
         try:
             subprocess.check_call(cmdline, shell=True)
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError:
             print('when running: ', cmdline)
             raise
 
