@@ -14,7 +14,10 @@
 
 #include "util.h"
 
-#ifdef _WIN32
+#ifdef __CYGWIN__
+#include <windows.h>
+#include <io.h>
+#elif defined( _WIN32)
 #include <windows.h>
 #include <io.h>
 #include <share.h>
