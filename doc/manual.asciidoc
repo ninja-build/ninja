@@ -180,6 +180,12 @@ Run `ninja`.  By default, it looks for a file named `build.ninja` in
 the current directory and builds all out-of-date targets.  You can
 specify which targets (files) to build as command line arguments.
 
+There is also a special syntax `target^` for specifying a target
+as the first output of some rule containing the source you put in
+the command line, if one exists. For example, if you specify target as
+`foo.c^` then `foo.o` will get built (assuming you have those targets
+in your build files).
+
 `ninja -h` prints help output.  Many of Ninja's flags intentionally
 match those of Make; e.g `ninja -C build -j 20` changes into the
 `build` directory and runs 20 build commands in parallel.  (Note that
