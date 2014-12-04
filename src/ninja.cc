@@ -140,6 +140,9 @@ struct NinjaMain : public BuildLogUser {
 
   virtual bool IsPathDead(StringPiece s) const {
     Node* n = state_.LookupNode(s);
+    // Don't delete log entries for target files which still exist
+    if (n && n->Stat(const_cast<RealDiskInterface*>(&disk_interface_)))
+        return false;
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
     // have an in edge if one of its inputs is another output that's in the deps
