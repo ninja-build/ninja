@@ -217,7 +217,7 @@ bool Edge::AllInputsReady() const {
 struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
-  explicit EdgeEnv(Edge* edge, EscapeKind escape)
+  EdgeEnv(Edge* edge, EscapeKind escape)
       : edge_(edge), escape_in_out_(escape) {}
   virtual string LookupVariable(const string& var);
 
