@@ -112,11 +112,11 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
   // Finally, visit each output to mark off that we've visited it, and update
   // their dirty state if necessary.
-  for (vector<Node*>::iterator i = edge->outputs_.begin();
-       i != edge->outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface_);
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    (*o)->StatIfNecessary(disk_interface_);
     if (dirty)
-      (*i)->MarkDirty();
+      (*o)->MarkDirty();
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
@@ -132,11 +132,11 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
                                            Node* most_recent_input) {
-  string command = edge->EvaluateCommand(true);
-  for (vector<Node*>::iterator i = edge->outputs_.begin();
-       i != edge->outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface_);
-    if (RecomputeOutputDirty(edge, most_recent_input, command, *i))
+  string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    (*o)->StatIfNecessary(disk_interface_);
+    if (RecomputeOutputDirty(edge, most_recent_input, command, *o))
       return true;
   }
   return false;
