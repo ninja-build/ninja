@@ -576,7 +576,6 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
-  node->StatIfNecessary(disk_interface_);
   if (Edge* in_edge = node->in_edge()) {
     if (!scan_.RecomputeDirty(in_edge, err))
       return false;

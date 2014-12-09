@@ -62,6 +62,19 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  // RecomputeDirty() recursively walks the graph following the input nodes
+  // of |edge| and the in_edges of these nodes.  It uses the stat state of each
+  // node to mark nodes as visited and doesn't traverse across nodes that have
+  // been visited already.  To make sure that every edge is visited only once
+  // (important because an edge's deps are loaded every time it's visited), mark
+  // all outputs of |edge| visited as a first step.  This ensures that edges
+  // with multiple inputs and outputs are visited only once, even in cyclic
+  // graphs.
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    (*o)->StatIfNecessary(disk_interface_);
+  }
+
   if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
@@ -110,11 +123,9 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   if (!dirty)
     dirty = RecomputeOutputsDirty(edge, most_recent_input);
 
-  // Finally, visit each output to mark off that we've visited it, and update
-  // their dirty state if necessary.
+  // Finally, visit each output and update their dirty state if necessary.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    (*o)->StatIfNecessary(disk_interface_);
     if (dirty)
       (*o)->MarkDirty();
   }
