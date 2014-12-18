@@ -102,7 +102,7 @@ BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
 {}
 
 BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false), quiet_(false) {}
+  : log_file_(NULL), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -354,8 +354,6 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
 bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
                          string* err) {
   METRIC_RECORD(".ninja_log recompact");
-  if (!quiet_)
-    printf("Recompacting log...\n");
 
   Close();
   string temp_path = path + ".recompact";
