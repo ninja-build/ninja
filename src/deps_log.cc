@@ -307,8 +307,6 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
 
 bool DepsLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_deps recompact");
-  if (!quiet_)
-    printf("Recompacting deps...\n");
 
   Close();
   string temp_path = path + ".recompact";
