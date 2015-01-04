@@ -88,26 +88,17 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
 };
 
 #else
-
 #include <ext/hash_map>
 
 using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
 template<>
-struct hash<std::string> {
-  size_t operator()(const std::string& s) const {
-    return hash<const char*>()(s.c_str());
-  }
-};
-
-template<>
 struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
     return MurmurHash2(key.str_, key.len_);
   }
 };
-
 }
 #endif
 
