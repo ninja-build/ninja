@@ -57,10 +57,10 @@ namespace std {
 template<>
 struct hash<StringPiece> {
   typedef StringPiece argument_type;
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
-  result_type operator()(argument_type const& s) const {
-    return MurmurHash2(s.str_, s.len_);
+  size_t operator()(StringPiece key) const {
+    return MurmurHash2(key.str_, key.len_);
   }
 };
 }
