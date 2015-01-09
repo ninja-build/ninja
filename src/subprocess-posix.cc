@@ -25,9 +25,24 @@
 
 #include "util.h"
 
+namespace {
+
+bool HasPendingInterruption() {
+  sigset_t pending;
+  sigemptyset(&pending);
+  if (sigpending(&pending) == -1) {
+    perror("ninja: sigpending");
+    return false;
+  }
+  return sigismember(&pending, SIGINT);
+}
+
+}  // anonymous namespace
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }
+
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
     close(fd_);
@@ -209,6 +224,9 @@ bool SubprocessSet::DoWork() {
     return interrupted_;
   }
 
+  if (HasPendingInterruption())
+    return true;
+
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
@@ -255,6 +273,9 @@ bool SubprocessSet::DoWork() {
     }
     return interrupted_;
   }
+
+  if (HasPendingInterruption())
+    return true;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
