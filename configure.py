@@ -505,6 +505,9 @@ if platform.is_msvc():
 else:
     libs.append('-lninja')
 
+if platform.is_aix():
+    libs.append('-lperfstat')
+
 all_targets = []
 
 n.comment('Main executable is library plus main() function.')
