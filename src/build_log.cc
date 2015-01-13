@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// On AIX, inttypes.h gets indirectly included by build_log.h.
+// It's easiest just to ask for the printf format macros right away.
+#ifndef _WIN32
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#endif
+
 #include "build_log.h"
 
 #include <errno.h>
@@ -19,9 +27,6 @@
 #include <string.h>
 
 #ifndef _WIN32
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
 #include <inttypes.h>
 #include <unistd.h>
 #endif
