@@ -58,11 +58,13 @@ class Platform(object):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
             self._platform = 'netbsd'
+        elif self._platform.startswith('aix'):
+            self._platform = 'aix'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix']
 
     def platform(self):
         return self._platform
@@ -89,6 +91,9 @@ class Platform(object):
     def is_solaris(self):
         return self._platform == 'solaris'
 
+    def is_aix(self):
+        return self._platform == 'aix'
+
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig')
 
@@ -96,7 +101,9 @@ class Platform(object):
         return self._platform in ('linux', 'openbsd', 'bitrig')
 
     def supports_ninja_browse(self):
-        return not self.is_windows() and not self.is_solaris()
+        return (not self.is_windows()
+                and not self.is_solaris()
+                and not self.is_aix())
 
 
 class Bootstrap:
@@ -344,6 +351,8 @@ if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform.is_solaris():
+    cflags.remove('-fvisibility=hidden')
+elif platform.is_aix():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass
