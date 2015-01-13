@@ -22,6 +22,9 @@
 #include "getopt.h"
 #include <direct.h>
 #include <windows.h>
+#elif defined(_AIX)
+#include "getopt.h"
+#include <unistd.h>
 #else
 #include <getopt.h>
 #include <unistd.h>
