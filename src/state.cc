@@ -187,7 +187,6 @@ vector<Node*> State::RootNodes(string* err) {
   if (!edges_.empty() && root_nodes.empty())
     *err = "could not determine root nodes of build graph";
 
-  assert(edges_.empty() || !root_nodes.empty());
   return root_nodes;
 }
 

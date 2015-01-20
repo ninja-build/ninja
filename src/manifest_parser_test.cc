@@ -891,6 +891,16 @@ TEST_F(ParserTest, DefaultDefault) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(ParserTest, DefaultDefaultCycle) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build a: cat a\n"));
+
+  string err;
+  EXPECT_EQ(0u, state.DefaultNodes(&err).size());
+  EXPECT_EQ("could not determine root nodes of build graph", err);
+}
+
 TEST_F(ParserTest, DefaultStatements) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n  command = cat $in > $out\n"
