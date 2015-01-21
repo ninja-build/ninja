@@ -161,3 +161,19 @@ The trick is to install just the compilers, and not all of Visual Studio,
 by following [these instructions][win7sdk].
 
 [win7sdk]: http://www.kegel.com/wine/cl-howto-win7sdk.html
+
+### Using gcov
+
+Do a clean debug build with the right flags:
+
+    CFLAGS=-coverage LDFLAGS=-coverage ./configure.py --debug
+    ninja -t clean ninja_test && ninja ninja_test
+
+Run the test binary to generate `.gcda` and `.gcno` files in the build
+directory, then run gcov on the .o files to generate `.gcov` files in the
+root directory:
+
+    ./ninja_test
+    gcov build/*.o
+
+Look at the generated `.gcov` files directly, or use your favorit gcov viewer.
