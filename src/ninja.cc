@@ -1061,9 +1061,9 @@ int real_main(int argc, char** argv) {
     return (ninja.*options.tool->func)(argc, argv);
   }
 
-  // The build can take up to 2 passes: one to rebuild the manifest, then
-  // another to build the desired target.
-  for (int cycle = 0; cycle < 2; ++cycle) {
+  // Limit number of rebuilds, to prevent infinite loops.
+  const int kCycleLimit = 100;
+  for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
     RealFileReader file_reader;
@@ -1086,16 +1086,13 @@ int real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
       return (ninja.*options.tool->func)(argc, argv);
 
-    // The first time through, attempt to rebuild the manifest before
-    // building anything else.
-    if (cycle == 0) {
-      if (ninja.RebuildManifest(options.input_file, &err)) {
-        // Start the build over with the new manifest.
-        continue;
-      } else if (!err.empty()) {
-        Error("rebuilding '%s': %s", options.input_file, err.c_str());
-        return 1;
-      }
+    // Attempt to rebuild the manifest before building anything else
+    if (ninja.RebuildManifest(options.input_file, &err)) {
+      // Start the build over with the new manifest.
+      continue;
+    } else if (!err.empty()) {
+      Error("rebuilding '%s': %s", options.input_file, err.c_str());
+      return 1;
     }
 
     int result = ninja.RunBuild(argc, argv);
@@ -1104,7 +1101,9 @@ int real_main(int argc, char** argv) {
     return result;
   }
 
-  return 1;  // Shouldn't be reached.
+  Error("manifest '%s' still dirty after %d tries\n",
+      options.input_file, kCycleLimit);
+  return 1;
 }
 
 }  // anonymous namespace
