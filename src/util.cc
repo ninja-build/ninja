@@ -597,16 +597,84 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
+static string RemoveZeroWidthMarkers(const string& str) {
+  string result;
+  size_t last_open = 0;
+  size_t open = 0;
+  while ((open = str.find("%0", last_open)) != string::npos) {
+    size_t zero_width_start = open + 2;
+    size_t close = str.find("%0", zero_width_start);
+    if (close != string::npos) {
+      result += str.substr(last_open, open - last_open)
+        + str.substr(zero_width_start, close - zero_width_start);
+      // Start searching after the zero-width marker.
+      last_open = close + 2;
+    } else {
+      break;
+    }
+  }
+  result += str.substr(last_open);
+  return result;
+}
+
+static size_t ConsoleWidth(const string& str) {
+  size_t size = 0;
+  size_t last_open = 0;
+  size_t open = 0;
+  while ((open = str.find("%0", last_open)) != string::npos) {
+    size_t zero_width_start = open + 2;
+    size_t close = str.find("%0", zero_width_start);
+    if (close != string::npos) {
+      size += open - last_open;
+      // Start searching after the zero-width marker.
+      last_open = close + 2;
+    } else {
+      break;
+    }
+  }
+  size += str.size() - last_open;
+  return size;
+}
+
+static string ConsoleSubstr(const string& str, size_t start, size_t end) {
+  string result;
+  result.reserve(str.size());
+
+  size_t size = 0;
+
+  for (size_t pos = 0; pos < str.size() && size < end; ++pos) {
+    char chr = str[pos];
+    if (chr == '%' && pos + 1 < str.size() && str[pos + 1] == '0') {
+      size_t end = str.find("%0", pos + 2);
+      if (end != string::npos) {
+        if (size >= start)
+          result += str.substr(pos + 2, end - pos - 2);
+        pos = end + 1;
+        continue;
+      }
+    }
+
+    if (size >= start)
+      result += chr;
+    ++size;
+  }
+
+  return result;
+}
+
+#include <iostream>
+
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() > width) {
+  size_t console_width = ConsoleWidth(result);
+  if (console_width > width) {
     size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
+    result = ConsoleSubstr(result, 0, elide_size)
       + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+      + ConsoleSubstr(result, console_width - elide_size, console_width + 1);
   }
-  return result;
+  return RemoveZeroWidthMarkers(result);
 }
 
 bool Truncate(const string& path, size_t size, string* err) {

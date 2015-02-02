@@ -399,3 +399,13 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   string elided = ElideMiddle(input, 10);
   EXPECT_EQ("012...789", elided);
 }
+
+TEST(ElideMiddle, NothingToElideMiddleWithZeroWidth) {
+  string input = "Nothing %0zerowidth%0 string.";
+  EXPECT_EQ("Nothing zerowidth string.", ElideMiddle(input, 80));
+}
+
+TEST(ElideMiddle, ElideMiddleWithZeroWidth) {
+  string input = "0%0zerowidth%01234567890123456789";
+  EXPECT_EQ("0zerowidth12...789", ElideMiddle(input, 10));
+}

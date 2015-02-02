@@ -207,6 +207,9 @@ Several placeholders are available:
 specified by `-j` or its default)
 `%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
 `%%`:: A plain `%` character.
+`%0`:: Marks the start and end of a zero-width region (useful to exclude the
+width of color control codes from the elision width computation). _(Available
+since Ninja 1.6.)_
 
 The default progress status is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status

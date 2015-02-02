@@ -245,6 +245,11 @@ string BuildStatus::FormatProgressStatus(
         break;
       }
 
+        // Zero-width marker (ignore).
+      case '0':
+        out += "%0";
+        break;
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
