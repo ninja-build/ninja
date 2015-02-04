@@ -6,6 +6,8 @@
 TAGS
 /build
 /build.ninja
+/misc/MANIFEST
+/misc/dist/
 /ninja
 /build_log_perftest
 /canon_perftest

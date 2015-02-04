@@ -7,17 +7,23 @@ Push new release branch:
 3. git checkout release; git merge master
 4. fix version number in src/version.cc (it will likely conflict in the above)
 5. fix version in doc/manual.asciidoc
-6. commit, tag, push (don't forget to push --tags)
+6. fix version number in misc/setup.py
+7. commit, tag, push (don't forget to push --tags)
        git commit -a -m v1.5.0; git push origin release
        git tag v1.5.0; git push --tags
        # Push the 1.5.0.git change on master too:
        git checkout master; git push origin master
-7. construct release notes from prior notes
+8. construct release notes from prior notes
    credits: git shortlog -s --no-merges REV..
 
 Release on github:
 1. https://github.com/blog/1547-release-your-software
    Add binaries to https://github.com/martine/ninja/releases
+
+Release on PyPI:
+1. http://peterdowns.com/posts/first-time-with-pypi.html
+2. Navigate to "misc" and execute
+       python setup.py sdist upload -r pypi
 
 Make announcement on mailing list:
 1. copy old mail
