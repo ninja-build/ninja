@@ -450,7 +450,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
 
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
-    EXPLAIN("stored deps info out of date for for '%s' (%d vs %d)",
+    EXPLAIN("stored deps info out of date for '%s' (%d vs %d)",
             output->path().c_str(), deps->mtime, output->mtime());
     return false;
   }
