@@ -27,6 +27,7 @@ import pipes
 import string
 import subprocess
 import sys
+import re
 
 sys.path.insert(0, 'misc')
 import ninja_syntax
@@ -57,11 +58,13 @@ class Platform(object):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
             self._platform = 'netbsd'
+        elif re.match('gnu\\d$', self._platform):
+            self._platform = 'gnu'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'gnu']
 
     def platform(self):
         return self._platform
