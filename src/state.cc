@@ -73,21 +73,9 @@ Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
 State::State() {
-  AddRule(&kPhonyRule);
+  bindings_.AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
   AddPool(&kConsolePool);
-}
-
-void State::AddRule(const Rule* rule) {
-  assert(LookupRule(rule->name()) == NULL);
-  rules_[rule->name()] = rule;
-}
-
-const Rule* State::LookupRule(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
-  if (i == rules_.end())
-    return NULL;
-  return i->second;
 }
 
 void State::AddPool(Pool* pool) {

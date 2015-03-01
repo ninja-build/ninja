@@ -24,10 +24,32 @@ using namespace std;
 
 struct EvalString;
 
+/// An invokable build command and associated metadata (description, etc.).
+struct Rule {
+  explicit Rule(const string& name) : name_(name) {}
+
+  const string& name() const { return name_; }
+
+  typedef map<string, EvalString> Bindings;
+  void AddBinding(const string& key, const EvalString& val);
+
+  static bool IsReservedBinding(const string& var);
+
+  const EvalString* GetBinding(const string& key) const;
+
+ private:
+  // Allow the parsers to reach into this object and fill out its fields.
+  friend struct ManifestParser;
+
+  string name_;
+  map<string, EvalString> bindings_;
+};
+
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
   virtual ~Env() {}
   virtual string LookupVariable(const string& var) = 0;
+  virtual const Rule* LookupRule(const string& rule_name) = 0;
 };
 
 /// An Env which contains a mapping of variables to values
@@ -38,6 +60,11 @@ struct BindingEnv : public Env {
 
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
+
+  void AddRule(const Rule* rule);
+  const Rule* LookupRule(const string& rule_name);
+  const Rule* LookupRuleCurrentScope(const string& rule_name);
+  const map<string, const Rule*> GetRules() const;
 
   void AddBinding(const string& key, const string& val);
 
@@ -51,6 +78,7 @@ struct BindingEnv : public Env {
 
 private:
   map<string, string> bindings_;
+  map<string, const Rule*> rules_;
   Env* parent_;
 };
 

@@ -220,7 +220,7 @@ int Cleaner::CleanRule(const char* rule) {
   assert(rule);
 
   Reset();
-  const Rule* r = state_->LookupRule(rule);
+  const Rule* r = state_->bindings_.LookupRule(rule);
   if (r) {
     CleanRule(r);
   } else {
@@ -237,7 +237,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
   PrintHeader();
   for (int i = 0; i < rule_count; ++i) {
     const char* rule_name = rules[i];
-    const Rule* rule = state_->LookupRule(rule_name);
+    const Rule* rule = state_->bindings_.LookupRule(rule_name);
     if (rule) {
       if (IsVerbose())
         printf("Rule %s\n", rule_name);

@@ -156,7 +156,7 @@ bool ManifestParser::ParseRule(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (state_->LookupRule(name) != NULL)
+  if (env_->LookupRuleCurrentScope(name) != NULL)
     return lexer_.Error("duplicate rule '" + name + "'", err);
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
@@ -185,7 +185,7 @@ bool ManifestParser::ParseRule(string* err) {
   if (rule->bindings_["command"].empty())
     return lexer_.Error("expected 'command =' line", err);
 
-  state_->AddRule(rule);
+  env_->AddRule(rule);
   return true;
 }
 
@@ -252,7 +252,7 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!lexer_.ReadIdent(&rule_name))
     return lexer_.Error("expected build command name", err);
 
-  const Rule* rule = state_->LookupRule(rule_name);
+  const Rule* rule = env_->LookupRule(rule_name);
   if (!rule)
     return lexer_.Error("unknown build rule '" + rule_name + "'", err);
 

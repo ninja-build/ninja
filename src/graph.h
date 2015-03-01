@@ -121,27 +121,6 @@ private:
   int id_;
 };
 
-/// An invokable build command and associated metadata (description, etc.).
-struct Rule {
-  explicit Rule(const string& name) : name_(name) {}
-
-  const string& name() const { return name_; }
-
-  typedef map<string, EvalString> Bindings;
-  void AddBinding(const string& key, const EvalString& val);
-
-  static bool IsReservedBinding(const string& var);
-
-  const EvalString* GetBinding(const string& key) const;
-
- private:
-  // Allow the parsers to reach into this object and fill out its fields.
-  friend struct ManifestParser;
-
-  string name_;
-  map<string, EvalString> bindings_;
-};
-
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
   Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), deps_missing_(false),

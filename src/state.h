@@ -79,16 +79,13 @@ struct Pool {
   DelayedEdges delayed_;
 };
 
-/// Global state (file status, loaded rules) for a single run.
+/// Global state (file status) for a single run.
 struct State {
   static Pool kDefaultPool;
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
   State();
-
-  void AddRule(const Rule* rule);
-  const Rule* LookupRule(const string& rule_name);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -118,9 +115,6 @@ struct State {
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
-
-  /// All the rules used in the graph.
-  map<string, const Rule*> rules_;
 
   /// All the pools used in the graph.
   map<string, Pool*> pools_;
