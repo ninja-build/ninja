@@ -66,6 +66,15 @@ void EvalString::AddSpecial(StringPiece text) {
   parsed_.push_back(make_pair(text.AsString(), SPECIAL));
 }
 
+size_t EvalString::hash() const {
+#if (__cplusplus >= 201103L)
+  hash<string> hash_fn;
+#else
+  std::tr1::hash<string> hash_fn;
+#endif
+  return hash_fn(Serialize());
+}
+
 string EvalString::Serialize() const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin();

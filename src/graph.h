@@ -17,6 +17,12 @@
 
 #include <string>
 #include <vector>
+#if (__cplusplus >= 201103L) || (_MSC_VER >= 1800)
+#include <functional>
+#else
+#include <tr1/functional>
+using namespace std::tr1;
+#endif
 using namespace std;
 
 #include "eval_env.h"
@@ -133,6 +139,8 @@ struct Rule {
   static bool IsReservedBinding(const string& var);
 
   const EvalString* GetBinding(const string& key) const;
+
+  size_t hash() const;
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.

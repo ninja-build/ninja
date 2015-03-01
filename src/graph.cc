@@ -37,6 +37,22 @@ void Rule::AddBinding(const string& key, const EvalString& val) {
   bindings_[key] = val;
 }
 
+size_t Rule::hash() const {
+#if (__cplusplus >= 201103L)
+  hash<string> hash_fn;
+#else
+  std::tr1::hash<string> hash_fn;
+#endif
+  size_t final_hash = hash_fn(name_);
+  map<string, EvalString>::const_iterator i;
+  for (i = bindings_.begin(); i != bindings_.end(); i++) {
+    // XOR the binding name with its EvalString and XOR all
+    // the bindings hashes to produce final_hash
+    final_hash ^= (hash_fn(i->first) ^ i->second.hash());
+  }
+  return final_hash;
+}
+
 const EvalString* Rule::GetBinding(const string& key) const {
   map<string, EvalString>::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())

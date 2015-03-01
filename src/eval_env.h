@@ -18,6 +18,11 @@
 #include <map>
 #include <string>
 #include <vector>
+#if (__cplusplus >= 201103L) || (_MSC_VER >= 1800)
+#include <functional>
+#else
+#include <tr1/functional>
+#endif
 using namespace std;
 
 #include "string_piece.h"
@@ -64,6 +69,8 @@ struct EvalString {
 
   void AddText(StringPiece text);
   void AddSpecial(StringPiece text);
+
+  size_t hash() const;
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.

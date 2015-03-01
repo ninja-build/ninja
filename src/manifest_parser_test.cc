@@ -494,13 +494,21 @@ TEST_F(ParserTest, Errors) {
     State state;
     ManifestParser parser(&state, NULL);
     string err;
-    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+    EXPECT_TRUE(parser.ParseTest("rule cat\n"
                                   "  command = echo\n"
                                   "rule cat\n"
                                   "  command = echo\n", &err));
-    EXPECT_EQ("input:3: duplicate rule 'cat'\n"
-              "rule cat\n"
-              "        ^ near here"
+  }
+
+  {
+    State state;
+    ManifestParser parser(&state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("rule cat\n"
+                                  "  command = echo\n"
+                                  "rule cat\n"
+                                  "  command = echo -n\n", &err));
+    EXPECT_EQ("input:5: duplicate rule 'cat' with different content\n"
               , err);
   }
 
@@ -822,7 +830,18 @@ TEST_F(ParserTest, MissingSubNinja) {
             , err);
 }
 
-TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
+TEST_F(ParserTest, DuplicateRuleSameContentInDifferentSubninjas) {
+  // Test that rules live in a global namespace and aren't scoped to subninjas.
+  files_["test.ninja"] = "rule cat\n"
+                         "  command = cat\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_TRUE(parser.ParseTest("rule cat\n"
+                                "  command = cat\n"
+                                "subninja test.ninja\n", &err));
+}
+
+TEST_F(ParserTest, DuplicateRuleDifferentContentInDifferentSubninjas) {
   // Test that rules live in a global namespace and aren't scoped to subninjas.
   files_["test.ninja"] = "rule cat\n"
                          "  command = cat\n";
@@ -830,10 +849,9 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
   string err;
   EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                 "  command = cat\n"
+                                "  description = cat\n"
                                 "subninja test.ninja\n", &err));
-  EXPECT_EQ("test.ninja:1: duplicate rule 'cat'\n"
-            "rule cat\n"
-            "        ^ near here"
+  EXPECT_EQ("test.ninja:3: duplicate rule 'cat' with different content\n"
             , err);
 }
 
