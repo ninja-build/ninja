@@ -65,6 +65,8 @@ struct EvalString {
   void AddText(StringPiece text);
   void AddSpecial(StringPiece text);
 
+  size_t hash() const;
+
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.
   string Serialize() const;

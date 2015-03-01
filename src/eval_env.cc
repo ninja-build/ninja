@@ -66,6 +66,11 @@ void EvalString::AddSpecial(StringPiece text) {
   parsed_.push_back(make_pair(text.AsString(), SPECIAL));
 }
 
+size_t EvalString::hash() const {
+  std::hash<std::string> hash_fn;
+  return hash_fn(Serialize());
+}
+
 string EvalString::Serialize() const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin();

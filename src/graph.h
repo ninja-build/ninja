@@ -134,6 +134,8 @@ struct Rule {
 
   const EvalString* GetBinding(const string& key) const;
 
+  size_t hash() const;
+
  private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
