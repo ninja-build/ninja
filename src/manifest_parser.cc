@@ -156,9 +156,6 @@ bool ManifestParser::ParseRule(string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (state_->LookupRule(name) != NULL)
-    return lexer_.Error("duplicate rule '" + name + "'", err);
-
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
@@ -185,7 +182,15 @@ bool ManifestParser::ParseRule(string* err) {
   if (rule->bindings_["command"].empty())
     return lexer_.Error("expected 'command =' line", err);
 
-  state_->AddRule(rule);
+  const Rule* hit = state_->LookupRule(name);
+  if (hit != NULL && rule->hash() != hit->hash()) {
+    return lexer_.Error("duplicate rule '" + name + \
+      "' with different content", err);
+  } else if (hit != NULL && rule->hash() == hit->hash()) {
+    // do nothing. A rule with the same name and content exists already
+  } else {
+    state_->AddRule(rule);
+  }
   return true;
 }
 
