@@ -275,7 +275,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     }
     fclose(f);
 
-    if (!Truncate(path.c_str(), offset, err))
+    if (!Truncate(path, offset, err))
       return false;
 
     // The truncate succeeded; we'll just report the load error as a
