@@ -833,6 +833,19 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
                                 "subninja test.ninja\n", &err));
 }
 
+TEST_F(ParserTest, DuplicateRuleInDifferentSubninjasWithInclude) {
+  // Test that rules are scoped to subninjas even with includes.
+  files_["rules.ninja"] = "rule cat\n"
+                         "  command = cat\n";
+  files_["test.ninja"] = "include rules.ninja\n"
+                         "build x : cat\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_TRUE(parser.ParseTest("include rules.ninja\n"
+                                "subninja test.ninja\n"
+                                "build y : cat\n", &err));
+}
+
 TEST_F(ParserTest, Include) {
   files_["include.ninja"] = "var = inner\n";
   ASSERT_NO_FATAL_FAILURE(AssertParse(
