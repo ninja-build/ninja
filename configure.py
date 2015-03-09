@@ -317,8 +317,12 @@ else:
         cflags.remove('-fno-rtti')  # Needed for above pedanticness.
     else:
         cflags += ['-O2', '-DNDEBUG']
-    if 'clang' in os.path.basename(CXX):
-        cflags += ['-fcolor-diagnostics']
+    try:
+        proc = subprocess.Popen([CXX, '--version'], stdout=subprocess.PIPE)
+        if 'clang' in proc.communicate()[0].decode('utf-8'):
+            cflags += ['-fcolor-diagnostics']
+    except:
+        pass
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
