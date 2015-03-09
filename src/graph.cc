@@ -33,30 +33,6 @@ bool Node::Stat(DiskInterface* disk_interface) {
   return mtime_ > 0;
 }
 
-void Rule::AddBinding(const string& key, const EvalString& val) {
-  bindings_[key] = val;
-}
-
-const EvalString* Rule::GetBinding(const string& key) const {
-  map<string, EvalString>::const_iterator i = bindings_.find(key);
-  if (i == bindings_.end())
-    return NULL;
-  return &i->second;
-}
-
-// static
-bool Rule::IsReservedBinding(const string& var) {
-  return var == "command" ||
-      var == "depfile" ||
-      var == "description" ||
-      var == "deps" ||
-      var == "generator" ||
-      var == "pool" ||
-      var == "restat" ||
-      var == "rspfile" ||
-      var == "rspfile_content";
-}
-
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   bool dirty = false;
   edge->outputs_ready_ = true;
@@ -231,6 +207,7 @@ struct EdgeEnv : public Env {
   EdgeEnv(Edge* edge, EscapeKind escape)
       : edge_(edge), escape_in_out_(escape) {}
   virtual string LookupVariable(const string& var);
+  virtual const Rule* LookupRule(const string& rule_name);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
@@ -241,6 +218,10 @@ struct EdgeEnv : public Env {
   Edge* edge_;
   EscapeKind escape_in_out_;
 };
+
+const Rule* EdgeEnv::LookupRule(const string& rule_name) {
+  return NULL;
+}
 
 string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {

@@ -60,8 +60,8 @@ TEST_F(ParserTest, Rules) {
 "\n"
 "build result: cat in_1.cc in-2.O\n"));
 
-  ASSERT_EQ(3u, state.rules_.size());
-  const Rule* rule = state.rules_.begin()->second;
+  ASSERT_EQ(3u, state.bindings_.GetRules().size());
+  const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
   EXPECT_EQ("[cat ][$in][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -93,8 +93,8 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
 "build result: cat in_1.cc in-2.O\n"
 "  #comment\n"));
 
-  ASSERT_EQ(2u, state.rules_.size());
-  const Rule* rule = state.rules_.begin()->second;
+  ASSERT_EQ(2u, state.bindings_.GetRules().size());
+  const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
   Edge* edge = state.GetNode("result", 0)->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
@@ -126,8 +126,8 @@ TEST_F(ParserTest, ResponseFiles) {
 "build out: cat_rsp in\n"
 "  rspfile=out.rsp\n"));
 
-  ASSERT_EQ(2u, state.rules_.size());
-  const Rule* rule = state.rules_.begin()->second;
+  ASSERT_EQ(2u, state.bindings_.GetRules().size());
+  const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$rspfile][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -143,8 +143,8 @@ TEST_F(ParserTest, InNewline) {
 "build out: cat_rsp in in2\n"
 "  rspfile=out.rsp\n"));
 
-  ASSERT_EQ(2u, state.rules_.size());
-  const Rule* rule = state.rules_.begin()->second;
+  ASSERT_EQ(2u, state.bindings_.GetRules().size());
+  const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$in_newline][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -204,8 +204,8 @@ TEST_F(ParserTest, Continuation) {
 "build a: link c $\n"
 " d e f\n"));
 
-  ASSERT_EQ(2u, state.rules_.size());
-  const Rule* rule = state.rules_.begin()->second;
+  ASSERT_EQ(2u, state.bindings_.GetRules().size());
+  const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("link", rule->name());
   EXPECT_EQ("[foo bar baz]", rule->GetBinding("command")->Serialize());
 }
@@ -823,18 +823,27 @@ TEST_F(ParserTest, MissingSubNinja) {
 }
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
-  // Test that rules live in a global namespace and aren't scoped to subninjas.
+  // Test that rules are scoped to subninjas.
   files_["test.ninja"] = "rule cat\n"
                          "  command = cat\n";
   ManifestParser parser(&state, this);
   string err;
-  EXPECT_FALSE(parser.ParseTest("rule cat\n"
+  EXPECT_TRUE(parser.ParseTest("rule cat\n"
                                 "  command = cat\n"
                                 "subninja test.ninja\n", &err));
-  EXPECT_EQ("test.ninja:1: duplicate rule 'cat'\n"
-            "rule cat\n"
-            "        ^ near here"
-            , err);
+}
+
+TEST_F(ParserTest, DuplicateRuleInDifferentSubninjasWithInclude) {
+  // Test that rules are scoped to subninjas even with includes.
+  files_["rules.ninja"] = "rule cat\n"
+                         "  command = cat\n";
+  files_["test.ninja"] = "include rules.ninja\n"
+                         "build x : cat\n";
+  ManifestParser parser(&state, this);
+  string err;
+  EXPECT_TRUE(parser.ParseTest("include rules.ninja\n"
+                                "subninja test.ninja\n"
+                                "build y : cat\n", &err));
 }
 
 TEST_F(ParserTest, Include) {
