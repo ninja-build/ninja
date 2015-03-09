@@ -202,8 +202,8 @@ TEST_F(SubprocessTest, SetWithLots) {
   // Make sure [ulimit -n] isn't going to stop us from working.
   rlimit rlim;
   ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlim));
-  if (!EXPECT_GT(rlim.rlim_cur, kNumProcs)) {
-    printf("Raise [ulimit -n] well above %u to make this test go\n", kNumProcs);
+  if (rlim.rlim_cur < kNumProcs) {
+    printf("Raise [ulimit -n] well above %u (currently %lu) to make this test go\n", kNumProcs, rlim.rlim_cur);
     return;
   }
 
