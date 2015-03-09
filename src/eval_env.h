@@ -22,7 +22,35 @@ using namespace std;
 
 #include "string_piece.h"
 
-struct EvalString;
+struct Rule;
+
+/// An interface for a scope for variable (e.g. "$foo") lookups.
+struct Env {
+  virtual ~Env() {}
+  virtual string LookupVariable(const string& var) = 0;
+  virtual const Rule* LookupRule(const string& rule_name) = 0;
+};
+
+/// A tokenized string that contains variable references.
+/// Can be evaluated relative to an Env.
+struct EvalString {
+  string Evaluate(Env* env) const;
+
+  void Clear() { parsed_.clear(); }
+  bool empty() const { return parsed_.empty(); }
+
+  void AddText(StringPiece text);
+  void AddSpecial(StringPiece text);
+
+  /// Construct a human-readable representation of the parsed state,
+  /// for use in tests.
+  string Serialize() const;
+
+private:
+  enum TokenType { RAW, SPECIAL };
+  typedef vector<pair<string, TokenType> > TokenList;
+  TokenList parsed_;
+};
 
 /// An invokable build command and associated metadata (description, etc.).
 struct Rule {
@@ -43,13 +71,6 @@ struct Rule {
 
   string name_;
   map<string, EvalString> bindings_;
-};
-
-/// An interface for a scope for variable (e.g. "$foo") lookups.
-struct Env {
-  virtual ~Env() {}
-  virtual string LookupVariable(const string& var) = 0;
-  virtual const Rule* LookupRule(const string& rule_name) = 0;
 };
 
 /// An Env which contains a mapping of variables to values
@@ -80,27 +101,6 @@ private:
   map<string, string> bindings_;
   map<string, const Rule*> rules_;
   Env* parent_;
-};
-
-/// A tokenized string that contains variable references.
-/// Can be evaluated relative to an Env.
-struct EvalString {
-  string Evaluate(Env* env) const;
-
-  void Clear() { parsed_.clear(); }
-  bool empty() const { return parsed_.empty(); }
-
-  void AddText(StringPiece text);
-  void AddSpecial(StringPiece text);
-
-  /// Construct a human-readable representation of the parsed state,
-  /// for use in tests.
-  string Serialize() const;
-
-private:
-  enum TokenType { RAW, SPECIAL };
-  typedef vector<pair<string, TokenType> > TokenList;
-  TokenList parsed_;
 };
 
 #endif  // NINJA_EVAL_ENV_H_
