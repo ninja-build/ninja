@@ -318,9 +318,12 @@ else:
     else:
         cflags += ['-O2', '-DNDEBUG']
     try:
-        proc = subprocess.Popen([CXX, '--version'], stdout=subprocess.PIPE)
-        if 'clang' in proc.communicate()[0].decode('utf-8'):
-            cflags += ['-fcolor-diagnostics']
+        proc = subprocess.Popen(
+            [CXX, '-fdiagnostics-color', '-c', '-x', 'c++', '/dev/null'],
+            stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
+        proc.wait()
+        if proc.returncode == 0:
+            cflags += ['-fdiagnostics-color']
     except:
         pass
     if platform.is_mingw():
