@@ -390,12 +390,13 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                         &depfile.out_.len_, &unused, err))
     return false;
 
-  // Check that this depfile matches the edge's output.
+  // Check that this depfile matches the edge's output, if not return false to
+  // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
   if (opath != depfile.out_) {
-    *err = "expected depfile '" + path + "' to mention '" +
-        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
+    EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
+            first_output->path().c_str(), depfile.out_.AsString().c_str());
     return false;
   }
 

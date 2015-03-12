@@ -2042,6 +2042,23 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildTest, WrongOutputInDepfileCausesRebuild) {
+  string err;
+  const char* manifest =
+"rule cc\n"
+"  command = cc $in\n"
+"  depfile = $out.d\n"
+"build foo.o: cc foo.c\n";
+
+  fs_.Create("foo.c", "");
+  fs_.Create("foo.o", "");
+  fs_.Create("header.h", "");
+  fs_.Create("foo.o.d", "bar.o.d: header.h\n");
+
+  RebuildTarget("foo.o", manifest, "build_log", "ninja_deps");
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildTest, Console) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule console\n"
