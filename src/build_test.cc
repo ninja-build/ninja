@@ -816,8 +816,7 @@ TEST_F(BuildTest, DepFileParseError) {
   fs_.Create("foo.c", "");
   fs_.Create("foo.o.d", "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
-  EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got 'randomtext'",
-            err);
+  EXPECT_EQ("foo.o.d: expected ':' in depfile", err);
 }
 
 TEST_F(BuildTest, OrderOnlyDeps) {
