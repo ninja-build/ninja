@@ -28,6 +28,7 @@
 #endif
 
 #include "build_log.h"
+#include "graph.h"
 #include "manifest_parser.h"
 #include "util.h"
 
@@ -98,10 +99,31 @@ void AssertParse(State* state, const char* input) {
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
+  VerifyGraph(*state);
 }
 
 void AssertHash(const char* expected, uint64_t actual) {
   ASSERT_EQ(BuildLog::LogEntry::HashCommand(expected), actual);
+}
+
+void VerifyGraph(const State& state) {
+  for (vector<Edge*>::const_iterator e = state.edges_.begin();
+       e != state.edges_.end(); ++e) {
+    // All edges need at least one output.
+    EXPECT_FALSE((*e)->outputs_.empty());
+    // Check that the edge's inputs have the edge as out edge.
+    for (vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
+         in_node != (*e)->inputs_.end(); ++in_node) {
+      const vector<Edge*>& out_edges = (*in_node)->out_edges();
+      EXPECT_NE(std::find(out_edges.begin(), out_edges.end(), *e),
+                out_edges.end());
+    }
+    // Check that the edge's outputs have the edge as in edge.
+    for (vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end(); ++out_node) {
+      EXPECT_EQ((*out_node)->in_edge(), *e);
+    }
+  }
 }
 
 void VirtualFileSystem::Create(const string& path,

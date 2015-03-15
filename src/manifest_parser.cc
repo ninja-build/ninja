@@ -340,6 +340,14 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
+  if (edge->outputs_.empty()) {
+    // All outputs of the edge are already created by other edges. Don't add
+    // this edge.
+    state_->edges_.pop_back();
+    delete edge;
+    return true;
+  }
+
   // Multiple outputs aren't (yet?) supported with depslog.
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty() && edge->outputs_.size() > 1) {
