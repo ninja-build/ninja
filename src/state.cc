@@ -141,13 +141,14 @@ void State::AddIn(Edge* edge, StringPiece path, unsigned int slash_bits) {
 
 void State::AddOut(Edge* edge, StringPiece path, unsigned int slash_bits) {
   Node* node = GetNode(path, slash_bits);
-  edge->outputs_.push_back(node);
   if (node->in_edge()) {
     Warning("multiple rules generate %s. "
             "builds involving this target will not be correct; "
             "continuing anyway",
             path.AsString().c_str());
+    return;
   }
+  edge->outputs_.push_back(node);
   node->set_in_edge(edge);
 }
 
