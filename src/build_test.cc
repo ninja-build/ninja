@@ -816,8 +816,7 @@ TEST_F(BuildTest, DepFileParseError) {
   fs_.Create("foo.c", "");
   fs_.Create("foo.o.d", "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
-  EXPECT_EQ("expected depfile 'foo.o.d' to mention 'foo.o', got 'randomtext'",
-            err);
+  EXPECT_EQ("foo.o.d: expected ':' in depfile", err);
 }
 
 TEST_F(BuildTest, OrderOnlyDeps) {
@@ -2041,6 +2040,23 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   // And this build should be NOOP again
   RebuildTarget("out", manifest, "build_log", "ninja_deps2");
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildTest, WrongOutputInDepfileCausesRebuild) {
+  string err;
+  const char* manifest =
+"rule cc\n"
+"  command = cc $in\n"
+"  depfile = $out.d\n"
+"build foo.o: cc foo.c\n";
+
+  fs_.Create("foo.c", "");
+  fs_.Create("foo.o", "");
+  fs_.Create("header.h", "");
+  fs_.Create("foo.o.d", "bar.o.d: header.h\n");
+
+  RebuildTarget("foo.o", manifest, "build_log", "ninja_deps");
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, Console) {

@@ -230,5 +230,9 @@ yy16:
       return false;
     }
   }
+  if (parsing_targets) {
+    *err = "expected ':' in depfile";
+    return false;
+  }
   return true;
 }
