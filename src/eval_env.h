@@ -28,7 +28,6 @@ struct Rule;
 struct Env {
   virtual ~Env() {}
   virtual string LookupVariable(const string& var) = 0;
-  virtual const Rule* LookupRule(const string& rule_name) = 0;
 };
 
 /// A tokenized string that contains variable references.
@@ -77,7 +76,7 @@ struct Rule {
 /// as well as a pointer to a parent scope.
 struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
-  explicit BindingEnv(Env* parent) : parent_(parent) {}
+  explicit BindingEnv(BindingEnv* parent) : parent_(parent) {}
 
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
@@ -100,7 +99,7 @@ struct BindingEnv : public Env {
 private:
   map<string, string> bindings_;
   map<string, const Rule*> rules_;
-  Env* parent_;
+  BindingEnv* parent_;
 };
 
 #endif  // NINJA_EVAL_ENV_H_
