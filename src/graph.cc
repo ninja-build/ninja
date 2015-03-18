@@ -226,6 +226,7 @@ struct EdgeEnv : public Env {
                       vector<Node*>::iterator end,
                       char sep);
 
+  vector<string> lookups_;
   Edge* edge_;
   EscapeKind escape_in_out_;
 };
@@ -243,8 +244,19 @@ string EdgeEnv::LookupVariable(const string& var) {
                         ' ');
   }
 
+  vector<string>::const_iterator it;
+  if ((it = find(lookups_.begin(), lookups_.end(), var)) != lookups_.end()) {
+    string cycle;
+    for (; it != lookups_.end(); ++it)
+      cycle.append(*it + " -> ");
+    cycle.append(var);
+    Fatal(("cycle in rule variables: " + cycle).c_str());
+  }
+
   // See notes on BindingEnv::LookupWithFallback.
   const EvalString* eval = edge_->rule_->GetBinding(var);
+  if (eval)
+    lookups_.push_back(var);
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
