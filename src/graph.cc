@@ -207,7 +207,6 @@ struct EdgeEnv : public Env {
   EdgeEnv(Edge* edge, EscapeKind escape)
       : edge_(edge), escape_in_out_(escape) {}
   virtual string LookupVariable(const string& var);
-  virtual const Rule* LookupRule(const string& rule_name);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
@@ -218,10 +217,6 @@ struct EdgeEnv : public Env {
   Edge* edge_;
   EscapeKind escape_in_out_;
 };
-
-const Rule* EdgeEnv::LookupRule(const string& rule_name) {
-  return NULL;
-}
 
 string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {

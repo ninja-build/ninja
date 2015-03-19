@@ -74,7 +74,7 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "rspfile_content";
 }
 
-const map<string, const Rule*> BindingEnv::GetRules() const {
+const map<string, const Rule*>& BindingEnv::GetRules() const {
   return rules_;
 }
 
