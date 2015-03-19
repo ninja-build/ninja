@@ -353,6 +353,17 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputs) {
   // That's all the checking that this test needs.
 }
 
+TEST_F(ParserTest, NoDeadPointerFromDuplicateEdge) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out: cat in\n"
+"build out: cat in\n"
+));
+  // AssertParse() checks that the generated build graph is self-consistent.
+  // That's all the checking that this test needs.
+}
+
 TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule build\n"

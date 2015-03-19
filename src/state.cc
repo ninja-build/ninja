@@ -61,6 +61,7 @@ void Pool::Dump() const {
   }
 }
 
+// static
 bool Pool::WeightedEdgeCmp(const Edge* a, const Edge* b) {
   if (!a) return b;
   if (!b) return false;
