@@ -406,7 +406,7 @@ void Plan::NodeFinished(Node* node) {
   }
 }
 
-void Plan::CleanNode(DependencyScan* scan, Node* node) {
+bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   node->set_dirty(false);
 
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
@@ -436,10 +436,16 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
       // Now, this edge is dirty if any of the outputs are dirty.
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
-      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input)) {
+      bool outputs_dirty = false;
+      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
+                                       &outputs_dirty, err)) {
+        return false;
+      }
+      if (!outputs_dirty) {
         for (vector<Node*>::iterator o = (*oe)->outputs_.begin();
              o != (*oe)->outputs_.end(); ++o) {
-          CleanNode(scan, *o);
+          if (!CleanNode(scan, *o, err))
+            return false;
         }
 
         want_e->second = false;
@@ -449,6 +455,7 @@ void Plan::CleanNode(DependencyScan* scan, Node* node) {
       }
     }
   }
+  return true;
 }
 
 void Plan::Dump() {
@@ -758,7 +765,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
         // The rule command did not change the output.  Propagate the clean
         // state through the build graph.
         // Note that this also applies to nonexistent outputs (mtime == 0).
-        plan_.CleanNode(&scan_, *o);
+        if (!plan_.CleanNode(&scan_, *o, err))
+          return false;
         node_cleaned = true;
       }
     }
@@ -805,6 +813,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp deps_mtime = disk_interface_->Stat(out->path());
+    if (deps_mtime == -1) {
+      // TODO: Let DiskInterface::Stat() take err instead of it calling Error().
+      *err = "stat failed";
+      return false;
+    }
     if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
       *err = string("Error writing to deps log: ") + strerror(errno);
       return false;

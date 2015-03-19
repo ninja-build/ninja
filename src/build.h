@@ -61,7 +61,8 @@ struct Plan {
   void EdgeFinished(Edge* edge);
 
   /// Clean the given node during the build.
-  void CleanNode(DependencyScan* scan, Node* node);
+  /// Return false on error.
+  bool CleanNode(DependencyScan* scan, Node* node, string* err);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
