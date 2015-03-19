@@ -111,19 +111,31 @@ void VerifyGraph(const State& state) {
        e != state.edges_.end(); ++e) {
     // All edges need at least one output.
     EXPECT_FALSE((*e)->outputs_.empty());
-    // Check that the edge's inputs have the edge as out edge.
+    // Check that the edge's inputs have the edge as out-edge.
     for (vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
          in_node != (*e)->inputs_.end(); ++in_node) {
       const vector<Edge*>& out_edges = (*in_node)->out_edges();
       EXPECT_NE(std::find(out_edges.begin(), out_edges.end(), *e),
                 out_edges.end());
     }
-    // Check that the edge's outputs have the edge as in edge.
+    // Check that the edge's outputs have the edge as in-edge.
     for (vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       EXPECT_EQ((*out_node)->in_edge(), *e);
     }
   }
+
+  // The union of all in- and out-edges of each nodes should be exactly edges_.
+  set<const Edge*> node_edge_set;
+  for (State::Paths::const_iterator p = state.paths_.begin();
+       p != state.paths_.end(); ++p) {
+    const Node* n = p->second;
+    if (n->in_edge())
+      node_edge_set.insert(n->in_edge());
+    node_edge_set.insert(n->out_edges().begin(), n->out_edges().end());
+  }
+  set<const Edge*> edge_set(state.edges_.begin(), state.edges_.end());
+  EXPECT_EQ(node_edge_set, edge_set);
 }
 
 void VirtualFileSystem::Create(const string& path,

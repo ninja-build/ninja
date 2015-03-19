@@ -321,14 +321,6 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
-    string path = i->Evaluate(env);
-    string path_err;
-    unsigned int slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
-    state_->AddIn(edge, path, slash_bits);
-  }
   for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     string path = i->Evaluate(env);
     string path_err;
@@ -337,16 +329,24 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error(path_err, err);
     state_->AddOut(edge, path, slash_bits);
   }
-  edge->implicit_deps_ = implicit;
-  edge->order_only_deps_ = order_only;
-
   if (edge->outputs_.empty()) {
     // All outputs of the edge are already created by other edges. Don't add
-    // this edge.
+    // this edge.  Do this check before input nodes are connected to the edge.
     state_->edges_.pop_back();
     delete edge;
     return true;
   }
+
+  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
+    string path = i->Evaluate(env);
+    string path_err;
+    unsigned int slash_bits;
+    if (!CanonicalizePath(&path, &slash_bits, &path_err))
+      return lexer_.Error(path_err, err);
+    state_->AddIn(edge, path, slash_bits);
+  }
+  edge->implicit_deps_ = implicit;
+  edge->order_only_deps_ = order_only;
 
   // Multiple outputs aren't (yet?) supported with depslog.
   string deps_type = edge->GetBinding("deps");
