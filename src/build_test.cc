@@ -51,9 +51,9 @@ struct PlanTest : public StateTestWithBuiltinRules {
 };
 
 TEST_F(PlanTest, Basic) {
-  AssertParse(&state_,
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat mid\n"
-"build mid: cat in\n");
+"build mid: cat in\n"));
   GetNode("mid")->MarkDirty();
   GetNode("out")->MarkDirty();
   string err;
@@ -84,9 +84,9 @@ TEST_F(PlanTest, Basic) {
 
 // Test that two outputs from one rule can be handled as inputs to the next.
 TEST_F(PlanTest, DoubleOutputDirect) {
-  AssertParse(&state_,
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat mid1 mid2\n"
-"build mid1 mid2: cat in\n");
+"build mid1 mid2: cat in\n"));
   GetNode("mid1")->MarkDirty();
   GetNode("mid2")->MarkDirty();
   GetNode("out")->MarkDirty();
@@ -111,11 +111,11 @@ TEST_F(PlanTest, DoubleOutputDirect) {
 
 // Test that two outputs from one rule can eventually be routed to another.
 TEST_F(PlanTest, DoubleOutputIndirect) {
-  AssertParse(&state_,
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat b1 b2\n"
 "build b1: cat a1\n"
 "build b2: cat a2\n"
-"build a1 a2: cat in\n");
+"build a1 a2: cat in\n"));
   GetNode("a1")->MarkDirty();
   GetNode("a2")->MarkDirty();
   GetNode("b1")->MarkDirty();
@@ -149,11 +149,11 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
 
 // Test that two edges from one output can both execute.
 TEST_F(PlanTest, DoubleDependent) {
-  AssertParse(&state_,
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat a1 a2\n"
 "build a1: cat mid\n"
 "build a2: cat mid\n"
-"build mid: cat in\n");
+"build mid: cat in\n"));
   GetNode("mid")->MarkDirty();
   GetNode("a1")->MarkDirty();
   GetNode("a2")->MarkDirty();
@@ -186,11 +186,11 @@ TEST_F(PlanTest, DoubleDependent) {
 }
 
 TEST_F(PlanTest, DependencyCycle) {
-  AssertParse(&state_,
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat mid\n"
 "build mid: cat in\n"
 "build in: cat pre\n"
-"build pre: cat out\n");
+"build pre: cat out\n"));
   GetNode("out")->MarkDirty();
   GetNode("mid")->MarkDirty();
   GetNode("in")->MarkDirty();
@@ -1413,7 +1413,7 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
 }
 
-// Test that contens of the RSP file behaves like a regular part of
+// Test that contents of the RSP file behaves like a regular part of
 // command line, i.e. triggers a rebuild if changed
 TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -1493,6 +1493,20 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
   EXPECT_EQ(0, fs_.Stat("out2"));
+}
+
+TEST_F(BuildTest, StatFailureAbortsBuild) {
+  const string kTooLongToStat(400, 'i');
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+("build " + kTooLongToStat + ": cat " + kTooLongToStat + "\n").c_str()));
+  // Also cyclic, for good measure.
+
+  // This simulates a stat failure:
+  fs_.files_[kTooLongToStat].mtime = -1;
+
+  string err;
+  EXPECT_FALSE(builder_.AddTarget(kTooLongToStat, &err));
+  EXPECT_EQ("stat failed", err);
 }
 
 TEST_F(BuildTest, PhonyWithNoInputs) {

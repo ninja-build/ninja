@@ -41,15 +41,14 @@ struct Node {
         in_edge_(NULL),
         id_(-1) {}
 
-  /// Return true if the file exists (mtime_ got a value).
-  bool Stat(DiskInterface* disk_interface);
+  /// Return false on error.
+  bool Stat(DiskInterface* disk_interface, string* err);
 
-  /// Return true if we needed to stat.
-  bool StatIfNecessary(DiskInterface* disk_interface) {
+  /// Return false on error.
+  bool StatIfNecessary(DiskInterface* disk_interface, string* err) {
     if (status_known())
-      return false;
-    Stat(disk_interface);
-    return true;
+      return true;
+    return Stat(disk_interface, err);
   }
 
   /// Mark as not-yet-stat()ed and not dirty.
@@ -236,9 +235,10 @@ struct DependencyScan {
   /// Returns false on failure.
   bool RecomputeDirty(Edge* edge, string* err);
 
-  /// Recompute whether any output of the edge is dirty.
-  /// Returns true if so.
-  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input);
+  /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
+  /// Returns false on failure.
+  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
+                             bool* dirty, string* err);
 
   BuildLog* build_log() const {
     return build_log_;

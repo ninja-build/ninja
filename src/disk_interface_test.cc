@@ -204,7 +204,9 @@ TEST_F(StatTest, Simple) {
 "build out: cat in\n"));
 
   Node* out = GetNode("out");
-  out->Stat(this);
+  string err;
+  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(2u, stats_.size());
@@ -218,7 +220,9 @@ TEST_F(StatTest, TwoStep) {
 "build mid: cat in\n"));
 
   Node* out = GetNode("out");
-  out->Stat(this);
+  string err;
+  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(3u, stats_.size());
@@ -236,7 +240,9 @@ TEST_F(StatTest, Tree) {
 "build mid2: cat in21 in22\n"));
 
   Node* out = GetNode("out");
-  out->Stat(this);
+  string err;
+  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
@@ -255,7 +261,9 @@ TEST_F(StatTest, Middle) {
   mtimes_["out"] = 1;
 
   Node* out = GetNode("out");
-  out->Stat(this);
+  string err;
+  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out->in_edge(), NULL);
   ASSERT_FALSE(GetNode("in")->dirty());
