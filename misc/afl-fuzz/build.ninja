@@ -1,0 +1,5 @@
+rule b
+  command = clang -MMD -MF $out.d -o $out -c $in
+  description = building $out
+
+build a.o: b a.c
