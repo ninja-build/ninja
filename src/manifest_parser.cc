@@ -321,6 +321,7 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
+  edge->outputs_.reserve(outs.size());
   for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     string path = i->Evaluate(env);
     string path_err;
@@ -337,6 +338,7 @@ bool ManifestParser::ParseEdge(string* err) {
     return true;
   }
 
+  edge->inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
     string path_err;
