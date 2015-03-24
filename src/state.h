@@ -97,7 +97,7 @@ struct State {
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path, unsigned int slash_bits);
-  void AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
+  bool AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
   bool AddDefault(StringPiece path, string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
