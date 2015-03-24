@@ -328,7 +328,12 @@ bool ManifestParser::ParseEdge(string* err) {
     unsigned int slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
-    state_->AddOut(edge, path, slash_bits);
+    if (!state_->AddOut(edge, path, slash_bits)) {
+      Warning("multiple rules generate %s. "
+              "builds involving this target will not be correct; "
+              "continuing anyway",
+              path.c_str());
+    }
   }
   if (edge->outputs_.empty()) {
     // All outputs of the edge are already created by other edges. Don't add
