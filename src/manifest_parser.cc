@@ -25,7 +25,7 @@
 #include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader)
-  : state_(state), file_reader_(file_reader) {
+  : state_(state), file_reader_(file_reader), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -329,10 +329,12 @@ bool ManifestParser::ParseEdge(string* err) {
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
-      Warning("multiple rules generate %s. "
-              "builds involving this target will not be correct; "
-              "continuing anyway",
-              path.c_str());
+      if (!quiet_) {
+        Warning("multiple rules generate %s. "
+                "builds involving this target will not be correct; "
+                "continuing anyway",
+                path.c_str());
+      }
     }
   }
   if (edge->outputs_.empty()) {

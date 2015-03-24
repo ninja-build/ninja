@@ -39,6 +39,7 @@ struct ManifestParser {
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const string& input, string* err) {
+    quiet_ = true;
     return Parse("input", input, err);
   }
 
@@ -64,6 +65,7 @@ private:
   BindingEnv* env_;
   FileReader* file_reader_;
   Lexer lexer_;
+  bool quiet_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
