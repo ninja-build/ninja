@@ -364,6 +364,19 @@ TEST_F(ParserTest, NoDeadPointerFromDuplicateEdge) {
   // That's all the checking that this test needs.
 }
 
+TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
+  const char kInput[] =
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out1 out2: cat in1\n"
+"build out1: cat in2\n"
+"build final: cat out1\n";
+  ManifestParser parser(&state, this, /*dupe_edges_should_err=*/true);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
+}
+
 TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule build\n"
