@@ -23,6 +23,9 @@ Make announcement on mailing list:
 1. copy old mail
 
 Update website:
-(note to self: website is now in github.com/martine/martine.github.io)
-1. rebuild manual, put in place on website
-2. update home page mention of latest version.
+1. Make sure your ninja checkout is on the v1.5.0 tag
+2. Clone https://github.com/martine/martine.github.io
+3. In that repo, `cd ninja && ./update-docs.sh`
+4. Update index.html with newest version and link to release notes
+5. git commit -m 'run update-docs.sh, 1.5.0 release'
+6. git push origin master
