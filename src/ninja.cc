@@ -64,6 +64,9 @@ struct Options {
 
   /// Tool to run rather than building.
   const Tool* tool;
+
+  /// Whether duplicate rules for one target should warn or print an error.
+  bool dupe_edges_should_err;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -192,14 +195,15 @@ void Usage(const BuildConfig& config) {
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
-"  -l N     do not start new jobs if the load average is greater than N\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
+"  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
-"    terminates toplevel options; further flags are passed to the tool\n",
+"    terminates toplevel options; further flags are passed to the tool\n"
+"  -w FLAG  adjust warnings (use -w list to list warnings)\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -792,6 +796,32 @@ bool DebugEnable(const string& name) {
   }
 }
 
+/// Set a warning flag.  Returns false if Ninja should exit instead  of
+/// continuing.
+bool WarningEnable(const string& name, Options* options) {
+  if (name == "list") {
+    printf("warning flags:\n"
+"  dupbuild={err,warn}  multiple build lines for one target\n");
+    return false;
+  } else if (name == "dupbuild=err") {
+    options->dupe_edges_should_err = true;
+    return true;
+  } else if (name == "dupbuild=warn") {
+    options->dupe_edges_should_err = false;
+    return true;
+  } else {
+    const char* suggestion =
+        SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn", NULL);
+    if (suggestion) {
+      Error("unknown warning flag '%s', did you mean '%s'?",
+            name.c_str(), suggestion);
+    } else {
+      Error("unknown warning flag '%s'", name.c_str());
+    }
+    return false;
+  }
+}
+
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
   string log_path = ".ninja_log";
   if (!build_dir_.empty())
@@ -962,7 +992,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vC:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1010,6 +1040,10 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'v':
         config->verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'w':
+        if (!WarningEnable(optarg, options))
+          return 1;
         break;
       case 'C':
         options->working_dir = optarg;
@@ -1067,7 +1101,8 @@ int real_main(int argc, char** argv) {
     NinjaMain ninja(ninja_command, config);
 
     RealFileReader file_reader;
-    ManifestParser parser(&ninja.state_, &file_reader);
+    ManifestParser parser(&ninja.state_, &file_reader,
+                          options.dupe_edges_should_err);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       Error("%s", err.c_str());
