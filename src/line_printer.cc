@@ -92,7 +92,7 @@ void LinePrinter::Print(string to_print, LineType type) {
 
     have_blank_line_ = false;
   } else {
-    printf("%s\n", to_print.c_str());
+    printf("%s\n", RemoveZeroWidthMarkers(to_print).c_str());
   }
 }
 

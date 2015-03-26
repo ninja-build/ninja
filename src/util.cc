@@ -597,7 +597,7 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-static string RemoveZeroWidthMarkers(const string& str) {
+string RemoveZeroWidthMarkers(const string& str) {
   string result;
   size_t last_open = 0;
   size_t open = 0;

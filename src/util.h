@@ -81,6 +81,9 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
+/// Remove zero-width markers.
+string RemoveZeroWidthMarkers(const string& str);
+
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.
 string ElideMiddle(const string& str, size_t width);
