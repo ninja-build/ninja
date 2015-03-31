@@ -30,7 +30,7 @@ struct DiskInterface {
 
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path) const = 0;
+  virtual TimeStamp Stat(const string& path, string* err) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -56,20 +56,17 @@ struct DiskInterface {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface() : quiet_(false)
+  RealDiskInterface()
 #ifdef _WIN32
-                      , use_cache_(false)
+                      : use_cache_(false)
 #endif
                       {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path) const;
+  virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual string ReadFile(const string& path, string* err);
   virtual int RemoveFile(const string& path);
-
-  /// Whether to print on errors.  Used to make a test quieter.
-  bool quiet_;
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);

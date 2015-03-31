@@ -29,13 +29,7 @@
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
   METRIC_RECORD("node stat");
-  mtime_ = disk_interface->Stat(path_);
-  if (mtime_ == -1) {
-    // TODO: Let DiskInterface::Stat() take err instead of it calling Error().
-    *err = "stat failed";
-    return false;
-  }
-  return true;
+  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {

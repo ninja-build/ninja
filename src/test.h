@@ -142,7 +142,7 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path) const;
+  virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual string ReadFile(const string& path, string* err);
@@ -151,6 +151,7 @@ struct VirtualFileSystem : public DiskInterface {
   /// An entry for a single in-memory file.
   struct Entry {
     int mtime;
+    string stat_error;  // If mtime is -1.
     string contents;
   };
 
