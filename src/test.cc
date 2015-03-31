@@ -145,10 +145,12 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path) const {
+TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
   FileMap::const_iterator i = files_.find(path);
-  if (i != files_.end())
+  if (i != files_.end()) {
+    *err = i->second.stat_error;
     return i->second.mtime;
+  }
   return 0;
 }
 

@@ -42,15 +42,19 @@ struct RealFileReader : public ManifestParser::FileReader {
   }
 };
 
-bool WriteFakeManifests(const string& dir) {
+bool WriteFakeManifests(const string& dir, string* err) {
   RealDiskInterface disk_interface;
-  if (disk_interface.Stat(dir + "/build.ninja") > 0)
-    return true;
+  TimeStamp mtime = disk_interface.Stat(dir + "/build.ninja", err);
+  if (mtime != 0)  // 0 means that the file doesn't exist yet.
+    return mtime != -1;
 
+  string command = "python misc/write_fake_manifests.py " + dir;
   printf("Creating manifest data..."); fflush(stdout);
-  int err = system(("python misc/write_fake_manifests.py " + dir).c_str());
+  int exit_code = system(command.c_str());
   printf("done.\n");
-  return err == 0;
+  if (exit_code != 0)
+    *err = "Failed to run " + command;
+  return exit_code == 0;
 }
 
 int LoadManifests(bool measure_command_evaluation) {
@@ -93,8 +97,9 @@ int main(int argc, char* argv[]) {
 
   const char kManifestDir[] = "build/manifest_perftest";
 
-  if (!WriteFakeManifests(kManifestDir)) {
-    fprintf(stderr, "Failed to write test data\n");
+  string err;
+  if (!WriteFakeManifests(kManifestDir, &err)) {
+    fprintf(stderr, "Failed to write test data: %s\n", err.c_str());
     return 1;
   }
 

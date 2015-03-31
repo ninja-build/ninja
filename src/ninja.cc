@@ -143,6 +143,8 @@ struct NinjaMain : public BuildLogUser {
 
   virtual bool IsPathDead(StringPiece s) const {
     Node* n = state_.LookupNode(s);
+    if (!n || !n->in_edge())
+      return false;
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
     // have an in edge if one of its inputs is another output that's in the deps
@@ -152,7 +154,11 @@ struct NinjaMain : public BuildLogUser {
     // which seems good enough for this corner case.)
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
-    return (!n || !n->in_edge()) && disk_interface_.Stat(s.AsString()) == 0;
+    string err;
+    TimeStamp mtime = disk_interface_.Stat(s.AsString(), &err);
+    if (mtime == -1)
+      Error("%s", err.c_str());  // Log and ignore Stat() errors.
+    return mtime == 0;
   }
 };
 
@@ -481,7 +487,10 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
       continue;
     }
 
-    TimeStamp mtime = disk_interface.Stat((*it)->path());
+    string err;
+    TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
+    if (mtime == -1)
+      Error("%s", err.c_str());  // Log and ignore Stat() errors;
     printf("%s: #deps %d, deps mtime %d (%s)\n",
            (*it)->path().c_str(), deps->node_count, deps->mtime,
            (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
