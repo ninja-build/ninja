@@ -318,16 +318,33 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
 
 bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
                                 string* err) {
-  vector<Node*>::const_iterator start = find(stack.begin(), stack.end(), node);
+  vector<Node*>::const_iterator start = stack.begin();
+  while (start != stack.end() && (*start)->in_edge() != node->in_edge())
+    ++start;
   if (start == stack.end())
     return false;
 
-  *err = "dependency cycle: ";
-  for (vector<Node*>::const_iterator i = start; i != stack.end(); ++i) {
-    err->append((*i)->path());
-    err->append(" -> ");
+  // Build error string for the cycle.
+  vector<Node*> cycle(start, stack.end());
+  cycle.push_back(node);
+
+  if (cycle.front() != cycle.back()) {
+    // Consider
+    //   build a b: cat c
+    //   build c: cat a
+    // stack will contain [b, c], node will be a.  To not print b -> c -> a,
+    // shift by one to get c -> a -> c which makes the cycle clear.
+    cycle.erase(cycle.begin());
+    cycle.push_back(cycle.front());
+    assert(cycle.front() == cycle.back());
   }
-  err->append(node->path());
+
+  *err = "dependency cycle: ";
+  for (vector<Node*>::const_iterator i = cycle.begin(); i != cycle.end(); ++i) {
+    if (i != cycle.begin())
+      err->append(" -> ");
+    err->append((*i)->path());
+  }
   return true;
 }
 

@@ -201,6 +201,43 @@ TEST_F(PlanTest, DependencyCycle) {
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
+TEST_F(PlanTest, CycleInEdgesButNotInNodes1) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a b: cat a\n"));
+  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: a -> a", err);
+}
+
+TEST_F(PlanTest, CycleInEdgesButNotInNodes2) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build b a: cat a\n"));
+  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: a -> a", err);
+}
+
+TEST_F(PlanTest, CycleInEdgesButNotInNodes3) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a b: cat c\n"
+"build c: cat a\n"));
+  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: c -> a -> c", err);
+}
+
+TEST_F(PlanTest, CycleInEdgesButNotInNodes4) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build d: cat c\n"
+"build c: cat b\n"
+"build b: cat a\n"
+"build a e: cat d\n"
+"build f: cat e\n"));
+  EXPECT_FALSE(plan_.AddTarget(GetNode("f"), &err));
+  ASSERT_EQ("dependency cycle: d -> c -> b -> a -> d", err);
+}
+
 void PlanTest::TestPoolWithDepthOne(const char* test_case) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, test_case));
   GetNode("out1")->MarkDirty();
