@@ -322,17 +322,13 @@ bool Plan::CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err) {
   if (ri == stack->rend())
     return false;
 
-  // Add this node onto the stack to make it clearer where the loop
-  // is.
-  stack->push_back(node);
-
   vector<Node*>::iterator start = find(stack->begin(), stack->end(), node);
   *err = "dependency cycle: ";
   for (vector<Node*>::iterator i = start; i != stack->end(); ++i) {
-    if (i != start)
-      err->append(" -> ");
     err->append((*i)->path());
+    err->append(" -> ");
   }
+  err->append(node->path());
   return true;
 }
 
