@@ -318,12 +318,10 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
 
 bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
                                 string* err) {
-  vector<Node*>::const_reverse_iterator ri =
-      find(stack.rbegin(), stack.rend(), node);
-  if (ri == stack.rend())
+  vector<Node*>::const_iterator start = find(stack.begin(), stack.end(), node);
+  if (start == stack.end())
     return false;
 
-  vector<Node*>::const_iterator start = find(stack.begin(), stack.end(), node);
   *err = "dependency cycle: ";
   for (vector<Node*>::const_iterator i = start; i != stack.end(); ++i) {
     err->append((*i)->path());
