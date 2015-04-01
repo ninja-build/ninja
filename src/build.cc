@@ -278,7 +278,7 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
     return false;
   }
 
-  if (CheckDependencyCycle(node, stack, err))
+  if (CheckDependencyCycle(node, *stack, err))
     return false;
 
   if (edge->outputs_ready())
@@ -316,23 +316,18 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   return true;
 }
 
-bool Plan::CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err) {
-  vector<Node*>::reverse_iterator ri =
-      find(stack->rbegin(), stack->rend(), node);
-  if (ri == stack->rend())
+bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
+                                string* err) {
+  vector<Node*>::const_iterator start = find(stack.begin(), stack.end(), node);
+  if (start == stack.end())
     return false;
 
-  // Add this node onto the stack to make it clearer where the loop
-  // is.
-  stack->push_back(node);
-
-  vector<Node*>::iterator start = find(stack->begin(), stack->end(), node);
   *err = "dependency cycle: ";
-  for (vector<Node*>::iterator i = start; i != stack->end(); ++i) {
-    if (i != start)
-      err->append(" -> ");
+  for (vector<Node*>::const_iterator i = start; i != stack.end(); ++i) {
     err->append((*i)->path());
+    err->append(" -> ");
   }
+  err->append(node->path());
   return true;
 }
 
