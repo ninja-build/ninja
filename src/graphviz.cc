@@ -15,6 +15,7 @@
 #include "graphviz.h"
 
 #include <stdio.h>
+#include <algorithm>
 
 #include "graph.h"
 
@@ -22,7 +23,9 @@ void GraphViz::AddTarget(Node* node) {
   if (visited_nodes_.find(node) != visited_nodes_.end())
     return;
 
-  printf("\"%p\" [label=\"%s\"]\n", node, node->path().c_str());
+  string pathstr = node->path();
+  replace(pathstr.begin(), pathstr.end(), '\\', '/');
+  printf("\"%p\" [label=\"%s\"]\n", node, pathstr.c_str());
   visited_nodes_.insert(node);
 
   Edge* edge = node->in_edge();
