@@ -30,7 +30,7 @@ void BindingEnv::AddBinding(const string& key, const string& val) {
 }
 
 void BindingEnv::AddRule(const Rule* rule) {
-  assert(LookupRule(rule->name()) == NULL);
+  assert(LookupRuleCurrentScope(rule->name()) == NULL);
   rules_[rule->name()] = rule;
 }
 
