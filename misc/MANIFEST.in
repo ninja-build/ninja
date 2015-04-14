@@ -1,4 +1,4 @@
 exclude *.py
-include __init__.py
 include ninja_syntax.py
+include version.py
 include setup.py
