@@ -500,7 +500,7 @@ string StripAnsiEscapeCodes(const string& in) {
 int GetProcessorCount() {
 #ifdef _WIN32
   SYSTEM_INFO info;
-  GetSystemInfo(&info);
+  GetNativeSystemInfo(&info);
   return info.dwNumberOfProcessors;
 #else
   return sysconf(_SC_NPROCESSORS_ONLN);
