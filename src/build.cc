@@ -411,7 +411,9 @@ void Plan::NodeFinished(Node* node) {
         ScheduleWork(*oe);
       } else {
         // We do not need to build this edge, but we might need to build one of
-        // its dependents.
+        // its dependents. Make sure the pool schedules it before it's finished
+        // otherwise the pool use count may be invalid.
+        (*oe)->pool()->EdgeScheduled(**oe);
         EdgeFinished(*oe);
       }
     }
