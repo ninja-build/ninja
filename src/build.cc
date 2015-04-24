@@ -379,7 +379,7 @@ void Plan::ResumeDelayedJobs(Edge* edge) {
   edge->pool()->RetrieveReadyEdges(&ready_);
 }
 
-void Plan::EdgeFinished(Edge* edge) {
+void Plan::EdgeFinished(Edge* edge, bool directly_wanted) {
   map<Edge*, bool>::iterator e = want_.find(edge);
   assert(e != want_.end());
   if (e->second)
@@ -388,7 +388,10 @@ void Plan::EdgeFinished(Edge* edge) {
   edge->outputs_ready_ = true;
 
   // See if this job frees up any delayed jobs
-  ResumeDelayedJobs(edge);
+  if (directly_wanted)
+    ResumeDelayedJobs(edge);
+  else
+    edge->pool()->RetrieveReadyEdges(&ready_);
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
@@ -411,10 +414,8 @@ void Plan::NodeFinished(Node* node) {
         ScheduleWork(*oe);
       } else {
         // We do not need to build this edge, but we might need to build one of
-        // its dependents. Make sure the pool schedules it before it's finished
-        // otherwise the pool use count may be invalid.
-        (*oe)->pool()->EdgeScheduled(**oe);
-        EdgeFinished(*oe);
+        // its dependents.
+        EdgeFinished(*oe, want_e->second);
       }
     }
   }

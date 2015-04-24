@@ -71,9 +71,6 @@ struct Pool {
 
   /// |current_use_| is the total of the weights of the edges which are
   /// currently scheduled in the Plan (i.e. the edges in Plan::ready_).
-  /// This is generally <= to depth_. It can exceed it very briefly when the
-  /// pool is notified about an edge that's about to be finished that will
-  /// not actually be started. See Plan::NodeFinished().
   int current_use_;
   int depth_;
 
