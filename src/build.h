@@ -58,7 +58,7 @@ struct Plan {
 
   /// Mark an edge as done building.  Used internally and by
   /// tests.
-  void EdgeFinished(Edge* edge, bool directly_wanted = true);
+  void EdgeFinished(Edge* edge);
 
   /// Clean the given node during the build.
   /// Return false on error.
@@ -77,11 +77,6 @@ private:
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
   void ScheduleWork(Edge* edge);
-
-  /// Allows jobs blocking on |edge| to potentially resume.
-  /// For example, if |edge| is a member of a pool, calling this may schedule
-  /// previously pending jobs in that pool.
-  void ResumeDelayedJobs(Edge* edge);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
