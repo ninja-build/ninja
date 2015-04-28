@@ -15,40 +15,14 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
-#include <algorithm>
 #include <string.h>
+
+#include <algorithm>
+
+#include "murmurhash2.h"
 #include "string_piece.h"
 
-// MurmurHash2, by Austin Appleby
-static inline
-unsigned int MurmurHash2(const void* key, size_t len) {
-  static const unsigned int seed = 0xDECAFBAD;
-  const unsigned int m = 0x5bd1e995;
-  const int r = 24;
-  unsigned int h = seed ^ len;
-  const unsigned char* data = (const unsigned char*)key;
-  while (len >= 4) {
-    unsigned int k;
-    memcpy(&k, data, sizeof k);
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-    h *= m;
-    h ^= k;
-    data += 4;
-    len -= 4;
-  }
-  switch (len) {
-  case 3: h ^= data[2] << 16;
-  case 2: h ^= data[1] << 8;
-  case 1: h ^= data[0];
-    h *= m;
-  };
-  h ^= h >> 13;
-  h *= m;
-  h ^= h >> 15;
-  return h;
-}
+static const unsigned int kHash2Seed = 0xDECAFBAD;
 
 #if (__cplusplus >= 201103L) || (_MSC_VER >= 1900)
 #include <unordered_map>
@@ -60,7 +34,7 @@ struct hash<StringPiece> {
   typedef size_t result_type;
 
   size_t operator()(StringPiece key) const {
-    return MurmurHash2(key.str_, key.len_);
+    return MurmurHash2(key.str_, key.len_, kHash2Seed);
   }
 };
 }
@@ -73,7 +47,7 @@ using stdext::hash_compare;
 
 struct StringPieceCmp : public hash_compare<StringPiece> {
   size_t operator()(const StringPiece& key) const {
-    return MurmurHash2(key.str_, key.len_);
+    return MurmurHash2(key.str_, key.len_, kHash2Seed);
   }
   bool operator()(const StringPiece& a, const StringPiece& b) const {
     int cmp = strncmp(a.str_, b.str_, min(a.len_, b.len_));
@@ -96,7 +70,7 @@ namespace __gnu_cxx {
 template<>
 struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
-    return MurmurHash2(key.str_, key.len_);
+    return MurmurHash2(key.str_, key.len_, kHash2Seed);
   }
 };
 }
