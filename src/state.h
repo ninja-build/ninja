@@ -44,6 +44,7 @@ struct Pool {
   bool is_valid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
   const string& name() const { return name_; }
+  int current_use() const { return current_use_; }
 
   /// true if the Pool might delay this edge
   bool ShouldDelayEdge() const { return depth_ != 0; }

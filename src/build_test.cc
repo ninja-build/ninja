@@ -495,8 +495,8 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
   /// Handy to check for NOOP builds, and higher-level rebuild tests.
   void RebuildTarget(const string& target, const char* manifest,
-                     const char* log_path = NULL,
-                     const char* deps_path = NULL);
+                     const char* log_path = NULL, const char* deps_path = NULL,
+                     State* state = NULL);
 
   // Mark a path dirty.
   void Dirty(const string& path);
@@ -516,10 +516,13 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
 };
 
 void BuildTest::RebuildTarget(const string& target, const char* manifest,
-                              const char* log_path, const char* deps_path) {
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
-  AssertParse(&state, manifest);
+                              const char* log_path, const char* deps_path,
+                              State* state) {
+  State local_state, *pstate = &local_state;
+  if (state)
+    pstate = state;
+  ASSERT_NO_FATAL_FAILURE(AddCatRule(pstate));
+  AssertParse(pstate, manifest);
 
   string err;
   BuildLog build_log, *pbuild_log = NULL;
@@ -532,13 +535,13 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
 
   DepsLog deps_log, *pdeps_log = NULL;
   if (deps_path) {
-    ASSERT_TRUE(deps_log.Load(deps_path, &state, &err));
+    ASSERT_TRUE(deps_log.Load(deps_path, pstate, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_path, &err));
     ASSERT_EQ("", err);
     pdeps_log = &deps_log;
   }
 
-  Builder builder(&state, config_, pbuild_log, pdeps_log, &fs_);
+  Builder builder(pstate, config_, pbuild_log, pdeps_log, &fs_);
   EXPECT_TRUE(builder.AddTarget(target, &err));
 
   command_runner_.commands_ran_.clear();
@@ -1090,6 +1093,31 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
+TEST_F(BuildTest, PoolEdgesReadyButNotWanted) {
+  fs_.Create("x", "");
+
+  const char* manifest =
+    "pool some_pool\n"
+    "  depth = 4\n"
+    "rule touch\n"
+    "  command = touch $out\n"
+    "  pool = some_pool\n"
+    "rule cc\n"
+    "  command = touch grit\n"
+    "\n"
+    "build B.d.stamp: cc | x\n"
+    "build C.stamp: touch B.d.stamp\n"
+    "build final.stamp: touch || C.stamp\n";
+
+  RebuildTarget("final.stamp", manifest);
+
+  fs_.RemoveFile("B.d.stamp");
+
+  State save_state;
+  RebuildTarget("final.stamp", manifest, NULL, NULL, &save_state);
+  EXPECT_GE(save_state.LookupPool("some_pool")->current_use(), 0);
 }
 
 struct BuildWithLogTest : public BuildTest {

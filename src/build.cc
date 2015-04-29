@@ -374,21 +374,19 @@ void Plan::ScheduleWork(Edge* edge) {
   }
 }
 
-void Plan::ResumeDelayedJobs(Edge* edge) {
-  edge->pool()->EdgeFinished(*edge);
-  edge->pool()->RetrieveReadyEdges(&ready_);
-}
-
 void Plan::EdgeFinished(Edge* edge) {
   map<Edge*, bool>::iterator e = want_.find(edge);
   assert(e != want_.end());
-  if (e->second)
+  bool directly_wanted = e->second;
+  if (directly_wanted)
     --wanted_edges_;
   want_.erase(e);
   edge->outputs_ready_ = true;
 
-  // See if this job frees up any delayed jobs
-  ResumeDelayedJobs(edge);
+  // See if this job frees up any delayed jobs.
+  if (directly_wanted)
+    edge->pool()->EdgeFinished(*edge);
+  edge->pool()->RetrieveReadyEdges(&ready_);
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator o = edge->outputs_.begin();

@@ -78,11 +78,6 @@ private:
   /// currently-full pool.
   void ScheduleWork(Edge* edge);
 
-  /// Allows jobs blocking on |edge| to potentially resume.
-  /// For example, if |edge| is a member of a pool, calling this may schedule
-  /// previously pending jobs in that pool.
-  void ResumeDelayedJobs(Edge* edge);
-
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
   /// dependents.  If an entry maps to false, we do not want to build it, but we
