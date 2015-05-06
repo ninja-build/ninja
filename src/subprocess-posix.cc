@@ -55,8 +55,6 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("fork: %s", strerror(errno));
 
   if (pid_ == 0) {
-    close(output_pipe[0]);
-
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
@@ -90,9 +88,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         // Now can use stderr for errors.
         error_pipe = 2;
         close(output_pipe[1]);
+      } else {
+        // In the console case, the pipe is not needed by the child
+        // process at all. Close it in the child, but keep it open
+        // in the parent in case execl fails.
+        SetCloseOnExec(output_pipe[1]);
       }
-      // In the console case, output_pipe is still inherited by the child and
-      // closed when the subprocess finishes, which then notifies ninja.
 
       execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
     } while (false);
