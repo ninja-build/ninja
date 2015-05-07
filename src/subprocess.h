@@ -96,6 +96,8 @@ struct SubprocessSet {
 
   static bool IsInterrupted() { return interrupted_ != 0; }
 
+  void CheckDoneConsoleProcesses(bool block);
+
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;
   sigset_t old_mask_;

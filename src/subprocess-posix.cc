@@ -55,8 +55,6 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("fork: %s", strerror(errno));
 
   if (pid_ == 0) {
-    close(output_pipe[0]);
-
     // Track which fd we use to report errors on.
     int error_pipe = output_pipe[1];
     do {
@@ -90,9 +88,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         // Now can use stderr for errors.
         error_pipe = 2;
         close(output_pipe[1]);
+      } else {
+        // In the console case, the pipe is not needed by the child
+        // process at all. Close it in the child, but keep it open
+        // in the parent in case execl fails.
+        SetCloseOnExec(output_pipe[1]);
       }
-      // In the console case, output_pipe is still inherited by the child and
-      // closed when the subprocess finishes, which then notifies ninja.
 
       execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
     } while (false);
@@ -107,6 +108,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     _exit(1);
   }
 
+  if (use_console_) {
+    // Console pool processes do not use the pipe: close the read
+    // end so we don't attempt to wait for output.
+    close(output_pipe[0]);
+    fd_ = -1;
+  }
   close(output_pipe[1]);
   return true;
 }
@@ -154,6 +161,29 @@ int SubprocessSet::interrupted_;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
   interrupted_ = signum;
+}
+
+void SubprocessSet::CheckDoneConsoleProcesses(bool block) {
+  int options = WEXITED | WNOWAIT;
+  if (!block)
+    options |= WNOHANG;
+  for (vector<Subprocess*>::iterator i = running_.begin();
+       i != running_.end();) {
+    if (!(*i)->use_console_) {
+      ++i;
+      continue;
+    }
+    siginfo_t info = {0};
+    int res = waitid(P_PID, (id_t)(*i)->pid_, &info, options);
+    if (res == -1)
+      Fatal("waitid(%d): %s", (*i)->pid_, strerror(errno));
+    if (info.si_pid == 0) {
+      ++i;
+      continue;
+    }
+    finished_.push(*i);
+    i = running_.erase(i);
+  }
 }
 
 void SubprocessSet::HandlePendingInterruption() {
@@ -223,37 +253,42 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = 0;
-  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
-  if (ret == -1) {
-    if (errno != EINTR) {
-      perror("ninja: ppoll");
-      return false;
+  if (!fds.empty()) {
+    int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+    if (ret == -1) {
+      if (errno != EINTR) {
+        perror("ninja: ppoll");
+        return false;
+      }
+      return IsInterrupted();
     }
-    return IsInterrupted();
-  }
 
-  HandlePendingInterruption();
-  if (IsInterrupted())
-    return true;
+    HandlePendingInterruption();
+    if (IsInterrupted())
+      return true;
 
-  nfds_t cur_nfd = 0;
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
-    int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
-    assert(fd == fds[cur_nfd].fd);
-    if (fds[cur_nfd++].revents) {
-      (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
+    nfds_t cur_nfd = 0;
+    for (vector<Subprocess*>::iterator i = running_.begin();
+         i != running_.end();) {
+      int fd = (*i)->fd_;
+      if (fd < 0) {
+        ++i;
         continue;
       }
+      assert(fd == fds[cur_nfd].fd);
+      if (fds[cur_nfd++].revents) {
+        (*i)->OnPipeReady();
+        if ((*i)->Done()) {
+          finished_.push(*i);
+          i = running_.erase(i);
+          continue;
+        }
+      }
+      ++i;
     }
-    ++i;
   }
 
+  CheckDoneConsoleProcesses(nfds == 0);
   return IsInterrupted();
 }
 
@@ -274,33 +309,36 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = 0;
-  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
-  if (ret == -1) {
-    if (errno != EINTR) {
-      perror("ninja: pselect");
-      return false;
-    }
-    return IsInterrupted();
-  }
-
-  HandlePendingInterruption();
-  if (IsInterrupted())
-    return true;
-
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
-    int fd = (*i)->fd_;
-    if (fd >= 0 && FD_ISSET(fd, &set)) {
-      (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
-        continue;
+  if (nfds > 0) {
+    int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
+    if (ret == -1) {
+      if (errno != EINTR) {
+        perror("ninja: pselect");
+        return false;
       }
+      return IsInterrupted();
     }
-    ++i;
+
+    HandlePendingInterruption();
+    if (IsInterrupted())
+      return true;
+
+    for (vector<Subprocess*>::iterator i = running_.begin();
+         i != running_.end(); ) {
+      int fd = (*i)->fd_;
+      if (fd >= 0 && FD_ISSET(fd, &set)) {
+        (*i)->OnPipeReady();
+        if ((*i)->Done()) {
+          finished_.push(*i);
+          i = running_.erase(i);
+          continue;
+        }
+      }
+      ++i;
+    }
   }
 
+  CheckDoneConsoleProcesses(nfds == 0);
   return IsInterrupted();
 }
 #endif  // !defined(USE_PPOLL)
