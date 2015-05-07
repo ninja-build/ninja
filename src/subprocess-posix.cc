@@ -25,7 +25,7 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
+Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1), status_(-1),
                                            use_console_(use_console) {
 }
 
@@ -33,8 +33,7 @@ Subprocess::~Subprocess() {
   if (fd_ >= 0)
     close(fd_);
   // Reap child if forgotten.
-  if (pid_ != -1)
-    Finish();
+  Finish();
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
@@ -63,6 +62,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       if (sigaction(SIGINT, &set->old_int_act_, 0) < 0)
         break;
       if (sigaction(SIGTERM, &set->old_term_act_, 0) < 0)
+        break;
+      if (sigaction(SIGCHLD, &set->old_chld_act_, 0) < 0)
         break;
       if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
         break;
@@ -125,25 +126,25 @@ void Subprocess::OnPipeReady() {
 }
 
 ExitStatus Subprocess::Finish() {
-  assert(pid_ != -1);
-  int status;
-  if (waitpid(pid_, &status, 0) < 0)
-    Fatal("waitpid(%d): %s", pid_, strerror(errno));
-  pid_ = -1;
+  if (pid_ != -1) {
+    if (waitpid(pid_, &status_, 0) < 0)
+      Fatal("waitpid(%d): %s", pid_, strerror(errno));
+    pid_ = -1;
+  }
 
-  if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
+  if (WIFEXITED(status_)) {
+    int exit = WEXITSTATUS(status_);
     if (exit == 0)
       return ExitSuccess;
-  } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM)
+  } else if (WIFSIGNALED(status_)) {
+    if (WTERMSIG(status_) == SIGINT || WTERMSIG(status_) == SIGTERM)
       return ExitInterrupted;
   }
   return ExitFailure;
 }
 
 bool Subprocess::Done() const {
-  return fd_ == -1;
+  return pid_ == -1;
 }
 
 const string& Subprocess::GetOutput() const {
@@ -169,11 +170,60 @@ void SubprocessSet::HandlePendingInterruption() {
     interrupted_ = SIGTERM;
 }
 
+bool SubprocessSet::child_exited_;
+
+void SubprocessSet::SetChildExited(int signum) {
+  child_exited_ = true;
+}
+
+void SubprocessSet::HandleChildExit() {
+  if (!child_exited_)
+    return;
+  child_exited_ = false;
+  for (;;) {
+    int status = 0;
+    pid_t pid = waitpid(-1, &status, WNOHANG);
+    if (pid == -1) {
+      if (errno == ECHILD)
+        return;
+      Fatal("waitpid: %s", strerror(errno));
+    }
+    if (pid == 0)
+      return;
+    for (vector<Subprocess*>::iterator i = running_.begin();
+         i != running_.end(); ++i) {
+      Subprocess *subprocess = *i;
+      if (pid != subprocess->pid_)
+        continue;
+      // Drain pipe by reading until we would block, as
+      // finished processes' pipes are not read by DoWork.
+      while (subprocess->fd_ != -1) {
+        pollfd pfd = { subprocess->fd_, POLLIN | POLLPRI, 0 };
+        int n = poll(&pfd, 1, 0);
+        if (n == -1)
+          Fatal("poll: %s", strerror(errno));
+        if (n == 0) {
+          close(subprocess->fd_);
+          subprocess->fd_ = -1;
+        } else {
+          subprocess->OnPipeReady();
+        }
+      }
+      subprocess->pid_ = -1;
+      subprocess->status_ = status;
+      finished_.push(subprocess);
+      running_.erase(i);
+      break;
+    }
+  }
+}
+
 SubprocessSet::SubprocessSet() {
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
   sigaddset(&set, SIGTERM);
+  sigaddset(&set, SIGCHLD);
   if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
@@ -184,6 +234,10 @@ SubprocessSet::SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGTERM, &act, &old_term_act_) < 0)
     Fatal("sigaction: %s", strerror(errno));
+
+  act.sa_handler = SetChildExited;
+  if (sigaction(SIGCHLD, &act, &old_chld_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
 }
 
 SubprocessSet::~SubprocessSet() {
@@ -192,6 +246,8 @@ SubprocessSet::~SubprocessSet() {
   if (sigaction(SIGINT, &old_int_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGCHLD, &old_chld_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
   if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
@@ -215,8 +271,6 @@ bool SubprocessSet::DoWork() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
     pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
     fds.push_back(pfd);
     ++nfds;
@@ -229,6 +283,7 @@ bool SubprocessSet::DoWork() {
       perror("ninja: ppoll");
       return false;
     }
+    HandleChildExit();
     return IsInterrupted();
   }
 
@@ -238,20 +293,10 @@ bool SubprocessSet::DoWork() {
 
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
-    int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
-    assert(fd == fds[cur_nfd].fd);
-    if (fds[cur_nfd++].revents) {
+       i != running_.end(); ++i) {
+    assert((*i)->fd_ == fds[cur_nfd].fd);
+    if (fds[cur_nfd++].revents)
       (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
-        continue;
-      }
-    }
-    ++i;
   }
 
   return IsInterrupted();
@@ -280,6 +325,7 @@ bool SubprocessSet::DoWork() {
       perror("ninja: pselect");
       return false;
     }
+    HandleChildExit();
     return IsInterrupted();
   }
 
@@ -288,17 +334,10 @@ bool SubprocessSet::DoWork() {
     return true;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
+       i != running_.end(); ++i) {
     int fd = (*i)->fd_;
-    if (fd >= 0 && FD_ISSET(fd, &set)) {
+    if (fd >= 0 && FD_ISSET(fd, &set))
       (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
-        continue;
-      }
-    }
-    ++i;
   }
 
   return IsInterrupted();

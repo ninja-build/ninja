@@ -63,6 +63,7 @@ struct Subprocess {
 #else
   int fd_;
   pid_t pid_;
+  int status_;
 #endif
   bool use_console_;
 
@@ -96,8 +97,13 @@ struct SubprocessSet {
 
   static bool IsInterrupted() { return interrupted_ != 0; }
 
+  void HandleChildExit();
+  static void SetChildExited(int signum);
+  static bool child_exited_;
+
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;
+  struct sigaction old_chld_act_;
   sigset_t old_mask_;
 #endif
 };

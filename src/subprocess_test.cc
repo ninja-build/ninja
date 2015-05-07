@@ -261,3 +261,17 @@ TEST_F(SubprocessTest, ReadStdin) {
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
+
+#ifndef _WIN32
+TEST_F(SubprocessTest, Background) {
+  time_t before = time(NULL);
+  Subprocess* subproc = subprocs_.Add("echo -n 123; sleep 2s&");
+  while (!subproc->Done())
+    subprocs_.DoWork();
+  time_t after = time(NULL);
+  ASSERT_LE(after-before, 1);
+  ASSERT_EQ(ExitSuccess, subproc->Finish());
+  ASSERT_EQ("123", subproc->GetOutput());
+  ASSERT_EQ(1u, subprocs_.finished_.size());
+}
+#endif
