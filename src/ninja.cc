@@ -205,6 +205,7 @@ void Usage(const BuildConfig& config) {
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
+"  -q       hide all command lines while building\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -1001,7 +1002,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vqw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1049,6 +1050,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'v':
         config->verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'q':
+        config->verbosity = BuildConfig::QUIET;
         break;
       case 'w':
         if (!WarningEnable(optarg, options))
