@@ -28,7 +28,9 @@ import string
 import subprocess
 import sys
 
-sys.path.insert(0, 'misc')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(SCRIPT_DIR, 'misc'))
+
 import ninja_syntax
 
 
@@ -251,7 +253,7 @@ if platform.is_msvc():
     objext = '.obj'
 
 def src(filename):
-    return os.path.join('src', filename)
+    return os.path.join('$srcdir', 'src', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
@@ -268,6 +270,7 @@ def binary(name):
     return name
 
 n.variable('builddir', 'build')
+n.variable('srcdir', os.path.relpath(SCRIPT_DIR, os.getcwd()))
 n.variable('cxx', CXX)
 if platform.is_msvc():
     n.variable('ar', 'link')
@@ -327,6 +330,7 @@ else:
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
+    cflags.append('-I$builddir')
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
         ldflags.append('-L/usr/local/lib')
@@ -415,10 +419,10 @@ objs = []
 if platform.supports_ninja_browse():
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
-           command='src/inline.sh $varname < $in > $out',
+           command='$srcdir/src/inline.sh $varname < $in > $out',
            description='INLINE $out')
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
-            implicit='src/inline.sh',
+            implicit=src('inline.sh'),
             variables=[('varname', 'kBrowsePy')])
     n.newline()
 
@@ -591,11 +595,11 @@ n.newline()
 if not host.is_mingw():
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command='${configure_env}%s configure.py $configure_args' %
+           command='${configure_env}%s $srcdir/configure.py $configure_args' %
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['configure.py', os.path.normpath('misc/ninja_syntax.py')])
+            implicit=['$srcdir/configure.py', os.path.normpath('$srcdir/misc/ninja_syntax.py')])
     n.newline()
 
 n.default(ninja)
