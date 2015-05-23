@@ -274,4 +274,12 @@ TEST_F(SubprocessTest, Background) {
   ASSERT_EQ("123", subproc->GetOutput());
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
+
+TEST_F(SubprocessTest, ExitBeforePoll) {
+  kill(getpid(), SIGINT); // should be blocked until ppoll/pselect
+  bool interrupted = subprocs_.DoWork();
+  if (interrupted)
+    return;
+  ASSERT_FALSE("We should have been interrupted");
+}
 #endif

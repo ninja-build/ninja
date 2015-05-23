@@ -62,6 +62,11 @@ int ReadFile(const string& path, string* contents, string* err);
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 
+#ifndef _WIN32
+/// Mark a file descriptor as non-blocking.
+void SetNonBlocking(int fd);
+#endif
+
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
 const char* SpellcheckStringV(const string& text,

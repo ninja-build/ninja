@@ -100,6 +100,10 @@ struct SubprocessSet {
   void HandleChildExit();
   static void SetChildExited(int signum);
   static bool child_exited_;
+#if !defined(USE_PPOLL)
+  static int self_pipe_[2];
+#endif
+  static void SignalHandled();
 
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;

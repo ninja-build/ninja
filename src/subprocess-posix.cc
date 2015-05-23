@@ -25,6 +25,22 @@
 
 #include "util.h"
 
+// DrainPipe reads from fd until it would block. On EOF, the fd is
+// closed and set to -1. The fd passed in must be non-blocking.
+static void DrainPipe(int *fd, std::string *out);
+
+static void CreatePipe(int fds[2]) {
+  if (pipe(fds) < 0)
+    Fatal("pipe: %s", strerror(errno));
+#if !defined(USE_PPOLL)
+  // If available, we use ppoll in DoWork(); otherwise we use pselect
+  // and so must avoid overly-large FDs.
+  if (fds[0] >= static_cast<int>(FD_SETSIZE))
+    Fatal("pipe: %s", strerror(EMFILE));
+#endif  // !USE_PPOLL
+}
+
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1), status_(-1),
                                            use_console_(use_console) {
 }
@@ -38,16 +54,10 @@ Subprocess::~Subprocess() {
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
   int output_pipe[2];
-  if (pipe(output_pipe) < 0)
-    Fatal("pipe: %s", strerror(errno));
+  CreatePipe(output_pipe);
   fd_ = output_pipe[0];
-#if !defined(USE_PPOLL)
-  // If available, we use ppoll in DoWork(); otherwise we use pselect
-  // and so must avoid overly-large FDs.
-  if (fd_ >= static_cast<int>(FD_SETSIZE))
-    Fatal("pipe: %s", strerror(EMFILE));
-#endif  // !USE_PPOLL
   SetCloseOnExec(fd_);
+  SetNonBlocking(output_pipe[0]);
 
   pid_ = fork();
   if (pid_ < 0)
@@ -112,17 +122,27 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   return true;
 }
 
-void Subprocess::OnPipeReady() {
+void DrainPipe(int *fd, std::string *out) {
   char buf[4 << 10];
-  ssize_t len = read(fd_, buf, sizeof(buf));
-  if (len > 0) {
-    buf_.append(buf, len);
-  } else {
-    if (len < 0)
-      Fatal("read: %s", strerror(errno));
-    close(fd_);
-    fd_ = -1;
+  while (*fd != -1) {
+    ssize_t len = read(*fd, buf, sizeof(buf));
+    if (len > 0) {
+      if (out)
+        out->append(buf, len);
+    } else {
+      if (len < 0) {
+        if (errno == EAGAIN)
+          return;
+        Fatal("read: %s", strerror(errno));
+      }
+      close(*fd);
+      *fd = -1;
+    }
   }
+}
+
+void Subprocess::OnPipeReady() {
+  DrainPipe(&fd_, &buf_);
 }
 
 ExitStatus Subprocess::Finish() {
@@ -155,6 +175,7 @@ int SubprocessSet::interrupted_;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
   interrupted_ = signum;
+  SignalHandled();
 }
 
 void SubprocessSet::HandlePendingInterruption() {
@@ -171,9 +192,20 @@ void SubprocessSet::HandlePendingInterruption() {
 }
 
 bool SubprocessSet::child_exited_;
+#if !defined(USE_PPOLL)
+int SubprocessSet::self_pipe_[2];
+#endif
+
+void SubprocessSet::SignalHandled() {
+#if !defined(USE_PPOLL)
+  // Wake up select. See http://cr.yp.to/docs/selfpipe.html.
+  if (write(self_pipe_[1], "", 1)) {}
+#endif
+}
 
 void SubprocessSet::SetChildExited(int signum) {
   child_exited_ = true;
+  SignalHandled();
 }
 
 void SubprocessSet::HandleChildExit() {
@@ -197,17 +229,10 @@ void SubprocessSet::HandleChildExit() {
         continue;
       // Drain pipe by reading until we would block, as
       // finished processes' pipes are not read by DoWork.
-      while (subprocess->fd_ != -1) {
-        pollfd pfd = { subprocess->fd_, POLLIN | POLLPRI, 0 };
-        int n = poll(&pfd, 1, 0);
-        if (n == -1)
-          Fatal("poll: %s", strerror(errno));
-        if (n == 0) {
-          close(subprocess->fd_);
-          subprocess->fd_ = -1;
-        } else {
-          subprocess->OnPipeReady();
-        }
+      subprocess->OnPipeReady();
+      if (subprocess->fd_ != -1) {
+        close(subprocess->fd_);
+        subprocess->fd_ = -1;
       }
       subprocess->pid_ = -1;
       subprocess->status_ = status;
@@ -219,6 +244,14 @@ void SubprocessSet::HandleChildExit() {
 }
 
 SubprocessSet::SubprocessSet() {
+#if !defined(USE_PPOLL)
+  CreatePipe(self_pipe_);
+  SetCloseOnExec(self_pipe_[0]);
+  SetCloseOnExec(self_pipe_[1]);
+  SetNonBlocking(self_pipe_[0]);
+  SetNonBlocking(self_pipe_[1]);
+#endif
+
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
@@ -251,6 +284,11 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
   if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
+
+#if !defined(USE_PPOLL)
+  close(self_pipe_[0]);
+  close(self_pipe_[1]);
+#endif
 }
 
 Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
@@ -305,8 +343,12 @@ bool SubprocessSet::DoWork() {
 #else  // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
-  int nfds = 0;
   FD_ZERO(&set);
+
+  // We always select on the self-pipe, in case a signal is
+  // delivered. This protects us from races in pselect.
+  FD_SET(self_pipe_[0], &set);
+  int nfds = self_pipe_[0]+1;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
@@ -329,6 +371,7 @@ bool SubprocessSet::DoWork() {
     return IsInterrupted();
   }
 
+  HandleChildExit();
   HandlePendingInterruption();
   if (IsInterrupted())
     return true;
@@ -339,6 +382,8 @@ bool SubprocessSet::DoWork() {
     if (fd >= 0 && FD_ISSET(fd, &set))
       (*i)->OnPipeReady();
   }
+  if (FD_ISSET(self_pipe_[0], &set))
+    DrainPipe(&self_pipe_[0], NULL);
 
   return IsInterrupted();
 }
