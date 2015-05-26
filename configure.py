@@ -355,6 +355,9 @@ if platform.supports_ppoll() and not options.force_pselect:
 if platform.supports_ninja_browse():
     cflags.append('-DNINJA_HAVE_BROWSE')
 
+# Search for generated headers relative to build dir.
+cflags.append('-I.')
+
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by
     the shell."""
