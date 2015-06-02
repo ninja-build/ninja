@@ -445,6 +445,14 @@ without any dependencies, the target will be considered out of date if
 it does not exist.  Without a phony build statement, Ninja will report
 an error if the file does not exist and is required by the build.
 
+To create a rule that never rebuilds, use a build rule without any input:
+----------------
+rule touch
+  command = touch $out
+build file_that_always_exists.dummy: touch
+build dummy_target_to_follow_a_pattern: phony file_that_always_exists.dummy
+----------------
+
 
 Default target statements
 ~~~~~~~~~~~~~~~~~~~~~~~~~
