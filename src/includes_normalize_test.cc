@@ -14,6 +14,8 @@
 
 #include "includes_normalize.h"
 
+#include <algorithm>
+
 #include <direct.h>
 
 #include "test.h"
@@ -101,4 +103,49 @@ TEST(IncludesNormalize, DifferentDrive) {
   EXPECT_EQ("P:/wee/stuff.h",
             IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h",
                                          "D:\\stuff/things"));
+}
+
+TEST(IncludesNormalize, LongInvalidPath) {
+  const char kLongInputString[] =
+      "C:\\Program Files (x86)\\Microsoft Visual Studio "
+      "12.0\\VC\\INCLUDEwarning #31001: The dll for reading and writing the "
+      "pdb (for example, mspdb110.dll) could not be found on your path. This "
+      "is usually a configuration error. Compilation will continue using /Z7 "
+      "instead of /Zi, but expect a similar error when you link your program.";
+  // Too long, won't be canonicalized, but just don't crash.
+  EXPECT_EQ(kLongInputString,
+            IncludesNormalize::Normalize(kLongInputString, NULL));
+
+  const char kExactlyMaxPath[] =
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "0123456789";
+  std::string forward_slashes(kExactlyMaxPath);
+  std::replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
+  // Make sure a path that's exactly _MAX_PATH long is canonicalized.
+  EXPECT_EQ(forward_slashes,
+            IncludesNormalize::Normalize(kExactlyMaxPath, NULL));
 }

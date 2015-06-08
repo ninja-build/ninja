@@ -96,8 +96,12 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
 
 string IncludesNormalize::Normalize(const string& input,
                                     const char* relative_to) {
-  char copy[_MAX_PATH];
+  char copy[_MAX_PATH + 1];
   size_t len = input.size();
+  if (len > _MAX_PATH) {
+    Warning("path too long '%s'\n", input.c_str());
+    return input;
+  }
   strncpy(copy, input.c_str(), input.size() + 1);
   string err;
   unsigned int slash_bits;
