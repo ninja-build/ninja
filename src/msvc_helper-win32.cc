@@ -95,9 +95,15 @@ string CLParser::Parse(const string& output, const string& deps_prefix) {
 
     string include = FilterShowIncludes(line, deps_prefix);
     if (!include.empty()) {
-      include = IncludesNormalize::Normalize(include, NULL);
-      if (!IsSystemInclude(include))
-        includes_.insert(include);
+      string normalized;
+      string err;
+      if (!IncludesNormalize::Normalize(include, NULL, &normalized, &err)) {
+        printf("failed to normalize path: %s: %s\n", include.c_str(),
+               err.c_str());
+        abort();
+      }
+      if (!IsSystemInclude(normalized))
+        includes_.insert(normalized);
     } else if (FilterInputFilename(line)) {
       // Drop it.
       // TODO: if we support compiling multiple output files in a single
