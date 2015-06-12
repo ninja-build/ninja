@@ -25,12 +25,12 @@
 #endif
 
 #include "build_log.h"
+#include "clparser.h"
 #include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
-#include "msvc_helper.h"
 #include "state.h"
 #include "subprocess.h"
 #include "util.h"
@@ -854,7 +854,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const string& deps_prefix,
                           vector<Node*>* deps_nodes,
                           string* err) {
-#ifdef _WIN32
   if (deps_type == "msvc") {
     CLParser parser;
     string output;
@@ -870,7 +869,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
   } else
-#endif
   if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
