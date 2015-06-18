@@ -40,8 +40,9 @@ struct CLParser {
   /// Exposed for testing.
   static bool FilterInputFilename(string line);
 
-  /// Parse the full output of cl, returning the output (if any) that
-  /// should printed. Returns true on success, or false with err filled.
+  /// Parse the full output of cl, filling filtered_output with the text that
+  /// should be printed (if any). Returns true on success, or false with err
+  /// filled. output must not be the same object as filtered_object.
   bool Parse(const string& output, const string& deps_prefix,
              string* filtered_output, string* err);
 
