@@ -122,7 +122,8 @@ private:
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), env_(NULL), outputs_ready_(false), deps_missing_(false),
+  Edge() : rule_(NULL), pool_(NULL), env_(NULL),
+           outputs_ready_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
