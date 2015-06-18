@@ -98,9 +98,8 @@ string CLParser::Parse(const string& output, const string& deps_prefix) {
       string normalized;
       string err;
       if (!IncludesNormalize::Normalize(include, NULL, &normalized, &err)) {
-        Error("failed to normalize path: %s: %s\n", include.c_str(),
+        Fatal("failed to normalize path: %s: %s\n", include.c_str(),
               err.c_str());
-        exit(1);
       }
       if (!IsSystemInclude(normalized))
         includes_.insert(normalized);
