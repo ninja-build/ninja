@@ -55,6 +55,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
+    // LoadDeps() did EXPLAIN() already, no need to do it here.
     dirty = edge->deps_missing_ = true;
   }
 
@@ -142,7 +143,12 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   if (edge->is_phony()) {
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
-    return edge->inputs_.empty() && !output->exists();
+    if (edge->inputs_.empty() && !output->exists()) {
+      EXPLAIN("output %s of phony edge with no inputs doesn't exist",
+              output->path().c_str());
+      return true;
+    }
+    return false;
   }
 
   BuildLog::LogEntry* entry = 0;
