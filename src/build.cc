@@ -288,7 +288,11 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
 
-Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
+Plan::Plan(Builder* builder)
+  : builder_(builder)
+  , command_edges_(0)
+  , wanted_edges_(0)
+{}
 
 void Plan::Reset() {
   command_edges_ = 0;
@@ -572,7 +576,8 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface)
-    : state_(state), config_(config), disk_interface_(disk_interface),
+    : state_(state), config_(config),
+      plan_(this), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options) {
   status_ = new BuildStatus(config);

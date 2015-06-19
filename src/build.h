@@ -32,6 +32,7 @@
 
 struct BuildLog;
 struct BuildStatus;
+struct Builder;
 struct DiskInterface;
 struct Edge;
 struct Node;
@@ -40,7 +41,7 @@ struct State;
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
 struct Plan {
-  Plan();
+  Plan(Builder* builder = NULL);
 
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
@@ -111,6 +112,8 @@ private:
   map<Edge*, Want> want_;
 
   set<Edge*> ready_;
+
+  Builder* builder_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
