@@ -920,9 +920,12 @@ Evaluation and scoping
 
 Top-level variable declarations are scoped to the file they occur in.
 
+Rule declarations are also scoped to the file they occur in.
+_(Available since Ninja 1.6)_
+
 The `subninja` keyword, used to include another `.ninja` file,
 introduces a new scope.  The included `subninja` file may use the
-variables from the parent file, and shadow their values for the file's
+variables and rules from the parent file, and shadow their values for the file's
 scope, but it won't affect values of the variables in the parent.
 
 To include another `.ninja` file in the current scope, much like a C
