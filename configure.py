@@ -156,11 +156,15 @@ class Bootstrap:
     def _expand_paths(self, paths):
         """Expand $vars in an array of paths, e.g. from a 'build' block."""
         paths = ninja_syntax.as_list(paths)
-        return ' '.join(map(self._expand, paths))
+        return ' '.join(map(self._shell_escape, (map(self._expand, paths))))
 
     def _expand(self, str, local_vars={}):
         """Expand $vars in a string."""
         return ninja_syntax.expand(str, self.vars, local_vars)
+
+    def _shell_escape(self, path):
+        """Quote paths containing spaces."""
+        return '"%s"' % path if ' ' in path else path
 
     def _run_command(self, cmdline):
         """Run a subcommand, quietly.  Prints the full command on error."""
@@ -420,7 +424,7 @@ objs = []
 if platform.supports_ninja_browse():
     n.comment('browse_py.h is used to inline browse.py.')
     n.rule('inline',
-           command=src('inline.sh') + ' $varname < $in > $out',
+           command='"%s"' % src('inline.sh') + ' $varname < $in > $out',
            description='INLINE $out')
     n.build(built('browse_py.h'), 'inline', src('browse.py'),
             implicit=src('inline.sh'),
