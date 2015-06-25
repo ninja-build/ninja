@@ -219,7 +219,7 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
 }
 
 #ifdef USE_PPOLL
-bool SubprocessSet::DoWork() {
+bool SubprocessSet::DoWork(int timeout_millis) {
   vector<pollfd> fds;
   nfds_t nfds = 0;
 
@@ -233,8 +233,13 @@ bool SubprocessSet::DoWork() {
     ++nfds;
   }
 
+  timespec timeout_ts;
+  if (timeout_millis != -1) {
+    timeout_ts.tv_sec = timeout_millis / 1000;
+    timeout_ts.tv_nsec = (timeout_millis % 1000) * 1000000;
+  }
   interrupted_ = 0;
-  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  int ret = ppoll(&fds.front(), nfds, (timeout_millis == -1 ? NULL : &timeout_ts), &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
@@ -269,7 +274,7 @@ bool SubprocessSet::DoWork() {
 }
 
 #else  // !defined(USE_PPOLL)
-bool SubprocessSet::DoWork() {
+bool SubprocessSet::DoWork(int timeout_millis) {
   fd_set set;
   int nfds = 0;
   FD_ZERO(&set);
@@ -284,8 +289,13 @@ bool SubprocessSet::DoWork() {
     }
   }
 
+  timespec timeout_ts;
+  if (timeout_millis != -1) {
+    timeout_ts.tv_sec = timeout_millis / 1000;
+    timeout_ts.tv_nsec = (timeout_millis % 1000) * 1000000;
+  }
   interrupted_ = 0;
-  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
+  int ret = pselect(nfds, &set, 0, 0, (timeout_millis == -1 ? NULL : &timeout_ts), &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");

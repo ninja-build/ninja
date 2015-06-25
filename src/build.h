@@ -128,8 +128,15 @@ struct CommandRunner {
     string output;
     bool success() const { return status == ExitSuccess; }
   };
+  enum WaitForCommandStatus {
+    CommandFinished,
+    WaitFailure,
+    WaitTimeout
+  };
+
   /// Wait for a command to complete, or return false if interrupted.
-  virtual bool WaitForCommand(Result* result) = 0;
+  /// Infinite wait if timeout_millis = -1.
+  virtual WaitForCommandStatus WaitForCommand(Result* result, int timeout_millis) = 0;
 
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}

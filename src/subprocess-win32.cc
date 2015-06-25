@@ -287,13 +287,15 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
   return subprocess;
 }
 
-bool SubprocessSet::DoWork() {
+bool SubprocessSet::DoWork(int timeout_millis) {
   DWORD bytes_read;
   Subprocess* subproc;
   OVERLAPPED* overlapped;
 
-  if (!GetQueuedCompletionStatus(ioport_, &bytes_read, (PULONG_PTR)&subproc,
-                                 &overlapped, INFINITE)) {
+  if (!GetQueuedCompletionStatus(ioport_, &bytes_read, (PULONG_PTR)&subproc, &overlapped,
+                                 (timeout_millis == -1 ? INFINITE : timeout_millis))) {
+    if (overlapped == NULL && GetLastError() == WAIT_TIMEOUT)
+      return false;  // Timeout, not interrupted
     if (GetLastError() != ERROR_BROKEN_PIPE)
       Win32Fatal("GetQueuedCompletionStatus");
   }

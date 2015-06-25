@@ -14,6 +14,7 @@
 
 #include "subprocess.h"
 
+#include "metrics.h"
 #include "test.h"
 
 #ifndef _WIN32
@@ -45,7 +46,7 @@ TEST_F(SubprocessTest, BadCommandStderr) {
 
   while (!subproc->Done()) {
     // Pretend we discovered that stderr was ready for writing.
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   EXPECT_EQ(ExitFailure, subproc->Finish());
@@ -59,7 +60,7 @@ TEST_F(SubprocessTest, NoSuchCommand) {
 
   while (!subproc->Done()) {
     // Pretend we discovered that stderr was ready for writing.
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   EXPECT_EQ(ExitFailure, subproc->Finish());
@@ -77,7 +78,7 @@ TEST_F(SubprocessTest, InterruptChild) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   EXPECT_EQ(ExitInterrupted, subproc->Finish());
@@ -88,7 +89,7 @@ TEST_F(SubprocessTest, InterruptParent) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork(-1);
     if (interrupted)
       return;
   }
@@ -101,7 +102,7 @@ TEST_F(SubprocessTest, InterruptChildWithSigTerm) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   EXPECT_EQ(ExitInterrupted, subproc->Finish());
@@ -112,7 +113,7 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork(-1);
     if (interrupted)
       return;
   }
@@ -125,7 +126,7 @@ TEST_F(SubprocessTest, InterruptChildWithSigHup) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   EXPECT_EQ(ExitInterrupted, subproc->Finish());
@@ -136,7 +137,7 @@ TEST_F(SubprocessTest, InterruptParentWithSigHup) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork(-1);
     if (interrupted)
       return;
   }
@@ -152,7 +153,7 @@ TEST_F(SubprocessTest, Console) {
     ASSERT_NE((Subprocess*)0, subproc);
 
     while (!subproc->Done()) {
-      subprocs_.DoWork();
+      subprocs_.DoWork(-1);
     }
 
     EXPECT_EQ(ExitSuccess, subproc->Finish());
@@ -166,7 +167,7 @@ TEST_F(SubprocessTest, SetWithSingle) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
   ASSERT_EQ(ExitSuccess, subproc->Finish());
   ASSERT_NE("", subproc->GetOutput());
@@ -201,7 +202,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
   while (!processes[0]->Done() || !processes[1]->Done() ||
          !processes[2]->Done()) {
     ASSERT_GT(subprocs_.running_.size(), 0u);
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
 
   ASSERT_EQ(0u, subprocs_.running_.size());
@@ -236,7 +237,7 @@ TEST_F(SubprocessTest, SetWithLots) {
     procs.push_back(subproc);
   }
   while (!subprocs_.running_.empty())
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   for (size_t i = 0; i < procs.size(); ++i) {
     ASSERT_EQ(ExitSuccess, procs[i]->Finish());
     ASSERT_NE("", procs[i]->GetOutput());
@@ -253,9 +254,41 @@ TEST_F(SubprocessTest, SetWithLots) {
 TEST_F(SubprocessTest, ReadStdin) {
   Subprocess* subproc = subprocs_.Add("cat -");
   while (!subproc->Done()) {
-    subprocs_.DoWork();
+    subprocs_.DoWork(-1);
   }
   ASSERT_EQ(ExitSuccess, subproc->Finish());
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
+
+TEST_F(SubprocessTest, CheckTimeout) {
+  const char* kSlowCommand =
+#ifdef _WIN32
+    "cmd /c ping 1.1.1.1 -n 1 -w 1000 & dir \\"
+#else
+    "sleep 1s"
+#endif
+  ;
+
+  Subprocess* subproc = subprocs_.Add(kSlowCommand);
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  int correct_waits = 0;
+  while (!subproc->Done()) {
+    int64_t start = GetTimeMillis();
+    subprocs_.DoWork(123);
+    int64_t end = GetTimeMillis();
+    int delta = (int)(end - start);
+    if (delta > 70 && delta < 250)
+      correct_waits++;
+  }
+  ASSERT_EQ(ExitSuccess, subproc->Finish());
+#ifdef _WIN32
+  ASSERT_NE("", subproc->GetOutput());
+#else
+  ASSERT_EQ("", subproc->GetOutput());
+#endif
+
+  ASSERT_EQ(1u, subprocs_.finished_.size());
+  ASSERT_TRUE(correct_waits > 2);
+}

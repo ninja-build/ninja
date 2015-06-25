@@ -85,7 +85,8 @@ struct SubprocessSet {
   ~SubprocessSet();
 
   Subprocess* Add(const string& command, bool use_console = false);
-  bool DoWork();
+  /// Returns true if interrupted. timeout_millis = -1 means infinity.
+  bool DoWork(int timeout_millis);
   Subprocess* NextFinished();
   void Clear();
 

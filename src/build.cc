@@ -50,7 +50,7 @@ struct DryRunCommandRunner : public CommandRunner {
   // Overridden from CommandRunner:
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual WaitForCommandStatus WaitForCommand(Result* result, int timeout_millis);
 
  private:
   queue<Edge*> finished_;
@@ -65,14 +65,14 @@ bool DryRunCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool DryRunCommandRunner::WaitForCommand(Result* result) {
+CommandRunner::WaitForCommandStatus DryRunCommandRunner::WaitForCommand(Result* result, int timeout_millis) {
    if (finished_.empty())
-     return false;
+     return WaitFailure;
 
    result->status = ExitSuccess;
    result->edge = finished_.front();
    finished_.pop();
-   return true;
+   return CommandFinished;
 }
 
 }  // namespace
@@ -607,7 +607,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual ~RealCommandRunner() {}
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual WaitForCommandStatus WaitForCommand(Result* result, int timeout_millis);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -646,12 +646,14 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool RealCommandRunner::WaitForCommand(Result* result) {
+CommandRunner::WaitForCommandStatus RealCommandRunner::WaitForCommand(Result* result, int timeout_millis) {
   Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
+  if ((subproc = subprocs_.NextFinished()) == NULL) {
+    bool interrupted = subprocs_.DoWork(timeout_millis);
     if (interrupted)
-      return false;
+      return WaitFailure;
+    if ((subproc = subprocs_.NextFinished()) == NULL)
+      return WaitTimeout; // Timeout
   }
 
   result->status = subproc->Finish();
@@ -662,7 +664,7 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   subproc_to_edge_.erase(e);
 
   delete subproc;
-  return true;
+  return CommandFinished;
 }
 
 Builder::Builder(State* state, const BuildConfig& config,
@@ -784,7 +786,11 @@ bool Builder::Build(string* err) {
     // See if we can reap any finished commands.
     if (pending_commands) {
       CommandRunner::Result result;
-      if (!command_runner_->WaitForCommand(&result) ||
+      CommandRunner::WaitForCommandStatus wait_status;
+      do {
+        wait_status = command_runner_->WaitForCommand(&result, -1);
+      } while (wait_status == CommandRunner::WaitTimeout);
+      if (wait_status == CommandRunner::WaitFailure ||
           result.status == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
