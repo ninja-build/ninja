@@ -119,7 +119,7 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 bool testing::Test::Check(bool condition, const char* file, int line,
                           const char* error) {
   if (!condition) {
-    printer.PrintOnNewLine(
+    printer.Print(
         StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
     failed_ = true;
   }
@@ -144,9 +144,8 @@ int main(int argc, char **argv) {
 
     ++tests_started;
     testing::Test* test = tests[i].factory();
-    printer.Print(
-        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name),
-        LinePrinter::ELIDE);
+    printer.PrintTemporaryElide(
+        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name));
     test->SetUp();
     test->Run();
     test->TearDown();
@@ -155,6 +154,7 @@ int main(int argc, char **argv) {
     delete test;
   }
 
-  printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
+  printer.Print(StringPrintf("[%d/%d]\n", tests_started, nactivetests));
+  printer.Print(passed ? "passed\n" : "failed\n");
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

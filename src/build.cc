@@ -151,8 +151,15 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
-    printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
-    printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
+    // Print the description before anything else.
+    string to_print = edge->GetBinding("description");
+    if (to_print.empty())
+      to_print = edge->GetBinding("command");
+    to_print = FormatProgressStatus(progress_status_format_, kEdgeFinished) + to_print + "\n";
+    printer_.Print(to_print);
+
+    printer_.Print("FAILED: " + outputs + "\n");
+    printer_.Print(edge->EvaluateCommand() + "\n");
   }
 
   if (!output.empty()) {
@@ -179,12 +186,17 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     _setmode(_fileno(stdout), _O_BINARY);  // Begin Windows extra CR fix
 #endif
 
-    printer_.PrintOnNewLine(final_output);
+    if (!final_output.empty() && *final_output.rbegin() != '\n')
+      final_output += '\n';
+    printer_.Print(final_output);
 
 #ifdef _MSC_VER
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
+
+  if (!edge->use_console() && printer_.is_smart_terminal())
+    PrintStatus(edge, kEdgeFinished);
 }
 
 void BuildStatus::BuildStarted() {
@@ -194,7 +206,7 @@ void BuildStatus::BuildStarted() {
 
 void BuildStatus::BuildFinished() {
   printer_.SetConsoleLocked(false);
-  printer_.PrintOnNewLine("");
+  printer_.PrintTemporaryElide();
 }
 
 string BuildStatus::FormatProgressStatus(
@@ -334,8 +346,10 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
   to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
 
-  printer_.Print(to_print,
-                 force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+  if (force_full_command || !printer_.is_smart_terminal())
+    printer_.Print(to_print + '\n');
+  else
+    printer_.PrintTemporaryElide(to_print);
 }
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}

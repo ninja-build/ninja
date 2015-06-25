@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <string>
+#include <vector>
 using namespace std;
 
 /// Prints lines of text, possibly overprinting previously printed lines
@@ -27,16 +28,14 @@ struct LinePrinter {
   bool is_smart_terminal() const { return smart_terminal_; }
   void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
 
-  enum LineType {
-    FULL,
-    ELIDE
-  };
-  /// Overprints the current line. If type is ELIDE, elides to_print to fit on
-  /// one line.
-  void Print(string to_print, LineType type);
+  /// Overprints the current box. If type is ELIDE, elides to_print to fit on
+  /// one line by line.
+  void PrintTemporaryElide();
+  void PrintTemporaryElide(const string& to_print);
+  void PrintTemporaryElide(const vector<string>& to_print);
 
-  /// Prints a string on a new line, not overprinting previous output.
-  void PrintOnNewLine(const string& to_print);
+  /// Prints a string in the normal way. Will remove any temporary output.
+  void Print(const string& to_print);
 
   /// Lock or unlock the console.  Any output sent to the LinePrinter while the
   /// console is locked will not be printed until it is unlocked.
@@ -46,24 +45,23 @@ struct LinePrinter {
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;
 
-  /// Whether the caret is at the beginning of a blank line.
-  bool have_blank_line_;
+  /// How much of the terminal is dirty?
+  int dirty_height;
 
   /// Whether console is locked.
   bool console_locked_;
-
-  /// Buffered current line while console is locked.
-  string line_buffer_;
-
-  /// Buffered line type while console is locked.
-  LineType line_type_;
 
   /// Buffered console output while console is locked.
   string output_buffer_;
 
 #ifdef _MSC_VER
   void* console_;
+  /// If dirty_height != 0, the bottom row where stuff got printed last time.
+  int bottom_dirty_row;
+#else
+  int console_width;
 #endif
+  int console_height;
 
   /// Print the given data to the console, or buffer it if it is locked.
   void PrintOrBuffer(const char *data, size_t size);
