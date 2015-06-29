@@ -89,9 +89,15 @@ struct SubprocessSet {
   static HANDLE ioport_;
 #else
   static void SetInterruptedFlag(int signum);
-  static bool interrupted_;
+  static void HandlePendingInterruption();
+  /// Store the signal number that causes the interruption.
+  /// 0 if not interruption.
+  static int interrupted_;
 
-  struct sigaction old_act_;
+  static bool IsInterrupted() { return interrupted_ != 0; }
+
+  struct sigaction old_int_act_;
+  struct sigaction old_term_act_;
   sigset_t old_mask_;
 #endif
 };

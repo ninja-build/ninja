@@ -80,7 +80,6 @@ struct BuildLog {
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, const BuildLogUser& user, string* err);
-  void set_quiet(bool quiet) { quiet_ = quiet; }
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }
@@ -89,7 +88,6 @@ struct BuildLog {
   Entries entries_;
   FILE* log_file_;
   bool needs_recompaction_;
-  bool quiet_;
 };
 
 #endif // NINJA_BUILD_LOG_H_

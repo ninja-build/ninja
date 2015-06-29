@@ -27,34 +27,9 @@
 #include "state.h"
 #include "util.h"
 
-bool Node::Stat(DiskInterface* disk_interface) {
+bool Node::Stat(DiskInterface* disk_interface, string* err) {
   METRIC_RECORD("node stat");
-  mtime_ = disk_interface->Stat(path_);
-  return mtime_ > 0;
-}
-
-void Rule::AddBinding(const string& key, const EvalString& val) {
-  bindings_[key] = val;
-}
-
-const EvalString* Rule::GetBinding(const string& key) const {
-  map<string, EvalString>::const_iterator i = bindings_.find(key);
-  if (i == bindings_.end())
-    return NULL;
-  return &i->second;
-}
-
-// static
-bool Rule::IsReservedBinding(const string& var) {
-  return var == "command" ||
-      var == "depfile" ||
-      var == "description" ||
-      var == "deps" ||
-      var == "generator" ||
-      var == "pool" ||
-      var == "restat" ||
-      var == "rspfile" ||
-      var == "rspfile_content";
+  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
@@ -62,10 +37,25 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  // RecomputeDirty() recursively walks the graph following the input nodes
+  // of |edge| and the in_edges of these nodes.  It uses the stat state of each
+  // node to mark nodes as visited and doesn't traverse across nodes that have
+  // been visited already.  To make sure that every edge is visited only once
+  // (important because an edge's deps are loaded every time it's visited), mark
+  // all outputs of |edge| visited as a first step.  This ensures that edges
+  // with multiple inputs and outputs are visited only once, even in cyclic
+  // graphs.
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    if (!(*o)->StatIfNecessary(disk_interface_, err))
+      return false;
+  }
+
   if (!dep_loader_.LoadDeps(edge, err)) {
     if (!err->empty())
       return false;
     // Failed to load dependency info: rebuild to regenerate it.
+    // LoadDeps() did EXPLAIN() already, no need to do it here.
     dirty = edge->deps_missing_ = true;
   }
 
@@ -73,7 +63,9 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   Node* most_recent_input = NULL;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if ((*i)->StatIfNecessary(disk_interface_)) {
+    if (!(*i)->status_known()) {
+      if (!(*i)->StatIfNecessary(disk_interface_, err))
+        return false;
       if (Edge* in_edge = (*i)->in_edge()) {
         if (!RecomputeDirty(in_edge, err))
           return false;
@@ -108,15 +100,14 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
   if (!dirty)
-    dirty = RecomputeOutputsDirty(edge, most_recent_input);
+    if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
+      return false;
 
-  // Finally, visit each output to mark off that we've visited it, and update
-  // their dirty state if necessary.
-  for (vector<Node*>::iterator i = edge->outputs_.begin();
-       i != edge->outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface_);
+  // Finally, visit each output and update their dirty state if necessary.
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
     if (dirty)
-      (*i)->MarkDirty();
+      (*o)->MarkDirty();
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
@@ -130,16 +121,19 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   return true;
 }
 
-bool DependencyScan::RecomputeOutputsDirty(Edge* edge,
-                                           Node* most_recent_input) {
-  string command = edge->EvaluateCommand(true);
-  for (vector<Node*>::iterator i = edge->outputs_.begin();
-       i != edge->outputs_.end(); ++i) {
-    (*i)->StatIfNecessary(disk_interface_);
-    if (RecomputeOutputDirty(edge, most_recent_input, command, *i))
+bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
+                                           bool* outputs_dirty, string* err) {
+  string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
+  for (vector<Node*>::iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    if (!(*o)->StatIfNecessary(disk_interface_, err))
+      return false;
+    if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
+      *outputs_dirty = true;
       return true;
+    }
   }
-  return false;
+  return true;
 }
 
 bool DependencyScan::RecomputeOutputDirty(Edge* edge,
@@ -149,7 +143,12 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   if (edge->is_phony()) {
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
-    return edge->inputs_.empty() && !output->exists();
+    if (edge->inputs_.empty() && !output->exists()) {
+      EXPLAIN("output %s of phony edge with no inputs doesn't exist",
+              output->path().c_str());
+      return true;
+    }
+    return false;
   }
 
   BuildLog::LogEntry* entry = 0;
@@ -217,8 +216,8 @@ bool Edge::AllInputsReady() const {
 struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
-  explicit EdgeEnv(Edge* edge, EscapeKind escape)
-      : edge_(edge), escape_in_out_(escape) {}
+  EdgeEnv(Edge* edge, EscapeKind escape)
+      : edge_(edge), escape_in_out_(escape), recursive_(false) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
@@ -227,8 +226,11 @@ struct EdgeEnv : public Env {
                       vector<Node*>::iterator end,
                       char sep);
 
+ private:
+  vector<string> lookups_;
   Edge* edge_;
   EscapeKind escape_in_out_;
+  bool recursive_;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {
@@ -244,8 +246,25 @@ string EdgeEnv::LookupVariable(const string& var) {
                         ' ');
   }
 
+  if (recursive_) {
+    vector<string>::const_iterator it;
+    if ((it = find(lookups_.begin(), lookups_.end(), var)) != lookups_.end()) {
+      string cycle;
+      for (; it != lookups_.end(); ++it)
+        cycle.append(*it + " -> ");
+      cycle.append(var);
+      Fatal(("cycle in rule variables: " + cycle).c_str());
+    }
+  }
+
   // See notes on BindingEnv::LookupWithFallback.
   const EvalString* eval = edge_->rule_->GetBinding(var);
+  if (recursive_ && eval)
+    lookups_.push_back(var);
+
+  // In practice, variables defined on rules never use another rule variable.
+  // For performance, only start checking for cycles after the first lookup.
+  recursive_ = true;
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
@@ -398,12 +417,13 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                         &depfile.out_.len_, &unused, err))
     return false;
 
-  // Check that this depfile matches the edge's output.
+  // Check that this depfile matches the edge's output, if not return false to
+  // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
   if (opath != depfile.out_) {
-    *err = "expected depfile '" + path + "' to mention '" +
-        first_output->path() + "', got '" + depfile.out_.AsString() + "'";
+    EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
+            first_output->path().c_str(), depfile.out_.AsString().c_str());
     return false;
   }
 
@@ -439,7 +459,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
 
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
-    EXPLAIN("stored deps info out of date for for '%s' (%d vs %d)",
+    EXPLAIN("stored deps info out of date for '%s' (%d vs %d)",
             output->path().c_str(), deps->mtime, output->mtime());
     return false;
   }

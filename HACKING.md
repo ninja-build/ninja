@@ -161,3 +161,49 @@ The trick is to install just the compilers, and not all of Visual Studio,
 by following [these instructions][win7sdk].
 
 [win7sdk]: http://www.kegel.com/wine/cl-howto-win7sdk.html
+
+### Using gcov
+
+Do a clean debug build with the right flags:
+
+    CFLAGS=-coverage LDFLAGS=-coverage ./configure.py --debug
+    ninja -t clean ninja_test && ninja ninja_test
+
+Run the test binary to generate `.gcda` and `.gcno` files in the build
+directory, then run gcov on the .o files to generate `.gcov` files in the
+root directory:
+
+    ./ninja_test
+    gcov build/*.o
+
+Look at the generated `.gcov` files directly, or use your favorit gcov viewer.
+
+### Using afl-fuzz
+
+Build with afl-clang++:
+
+    CXX=path/to/afl-1.20b/afl-clang++ ./configure.py
+    ninja
+
+Then run afl-fuzz like so:
+
+    afl-fuzz -i misc/afl-fuzz -o /tmp/afl-fuzz-out ./ninja -n -f @@
+
+You can pass `-x misc/afl-fuzz-tokens` to use the token dictionary. In my
+testing, that did not seem more effective though.
+
+#### Using afl-fuzz with asan
+
+If you want to use asan (the `isysroot` bit is only needed on OS X; if clang
+can't find C++ standard headers make sure your LLVM checkout includes a libc++
+checkout and has libc++ installed in the build directory):
+
+    CFLAGS="-fsanitize=address -isysroot $(xcrun -show-sdk-path)" \
+        LDFLAGS=-fsanitize=address CXX=path/to/afl-1.20b/afl-clang++ \
+        ./configure.py
+    AFL_CXX=path/to/clang++ ninja
+
+Make sure ninja can find the asan runtime:
+
+    DYLD_LIBRARY_PATH=path/to//lib/clang/3.7.0/lib/darwin/ \
+        afl-fuzz -i misc/afl-fuzz -o /tmp/afl-fuzz-out ./ninja -n -f @@

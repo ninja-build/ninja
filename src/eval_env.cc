@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
+
 #include "eval_env.h"
 
 string BindingEnv::LookupVariable(const string& var) {
@@ -25,6 +27,55 @@ string BindingEnv::LookupVariable(const string& var) {
 
 void BindingEnv::AddBinding(const string& key, const string& val) {
   bindings_[key] = val;
+}
+
+void BindingEnv::AddRule(const Rule* rule) {
+  assert(LookupRuleCurrentScope(rule->name()) == NULL);
+  rules_[rule->name()] = rule;
+}
+
+const Rule* BindingEnv::LookupRuleCurrentScope(const string& rule_name) {
+  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+  if (i == rules_.end())
+    return NULL;
+  return i->second;
+}
+
+const Rule* BindingEnv::LookupRule(const string& rule_name) {
+  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+  if (i != rules_.end())
+    return i->second;
+  if (parent_)
+    return parent_->LookupRule(rule_name);
+  return NULL;
+}
+
+void Rule::AddBinding(const string& key, const EvalString& val) {
+  bindings_[key] = val;
+}
+
+const EvalString* Rule::GetBinding(const string& key) const {
+  map<string, EvalString>::const_iterator i = bindings_.find(key);
+  if (i == bindings_.end())
+    return NULL;
+  return &i->second;
+}
+
+// static
+bool Rule::IsReservedBinding(const string& var) {
+  return var == "command" ||
+      var == "depfile" ||
+      var == "description" ||
+      var == "deps" ||
+      var == "generator" ||
+      var == "pool" ||
+      var == "restat" ||
+      var == "rspfile" ||
+      var == "rspfile_content";
+}
+
+const map<string, const Rule*>& BindingEnv::GetRules() const {
+  return rules_;
 }
 
 string BindingEnv::LookupWithFallback(const string& var,

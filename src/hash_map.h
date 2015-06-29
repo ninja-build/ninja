@@ -50,7 +50,22 @@ unsigned int MurmurHash2(const void* key, size_t len) {
   return h;
 }
 
-#ifdef _MSC_VER
+#if (__cplusplus >= 201103L) || (_MSC_VER >= 1900)
+#include <unordered_map>
+
+namespace std {
+template<>
+struct hash<StringPiece> {
+  typedef StringPiece argument_type;
+  typedef size_t result_type;
+
+  size_t operator()(StringPiece key) const {
+    return MurmurHash2(key.str_, key.len_);
+  }
+};
+}
+
+#elif defined(_MSC_VER)
 #include <hash_map>
 
 using stdext::hash_map;
@@ -73,26 +88,17 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
 };
 
 #else
-
 #include <ext/hash_map>
 
 using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
 template<>
-struct hash<std::string> {
-  size_t operator()(const std::string& s) const {
-    return hash<const char*>()(s.c_str());
-  }
-};
-
-template<>
 struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
     return MurmurHash2(key.str_, key.len_);
   }
 };
-
 }
 #endif
 
@@ -102,7 +108,9 @@ struct hash<StringPiece> {
 /// mapping StringPiece => Foo*.
 template<typename V>
 struct ExternalStringHashMap {
-#ifdef _MSC_VER
+#if (__cplusplus >= 201103L) || (_MSC_VER >= 1900)
+  typedef std::unordered_map<StringPiece, V> Type;
+#elif defined(_MSC_VER)
   typedef hash_map<StringPiece, V, StringPieceCmp> Type;
 #else
   typedef hash_map<StringPiece, V> Type;

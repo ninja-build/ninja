@@ -61,6 +61,7 @@ void Pool::Dump() const {
   }
 }
 
+// static
 bool Pool::WeightedEdgeCmp(const Edge* a, const Edge* b) {
   if (!a) return b;
   if (!b) return false;
@@ -73,21 +74,9 @@ Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
 State::State() {
-  AddRule(&kPhonyRule);
+  bindings_.AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
   AddPool(&kConsolePool);
-}
-
-void State::AddRule(const Rule* rule) {
-  assert(LookupRule(rule->name()) == NULL);
-  rules_[rule->name()] = rule;
-}
-
-const Rule* State::LookupRule(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
-  if (i == rules_.end())
-    return NULL;
-  return i->second;
 }
 
 void State::AddPool(Pool* pool) {
@@ -151,16 +140,13 @@ void State::AddIn(Edge* edge, StringPiece path, unsigned int slash_bits) {
   node->AddOutEdge(edge);
 }
 
-void State::AddOut(Edge* edge, StringPiece path, unsigned int slash_bits) {
+bool State::AddOut(Edge* edge, StringPiece path, unsigned int slash_bits) {
   Node* node = GetNode(path, slash_bits);
+  if (node->in_edge())
+    return false;
   edge->outputs_.push_back(node);
-  if (node->in_edge()) {
-    Warning("multiple rules generate %s. "
-            "builds involving this target will not be correct; "
-            "continuing anyway",
-            path.AsString().c_str());
-  }
   node->set_in_edge(edge);
+  return true;
 }
 
 bool State::AddDefault(StringPiece path, string* err) {
@@ -187,7 +173,6 @@ vector<Node*> State::RootNodes(string* err) {
   if (!edges_.empty() && root_nodes.empty())
     *err = "could not determine root nodes of build graph";
 
-  assert(edges_.empty() || !root_nodes.empty());
   return root_nodes;
 }
 

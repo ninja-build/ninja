@@ -32,7 +32,7 @@ __get_tools() {
 }
 
 __get_modes() {
-  ninja -d list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2 | head -n -1
+  ninja -d list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2 | sed '$d'
 }
 
 __modes() {

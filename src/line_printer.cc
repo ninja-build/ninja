@@ -50,29 +50,21 @@ void LinePrinter::Print(string to_print, LineType type) {
     return;
   }
 
-#ifdef _WIN32
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(console_, &csbi);
-#endif
-
   if (smart_terminal_) {
-#ifndef _WIN32
     printf("\r");  // Print over previous line, if any.
-#else
-    csbi.dwCursorPosition.X = 0;
-    SetConsoleCursorPosition(console_, csbi.dwCursorPosition);
-#endif
+    // On Windows, calling a C library function writing to stdout also handles
+    // pausing the executable when the "Pause" key or Ctrl-S is pressed.
   }
 
   if (smart_terminal_ && type == ELIDE) {
 #ifdef _WIN32
-    // Don't use the full width or console will move to next line.
-    size_t width = static_cast<size_t>(csbi.dwSize.X) - 1;
-    to_print = ElideMiddle(to_print, width);
-    // We don't want to have the cursor spamming back and forth, so
-    // use WriteConsoleOutput instead which updates the contents of
-    // the buffer, but doesn't move the cursor position.
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(console_, &csbi);
+
+    to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
+    // We don't want to have the cursor spamming back and forth, so instead of
+    // printf use WriteConsoleOutput which updates the contents of the buffer,
+    // but doesn't move the cursor position.
     COORD buf_size = { csbi.dwSize.X, 1 };
     COORD zero_zero = { 0, 0 };
     SMALL_RECT target = {
@@ -80,16 +72,12 @@ void LinePrinter::Print(string to_print, LineType type) {
       static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
       csbi.dwCursorPosition.Y
     };
-    CHAR_INFO* char_data = new CHAR_INFO[csbi.dwSize.X];
-    memset(char_data, 0, sizeof(CHAR_INFO) * csbi.dwSize.X);
-    for (int i = 0; i < csbi.dwSize.X; ++i) {
-      char_data[i].Char.AsciiChar = ' ';
+    vector<CHAR_INFO> char_data(csbi.dwSize.X);
+    for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
+      char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
       char_data[i].Attributes = csbi.wAttributes;
     }
-    for (size_t i = 0; i < to_print.size(); ++i)
-      char_data[i].Char.AsciiChar = to_print[i];
-    WriteConsoleOutput(console_, char_data, buf_size, zero_zero, &target);
-    delete[] char_data;
+    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
 #else
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.

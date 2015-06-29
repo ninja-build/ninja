@@ -49,7 +49,11 @@ int Cleaner::RemoveFile(const string& path) {
 }
 
 bool Cleaner::FileExists(const string& path) {
-  return disk_interface_->Stat(path) > 0;
+  string err;
+  TimeStamp mtime = disk_interface_->Stat(path, &err);
+  if (mtime == -1)
+    Error("%s", err.c_str());
+  return mtime > 0;  // Treat Stat() errors as "file does not exist".
 }
 
 void Cleaner::Report(const string& path) {
@@ -220,7 +224,7 @@ int Cleaner::CleanRule(const char* rule) {
   assert(rule);
 
   Reset();
-  const Rule* r = state_->LookupRule(rule);
+  const Rule* r = state_->bindings_.LookupRule(rule);
   if (r) {
     CleanRule(r);
   } else {
@@ -237,7 +241,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
   PrintHeader();
   for (int i = 0; i < rule_count; ++i) {
     const char* rule_name = rules[i];
-    const Rule* rule = state_->LookupRule(rule_name);
+    const Rule* rule = state_->bindings_.LookupRule(rule_name);
     if (rule) {
       if (IsVerbose())
         printf("Rule %s\n", rule_name);

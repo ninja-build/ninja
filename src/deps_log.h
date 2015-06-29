@@ -64,7 +64,7 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog {
-  DepsLog() : needs_recompaction_(false), quiet_(false), file_(NULL) {}
+  DepsLog() : needs_recompaction_(false), file_(NULL) {}
   ~DepsLog();
 
   // Writing (build-time) interface.
@@ -87,7 +87,6 @@ struct DepsLog {
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
-  void set_quiet(bool quiet) { quiet_ = quiet; }
 
   /// Returns if the deps entry for a node is still reachable from the manifest.
   ///
@@ -109,7 +108,6 @@ struct DepsLog {
   bool RecordId(Node* node);
 
   bool needs_recompaction_;
-  bool quiet_;
   FILE* file_;
 
   /// Maps id -> Node.

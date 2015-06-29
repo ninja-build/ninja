@@ -112,5 +112,9 @@ bool DepfileParser::Parse(string* content, string* err) {
       return false;
     }
   }
+  if (parsing_targets) {
+    *err = "expected ':' in depfile";
+    return false;
+  }
   return true;
 }

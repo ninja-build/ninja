@@ -61,25 +61,22 @@ struct Plan {
   void EdgeFinished(Edge* edge);
 
   /// Clean the given node during the build.
-  void CleanNode(DependencyScan* scan, Node* node);
+  /// Return false on error.
+  bool CleanNode(DependencyScan* scan, Node* node, string* err);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
 
 private:
   bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
-  bool CheckDependencyCycle(Node* node, vector<Node*>* stack, string* err);
+  bool CheckDependencyCycle(Node* node, const vector<Node*>& stack,
+                            string* err);
   void NodeFinished(Node* node);
 
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
   void ScheduleWork(Edge* edge);
-
-  /// Allows jobs blocking on |edge| to potentially resume.
-  /// For example, if |edge| is a member of a pool, calling this may schedule
-  /// previously pending jobs in that pool.
-  void ResumeDelayedJobs(Edge* edge);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its

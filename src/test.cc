@@ -28,6 +28,7 @@
 #endif
 
 #include "build_log.h"
+#include "graph.h"
 #include "manifest_parser.h"
 #include "util.h"
 
@@ -98,10 +99,43 @@ void AssertParse(State* state, const char* input) {
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
+  VerifyGraph(*state);
 }
 
 void AssertHash(const char* expected, uint64_t actual) {
   ASSERT_EQ(BuildLog::LogEntry::HashCommand(expected), actual);
+}
+
+void VerifyGraph(const State& state) {
+  for (vector<Edge*>::const_iterator e = state.edges_.begin();
+       e != state.edges_.end(); ++e) {
+    // All edges need at least one output.
+    EXPECT_FALSE((*e)->outputs_.empty());
+    // Check that the edge's inputs have the edge as out-edge.
+    for (vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
+         in_node != (*e)->inputs_.end(); ++in_node) {
+      const vector<Edge*>& out_edges = (*in_node)->out_edges();
+      EXPECT_NE(std::find(out_edges.begin(), out_edges.end(), *e),
+                out_edges.end());
+    }
+    // Check that the edge's outputs have the edge as in-edge.
+    for (vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end(); ++out_node) {
+      EXPECT_EQ((*out_node)->in_edge(), *e);
+    }
+  }
+
+  // The union of all in- and out-edges of each nodes should be exactly edges_.
+  set<const Edge*> node_edge_set;
+  for (State::Paths::const_iterator p = state.paths_.begin();
+       p != state.paths_.end(); ++p) {
+    const Node* n = p->second;
+    if (n->in_edge())
+      node_edge_set.insert(n->in_edge());
+    node_edge_set.insert(n->out_edges().begin(), n->out_edges().end());
+  }
+  set<const Edge*> edge_set(state.edges_.begin(), state.edges_.end());
+  EXPECT_EQ(node_edge_set, edge_set);
 }
 
 void VirtualFileSystem::Create(const string& path,
@@ -111,10 +145,12 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path) const {
+TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
   FileMap::const_iterator i = files_.find(path);
-  if (i != files_.end())
+  if (i != files_.end()) {
+    *err = i->second.stat_error;
     return i->second.mtime;
+  }
   return 0;
 }
 

@@ -18,7 +18,7 @@
 
 #include "util.h"
 
-const char* kNinjaVersion = "1.5.3";
+const char* kNinjaVersion = "1.6.0";
 
 void ParseVersion(const string& version, int* major, int* minor) {
   size_t end = version.find('.');

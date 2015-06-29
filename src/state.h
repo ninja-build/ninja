@@ -37,13 +37,14 @@ struct Rule;
 /// the total scheduled weight diminishes enough (i.e. when a scheduled edge
 /// completes).
 struct Pool {
-  explicit Pool(const string& name, int depth)
-    : name_(name), current_use_(0), depth_(depth), delayed_(&WeightedEdgeCmp) { }
+  Pool(const string& name, int depth)
+    : name_(name), current_use_(0), depth_(depth), delayed_(&WeightedEdgeCmp) {}
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
   const string& name() const { return name_; }
+  int current_use() const { return current_use_; }
 
   /// true if the Pool might delay this edge
   bool ShouldDelayEdge() const { return depth_ != 0; }
@@ -79,16 +80,13 @@ struct Pool {
   DelayedEdges delayed_;
 };
 
-/// Global state (file status, loaded rules) for a single run.
+/// Global state (file status) for a single run.
 struct State {
   static Pool kDefaultPool;
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
   State();
-
-  void AddRule(const Rule* rule);
-  const Rule* LookupRule(const string& rule_name);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -100,7 +98,7 @@ struct State {
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path, unsigned int slash_bits);
-  void AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
+  bool AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
   bool AddDefault(StringPiece path, string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
@@ -118,9 +116,6 @@ struct State {
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
-
-  /// All the rules used in the graph.
-  map<string, const Rule*> rules_;
 
   /// All the pools used in the graph.
   map<string, Pool*> pools_;

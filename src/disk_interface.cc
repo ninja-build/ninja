@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
+#include <sstream>
 #include <windows.h>
 #include <direct.h>  // _mkdir
 #endif
@@ -67,16 +68,13 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime;
 }
 
-TimeStamp StatSingleFile(const string& path, bool quiet) {
+TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
-    DWORD err = GetLastError();
-    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+    DWORD win_err = GetLastError();
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    if (!quiet) {
-      Error("GetFileAttributesEx(%s): %s", path.c_str(),
-            GetLastErrorString().c_str());
-    }
+    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -98,7 +96,7 @@ bool IsWindows7OrLater() {
 #endif
 
 bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
-                       bool quiet) {
+                       string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
   // This is not in earlier SDKs.
@@ -111,13 +109,10 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                                         FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
-    DWORD err = GetLastError();
-    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+    DWORD win_err = GetLastError();
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return true;
-    if (!quiet) {
-      Error("FindFirstFileExA(%s): %s", dir.c_str(),
-            GetLastErrorString().c_str());
-    }
+    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
     return false;
   }
   do {
@@ -139,9 +134,12 @@ bool DiskInterface::MakeDirs(const string& path) {
   string dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
-  TimeStamp mtime = Stat(dir);
-  if (mtime < 0)
-    return false;  // Error.
+  string err;
+  TimeStamp mtime = Stat(dir, &err);
+  if (mtime < 0) {
+    Error("%s", err.c_str());
+    return false;
+  }
   if (mtime > 0)
     return true;  // Exists already; we're done.
 
@@ -154,19 +152,19 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const string& path) const {
+TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
   if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
-    if (!quiet_) {
-      Error("Stat(%s): Filename longer than %i characters",
-            path.c_str(), MAX_PATH);
-    }
+    ostringstream err_stream;
+    err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
+               << " characters";
+    *err = err_stream.str();
     return -1;
   }
   if (!use_cache_)
-    return StatSingleFile(path, quiet_);
+    return StatSingleFile(path, err);
 
   string dir = DirName(path);
   string base(path.substr(dir.size() ? dir.size() + 1 : 0));
@@ -177,7 +175,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) const {
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
     ci = cache_.insert(make_pair(dir, DirCache())).first;
-    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, quiet_)) {
+    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
     }
@@ -189,9 +187,7 @@ TimeStamp RealDiskInterface::Stat(const string& path) const {
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
-    if (!quiet_) {
-      Error("stat(%s): %s", path.c_str(), strerror(errno));
-    }
+    *err = "stat(" + path + "): " + strerror(errno);
     return -1;
   }
   return st.st_mtime;

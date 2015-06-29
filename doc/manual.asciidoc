@@ -1,7 +1,7 @@
 Ninja
 =====
 Evan Martin <martine@danga.com>
-v1.5.3, Nov 2014
+v1.6.0, Jun 2015
 
 
 Introduction
@@ -180,6 +180,12 @@ Running Ninja
 Run `ninja`.  By default, it looks for a file named `build.ninja` in
 the current directory and builds all out-of-date targets.  You can
 specify which targets (files) to build as command line arguments.
+
+There is also a special syntax `target^` for specifying a target
+as the first output of some rule containing the source you put in
+the command line, if one exists. For example, if you specify target as
+`foo.c^` then `foo.o` will get built (assuming you have those targets
+in your build files).
 
 `ninja -h` prints help output.  Many of Ninja's flags intentionally
 match those of Make; e.g `ninja -C build -j 20` changes into the
@@ -915,9 +921,12 @@ Evaluation and scoping
 
 Top-level variable declarations are scoped to the file they occur in.
 
+Rule declarations are also scoped to the file they occur in.
+_(Available since Ninja 1.6)_
+
 The `subninja` keyword, used to include another `.ninja` file,
 introduces a new scope.  The included `subninja` file may use the
-variables from the parent file, and shadow their values for the file's
+variables and rules from the parent file, and shadow their values for the file's
 scope, but it won't affect values of the variables in the parent.
 
 To include another `.ninja` file in the current scope, much like a C

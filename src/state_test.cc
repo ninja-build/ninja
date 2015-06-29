@@ -29,7 +29,7 @@ TEST(State, Basic) {
 
   Rule* rule = new Rule("cat");
   rule->AddBinding("command", command);
-  state.AddRule(rule);
+  state.bindings_.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);
   state.AddIn(edge, "in1", 0);
