@@ -571,7 +571,7 @@ vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
   return edge->inputs_.end() - edge->order_only_deps_ - count;
 }
 
-void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
+void DepLoader::CreatePhonyInEdge(Node* node) {
   if (node->in_edge())
     return;
 

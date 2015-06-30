@@ -204,13 +204,24 @@ struct Edge {
   bool maybe_phonycycle_diagnostic() const;
 };
 
+struct DepLoader {
+ protected:
+  DepLoader(State* state)
+      : state_(state) {}
+  State* state_;
+
+  /// If we don't have a edge that generates this input already,
+  /// create one; this makes us not abort if the input is missing,
+  /// but instead will rebuild in that circumstance.
+  void CreatePhonyInEdge(Node* node);
+};
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
-struct ImplicitDepLoader {
+struct ImplicitDepLoader: private DepLoader {
   ImplicitDepLoader(State* state, DepsLog* deps_log,
                     DiskInterface* disk_interface)
-      : state_(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
+      : DepLoader(state), disk_interface_(disk_interface), deps_log_(deps_log) {}
 
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
@@ -234,12 +245,6 @@ struct ImplicitDepLoader {
   /// an iterator pointing at the first new space.
   vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
 
-  /// If we don't have a edge that generates this input already,
-  /// create one; this makes us not abort if the input is missing,
-  /// but instead will rebuild in that circumstance.
-  void CreatePhonyInEdge(Node* node);
-
-  State* state_;
   DiskInterface* disk_interface_;
   DepsLog* deps_log_;
 };
