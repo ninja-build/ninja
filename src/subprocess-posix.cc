@@ -25,7 +25,23 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
+// DrainPipe reads from fd until it would block. On EOF, the fd is
+// closed and set to -1. The fd passed in must be non-blocking.
+static void DrainPipe(int *fd, std::string *out);
+
+static void CreatePipe(int fds[2]) {
+  if (pipe(fds) < 0)
+    Fatal("pipe: %s", strerror(errno));
+#if !defined(USE_PPOLL)
+  // If available, we use ppoll in DoWork(); otherwise we use pselect
+  // and so must avoid overly-large FDs.
+  if (fds[0] >= static_cast<int>(FD_SETSIZE))
+    Fatal("pipe: %s", strerror(EMFILE));
+#endif  // !USE_PPOLL
+}
+
+
+Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1), status_(-1),
                                            use_console_(use_console) {
 }
 
@@ -33,22 +49,15 @@ Subprocess::~Subprocess() {
   if (fd_ >= 0)
     close(fd_);
   // Reap child if forgotten.
-  if (pid_ != -1)
-    Finish();
+  Finish();
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
   int output_pipe[2];
-  if (pipe(output_pipe) < 0)
-    Fatal("pipe: %s", strerror(errno));
+  CreatePipe(output_pipe);
   fd_ = output_pipe[0];
-#if !defined(USE_PPOLL)
-  // If available, we use ppoll in DoWork(); otherwise we use pselect
-  // and so must avoid overly-large FDs.
-  if (fd_ >= static_cast<int>(FD_SETSIZE))
-    Fatal("pipe: %s", strerror(EMFILE));
-#endif  // !USE_PPOLL
   SetCloseOnExec(fd_);
+  SetNonBlocking(output_pipe[0]);
 
   pid_ = fork();
   if (pid_ < 0)
@@ -63,6 +72,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       if (sigaction(SIGINT, &set->old_int_act_, 0) < 0)
         break;
       if (sigaction(SIGTERM, &set->old_term_act_, 0) < 0)
+        break;
+      if (sigaction(SIGCHLD, &set->old_chld_act_, 0) < 0)
         break;
       if (sigprocmask(SIG_SETMASK, &set->old_mask_, 0) < 0)
         break;
@@ -111,39 +122,49 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   return true;
 }
 
-void Subprocess::OnPipeReady() {
+void DrainPipe(int *fd, std::string *out) {
   char buf[4 << 10];
-  ssize_t len = read(fd_, buf, sizeof(buf));
-  if (len > 0) {
-    buf_.append(buf, len);
-  } else {
-    if (len < 0)
-      Fatal("read: %s", strerror(errno));
-    close(fd_);
-    fd_ = -1;
+  while (*fd != -1) {
+    ssize_t len = read(*fd, buf, sizeof(buf));
+    if (len > 0) {
+      if (out)
+        out->append(buf, len);
+    } else {
+      if (len < 0) {
+        if (errno == EAGAIN)
+          return;
+        Fatal("read: %s", strerror(errno));
+      }
+      close(*fd);
+      *fd = -1;
+    }
   }
 }
 
-ExitStatus Subprocess::Finish() {
-  assert(pid_ != -1);
-  int status;
-  if (waitpid(pid_, &status, 0) < 0)
-    Fatal("waitpid(%d): %s", pid_, strerror(errno));
-  pid_ = -1;
+void Subprocess::OnPipeReady() {
+  DrainPipe(&fd_, &buf_);
+}
 
-  if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
+ExitStatus Subprocess::Finish() {
+  if (pid_ != -1) {
+    if (waitpid(pid_, &status_, 0) < 0)
+      Fatal("waitpid(%d): %s", pid_, strerror(errno));
+    pid_ = -1;
+  }
+
+  if (WIFEXITED(status_)) {
+    int exit = WEXITSTATUS(status_);
     if (exit == 0)
       return ExitSuccess;
-  } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM)
+  } else if (WIFSIGNALED(status_)) {
+    if (WTERMSIG(status_) == SIGINT || WTERMSIG(status_) == SIGTERM)
       return ExitInterrupted;
   }
   return ExitFailure;
 }
 
 bool Subprocess::Done() const {
-  return fd_ == -1;
+  return pid_ == -1;
 }
 
 const string& Subprocess::GetOutput() const {
@@ -154,6 +175,7 @@ int SubprocessSet::interrupted_;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
   interrupted_ = signum;
+  SignalHandled();
 }
 
 void SubprocessSet::HandlePendingInterruption() {
@@ -169,11 +191,72 @@ void SubprocessSet::HandlePendingInterruption() {
     interrupted_ = SIGTERM;
 }
 
+bool SubprocessSet::child_exited_;
+#if !defined(USE_PPOLL)
+int SubprocessSet::self_pipe_[2];
+#endif
+
+void SubprocessSet::SignalHandled() {
+#if !defined(USE_PPOLL)
+  // Wake up select. See http://cr.yp.to/docs/selfpipe.html.
+  if (write(self_pipe_[1], "", 1)) {}
+#endif
+}
+
+void SubprocessSet::SetChildExited(int signum) {
+  child_exited_ = true;
+  SignalHandled();
+}
+
+void SubprocessSet::HandleChildExit() {
+  if (!child_exited_)
+    return;
+  child_exited_ = false;
+  for (;;) {
+    int status = 0;
+    pid_t pid = waitpid(-1, &status, WNOHANG);
+    if (pid == -1) {
+      if (errno == ECHILD)
+        return;
+      Fatal("waitpid: %s", strerror(errno));
+    }
+    if (pid == 0)
+      return;
+    for (vector<Subprocess*>::iterator i = running_.begin();
+         i != running_.end(); ++i) {
+      Subprocess *subprocess = *i;
+      if (pid != subprocess->pid_)
+        continue;
+      // Drain pipe by reading until we would block, as
+      // finished processes' pipes are not read by DoWork.
+      subprocess->OnPipeReady();
+      if (subprocess->fd_ != -1) {
+        close(subprocess->fd_);
+        subprocess->fd_ = -1;
+      }
+      subprocess->pid_ = -1;
+      subprocess->status_ = status;
+      finished_.push(subprocess);
+      running_.erase(i);
+      break;
+    }
+  }
+}
+
 SubprocessSet::SubprocessSet() {
+#if !defined(USE_PPOLL)
+  CreatePipe(self_pipe_);
+  SetCloseOnExec(self_pipe_[0]);
+  SetCloseOnExec(self_pipe_[1]);
+  SetNonBlocking(self_pipe_[0]);
+  SetNonBlocking(self_pipe_[1]);
+#endif
+
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
   sigaddset(&set, SIGTERM);
+  sigaddset(&set, SIGCHLD);
   if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
@@ -184,6 +267,10 @@ SubprocessSet::SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGTERM, &act, &old_term_act_) < 0)
     Fatal("sigaction: %s", strerror(errno));
+
+  act.sa_handler = SetChildExited;
+  if (sigaction(SIGCHLD, &act, &old_chld_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
 }
 
 SubprocessSet::~SubprocessSet() {
@@ -193,8 +280,15 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGCHLD, &old_chld_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
   if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
+
+#if !defined(USE_PPOLL)
+  close(self_pipe_[0]);
+  close(self_pipe_[1]);
+#endif
 }
 
 Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
@@ -215,8 +309,6 @@ bool SubprocessSet::DoWork() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
     pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
     fds.push_back(pfd);
     ++nfds;
@@ -229,6 +321,7 @@ bool SubprocessSet::DoWork() {
       perror("ninja: ppoll");
       return false;
     }
+    HandleChildExit();
     return IsInterrupted();
   }
 
@@ -238,20 +331,10 @@ bool SubprocessSet::DoWork() {
 
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
-    int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
-    assert(fd == fds[cur_nfd].fd);
-    if (fds[cur_nfd++].revents) {
+       i != running_.end(); ++i) {
+    assert((*i)->fd_ == fds[cur_nfd].fd);
+    if (fds[cur_nfd++].revents)
       (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
-        continue;
-      }
-    }
-    ++i;
   }
 
   return IsInterrupted();
@@ -260,8 +343,12 @@ bool SubprocessSet::DoWork() {
 #else  // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
-  int nfds = 0;
   FD_ZERO(&set);
+
+  // We always select on the self-pipe, in case a signal is
+  // delivered. This protects us from races in pselect.
+  FD_SET(self_pipe_[0], &set);
+  int nfds = self_pipe_[0]+1;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
@@ -280,26 +367,23 @@ bool SubprocessSet::DoWork() {
       perror("ninja: pselect");
       return false;
     }
+    HandleChildExit();
     return IsInterrupted();
   }
 
+  HandleChildExit();
   HandlePendingInterruption();
   if (IsInterrupted())
     return true;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
+       i != running_.end(); ++i) {
     int fd = (*i)->fd_;
-    if (fd >= 0 && FD_ISSET(fd, &set)) {
+    if (fd >= 0 && FD_ISSET(fd, &set))
       (*i)->OnPipeReady();
-      if ((*i)->Done()) {
-        finished_.push(*i);
-        i = running_.erase(i);
-        continue;
-      }
-    }
-    ++i;
   }
+  if (FD_ISSET(self_pipe_[0], &set))
+    DrainPipe(&self_pipe_[0], NULL);
 
   return IsInterrupted();
 }

@@ -411,6 +411,17 @@ void SetCloseOnExec(int fd) {
 #endif  // ! _WIN32
 }
 
+#ifndef _WIN32
+void SetNonBlocking(int fd) {
+  int flags = fcntl(fd, F_GETFL);
+  if (flags < 0) {
+    perror("fcntl(F_GETFL)");
+  } else {
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+      perror("fcntl(F_SETFL)");
+  }
+}
+#endif
 
 const char* SpellcheckStringV(const string& text,
                               const vector<const char*>& words) {
