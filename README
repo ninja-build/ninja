@@ -5,12 +5,13 @@ See the manual -- http://martine.github.com/ninja/manual.html or
 doc/manual.asciidoc included in the distribution -- for background
 and more details.
 
-To build, run ./configure.py --bootstrap.  It first compiles all non-test
-source files together, then re-builds Ninja using itself.  You should
-end up with a 'ninja' binary in the source root.
-
-Run './configure.py --help' for more configuration options.
+Binaries for Linux, Mac, and Windows are available at
+  https://github.com/martine/ninja/releases
 Run './ninja -h' for Ninja help.
+
+To build your own binary, on many platforms it should be sufficient to
+just run `./configure.py --bootstrap`; for more details see HACKING.md.
+(Also read that before making changes to Ninja, as it has advice.)
 
 Installation is not necessary because the only required file is is the
 resulting ninja binary. However, to enable features like Bash
