@@ -29,6 +29,12 @@ extern char** environ;
 
 #include "util.h"
 
+static void Xkill(pid_t pid, int sig)
+{
+  if (kill(pid, sig) < 0)
+    Fatal("kill(%d): %s", pid, strerror(errno));
+}
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }
@@ -345,7 +351,7 @@ void SubprocessSet::Clear() {
     // Since the foreground process is in our process group, it will receive
     // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
     if (!(*i)->use_console_)
-      kill(-(*i)->pid_, interrupted_);
+      Xkill(-(*i)->pid_, interrupted_);
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
@@ -362,7 +368,7 @@ void SubprocessSet::Suspend() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     if (!(*i)->use_console_)
-      kill(-(*i)->pid_, SIGTSTP);
+      Xkill(-(*i)->pid_, SIGTSTP);
 
   // Tell users what we have done.
   {
@@ -401,7 +407,7 @@ void SubprocessSet::Suspend() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     if (!(*i)->use_console_)
-      kill(-(*i)->pid_, SIGCONT);
+      Xkill(-(*i)->pid_, SIGCONT);
 
   // Restore errno.
   errno = saved_errno;
