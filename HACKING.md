@@ -11,10 +11,9 @@ run `ninja_test` when developing.
 ### Bootstrapping
 
 Ninja is built using itself.  To bootstrap the first binary, run the
-configure script as `./configure.py --bootstrap`.  It This first
-compiles all non-test source files together, then re-builds Ninja
-using itself.  You should end up with a `ninja' binary (or
-`ninja.exe`) in the source root.
+configure script as `./configure.py --bootstrap`.  This first compiles
+all non-test source files together, then re-builds Ninja using itself.
+You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
 
 #### Windows
 
@@ -192,7 +191,7 @@ root directory:
     ./ninja_test
     gcov build/*.o
 
-Look at the generated `.gcov` files directly, or use your favorit gcov viewer.
+Look at the generated `.gcov` files directly, or use your favorite gcov viewer.
 
 ### Using afl-fuzz
 
