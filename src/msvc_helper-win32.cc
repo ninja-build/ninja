@@ -15,6 +15,7 @@
 #include "msvc_helper.h"
 
 #include <algorithm>
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
@@ -82,10 +83,10 @@ bool CLParser::FilterInputFilename(string line) {
       EndsWith(line, ".cpp");
 }
 
-string CLParser::Parse(const string& output, const string& deps_prefix) {
-  string filtered_output;
-
+bool CLParser::Parse(const string& output, const string& deps_prefix,
+                     string* filtered_output, string* err) {
   // Loop over all lines in the output to process them.
+  assert(&output != filtered_output);
   size_t start = 0;
   while (start < output.size()) {
     size_t end = output.find_first_of("\r\n", start);
@@ -95,16 +96,18 @@ string CLParser::Parse(const string& output, const string& deps_prefix) {
 
     string include = FilterShowIncludes(line, deps_prefix);
     if (!include.empty()) {
-      include = IncludesNormalize::Normalize(include, NULL);
-      if (!IsSystemInclude(include))
-        includes_.insert(include);
+      string normalized;
+      if (!IncludesNormalize::Normalize(include, NULL, &normalized, err))
+        return false;
+      if (!IsSystemInclude(normalized))
+        includes_.insert(normalized);
     } else if (FilterInputFilename(line)) {
       // Drop it.
       // TODO: if we support compiling multiple output files in a single
       // cl.exe invocation, we should stash the filename.
     } else {
-      filtered_output.append(line);
-      filtered_output.append("\n");
+      filtered_output->append(line);
+      filtered_output->append("\n");
     }
 
     if (end < output.size() && output[end] == '\r')
@@ -114,7 +117,7 @@ string CLParser::Parse(const string& output, const string& deps_prefix) {
     start = end;
   }
 
-  return filtered_output;
+  return true;
 }
 
 int CLWrapper::Run(const string& command, string* output) {

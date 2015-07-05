@@ -849,7 +849,10 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 #ifdef _WIN32
   if (deps_type == "msvc") {
     CLParser parser;
-    result->output = parser.Parse(result->output, deps_prefix);
+    string output;
+    if (!parser.Parse(result->output, deps_prefix, &output, err))
+      return false;
+    result->output = output;
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
       // ~0 is assuming that with MSVC-parsed headers, it's ok to always make

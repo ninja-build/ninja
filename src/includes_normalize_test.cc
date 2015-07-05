@@ -14,17 +14,12 @@
 
 #include "includes_normalize.h"
 
+#include <algorithm>
+
 #include <direct.h>
 
 #include "test.h"
 #include "util.h"
-
-TEST(IncludesNormalize, Simple) {
-  EXPECT_EQ("b", IncludesNormalize::Normalize("a\\..\\b", NULL));
-  EXPECT_EQ("b", IncludesNormalize::Normalize("a\\../b", NULL));
-  EXPECT_EQ("a/b", IncludesNormalize::Normalize("a\\.\\b", NULL));
-  EXPECT_EQ("a/b", IncludesNormalize::Normalize("a\\./b", NULL));
-}
 
 namespace {
 
@@ -35,28 +30,50 @@ string GetCurDir() {
   return parts[parts.size() - 1];
 }
 
+string NormalizeAndCheckNoError(const std::string& input) {
+  string result, err;
+  EXPECT_TRUE(IncludesNormalize::Normalize(input.c_str(), NULL, &result, &err));
+  EXPECT_EQ("", err);
+  return result;
+}
+
+string NormalizeRelativeAndCheckNoError(const std::string& input,
+                                        const std::string& relative_to) {
+  string result, err;
+  EXPECT_TRUE(IncludesNormalize::Normalize(input.c_str(), relative_to.c_str(),
+                                           &result, &err));
+  EXPECT_EQ("", err);
+  return result;
+}
+
 }  // namespace
+
+TEST(IncludesNormalize, Simple) {
+  EXPECT_EQ("b", NormalizeAndCheckNoError("a\\..\\b"));
+  EXPECT_EQ("b", NormalizeAndCheckNoError("a\\../b"));
+  EXPECT_EQ("a/b", NormalizeAndCheckNoError("a\\.\\b"));
+  EXPECT_EQ("a/b", NormalizeAndCheckNoError("a\\./b"));
+}
 
 TEST(IncludesNormalize, WithRelative) {
   string currentdir = GetCurDir();
-  EXPECT_EQ("c", IncludesNormalize::Normalize("a/b/c", "a/b"));
-  EXPECT_EQ("a", IncludesNormalize::Normalize(IncludesNormalize::AbsPath("a"),
-                                              NULL));
+  EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
+  EXPECT_EQ("a", NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a")));
   EXPECT_EQ(string("../") + currentdir + string("/a"),
-            IncludesNormalize::Normalize("a", "../b"));
+            NormalizeRelativeAndCheckNoError("a", "../b"));
   EXPECT_EQ(string("../") + currentdir + string("/a/b"),
-            IncludesNormalize::Normalize("a/b", "../c"));
-  EXPECT_EQ("../../a", IncludesNormalize::Normalize("a", "b/c"));
-  EXPECT_EQ(".", IncludesNormalize::Normalize("a", "a"));
+            NormalizeRelativeAndCheckNoError("a/b", "../c"));
+  EXPECT_EQ("../../a", NormalizeRelativeAndCheckNoError("a", "b/c"));
+  EXPECT_EQ(".", NormalizeRelativeAndCheckNoError("a", "a"));
 }
 
 TEST(IncludesNormalize, Case) {
-  EXPECT_EQ("b", IncludesNormalize::Normalize("Abc\\..\\b", NULL));
-  EXPECT_EQ("BdEf", IncludesNormalize::Normalize("Abc\\..\\BdEf", NULL));
-  EXPECT_EQ("A/b", IncludesNormalize::Normalize("A\\.\\b", NULL));
-  EXPECT_EQ("a/b", IncludesNormalize::Normalize("a\\./b", NULL));
-  EXPECT_EQ("A/B", IncludesNormalize::Normalize("A\\.\\B", NULL));
-  EXPECT_EQ("A/B", IncludesNormalize::Normalize("A\\./B", NULL));
+  EXPECT_EQ("b", NormalizeAndCheckNoError("Abc\\..\\b"));
+  EXPECT_EQ("BdEf", NormalizeAndCheckNoError("Abc\\..\\BdEf"));
+  EXPECT_EQ("A/b", NormalizeAndCheckNoError("A\\.\\b"));
+  EXPECT_EQ("a/b", NormalizeAndCheckNoError("a\\./b"));
+  EXPECT_EQ("A/B", NormalizeAndCheckNoError("A\\.\\B"));
+  EXPECT_EQ("A/B", NormalizeAndCheckNoError("A\\./B"));
 }
 
 TEST(IncludesNormalize, Join) {
@@ -89,16 +106,63 @@ TEST(IncludesNormalize, ToLower) {
 
 TEST(IncludesNormalize, DifferentDrive) {
   EXPECT_EQ("stuff.h",
-      IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "p:\\vs08"));
+            NormalizeRelativeAndCheckNoError("p:\\vs08\\stuff.h", "p:\\vs08"));
   EXPECT_EQ("stuff.h",
-      IncludesNormalize::Normalize("P:\\Vs08\\stuff.h", "p:\\vs08"));
+            NormalizeRelativeAndCheckNoError("P:\\Vs08\\stuff.h", "p:\\vs08"));
   EXPECT_EQ("p:/vs08/stuff.h",
-      IncludesNormalize::Normalize("p:\\vs08\\stuff.h", "c:\\vs08"));
-  EXPECT_EQ("P:/vs08/stufF.h",
-      IncludesNormalize::Normalize("P:\\vs08\\stufF.h", "D:\\stuff/things"));
-  EXPECT_EQ("P:/vs08/stuff.h",
-      IncludesNormalize::Normalize("P:/vs08\\stuff.h", "D:\\stuff/things"));
+            NormalizeRelativeAndCheckNoError("p:\\vs08\\stuff.h", "c:\\vs08"));
+  EXPECT_EQ("P:/vs08/stufF.h", NormalizeRelativeAndCheckNoError(
+                                   "P:\\vs08\\stufF.h", "D:\\stuff/things"));
+  EXPECT_EQ("P:/vs08/stuff.h", NormalizeRelativeAndCheckNoError(
+                                   "P:/vs08\\stuff.h", "D:\\stuff/things"));
   EXPECT_EQ("P:/wee/stuff.h",
-            IncludesNormalize::Normalize("P:/vs08\\../wee\\stuff.h",
-                                         "D:\\stuff/things"));
+            NormalizeRelativeAndCheckNoError("P:/vs08\\../wee\\stuff.h",
+                                             "D:\\stuff/things"));
+}
+
+TEST(IncludesNormalize, LongInvalidPath) {
+  const char kLongInputString[] =
+      "C:\\Program Files (x86)\\Microsoft Visual Studio "
+      "12.0\\VC\\INCLUDEwarning #31001: The dll for reading and writing the "
+      "pdb (for example, mspdb110.dll) could not be found on your path. This "
+      "is usually a configuration error. Compilation will continue using /Z7 "
+      "instead of /Zi, but expect a similar error when you link your program.";
+  // Too long, won't be canonicalized. Ensure doesn't crash.
+  string result, err;
+  EXPECT_FALSE(
+      IncludesNormalize::Normalize(kLongInputString, NULL, &result, &err));
+  EXPECT_EQ("path too long", err);
+
+  const char kExactlyMaxPath[] =
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "012345678\\"
+      "0123456789";
+  std::string forward_slashes(kExactlyMaxPath);
+  std::replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
+  // Make sure a path that's exactly _MAX_PATH long is canonicalized.
+  EXPECT_EQ(forward_slashes,
+            NormalizeAndCheckNoError(kExactlyMaxPath));
 }
