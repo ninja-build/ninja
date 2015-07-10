@@ -72,8 +72,13 @@ struct Node {
 
   const string& path() const { return path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
-  string PathDecanonicalized() const;
+  string PathDecanonicalized() const {
+    return PathDecanonicalized(path_, slash_bits_);
+  }
+  static string PathDecanonicalized(const string& path,
+                                    unsigned int slash_bits);
   unsigned int slash_bits() const { return slash_bits_; }
+
   TimeStamp mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
