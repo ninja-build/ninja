@@ -347,12 +347,13 @@ bool Edge::use_console() const {
   return pool() == &State::kConsolePool;
 }
 
-string Node::PathDecanonicalized() const {
-  string result = path_;
+// static
+string Node::PathDecanonicalized(const string& path, unsigned int slash_bits) {
+  string result = path;
 #ifdef _WIN32
   unsigned int mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
-    if (slash_bits_ & mask)
+    if (slash_bits & mask)
       *c = '\\';
     c++;
     mask <<= 1;
