@@ -215,6 +215,8 @@ void BuildStatus::BuildStarted() {
 void BuildStatus::BuildFinished() {
   printer_.SetConsoleLocked(false);
   printer_.PrintTemporaryElide();
+  if (config_.verbosity != BuildConfig::QUIET && printer_.is_smart_terminal())
+    printer_.Print(FormatProgressStatus(progress_line_format_, kEdgeFinished) + "Finished\n");
 }
 
 string BuildStatus::FormatProgressStatus(
