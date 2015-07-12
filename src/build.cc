@@ -382,19 +382,24 @@ void Plan::ScheduleWork(Edge* edge) {
   }
 }
 
-void Plan::EdgeFinished(Edge* edge) {
+void Plan::EdgeFinished(Edge* edge, bool success) {
   map<Edge*, bool>::iterator e = want_.find(edge);
   assert(e != want_.end());
   bool directly_wanted = e->second;
-  if (directly_wanted)
-    --wanted_edges_;
-  want_.erase(e);
-  edge->outputs_ready_ = true;
 
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
   edge->pool()->RetrieveReadyEdges(&ready_);
+
+  // The rest of this function only applies to successful commands.
+  if (!success)
+    return;
+
+  if (directly_wanted)
+    --wanted_edges_;
+  want_.erase(e);
+  edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
@@ -418,7 +423,7 @@ void Plan::NodeFinished(Node* node) {
       } else {
         // We do not need to build this edge, but we might need to build one of
         // its dependents.
-        EdgeFinished(*oe);
+        EdgeFinished(*oe, true);
       }
     }
   }
@@ -651,7 +656,7 @@ bool Builder::Build(string* err) {
         }
 
         if (edge->is_phony()) {
-          plan_.EdgeFinished(edge);
+          plan_.EdgeFinished(edge, true);
         } else {
           ++pending_commands;
         }
@@ -770,8 +775,10 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
                              &start_time, &end_time);
 
   // The rest of this function only applies to successful commands.
-  if (!result->success())
+  if (!result->success()) {
+    plan_.EdgeFinished(edge, false);
     return true;
+  }
 
   // Restat the edge outputs, if necessary.
   TimeStamp restat_mtime = 0;
@@ -820,7 +827,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();

@@ -56,9 +56,8 @@ struct Plan {
   /// Dumps the current state of the plan.
   void Dump();
 
-  /// Mark an edge as done building.  Used internally and by
-  /// tests.
-  void EdgeFinished(Edge* edge);
+  /// Mark an edge as done building (whether it succeeded or failed).
+  void EdgeFinished(Edge* edge, bool success);
 
   /// Clean the given node during the build.
   /// Return false on error.
