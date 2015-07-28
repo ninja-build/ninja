@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 
 #include "util.h"
 
@@ -35,6 +36,15 @@ Subprocess::~Subprocess() {
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
+}
+
+int detach_from_tty() {
+  // Open may fail if ninja itself is already detached.
+  int fd = open("/dev/tty", O_RDWR);
+  if (fd < 0)
+    return -1;
+  else
+    return ioctl(fd, TIOCNOTTY, NULL);
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
@@ -68,11 +78,15 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         break;
 
       if (!use_console_) {
-        // Put the child in its own session and process group. It will be
-        // detached from the current terminal and ctrl-c won't reach it.
-        // Since this process was just forked, it is not a process group leader
-        // and setsid() will succeed.
-        if (setsid() < 0)
+        // Put the child in its own process group, so that ctrl-c won't reach
+        // it. This may be useful if we want to kill subsets of running
+        // subcommands.
+        if (setpgid(0, 0) < 0)
+          break;
+        // Child process should not interact with terminal since they run in
+        // background (console pool is not used here). So we detach from the
+        // terminal.
+        if (detach_from_tty() < 0)
           break;
 
         // Open /dev/null over stdin.
