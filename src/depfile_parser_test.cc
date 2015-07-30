@@ -139,8 +139,8 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
   string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
-  ASSERT_EQ(parser_.out_.AsString(), "foo");
-  ASSERT_EQ(parser_.ins_.size(), 3u);
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
   EXPECT_EQ("x", parser_.ins_[0].AsString());
   EXPECT_EQ("y", parser_.ins_[1].AsString());
   EXPECT_EQ("z", parser_.ins_[2].AsString());
