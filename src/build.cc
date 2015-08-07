@@ -418,15 +418,22 @@ bool Plan::NodeFinished(Node* node, string* err) {
       continue;
 
     // See if the edge is now ready.
-    if ((*oe)->AllInputsReady()) {
-      if (want_e->second != kWantNothing) {
-        ScheduleWork(want_e);
-      } else {
-        // We do not need to build this edge, but we might need to build one of
-        // its dependents.
-        if (!EdgeFinished(*oe, kEdgeSucceeded, err))
-          return false;
-      }
+    if (!EdgeMaybeReady(want_e, err))
+      return false;
+  }
+  return true;
+}
+
+bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
+  Edge* edge = want_e->first;
+  if (edge->AllInputsReady()) {
+    if (want_e->second != kWantNothing) {
+      ScheduleWork(want_e);
+    } else {
+      // We do not need to build this edge, but we might need to build one of
+      // its dependents.
+      if (!EdgeFinished(edge, kEdgeSucceeded, err))
+        return false;
     }
   }
   return true;
