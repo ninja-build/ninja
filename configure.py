@@ -297,6 +297,7 @@ if platform.is_msvc():
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
+              '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
     if options.bootstrap:
         # In bootstrap mode, we have no ninja process to catch /showIncludes
