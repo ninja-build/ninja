@@ -18,6 +18,7 @@ TAGS
 /doc/doxygen
 /gtest-1.6.0
 *.patch
+/null.o
 
 # Eclipse project files
 .project
