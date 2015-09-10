@@ -82,8 +82,8 @@ struct BindingEnv : public Env {
   virtual string LookupVariable(const string& var);
 
   void AddRule(const Rule* rule);
-  const Rule* LookupRule(const string& rule_name);
-  const Rule* LookupRuleCurrentScope(const string& rule_name);
+  const Rule* LookupRule(const string& rule_name) const;
+  const Rule* LookupRuleCurrentScope(const string& rule_name) const;
   const map<string, const Rule*>& GetRules() const;
 
   void AddBinding(const string& key, const string& val);

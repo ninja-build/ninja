@@ -19,7 +19,7 @@
 
 #include "graph.h"
 
-void GraphViz::AddTarget(Node* node) {
+void GraphViz::AddTarget(const Node* node) {
   if (visited_nodes_.find(node) != visited_nodes_.end())
     return;
 
@@ -28,7 +28,7 @@ void GraphViz::AddTarget(Node* node) {
   printf("\"%p\" [label=\"%s\"]\n", node, pathstr.c_str());
   visited_nodes_.insert(node);
 
-  Edge* edge = node->in_edge();
+  const Edge* edge = node->in_edge();
 
   if (!edge) {
     // Leaf node.
@@ -49,11 +49,11 @@ void GraphViz::AddTarget(Node* node) {
   } else {
     printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
            edge, edge->rule_->name().c_str());
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
+    for (vector<Node*>::const_iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       printf("\"%p\" -> \"%p\"\n", edge, *out);
     }
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
+    for (vector<Node*>::const_iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
       const char* order_only = "";
       if (edge->is_order_only(in - edge->inputs_.begin()))
@@ -62,7 +62,7 @@ void GraphViz::AddTarget(Node* node) {
     }
   }
 
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
+  for (vector<Node*>::const_iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in) {
     AddTarget(*in);
   }

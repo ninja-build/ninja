@@ -91,7 +91,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void BuildStatus::BuildEdgeStarted(Edge* edge) {
+void BuildStatus::BuildEdgeStarted(const Edge* edge) {
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
@@ -102,7 +102,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
     printer_.SetConsoleLocked(true);
 }
 
-void BuildStatus::BuildEdgeFinished(Edge* edge,
+void BuildStatus::BuildEdgeFinished(const Edge* edge,
                                     bool success,
                                     const string& output,
                                     int* start_time,
@@ -238,7 +238,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge) {
+void BuildStatus::PrintStatus(const Edge* edge) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -261,11 +261,11 @@ void BuildStatus::PrintStatus(Edge* edge) {
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
 bool Plan::AddTarget(Node* node, string* err) {
-  vector<Node*> stack;
+  vector<const Node*> stack;
   return AddSubTarget(node, &stack, err);
 }
 
-bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
+bool Plan::AddSubTarget(Node* node, vector<const Node*>* stack, string* err) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
@@ -316,16 +316,16 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   return true;
 }
 
-bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
+bool Plan::CheckDependencyCycle(const Node* node, const vector<const Node*>& stack,
                                 string* err) {
-  vector<Node*>::const_iterator start = stack.begin();
+  vector<const Node*>::const_iterator start = stack.begin();
   while (start != stack.end() && (*start)->in_edge() != node->in_edge())
     ++start;
   if (start == stack.end())
     return false;
 
   // Build error string for the cycle.
-  vector<Node*> cycle(start, stack.end());
+  vector<const Node*> cycle(start, stack.end());
   cycle.push_back(node);
 
   if (cycle.front() != cycle.back()) {
@@ -340,7 +340,7 @@ bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
   }
 
   *err = "dependency cycle: ";
-  for (vector<Node*>::const_iterator i = cycle.begin(); i != cycle.end(); ++i) {
+  for (vector<const Node*>::const_iterator i = cycle.begin(); i != cycle.end(); ++i) {
     if (i != cycle.begin())
       err->append(" -> ");
     err->append((*i)->path());
@@ -395,7 +395,7 @@ void Plan::EdgeFinished(Edge* edge) {
   }
 }
 
-void Plan::NodeFinished(Node* node) {
+void Plan::NodeFinished(const Node* node) {
   // See if we we want any edges from this node.
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {

@@ -44,7 +44,7 @@ struct BuildLog {
   ~BuildLog();
 
   bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
-  bool RecordCommand(Edge* edge, int start_time, int end_time,
+  bool RecordCommand(const Edge* edge, int start_time, int end_time,
                      TimeStamp restat_mtime = 0);
   void Close();
 

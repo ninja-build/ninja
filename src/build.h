@@ -68,10 +68,10 @@ struct Plan {
   int command_edge_count() const { return command_edges_; }
 
 private:
-  bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
-  bool CheckDependencyCycle(Node* node, const vector<Node*>& stack,
+  bool AddSubTarget(Node* node, vector<const Node*>* stack, string* err);
+  bool CheckDependencyCycle(const Node* node, const vector<const Node*>& stack,
                             string* err);
-  void NodeFinished(Node* node);
+  void NodeFinished(const Node* node);
 
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
@@ -193,8 +193,8 @@ struct Builder {
 struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+  void BuildEdgeStarted(const Edge* edge);
+  void BuildEdgeFinished(const Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
   void BuildFinished();
 
@@ -205,7 +205,7 @@ struct BuildStatus {
   string FormatProgressStatus(const char* progress_status_format) const;
 
  private:
-  void PrintStatus(Edge* edge);
+  void PrintStatus(const Edge* edge);
 
   const BuildConfig& config_;
 
@@ -215,7 +215,7 @@ struct BuildStatus {
   int started_edges_, finished_edges_, total_edges_;
 
   /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
+  typedef map<const Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Prints progress output.

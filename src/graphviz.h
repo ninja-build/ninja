@@ -23,11 +23,11 @@ struct Edge;
 /// Runs the process of creating GraphViz .dot file output.
 struct GraphViz {
   void Start();
-  void AddTarget(Node* node);
+  void AddTarget(const Node* node);
   void Finish();
 
-  std::set<Node*> visited_nodes_;
-  std::set<Edge*> visited_edges_;
+  std::set<const Node*> visited_nodes_;
+  std::set<const Edge*> visited_edges_;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_

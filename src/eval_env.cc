@@ -34,15 +34,15 @@ void BindingEnv::AddRule(const Rule* rule) {
   rules_[rule->name()] = rule;
 }
 
-const Rule* BindingEnv::LookupRuleCurrentScope(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+const Rule* BindingEnv::LookupRuleCurrentScope(const string& rule_name) const {
+  map<string, const Rule*>::const_iterator i = rules_.find(rule_name);
   if (i == rules_.end())
     return NULL;
   return i->second;
 }
 
-const Rule* BindingEnv::LookupRule(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+const Rule* BindingEnv::LookupRule(const string& rule_name) const {
+  map<string, const Rule*>::const_iterator i = rules_.find(rule_name);
   if (i != rules_.end())
     return i->second;
   if (parent_)

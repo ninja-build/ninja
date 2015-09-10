@@ -216,19 +216,19 @@ bool Edge::AllInputsReady() const {
 struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
-  EdgeEnv(Edge* edge, EscapeKind escape)
+  EdgeEnv(const Edge* edge, EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
-  string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end,
+  string MakePathList(vector<Node*>::const_iterator begin,
+                      vector<Node*>::const_iterator end,
                       char sep);
 
  private:
   vector<string> lookups_;
-  Edge* edge_;
+  const Edge* edge_;
   EscapeKind escape_in_out_;
   bool recursive_;
 };
@@ -268,11 +268,11 @@ string EdgeEnv::LookupVariable(const string& var) {
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
-string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end,
+string EdgeEnv::MakePathList(vector<Node*>::const_iterator begin,
+                             vector<Node*>::const_iterator end,
                              char sep) {
   string result;
-  for (vector<Node*>::iterator i = begin; i != end; ++i) {
+  for (vector<Node*>::const_iterator i = begin; i != end; ++i) {
     if (!result.empty())
       result.push_back(sep);
     const string& path = (*i)->PathDecanonicalized();
@@ -289,7 +289,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
   return result;
 }
 
-string Edge::EvaluateCommand(bool incl_rsp_file) {
+string Edge::EvaluateCommand(bool incl_rsp_file) const {
   string command = GetBinding("command");
   if (incl_rsp_file) {
     string rspfile_content = GetBinding("rspfile_content");
@@ -299,21 +299,21 @@ string Edge::EvaluateCommand(bool incl_rsp_file) {
   return command;
 }
 
-string Edge::GetBinding(const string& key) {
+string Edge::GetBinding(const string& key) const {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);
 }
 
-bool Edge::GetBindingBool(const string& key) {
+bool Edge::GetBindingBool(const string& key) const {
   return !GetBinding(key).empty();
 }
 
-string Edge::GetUnescapedDepfile() {
+string Edge::GetUnescapedDepfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("depfile");
 }
 
-string Edge::GetUnescapedRspfile() {
+string Edge::GetUnescapedRspfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("rspfile");
 }

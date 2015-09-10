@@ -22,7 +22,7 @@
 #include "state.h"
 #include "util.h"
 
-Cleaner::Cleaner(State* state, const BuildConfig& config)
+Cleaner::Cleaner(const State* state, const BuildConfig& config)
   : state_(state),
     config_(config),
     removed_(),
@@ -32,7 +32,7 @@ Cleaner::Cleaner(State* state, const BuildConfig& config)
     status_(0) {
 }
 
-Cleaner::Cleaner(State* state,
+Cleaner::Cleaner(const State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
   : state_(state),
@@ -83,7 +83,7 @@ bool Cleaner::IsAlreadyRemoved(const string& path) {
   return (i != removed_.end());
 }
 
-void Cleaner::RemoveEdgeFiles(Edge* edge) {
+void Cleaner::RemoveEdgeFiles(const Edge* edge) {
   string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
     Remove(depfile);
@@ -112,7 +112,7 @@ void Cleaner::PrintFooter() {
 int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
     if ((*e)->is_phony())
@@ -120,7 +120,7 @@ int Cleaner::CleanAll(bool generator) {
     // Do not remove generator's files unless generator specified.
     if (!generator && (*e)->GetBindingBool("generator"))
       continue;
-    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+    for (vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
     }
@@ -131,7 +131,7 @@ int Cleaner::CleanAll(bool generator) {
   return status_;
 }
 
-void Cleaner::DoCleanTarget(Node* target) {
+void Cleaner::DoCleanTarget(const Node* target) {
   if (Edge* e = target->in_edge()) {
     // Do not try to remove phony targets
     if (!e->is_phony()) {
@@ -152,7 +152,7 @@ void Cleaner::DoCleanTarget(Node* target) {
   cleaned_.insert(target);
 }
 
-int Cleaner::CleanTarget(Node* target) {
+int Cleaner::CleanTarget(const Node* target) {
   assert(target);
 
   Reset();
@@ -198,10 +198,10 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
 void Cleaner::DoCleanRule(const Rule* rule) {
   assert(rule);
 
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->rule().name() == rule->name()) {
-      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+      for (vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
         RemoveEdgeFiles(*e);

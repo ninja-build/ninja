@@ -139,11 +139,11 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
   return true;
 }
 
-bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
+bool BuildLog::RecordCommand(const Edge* edge, int start_time, int end_time,
                              TimeStamp restat_mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
+  for (vector<Node*>::const_iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
