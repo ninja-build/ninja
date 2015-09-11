@@ -217,8 +217,7 @@ The default progress status line is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
 
-The progress table status is turned off by default, i.e. `""`, an empty string.
-Another example of possible progress table status is `"[%s/%t] %E elapsed, %L left"`.
+The default progress table status is `"[%s/%t] %E elapsed, %L left"`.
 
 Extra tools
 ~~~~~~~~~~~

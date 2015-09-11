@@ -93,7 +93,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     progress_line_format_ = "[%f/%t] ";
   progress_table_format_ = getenv("NINJA_STATUS_TABLE");
   if (!progress_table_format_)
-    progress_table_format_ = ""; // Disabled
+    progress_table_format_ = "[%s/%t] %E elapsed, %L left";
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
