@@ -1775,6 +1775,8 @@ TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0/p  0%]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f/p%p]",
                 BuildStatus::kEdgeStarted));
+  EXPECT_TRUE(status_.FormatProgressStatus("%e", BuildStatus::kEdgeStarted).size() > 2);
+  EXPECT_TRUE(status_.FormatProgressStatus("%E", BuildStatus::kEdgeStarted).size() > 2);
 }
 
 TEST_F(BuildTest, FailedDepsParse) {

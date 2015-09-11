@@ -266,9 +266,23 @@ string BuildStatus::FormatProgressStatus(
         out += buf;
         break;
 
+        // Elapsed 0.000
       case 'e': {
         double elapsed = overall_rate_.Elapsed();
         snprintf(buf, sizeof(buf), "%.3f", elapsed);
+        out += buf;
+        break;
+      }
+
+        // Elapsed, 0:00 or 0.0 if less than a minute
+      case 'E': {
+        double elapsed = overall_rate_.Elapsed();
+        int elapsed_minutes = (int)elapsed / 60;
+        double elapsed_seconds = elapsed - 60 * elapsed_minutes;
+        if (elapsed_minutes > 0)
+          snprintf(buf, sizeof(buf), "%d:%02.0f", elapsed_minutes, elapsed_seconds);
+        else
+          snprintf(buf, sizeof(buf), "%4.1f", elapsed_seconds);
         out += buf;
         break;
       }
