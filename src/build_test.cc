@@ -1772,8 +1772,8 @@ TEST_F(BuildTest, StatusFormatElapsed) {
 }
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
-  EXPECT_EQ("[%/s0/t0/r0/u0/f0/p  0%]",
-            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f/p%p]",
+  EXPECT_EQ("[%/s0/t0/r0/u0/f0/p  0%/l0.000/L 0.0]",
+            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f/p%p/l%l/L%L]",
                 BuildStatus::kEdgeStarted));
   EXPECT_TRUE(status_.FormatProgressStatus("%e", BuildStatus::kEdgeStarted).size() > 2);
   EXPECT_TRUE(status_.FormatProgressStatus("%E", BuildStatus::kEdgeStarted).size() > 2);

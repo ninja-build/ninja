@@ -287,6 +287,29 @@ string BuildStatus::FormatProgressStatus(
         break;
       }
 
+        // Time left 0.000
+      case 'l': {
+        double elapsed = overall_rate_.Elapsed();
+        double estimated_left = (total_edges_ - started_edges_) * elapsed / max(started_edges_, 1);
+        snprintf(buf, sizeof(buf), "%.3f", estimated_left);
+        out += buf;
+        break;
+      }
+
+        // Time left 0:00 or 0.0 if less than a minute
+      case 'L': {
+        double elapsed = overall_rate_.Elapsed();
+        double estimated_left = (total_edges_ - started_edges_) * elapsed / max(started_edges_, 1);
+        int estimated_left_minutes = (int)estimated_left / 60;
+        double estimated_left_seconds = estimated_left - 60 * estimated_left_minutes;
+        if (estimated_left_minutes > 0)
+          snprintf(buf, sizeof(buf), "%d:%02.0f", estimated_left_minutes, estimated_left_seconds);
+        else
+          snprintf(buf, sizeof(buf), "%4.1f", estimated_left_seconds);
+        out += buf;
+        break;
+      }
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
