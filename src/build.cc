@@ -57,7 +57,7 @@ struct DryRunCommandRunner : public CommandRunner {
 };
 
 bool DryRunCommandRunner::CanRunMore() {
-  return true;
+  return finished_.empty();
 }
 
 bool DryRunCommandRunner::StartCommand(Edge* edge) {
@@ -81,16 +81,19 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
+      progress_line_format_(NULL), progress_table_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
 
-  progress_status_format_ = getenv("NINJA_STATUS");
-  if (!progress_status_format_)
-    progress_status_format_ = "[%f/%t] ";
+  progress_line_format_ = getenv("NINJA_STATUS");
+  if (!progress_line_format_)
+    progress_line_format_ = "[%f/%t] ";
+  progress_table_format_ = getenv("NINJA_STATUS_TABLE");
+  if (!progress_table_format_)
+    progress_table_format_ = ""; // Disabled
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -99,14 +102,15 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
-  running_edges_.insert(make_pair(edge, start_time));
+  running_edges_.push_back(make_pair(edge, start_time));
   ++started_edges_;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, kEdgeStarted);
-
-  if (edge->use_console())
+  if (edge->use_console()) {
+    PrintEdgeStatusPermanently(edge, kEdgeStarted);
     printer_.SetConsoleLocked(true);
+  } else if (printer_.is_smart_terminal()) {
+    PrintStatus(edge, kEdgeStarted);
+  }
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
@@ -118,10 +122,14 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   ++finished_edges_;
 
-  RunningEdgeMap::iterator i = running_edges_.find(edge);
-  *start_time = i->second;
+  for (RunningEdgeList::iterator i = running_edges_.begin(); i != running_edges_.end(); ++i) {
+    if (i->first == edge) {
+      *start_time = i->second;
+      running_edges_.erase(i);
+      break;
+    }
+  }
   *end_time = (int)(now - start_time_millis_);
-  running_edges_.erase(i);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(false);
@@ -129,19 +137,16 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  // Print the description before anything else.
+  if (!success || !output.empty())
+    PrintEdgeStatusPermanently(edge, kEdgeFinished);
+  else if (!edge->use_console())
     PrintStatus(edge, kEdgeFinished);
   if (printer_.is_smart_terminal()) {
-    int oldest_start = INT_MAX;
-    Edge* oldest = NULL;
-    for (i = running_edges_.begin(); i != running_edges_.end(); i++) {
-      if (i->second < oldest_start) {
-        oldest_start = i->second;
-        oldest = i->first;
-      }
-    }
-    if (oldest)
+    if (!running_edges_.empty()) {
+      Edge *oldest = running_edges_.front().first;
       PrintStatus(oldest, kEdgeRunning);
+    }
   }
 
   // Print the command that is spewing before printing its output.
@@ -155,7 +160,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     string to_print = edge->GetBinding("description");
     if (to_print.empty())
       to_print = edge->GetBinding("command");
-    to_print = FormatProgressStatus(progress_status_format_, kEdgeFinished) + to_print + "\n";
+    to_print = FormatProgressStatus(progress_line_format_, kEdgeFinished) + to_print + "\n";
     printer_.Print(to_print);
 
     printer_.Print("FAILED: " + outputs + "\n");
@@ -323,7 +328,7 @@ string BuildStatus::FormatProgressStatus(
       }
 
       default:
-        Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
+        Fatal("unknown placeholder '%%%c' in $NINJA_STATUS or $NINJA_STATUS_TABLE", *s);
         return "";
       }
     } else {
@@ -340,16 +345,58 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
 
+  if (finished_edges_ == 0) {
+    overall_rate_.Restart();
+    current_rate_.Restart();
+  }
+
+  if (printer_.is_smart_terminal() && progress_table_format_[0] != '\0') {
+    if (force_full_command) {
+      string to_print = FormatProgressStatus(progress_line_format_, status) +
+        edge->GetBinding("command") + '\n';
+      printer_.Print(to_print);
+    }
+
+    // Print all active edges
+    vector<string> to_print_lines;
+    to_print_lines.push_back(FormatProgressStatus(progress_table_format_, status));
+
+    for (RunningEdgeList::iterator i = running_edges_.begin(); i != running_edges_.end(); ++i) {
+      Edge* cur_edge = i->first;
+      string to_print = cur_edge->GetBinding("description");
+      if (to_print.empty())
+        to_print = cur_edge->GetBinding("command");
+      to_print_lines.push_back(to_print);
+    }
+    for (int i = (int)running_edges_.size(); i < config_.parallelism; ++i)
+      to_print_lines.push_back("[IDLE]");
+
+    printer_.PrintTemporaryElide(to_print_lines);
+  } else {
+    // Just print the normal status line.
+    string to_print = edge->GetBinding("description");
+    if (to_print.empty() || force_full_command)
+      to_print = edge->GetBinding("command");
+    to_print = FormatProgressStatus(progress_line_format_, status) + to_print;
+    if (printer_.is_smart_terminal())
+      printer_.PrintTemporaryElide(to_print);
+    else
+      printer_.Print(to_print + '\n');
+  }
+}
+
+void BuildStatus::PrintEdgeStatusPermanently(Edge* edge, EdgeStatus status) {
+  if (config_.verbosity == BuildConfig::QUIET)
+    return;
+
+  bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
+
+  // Just print a single line.
   string to_print = edge->GetBinding("description");
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
-
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
-
-  if (force_full_command || !printer_.is_smart_terminal())
-    printer_.Print(to_print + '\n');
-  else
-    printer_.PrintTemporaryElide(to_print);
+  to_print = FormatProgressStatus(progress_line_format_, status) + to_print + "\n";
+  printer_.Print(to_print);
 }
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}

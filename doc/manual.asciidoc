@@ -191,8 +191,10 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
-`NINJA_STATUS`, the progress status printed before the rule being run.
+Ninja supports two environment variables to control its behavior:
+
+- `NINJA_STATUS`, the progress status line printed before the rule being run, and
+- `NINJA_STATUS_TABLE`, the progress status table printed while rules are running.
 
 Several placeholders are available:
 
@@ -211,9 +213,12 @@ specified by `-j` or its default)
 `%L`:: Estimated time left in minutes and seconds (`0:00.0`).  _(Available since Ninja 1.7.)_
 `%%`:: A plain `%` character.
 
-The default progress status is `"[%f/%t] "` (note the trailing space
+The default progress status line is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+The progress table status is turned off by default, i.e. `""`, an empty string.
+Another example of possible progress table status is `"[%s/%t] %E elapsed, %L left"`.
 
 Extra tools
 ~~~~~~~~~~~
