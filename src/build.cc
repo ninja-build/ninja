@@ -374,24 +374,28 @@ void Plan::ScheduleWork(Edge* edge) {
   }
 }
 
-void Plan::EdgeFinished(Edge* edge) {
+void Plan::EdgeFinished(Edge* edge, bool success) {
   map<Edge*, bool>::iterator e = want_.find(edge);
   assert(e != want_.end());
   bool directly_wanted = e->second;
-  if (directly_wanted)
-    --wanted_edges_;
-  want_.erase(e);
-  edge->outputs_ready_ = true;
 
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
   edge->pool()->RetrieveReadyEdges(&ready_);
 
-  // Check off any nodes we were waiting for with this edge.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    NodeFinished(*o);
+  if (success)
+  {
+      if (directly_wanted)
+        --wanted_edges_;
+      want_.erase(e);
+      edge->outputs_ready_ = true;
+
+      // Check off any nodes we were waiting for with this edge.
+      for (vector<Node*>::iterator o = edge->outputs_.begin();
+           o != edge->outputs_.end(); ++o) {
+        NodeFinished(*o);
+      }
   }
 }
 
@@ -761,13 +765,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   status_->BuildEdgeFinished(edge, result->success(), result->output,
                              &start_time, &end_time);
 
-  // The rest of this function only applies to successful commands.
-  if (!result->success())
-    return true;
-
   // Restat the edge outputs, if necessary.
   TimeStamp restat_mtime = 0;
-  if (edge->GetBindingBool("restat") && !config_.dry_run) {
+  if (result->success() && edge->GetBindingBool("restat") && !config_.dry_run) {
     bool node_cleaned = false;
 
     for (vector<Node*>::iterator o = edge->outputs_.begin();
@@ -812,7 +812,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, result->success());
+
+  // The rest of this function only applies to successful commands.
+  if (!result->success())
+    return true;
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();

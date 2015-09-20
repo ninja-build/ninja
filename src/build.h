@@ -58,7 +58,7 @@ struct Plan {
 
   /// Mark an edge as done building.  Used internally and by
   /// tests.
-  void EdgeFinished(Edge* edge);
+  void EdgeFinished(Edge* edge, bool success=true);
 
   /// Clean the given node during the build.
   /// Return false on error.

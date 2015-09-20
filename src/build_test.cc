@@ -1095,6 +1095,30 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   ASSERT_EQ("cannot make progress due to previous errors", err);
 }
 
+TEST_F(BuildTest, SwallowFailuresPool) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"pool failpool\n"
+"  depth = 1\n"
+"rule fail\n"
+"  command = fail\n"
+"  pool = failpool\n"
+"build out1: fail\n"
+"build out2: fail\n"
+"build out3: fail\n"
+"build final: cat out1 out2 out3\n"));
+
+  // Swallow ten failures; we should stop before building final.
+  config_.failures_allowed = 11;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("final", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
 TEST_F(BuildTest, PoolEdgesReadyButNotWanted) {
   fs_.Create("x", "");
 
