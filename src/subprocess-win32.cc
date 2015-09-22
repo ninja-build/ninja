@@ -212,7 +212,8 @@ SubprocessSet::SubprocessSet() {
 }
 
 SubprocessSet::~SubprocessSet() {
-  Clear();
+  Abort();
+  Wait();
 
   SetConsoleCtrlHandler(NotifyInterrupted, FALSE);
   CloseHandle(ioport_);
@@ -278,7 +279,7 @@ Subprocess* SubprocessSet::NextFinished() {
   return subproc;
 }
 
-void SubprocessSet::Clear() {
+void SubprocessSet::Abort() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     // Since the foreground process is in our process group, it will receive a
@@ -290,6 +291,9 @@ void SubprocessSet::Clear() {
       }
     }
   }
+}
+
+void SubprocessSet::Wait() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;

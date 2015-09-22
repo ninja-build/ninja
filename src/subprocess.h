@@ -87,7 +87,8 @@ struct SubprocessSet {
   Subprocess* Add(const string& command, bool use_console = false);
   bool DoWork();
   Subprocess* NextFinished();
-  void Clear();
+  void Abort();
+  void Wait();
 
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;

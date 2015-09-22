@@ -175,17 +175,27 @@ void SubprocessSet::SetInterruptedFlag(int signum) {
 
 void SubprocessSet::HandlePendingInterruption() {
   sigset_t pending;
+  sigset_t wait;
+  int sig;
   sigemptyset(&pending);
+  sigemptyset(&wait);
   if (sigpending(&pending) == -1) {
     perror("ninja: sigpending");
     return;
   }
-  if (sigismember(&pending, SIGINT))
+  if (sigismember(&pending, SIGINT)) {
     interrupted_ = SIGINT;
-  else if (sigismember(&pending, SIGTERM))
+    sigaddset(&wait, SIGINT);
+    sigwait(&wait, &sig);
+  } else if (sigismember(&pending, SIGTERM)) {
     interrupted_ = SIGTERM;
-  else if (sigismember(&pending, SIGHUP))
+    sigaddset(&wait, SIGTERM);
+    sigwait(&wait, &sig);
+  } else if (sigismember(&pending, SIGHUP)) {
     interrupted_ = SIGHUP;
+    sigaddset(&wait, SIGHUP);
+    sigwait(&wait, &sig);
+  }
 }
 
 SubprocessSet::SubprocessSet() {
@@ -209,7 +219,8 @@ SubprocessSet::SubprocessSet() {
 }
 
 SubprocessSet::~SubprocessSet() {
-  Clear();
+  Abort();
+  Wait();
 
   if (sigaction(SIGINT, &old_int_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
@@ -337,13 +348,16 @@ Subprocess* SubprocessSet::NextFinished() {
   return subproc;
 }
 
-void SubprocessSet::Clear() {
+void SubprocessSet::Abort() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     // Since the foreground process is in our process group, it will receive
     // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
     if (!(*i)->use_console_)
       kill(-(*i)->pid_, interrupted_);
+}
+
+void SubprocessSet::Wait() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;

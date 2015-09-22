@@ -110,7 +110,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
-                                    bool success,
+                                    ExitStatus status,
                                     const string& output,
                                     int* start_time,
                                     int* end_time) {
@@ -133,7 +133,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     PrintStatus(edge, kEdgeFinished);
 
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (status == ExitFailure) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
@@ -176,6 +176,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
+  if (status == ExitInterrupted)
+    printer_.PrintOnNewLine("interrupted by user\n");
 }
 
 void BuildStatus::BuildLoadDyndeps() {
@@ -671,24 +673,20 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
-  virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
+  virtual void Wait();
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
   map<Subprocess*, Edge*> subproc_to_edge_;
 };
 
-vector<Edge*> RealCommandRunner::GetActiveEdges() {
-  vector<Edge*> edges;
-  for (map<Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
-       e != subproc_to_edge_.end(); ++e)
-    edges.push_back(e->second);
-  return edges;
+void RealCommandRunner::Abort() {
+  subprocs_.Abort();
 }
 
-void RealCommandRunner::Abort() {
-  subprocs_.Clear();
+void RealCommandRunner::Wait() {
+  subprocs_.Wait();
 }
 
 bool RealCommandRunner::CanRunMore() {
@@ -744,31 +742,8 @@ Builder::~Builder() {
 
 void Builder::Cleanup() {
   if (command_runner_.get()) {
-    vector<Edge*> active_edges = command_runner_->GetActiveEdges();
     command_runner_->Abort();
-
-    for (vector<Edge*>::iterator e = active_edges.begin();
-         e != active_edges.end(); ++e) {
-      string depfile = (*e)->GetUnescapedDepfile();
-      for (vector<Node*>::iterator o = (*e)->outputs_.begin();
-           o != (*e)->outputs_.end(); ++o) {
-        // Only delete this output if it was actually modified.  This is
-        // important for things like the generator where we don't want to
-        // delete the manifest file if we can avoid it.  But if the rule
-        // uses a depfile, always delete.  (Consider the case where we
-        // need to rebuild an output because of a modified header file
-        // mentioned in a depfile, and the command touches its depfile
-        // but is interrupted before it touches its output file.)
-        string err;
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
-        if (new_mtime == -1)  // Log and ignore Stat() errors.
-          Error("%s", err.c_str());
-        if (!depfile.empty() || (*o)->mtime() != new_mtime)
-          disk_interface_->RemoveFile((*o)->path());
-      }
-      if (!depfile.empty())
-        disk_interface_->RemoveFile(depfile);
-    }
+    command_runner_->Wait();
   }
 }
 
@@ -817,6 +792,8 @@ bool Builder::Build(string* err) {
       command_runner_.reset(new RealCommandRunner(config_));
   }
 
+  bool interrupted = false;
+
   // We are about to start the build process.
   status_->BuildStarted();
 
@@ -827,7 +804,7 @@ bool Builder::Build(string* err) {
   // Second, we attempt to wait for / reap the next finished command.
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
-    if (failures_allowed && command_runner_->CanRunMore()) {
+    if (failures_allowed && command_runner_->CanRunMore() && !interrupted) {
       if (Edge* edge = plan_.FindWork()) {
         if (!StartEdge(edge, err)) {
           Cleanup();
@@ -853,12 +830,11 @@ bool Builder::Build(string* err) {
     // See if we can reap any finished commands.
     if (pending_commands) {
       CommandRunner::Result result;
-      if (!command_runner_->WaitForCommand(&result) ||
-          result.status == ExitInterrupted) {
-        Cleanup();
-        status_->BuildFinished();
-        *err = "interrupted by user";
-        return false;
+      if (!command_runner_->WaitForCommand(&result)) {
+        // ninja received a SIGINT or SIGTERM
+        command_runner_->Abort();
+        interrupted = true;
+        continue;
       }
 
       --pending_commands;
@@ -871,6 +847,8 @@ bool Builder::Build(string* err) {
       if (!result.success()) {
         if (failures_allowed)
           failures_allowed--;
+        if (result.status == ExitInterrupted)
+          interrupted = true;
       }
 
       // We made some progress; start the main loop over.
@@ -879,7 +857,9 @@ bool Builder::Build(string* err) {
 
     // If we get here, we cannot make any more progress.
     status_->BuildFinished();
-    if (failures_allowed == 0) {
+    if (interrupted)
+      *err = "interrupted by user";
+    else if (failures_allowed == 0) {
       if (config_.failures_allowed > 1)
         *err = "subcommands failed";
       else
@@ -934,28 +914,51 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   Edge* edge = result->edge;
 
-  // First try to extract dependencies from the result, if any.
-  // This must happen first as it filters the command output (we want
-  // to filter /showIncludes output, even on compile failure) and
-  // extraction itself can fail, which makes the command fail from a
-  // build perspective.
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
-  const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
-  if (!deps_type.empty()) {
-    string extract_err;
-    if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
-                     &extract_err) &&
-        result->success()) {
-      if (!result->output.empty())
-        result->output.append("\n");
-      result->output.append(extract_err);
-      result->status = ExitFailure;
+
+  if (result->status == ExitInterrupted) {
+    string depfile = result->edge->GetUnescapedDepfile();
+    for (vector<Node*>::iterator o = result->edge->outputs_.begin();
+         o != result->edge->outputs_.end(); ++o) {
+      // Only delete this output if it was actually modified.  This is
+      // important for things like the generator where we don't want to
+      // delete the manifest file if we can avoid it.  But if the rule
+      // uses a depfile, always delete.  (Consider the case where we
+      // need to rebuild an output because of a modified header file
+      // mentioned in a depfile, and the command touches its depfile
+      // but is interrupted before it touches its output file.)
+      string staterr;
+      TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &staterr);
+      if (new_mtime == -1)  // Log and ignore Stat() errors.
+        Error("%s", staterr.c_str());
+      if (!depfile.empty() || (*o)->mtime() != new_mtime)
+        disk_interface_->RemoveFile((*o)->path());
+    }
+    if (!depfile.empty())
+      disk_interface_->RemoveFile(depfile);
+  } else {
+    // First try to extract dependencies from the result, if any.
+    // This must happen first as it filters the command output (we want
+    // to filter /showIncludes output, even on compile failure) and
+    // extraction itself can fail, which makes the command fail from a
+    // build perspective.
+    const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
+    if (!deps_type.empty()) {
+      string extract_err;
+      if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
+                       &extract_err) &&
+          result->success()) {
+        if (!result->output.empty())
+          result->output.append("\n");
+        result->output.append(extract_err);
+        result->status = ExitFailure;
+      }
     }
   }
 
   int start_time, end_time;
-  status_->BuildEdgeFinished(edge, result->success(), result->output,
+  status_->BuildEdgeFinished(edge, result->status, result->output,
                              &start_time, &end_time);
 
   // The rest of this function only applies to successful commands.
