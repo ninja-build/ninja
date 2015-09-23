@@ -75,6 +75,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
+      printer_(config.printer),
       progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
@@ -121,7 +122,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console() && printer_.is_smart_terminal())
+  if (!edge->use_console() && printer_.reprint())
     PrintStatus(edge);
 
   // Print the command that is spewing before printing its output.
@@ -140,9 +141,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
+    if (!printer_.color())
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;

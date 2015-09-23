@@ -28,9 +28,10 @@
 #include "util.h"
 
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
+  bool smart_terminal;
 #ifndef _WIN32
   const char* term = getenv("TERM");
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  smart_terminal = isatty(1) && term && string(term) != "dumb";
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
@@ -39,8 +40,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   setvbuf(stdout, NULL, _IONBF, 0);
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
   CONSOLE_SCREEN_BUFFER_INFO csbi;
-  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  smart_terminal = GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
+  set_smart_terminal(smart_terminal);
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
@@ -50,13 +52,13 @@ void LinePrinter::Print(string to_print, LineType type) {
     return;
   }
 
-  if (smart_terminal_) {
+  if (reprint_) {
     printf("\r");  // Print over previous line, if any.
     // On Windows, calling a C library function writing to stdout also handles
     // pausing the executable when the "Pause" key or Ctrl-S is pressed.
   }
 
-  if (smart_terminal_ && type == ELIDE) {
+  if (elide_ && type == ELIDE) {
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(console_, &csbi);
@@ -86,11 +88,14 @@ void LinePrinter::Print(string to_print, LineType type) {
       to_print = ElideMiddle(to_print, size.ws_col);
     }
     printf("%s", to_print.c_str());
-    printf("\x1B[K");  // Clear to end of line.
-    fflush(stdout);
+    if (reprint_) {
+      printf("\x1B[K");  // Clear to end of line.
+      fflush(stdout);
+      have_blank_line_ = false;
+    } else {
+      printf("\n");
+    }
 #endif
-
-    have_blank_line_ = false;
   } else {
     printf("%s\n", to_print.c_str());
   }

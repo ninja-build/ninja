@@ -119,7 +119,8 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
+  BuildConfig() : verbosity(NORMAL), printer(LinePrinter()),
+                  dry_run(false), parallelism(1),
                   failures_allowed(1), max_load_average(-0.0f) {}
 
   enum Verbosity {
@@ -128,6 +129,7 @@ struct BuildConfig {
     VERBOSE
   };
   Verbosity verbosity;
+  mutable LinePrinter printer;
   bool dry_run;
   int parallelism;
   int failures_allowed;
@@ -219,7 +221,7 @@ struct BuildStatus {
   RunningEdgeMap running_edges_;
 
   /// Prints progress output.
-  LinePrinter printer_;
+  LinePrinter& printer_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;

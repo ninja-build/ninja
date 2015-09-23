@@ -24,8 +24,16 @@ using namespace std;
 struct LinePrinter {
   LinePrinter();
 
-  bool is_smart_terminal() const { return smart_terminal_; }
-  void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
+  void set_smart_terminal(bool smart) { color_ = elide_ = reprint_ = smart; }
+
+  bool color() const { return color_; }
+  void set_color(bool color) { color_ = color; }
+
+  bool elide() const { return elide_; }
+  void set_elide(bool elide) { elide_ = elide; }
+
+  bool reprint() const { return reprint_; }
+  void set_reprint(bool reprint) { reprint_ = reprint; }
 
   enum LineType {
     FULL,
@@ -43,8 +51,14 @@ struct LinePrinter {
   void SetConsoleLocked(bool locked);
 
  private:
-  /// Whether we can do fancy terminal control codes.
-  bool smart_terminal_;
+  /// Whether we can do ANSI color codes.
+  bool color_;
+
+  /// Whether we can do \r to print over the same line.
+  bool reprint_;
+
+  /// Whether we get the size of the terminal to stay within.
+  bool elide_;
 
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;

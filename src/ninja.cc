@@ -209,7 +209,8 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use -w list to list warnings)\n",
+"  -w FLAG  adjust warnings (use -w list to list warnings)\n"
+"  -O flag  adjust output (use -O list to list output flags)\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -805,6 +806,49 @@ bool DebugEnable(const string& name) {
   }
 }
 
+bool OutputConfigure(const string& name, LinePrinter& printer) {
+  if (name == "list") {
+    printf("output flags:\n"
+"  smart   force all flags on\n"
+"  dumb    force all flags off\n"
+"prefix the following flags with 'no' to disable them\n"
+"default value is on for smart terminals, off for dumb terminals\n"
+"  color   pass through ANSI color codes from command output\n"
+"  elide   shorten command status lines to avoid line wrapping\n"
+"  reprint print command statuses on the same line\n"
+"multiple flags can be modified with -O FOO -O BAR\n");
+    return false;
+  } else if (name == "smart") {
+    printer.set_smart_terminal(true);
+  } else if (name == "dumb") {
+    printer.set_smart_terminal(false);
+  } else if (name == "color") {
+    printer.set_color(true);
+  } else if (name == "nocolor") {
+    printer.set_color(false);
+  } else if (name == "elide") {
+    printer.set_elide(true);
+  } else if (name == "noelide") {
+    printer.set_elide(false);
+  } else if (name == "reprint") {
+    printer.set_reprint(true);
+  } else if (name == "noreprint") {
+    printer.set_reprint(false);
+  } else {
+    const char* suggestion =
+        SpellcheckString(name.c_str(), "smart", "dumb", "color", "nocolor",
+            "elide", "noelide", "reprint", "noreprint", NULL);
+    if (suggestion) {
+      Error("unknown output flag '%s', did you mean '%s'?",
+            name.c_str(), suggestion);
+    } else {
+      Error("unknown output flag '%s'", name.c_str());
+    }
+    return false;
+  }
+  return true;
+}
+
 /// Set a warning flag.  Returns false if Ninja should exit instead  of
 /// continuing.
 bool WarningEnable(const string& name, Options* options) {
@@ -1001,7 +1045,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:O:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1056,6 +1100,10 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'C':
         options->working_dir = optarg;
+        break;
+      case 'O':
+        if (!OutputConfigure(optarg, config->printer))
+          return 1;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
