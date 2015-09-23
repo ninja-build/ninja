@@ -58,44 +58,54 @@ void LinePrinter::Print(string to_print, LineType type) {
     // pausing the executable when the "Pause" key or Ctrl-S is pressed.
   }
 
-  if (elide_ && type == ELIDE) {
+  if (type == ELIDE) {
 #ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(console_, &csbi);
+    CONSOLE_SCREEN_BUFFER_INFO csbi = {};
+    if (elide_ || reprint_) {
+      GetConsoleScreenBufferInfo(console_, &csbi);
+    }
+#endif
 
-    to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
-    // We don't want to have the cursor spamming back and forth, so instead of
-    // printf use WriteConsoleOutput which updates the contents of the buffer,
-    // but doesn't move the cursor position.
-    COORD buf_size = { csbi.dwSize.X, 1 };
-    COORD zero_zero = { 0, 0 };
-    SMALL_RECT target = {
-      csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
-      static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
-      csbi.dwCursorPosition.Y
-    };
-    vector<CHAR_INFO> char_data(csbi.dwSize.X);
-    for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
-      char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
-      char_data[i].Attributes = csbi.wAttributes;
-    }
-    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
+    if (elide_) {
+#ifdef _WIN32
+      to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
 #else
-    // Limit output to width of the terminal if provided so we don't cause
-    // line-wrapping.
-    winsize size;
-    if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      to_print = ElideMiddle(to_print, size.ws_col);
+      // Limit output to width of the terminal if provided so we don't cause
+      // line-wrapping.
+      winsize size;
+      if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
+        to_print = ElideMiddle(to_print, size.ws_col);
+      }
+#endif
     }
-    printf("%s", to_print.c_str());
+
     if (reprint_) {
+#ifdef _WIN32
+      // We don't want to have the cursor spamming back and forth, so instead of
+      // printf use WriteConsoleOutput which updates the contents of the buffer,
+      // but doesn't move the cursor position.
+      COORD buf_size = { csbi.dwSize.X, 1 };
+      COORD zero_zero = { 0, 0 };
+      SMALL_RECT target = {
+        csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
+        static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
+        csbi.dwCursorPosition.Y
+      };
+      vector<CHAR_INFO> char_data(csbi.dwSize.X);
+      for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
+        char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
+        char_data[i].Attributes = csbi.wAttributes;
+      }
+      WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
+#else
+      printf("%s", to_print.c_str());
       printf("\x1B[K");  // Clear to end of line.
       fflush(stdout);
       have_blank_line_ = false;
-    } else {
-      printf("\n");
-    }
 #endif
+    } else {
+      printf("%s\n", to_print.c_str());
+    }
   } else {
     printf("%s\n", to_print.c_str());
   }
