@@ -483,6 +483,17 @@ The log file is kept in the build root in a file called `.ninja_log`.
 If you provide a variable named `builddir` in the outermost scope,
 `.ninja_log` will be kept in that directory instead.
 
+[[ref failed_cmd_script]]
+The failed commands script
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.7._
+
+For convenience, Ninja generates a shell script in the build directory
+called `.ninja_failed_commands.sh` containing the command that failed
+during the last build. You can edit and run this script to investigate
+what part of a long command is wrong. In dry run mode the script is
+left untouched.
 
 [[ref_versioning]]
 Version compatibility

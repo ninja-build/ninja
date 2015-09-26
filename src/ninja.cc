@@ -37,6 +37,7 @@
 #include "clean.h"
 #include "debug_flags.h"
 #include "disk_interface.h"
+#include "failed_commands_script.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "manifest_parser.h"
@@ -951,15 +952,31 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 0;
   }
 
+  int rc = 0; // The returned code.
+
+  // Do the build.
   if (!builder.Build(&err)) {
     printf("ninja: build stopped: %s.\n", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
-      return 2;
+      rc = 2;
+    } else {
+      rc = 1;
     }
-    return 1;
   }
 
-  return 0;
+  // Dump failed command scripts.
+  if (!config_.dry_run) {
+    string path = ".ninja_failed_commands.sh";
+    if (!build_dir_.empty())
+      path = build_dir_ + "/" + path;
+    if (!WriteFailedCommandsScript(path, failed_edges_, &err)) {
+      Error("cannot write failed commands script file '%s' - %s",
+            path.c_str(), err.c_str());
+      rc = 2;
+    }
+  }
+
+  return rc;
 }
 
 #ifdef _MSC_VER
