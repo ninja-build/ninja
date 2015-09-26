@@ -510,7 +510,7 @@ struct FakeCommandRunner : public CommandRunner {
 
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
-                builder_(&state_, config_, NULL, NULL, &fs_),
+                builder_(&state_, config_, NULL, NULL, &fs_, &failed_edges_),
                 status_(config_) {
   }
 
@@ -555,6 +555,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   Builder builder_;
 
   BuildStatus status_;
+  vector<Edge*> failed_edges_;
 };
 
 void BuildTest::RebuildTarget(const string& target, const char* manifest,
@@ -681,6 +682,7 @@ void BuildTest::Dirty(const string& path) {
 TEST_F(BuildTest, NoWork) {
   string err;
   EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_EQ(failed_edges_.size(), 0u);
 }
 
 TEST_F(BuildTest, OneStep) {
@@ -695,6 +697,7 @@ TEST_F(BuildTest, OneStep) {
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(failed_edges_.size(), 0u);
 }
 
 TEST_F(BuildTest, OneStep2) {
@@ -1132,6 +1135,7 @@ TEST_F(BuildTest, Fail) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommand failed", err);
+  EXPECT_EQ(failed_edges_.size(), 1u);
 }
 
 TEST_F(BuildTest, SwallowFailures) {
@@ -1153,6 +1157,7 @@ TEST_F(BuildTest, SwallowFailures) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommands failed", err);
+  EXPECT_EQ(failed_edges_.size(), 3u);
 }
 
 TEST_F(BuildTest, SwallowFailuresLimit) {
@@ -1174,6 +1179,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   EXPECT_FALSE(builder_.Build(&err));
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
+  EXPECT_EQ(failed_edges_.size(), 3u);
 }
 
 TEST_F(BuildTest, SwallowFailuresPool) {
@@ -1491,6 +1497,7 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  EXPECT_EQ(failed_edges_.size(), 0u);
 }
 
 // Test that RSP files are created when & where appropriate and deleted after

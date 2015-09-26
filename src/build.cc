@@ -566,9 +566,11 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface)
+                 DiskInterface* disk_interface,
+                 vector<Edge*>* failed_edges)
     : state_(state), config_(config), disk_interface_(disk_interface),
-      scan_(state, build_log, deps_log, disk_interface) {
+      scan_(state, build_log, deps_log, disk_interface),
+      failed_edges_(failed_edges) {
   status_ = new BuildStatus(config);
 }
 
@@ -787,6 +789,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
     plan_.EdgeFinished(edge, Plan::kEdgeFailed);
+    // Log failed edges.
+    if (failed_edges_)
+      failed_edges_->push_back(edge);
     return true;
   }
 

@@ -144,7 +144,8 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface);
+          DiskInterface* disk_interface,
+          vector<Edge*>* failed_edges = NULL);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -187,6 +188,7 @@ struct Builder {
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;
+  vector<Edge*>* failed_edges_;
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT

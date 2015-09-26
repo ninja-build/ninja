@@ -95,6 +95,7 @@ struct NinjaMain : public BuildLogUser {
 
   BuildLog build_log_;
   DepsLog deps_log_;
+  vector<Edge*> failed_edges_;
 
   /// The type of functions that are the entry points to tools (subcommands).
   typedef int (NinjaMain::*ToolFunc)(const Options*, int, char**);
@@ -240,7 +241,8 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  &failed_edges_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -927,7 +929,8 @@ int NinjaMain::RunBuild(int argc, char** argv) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  &failed_edges_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
