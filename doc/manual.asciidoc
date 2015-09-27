@@ -279,6 +279,19 @@ http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
 by the Clang tooling interface.
 _Available since Ninja 1.2._
 
+`missingdeps`:: given a list of targets, look for targets that depend on
+a generated file, but do not have a properly (possibly transitive) dependency
+on the generator.  Such targets may cause build flakiness on clean builds.
++
+The broken targets can be found assuming dynamic (depfile) dependency
+information is correct.  Any target that depends on a generated file (output
+of a generator-target) via a depfile, but does not have a non-depfile
+dependency path to the generator-target, is considered broken.
++
+The tool's finidings can be verified by trying to build the listed targets in
+a clean outdir without buidling any other targets.  The build should fail for
+each of them with a missing include error or equivalent pointing to the
+generated file.
 
 Writing your own Ninja files
 ----------------------------

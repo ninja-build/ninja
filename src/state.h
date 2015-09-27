@@ -80,6 +80,13 @@ struct Pool {
   DelayedEdges delayed_;
 };
 
+/// Edge adjacency memoization map
+inline bool operator<(const pair<Edge*, Edge*>& a,
+                      const pair<Edge*, Edge*>& b) {
+  return (a.first < b.first) || ((a.first == b.first) && (a.second < b.second));
+}
+typedef map<pair<Edge*, Edge*>, bool> EdgeAdjacencyMap;
+
 /// Global state (file status) for a single run.
 struct State {
   static Pool kDefaultPool;
@@ -100,6 +107,9 @@ struct State {
   void AddIn(Edge* edge, StringPiece path, unsigned int slash_bits);
   bool AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
   bool AddDefault(StringPiece path, string* error);
+
+  /// Transitive dependency between edges, memoized
+  bool PathExistsBetween(Edge* from, Edge* to);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
@@ -122,6 +132,8 @@ struct State {
 
   /// All the edges of the graph.
   vector<Edge*> edges_;
+
+  EdgeAdjacencyMap edge_adjacency_memoization_;
 
   BindingEnv bindings_;
   vector<Node*> defaults_;

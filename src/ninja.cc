@@ -108,6 +108,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolGraph(int argc, char* argv[]);
   int ToolQuery(int argc, char* argv[]);
   int ToolDeps(int argc, char* argv[]);
+  int ToolMissingDeps(int argc, char* argv[]);
   int ToolBrowse(int argc, char* argv[]);
   int ToolMSVC(int argc, char* argv[]);
   int ToolTargets(int argc, char* argv[]);
@@ -502,6 +503,81 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
   return 0;
 }
 
+int FindMissingNonDepfileDeps(DepsLog* deps_log, State* state, Node* node,
+                              set<Node*>* seen) {
+  if (!node)
+    return 0;
+  Edge* edge = node->in_edge();
+  if (!edge)
+    return 0;
+  if (!seen->insert(node).second)
+    return 0;
+
+  int missing = 0;
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in) {
+    missing += FindMissingNonDepfileDeps(deps_log, state, *in, seen);
+  }
+
+  DepsLog::Deps* deps = deps_log->GetDeps(node);
+  if (!deps)
+    return missing;
+  set<Edge*> deplog_edges;
+  for (int i = 0; i < deps->node_count; ++i) {
+    Edge* deplog_edge = deps->nodes[i]->in_edge();
+    if (deplog_edge)
+      deplog_edges.insert(deplog_edge);
+  }
+  vector<Edge*> missing_deps;
+  for (set<Edge*>::iterator de = deplog_edges.begin(); de != deplog_edges.end();
+       ++de) {
+    if (!state->PathExistsBetween(*de, edge)) {
+      missing_deps.push_back(*de);
+    }
+  }
+
+  if (!missing_deps.empty()) {
+    ++missing;
+    printf("Missing non-depfile dependency for %s:\n", node->path().c_str());
+    for (vector<Edge*>::iterator ne = missing_deps.begin();
+         ne != missing_deps.end(); ++ne) {
+      for (int i = 0; i < deps->node_count; ++i)
+        if (deps->nodes[i]->in_edge() == *ne)
+          printf("    %s\n", deps->nodes[i]->path().c_str());
+    }
+  }
+  return missing;
+}
+
+int NinjaMain::ToolMissingDeps(int argc, char** argv) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+  int missing_count = 0;
+  std::set<Node*> seen;
+  for (vector<Node*>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+    missing_count += FindMissingNonDepfileDeps(&deps_log_, &state_, *it, &seen);
+  }
+  printf("Processed %d nodes.\n", (int)seen.size());
+  if (missing_count > 0) {
+    printf(
+        "Error: %d targets had depfile dependencies on generated inputs "
+        "without a non-depfile dependency on the generator target.\n",
+        missing_count);
+    printf(
+        "There might be build flakiness if any of the targets listed above are "
+        "built alone, or not late enough, in a clean output directory (with no "
+        "deplog data).\n");
+    return 2;
+  } else {
+    printf("No missing dependencies on generated files found.\n");
+    return 0;
+  }
+}
+
 int NinjaMain::ToolTargets(int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
@@ -724,6 +800,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
+    { "missingdeps", "search for missing dependencies on generated files",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolMissingDeps },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",

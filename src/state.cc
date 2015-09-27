@@ -159,6 +159,23 @@ bool State::AddDefault(StringPiece path, string* err) {
   return true;
 }
 
+bool State::PathExistsBetween(Edge* from, Edge* to) {
+  EdgeAdjacencyMap::iterator it =
+      edge_adjacency_memoization_.find(make_pair(from, to));
+  if (it != edge_adjacency_memoization_.end())
+    return it->second;
+  bool found = false;
+  for (size_t i = 0; i < to->inputs_.size(); ++i) {
+    Edge* e = to->inputs_[i]->in_edge();
+    if (e && ((e == from) || PathExistsBetween(from, e))) {
+      found = true;
+      break;
+    }
+  }
+  edge_adjacency_memoization_.insert(make_pair(make_pair(from, to), found));
+  return found;
+}
+
 vector<Node*> State::RootNodes(string* err) {
   vector<Node*> root_nodes;
   // Search for nodes with no output.
