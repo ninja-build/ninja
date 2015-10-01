@@ -387,6 +387,11 @@ string Edge::GetUnescapedDepfile() {
   return env.LookupVariable("depfile");
 }
 
+string Edge::GetUnescapedDyndep() {
+  EdgeEnv env(this, EdgeEnv::kDoNotEscape);
+  return env.LookupVariable("dyndep");
+}
+
 string Edge::GetUnescapedRspfile() {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("rspfile");

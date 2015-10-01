@@ -1085,3 +1085,73 @@ TEST_F(ParserTest, CRLF) {
       "  description = YAY!\r\n",
       &err));
 }
+
+TEST_F(ParserTest, DyndepNotSpecified) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build result: cat in\n"));
+  Edge* edge = state.GetNode("result", 0)->in_edge();
+  ASSERT_FALSE(edge->dyndep_);
+}
+
+TEST_F(ParserTest, DyndepNotInput) {
+  State lstate;
+  ManifestParser parser(&lstate, NULL);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule touch\n"
+"  command = touch $out\n"
+"build result: touch\n"
+"  dyndep = notin\n",
+                               &err));
+  EXPECT_EQ("input:5: dyndep 'notin' is not an input\n", err);
+}
+
+TEST_F(ParserTest, DyndepExplicitInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build result: cat in\n"
+"  dyndep = in\n"));
+  Edge* edge = state.GetNode("result", 0)->in_edge();
+  ASSERT_TRUE(edge->dyndep_);
+  EXPECT_TRUE(edge->dyndep_->dyndep_pending());
+  EXPECT_EQ(edge->dyndep_->path(), "in");
+}
+
+TEST_F(ParserTest, DyndepImplicitInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build result: cat in | dd\n"
+"  dyndep = dd\n"));
+  Edge* edge = state.GetNode("result", 0)->in_edge();
+  ASSERT_TRUE(edge->dyndep_);
+  EXPECT_TRUE(edge->dyndep_->dyndep_pending());
+  EXPECT_EQ(edge->dyndep_->path(), "dd");
+}
+
+TEST_F(ParserTest, DyndepOrderOnlyInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build result: cat in || dd\n"
+"  dyndep = dd\n"));
+  Edge* edge = state.GetNode("result", 0)->in_edge();
+  ASSERT_TRUE(edge->dyndep_);
+  EXPECT_TRUE(edge->dyndep_->dyndep_pending());
+  EXPECT_EQ(edge->dyndep_->path(), "dd");
+}
+
+TEST_F(ParserTest, DyndepRuleInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"  dyndep = $in\n"
+"build result: cat in\n"));
+  Edge* edge = state.GetNode("result", 0)->in_edge();
+  ASSERT_TRUE(edge->dyndep_);
+  EXPECT_TRUE(edge->dyndep_->dyndep_pending());
+  EXPECT_EQ(edge->dyndep_->path(), "in");
+}

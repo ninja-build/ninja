@@ -387,6 +387,23 @@ bool ManifestParser::ParseEdge(string* err) {
                         err);
   }
 
+  // Lookup, validate, and save any dyndep binding.  It will be used later
+  // to load generated dependency information dynamically, but it must
+  // be one of our manifest-specified inputs.
+  string dyndep = edge->GetUnescapedDyndep();
+  if (!dyndep.empty()) {
+    uint64_t slash_bits;
+    if (!CanonicalizePath(&dyndep, &slash_bits, err))
+      return false;
+    edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
+    edge->dyndep_->set_dyndep_pending(true);
+    vector<Node*>::iterator dgi =
+      std::find(edge->inputs_.begin(), edge->inputs_.end(), edge->dyndep_);
+    if (dgi == edge->inputs_.end()) {
+      return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
+    }
+  }
+
   return true;
 }
 

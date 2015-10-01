@@ -40,6 +40,7 @@ struct Node {
         slash_bits_(slash_bits),
         mtime_(-1),
         dirty_(false),
+        dyndep_pending_(false),
         in_edge_(NULL),
         id_(-1) {}
 
@@ -87,6 +88,9 @@ struct Node {
   void set_dirty(bool dirty) { dirty_ = dirty; }
   void MarkDirty() { dirty_ = true; }
 
+  bool dyndep_pending() const { return dyndep_pending_; }
+  void set_dyndep_pending(bool pending) { dyndep_pending_ = pending; }
+
   Edge* in_edge() const { return in_edge_; }
   void set_in_edge(Edge* edge) { in_edge_ = edge; }
 
@@ -116,6 +120,10 @@ private:
   /// edges to build.
   bool dirty_;
 
+  /// Store whether dyndep information is expected from this node but
+  /// has not yet been loaded.
+  bool dyndep_pending_;
+
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
   Edge* in_edge_;
@@ -135,9 +143,10 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone),
-           outputs_ready_(false), deps_loaded_(false), deps_missing_(false),
-           implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
+  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL),
+           mark_(VisitNone), outputs_ready_(false), deps_loaded_(false),
+           deps_missing_(false), implicit_deps_(0), order_only_deps_(0),
+           implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -153,6 +162,8 @@ struct Edge {
 
   /// Like GetBinding("depfile"), but without shell escaping.
   string GetUnescapedDepfile();
+  /// Like GetBinding("dyndep"), but without shell escaping.
+  string GetUnescapedDyndep();
   /// Like GetBinding("rspfile"), but without shell escaping.
   string GetUnescapedRspfile();
 
@@ -162,6 +173,7 @@ struct Edge {
   Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
+  Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
   bool outputs_ready_;
