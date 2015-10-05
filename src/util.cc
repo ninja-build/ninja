@@ -372,6 +372,9 @@ int ReadFile(const string& path, string* contents, string* err) {
   ::CloseHandle(f);
   return 0;
 #else
+  struct stat st;
+  if (stat(path.c_str(), &st) == 0)
+    contents->reserve(contents->length() + st.st_size);
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
