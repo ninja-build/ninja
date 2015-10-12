@@ -503,41 +503,97 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
   return 0;
 }
 
-int FindMissingNonDepfileDeps(DepsLog* deps_log, State* state, Node* node,
-                              set<Node*>* seen) {
+class MissingDependencyScanner {
+ public:
+  MissingDependencyScanner(DepsLog* deps_log, State* state,
+                           const string& gen_dir);
+  void ProcessNode(Node* node);
+  int PrintSummary();
+
+ private:
+  bool IsNodeInGenDir(Node* node);
+
+  DepsLog* deps_log_;
+  State* state_;
+  set<Node*> seen_;
+  set<Node*> nodes_missing_deps_;
+  set<Node*> nodes_missing_gen_;
+  string abs_gen_dir_;
+};
+
+MissingDependencyScanner::MissingDependencyScanner(DepsLog* deps_log,
+                                                   State* state,
+                                                   const string& gen_dir)
+    : deps_log_(deps_log), state_(state) {
+  if (!gen_dir.empty()) {
+    char buf[PATH_MAX];
+    if (getcwd(buf, PATH_MAX) == NULL)
+      Fatal("getcwd failed");
+    abs_gen_dir_ = buf;
+    abs_gen_dir_.append("/");
+    abs_gen_dir_.append(gen_dir);
+    if (!realpath(abs_gen_dir_.c_str(), buf))
+      Fatal("realpath failed");
+    abs_gen_dir_ = buf;
+  }
+}
+
+bool MissingDependencyScanner::IsNodeInGenDir(Node* node) {
+  if (abs_gen_dir_.empty())
+    return false;
+  string path = node->path();
+  char abs_path_buf[PATH_MAX];
+  char* rp = realpath(path.c_str(), abs_path_buf);
+  return (rp && (strlen(rp) > abs_gen_dir_.size())) &&
+         (memcmp(rp, abs_gen_dir_.c_str(), abs_gen_dir_.size()) == 0);
+}
+
+void MissingDependencyScanner::ProcessNode(Node* node) {
   if (!node)
-    return 0;
+    return;
   Edge* edge = node->in_edge();
   if (!edge)
-    return 0;
-  if (!seen->insert(node).second)
-    return 0;
+    return;
+  if (!seen_.insert(node).second)
+    return;
 
-  int missing = 0;
   for (vector<Node*>::iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in) {
-    missing += FindMissingNonDepfileDeps(deps_log, state, *in, seen);
+    ProcessNode(*in);
   }
 
-  DepsLog::Deps* deps = deps_log->GetDeps(node);
+  DepsLog::Deps* deps = deps_log_->GetDeps(node);
   if (!deps)
-    return missing;
+    return;
   set<Edge*> deplog_edges;
+  vector<Node*> deplog_nodes_without_generator;
   for (int i = 0; i < deps->node_count; ++i) {
-    Edge* deplog_edge = deps->nodes[i]->in_edge();
-    if (deplog_edge)
+    Node* deplog_node = deps->nodes[i];
+    Edge* deplog_edge = deplog_node->in_edge();
+    if (deplog_edge) {
       deplog_edges.insert(deplog_edge);
+    } else if (IsNodeInGenDir(deplog_node)) {
+      nodes_missing_gen_.insert(deplog_node);
+      deplog_nodes_without_generator.push_back(deplog_node);
+    }
   }
   vector<Edge*> missing_deps;
   for (set<Edge*>::iterator de = deplog_edges.begin(); de != deplog_edges.end();
        ++de) {
-    if (!state->PathExistsBetween(*de, edge)) {
+    if (!state_->PathExistsBetween(*de, edge)) {
       missing_deps.push_back(*de);
     }
   }
 
+  if (!deplog_nodes_without_generator.empty()) {
+    printf("Missing generator for depfile dependencies of %s:\n",
+           node->path().c_str());
+    for (vector<Node*>::iterator ni = deplog_nodes_without_generator.begin();
+         ni != deplog_nodes_without_generator.end(); ++ni) {
+      printf("    No targets generate %s\n", (*ni)->path().c_str());
+    }
+  }
   if (!missing_deps.empty()) {
-    ++missing;
     printf("Missing non-depfile dependency for %s:\n", node->path().c_str());
     for (vector<Edge*>::iterator ne = missing_deps.begin();
          ne != missing_deps.end(); ++ne) {
@@ -545,37 +601,78 @@ int FindMissingNonDepfileDeps(DepsLog* deps_log, State* state, Node* node,
         if (deps->nodes[i]->in_edge() == *ne)
           printf("    %s\n", deps->nodes[i]->path().c_str());
     }
+    nodes_missing_deps_.insert(node);
   }
-  return missing;
+}
+
+int MissingDependencyScanner::PrintSummary() {
+  printf("Processed %d nodes.\n", (int)seen_.size());
+  int retval = 0;
+  if (!nodes_missing_gen_.empty()) {
+    printf(
+        "Error: %d file(s) under %s are deps log dependencies of other "
+        "targets, but have no generator no target listing them as outputs.\n",
+        (int)nodes_missing_gen_.size(), abs_gen_dir_.c_str());
+    retval += 1;
+  }
+  if (!nodes_missing_deps_.empty()) {
+    printf(
+        "Error: %d targets had depfile dependencies on generated inputs "
+        "without a non-depfile dependency on the generator target.\n",
+        (int)nodes_missing_deps_.size());
+    retval += 2;
+  }
+  if (retval) {
+    printf(
+        "There might be build flakiness if any of the targets listed above are "
+        "built alone, or not late enough, in a clean output directory (with no "
+        "deplog data).\n");
+  } else {
+    printf("No missing dependencies on generated files found.\n");
+  }
+  return retval;
 }
 
 int NinjaMain::ToolMissingDeps(int argc, char** argv) {
+  // This tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "missingdeps".
+  argc++;
+  argv--;
+
+  string gen_dir = ".";
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("g:h"))) != -1) {
+    switch (opt) {
+    case 'g':
+      gen_dir = optarg;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t missingdeps [options] [targets]\n"
+"\n"
+"options:\n"
+"  -g DIR   assume files under DIR are generated (default: .)\n"
+"    set to an empty string to disable missing generator checking\n"
+             );
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
-  int missing_count = 0;
-  std::set<Node*> seen;
+  MissingDependencyScanner scanner(&deps_log_, &state_, gen_dir);
   for (vector<Node*>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
-    missing_count += FindMissingNonDepfileDeps(&deps_log_, &state_, *it, &seen);
+    scanner.ProcessNode(*it);
   }
-  printf("Processed %d nodes.\n", (int)seen.size());
-  if (missing_count > 0) {
-    printf(
-        "Error: %d targets had depfile dependencies on generated inputs "
-        "without a non-depfile dependency on the generator target.\n",
-        missing_count);
-    printf(
-        "There might be build flakiness if any of the targets listed above are "
-        "built alone, or not late enough, in a clean output directory (with no "
-        "deplog data).\n");
-    return 2;
-  } else {
-    printf("No missing dependencies on generated files found.\n");
-    return 0;
-  }
+  return scanner.PrintSummary();
 }
 
 int NinjaMain::ToolTargets(int argc, char* argv[]) {
@@ -800,7 +897,7 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
-    { "missingdeps", "search for missing dependencies on generated files",
+    { "missingdeps", "check deps log dependencies on generated files",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolMissingDeps },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
