@@ -13,7 +13,7 @@ To build your own binary, on many platforms it should be sufficient to
 just run `./configure.py --bootstrap`; for more details see HACKING.md.
 (Also read that before making changes to Ninja, as it has advice.)
 
-Installation is not necessary because the only required file is is the
+Installation is not necessary because the only required file is the
 resulting ninja binary. However, to enable features like Bash
 completion and Emacs and Vim editing modes, some files in misc/ must be
 copied to appropriate locations.
