@@ -34,8 +34,11 @@ bool DepfileParser::Parse(string* content, string* err) {
   // parsing_targets: whether we are parsing targets or dependencies.
   char* in = &(*content)[0];
   char* end = in + content->size();
+  bool have_target = false;
+  bool have_secondary_target_on_this_rule = false;
   bool parsing_targets = true;
   while (in < end) {
+    bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
     char* out = in;
@@ -44,10 +47,12 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
+      char* yymarker = NULL;
       /*!re2c
       re2c:define:YYCTYPE = "unsigned char";
       re2c:define:YYCURSOR = in;
       re2c:define:YYLIMIT = end;
+      re2c:define:YYMARKER = yymarker;
 
       re2c:yyfill:enable = 0;
 
@@ -56,6 +61,7 @@ bool DepfileParser::Parse(string* content, string* err) {
 
       nul = "\000";
       escape = [ \\#*[|\]];
+      newline = '\r'?'\n';
 
       '\\' escape {
         // De-escape backslashed character.
@@ -85,6 +91,15 @@ bool DepfileParser::Parse(string* content, string* err) {
       nul {
         break;
       }
+      '\\' newline {
+        // A line continuation ends the current file name.
+        break;
+      }
+      newline {
+        // A newline ends the current file name and the current rule.
+        have_newline = true;
+        break;
+      }
       [^] {
         // For any other character (e.g. whitespace), swallow it here,
         // allowing the outer logic to loop around again.
@@ -98,20 +113,30 @@ bool DepfileParser::Parse(string* content, string* err) {
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
+      have_target = true;
     }
 
     if (len > 0) {
       if (is_dependency) {
+        if (have_secondary_target_on_this_rule) {
+          *err = "depfile has multiple output paths";
+          return false;
+        }
         ins_.push_back(StringPiece(filename, len));
       } else if (!out_.str_) {
         out_ = StringPiece(filename, len);
       } else if (out_ != StringPiece(filename, len)) {
-        *err = "depfile has multiple output paths";
-        return false;
+        have_secondary_target_on_this_rule = true;
       }
     }
+
+    if (have_newline) {
+      // A newline ends a rule so the next filename will be a new target.
+      parsing_targets = true;
+      have_secondary_target_on_this_rule = false;
+    }
   }
-  if (parsing_targets) {
+  if (!have_target) {
     *err = "expected ':' in depfile";
     return false;
   }

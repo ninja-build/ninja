@@ -158,3 +158,126 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
   ASSERT_EQ("depfile has multiple output paths", err);
 }
+
+TEST_F(DepfileParserTest, MultipleEmptyRules) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "foo: \n"
+                    "foo:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(1u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMultipleRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "foo: y\n"
+                    "foo \\\n"
+                    "foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMultipleRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\r\n"
+                    "foo: y\r\n"
+                    "foo \\\r\n"
+                    "foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMixedRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\\\n"
+                    "     y\n"
+                    "foo \\\n"
+                    "foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMixedRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\\\r\n"
+                    "     y\r\n"
+                    "foo \\\r\n"
+                    "foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, IndentedRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse(" foo: x\n"
+                    " foo: y\n"
+                    " foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, IndentedRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse(" foo: x\r\n"
+                    " foo: y\r\n"
+                    " foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, TolerateMP) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x y z\n"
+                    "x:\n"
+                    "y:\n"
+                    "z:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, MultipleRulesTolerateMP) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "x:\n"
+                    "foo: y\n"
+                    "y:\n"
+                    "foo: z\n"
+                    "z:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, MultipleRulesRejectDifferentOutputs) {
+  // check that multiple different outputs are rejected by the parser
+  // when spread across multiple rules
+  string err;
+  EXPECT_FALSE(Parse("foo: x y\n"
+                     "bar: y z\n", &err));
+  ASSERT_EQ("depfile has multiple output paths", err);
+}

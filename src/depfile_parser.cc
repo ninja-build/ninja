@@ -35,8 +35,11 @@ bool DepfileParser::Parse(string* content, string* err) {
   // parsing_targets: whether we are parsing targets or dependencies.
   char* in = &(*content)[0];
   char* end = in + content->size();
+  bool have_target = false;
+  bool have_secondary_target_on_this_rule = false;
   bool parsing_targets = true;
   while (in < end) {
+    bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
     // as we de-escape backslashes).
     char* out = in;
@@ -45,6 +48,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
+      char* yymarker = NULL;
       
     {
       unsigned char yych;
@@ -84,17 +88,25 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
       yych = *in;
       if (yybm[0+yych] & 128) {
-        goto yy6;
-      }
-      if (yych <= '$') {
-        if (yych <= 0x00) goto yy2;
-        if (yych <= '#') goto yy4;
         goto yy9;
-      } else {
-        if (yych == '\\') goto yy10;
-        goto yy4;
       }
-yy2:
+      if (yych <= '\r') {
+        if (yych <= '\t') {
+          if (yych >= 0x01) goto yy4;
+        } else {
+          if (yych <= '\n') goto yy6;
+          if (yych <= '\f') goto yy4;
+          goto yy8;
+        }
+      } else {
+        if (yych <= '$') {
+          if (yych <= '#') goto yy4;
+          goto yy12;
+        } else {
+          if (yych == '\\') goto yy13;
+          goto yy4;
+        }
+      }
       ++in;
       {
         break;
@@ -108,9 +120,20 @@ yy5:
         break;
       }
 yy6:
+      ++in;
+      {
+        // A newline ends the current file name and the current rule.
+        have_newline = true;
+        break;
+      }
+yy8:
+      yych = *++in;
+      if (yych == '\n') goto yy6;
+      goto yy5;
+yy9:
       yych = *++in;
       if (yybm[0+yych] & 128) {
-        goto yy6;
+        goto yy9;
       }
       {
         // Got a span of plain text.
@@ -121,41 +144,41 @@ yy6:
         out += len;
         continue;
       }
-yy9:
+yy12:
       yych = *++in;
-      if (yych == '$') goto yy11;
+      if (yych == '$') goto yy14;
       goto yy5;
-yy10:
-      yych = *++in;
+yy13:
+      yych = *(yymarker = ++in);
       if (yych <= '"') {
         if (yych <= '\f') {
           if (yych <= 0x00) goto yy5;
-          if (yych == '\n') goto yy5;
-          goto yy13;
+          if (yych == '\n') goto yy18;
+          goto yy16;
         } else {
-          if (yych <= '\r') goto yy5;
-          if (yych == ' ') goto yy15;
-          goto yy13;
+          if (yych <= '\r') goto yy20;
+          if (yych == ' ') goto yy22;
+          goto yy16;
         }
       } else {
         if (yych <= 'Z') {
-          if (yych <= '#') goto yy15;
-          if (yych == '*') goto yy15;
-          goto yy13;
+          if (yych <= '#') goto yy22;
+          if (yych == '*') goto yy22;
+          goto yy16;
         } else {
-          if (yych <= ']') goto yy15;
-          if (yych == '|') goto yy15;
-          goto yy13;
+          if (yych <= ']') goto yy22;
+          if (yych == '|') goto yy22;
+          goto yy16;
         }
       }
-yy11:
+yy14:
       ++in;
       {
         // De-escape dollar character.
         *out++ = '$';
         continue;
       }
-yy13:
+yy16:
       ++in;
       {
         // Let backslash before other characters through verbatim.
@@ -163,7 +186,18 @@ yy13:
         *out++ = yych;
         continue;
       }
-yy15:
+yy18:
+      ++in;
+      {
+        // A line continuation ends the current file name.
+        break;
+      }
+yy20:
+      yych = *++in;
+      if (yych == '\n') goto yy18;
+      in = yymarker;
+      goto yy5;
+yy22:
       ++in;
       {
         // De-escape backslashed character.
@@ -179,20 +213,30 @@ yy15:
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
+      have_target = true;
     }
 
     if (len > 0) {
       if (is_dependency) {
+        if (have_secondary_target_on_this_rule) {
+          *err = "depfile has multiple output paths";
+          return false;
+        }
         ins_.push_back(StringPiece(filename, len));
       } else if (!out_.str_) {
         out_ = StringPiece(filename, len);
       } else if (out_ != StringPiece(filename, len)) {
-        *err = "depfile has multiple output paths";
-        return false;
+        have_secondary_target_on_this_rule = true;
       }
     }
+
+    if (have_newline) {
+      // A newline ends a rule so the next filename will be a new target.
+      parsing_targets = true;
+      have_secondary_target_on_this_rule = false;
+    }
   }
-  if (parsing_targets) {
+  if (!have_target) {
     *err = "expected ':' in depfile";
     return false;
   }
