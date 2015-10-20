@@ -787,6 +787,10 @@ keys.
   declaration. To specify multiple commands use `&&` (or similar) to
   concatenate operations.
 
+`shell`:: _(Available since Ninja 1.7.)_ the shell interpreter to run.
+  If not given, `/bin/sh` is being used. Use an absolute path.
+  This key is unused on Windows.
+
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
   dependency types>>).  This is explicitly to support C/C++ header
