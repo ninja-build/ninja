@@ -105,6 +105,8 @@ class Platform(object):
                 and not self.is_solaris()
                 and not self.is_aix())
 
+    def can_rebuild_in_place(self):
+        return not (self.is_windows() or self.is_aix())
 
 class Bootstrap:
     """API shim for ninja_syntax.Writer that instead runs the commands.
@@ -639,17 +641,28 @@ n.build('all', 'phony', all_targets)
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
 
-verbose = ''
-if options.verbose:
-    verbose = ' -v'
-
 if options.bootstrap:
     print('bootstrap complete.  rebuilding...')
-    if platform.is_windows():
-        bootstrap_exe = 'ninja.bootstrap.exe'
+
+    rebuild_args = []
+
+    if platform.can_rebuild_in_place():
+        rebuild_args.append('./ninja')
+    else:
+        if platform.is_windows():
+            bootstrap_exe = 'ninja.bootstrap.exe'
+            final_exe = 'ninja.exe'
+        else:
+            bootstrap_exe = './ninja.bootstrap'
+            final_exe = './ninja'
+
         if os.path.exists(bootstrap_exe):
             os.unlink(bootstrap_exe)
-        os.rename('ninja.exe', bootstrap_exe)
-        subprocess.check_call('ninja.bootstrap.exe%s' % verbose, shell=True)
-    else:
-        subprocess.check_call('./ninja%s' % verbose, shell=True)
+        os.rename(final_exe, bootstrap_exe)
+
+        rebuild_args.append(bootstrap_exe)
+
+    if options.verbose:
+        rebuild_args.append('-v')
+
+    subprocess.check_call(rebuild_args)
