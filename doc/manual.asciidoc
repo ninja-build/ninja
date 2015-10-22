@@ -598,6 +598,11 @@ rule cc
   command = cl /showIncludes -c $in /Fo$out
 ----
 
+If the include directory directives are using absolute paths, your depfile
+may result in a mixture of relative and absolute paths. Paths used by other
+build rules need to match exactly. Therefore, it is recommended to use
+relative paths in these cases.
+
 [[ref_pool]]
 Pools
 ~~~~~
@@ -888,6 +893,9 @@ that are only discovered during build time: for example, to generate a
 header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
+
+File paths are compared as is, which means that an absolute path and a
+relative path, pointing to the same file, are considered different by Ninja.
 
 Variable expansion
 ~~~~~~~~~~~~~~~~~~
