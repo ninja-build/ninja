@@ -184,10 +184,11 @@ void BuildStatus::BuildFinished() {
 }
 
 string BuildStatus::FormatProgressStatus(
-    const char* progress_status_format, EdgeStatus status) const {
+    const char* progress_status_format, EdgeStatus status, const string to_print) const {
   string out;
   char buf[32];
   int percent;
+  bool has_desc = false;
   char total_edges_str[32];
   snprintf(total_edges_str, sizeof(total_edges_str), "%d", total_edges_);
   int total_edges_len = strlen(total_edges_str);
@@ -261,6 +262,12 @@ string BuildStatus::FormatProgressStatus(
         break;
       }
 
+        // Description (to_print)
+      case 'd':
+        out += to_print;
+        has_desc = true;
+        break;
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
@@ -269,6 +276,9 @@ string BuildStatus::FormatProgressStatus(
       out.push_back(*s);
     }
   }
+
+  if (!has_desc)
+    out += to_print;
 
   return out;
 }
@@ -283,7 +293,7 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_, status, to_print);
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);

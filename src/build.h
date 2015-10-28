@@ -231,7 +231,7 @@ struct BuildStatus {
   /// @param progress_status_format The format of the progress status.
   /// @param status The status of the edge.
   string FormatProgressStatus(const char* progress_status_format,
-                              EdgeStatus status) const;
+                              EdgeStatus status, const string to_print) const;
 
  private:
   void PrintStatus(Edge* edge, EdgeStatus status);
