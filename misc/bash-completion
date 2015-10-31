@@ -49,9 +49,8 @@ _ninja_target() {
 		C) eval dir="$OPTARG" ;;
 	    esac
 	done;
-	targets_command="eval ninja -C \"${dir}\" -t targets all"
-	targets=$(${targets_command} 2>/dev/null | awk -F: '{print $1}')
-	COMPREPLY=($(compgen -W "$targets" -- "$cur"))
+	targets_command="eval ninja -C \"${dir}\" -t targets all 2>/dev/null | cut -d: -f1"
+	COMPREPLY=($(compgen -W '`${targets_command}`' -- "$cur"))
     fi
     return
 }
