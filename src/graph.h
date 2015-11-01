@@ -184,6 +184,7 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   string shell();
+  string shellflags();
 };
 
 

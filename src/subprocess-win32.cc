@@ -21,7 +21,7 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console, const string& shell) :
+Subprocess::Subprocess(bool use_console, const string& shell, const string& shellflags) :
                                            child_(NULL),
                                            overlapped_(),
                                            is_reading_(false),
@@ -227,8 +227,8 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console, const string& shell) {
-  Subprocess *subprocess = new Subprocess(use_console, shell);
+Subprocess *SubprocessSet::Add(const string& command, bool use_console, const string& shell, const string& shellflags) {
+  Subprocess *subprocess = new Subprocess(use_console, shell, shellflags);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;

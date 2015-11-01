@@ -44,7 +44,7 @@ struct Subprocess {
   const string& GetOutput() const;
 
  private:
-  Subprocess(bool use_console, const string& shell);
+  Subprocess(bool use_console, const string& shell, const string& shellflags);
   bool Start(struct SubprocessSet* set, const string& command);
   void OnPipeReady();
 
@@ -64,6 +64,7 @@ struct Subprocess {
   int fd_;
   pid_t pid_;
   string shell_;
+  string shellflags_;
 #endif
   bool use_console_;
 
@@ -78,7 +79,7 @@ struct SubprocessSet {
   ~SubprocessSet();
 
   Subprocess* Add(const string& command, bool use_console = false,
-                  const string& shell = empty_);
+                  const string& shell = empty_, const string& shellflags = empty_);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();

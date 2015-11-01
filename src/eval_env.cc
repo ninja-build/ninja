@@ -72,7 +72,8 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "restat" ||
       var == "rspfile" ||
       var == "rspfile_content" ||
-      var == "shell";
+      var == "shell" ||
+      var == "shellflags";
 }
 
 const map<string, const Rule*>& BindingEnv::GetRules() const {
