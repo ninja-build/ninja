@@ -276,6 +276,15 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   return false;
 }
 
+bool DependencyScan::LoadDyndeps(Node* node, string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, err);
+}
+
+bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
+                                 string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, ddf, err);
+}
+
 bool Edge::AllInputsReady() const {
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end(); ++i) {
