@@ -68,6 +68,31 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.
+    // If there is a pending dyndep file, visit it now:
+    // * If the dyndep file is ready then load it now to get any
+    //   additional inputs and outputs for this and other edges.
+    //   Once the dyndep file is loaded it will no longer be pending
+    //   if any other edges encounter it, but they will already have
+    //   been updated.
+    // * If the dyndep file is not ready then since is known to be an
+    //   input to this edge, the edge will not be considered ready below.
+    //   Later during the build the dyndep file will become ready and be
+    //   loaded to update this edge before it can possibly be scheduled.
+    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+      if (!RecomputeDirty(edge->dyndep_, stack, err))
+        return false;
+
+      if (!edge->dyndep_->in_edge() ||
+          edge->dyndep_->in_edge()->outputs_ready()) {
+        // The dyndep file is ready, so load it now.
+        if (!LoadDyndeps(edge->dyndep_, err))
+          return false;
+      }
+    }
+  }
+
   // Load output mtimes so we can compare them to the most recent input below.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
