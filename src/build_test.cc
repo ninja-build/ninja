@@ -1747,8 +1747,8 @@ TEST_F(BuildTest, InterruptCleanup) {
 TEST_F(BuildTest, StatFailureAbortsBuild) {
   const string kTooLongToStat(400, 'i');
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-("build " + kTooLongToStat + ": cat " + kTooLongToStat + "\n").c_str()));
-  // Also cyclic, for good measure.
+("build " + kTooLongToStat + ": cat in\n").c_str()));
+  fs_.Create("in", "");
 
   // This simulates a stat failure:
   fs_.files_[kTooLongToStat].mtime = -1;
