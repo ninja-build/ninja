@@ -74,7 +74,7 @@ build "all" before committing to verify the other source still works!
 ## Testing performance impact of changes
 
 If you have a Chrome build handy, it's a good test case.  Otherwise,
-[the github downoads page](https://github.com/martine/ninja/downloads)
+[the github downoads page](https://github.com/ninja-build/ninja/releases)
 has a copy of the Chrome build files (and depfiles). You can untar
 that, then run
 

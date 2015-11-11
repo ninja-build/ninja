@@ -153,7 +153,7 @@ TEST_F(GraphTest, VarInOutPathEscaping) {
 #endif
 }
 
-// Regression test for https://github.com/martine/ninja/issues/380
+// Regression test for https://github.com/ninja-build/ninja/issues/380
 TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule catdep\n"
@@ -172,7 +172,7 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
   EXPECT_FALSE(GetNode("out.o")->dirty());
 }
 
-// Regression test for https://github.com/martine/ninja/issues/404
+// Regression test for https://github.com/ninja-build/ninja/issues/404
 TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule catdep\n"

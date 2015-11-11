@@ -362,7 +362,7 @@ void Plan::ScheduleWork(Edge* edge) {
   if (pool->ShouldDelayEdge()) {
     // The graph is not completely clean. Some Nodes have duplicate Out edges.
     // We need to explicitly ignore these here, otherwise their work will get
-    // scheduled twice (see https://github.com/martine/ninja/pull/519)
+    // scheduled twice (see https://github.com/ninja-build/ninja/pull/519)
     if (ready_.count(edge)) {
       return;
     }
