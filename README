@@ -1,12 +1,12 @@
 Ninja is a small build system with a focus on speed.
-http://martine.github.com/ninja/
+http://ninja-build.org/
 
-See the manual -- http://martine.github.com/ninja/manual.html or
+See the manual -- http://ninja-build.org/manual.html or
 doc/manual.asciidoc included in the distribution -- for background
 and more details.
 
 Binaries for Linux, Mac, and Windows are available at
-  https://github.com/martine/ninja/releases
+  https://github.com/ninja-build/ninja/releases
 Run './ninja -h' for Ninja help.
 
 To build your own binary, on many platforms it should be sufficient to

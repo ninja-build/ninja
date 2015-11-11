@@ -17,14 +17,14 @@ Push new release branch:
 
 Release on github:
 1. https://github.com/blog/1547-release-your-software
-   Add binaries to https://github.com/martine/ninja/releases
+   Add binaries to https://github.com/ninja-build/ninja/releases
 
 Make announcement on mailing list:
 1. copy old mail
 
 Update website:
 1. Make sure your ninja checkout is on the v1.5.0 tag
-2. Clone https://github.com/martine/martine.github.io
+2. Clone https://github.com/ninja-build/ninja-build.github.io
 3. In that repo, `cd ninja && ./update-docs.sh`
 4. Update index.html with newest version and link to release notes
 5. git commit -m 'run update-docs.sh, 1.5.0 release'
