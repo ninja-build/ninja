@@ -254,7 +254,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
 
   // Even if the manifest was cleaned by a restat rule, claim that it was
   // rebuilt.  Not doing so can lead to crashes, see
-  // https://github.com/martine/ninja/issues/874
+  // https://github.com/ninja-build/ninja/issues/874
   return builder.Build(err);
 }
 

@@ -718,7 +718,7 @@ TEST_F(BuildTest, TwoOutputs) {
 }
 
 // Test case from
-//   https://github.com/martine/ninja/issues/148
+//   https://github.com/ninja-build/ninja/issues/148
 TEST_F(BuildTest, MultiOutIn) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
@@ -1299,7 +1299,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
 }
 
 // Test scenario, in which an input file is removed, but output isn't changed
-// https://github.com/martine/ninja/issues/295
+// https://github.com/ninja-build/ninja/issues/295
 TEST_F(BuildWithLogTest, RestatMissingInput) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
     "rule true\n"
@@ -2047,7 +2047,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 #endif
 
 /// Check that a restat rule doesn't clear an edge if the depfile is missing.
-/// Follows from: https://github.com/martine/ninja/issues/603
+/// Follows from: https://github.com/ninja-build/ninja/issues/603
 TEST_F(BuildTest, RestatMissingDepfile) {
 const char* manifest =
 "rule true\n"
@@ -2071,7 +2071,7 @@ const char* manifest =
 }
 
 /// Check that a restat rule doesn't clear an edge if the deps are missing.
-/// https://github.com/martine/ninja/issues/603
+/// https://github.com/ninja-build/ninja/issues/603
 TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   string err;
   const char* manifest =
