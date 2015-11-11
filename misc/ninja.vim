@@ -1,6 +1,6 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
-"           https://ninja-build.github.io/manual.html
+"           http://ninja-build.org/manual.html
 " Version: 1.4
 " Last Change: 2014/05/13
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
