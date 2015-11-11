@@ -1,6 +1,7 @@
 Ninja
 =====
 Evan Martin <martine@danga.com>
+v1.1.0, December 2012
 
 
 Introduction
@@ -409,6 +410,10 @@ If the top-level Ninja file is specified as an output of any build
 statement and it is out of date, Ninja will rebuild and reload it
 before building the targets requested by the user.
 
+
+*Note: pools were added as an experiment and may be removed in a future
+version of Ninja.  Are they useful for you?  Let us know on the mailing
+list.*
 Generating Ninja files from code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
