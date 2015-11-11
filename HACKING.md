@@ -53,7 +53,7 @@ obvious exceptions (fixing typos in comments don't need tests).
 
 I am very wary of changes that increase the complexity of Ninja (in
 particular, new build file syntax or command-line flags) or increase
-the maintenance burden of Ninja.  Ninja is already successfully in use
+the maintenance burden of Ninja.  Ninja is already successfully used
 by hundreds of developers for large projects and it already achieves
 (most of) the goals I set out for it to do.  It's probably best to
 discuss new feature ideas on the mailing list before I shoot down your
