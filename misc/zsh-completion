@@ -23,8 +23,7 @@ __get_targets() {
     eval dir="${opt_args[-C]}"
   fi
   targets_command="ninja -C \"${dir}\" -t targets"
-  eval ${targets_command} 2>/dev/null | while read -r a b; do echo $a | cut -d ':' -f1; done;
-
+  eval ${targets_command} 2>/dev/null | sed "s/^\(.*\): .*$/\1/"
 }
 
 __get_tools() {
