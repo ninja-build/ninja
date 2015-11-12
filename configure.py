@@ -497,6 +497,9 @@ if platform.is_msvc():
 else:
     libs.append('-lninja')
 
+if platform.is_linux():
+    libs.append('-lrt')
+
 all_targets = []
 
 n.comment('Main executable is library plus main() function.')

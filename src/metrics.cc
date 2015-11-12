@@ -19,7 +19,11 @@
 #include <string.h>
 
 #ifndef _WIN32
-#include <sys/time.h>
+#ifndef __APPLE__
+#include <time.h>
+#else
+#include <mach/mach_time.h>
+#endif
 #else
 #include <windows.h>
 #endif
@@ -33,18 +37,27 @@ Metrics* g_metrics = NULL;
 namespace {
 
 #ifndef _WIN32
+
+#ifndef __APPLE__
 /// Compute a platform-specific high-res timer value that fits into an int64.
 int64_t HighResTimer() {
-  timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
-    Fatal("gettimeofday: %s", strerror(errno));
-  return (int64_t)tv.tv_sec * 1000*1000 + tv.tv_usec;
+  timespec tv;
+  if (clock_gettime(CLOCK_MONOTONIC, &tv) < 0)
+    Fatal("clock_gettime: %s", strerror(errno));
+  return (int64_t)tv.tv_sec * 1000*1000*1000 + tv.tv_nsec;
 }
+#else
+int64_t HighResTimer() {
+  static mach_timebase_info_data_t tb;
+  if (tb.denom == 0)
+    mach_timebase_info(&tb);
+  return mach_absolute_time() * tb.numer / tb.denom;
+}
+#endif
 
 /// Convert a delta of HighResTimer() values to microseconds.
 int64_t TimerToMicros(int64_t dt) {
-  // No conversion necessary.
-  return dt;
+  return dt / 1000;
 }
 #else
 int64_t LargeIntegerToInt64(const LARGE_INTEGER& i) {
