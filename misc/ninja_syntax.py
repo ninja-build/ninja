@@ -24,7 +24,7 @@ class Writer(object):
     def comment(self, text, has_path=False):
         args = {}
         if has_path:
-          args['break_long_words'] = args['break_on_hyphens'] = False
+            args['break_long_words'] = args['break_on_hyphens'] = False
         for line in textwrap.wrap(text, self.width - 2, **args):
             self.output.write('# ' + line + '\n')
 
