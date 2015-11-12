@@ -385,11 +385,13 @@ getopt_internal (int argc, char **argv, char *shortopts,
     return optopt;
 }
 
+#ifndef _AIX
 int
 getopt (int argc, char **argv, char *optstring)
 {
   return getopt_internal (argc, argv, optstring, NULL, NULL, 0);
 }
+#endif
 
 int
 getopt_long (int argc, char **argv, const char *shortopts,

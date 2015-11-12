@@ -45,6 +45,8 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
+#elif defined(_AIX)
+#include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
 #endif
@@ -572,6 +574,16 @@ double GetLoadAverage() {
   }
 
   return posix_compatible_load;
+}
+#elif defined(_AIX)
+double GetLoadAverage() {
+  perfstat_cpu_total_t cpu_stats;
+  if (perfstat_cpu_total(NULL, &cpu_stats, sizeof(cpu_stats), 1) < 0) {
+    return -0.0f;
+  }
+
+  // Calculation taken from comment in libperfstats.h
+  return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
 }
 #else
 double GetLoadAverage() {

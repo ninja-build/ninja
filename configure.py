@@ -58,11 +58,13 @@ class Platform(object):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
             self._platform = 'netbsd'
+        elif self._platform.startswith('aix'):
+            self._platform = 'aix'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix']
 
     def platform(self):
         return self._platform
@@ -89,6 +91,9 @@ class Platform(object):
     def is_solaris(self):
         return self._platform == 'solaris'
 
+    def is_aix(self):
+        return self._platform == 'aix'
+
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig')
 
@@ -96,8 +101,12 @@ class Platform(object):
         return self._platform in ('linux', 'openbsd', 'bitrig')
 
     def supports_ninja_browse(self):
-        return not self.is_windows() and not self.is_solaris()
+        return (not self.is_windows()
+                and not self.is_solaris()
+                and not self.is_aix())
 
+    def can_rebuild_in_place(self):
+        return not (self.is_windows() or self.is_aix())
 
 class Bootstrap:
     """API shim for ninja_syntax.Writer that instead runs the commands.
@@ -346,6 +355,8 @@ if platform.is_mingw():
     ldflags.append('-static')
 elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
+elif platform.is_aix():
+    cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass
 else:
@@ -486,6 +497,8 @@ if platform.is_windows():
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
+if platform.is_aix():
+    objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
@@ -496,6 +509,9 @@ if platform.is_msvc():
     libs.append('ninja.lib')
 else:
     libs.append('-lninja')
+
+if platform.is_aix():
+    libs.append('-lperfstat')
 
 all_targets = []
 
@@ -626,17 +642,28 @@ n.build('all', 'phony', all_targets)
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
 
-verbose = ''
-if options.verbose:
-    verbose = ' -v'
-
 if options.bootstrap:
     print('bootstrap complete.  rebuilding...')
-    if platform.is_windows():
-        bootstrap_exe = 'ninja.bootstrap.exe'
+
+    rebuild_args = []
+
+    if platform.can_rebuild_in_place():
+        rebuild_args.append('./ninja')
+    else:
+        if platform.is_windows():
+            bootstrap_exe = 'ninja.bootstrap.exe'
+            final_exe = 'ninja.exe'
+        else:
+            bootstrap_exe = './ninja.bootstrap'
+            final_exe = './ninja'
+
         if os.path.exists(bootstrap_exe):
             os.unlink(bootstrap_exe)
-        os.rename('ninja.exe', bootstrap_exe)
-        subprocess.check_call('ninja.bootstrap.exe%s' % verbose, shell=True)
-    else:
-        subprocess.check_call('./ninja%s' % verbose, shell=True)
+        os.rename(final_exe, bootstrap_exe)
+
+        rebuild_args.append(bootstrap_exe)
+
+    if options.verbose:
+        rebuild_args.append('-v')
+
+    subprocess.check_call(rebuild_args)
