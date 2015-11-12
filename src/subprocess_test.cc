@@ -122,6 +122,30 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
   ASSERT_FALSE("We should have been interrupted");
 }
 
+TEST_F(SubprocessTest, InterruptChildWithSigHup) {
+  Subprocess* subproc = subprocs_.Add("kill -HUP $$");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+
+  EXPECT_EQ(ExitInterrupted, subproc->Finish());
+}
+
+TEST_F(SubprocessTest, InterruptParentWithSigHup) {
+  Subprocess* subproc = subprocs_.Add("kill -HUP $PPID ; sleep 1");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    bool interrupted = subprocs_.DoWork();
+    if (interrupted)
+      return;
+  }
+
+  ASSERT_FALSE("We should have been interrupted");
+}
+
 // A shell command to check if the current process is connected to a terminal.
 // This is different from having stdin/stdout/stderr be a terminal. (For
 // instance consider the command "yes < /dev/null > /dev/null 2>&1".
