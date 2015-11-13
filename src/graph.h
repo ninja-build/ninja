@@ -277,6 +277,9 @@ struct DependencyScan {
   }
 
  private:
+  bool RecomputeDirty(Node* node, vector<Node*>* stack, string* err);
+  bool VerifyDAG(Node* node, vector<Node*>* stack, string* err);
+
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
   bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,

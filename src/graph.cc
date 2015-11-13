@@ -32,28 +32,43 @@ bool Node::Stat(DiskInterface* disk_interface, string* err) {
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
+  vector<Node*> stack;
+  return RecomputeDirty(node, &stack, err);
+}
+
+bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
+                                    string* err) {
   Edge* edge = node->in_edge();
   if (!edge) {
+    // If we already visited this leaf node then we are done.
+    if (node->status_known())
+      return true;
     // This node has no in-edge; it is dirty if it is missing.
+    if (!node->StatIfNecessary(disk_interface_, err))
+      return false;
     if (!node->exists())
       EXPLAIN("%s has no in-edge and is missing", node->path().c_str());
     node->set_dirty(!node->exists());
     return true;
   }
 
+  // If we already finished this edge then we are done.
+  if (edge->mark_ == Edge::VisitDone)
+    return true;
+
+  // If we encountered this edge earlier in the call stack we have a cycle.
+  if (!VerifyDAG(node, stack, err))
+    return false;
+
+  // Mark the edge temporarily while in the call stack.
+  edge->mark_ = Edge::VisitInStack;
+  stack->push_back(node);
+
   bool dirty = false;
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
   // Load output mtimes so we can compare them to the most recent input below.
-  // RecomputeDirty() recursively walks the graph following the input nodes
-  // of |edge| and the in_edges of these nodes.  It uses the stat state of each
-  // node to mark nodes as visited and doesn't traverse across nodes that have
-  // been visited already.  To make sure that every edge is visited only once
-  // (important because an edge's deps are loaded every time it's visited), mark
-  // all outputs of |edge| visited as a first step.  This ensures that edges
-  // with multiple inputs and outputs are visited only once, even in cyclic
-  // graphs.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
     if (!(*o)->StatIfNecessary(disk_interface_, err))
@@ -72,12 +87,9 @@ bool DependencyScan::RecomputeDirty(Node* node, string* err) {
   Node* most_recent_input = NULL;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!(*i)->status_known()) {
-      if (!(*i)->StatIfNecessary(disk_interface_, err))
-        return false;
-      if (!RecomputeDirty(*i, err))
-        return false;
-    }
+    // Visit this input.
+    if (!RecomputeDirty(*i, stack, err))
+      return false;
 
     // If an input is not ready, neither are our outputs.
     if (Edge* in_edge = (*i)->in_edge()) {
@@ -120,7 +132,45 @@ bool DependencyScan::RecomputeDirty(Node* node, string* err) {
   if (dirty && !(edge->is_phony() && edge->inputs_.empty()))
     edge->outputs_ready_ = false;
 
+  // Mark the edge as finished during this walk now that it will no longer
+  // be in the call stack.
+  edge->mark_ = Edge::VisitDone;
+  assert(stack->back() == node);
+  stack->pop_back();
+
   return true;
+}
+
+bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
+  Edge* edge = node->in_edge();
+  assert(edge != NULL);
+
+  // If we have no temporary mark on the edge then we do not yet have a cycle.
+  if (edge->mark_ != Edge::VisitInStack)
+    return true;
+
+  // We have this edge earlier in the call stack.  Find it.
+  vector<Node*>::iterator start = stack->begin();
+  while (start != stack->end() && (*start)->in_edge() != edge)
+    ++start;
+  assert(start != stack->end());
+
+  // Make the cycle clear by reporting its start as the node at its end
+  // instead of some other output of the starting edge.  For example,
+  // running 'ninja b' on
+  //   build a b: cat c
+  //   build c: cat a
+  // should report a -> c -> a instead of b -> c -> a.
+  *start = node;
+
+  // Construct the error message rejecting the cycle.
+  *err = "dependency cycle: ";
+  for (vector<Node*>::const_iterator i = start; i != stack->end(); ++i) {
+    err->append((*i)->path());
+    err->append(" -> ");
+  }
+  err->append((*start)->path());
+  return false;
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,

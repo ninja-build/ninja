@@ -335,8 +335,8 @@ TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
   fs_.Create("dep.d", "a: b\n");
 
   string err;
-  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("a"), &err));
-  ASSERT_EQ("", err);
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
+  ASSERT_EQ("dependency cycle: b -> b", err);
 
   // Despite the depfile causing edge to be a cycle (it has outputs a and b,
   // but the depfile also adds b as an input), the deps should have been loaded
@@ -360,8 +360,8 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
   fs_.Create("dep.d", "a: c\n");
 
   string err;
-  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("a"), &err));
-  ASSERT_EQ("", err);
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
+  ASSERT_EQ("dependency cycle: b -> c -> b", err);
 
   // Despite the depfile causing edge to be a cycle (|edge| has outputs a and b,
   // but c's in_edge has b as input but the depfile also adds |edge| as
@@ -387,8 +387,8 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
   fs_.Create("dep.d", "a: c\n");
 
   string err;
-  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("d"), &err));
-  ASSERT_EQ("", err);
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("d"), &err));
+  ASSERT_EQ("dependency cycle: b -> c -> b", err);
 
   // Despite the depfile causing edge to be a cycle (|edge| has outputs a and b,
   // but c's in_edge has b as input but the depfile also adds |edge| as
