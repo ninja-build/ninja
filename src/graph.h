@@ -246,11 +246,12 @@ struct DependencyScan {
         disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface) {}
 
+  /// Update the |dirty_| state of the given node by inspecting its input edge.
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
   /// Returns false on failure.
-  bool RecomputeDirty(Edge* edge, string* err);
+  bool RecomputeDirty(Node* node, string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.

@@ -31,7 +31,16 @@ bool Node::Stat(DiskInterface* disk_interface, string* err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
 
-bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
+bool DependencyScan::RecomputeDirty(Node* node, string* err) {
+  Edge* edge = node->in_edge();
+  if (!edge) {
+    // This node has no in-edge; it is dirty if it is missing.
+    if (!node->exists())
+      EXPLAIN("%s has no in-edge and is missing", node->path().c_str());
+    node->set_dirty(!node->exists());
+    return true;
+  }
+
   bool dirty = false;
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
@@ -66,15 +75,8 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
     if (!(*i)->status_known()) {
       if (!(*i)->StatIfNecessary(disk_interface_, err))
         return false;
-      if (Edge* in_edge = (*i)->in_edge()) {
-        if (!RecomputeDirty(in_edge, err))
-          return false;
-      } else {
-        // This input has no in-edge; it is dirty if it is missing.
-        if (!(*i)->exists())
-          EXPLAIN("%s has no in-edge and is missing", (*i)->path().c_str());
-        (*i)->set_dirty(!(*i)->exists());
-      }
+      if (!RecomputeDirty(*i, err))
+        return false;
     }
 
     // If an input is not ready, neither are our outputs.

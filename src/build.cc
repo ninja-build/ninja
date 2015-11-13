@@ -640,9 +640,10 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
+  if (!scan_.RecomputeDirty(node, err))
+    return false;
+
   if (Edge* in_edge = node->in_edge()) {
-    if (!scan_.RecomputeDirty(in_edge, err))
-      return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
   }
