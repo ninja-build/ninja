@@ -323,6 +323,55 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
   ASSERT_FALSE(plan_.more_to_do());
 }
 
+TEST_F(GraphTest, DependencyCycle) {
+  AssertParse(&state_,
+"build out: cat mid\n"
+"build mid: cat in\n"
+"build in: cat pre\n"
+"build pre: cat out\n");
+
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
+}
+
+TEST_F(GraphTest, CycleInEdgesButNotInNodes1) {
+  string err;
+  AssertParse(&state_,
+"build a b: cat a\n");
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: a -> a", err);
+}
+
+TEST_F(GraphTest, CycleInEdgesButNotInNodes2) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build b a: cat a\n"));
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: a -> a", err);
+}
+
+TEST_F(GraphTest, CycleInEdgesButNotInNodes3) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a b: cat c\n"
+"build c: cat a\n"));
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), &err));
+  ASSERT_EQ("dependency cycle: a -> c -> a", err);
+}
+
+TEST_F(GraphTest, CycleInEdgesButNotInNodes4) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build d: cat c\n"
+"build c: cat b\n"
+"build b: cat a\n"
+"build a e: cat d\n"
+"build f: cat e\n"));
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("f"), &err));
+  ASSERT_EQ("dependency cycle: a -> d -> c -> b -> a", err);
+}
+
 // Verify that cycles in graphs with multiple outputs are handled correctly
 // in RecomputeDirty() and don't cause deps to be loaded multiple times.
 TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
