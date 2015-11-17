@@ -265,11 +265,11 @@ if platform.is_msvc():
     objext = '.obj'
 
 def src(filename):
-    return os.path.join('$sourcedir', 'src', filename)
+    return os.path.join('$root', 'src', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
-    return os.path.join('$sourcedir', 'doc', filename)
+    return os.path.join('$root', 'doc', filename)
 def cc(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
@@ -281,7 +281,7 @@ def binary(name):
         return exe
     return name
 
-n.variable('sourcedir', sourcedir)
+n.variable('root', sourcedir)
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
 if platform.is_msvc():
@@ -624,12 +624,12 @@ n.newline()
 if not host.is_mingw():
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command='${configure_env}%s $sourcedir/configure.py $configure_args' %
+           command='${configure_env}%s $root/configure.py $configure_args' %
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['$sourcedir/configure.py',
-                      os.path.normpath('$sourcedir/misc/ninja_syntax.py')])
+            implicit=['$root/configure.py',
+                      os.path.normpath('$root/misc/ninja_syntax.py')])
     n.newline()
 
 n.default(ninja)
