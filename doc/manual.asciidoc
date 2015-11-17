@@ -1,5 +1,5 @@
-Ninja
-=====
+The Ninja build system
+======================
 
 
 Introduction
@@ -717,7 +717,6 @@ spaces within a token must be escaped.
 There is only one escape character, `$`, and it has the following
 behaviors:
 
-[horizontal]
 `$` followed by a newline:: escape the newline (continue the current line
 across a line break).
 

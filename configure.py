@@ -592,12 +592,18 @@ n.rule('asciidoc',
 n.rule('xsltproc',
        command='xsltproc --nonet doc/docbook.xsl $in > $out',
        description='XSLTPROC $out')
-xml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
-manual = n.build(doc('manual.html'), 'xsltproc', xml,
-                 implicit=doc('style.css'))
+docbookxml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
+manual = n.build(doc('manual.html'), 'xsltproc', docbookxml,
+                 implicit=[doc('style.css'), doc('docbook.xsl')])
 n.build('manual', 'phony',
         order_only=manual)
 n.newline()
+
+n.rule('dblatex',
+       command='dblatex -q -o $out -p doc/dblatex.xsl $in',
+       description='DBLATEX $out')
+n.build(doc('manual.pdf'), 'dblatex', docbookxml,
+        implicit=[doc('dblatex.xsl')])
 
 n.comment('Generate Doxygen.')
 n.rule('doxygen',
