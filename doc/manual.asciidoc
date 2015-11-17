@@ -1,5 +1,5 @@
-Ninja
-=====
+The Ninja build system
+======================
 
 
 Introduction
