@@ -281,7 +281,12 @@ def binary(name):
         return exe
     return name
 
-n.variable('root', sourcedir)
+root = sourcedir
+if root == os.getcwd():
+    # In the common case where we're building directly in the source
+    # tree, simplify all the paths to just be cwd-relative.
+    root = '.'
+n.variable('root', root)
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
 if platform.is_msvc():
