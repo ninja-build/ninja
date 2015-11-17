@@ -37,6 +37,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  // Load output mtimes so we can compare them to the most recent input below.
   // RecomputeDirty() recursively walks the graph following the input nodes
   // of |edge| and the in_edges of these nodes.  It uses the stat state of each
   // node to mark nodes as visited and doesn't traverse across nodes that have
@@ -126,8 +127,6 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
-      return false;
     if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
       *outputs_dirty = true;
       return true;
