@@ -209,6 +209,9 @@ parser.add_option('--with-gtest', metavar='PATH', help='ignored')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
+parser.add_option('--with-subprocess-shell', metavar='EXE',
+                  help='use EXE as the shell for POSIX subprocesses',
+                  default='/bin/sh')
 parser.add_option('--force-pselect', action='store_true',
                   help='ppoll() is used by default where available, '
                        'but some platforms may need to use pselect instead',)
@@ -331,7 +334,8 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              '-DNINJA_PYTHON="%s"' % options.with_python]
+              '-DNINJA_PYTHON="%s"' % options.with_python,
+              '-DNINJA_SUBPROCESS_SHELL="%s"' % options.with_subprocess_shell]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
         cflags.remove('-fno-rtti')  # Needed for above pedanticness.
