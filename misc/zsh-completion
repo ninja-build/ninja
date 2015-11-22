@@ -59,7 +59,7 @@ _arguments \
   '-f+[Specify input build file (default=build.ninja)]:files:_files' \
   '-j+[Run N jobs in parallel (default=number of CPUs available)]:number of jobs' \
   '-l+[Do not start new jobs if the load average is greater than N]:number of jobs' \
-  '-k+[Keep going until N jobs fail (default=1)]:number of jobs' \
+  '-k+[Keep going until N jobs fail (0 is unbounded) (default=1)]:number of jobs' \
   '-n[Dry run (do not run commands but act like they succeeded)]' \
   '-v[Show all command lines while building]' \
   '-d+[Enable debugging (use -d list to list modes)]:modes:__modes' \

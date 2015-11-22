@@ -204,7 +204,7 @@ void Usage(const BuildConfig& config) {
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
-"  -k N     keep going until N jobs fail [default=1]\n"
+"  -k N     keep going until N jobs fail (0 is unbounded) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
