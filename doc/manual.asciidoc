@@ -288,10 +288,23 @@ information is correct.  Any target that depends on a generated file (output
 of a generator-target) via a depfile, but does not have a non-depfile
 dependency path to the generator-target, is considered broken.
 +
-The tool's finidings can be verified by trying to build the listed targets in
+The tool's findings can be verified by trying to build the listed targets in
 a clean outdir without buidling any other targets.  The build should fail for
 each of them with a missing include error or equivalent pointing to the
 generated file.
++
+Additionally, look for files inside the build dir that do not have a generator
+target listing them as outputs, and that are a deps log dependency of some
+other target. These cases are also potentially problematic and they prevent
+the main missing dependency check from working.
++
+By default the tool assumes all files under the build dir are generated, so
+in-source builds will have false positives for all static sources. To avoid
+that, pass a -g DIR option to the tool to choose a directory relative to the
+build dir that will be treated as the "generated files only" directory. An
+empty string there disables the missing generator target check.
+_Available since Ninja 1.7._
+
 
 Writing your own Ninja files
 ----------------------------

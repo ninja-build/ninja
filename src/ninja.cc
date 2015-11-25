@@ -533,7 +533,7 @@ MissingDependencyScanner::MissingDependencyScanner(DepsLog* deps_log,
     abs_gen_dir_.append("/");
     abs_gen_dir_.append(gen_dir);
     if (!realpath(abs_gen_dir_.c_str(), buf))
-      Fatal("realpath failed");
+      Fatal("realpath for %s failed", abs_gen_dir_.c_str());
     abs_gen_dir_ = buf;
   }
 }
@@ -654,7 +654,8 @@ int NinjaMain::ToolMissingDeps(int argc, char** argv) {
 "\n"
 "options:\n"
 "  -g DIR   assume files under DIR are generated (default: .)\n"
-"    set to an empty string to disable missing generator checking\n"
+"    DIR is relative to the build directory, empty string disables\n"
+"    checking for files with a missing generator\n"
              );
       return 1;
     }
@@ -918,7 +919,7 @@ const Tool* ChooseTool(const string& tool_name) {
     printf("ninja subtools:\n");
     for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
       if (tool->desc)
-        printf("%10s  %s\n", tool->name, tool->desc);
+        printf("%11s  %s\n", tool->name, tool->desc);
     }
     return NULL;
   }
