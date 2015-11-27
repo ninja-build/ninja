@@ -46,13 +46,8 @@ class TestLineWordWrap(unittest.TestCase):
                          self.out.getvalue())
 
     def test_comment_wrap(self):
-        # We should wrap the comments
-        self.n.comment('Hello there')
-        self.assertEqual('# Hello\n# there\n', self.out.getvalue())
-
-    def test_comment_wrap_filename(self):
         # Filenames shoud not be wrapped
-        self.n.comment('Hello /usr/local/build-tools/bin', has_path=True)
+        self.n.comment('Hello /usr/local/build-tools/bin')
         self.assertEqual('# Hello\n# /usr/local/build-tools/bin\n',
                          self.out.getvalue())
 
