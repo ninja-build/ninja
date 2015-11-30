@@ -136,7 +136,7 @@ struct Edge {
   };
 
   Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone),
-           outputs_ready_(false), deps_missing_(false),
+           outputs_ready_(false), deps_loaded_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
@@ -165,6 +165,7 @@ struct Edge {
   BindingEnv* env_;
   VisitMark mark_;
   bool outputs_ready_;
+  bool deps_loaded_;
   bool deps_missing_;
 
   const Rule& rule() const { return *rule_; }

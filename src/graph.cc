@@ -75,12 +75,16 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
       return false;
   }
 
-  if (!dep_loader_.LoadDeps(edge, err)) {
-    if (!err->empty())
-      return false;
-    // Failed to load dependency info: rebuild to regenerate it.
-    // LoadDeps() did EXPLAIN() already, no need to do it here.
-    dirty = edge->deps_missing_ = true;
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.  Load discovered deps.
+    edge->deps_loaded_ = true;
+    if (!dep_loader_.LoadDeps(edge, err)) {
+      if (!err->empty())
+        return false;
+      // Failed to load dependency info: rebuild to regenerate it.
+      // LoadDeps() did EXPLAIN() already, no need to do it here.
+      dirty = edge->deps_missing_ = true;
+    }
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
