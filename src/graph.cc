@@ -347,6 +347,14 @@ bool Edge::use_console() const {
   return pool() == &State::kConsolePool;
 }
 
+string Edge::shell() {
+  return GetBinding("shell");
+}
+
+string Edge::shellflags() {
+  return GetBinding("shellflags");
+}
+
 // static
 string Node::PathDecanonicalized(const string& path, unsigned int slash_bits) {
   string result = path;
