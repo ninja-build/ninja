@@ -33,6 +33,7 @@
 #include "deps_log.h"
 #include "clean.h"
 #include "debug_flags.h"
+#include "depfile_parser.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
@@ -506,25 +507,28 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
 class MissingDependencyScanner {
  public:
   MissingDependencyScanner(DepsLog* deps_log, State* state,
+                           DiskInterface* disk_interface,
                            const string& gen_dir);
   void ProcessNode(Node* node);
   int PrintSummary();
 
  private:
+  void ProcessNodeDeps(Node* node, Node** dep_nodes, int dep_nodes_count);
   bool IsNodeInGenDir(Node* node);
 
   DepsLog* deps_log_;
   State* state_;
+  DiskInterface* disk_interface_;
   set<Node*> seen_;
   set<Node*> nodes_missing_deps_;
   set<Node*> nodes_missing_gen_;
   string abs_gen_dir_;
 };
 
-MissingDependencyScanner::MissingDependencyScanner(DepsLog* deps_log,
-                                                   State* state,
-                                                   const string& gen_dir)
-    : deps_log_(deps_log), state_(state) {
+MissingDependencyScanner::MissingDependencyScanner(
+    DepsLog* deps_log, State* state, DiskInterface* disk_interface,
+    const string& gen_dir)
+    : deps_log_(deps_log), state_(state), disk_interface_(disk_interface) {
   if (!gen_dir.empty()) {
     char buf[PATH_MAX];
     if (getcwd(buf, PATH_MAX) == NULL)
@@ -563,12 +567,52 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
   }
 
   DepsLog::Deps* deps = deps_log_->GetDeps(node);
-  if (!deps)
-    return;
+  if (deps) {
+    ProcessNodeDeps(node, deps->nodes, deps->node_count);
+  } else {
+    string depfile = edge->GetUnescapedDepfile();
+    if (depfile.empty())
+      return;
+    string err;
+    string content = disk_interface_->ReadFile(depfile, &err);
+    if (content.empty())
+      return;
+    DepfileParser depfile_parser;
+    string depfile_err;
+    if (!depfile_parser.Parse(&content, &depfile_err))
+      return;
+    unsigned int unused;
+    string canon_err;
+    if (!CanonicalizePath(const_cast<char*>(depfile_parser.out_.str_),
+                          &depfile_parser.out_.len_, &unused, &canon_err))
+      return;
+    Node* first_output = edge->outputs_[0];
+    StringPiece opath = StringPiece(first_output->path());
+    if (opath != depfile_parser.out_)
+      return;
+    vector<Node*> dep_nodes;
+    for (vector<StringPiece>::iterator i = depfile_parser.ins_.begin();
+         i != depfile_parser.ins_.end(); ++i) {
+      unsigned int slash_bits;
+      if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
+                            &canon_err))
+        return;
+
+      Node* node = state_->GetNode(*i, slash_bits);
+      dep_nodes.push_back(node);
+    }
+    if (!dep_nodes.empty())
+      ProcessNodeDeps(node, &dep_nodes[0], dep_nodes.size());
+  }
+}
+
+void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
+                                               int dep_nodes_count) {
+  Edge* edge = node->in_edge();
   set<Edge*> deplog_edges;
   vector<Node*> deplog_nodes_without_generator;
-  for (int i = 0; i < deps->node_count; ++i) {
-    Node* deplog_node = deps->nodes[i];
+  for (int i = 0; i < dep_nodes_count; ++i) {
+    Node* deplog_node = dep_nodes[i];
     Edge* deplog_edge = deplog_node->in_edge();
     if (deplog_edge) {
       deplog_edges.insert(deplog_edge);
@@ -597,9 +641,9 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
     printf("Missing non-depfile dependency for %s:\n", node->path().c_str());
     for (vector<Edge*>::iterator ne = missing_deps.begin();
          ne != missing_deps.end(); ++ne) {
-      for (int i = 0; i < deps->node_count; ++i)
-        if (deps->nodes[i]->in_edge() == *ne)
-          printf("    %s\n", deps->nodes[i]->path().c_str());
+      for (int i = 0; i < dep_nodes_count; ++i)
+        if (dep_nodes[i]->in_edge() == *ne)
+          printf("    %s\n", dep_nodes[i]->path().c_str());
     }
     nodes_missing_deps_.insert(node);
   }
@@ -669,7 +713,9 @@ int NinjaMain::ToolMissingDeps(int argc, char** argv) {
     Error("%s", err.c_str());
     return 1;
   }
-  MissingDependencyScanner scanner(&deps_log_, &state_, gen_dir);
+  RealDiskInterface disk_interface;
+  MissingDependencyScanner scanner(&deps_log_, &state_, &disk_interface,
+                                   gen_dir);
   for (vector<Node*>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
     scanner.ProcessNode(*it);
   }

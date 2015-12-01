@@ -283,9 +283,9 @@ _Available since Ninja 1.2._
 a generated file, but do not have a properly (possibly transitive) dependency
 on the generator.  Such targets may cause build flakiness on clean builds.
 +
-The broken targets can be found assuming dynamic (depfile) dependency
+The broken targets can be found assuming deps log / depfile dependency
 information is correct.  Any target that depends on a generated file (output
-of a generator-target) via a depfile, but does not have a non-depfile
+of a generator-target) implicitly, but does not have an explicit or order-only
 dependency path to the generator-target, is considered broken.
 +
 The tool's findings can be verified by trying to build the listed targets in
@@ -294,7 +294,7 @@ each of them with a missing include error or equivalent pointing to the
 generated file.
 +
 Additionally, look for files inside the build dir that do not have a generator
-target listing them as outputs, and that are a deps log dependency of some
+target listing them as outputs, and that are implicit dependencies of some
 other target. These cases are also potentially problematic and they prevent
 the main missing dependency check from working.
 +
