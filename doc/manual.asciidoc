@@ -679,6 +679,7 @@ While a task in the `console` pool is running, Ninja's regular output (such
 as progress status and output from concurrent tasks) is buffered until
 it completes.
 
+[[ref_ninja_file]]
 Ninja file reference
 --------------------
 
@@ -710,6 +711,7 @@ the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
 6. A pool declaration, which looks like +pool _poolname_+. Pools are explained
    <<ref_pool, in the section on pools>>.
 
+[[ref_lexer]]
 Lexical syntax
 ~~~~~~~~~~~~~~
 
@@ -813,6 +815,11 @@ keys.
   the command as it's running.  The `-v` flag controls whether to print
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
+
+`dyndep`:: _(Available since Ninja 1.10.)_ Used only on build statements.
+  If present, must name one of the build statement inputs.  Dynamically
+  discovered dependency information will be loaded from the file.
+  See the <<ref_dyndep,dynamic dependencies>> section for details.
 
 `generator`:: if present, specifies that this rule is used to
   re-invoke the generator program.  Files built using `generator`
@@ -1003,3 +1010,63 @@ Variable declarations indented in a `build` block are scoped to the
 
 5. Variables from the file that included that file using the
    `subninja` keyword.
+
+[[ref_dyndep]]
+Dynamic Dependencies
+--------------------
+
+_Available since Ninja 1.10._
+
+Some use cases require implicit dependency information to be dynamically
+discovered from source file content _during the build_ in order to build
+correctly on the first run (e.g. Fortran module dependencies).  This is
+unlike <<ref_headers,header dependencies>> which are only needed on the
+second run and later to rebuild correctly.  A build statement may have a
+`dyndep` binding naming one of its inputs to specify that dynamic
+dependency information must be loaded from the file.  For example:
+
+----
+build out: ... || foo
+  dyndep = foo
+build foo: ...
+----
+
+This specifies that file `foo` is a dyndep file.  Since it is an input,
+the build statement for `out` can never be executed before `foo` is built.
+As soon as `foo` is finished Ninja will read it to load dynamically
+discovered dependency information for `out`.  This may include additional
+implicit inputs and/or outputs.  Ninja will update the build graph
+accordingly and the build will proceed as if the information was known
+originally.
+
+Dyndep file reference
+~~~~~~~~~~~~~~~~~~~~~
+
+Files specified by `dyndep` bindings use the same <<ref_lexer,lexical syntax>>
+as <<ref_ninja_file,ninja build files>> and have the following layout.
+
+1. A version number in the form `<major>[.<minor>][<suffix>]`:
++
+----
+ninja_dyndep_version = 1
+----
++
+Currently the version number must always be `1` or `1.0` but may have
+an arbitrary suffix.
+
+2. One or more build statements of the form:
++
+----
+build out | imp-outs... : dyndep | imp-ins...
+----
++
+Every statement must specify exactly one explicit output and must use
+the rule name `dyndep`.  The `| imp-outs...` and `| imp-ins...` portions
+are optional.
+
+3. An optional `restat` <<ref_rule,variable binding>> on each build statement.
+
+The build statements in a dyndep file must have a one-to-one correspondence
+to build statements in the <<ref_ninja_file,ninja build file>> that name the
+dyndep file in a `dyndep` binding.  No dyndep build statement may be omitted
+and no extra build statements may be specified.
