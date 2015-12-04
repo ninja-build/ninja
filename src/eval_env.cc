@@ -55,7 +55,7 @@ void Rule::AddBinding(const string& key, const EvalString& val) {
 }
 
 const EvalString* Rule::GetBinding(const string& key) const {
-  map<string, EvalString>::const_iterator i = bindings_.find(key);
+  Bindings::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())
     return NULL;
   return &i->second;
