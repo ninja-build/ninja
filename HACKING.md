@@ -20,7 +20,7 @@ You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
 On Windows, you'll need to install Python to run `configure.py`, and
 run everything under a Visual Studio Tools Command Prompt (or after
 running `vcvarsall` in a normal command prompt).  See below if you
-want to use mingw or some other compiler instead using Visual Studio.
+want to use mingw or some other compiler instead of Visual Studio.
 
 ### Adjusting build flags
 
