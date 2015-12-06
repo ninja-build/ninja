@@ -21,8 +21,9 @@ class Writer(object):
     def newline(self):
         self.output.write('\n')
 
-    def comment(self, text):
-        for line in textwrap.wrap(text, self.width - 2):
+    def comment(self, text, has_path=False):
+        for line in textwrap.wrap(text, self.width - 2, break_long_words=False,
+                                  break_on_hyphens=False):
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
