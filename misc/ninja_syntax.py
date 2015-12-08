@@ -14,16 +14,21 @@ def escape_path(word):
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
 
 class Writer(object):
-    def __init__(self, output, width=78):
+    def __init__(self, output, width=78, wrap_comments=True):
         self.output = output
         self.width = width
+        self.wrap_comments = wrap_comments
 
     def newline(self):
         self.output.write('\n')
 
     def comment(self, text, has_path=False):
-        for line in textwrap.wrap(text, self.width - 2, break_long_words=False,
-                                  break_on_hyphens=False):
+        if self.wrap_comments:
+            lines = textwrap.wrap(text, self.width - 2, break_long_words=False,
+                                  break_on_hyphens=False)
+        else:
+            lines = text.split('\n')
+        for line in lines:
             self.output.write('# ' + line + '\n')
 
     def variable(self, key, value, indent=0):
