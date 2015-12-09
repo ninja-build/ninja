@@ -1135,6 +1135,10 @@ int real_main(int argc, char** argv) {
 
     // Attempt to rebuild the manifest before building anything else
     if (ninja.RebuildManifest(options.input_file, &err)) {
+      // In dry_run mode the regeneration will succeed without changing the
+      // manifest forever. Better to return immediately.
+      if (config.dry_run)
+        return 0;
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
