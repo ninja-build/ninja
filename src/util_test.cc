@@ -91,6 +91,22 @@ TEST(CanonicalizePath, PathSamples) {
   path = "/";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("", path);
+
+  path = "/foo/..";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("", path);
+
+  path = ".";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ(".", path);
+
+  path = "./.";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ(".", path);
+
+  path = "foo/..";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ(".", path);
 }
 
 #ifdef _WIN32
@@ -287,22 +303,6 @@ TEST(CanonicalizePath, TooManyComponents) {
   EXPECT_EQ(err, "too many path components");
 }
 #endif
-
-TEST(CanonicalizePath, EmptyResult) {
-  string path;
-  string err;
-
-  EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("empty path", err);
-
-  path = ".";
-  EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("path canonicalizes to the empty path", err);
-
-  path = "./.";
-  EXPECT_FALSE(CanonicalizePath(&path, &err));
-  EXPECT_EQ("path canonicalizes to the empty path", err);
-}
 
 TEST(CanonicalizePath, UpDir) {
   string path, err;

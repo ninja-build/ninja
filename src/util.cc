@@ -226,8 +226,8 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   }
 
   if (dst == start) {
-    *err = "path canonicalizes to the empty path";
-    return false;
+    *dst++ = '.';
+    *dst++ = '\0';
   }
 
   *len = dst - start - 1;
