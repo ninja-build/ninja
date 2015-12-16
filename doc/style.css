@@ -24,12 +24,6 @@ div.chapter {
     margin-top: 4em;
     border-top: solid 2px black;
 }
-.section .title {
-    font-size: 1.3em;
-}
-.section .section .title {
-    font-size: 1.2em;
-}
 p {
     margin-top: 0;
 }
