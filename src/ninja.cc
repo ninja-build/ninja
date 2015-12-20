@@ -1075,31 +1075,8 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
-int real_main(int argc, char** argv) {
-  BuildConfig config;
-  Options options = {};
-  options.input_file = "build.ninja";
-
-  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
-  const char* ninja_command = argv[0];
-
-  int exit_code = ReadFlags(&argc, &argv, &options, &config);
-  if (exit_code >= 0)
-    return exit_code;
-
-  if (options.working_dir) {
-    // The formatting of this string, complete with funny quotes, is
-    // so Emacs can properly identify that the cwd has changed for
-    // subsequent commands.
-    // Don't print this if a tool is being used, so that tool output
-    // can be piped into a file without this string showing up.
-    if (!options.tool)
-      printf("ninja: Entering directory `%s'\n", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
-    }
-  }
-
+static int real_main_aux(const char* ninja_command, int argc, char** argv,
+                         const BuildConfig& config, const Options& options) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
@@ -1155,6 +1132,40 @@ int real_main(int argc, char** argv) {
   Error("manifest '%s' still dirty after %d tries\n",
       options.input_file, kCycleLimit);
   return 1;
+}
+
+int real_main(int argc, char** argv) {
+  BuildConfig config;
+  Options options = {};
+  options.input_file = "build.ninja";
+
+  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  const char* ninja_command = argv[0];
+
+  int exit_code = ReadFlags(&argc, &argv, &options, &config);
+  if (exit_code >= 0)
+    return exit_code;
+
+  if (options.working_dir) {
+    // The formatting of this string, complete with funny quotes, is
+    // so Emacs can properly identify that the cwd has changed for
+    // subsequent commands.
+    // Don't print this if a tool is being used, so that tool output
+    // can be piped into a file without this string showing up.
+    if (!options.tool)
+      printf("ninja: Entering directory `%s'\n", options.working_dir);
+    if (chdir(options.working_dir) < 0) {
+      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
+    }
+  }
+
+  int rc = real_main_aux(ninja_command, argc, argv, config, options);
+
+  if (options.working_dir) {
+    if (!options.tool)
+      printf("ninja: Leaving directory `%s'\n", options.working_dir);
+  }
+  return rc;
 }
 
 }  // anonymous namespace
