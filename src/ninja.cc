@@ -993,7 +993,6 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -1075,6 +1074,59 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
+const char* kNINJA_FLAGS = "NINJA_FLAGS";
+
+int ReadFlagsFromEnv(Options* options, BuildConfig* config) {
+  char* flags = getenv(kNINJA_FLAGS);
+  if (flags == NULL)
+    return -1;
+
+  int argc = 1;
+  enum { MAX_ARGC = 1014 };
+  char* argv[MAX_ARGC];
+  argv[0] = "ninja-from-env";
+
+  char* flags_str = strdup(flags);
+  SplitArgv(flags_str, &argc, argv, MAX_ARGC);
+
+  int rc;
+  {
+    char** argv_addr = argv;
+    rc = ReadFlags(&argc, &argv_addr, options, config);
+    optind = 1;
+  }
+
+  free(flags_str);
+  return rc;
+}
+
+void PublishFlagsToEnv(const Options& options, const BuildConfig& config) {
+  enum { BUFLEN = 1014 };
+  char buf[BUFLEN];
+
+  snprintf(buf, BUFLEN, "-j %d -k %d -l %f",
+           config.parallelism,
+           config.failures_allowed,
+           config.max_load_average);
+  if (config.verbosity)
+    strcat(buf, " -v");
+  if (config.dry_run)
+    strcat(buf, " -n");
+  if (options.dupe_edges_should_err)
+    strcat(buf, " -w dupbuild=err");
+  else
+    strcat(buf, " -w dupbuild=warn");
+  if (g_metrics != NULL)
+    strcat(buf, " -d stats");
+  else if (g_explaining)
+    strcat(buf, " -d explain");
+  else if (g_keep_rsp)
+    strcat(buf, " -d keeprsp");
+  else if (g_experimental_statcache)
+    strcat(buf, " -d nostatcache");
+  setenv(kNINJA_FLAGS, buf, 1);
+}
+
 int real_main(int argc, char** argv) {
   BuildConfig config;
   Options options = {};
@@ -1083,9 +1135,15 @@ int real_main(int argc, char** argv) {
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
 
-  int exit_code = ReadFlags(&argc, &argv, &options, &config);
+  config.parallelism = GuessParallelism();
+  int exit_code = -1;
+  exit_code = ReadFlagsFromEnv(&options, &config);
   if (exit_code >= 0)
     return exit_code;
+  exit_code = ReadFlags(&argc, &argv, &options, &config);
+  if (exit_code >= 0)
+    return exit_code;
+  PublishFlagsToEnv(options, config);
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is

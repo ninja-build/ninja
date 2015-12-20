@@ -106,4 +106,10 @@ string GetLastErrorString();
 NORETURN void Win32Fatal(const char* function);
 #endif
 
+/// Split a string of flags into an array of flag strings.
+/// @warning: Does not support shell quote
+/// @warning: Modify @a flags in-place.
+/// @warning: argc must be initialized to the index to start from.
+void SplitArgv(char* flags, int* argc, char** argv, const int max_argc);
+
 #endif  // NINJA_UTIL_H_
