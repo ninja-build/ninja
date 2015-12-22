@@ -41,6 +41,7 @@
 #include "graphviz.h"
 #include "manifest_parser.h"
 #include "metrics.h"
+#include "serializer.h"
 #include "state.h"
 #include "util.h"
 #include "version.h"
@@ -61,6 +62,9 @@ struct Tool;
 struct Options {
   /// Build file to load.
   const char* input_file;
+
+  /// Build binary file to load.
+  const char* binary_input_file;
 
   /// Directory to change into before running.
   const char* working_dir;
@@ -118,6 +122,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
+  int ToolCompile(const Options* options, int argc, char** argv);
   int ToolUrtle(const Options* options, int argc, char** argv);
 
   /// Open the build log.
@@ -202,6 +207,7 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
+"  -b FILE  specify input binary build file\n"
 "\n"
 "  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
 "  -k N     keep going until N jobs fail [default=1]\n"
@@ -671,6 +677,23 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
+int NinjaMain::ToolCompile(const Options* options, int argc, char** argv) {
+  if (argc != 1) {
+    Error("expected an output filename");
+    return 1;
+  }
+
+  Serializer serializer(argv[0]);
+  if (!serializer.SerializeState(state_)) {
+    Error("failed to serialize the ninja state");
+    return 1;
+  }
+
+  if (g_metrics)
+    DumpMetrics();
+  return 0;
+}
+
 int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -725,6 +748,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+    { "compile", NULL,
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompile },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
@@ -997,7 +1022,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:b:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1006,6 +1031,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'f':
         options->input_file = optarg;
+        break;
+      case 'b':
+        options->binary_input_file = optarg;
         break;
       case 'j': {
         char* end;
@@ -1105,14 +1133,22 @@ int real_main(int argc, char** argv) {
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
-                          options.dupe_edges_should_err
-                              ? kDupeEdgeActionError
-                              : kDupeEdgeActionWarn);
     string err;
-    if (!parser.Load(options.input_file, &err)) {
-      Error("%s", err.c_str());
-      return 1;
+    if (options.binary_input_file) {
+      Deserializer deserializer(options.binary_input_file);
+      if (!deserializer.DeserializeState(&ninja.state_)) {
+        Error("failed to deserialize the ninja state");
+        return 1;
+      }
+    } else {
+      ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
+                            options.dupe_edges_should_err
+                            ? kDupeEdgeActionError
+                            : kDupeEdgeActionWarn);
+      if (!parser.Load(options.input_file, &err)) {
+        Error("%s", err.c_str());
+        return 1;
+      }
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)

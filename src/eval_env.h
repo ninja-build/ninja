@@ -49,6 +49,8 @@ private:
   enum TokenType { RAW, SPECIAL };
   typedef vector<pair<string, TokenType> > TokenList;
   TokenList parsed_;
+  friend class Serializer;
+  friend class Deserializer;
 };
 
 /// An invokable build command and associated metadata (description, etc.).
@@ -63,12 +65,13 @@ struct Rule {
 
   const EvalString* GetBinding(const string& key) const;
 
+  typedef map<string, EvalString> Bindings;
+  const Bindings& bindings() const { return bindings_; }
  private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
 
   string name_;
-  typedef map<string, EvalString> Bindings;
   Bindings bindings_;
 };
 
@@ -80,6 +83,7 @@ struct BindingEnv : public Env {
 
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
+  const map<string, string>& bindings() const { return bindings_; }
 
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const string& rule_name);
@@ -95,6 +99,9 @@ struct BindingEnv : public Env {
   /// This function takes as parameters the necessary info to do (2).
   string LookupWithFallback(const string& var, const EvalString* eval,
                             Env* env);
+
+  const BindingEnv* parent() const { return parent_; }
+  void set_parent(BindingEnv* p) { parent_ = p; }
 
 private:
   map<string, string> bindings_;
