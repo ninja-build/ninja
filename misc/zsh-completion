@@ -22,8 +22,8 @@ __get_targets() {
   then
     eval dir="${opt_args[-C]}"
   fi
-  targets_command="ninja -C \"${dir}\" -t targets"
-  eval ${targets_command} 2>/dev/null | sed "s/^\(.*\): .*$/\1/"
+  targets_command="ninja -C \"${dir}\" -t targets all"
+  eval ${targets_command} 2>/dev/null | cut -d: -f1
 }
 
 __get_tools() {
@@ -65,4 +65,3 @@ _arguments \
   '-d+[Enable debugging (use -d list to list modes)]:modes:__modes' \
   '-t+[Run a subtool (use -t list to list subtools)]:tools:__tools' \
   '*::targets:__targets'
-
