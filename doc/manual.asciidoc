@@ -781,11 +781,9 @@ A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
 keys.
 
-`command` (_required_):: the command line to run.  This string (after
-  $variables are expanded) is passed directly to `sh -c` without
-  interpretation by Ninja. Each `rule` may have only one `command`
-  declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations.
+`command` (_required_):: the command line to run.  Each `rule` may
+  have only one `command` declaration. See <<ref_rule_command,the next
+  section>> for more details on quoting and executing multiple commands.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
@@ -852,6 +850,27 @@ rule link
 
 build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 ----
+
+[[ref_rule_command]]
+Interpretation of the `command` variable
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Fundamentally, command lines behave differently on Unixes and Windows.
+
+On Unixes, commands are arrays of arguments.  The Ninja `command`
+variable is passed directly to `sh -c`, which is then responsible for
+interpreting that string into an argv array.  Therefore the quoting
+rules are those of the shell, and you can use all the normal shell
+operators, like `&&` to chain multiple commands, or `VAR=value cmd` to
+set environment variables.
+
+On Windows, commands are strings, so Ninja passes the `command` string
+directly to `CreateProcess`.  (In the common case of simply executing
+a compiler this means there is less overhead.)  Consequently the
+quoting rules are deterimined by the called program, which on Windows
+are usually provided by the C library.  If you need shell
+interpretation of the command (such as the use of `&&` to chain
+multiple commands), make the command execute the Windows shell by
+prefixing the command with `cmd /c`.
 
 [[ref_dependencies]]
 Build dependencies
@@ -953,4 +972,3 @@ Variable declarations indented in a `build` block are scoped to the
 
 5. Variables from the file that included that file using the
    `subninja` keyword.
-
