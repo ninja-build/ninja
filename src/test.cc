@@ -115,7 +115,7 @@ void VerifyGraph(const State& state) {
     for (vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
          in_node != (*e)->inputs_.end(); ++in_node) {
       const vector<Edge*>& out_edges = (*in_node)->out_edges();
-      EXPECT_NE(std::find(out_edges.begin(), out_edges.end(), *e),
+      EXPECT_NE(find(out_edges.begin(), out_edges.end(), *e),
                 out_edges.end());
     }
     // Check that the edge's outputs have the edge as in-edge.

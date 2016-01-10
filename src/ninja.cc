@@ -701,7 +701,7 @@ int NinjaMain::ToolUrtle(int argc, char** argv) {
     if ('0' <= *p && *p <= '9') {
       count = count*10 + *p - '0';
     } else {
-      for (int i = 0; i < std::max(count, 1); ++i)
+      for (int i = 0; i < max(count, 1); ++i)
         printf("%c", *p);
       count = 0;
     }
@@ -1163,7 +1163,7 @@ int main(int argc, char** argv) {
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
-  std::set_terminate(TerminateHandler);
+  set_terminate(TerminateHandler);
   __try {
     // Running inside __try ... __except suppresses any Windows error
     // dialogs for errors such as bad_alloc.

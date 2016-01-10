@@ -159,8 +159,8 @@ TEST_F(SubprocessTest, Console) {
     // Test that stdin, stdout and stderr are a terminal.
     // Also check that the current process is connected to a terminal.
     Subprocess* subproc =
-        subprocs_.Add(std::string("test -t 0 -a -t 1 -a -t 2 && ") +
-                          std::string(kIsConnectedToTerminal),
+        subprocs_.Add(string("test -t 0 -a -t 1 -a -t 2 && ") +
+                      string(kIsConnectedToTerminal),
                       /*use_console=*/true);
     ASSERT_NE((Subprocess*)0, subproc);
 

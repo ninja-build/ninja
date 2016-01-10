@@ -255,7 +255,7 @@ bool SubprocessSet::DoWork() {
 
   if (subproc->Done()) {
     vector<Subprocess*>::iterator end =
-        std::remove(running_.begin(), running_.end(), subproc);
+        remove(running_.begin(), running_.end(), subproc);
     if (running_.end() != end) {
       finished_.push(subproc);
       running_.resize(end - running_.begin());
