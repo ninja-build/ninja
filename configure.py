@@ -100,6 +100,9 @@ class Platform(object):
     def supports_ppoll(self):
         return self._platform in ('linux', 'openbsd', 'bitrig')
 
+    def supports_vfork(self):
+        return self._platform in ('linux')
+
     def supports_ninja_browse(self):
         return (not self.is_windows()
                 and not self.is_solaris()
@@ -376,6 +379,8 @@ if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 if platform.supports_ninja_browse():
     cflags.append('-DNINJA_HAVE_BROWSE')
+if platform.supports_vfork():
+    cflags.append('-DUSE_VFORK')
 
 # Search for generated headers relative to build dir.
 cflags.append('-I.')

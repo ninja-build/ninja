@@ -48,6 +48,25 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (fd_ >= static_cast<int>(FD_SETSIZE))
     Fatal("pipe: %s", strerror(EMFILE));
 #endif  // !USE_PPOLL
+
+#if defined(USE_VFORK)
+  const char* command_str = command.c_str();
+
+  char output_pipe_str[(sizeof(int) * 8 + 2) / 3];
+  sprintf(output_pipe_str, "%d", output_pipe[1]);
+
+  pid_ = vfork();
+  if (pid_ < 0)
+    Fatal("vfork: %s", strerror(errno));
+
+  if (pid_ == 0) {
+    execl("/proc/self/exe", "ninja", "-t", "execute",
+          output_pipe_str, use_console_ ? "1" : "0",
+          command_str, NULL);
+    _exit(1);
+  }
+
+#else
   SetCloseOnExec(fd_);
 
   pid_ = fork();
@@ -108,6 +127,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     }
     _exit(1);
   }
+#endif // defined(USE_VFORK)
 
   close(output_pipe[1]);
   return true;
