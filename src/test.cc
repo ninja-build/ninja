@@ -95,7 +95,7 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
 }
 
 void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state, NULL);
+  ManifestParser parser(state, NULL, false);
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
