@@ -1114,7 +1114,9 @@ int real_main(int argc, char** argv) {
 
     RealFileReader file_reader;
     ManifestParser parser(&ninja.state_, &file_reader,
-                          options.dupe_edges_should_err);
+                          options.dupe_edges_should_err
+                              ? kDupeEdgeActionError
+                              : kDupeEdgeActionWarn);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       Error("%s", err.c_str());
