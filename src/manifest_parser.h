@@ -33,7 +33,7 @@ struct ManifestParser {
   };
 
   ManifestParser(State* state, FileReader* file_reader,
-                 bool dupe_edge_should_err = false);
+                 bool dupe_edge_should_err);
 
   /// Load and parse a file.
   bool Load(const string& filename, string* err, Lexer* parent = NULL);

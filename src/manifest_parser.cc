@@ -380,7 +380,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_);
+  ManifestParser subparser(state_, file_reader_, dupe_edge_should_err_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {
