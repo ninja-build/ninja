@@ -892,9 +892,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       deps_nodes->push_back(state_->GetNode(*i, slash_bits));
     }
 
-    if (disk_interface_->RemoveFile(depfile) < 0) {
-      *err = string("deleting depfile: ") + strerror(errno) + string("\n");
-      return false;
+    if (!g_keep_depfile) {
+      if (disk_interface_->RemoveFile(depfile) < 0) {
+        *err = string("deleting depfile: ") + strerror(errno) + string("\n");
+        return false;
+      }
     }
   } else {
     Fatal("unknown deps type '%s'", deps_type.c_str());
