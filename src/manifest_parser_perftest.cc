@@ -61,7 +61,7 @@ int LoadManifests(bool measure_command_evaluation) {
   string err;
   RealFileReader file_reader;
   State state;
-  ManifestParser parser(&state, &file_reader);
+  ManifestParser parser(&state, &file_reader, kDupeEdgeActionWarn);
   if (!parser.Load("build.ninja", &err)) {
     fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
     exit(1);
