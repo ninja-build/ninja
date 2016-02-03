@@ -871,9 +871,17 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       return false;
     }
 
-    string content = disk_interface_->ReadFile(depfile, err);
-    if (!err->empty())
+    // Read depfile content.  Treat a missing depfile as empty.
+    string content;
+    switch (disk_interface_->ReadFile(depfile, &content, err)) {
+    case DiskInterface::Okay:
+      break;
+    case DiskInterface::NotFound:
+      err->clear();
+      break;
+    case DiskInterface::OtherError:
       return false;
+    }
     if (content.empty())
       return true;
 

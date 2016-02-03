@@ -145,7 +145,7 @@ struct VirtualFileSystem : public DiskInterface {
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
+  virtual Status ReadFile(const string& path, string* contents, string* err);
   virtual int RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.

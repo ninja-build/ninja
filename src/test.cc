@@ -164,12 +164,17 @@ bool VirtualFileSystem::MakeDir(const string& path) {
   return true;  // success
 }
 
-string VirtualFileSystem::ReadFile(const string& path, string* err) {
+FileReader::Status VirtualFileSystem::ReadFile(const string& path,
+                                               string* contents,
+                                               string* err) {
   files_read_.push_back(path);
   FileMap::iterator i = files_.find(path);
-  if (i != files_.end())
-    return i->second.contents;
-  return "";
+  if (i != files_.end()) {
+    *contents = i->second.contents;
+    return Okay;
+  }
+  *err = strerror(ENOENT);
+  return NotFound;
 }
 
 int VirtualFileSystem::RemoveFile(const string& path) {

@@ -26,8 +26,17 @@ using namespace std;
 struct FileReader {
   virtual ~FileReader() {}
 
-  /// Read a file to a string.  Fill in |err| on error.
-  virtual string ReadFile(const string& path, string* err) = 0;
+  /// Result of ReadFile.
+  enum Status {
+    Okay,
+    NotFound,
+    OtherError
+  };
+
+  /// Read and store in given string.  On success, return Okay.
+  /// On error, return another Status and fill |err|.
+  virtual Status ReadFile(const string& path, string* contents,
+                          string* err) = 0;
 };
 
 /// Interface for accessing the disk.
@@ -69,7 +78,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
-  virtual string ReadFile(const string& path, string* err);
+  virtual Status ReadFile(const string& path, string* contents, string* err);
   virtual int RemoveFile(const string& path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
