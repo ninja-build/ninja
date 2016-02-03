@@ -229,14 +229,6 @@ int GuessParallelism() {
   }
 }
 
-/// An implementation of ManifestParser::FileReader that actually reads
-/// the file.
-struct RealFileReader : public ManifestParser::FileReader {
-  virtual bool ReadFile(const string& path, string* content, string* err) {
-    return ::ReadFile(path, content, err) == 0;
-  }
-};
-
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
 bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
@@ -1117,8 +1109,7 @@ int real_main(int argc, char** argv) {
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
-    RealFileReader file_reader;
-    ManifestParser parser(&ninja.state_, &file_reader,
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
                           options.dupe_edges_should_err
                               ? kDupeEdgeActionError
                               : kDupeEdgeActionWarn);

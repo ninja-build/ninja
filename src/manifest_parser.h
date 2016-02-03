@@ -23,6 +23,7 @@ using namespace std;
 
 struct BindingEnv;
 struct EvalString;
+struct FileReader;
 struct State;
 
 enum DupeEdgeAction {
@@ -32,11 +33,6 @@ enum DupeEdgeAction {
 
 /// Parses .ninja files.
 struct ManifestParser {
-  struct FileReader {
-    virtual ~FileReader() {}
-    virtual bool ReadFile(const string& path, string* content, string* err) = 0;
-  };
-
   ManifestParser(State* state, FileReader* file_reader,
                  DupeEdgeAction dupe_edge_action);
 
