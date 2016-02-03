@@ -129,7 +129,7 @@ private:
 struct Edge {
   Edge() : rule_(NULL), pool_(NULL), env_(NULL),
            outputs_ready_(false), deps_missing_(false),
-           implicit_deps_(0), order_only_deps_(0) {}
+           implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -179,6 +179,16 @@ struct Edge {
   }
   bool is_order_only(size_t index) {
     return index >= inputs_.size() - order_only_deps_;
+  }
+
+  // There are two types of outputs.
+  // 1) explicit outs, which show up as $out on the command line;
+  // 2) implicit outs, which the target generates but are not part of $out.
+  // These are stored in outputs_ in that order, and we keep a count of
+  // #2 to use when we need to access the various subsets.
+  int implicit_outs_;
+  bool is_implicit_out(size_t index) const {
+    return index >= outputs_.size() - implicit_outs_;
   }
 
   bool is_phony() const;

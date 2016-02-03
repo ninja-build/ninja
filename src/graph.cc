@@ -241,8 +241,9 @@ string EdgeEnv::LookupVariable(const string& var) {
                         edge_->inputs_.begin() + explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
+    int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end(),
+                        edge_->outputs_.begin() + explicit_outs_count,
                         ' ');
   }
 

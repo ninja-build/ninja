@@ -927,6 +927,40 @@ TEST_F(ParserTest, OrderOnly) {
   ASSERT_TRUE(edge->is_order_only(1));
 }
 
+TEST_F(ParserTest, ImplicitOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo | imp: cat bar\n"));
+
+  Edge* edge = state.LookupNode("imp")->in_edge();
+  ASSERT_EQ(edge->outputs_.size(), 2);
+  EXPECT_TRUE(edge->is_implicit_out(1));
+}
+
+TEST_F(ParserTest, ImplicitOutputEmpty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo | : cat bar\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(edge->outputs_.size(), 1);
+  EXPECT_FALSE(edge->is_implicit_out(0));
+}
+
+TEST_F(ParserTest, NoExplicitOutput) {
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build | imp : cat bar\n", &err));
+  ASSERT_EQ("input:3: expected path\n"
+            "build | imp : cat bar\n"
+            "      ^ near here", err);
+}
+
 TEST_F(ParserTest, DefaultDefault) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n  command = cat $in > $out\n"

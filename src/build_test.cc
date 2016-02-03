@@ -717,6 +717,22 @@ TEST_F(BuildTest, TwoOutputs) {
   EXPECT_EQ("touch out1 out2", command_runner_.commands_ran_[0]);
 }
 
+TEST_F(BuildTest, ImplicitOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out $out.imp\n"
+"build out | out.imp: touch in.txt\n"));
+  fs_.Create("in.txt", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[0]);
+}
+
 // Test case from
 //   https://github.com/ninja-build/ninja/issues/148
 TEST_F(BuildTest, MultiOutIn) {

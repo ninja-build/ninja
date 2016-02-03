@@ -248,6 +248,20 @@ bool ManifestParser::ParseEdge(string* err) {
     } while (!out.empty());
   }
 
+  // Add all implicit outs, counting how many as we go.
+  int implicit_outs = 0;
+  if (lexer_.PeekToken(Lexer::PIPE)) {
+    for (;;) {
+      EvalString out;
+      if (!lexer_.ReadPath(&out, err))
+        return err;
+      if (out.empty())
+        break;
+      outs.push_back(out);
+      ++implicit_outs;
+    }
+  }
+
   if (!ExpectToken(Lexer::COLON, err))
     return false;
 
@@ -351,6 +365,7 @@ bool ManifestParser::ParseEdge(string* err) {
     delete edge;
     return true;
   }
+  edge->implicit_outs_ = implicit_outs;
 
   edge->inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
