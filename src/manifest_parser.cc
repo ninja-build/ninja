@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <vector>
 
+#include "disk_interface.h"
 #include "graph.h"
 #include "metrics.h"
 #include "state.h"
@@ -35,7 +36,7 @@ bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
-  if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
+  if (file_reader_->ReadFile(filename, &contents, &read_err) != FileReader::Okay) {
     *err = "loading '" + filename + "': " + read_err;
     if (parent)
       parent->Error(string(*err), err);

@@ -157,8 +157,12 @@ TEST_F(DiskInterfaceTest, StatCache) {
 
 TEST_F(DiskInterfaceTest, ReadFile) {
   string err;
-  EXPECT_EQ("", disk_.ReadFile("foobar", &err));
-  EXPECT_EQ("", err);
+  std::string content;
+  ASSERT_EQ(DiskInterface::NotFound,
+            disk_.ReadFile("foobar", &content, &err));
+  EXPECT_EQ("", content);
+  EXPECT_NE("", err); // actual value is platform-specific
+  err.clear();
 
   const char* kTestFile = "testfile";
   FILE* f = fopen(kTestFile, "wb");
@@ -167,7 +171,9 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   fprintf(f, "%s", kTestContent);
   ASSERT_EQ(0, fclose(f));
 
-  EXPECT_EQ(kTestContent, disk_.ReadFile(kTestFile, &err));
+  ASSERT_EQ(DiskInterface::Okay,
+            disk_.ReadFile(kTestFile, &content, &err));
+  EXPECT_EQ(kTestContent, content);
   EXPECT_EQ("", err);
 }
 
@@ -208,9 +214,9 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return false;
   }
-  virtual string ReadFile(const string& path, string* err) {
+  virtual Status ReadFile(const string& path, string* contents, string* err) {
     assert(false);
-    return "";
+    return NotFound;
   }
   virtual int RemoveFile(const string& path) {
     assert(false);

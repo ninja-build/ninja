@@ -21,13 +21,29 @@ using namespace std;
 
 #include "timestamp.h"
 
+/// Interface for reading files from disk.  See DiskInterface for details.
+/// This base offers the minimum interface needed just to read files.
+struct FileReader {
+  virtual ~FileReader() {}
+
+  /// Result of ReadFile.
+  enum Status {
+    Okay,
+    NotFound,
+    OtherError
+  };
+
+  /// Read and store in given string.  On success, return Okay.
+  /// On error, return another Status and fill |err|.
+  virtual Status ReadFile(const string& path, string* contents,
+                          string* err) = 0;
+};
+
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
-struct DiskInterface {
-  virtual ~DiskInterface() {}
-
+struct DiskInterface: public FileReader {
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
   virtual TimeStamp Stat(const string& path, string* err) const = 0;
@@ -38,9 +54,6 @@ struct DiskInterface {
   /// Create a file, with the specified name and contents
   /// Returns true on success, false on failure
   virtual bool WriteFile(const string& path, const string& contents) = 0;
-
-  /// Read a file to a string.  Fill in |err| on error.
-  virtual string ReadFile(const string& path, string* err) = 0;
 
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
@@ -65,7 +78,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
-  virtual string ReadFile(const string& path, string* err);
+  virtual Status ReadFile(const string& path, string* contents, string* err);
   virtual int RemoveFile(const string& path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.

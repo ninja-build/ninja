@@ -21,30 +21,17 @@
 #include "state.h"
 #include "test.h"
 
-struct ParserTest : public testing::Test,
-                    public ManifestParser::FileReader {
+struct ParserTest : public testing::Test {
   void AssertParse(const char* input) {
-    ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+    ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
     string err;
     EXPECT_TRUE(parser.ParseTest(input, &err));
     ASSERT_EQ("", err);
     VerifyGraph(state);
   }
 
-  virtual bool ReadFile(const string& path, string* content, string* err) {
-    files_read_.push_back(path);
-    map<string, string>::iterator i = files_.find(path);
-    if (i == files_.end()) {
-      *err = "No such file or directory";  // Match strerror() for ENOENT.
-      return false;
-    }
-    *content = i->second;
-    return true;
-  }
-
   State state;
-  map<string, string> files_;
-  vector<string> files_read_;
+  VirtualFileSystem fs_;
 };
 
 TEST_F(ParserTest, Empty) {
@@ -371,22 +358,22 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
 "build out1 out2: cat in1\n"
 "build out1: cat in2\n"
 "build final: cat out1\n";
-  ManifestParser parser(&state, this, kDupeEdgeActionError);
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionError);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
 }
 
 TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
-  files_["sub.ninja"] =
+  fs_.Create("sub.ninja",
     "rule cat\n"
     "  command = cat $in > $out\n"
     "build out1 out2: cat in1\n"
     "build out1: cat in2\n"
-    "build final: cat out1\n";
+    "build final: cat out1\n");
   const char kInput[] =
     "subninja sub.ninja\n";
-  ManifestParser parser(&state, this, kDupeEdgeActionError);
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionError);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("sub.ninja:5: multiple rules generate out1 [-w dupbuild=err]\n",
@@ -813,7 +800,7 @@ TEST_F(ParserTest, Errors) {
 
 TEST_F(ParserTest, MissingInput) {
   State state;
-  ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
   string err;
   EXPECT_FALSE(parser.Load("build.ninja", &err));
   EXPECT_EQ("loading 'build.ninja': No such file or directory", err);
@@ -841,9 +828,9 @@ TEST_F(ParserTest, MultipleOutputsWithDeps) {
 }
 
 TEST_F(ParserTest, SubNinja) {
-  files_["test.ninja"] =
+  fs_.Create("test.ninja",
     "var = inner\n"
-    "build $builddir/inner: varref\n";
+    "build $builddir/inner: varref\n");
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "builddir = some_dir/\n"
 "rule varref\n"
@@ -852,9 +839,9 @@ TEST_F(ParserTest, SubNinja) {
 "build $builddir/outer: varref\n"
 "subninja test.ninja\n"
 "build $builddir/outer2: varref\n"));
-  ASSERT_EQ(1u, files_read_.size());
+  ASSERT_EQ(1u, fs_.files_read_.size());
 
-  EXPECT_EQ("test.ninja", files_read_[0]);
+  EXPECT_EQ("test.ninja", fs_.files_read_[0]);
   EXPECT_TRUE(state.LookupNode("some_dir/outer"));
   // Verify our builddir setting is inherited.
   EXPECT_TRUE(state.LookupNode("some_dir/inner"));
@@ -866,7 +853,7 @@ TEST_F(ParserTest, SubNinja) {
 }
 
 TEST_F(ParserTest, MissingSubNinja) {
-  ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
   string err;
   EXPECT_FALSE(parser.ParseTest("subninja foo.ninja\n", &err));
   EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
@@ -877,9 +864,9 @@ TEST_F(ParserTest, MissingSubNinja) {
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
   // Test that rules are scoped to subninjas.
-  files_["test.ninja"] = "rule cat\n"
-                         "  command = cat\n";
-  ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+  fs_.Create("test.ninja", "rule cat\n"
+                         "  command = cat\n");
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
   string err;
   EXPECT_TRUE(parser.ParseTest("rule cat\n"
                                 "  command = cat\n"
@@ -888,11 +875,11 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjasWithInclude) {
   // Test that rules are scoped to subninjas even with includes.
-  files_["rules.ninja"] = "rule cat\n"
-                         "  command = cat\n";
-  files_["test.ninja"] = "include rules.ninja\n"
-                         "build x : cat\n";
-  ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+  fs_.Create("rules.ninja", "rule cat\n"
+                         "  command = cat\n");
+  fs_.Create("test.ninja", "include rules.ninja\n"
+                         "build x : cat\n");
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
   string err;
   EXPECT_TRUE(parser.ParseTest("include rules.ninja\n"
                                 "subninja test.ninja\n"
@@ -900,19 +887,19 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjasWithInclude) {
 }
 
 TEST_F(ParserTest, Include) {
-  files_["include.ninja"] = "var = inner\n";
+  fs_.Create("include.ninja", "var = inner\n");
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "var = outer\n"
 "include include.ninja\n"));
 
-  ASSERT_EQ(1u, files_read_.size());
-  EXPECT_EQ("include.ninja", files_read_[0]);
+  ASSERT_EQ(1u, fs_.files_read_.size());
+  EXPECT_EQ("include.ninja", fs_.files_read_[0]);
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
 }
 
 TEST_F(ParserTest, BrokenInclude) {
-  files_["include.ninja"] = "build\n";
-  ManifestParser parser(&state, this, kDupeEdgeActionWarn);
+  fs_.Create("include.ninja", "build\n");
+  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
   string err;
   EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
   EXPECT_EQ("include.ninja:1: expected path\n"
