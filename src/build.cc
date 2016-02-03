@@ -126,8 +126,15 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     PrintStatus(edge);
 
   // Print the command that is spewing before printing its output.
-  if (!success)
-    printer_.PrintOnNewLine("FAILED: " + edge->EvaluateCommand() + "\n");
+  if (!success) {
+    string outputs;
+    for (vector<Node*>::const_iterator o = edge->outputs_.begin();
+         o != edge->outputs_.end(); ++o)
+      outputs += (*o)->path() + " ";
+
+    printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
+  }
 
   if (!output.empty()) {
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
