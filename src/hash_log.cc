@@ -39,10 +39,10 @@ static const char     kFileSignature[] = "# ninjahashlog\n";
 /// the current hash log version, the datatype sizes
 /// for time stamps and hashes and the maximum file path length
 /// to detect incompatibilities
-static const uint32_t kCurrentVersion  = 4;
+static const uint32_t kCurrentVersion  = 5;
 static const uint32_t kHash_TSize = sizeof(HashLog::hash_t);
 static const uint32_t kTimestampSize = sizeof(TimeStamp);
-static const uint32_t kMaxFileNameLength = 1024;
+static const uint32_t kMaxRecordSize = 1024;
 
 HashLog::~HashLog() {
   Close();
@@ -57,27 +57,27 @@ bool HashLog::PutHash(const string &path, const hash_t hash,
     }
   }
 
-  // don't put any entry of too long paths
-  if (path.size() > kMaxFileNameLength) {
-    // as this is not an error, but a limitation, returning false is sufficient
-    // indicating that no hash has been persisted, but there was also no real
-    // error to deal with
-    return false;
-  }
-
   const key_t key(variant, path);
   // check whether we really need to push this entry (already there?)
   map_t::iterator it = hash_map_.lower_bound(key);
   if (it == hash_map_.end() || it->first         != key
                             || it->second.hash_  != hash
                             || it->second.mtime_ != mtime) {
+    int path_size = path.size();
+    int record_size = sizeof(hash) + sizeof(mtime) + sizeof(variant) + path_size;
+    int padding = (4 - record_size % 4) % 4;  // Pad record to 4 byte boundary.
+    unsigned size = record_size + padding;
 
-    // persist the file path (null terminated)
-    if (fputs(path.c_str(), file_) == EOF) {
-      *err = strerror(errno);
+    // don't put any entry of too long paths
+    if (size > kMaxRecordSize) {
+      // as this is not an error, but a limitation, returning false is sufficient
+      // indicating that no hash has been persisted, but there was also no real
+      // error to deal with
       return false;
     }
-    if (fputc('\0', file_) == EOF) {
+
+    // persist the record size
+    if (fwrite(&size, 4, 1, file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -96,6 +96,18 @@ bool HashLog::PutHash(const string &path, const hash_t hash,
 
     // persist the variant
     if (fwrite(&variant, sizeof(variant), 1, file_) < 1) {
+      *err = strerror(errno);
+      return false;
+    }
+
+    // persist the file path
+    if (fwrite(path.data(), path_size, 1, file_) < 1) {
+      *err = strerror(errno);
+      return false;
+    }
+
+    // padding
+    if (padding && fwrite("\0\0", padding, 1, file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -127,7 +139,7 @@ bool HashLog::UpdateHash(Node* node, const hash_variant variant,
 
   // early exit for files with too long file name
   // if we would go ahead and let ninja stat the file, it will fail
-  if (node->path().length() > kMaxFileNameLength) {
+  if (node->path().size() + sizeof(hash_t) + sizeof(hash_variant) + sizeof(TimeStamp) > kMaxRecordSize) {
     return false;
   }
 
@@ -356,7 +368,6 @@ bool HashLog::Load(string* err) {
   METRIC_RECORD(string(kHashLogFileName) + " load");
 
   // open up the file
-  char buf[sizeof(kFileSignature)];
   file_ = fopen(filename_.c_str(), "a+b");
   if (!file_) {
     *err = strerror(errno);
@@ -390,8 +401,8 @@ bool HashLog::Load(string* err) {
       *err = strerror(errno);
       return false;
     }
-    // the maximum filename length used
-    if (fwrite(&kMaxFileNameLength, sizeof(kMaxFileNameLength), 1, file_) < 1) {
+    // the maximum record size used
+    if (fwrite(&kMaxRecordSize, sizeof(kMaxRecordSize), 1, file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -412,88 +423,84 @@ bool HashLog::Load(string* err) {
   uint32_t version = 0;
   uint32_t hash_t_size = 0;
   uint32_t timestamp_size = 0;
-  uint32_t maxfilename_size = 0;
+  uint32_t maxrecordsize = 0;
+  char buf[kMaxRecordSize + 1];
 
   // validate the header
   if (!fgets(buf, sizeof(buf), file_)
          || fread(&version,          sizeof(version),          1, file_) < 1
          || fread(&hash_t_size,      sizeof(hash_t_size),      1, file_) < 1
          || fread(&timestamp_size,   sizeof(timestamp_size),   1, file_) < 1
-         || fread(&maxfilename_size, sizeof(maxfilename_size), 1, file_) < 1 ) {
+         || fread(&maxrecordsize,    sizeof(maxrecordsize), 1, file_) < 1 ) {
     valid_header = false;
   }
   if (!valid_header || strcmp(buf, kFileSignature) != 0
                     || version != kCurrentVersion
                     || hash_t_size != kHash_TSize
                     || timestamp_size != kTimestampSize
-                    || maxfilename_size != kMaxFileNameLength) {
+                    || maxrecordsize != kMaxRecordSize) {
     *err = "incompatible hash log, resetting";
     Close();
     unlink(filename_.c_str());
     return Load(err);
   }
 
-  // read path/hash/mtime/variant tuple stream
+  // read hash/mtime/variant/path tuple stream
+  bool read_failed = false;
 
-  char path_raw[kMaxFileNameLength];
   for (;;) {
-    // read the null terminated path
-    char* str = path_raw;
-    int c;
-    size_t count = 0;
-    do {
-      c = fgetc(file_);
-      if (c == EOF) {
-          break;
-      } else {
-        *str = (char) c;
-        ++count;
-      }
-    } while((*str++ != '\0') && (count < kMaxFileNameLength));
-    bool key_read = (c != EOF && count < kMaxFileNameLength);
-    std::string path(path_raw);
+    unsigned size = 0;
+    char *str = buf;
+    int bytes_read = fread(&size, 1, 4, file_);
+
+    if (bytes_read < 4) {
+      if (bytes_read != 0 || !feof(file_))
+        read_failed = true;
+      break;
+    }
+
+    if (size > kMaxRecordSize || fread(buf, size, 1, file_) < 1) {
+      read_failed = true;
+      break;
+    }
 
     // read the hash
-    hash_t hash = 0;
-    const size_t val_read = fread(&hash, sizeof(hash_t), 1, file_);
+    hash_t hash = *reinterpret_cast<hash_t*>(str);
+    str += sizeof(hash);
 
     // read the mtime
-    TimeStamp mtime = 0;
-    const size_t mtime_read = fread(&mtime, sizeof(TimeStamp), 1, file_);
+    TimeStamp mtime = *reinterpret_cast<TimeStamp*>(str);
+    str += sizeof(mtime);
 
     // read the variant
-    hash_variant variant = UNDEFINED;
-    const size_t variant_read = fread(&variant, sizeof(hash_variant), 1, file_);
+    hash_variant variant = *reinterpret_cast<hash_variant*>(str);
+    str += sizeof(hash_variant);
 
-    // consistency check
-    // either we read a value for every element or we read nothing at all
-    // in case this is inconsistent, we consider the log to be corrupt
-    if (!key_read || val_read != 1 || mtime_read != 1 || variant_read != 1) {
-      if (!key_read            && count   == 0
-          && val_read     == 0 && hash    == 0
-          && mtime_read   == 0 && mtime   == 0
-          && variant_read == 0 && variant == UNDEFINED
-          && feof(file_)) {
-        // all fine -- all values are untouched and we see eof
-        break;
-      } else {
-        // the log is not consistent / corrupt
-        *err = "the log was corrupted, resetting";
-        Close();
-        unlink(filename_.c_str());
-        return Load(err);
-      }
-    } else { // all fine, ready to store it internally
-      const key_t key(variant, path);
-      map_t::iterator it = hash_map_.lower_bound(key);
-      if (it != hash_map_.end() && it->first == key) {
-        it->second.hash_  = hash;
-        it->second.mtime_ = mtime;
-      } else {
-        hash_map_.insert(it, map_t::value_type(key, mapped_t(hash, mtime)));
-      }
-      ++total_values_;
+    size_t path_size = size - (str - buf);
+
+    // There can be up to 3 bytes of padding.
+    if (str[path_size - 1] == '\0') --path_size;
+    if (str[path_size - 1] == '\0') --path_size;
+    if (str[path_size - 1] == '\0') --path_size;
+
+    std::string path(str, path_size);
+
+    const key_t key(variant, path);
+    map_t::iterator it = hash_map_.lower_bound(key);
+    if (it != hash_map_.end() && it->first == key) {
+      it->second.hash_  = hash;
+      it->second.mtime_ = mtime;
+    } else {
+      hash_map_.insert(it, map_t::value_type(key, mapped_t(hash, mtime)));
     }
+    ++total_values_;
+  }
+
+  if (read_failed) {
+    *err = "the log was corrupted, resetting";
+    Close();
+    unlink(filename_.c_str());
+    return Load(err);
   }
 
   Recompact(err);
