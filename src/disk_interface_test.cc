@@ -200,6 +200,15 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
   EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
 }
 
+TEST_F(DiskInterfaceTest, HashFile) {
+  const char* kFileName  = "file-to-hash";
+  const char kTestCont[] = "test-content";
+  string err;
+  ASSERT_TRUE(disk_.WriteFile(kFileName, kTestCont));
+  ASSERT_EQ(disk_.HashFile(kFileName, &err), MurmurHash2(kTestCont, 12));
+  ASSERT_TRUE(err.empty());
+}
+
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this) {}

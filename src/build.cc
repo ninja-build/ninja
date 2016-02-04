@@ -820,6 +820,15 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
+  // if defined for this rule hash all inputs for further comparison
+  // in subsequent builds
+  if (edge->GetBindingBool("hash_input") && !config_.dry_run) {
+    scan_.hash_log().EdgeFinished(edge, err);
+    if (!err->empty()) {
+        return false; // delegate error handling to caller
+    }
+  }
+
   plan_.EdgeFinished(edge);
 
   // Delete any left over response file.

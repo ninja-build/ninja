@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "hash_log.h"
 #include "timestamp.h"
 
 struct BuildLog;
@@ -243,7 +244,8 @@ struct DependencyScan {
                  DiskInterface* disk_interface)
       : build_log_(build_log),
         disk_interface_(disk_interface),
-        dep_loader_(state, deps_log, disk_interface) {}
+        dep_loader_(state, deps_log, disk_interface),
+        hash_log_(kHashLogFileName, disk_interface) {}
 
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
@@ -267,6 +269,10 @@ struct DependencyScan {
     return dep_loader_.deps_log();
   }
 
+  HashLog& hash_log() {
+    return hash_log_;
+  }
+
  private:
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
@@ -276,6 +282,7 @@ struct DependencyScan {
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
+  HashLog hash_log_;
 };
 
 #endif  // NINJA_GRAPH_H_
