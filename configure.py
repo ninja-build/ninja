@@ -527,11 +527,46 @@ ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
 n.newline()
 all_targets += ninja
 
+ninja_writer.comment('Regenerate build files if build script changes.')
+ninja_writer.rule('configure',
+                  command='${configure_env}%s $root/configure.py $configure_args' %
+                  options.with_python,
+                  generator=True)
+ninja_writer.build([BUILD_FILENAME] + ([BUILD_FILENAME + ".force"] if options.bootstrap else []),
+                   'configure', implicit=['$root/configure.py',
+                   os.path.normpath('$root/misc/ninja_syntax.py')])
+ninja_writer.newline()
+
 if options.bootstrap:
     # We've built the ninja binary.  Don't run any more commands
     # through the bootstrap executor, but continue writing the
     # build.ninja file.
-    n = ninja_writer
+    print('bootstrap complete.  rebuilding...')
+    ninja_writer.close()
+
+    rebuild_args = []
+
+    if platform.can_rebuild_in_place():
+        rebuild_args.append('./ninja')
+    else:
+        if platform.is_windows():
+            bootstrap_exe = 'ninja.bootstrap.exe'
+            final_exe = 'ninja.exe'
+        else:
+            bootstrap_exe = './ninja.bootstrap'
+            final_exe = './ninja'
+
+        if os.path.exists(bootstrap_exe):
+            os.unlink(bootstrap_exe)
+        os.rename(final_exe, bootstrap_exe)
+
+        rebuild_args.append(bootstrap_exe)
+
+    if options.verbose:
+        rebuild_args.append('-v')
+
+    subprocess.check_call(rebuild_args)
+    sys.exit(0)
 
 n.comment('Tests all build into ninja_test executable.')
 
@@ -626,17 +661,6 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if not host.is_mingw():
-    n.comment('Regenerate build files if build script changes.')
-    n.rule('configure',
-           command='${configure_env}%s $root/configure.py $configure_args' %
-               options.with_python,
-           generator=True)
-    n.build('build.ninja', 'configure',
-            implicit=['$root/configure.py',
-                      os.path.normpath('$root/misc/ninja_syntax.py')])
-    n.newline()
-
 n.default(ninja)
 n.newline()
 
@@ -652,29 +676,3 @@ n.build('all', 'phony', all_targets)
 
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
-
-if options.bootstrap:
-    print('bootstrap complete.  rebuilding...')
-
-    rebuild_args = []
-
-    if platform.can_rebuild_in_place():
-        rebuild_args.append('./ninja')
-    else:
-        if platform.is_windows():
-            bootstrap_exe = 'ninja.bootstrap.exe'
-            final_exe = 'ninja.exe'
-        else:
-            bootstrap_exe = './ninja.bootstrap'
-            final_exe = './ninja'
-
-        if os.path.exists(bootstrap_exe):
-            os.unlink(bootstrap_exe)
-        os.rename(final_exe, bootstrap_exe)
-
-        rebuild_args.append(bootstrap_exe)
-
-    if options.verbose:
-        rebuild_args.append('-v')
-
-    subprocess.check_call(rebuild_args)
