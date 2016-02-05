@@ -488,6 +488,7 @@ for name in ['build',
              'manifest_parser',
              'metrics',
              'state',
+             'unixcc_parser',
              'util',
              'version']:
     objs += cxx(name)
@@ -586,6 +587,7 @@ for name in ['build_log_test',
              'state_test',
              'subprocess_test',
              'test',
+             'unixcc_parser_test',
              'util_test']:
     objs += cxx(name)
 if platform.is_windows():
