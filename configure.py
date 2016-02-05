@@ -24,6 +24,7 @@ from __future__ import print_function
 from optparse import OptionParser
 import os
 import pipes
+import errno
 import string
 import subprocess
 import sys
@@ -77,6 +78,13 @@ class Platform(object):
 
     def is_msvc(self):
         return self._platform == 'msvc'
+
+    def is_solaris_studio(self):
+        popen = subprocess.Popen([CXX, "-verbose=version"],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT)
+        out, _ = popen.communicate()
+        return b'Sun C++' in out
 
     def msvc_needs_fs(self):
         popen = subprocess.Popen(['cl', '/nologo', '/?'],
@@ -323,6 +331,20 @@ if platform.is_msvc():
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
+elif platform.is_solaris() and platform.is_solaris_studio():
+    cflags = ['-g', '-H', '-w',
+              '-features=no%rtti',
+              '-features=no%except',
+              '-library=stlport4',
+              '-DNINJA_PYTHON="%s"' % options.with_python]
+    if options.bootstrap:
+        # In bootstrap mode, we have no ninja process to catch -H output.
+        cflags.remove('-H')
+    if options.debug:
+        cflags += ['-xO0', '-g3']
+    else:
+        cflags += ['-xO3']
+    ldflags = ['-L$builddir', '-library=stlport4']
 else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
@@ -352,14 +374,14 @@ else:
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
         ldflags.append('-L/usr/local/lib')
+    if platform.is_solaris():
+        cflags.remove('-fvisibility=hidden')
 
 libs = []
 
 if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
-elif platform.is_solaris():
-    cflags.remove('-fvisibility=hidden')
 elif platform.is_aix():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
@@ -405,6 +427,12 @@ if platform.is_msvc():
         description='CXX $out',
         deps='msvc'  # /showIncludes is included in $cflags.
     )
+elif platform.is_solaris() and platform.is_solaris_studio():
+    n.rule('cxx',
+        command='$cxx $cflags -c $in -o $out',
+        depfile='$out.d',
+        deps='unixcc',
+        description='CXX $out')
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',

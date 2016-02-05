@@ -15,7 +15,7 @@
 #ifndef NINJA_BUILD_H_
 #define NINJA_BUILD_H_
 
-#include <cstdio>
+#include <stdio.h>
 #include <map>
 #include <memory>
 #include <queue>

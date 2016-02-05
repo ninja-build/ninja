@@ -87,6 +87,18 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
   }
 };
 
+#elif defined(__SUNPRO_CC)
+#include <hash_map>
+
+namespace std {
+template<>
+struct hash<StringPiece> {
+  size_t operator()(StringPiece key) const {
+    return MurmurHash2(key.str_, key.len_);
+  }
+};
+}
+
 #else
 #include <ext/hash_map>
 

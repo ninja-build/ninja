@@ -26,6 +26,9 @@
 #else
 #include <unistd.h>
 #endif
+#ifdef __sun
+#include <stdlib.h>
+#endif
 
 #include "build_log.h"
 #include "graph.h"
