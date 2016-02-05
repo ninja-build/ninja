@@ -33,6 +33,7 @@
 #include "msvc_helper.h"
 #include "state.h"
 #include "subprocess.h"
+#include "unixcc_parser.h"
 #include "util.h"
 
 namespace {
@@ -912,6 +913,15 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
         *err = string("deleting depfile: ") + strerror(errno) + string("\n");
         return false;
       }
+    }
+  } else if (deps_type == "unixcc") {
+    UnixCCParser parser;
+    string output;
+    parser.Parse(result->output, &output);
+    result->output = output;
+    for (set<string>::iterator i = parser.includes_.begin();
+         i != parser.includes_.end(); ++i) {
+      deps_nodes->push_back(state_->GetNode(*i, 0));
     }
   } else {
     Fatal("unknown deps type '%s'", deps_type.c_str());
