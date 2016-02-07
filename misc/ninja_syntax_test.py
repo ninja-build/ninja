@@ -154,6 +154,13 @@ build out: cc in
 ''',
                          self.out.getvalue())
 
+    def test_implicit_outputs(self):
+        self.n.build('o', 'cc', 'i', implicit_outputs='io')
+        self.assertEqual('''\
+build o | io: cc i
+''',
+                         self.out.getvalue())
+
 class TestExpand(unittest.TestCase):
     def test_basic(self):
         vars = {'x': 'X'}

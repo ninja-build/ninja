@@ -60,7 +60,7 @@ class Writer(object):
             self.variable('deps', deps, indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
-              variables=None):
+              variables=None, implicit_outputs=None):
         outputs = as_list(outputs)
         out_outputs = [escape_path(x) for x in outputs]
         all_inputs = [escape_path(x) for x in as_list(inputs)]
@@ -73,6 +73,11 @@ class Writer(object):
             order_only = [escape_path(x) for x in as_list(order_only)]
             all_inputs.append('||')
             all_inputs.extend(order_only)
+        if implicit_outputs:
+            implicit_outputs = [escape_path(x)
+                                for x in as_list(implicit_outputs)]
+            out_outputs.append('|')
+            out_outputs.extend(implicit_outputs)
 
         self._line('build %s: %s' % (' '.join(out_outputs),
                                      ' '.join([rule] + all_inputs)))
