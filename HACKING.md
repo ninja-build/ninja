@@ -56,8 +56,8 @@ particular, new build file syntax or command-line flags) or increase
 the maintenance burden of Ninja.  Ninja is already successfully used
 by hundreds of developers for large projects and it already achieves
 (most of) the goals I set out for it to do.  It's probably best to
-discuss new feature ideas on the mailing list before I shoot down your
-patch.
+discuss new feature ideas on the [mailing list](https://groups.google.com/forum/#!forum/ninja-build)
+before I shoot down your patch.
 
 ## Testing
 
