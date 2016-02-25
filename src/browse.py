@@ -31,7 +31,10 @@ import socket
 import subprocess
 import sys
 import webbrowser
-import urllib2
+try:
+    from urllib.request import unquote
+except ImportError:
+    from urllib2 import unquote
 from collections import namedtuple
 
 Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
@@ -154,7 +157,7 @@ def ninja_dump(target):
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path[0] == '/'
-        target = urllib2.unquote(self.path[1:])
+        target = unquote(self.path[1:])
 
         if target == '':
             self.send_response(302)
