@@ -223,7 +223,8 @@ found useful during Ninja's development.  The current tools are:
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
 file focuses the view on that file, showing inputs and outputs.  This
-feature requires a Python installation.
+feature requires a Python installation. The `PORT` environment variable
+can be used to override the default port number (8000).
 
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
 graph layout tool.  Use it like:

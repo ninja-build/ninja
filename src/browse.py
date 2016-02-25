@@ -182,7 +182,7 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Swallow console spam.
 
-port = 8000
+port = int(os.getenv("PORT", '8000'))
 httpd = httpserver.HTTPServer(('',port), RequestHandler)
 try:
     hostname = socket.gethostname()
