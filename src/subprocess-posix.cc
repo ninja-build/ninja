@@ -70,11 +70,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         break;
 
       if (!use_console_) {
-        // Put the child in its own session and process group. It will be
-        // detached from the current terminal and ctrl-c won't reach it.
-        // Since this process was just forked, it is not a process group leader
-        // and setsid() will succeed.
-        if (setsid() < 0)
+        // Put the child in its own process group, so ctrl-c won't reach it.
+        if (setpgid(0, 0) < 0)
           break;
 
         // Open /dev/null over stdin.

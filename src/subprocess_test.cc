@@ -16,8 +16,6 @@
 
 #include "test.h"
 
-#include <string>
-
 #ifndef _WIN32
 // SetWithLots need setrlimit.
 #include <stdio.h>
@@ -146,22 +144,11 @@ TEST_F(SubprocessTest, InterruptParentWithSigHup) {
   ASSERT_FALSE("We should have been interrupted");
 }
 
-// A shell command to check if the current process is connected to a terminal.
-// This is different from having stdin/stdout/stderr be a terminal. (For
-// instance consider the command "yes < /dev/null > /dev/null 2>&1".
-// As "ps" will confirm, "yes" could still be connected to a terminal, despite
-// not having any of the standard file descriptors be a terminal.
-static const char kIsConnectedToTerminal[] = "tty < /dev/tty > /dev/null";
-
 TEST_F(SubprocessTest, Console) {
   // Skip test if we don't have the console ourselves.
   if (isatty(0) && isatty(1) && isatty(2)) {
-    // Test that stdin, stdout and stderr are a terminal.
-    // Also check that the current process is connected to a terminal.
     Subprocess* subproc =
-        subprocs_.Add(string("test -t 0 -a -t 1 -a -t 2 && ") +
-                      string(kIsConnectedToTerminal),
-                      /*use_console=*/true);
+        subprocs_.Add("test -t 0 -a -t 1 -a -t 2", /*use_console=*/true);
     ASSERT_NE((Subprocess*)0, subproc);
 
     while (!subproc->Done()) {
@@ -170,18 +157,6 @@ TEST_F(SubprocessTest, Console) {
 
     EXPECT_EQ(ExitSuccess, subproc->Finish());
   }
-}
-
-TEST_F(SubprocessTest, NoConsole) {
-  Subprocess* subproc =
-      subprocs_.Add(kIsConnectedToTerminal, /*use_console=*/false);
-  ASSERT_NE((Subprocess*)0, subproc);
-
-  while (!subproc->Done()) {
-    subprocs_.DoWork();
-  }
-
-  EXPECT_NE(ExitSuccess, subproc->Finish());
 }
 
 #endif
