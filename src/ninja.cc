@@ -1159,6 +1159,7 @@ int real_main(int argc, char** argv) {
 
 int main(int argc, char** argv) {
 #if defined(_MSC_VER)
+error
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
   std::set_terminate(TerminateHandler);
