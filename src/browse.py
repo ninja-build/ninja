@@ -150,8 +150,8 @@ def generate_html(node):
     return '\n'.join(document)
 
 def ninja_dump(target):
-    proc = subprocess.Popen([args.ninja_command, '-t', 'query', target],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    cmd = [args.ninja_command, '-f', args.f, '-t', 'query', target]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             universal_newlines=True)
     return proc.communicate() + (proc.returncode,)
 
@@ -194,6 +194,8 @@ parser.add_argument('--no-browser', action='store_true',
 
 parser.add_argument('--ninja-command', default='ninja',
     help='Path to ninja binary (default %(default)s)')
+parser.add_argument('-f', default='build.ninja',
+    help='Path to build.ninja file (default %(default)s)')
 parser.add_argument('initial_target', default='all', nargs='?',
     help='Initial target to show (default %(default)s)')
 
