@@ -93,7 +93,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       // In the console case, output_pipe is still inherited by the child and
       // closed when the subprocess finishes, which then notifies ninja.
 
-      execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *) NULL);
+      execl(NINJA_SUBPROCESS_SHELL, NINJA_SUBPROCESS_SHELL,
+            "-c", command.c_str(), (char *) NULL);
     } while (false);
 
     // If we get here, something went wrong; the execl should have
