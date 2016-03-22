@@ -52,6 +52,9 @@ struct Plan {
   /// Returns true if there's more work to be done.
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
+  /// Returns true if there's more edges ready to start
+  bool more_ready() const { return !ready_.empty(); }
+
   /// Dumps the current state of the plan.
   void Dump() const;
 
