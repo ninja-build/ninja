@@ -19,9 +19,10 @@ struct State;
 
 /// Run in "browse" mode, which execs a Python webserver.
 /// \a ninja_command is the command used to invoke ninja.
-/// \a initial_target is the first target to load.
+/// \a args are the number of arguments to be passed to the Python script.
+/// \a argv are arguments to be passed to the Python script.
 /// This function does not return if it runs successfully.
 void RunBrowsePython(State* state, const char* ninja_command,
-                     const char* initial_target);
+                     int argc, char* argv[]);
 
 #endif  // NINJA_BROWSE_H_

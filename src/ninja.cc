@@ -371,11 +371,7 @@ int NinjaMain::ToolQuery(int argc, char* argv[]) {
 
 #if defined(NINJA_HAVE_BROWSE)
 int NinjaMain::ToolBrowse(int argc, char* argv[]) {
-  if (argc < 1) {
-    Error("expected a target to browse");
-    return 1;
-  }
-  RunBrowsePython(&state_, ninja_command_, argv[0]);
+  RunBrowsePython(&state_, ninja_command_, argc, argv);
   // If we get here, the browse failed.
   return 1;
 }

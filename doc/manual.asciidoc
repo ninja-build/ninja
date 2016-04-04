@@ -223,8 +223,13 @@ found useful during Ninja's development.  The current tools are:
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
 file focuses the view on that file, showing inputs and outputs.  This
-feature requires a Python installation.
-
+feature requires a Python installation. By default port 8000 is used
+and a web browser will be opened. This can be changed as follows:
++
+----
+ninja -t browse --port=8000 --no-browser mytarget
+----
++
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
 graph layout tool.  Use it like:
 +
