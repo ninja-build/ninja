@@ -30,6 +30,11 @@
 #include <unistd.h>
 #endif
 
+#if defined(USE_VFORK)
+#include <fcntl.h>
+#include <signal.h>
+#endif
+
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
@@ -118,6 +123,9 @@ struct NinjaMain : public BuildLogUser {
   int ToolClean(int argc, char* argv[]);
   int ToolCompilationDatabase(int argc, char* argv[]);
   int ToolRecompact(int argc, char* argv[]);
+#if defined(USE_VFORK)
+  int ToolExecute(int argc, char* argv[]);
+#endif
   int ToolUrtle(int argc, char** argv);
 
   /// Open the build log.
@@ -671,6 +679,65 @@ int NinjaMain::ToolRecompact(int argc, char* argv[]) {
   return 0;
 }
 
+#if defined(USE_VFORK)
+int NinjaMain::ToolExecute(int argc, char* argv[]) {
+  if (argc != 3) {
+    printf("usage: ninja -t execute output_pipe use_console command\n\n"
+           "This tool is intended to be called by Ninja.\n\n"
+           "options:\n"
+           "  output_pipe  The open fd number that the output of the command\n"
+           "               go to\n"
+           "  use_console  Non-zero if the command uses the console\n"
+           "  command      The command to be executed\n");
+
+    return 1;
+  }
+
+  int output_pipe = atoi(argv[0]);
+  int use_console = atoi(argv[1]);
+  int error_pipe = output_pipe;
+  const char* command = argv[2];
+
+  if (output_pipe <= 1)
+    goto fail;
+
+  sigset_t sigset;
+  if (sigfillset(&sigset) < 0)
+    goto fail;
+  if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) < 0)
+    goto fail;
+
+  if (!use_console) {
+    setsid();
+
+    int devnull = open("/dev/null", O_RDONLY);
+    if (devnull < 0)
+      goto fail;
+    if (dup2(devnull, 0) < 0)
+      goto fail;
+    close(devnull);
+
+    if (dup2(output_pipe, 1) < 0)
+      goto fail;
+    if (dup2(output_pipe, 2) < 0)
+      goto fail;
+
+    error_pipe = 2;
+    close(output_pipe);
+  }
+
+  if (nice(20) < 0)
+    goto fail;
+
+  execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+
+fail:
+  char* err = strerror(errno);
+  if (write(error_pipe, err, strlen(err))) {}
+  _exit(1);
+}
+#endif
+
 int NinjaMain::ToolUrtle(int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -725,6 +792,10 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+#if defined(USE_VFORK)
+    { "execute", "internal helper tool to execute a command",
+      Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolExecute },
+#endif
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
