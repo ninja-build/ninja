@@ -14,22 +14,11 @@
 
 #include "msvc_helper.h"
 
-#include <algorithm>
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
 #include <windows.h>
 
-#include "includes_normalize.h"
 #include "util.h"
 
 namespace {
-
-/// Return true if \a input ends with \a needle.
-bool EndsWith(const string& input, const string& needle) {
-  return (input.size() >= needle.size() &&
-          input.substr(input.size() - needle.size()) == needle);
-}
 
 string Replace(const string& input, const string& find, const string& replace) {
   string result = input;
@@ -46,78 +35,6 @@ string Replace(const string& input, const string& find, const string& replace) {
 string EscapeForDepfile(const string& path) {
   // Depfiles don't escape single \.
   return Replace(path, " ", "\\ ");
-}
-
-// static
-string CLParser::FilterShowIncludes(const string& line,
-                                    const string& deps_prefix) {
-  const string kDepsPrefixEnglish = "Note: including file: ";
-  const char* in = line.c_str();
-  const char* end = in + line.size();
-  const string& prefix = deps_prefix.empty() ? kDepsPrefixEnglish : deps_prefix;
-  if (end - in > (int)prefix.size() &&
-      memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
-    in += prefix.size();
-    while (*in == ' ')
-      ++in;
-    return line.substr(in - line.c_str());
-  }
-  return "";
-}
-
-// static
-bool CLParser::IsSystemInclude(string path) {
-  transform(path.begin(), path.end(), path.begin(), ::tolower);
-  // TODO: this is a heuristic, perhaps there's a better way?
-  return (path.find("program files") != string::npos ||
-          path.find("microsoft visual studio") != string::npos);
-}
-
-// static
-bool CLParser::FilterInputFilename(string line) {
-  transform(line.begin(), line.end(), line.begin(), ::tolower);
-  // TODO: other extensions, like .asm?
-  return EndsWith(line, ".c") ||
-      EndsWith(line, ".cc") ||
-      EndsWith(line, ".cxx") ||
-      EndsWith(line, ".cpp");
-}
-
-bool CLParser::Parse(const string& output, const string& deps_prefix,
-                     string* filtered_output, string* err) {
-  // Loop over all lines in the output to process them.
-  assert(&output != filtered_output);
-  size_t start = 0;
-  while (start < output.size()) {
-    size_t end = output.find_first_of("\r\n", start);
-    if (end == string::npos)
-      end = output.size();
-    string line = output.substr(start, end - start);
-
-    string include = FilterShowIncludes(line, deps_prefix);
-    if (!include.empty()) {
-      string normalized;
-      if (!IncludesNormalize::Normalize(include, NULL, &normalized, err))
-        return false;
-      if (!IsSystemInclude(normalized))
-        includes_.insert(normalized);
-    } else if (FilterInputFilename(line)) {
-      // Drop it.
-      // TODO: if we support compiling multiple output files in a single
-      // cl.exe invocation, we should stash the filename.
-    } else {
-      filtered_output->append(line);
-      filtered_output->append("\n");
-    }
-
-    if (end < output.size() && output[end] == '\r')
-      ++end;
-    if (end < output.size() && output[end] == '\n')
-      ++end;
-    start = end;
-  }
-
-  return true;
 }
 
 int CLWrapper::Run(const string& command, string* output) {

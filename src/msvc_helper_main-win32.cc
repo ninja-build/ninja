@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <windows.h>
 
+#include "clparser.h"
 #include "util.h"
 
 #include "getopt.h"
