@@ -675,6 +675,32 @@ While a task in the `console` pool is running, Ninja's regular output (such
 as progress status and output from concurrent tasks) is buffered until
 it completes.
 
+[[ref_hash]]
+Hash Input
+~~~~~~~~~~
+
+_Available since Ninja ???_
+
+Heavy branch back-and-forth switching or rebasing often leads to a lot
+of touched files that are actually not dirty and their dependent targets
+are not outdated. Ninja supports these workflows with hash based input
+checking. Enabling this feature for a rule will consider an input dirty
+only if the content of an input file changed since the last successful build.
+
+The option can be enabled for any rule:
+
+----
+rule cc
+  ...
+  hash_input = 1
+  ...
+----
+
+Be aware that hashing has linear growing costs with input size. Hence it
+might be too expensive for linker inputs (object files, etc). But it is
+valuable for any kind of source files.
+
+
 Ninja file reference
 --------------------
 
@@ -815,6 +841,9 @@ keys.
   rules are treated specially in two ways: firstly, they will not be
   rebuilt if the command line changes; and secondly, they are not
   cleaned by default.
+
+`hash_input`:: _(Available since Ninja ???)_ if present, inputs are hashed
+  and considered dirty for a rebuild only if their content changed
 
 `in`:: the space-separated list of files provided as inputs to the build line
   referencing this `rule`, shell-quoted if it appears in commands.  (`$in` is

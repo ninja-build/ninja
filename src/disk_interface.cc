@@ -28,6 +28,8 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "hash_map.h"
+#include "metrics.h"
 #include "util.h"
 
 namespace {
@@ -148,6 +150,19 @@ bool DiskInterface::MakeDirs(const string& path) {
   if (!success)
     return false;
   return MakeDir(dir);
+}
+
+DiskInterface::hash_t DiskInterface::HashFile(const string& path, string* err) {
+  METRIC_RECORD("hash_input");
+  string content;
+  switch (ReadFile(path, &content, err)) {
+  case DiskInterface::NotFound:
+    err->clear();
+  case DiskInterface::Okay:
+    return MurmurHash2(content.c_str(), content.size());
+  default:
+    return 0;
+  }
 }
 
 // RealDiskInterface -----------------------------------------------------------

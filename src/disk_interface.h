@@ -62,6 +62,11 @@ struct DiskInterface: public FileReader {
   ///          -1 if an error occurs.
   virtual int RemoveFile(const string& path) = 0;
 
+  /// the hash type returned for HashFile()
+  typedef unsigned int hash_t;
+  /// Hash a file's content
+  hash_t HashFile(const string&, string* err);
+
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
   bool MakeDirs(const string& path);
