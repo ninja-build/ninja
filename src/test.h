@@ -93,14 +93,14 @@ extern testing::Test* g_current_test;
   if (!EXPECT_TRUE(a))  { g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_FALSE(a) \
   if (!EXPECT_FALSE(a)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_NO_FATAL_FAILURE(a)                  \
-  {                                                 \
-    int f = g_current_test->AssertionFailures();    \
-    a;                                              \
-    if (f != g_current_test->AssertionFailures()) { \
-      g_current_test->AddAssertionFailure();        \
-      return;                                       \
-    }                                               \
+#define ASSERT_NO_FATAL_FAILURE(a)                           \
+  {                                                          \
+    int fail_count = g_current_test->AssertionFailures();    \
+    a;                                                       \
+    if (fail_count != g_current_test->AssertionFailures()) { \
+      g_current_test->AddAssertionFailure();                 \
+      return;                                                \
+    }                                                        \
   }
 
 // Support utilites for tests.
