@@ -366,19 +366,22 @@ Edge* Plan::FindWork() {
 }
 
 void Plan::ScheduleWork(Edge* edge) {
+  set<Edge*>::iterator e = ready_.lower_bound(edge);
+  if (e != ready_.end() && !ready_.key_comp()(edge, *e)) {
+    // This edge has already been scheduled.  We can get here again if an edge
+    // and one of its dependencies share an order-only input, or if a node
+    // duplicates an out edge (see https://github.com/ninja-build/ninja/pull/519).
+    // Avoid scheduling the work again.
+    return;
+  }
+
   Pool* pool = edge->pool();
   if (pool->ShouldDelayEdge()) {
-    // The graph is not completely clean. Some Nodes have duplicate Out edges.
-    // We need to explicitly ignore these here, otherwise their work will get
-    // scheduled twice (see https://github.com/ninja-build/ninja/pull/519)
-    if (ready_.count(edge)) {
-      return;
-    }
     pool->DelayEdge(edge);
     pool->RetrieveReadyEdges(&ready_);
   } else {
     pool->EdgeScheduled(*edge);
-    ready_.insert(edge);
+    ready_.insert(e, edge);
   }
 }
 

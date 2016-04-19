@@ -875,6 +875,29 @@ TEST_F(BuildTest, DepFileParseError) {
   EXPECT_EQ("foo.o.d: expected ':' in depfile", err);
 }
 
+TEST_F(BuildTest, EncounterReadyTwice) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"build c: touch\n"
+"build b: touch || c\n"
+"build a: touch | b || c\n"));
+
+  vector<Edge*> c_out = GetNode("c")->out_edges();
+  ASSERT_EQ(2u, c_out.size());
+  EXPECT_EQ("b", c_out[0]->outputs_[0]->path());
+  EXPECT_EQ("a", c_out[1]->outputs_[0]->path());
+
+  fs_.Create("b", "");
+  EXPECT_TRUE(builder_.AddTarget("a", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildTest, OrderOnlyDeps) {
   string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
