@@ -385,7 +385,7 @@ void Plan::ScheduleWork(Edge* edge) {
   }
 }
 
-void Plan::EdgeFinished(Edge* edge, bool success) {
+void Plan::EdgeFinished(Edge* edge, EdgeResult result) {
   map<Edge*, bool>::iterator e = want_.find(edge);
   assert(e != want_.end());
   bool directly_wanted = e->second;
@@ -396,7 +396,7 @@ void Plan::EdgeFinished(Edge* edge, bool success) {
   edge->pool()->RetrieveReadyEdges(&ready_);
 
   // The rest of this function only applies to successful commands.
-  if (!success)
+  if (result != kEdgeSucceeded)
     return;
 
   if (directly_wanted)
@@ -426,7 +426,7 @@ void Plan::NodeFinished(Node* node) {
       } else {
         // We do not need to build this edge, but we might need to build one of
         // its dependents.
-        EdgeFinished(*oe, true);
+        EdgeFinished(*oe, kEdgeSucceeded);
       }
     }
   }
@@ -659,7 +659,7 @@ bool Builder::Build(string* err) {
         }
 
         if (edge->is_phony()) {
-          plan_.EdgeFinished(edge, true);
+          plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
         } else {
           ++pending_commands;
         }
@@ -779,7 +779,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
-    plan_.EdgeFinished(edge, false);
+    plan_.EdgeFinished(edge, Plan::kEdgeFailed);
     return true;
   }
 
@@ -830,7 +830,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  plan_.EdgeFinished(edge, true);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();

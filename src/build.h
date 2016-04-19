@@ -56,8 +56,13 @@ struct Plan {
   /// Dumps the current state of the plan.
   void Dump();
 
+  enum EdgeResult {
+    kEdgeFailed,
+    kEdgeSucceeded
+  };
+
   /// Mark an edge as done building (whether it succeeded or failed).
-  void EdgeFinished(Edge* edge, bool success);
+  void EdgeFinished(Edge* edge, EdgeResult result);
 
   /// Clean the given node during the build.
   /// Return false on error.
