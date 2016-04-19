@@ -68,14 +68,14 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
   ASSERT_EQ("mid", edge->inputs_[0]->path());
   ASSERT_EQ("out", edge->outputs_[0]->path());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
@@ -99,11 +99,11 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid1 mid2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -129,19 +129,19 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -167,19 +167,19 @@ TEST_F(PlanTest, DoubleDependent) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1 a2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -257,7 +257,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
   // This will be false since poolcat is serialized
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -266,7 +266,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
@@ -342,7 +342,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_EQ("outb3", edge->outputs_[0]->path());
 
   // finish out1
-  plan_.EdgeFinished(edges.front());
+  plan_.EdgeFinished(edges.front(), true);
   edges.pop_front();
 
   // out3 should be available
@@ -353,19 +353,19 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(out3);
+  plan_.EdgeFinished(out3, true);
 
   ASSERT_FALSE(plan_.FindWork());
 
   for (deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
-    plan_.EdgeFinished(*it);
+    plan_.EdgeFinished(*it, true);
   }
 
   Edge* last = plan_.FindWork();
   ASSERT_TRUE(last);
   ASSERT_EQ("allTheThings", last->outputs_[0]->path());
 
-  plan_.EdgeFinished(last);
+  plan_.EdgeFinished(last, true);
 
   ASSERT_FALSE(plan_.more_to_do());
   ASSERT_FALSE(plan_.FindWork());
@@ -407,7 +407,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 
   edge = initial_edges[1];  // Foo first
   ASSERT_EQ("foo.cpp", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -415,11 +415,11 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("foo.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("foo.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("foo.cpp.obj", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = initial_edges[0];  // Now for bar
   ASSERT_EQ("bar.cpp", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -427,7 +427,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("bar.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("bar.cpp.obj", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -435,18 +435,60 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("foo.cpp.obj", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp.obj", edge->inputs_[1]->path());
   ASSERT_EQ("libfoo.a", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
   ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("libfoo.a", edge->inputs_[0]->path());
   ASSERT_EQ("all", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, true);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);
   ASSERT_FALSE(plan_.more_to_do());
+}
+
+TEST_F(PlanTest, PoolWithFailingEdge) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "pool foobar\n"
+    "  depth = 1\n"
+    "rule poolcat\n"
+    "  command = cat $in > $out\n"
+    "  pool = foobar\n"
+    "build out1: poolcat in\n"
+    "build out2: poolcat in\n"));
+  GetNode("out1")->MarkDirty();
+  GetNode("out2")->MarkDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out1"), &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out2"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in",  edge->inputs_[0]->path());
+  ASSERT_EQ("out1", edge->outputs_[0]->path());
+
+  // This will be false since poolcat is serialized
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge, false);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in", edge->inputs_[0]->path());
+  ASSERT_EQ("out2", edge->outputs_[0]->path());
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge, false);
+
+  ASSERT_TRUE(plan_.more_to_do()); // Jobs have failed
+  edge = plan_.FindWork();
+  ASSERT_EQ(0, edge);
 }
 
 /// Fake implementation of CommandRunner, useful for tests.
@@ -1117,6 +1159,30 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule fail\n"
 "  command = fail\n"
+"build out1: fail\n"
+"build out2: fail\n"
+"build out3: fail\n"
+"build final: cat out1 out2 out3\n"));
+
+  // Swallow ten failures; we should stop before building final.
+  config_.failures_allowed = 11;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("final", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
+TEST_F(BuildTest, SwallowFailuresPool) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"pool failpool\n"
+"  depth = 1\n"
+"rule fail\n"
+"  command = fail\n"
+"  pool = failpool\n"
 "build out1: fail\n"
 "build out2: fail\n"
 "build out3: fail\n"
