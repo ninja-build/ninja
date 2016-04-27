@@ -14,6 +14,7 @@
 
 #include "state.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <stdio.h>
 
@@ -157,6 +158,17 @@ bool State::AddDefault(StringPiece path, string* err) {
   }
   defaults_.push_back(node);
   return true;
+}
+
+bool State::IsImplicitOut(StringPiece path, unsigned int slash_bits) {
+  Node* node = GetNode(path, slash_bits);
+  Edge* edge = node->in_edge();
+  if (!edge)
+    return false;
+  vector<Node*>::iterator i =
+      std::find(edge->outputs_.begin(), edge->outputs_.end(), node);
+  return (i != edge->outputs_.end() &&
+          edge->is_implicit_out(i - edge->outputs_.begin()));
 }
 
 vector<Node*> State::RootNodes(string* err) {
