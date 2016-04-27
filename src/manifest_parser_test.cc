@@ -949,6 +949,48 @@ TEST_F(ParserTest, ImplicitOutputEmpty) {
   EXPECT_FALSE(edge->is_implicit_out(0));
 }
 
+TEST_F(ParserTest, ImplicitOutputDupe) {
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo baz | foo baq foo: cat bar\n", &err));
+  ASSERT_EQ("input:4: multiple rules generate foo\n", err);
+}
+
+TEST_F(ParserTest, ImplicitOutputDupes) {
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo foo foo | foo foo foo foo: cat bar\n", &err));
+  ASSERT_EQ("input:4: multiple rules generate foo\n", err);
+}
+
+TEST_F(ParserTest, ImplicitOutputDupeExplicit) {
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build baz: cat bar\n"
+"build foo | baz: cat bar\n", &err));
+  ASSERT_EQ("input:5: multiple rules generate baz\n", err);
+}
+
+TEST_F(ParserTest, ExplicitOutputDupeImplicit) {
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo | baz: cat bar\n"
+"build baz: cat bar\n", &err));
+  ASSERT_EQ("input:5: multiple rules generate baz\n", err);
+}
+
 TEST_F(ParserTest, NoExplicitOutput) {
   ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
   string err;

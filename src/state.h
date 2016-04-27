@@ -101,6 +101,8 @@ struct State {
   bool AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
   bool AddDefault(StringPiece path, string* error);
 
+  bool IsImplicitOut(StringPiece path, unsigned int slash_bits);
+
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
   void Reset();

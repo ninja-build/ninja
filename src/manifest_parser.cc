@@ -339,15 +339,19 @@ bool ManifestParser::ParseEdge(string* err) {
   }
 
   edge->outputs_.reserve(outs.size());
-  for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
-    string path = i->Evaluate(env);
+  for (size_t i = 0, e = outs.size(); i != e; ++i) {
+    string path = outs[i].Evaluate(env);
     string path_err;
     unsigned int slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
-      if (dupe_edge_action_ == kDupeEdgeActionError) {
-        lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
+      bool const has_implicit_out =
+          (e - i <= static_cast<size_t>(implicit_outs) ||
+           state_->IsImplicitOut(path, slash_bits));
+      if (dupe_edge_action_ == kDupeEdgeActionError || has_implicit_out) {
+        lexer_.Error("multiple rules generate " + path +
+                     (has_implicit_out? "" : " [-w dupbuild=err]"),
                      err);
         return false;
       } else if (!quiet_) {
