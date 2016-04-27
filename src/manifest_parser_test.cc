@@ -949,6 +949,30 @@ TEST_F(ParserTest, ImplicitOutputEmpty) {
   EXPECT_FALSE(edge->is_implicit_out(0));
 }
 
+TEST_F(ParserTest, ImplicitOutputDupe) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo baz | foo baq foo: cat bar\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(edge->outputs_.size(), 3);
+  EXPECT_FALSE(edge->is_implicit_out(0));
+  EXPECT_FALSE(edge->is_implicit_out(1));
+  EXPECT_TRUE(edge->is_implicit_out(2));
+}
+
+TEST_F(ParserTest, ImplicitOutputDupes) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build foo foo foo | foo foo foo foo: cat bar\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(edge->outputs_.size(), 1);
+  EXPECT_FALSE(edge->is_implicit_out(0));
+}
+
 TEST_F(ParserTest, NoExplicitOutput) {
   ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
   string err;
