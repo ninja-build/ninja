@@ -22,6 +22,9 @@
 #include "getopt.h"
 #include <direct.h>
 #include <windows.h>
+#elif defined(_AIX)
+#include "getopt.h"
+#include <unistd.h>
 #else
 #include <getopt.h>
 #include <unistd.h>
@@ -94,7 +97,7 @@ struct NinjaMain : public BuildLogUser {
   DepsLog deps_log_;
 
   /// The type of functions that are the entry points to tools (subcommands).
-  typedef int (NinjaMain::*ToolFunc)(int, char**);
+  typedef int (NinjaMain::*ToolFunc)(const Options*, int, char**);
 
   /// Get the Node for a given command-line path, handling features like
   /// spell correction.
@@ -105,17 +108,17 @@ struct NinjaMain : public BuildLogUser {
                               vector<Node*>* targets, string* err);
 
   // The various subcommands, run via "-t XXX".
-  int ToolGraph(int argc, char* argv[]);
-  int ToolQuery(int argc, char* argv[]);
-  int ToolDeps(int argc, char* argv[]);
-  int ToolBrowse(int argc, char* argv[]);
-  int ToolMSVC(int argc, char* argv[]);
-  int ToolTargets(int argc, char* argv[]);
-  int ToolCommands(int argc, char* argv[]);
-  int ToolClean(int argc, char* argv[]);
-  int ToolCompilationDatabase(int argc, char* argv[]);
-  int ToolRecompact(int argc, char* argv[]);
-  int ToolUrtle(int argc, char** argv);
+  int ToolGraph(const Options* options, int argc, char* argv[]);
+  int ToolQuery(const Options* options, int argc, char* argv[]);
+  int ToolDeps(const Options* options, int argc, char* argv[]);
+  int ToolBrowse(const Options* options, int argc, char* argv[]);
+  int ToolMSVC(const Options* options, int argc, char* argv[]);
+  int ToolTargets(const Options* options, int argc, char* argv[]);
+  int ToolCommands(const Options* options, int argc, char* argv[]);
+  int ToolClean(const Options* options, int argc, char* argv[]);
+  int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
+  int ToolRecompact(const Options* options, int argc, char* argv[]);
+  int ToolUrtle(const Options* options, int argc, char** argv);
 
   /// Open the build log.
   /// @return false on error.
@@ -226,14 +229,6 @@ int GuessParallelism() {
   }
 }
 
-/// An implementation of ManifestParser::FileReader that actually reads
-/// the file.
-struct RealFileReader : public ManifestParser::FileReader {
-  virtual bool ReadFile(const string& path, string* content, string* err) {
-    return ::ReadFile(path, content, err) == 0;
-  }
-};
-
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
 bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
@@ -254,13 +249,13 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
 
   // Even if the manifest was cleaned by a restat rule, claim that it was
   // rebuilt.  Not doing so can lead to crashes, see
-  // https://github.com/martine/ninja/issues/874
+  // https://github.com/ninja-build/ninja/issues/874
   return builder.Build(err);
 }
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
-  unsigned int slash_bits;  // Unused because this path is only used for lookup.
+  unsigned int slash_bits;
   if (!CanonicalizePath(&path, &slash_bits, err))
     return NULL;
 
@@ -287,8 +282,8 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
     }
     return node;
   } else {
-    *err = "unknown target '" + path + "'";
-
+    *err =
+        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
     if (path == "clean") {
       *err += ", did you mean 'ninja -t clean'?";
     } else if (path == "help") {
@@ -319,7 +314,7 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
   return true;
 }
 
-int NinjaMain::ToolGraph(int argc, char* argv[]) {
+int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -336,7 +331,7 @@ int NinjaMain::ToolGraph(int argc, char* argv[]) {
   return 0;
 }
 
-int NinjaMain::ToolQuery(int argc, char* argv[]) {
+int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
   if (argc == 0) {
     Error("expected a target to query");
     return 1;
@@ -375,19 +370,15 @@ int NinjaMain::ToolQuery(int argc, char* argv[]) {
 }
 
 #if defined(NINJA_HAVE_BROWSE)
-int NinjaMain::ToolBrowse(int argc, char* argv[]) {
-  if (argc < 1) {
-    Error("expected a target to browse");
-    return 1;
-  }
-  RunBrowsePython(&state_, ninja_command_, argv[0]);
+int NinjaMain::ToolBrowse(const Options* options, int argc, char* argv[]) {
+  RunBrowsePython(&state_, ninja_command_, options->input_file, argc, argv);
   // If we get here, the browse failed.
   return 1;
 }
 #endif  // _WIN32
 
 #if defined(_MSC_VER)
-int NinjaMain::ToolMSVC(int argc, char* argv[]) {
+int NinjaMain::ToolMSVC(const Options* options, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
   argv--;
@@ -462,7 +453,7 @@ int ToolTargetsList(State* state) {
   return 0;
 }
 
-int NinjaMain::ToolDeps(int argc, char** argv) {
+int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   vector<Node*> nodes;
   if (argc == 0) {
     for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
@@ -502,7 +493,7 @@ int NinjaMain::ToolDeps(int argc, char** argv) {
   return 0;
 }
 
-int NinjaMain::ToolTargets(int argc, char* argv[]) {
+int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
     string mode = argv[0];
@@ -556,7 +547,7 @@ void PrintCommands(Edge* edge, set<Edge*>* seen) {
     puts(edge->EvaluateCommand().c_str());
 }
 
-int NinjaMain::ToolCommands(int argc, char* argv[]) {
+int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -571,7 +562,7 @@ int NinjaMain::ToolCommands(int argc, char* argv[]) {
   return 0;
 }
 
-int NinjaMain::ToolClean(int argc, char* argv[]) {
+int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   // The clean tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "clean".
   argc++;
@@ -629,7 +620,7 @@ void EncodeJSONString(const char *str) {
   }
 }
 
-int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
+int NinjaMain::ToolCompilationDatabase(const Options* options, int argc, char* argv[]) {
   bool first = true;
   vector<char> cwd;
 
@@ -669,7 +660,7 @@ int NinjaMain::ToolCompilationDatabase(int argc, char* argv[]) {
   return 0;
 }
 
-int NinjaMain::ToolRecompact(int argc, char* argv[]) {
+int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
@@ -680,7 +671,7 @@ int NinjaMain::ToolRecompact(int argc, char* argv[]) {
   return 0;
 }
 
-int NinjaMain::ToolUrtle(int argc, char** argv) {
+int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
 " 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
@@ -698,7 +689,7 @@ int NinjaMain::ToolUrtle(int argc, char** argv) {
     if ('0' <= *p && *p <= '9') {
       count = count*10 + *p - '0';
     } else {
-      for (int i = 0; i < std::max(count, 1); ++i)
+      for (int i = 0; i < max(count, 1); ++i)
         printf("%c", *p);
       count = 0;
     }
@@ -771,9 +762,10 @@ const Tool* ChooseTool(const string& tool_name) {
 bool DebugEnable(const string& name) {
   if (name == "list") {
     printf("debugging modes:\n"
-"  stats    print operation counts/timing info\n"
-"  explain  explain what caused a command to execute\n"
-"  keeprsp  don't delete @response files on success\n"
+"  stats        print operation counts/timing info\n"
+"  explain      explain what caused a command to execute\n"
+"  keepdepfile  don't delete depfiles after they're read by ninja\n"
+"  keeprsp      don't delete @response files on success\n"
 #ifdef _WIN32
 "  nostatcache  don't batch stat() calls per directory and cache them\n"
 #endif
@@ -785,6 +777,9 @@ bool DebugEnable(const string& name) {
   } else if (name == "explain") {
     g_explaining = true;
     return true;
+  } else if (name == "keepdepfile") {
+    g_keep_depfile = true;
+    return true;
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
@@ -793,8 +788,9 @@ bool DebugEnable(const string& name) {
     return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name.c_str(), "stats", "explain", "keeprsp",
-        "nostatcache", NULL);
+        SpellcheckString(name.c_str(),
+                         "stats", "explain", "keepdepfile", "keeprsp",
+                         "nostatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);
@@ -1101,7 +1097,7 @@ int real_main(int argc, char** argv) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
     NinjaMain ninja(ninja_command, config);
-    return (ninja.*options.tool->func)(argc, argv);
+    return (ninja.*options.tool->func)(&options, argc, argv);
   }
 
   // Limit number of rebuilds, to prevent infinite loops.
@@ -1109,9 +1105,10 @@ int real_main(int argc, char** argv) {
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
-    RealFileReader file_reader;
-    ManifestParser parser(&ninja.state_, &file_reader,
-                          options.dupe_edges_should_err);
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
+                          options.dupe_edges_should_err
+                              ? kDupeEdgeActionError
+                              : kDupeEdgeActionWarn);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       Error("%s", err.c_str());
@@ -1119,7 +1116,7 @@ int real_main(int argc, char** argv) {
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
-      return (ninja.*options.tool->func)(argc, argv);
+      return (ninja.*options.tool->func)(&options, argc, argv);
 
     if (!ninja.EnsureBuildDirExists())
       return 1;
@@ -1128,10 +1125,14 @@ int real_main(int argc, char** argv) {
       return 1;
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
-      return (ninja.*options.tool->func)(argc, argv);
+      return (ninja.*options.tool->func)(&options, argc, argv);
 
     // Attempt to rebuild the manifest before building anything else
     if (ninja.RebuildManifest(options.input_file, &err)) {
+      // In dry_run mode the regeneration will succeed without changing the
+      // manifest forever. Better to return immediately.
+      if (config.dry_run)
+        return 0;
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
@@ -1156,7 +1157,7 @@ int main(int argc, char** argv) {
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
-  set_terminate(TerminateHandler);
+  std::set_terminate(TerminateHandler);
   __try {
     // Running inside __try ... __except suppresses any Windows error
     // dialogs for errors such as bad_alloc.

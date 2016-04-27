@@ -1,7 +1,6 @@
-Ninja
-=====
-Evan Martin <martine@danga.com>
-v1.6.0, Jun 2015
+The Ninja build system
+======================
+v1.7.0, Apr 2016
 
 
 Introduction
@@ -160,17 +159,13 @@ http://code.google.com/p/gyp/[gyp]:: The meta-build system used to
 generate build files for Google Chrome and related projects (v8,
 node.js).  gyp can generate Ninja files for all platforms supported by
 Chrome. See the
-http://code.google.com/p/chromium/wiki/NinjaBuild[Chromium Ninja
-documentation for more details].
+https://chromium.googlesource.com/chromium/src/+/master/docs/ninja_build.md[Chromium Ninja documentation for more details].
 
-http://www.cmake.org/[CMake]:: A widely used meta-build system that
-can generate Ninja files on Linux as of CMake version 2.8.8.  (There
-is some Mac and Windows support -- http://www.reactos.org[ReactOS]
-uses Ninja on Windows for their buildbots, but those platforms are not
-yet officially supported by CMake as the full test suite doesn't
-pass.)
+https://cmake.org/[CMake]:: A widely used meta-build system that
+can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
+of CMake support generating Ninja files on Windows and Mac OS X too.
 
-others:: Ninja ought to fit perfectly into other meta-build software
+https://github.com/ninja-build/ninja/wiki/List-of-generators-producing-ninja-build-files[others]:: Ninja ought to fit perfectly into other meta-build software
 like http://industriousone.com/premake[premake].  If you do this work,
 please let us know!
 
@@ -229,8 +224,13 @@ found useful during Ninja's development.  The current tools are:
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
 file focuses the view on that file, showing inputs and outputs.  This
-feature requires a Python installation.
-
+feature requires a Python installation. By default port 8000 is used
+and a web browser will be opened. This can be changed as follows:
++
+----
+ninja -t browse --port=8000 --no-browser mytarget
+----
++
 `graph`:: output a file in the syntax used by `graphviz`, a automatic
 graph layout tool.  Use it like:
 +
@@ -599,6 +599,11 @@ rule cc
   command = cl /showIncludes -c $in /Fo$out
 ----
 
+If the include directory directives are using absolute paths, your depfile
+may result in a mixture of relative and absolute paths. Paths used by other
+build rules need to match exactly. Therefore, it is recommended to use
+relative paths in these cases.
+
 [[ref_pool]]
 Pools
 ~~~~~
@@ -686,6 +691,10 @@ A file is a series of declarations.  A declaration can be one of:
    Order-only dependencies may be tacked on the end with +||
    _dependency1_ _dependency2_+.  (See <<ref_dependencies,the reference on
    dependency types>>.)
++
+Implicit outputs _(available since Ninja 1.7)_ may be added before
+the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
+(See <<ref_outputs,the reference on output types>>.)
 
 3. Variable declarations, which look like +_variable_ = _value_+.
 
@@ -714,7 +723,6 @@ spaces within a token must be escaped.
 There is only one escape character, `$`, and it has the following
 behaviors:
 
-[horizontal]
 `$` followed by a newline:: escape the newline (continue the current line
 across a line break).
 
@@ -779,11 +787,9 @@ A `rule` block contains a list of `key = value` declarations that
 affect the processing of the rule.  Here is a full list of special
 keys.
 
-`command` (_required_):: the command line to run.  This string (after
-  $variables are expanded) is passed directly to `sh -c` without
-  interpretation by Ninja. Each `rule` may have only one `command`
-  declaration. To specify multiple commands use `&&` (or similar) to
-  concatenate operations.
+`command` (_required_):: the command line to run.  Each `rule` may
+  have only one `command` declaration. See <<ref_rule_command,the next
+  section>> for more details on quoting and executing multiple commands.
 
 `depfile`:: path to an optional `Makefile` that contains extra
   _implicit dependencies_ (see <<ref_dependencies,the reference on
@@ -851,6 +857,48 @@ rule link
 build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 ----
 
+[[ref_rule_command]]
+Interpretation of the `command` variable
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Fundamentally, command lines behave differently on Unixes and Windows.
+
+On Unixes, commands are arrays of arguments.  The Ninja `command`
+variable is passed directly to `sh -c`, which is then responsible for
+interpreting that string into an argv array.  Therefore the quoting
+rules are those of the shell, and you can use all the normal shell
+operators, like `&&` to chain multiple commands, or `VAR=value cmd` to
+set environment variables.
+
+On Windows, commands are strings, so Ninja passes the `command` string
+directly to `CreateProcess`.  (In the common case of simply executing
+a compiler this means there is less overhead.)  Consequently the
+quoting rules are deterimined by the called program, which on Windows
+are usually provided by the C library.  If you need shell
+interpretation of the command (such as the use of `&&` to chain
+multiple commands), make the command execute the Windows shell by
+prefixing the command with `cmd /c`.
+
+[[ref_outputs]]
+Build outputs
+~~~~~~~~~~~~~
+
+There are two types of build outputs which are subtly different.
+
+1. _Explicit outputs_, as listed in a build line.  These are
+   available as the `$out` variable in the rule.
++
+This is the standard form of output to be used for e.g. the
+object file of a compile command.
+
+2. _Implicit outputs_, as listed in a build line with the syntax +|
+   _out1_ _out2_+ + before the `:` of a build line _(available since
+   Ninja 1.7)_.  The semantics are identical to explicit outputs,
+  the only difference is that implicit outputs don't show up in the
+  `$out` variable.
++
+This is for expressing outputs that don't show up on the
+command line of the command.
+
 [[ref_dependencies]]
 Build dependencies
 ~~~~~~~~~~~~~~~~~~
@@ -862,7 +910,7 @@ There are three types of build dependencies which are subtly different.
    cause the output to be rebuilt; if these file are missing and
    Ninja doesn't know how to build them, the build is aborted.
 +
-This is the standard form of dependency to be used for e.g. the
+This is the standard form of dependency to be used e.g. for the
 source file of a compile command.
 
 2. _Implicit dependencies_, either as picked up from
@@ -889,6 +937,9 @@ that are only discovered during build time: for example, to generate a
 header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
+
+File paths are compared as is, which means that an absolute path and a
+relative path, pointing to the same file, are considered different by Ninja.
 
 Variable expansion
 ~~~~~~~~~~~~~~~~~~
@@ -948,4 +999,3 @@ Variable declarations indented in a `build` block are scoped to the
 
 5. Variables from the file that included that file using the
    `subninja` keyword.
-

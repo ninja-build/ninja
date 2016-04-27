@@ -4,7 +4,7 @@ Version: %{ver}
 Release: %{rel}%{?dist}
 Group: Development/Tools
 License: Apache 2.0
-URL: https://github.com/martine/ninja
+URL: https://github.com/ninja-build/ninja
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{rel}
 

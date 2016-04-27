@@ -1,6 +1,6 @@
 " ninja build file syntax.
 " Language: ninja build file as described at
-"           http://martine.github.com/ninja/manual.html
+"           http://ninja-build.org/manual.html
 " Version: 1.4
 " Last Change: 2014/05/13
 " Maintainer: Nicolas Weber <nicolasweber@gmx.de>
@@ -9,8 +9,8 @@
 " upstream.
 
 " ninja lexer and parser are at
-" https://github.com/martine/ninja/blob/master/src/lexer.in.cc
-" https://github.com/martine/ninja/blob/master/src/manifest_parser.cc
+" https://github.com/ninja-build/ninja/blob/master/src/lexer.in.cc
+" https://github.com/ninja-build/ninja/blob/master/src/manifest_parser.cc
 
 if exists("b:current_syntax")
   finish

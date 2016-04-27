@@ -20,6 +20,6 @@
 
 varname="$1"
 echo "const char $varname[] ="
-od -t x1 -A n -v | sed -e 's| ||g; s|..|\\x&|g; s|^|"|; s|$|"|'
+od -t x1 -A n -v | sed -e 's|[ \t]||g; s|..|\\x&|g; s|^|"|; s|$|"|'
 echo ";"
 

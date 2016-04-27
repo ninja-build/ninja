@@ -45,6 +45,12 @@ class TestLineWordWrap(unittest.TestCase):
                                       INDENT + 'y']) + '\n',
                          self.out.getvalue())
 
+    def test_comment_wrap(self):
+        # Filenames shoud not be wrapped
+        self.n.comment('Hello /usr/local/build-tools/bin')
+        self.assertEqual('# Hello\n# /usr/local/build-tools/bin\n',
+                         self.out.getvalue())
+
     def test_short_words_indented(self):
         # Test that indent is taking into acount when breaking subsequent lines.
         # The second line should not be '    to tree', as that's longer than the
@@ -145,6 +151,13 @@ build out: cc in
         self.assertEqual('''\
 build out: cc in
   name = value
+''',
+                         self.out.getvalue())
+
+    def test_implicit_outputs(self):
+        self.n.build('o', 'cc', 'i', implicit_outputs='io')
+        self.assertEqual('''\
+build o | io: cc i
 ''',
                          self.out.getvalue())
 

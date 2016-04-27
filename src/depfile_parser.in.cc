@@ -45,7 +45,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       // start: beginning of the current parsed span.
       const char* start = in;
       /*!re2c
-      re2c:define:YYCTYPE = "char";
+      re2c:define:YYCTYPE = "unsigned char";
       re2c:define:YYCURSOR = in;
       re2c:define:YYLIMIT = end;
 
@@ -73,7 +73,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = yych;
         continue;
       }
-      [a-zA-Z0-9+,/_:.~()}{@=!-]+ {
+      [a-zA-Z0-9+,/_:.~()}{@=!\x80-\xFF-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.

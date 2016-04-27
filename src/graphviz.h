@@ -16,7 +16,6 @@
 #define NINJA_GRAPHVIZ_H_
 
 #include <set>
-using namespace std;
 
 struct Node;
 struct Edge;
@@ -27,8 +26,8 @@ struct GraphViz {
   void AddTarget(Node* node);
   void Finish();
 
-  set<Node*> visited_nodes_;
-  set<Edge*> visited_edges_;
+  std::set<Node*> visited_nodes_;
+  std::set<Edge*> visited_edges_;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_

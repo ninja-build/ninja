@@ -13,39 +13,9 @@
 // limitations under the License.
 
 #include <string>
-#include <set>
-#include <vector>
 using namespace std;
 
 string EscapeForDepfile(const string& path);
-
-/// Visual Studio's cl.exe requires some massaging to work with Ninja;
-/// for example, it emits include information on stderr in a funny
-/// format when building with /showIncludes.  This class parses this
-/// output.
-struct CLParser {
-  /// Parse a line of cl.exe output and extract /showIncludes info.
-  /// If a dependency is extracted, returns a nonempty string.
-  /// Exposed for testing.
-  static string FilterShowIncludes(const string& line,
-                                   const string& deps_prefix);
-
-  /// Return true if a mentioned include file is a system path.
-  /// Filtering these out reduces dependency information considerably.
-  static bool IsSystemInclude(string path);
-
-  /// Parse a line of cl.exe output and return true if it looks like
-  /// it's printing an input filename.  This is a heuristic but it appears
-  /// to be the best we can do.
-  /// Exposed for testing.
-  static bool FilterInputFilename(string line);
-
-  /// Parse the full output of cl, returning the output (if any) that
-  /// should printed.
-  string Parse(const string& output, const string& deps_prefix);
-
-  set<string> includes_;
-};
 
 /// Wraps a synchronous execution of a CL subprocess.
 struct CLWrapper {

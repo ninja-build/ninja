@@ -30,5 +30,6 @@ struct IncludesNormalize {
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path relative to |relative_to|.
-  static string Normalize(const string& input, const char* relative_to);
+  static bool Normalize(const string& input, const char* relative_to,
+                        string* result, string* err);
 };

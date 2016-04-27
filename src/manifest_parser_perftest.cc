@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -35,12 +36,6 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
-
-struct RealFileReader : public ManifestParser::FileReader {
-  virtual bool ReadFile(const string& path, string* content, string* err) {
-    return ::ReadFile(path, content, err) == 0;
-  }
-};
 
 bool WriteFakeManifests(const string& dir, string* err) {
   RealDiskInterface disk_interface;
@@ -59,9 +54,9 @@ bool WriteFakeManifests(const string& dir, string* err) {
 
 int LoadManifests(bool measure_command_evaluation) {
   string err;
-  RealFileReader file_reader;
+  RealDiskInterface disk_interface;
   State state;
-  ManifestParser parser(&state, &file_reader);
+  ManifestParser parser(&state, &disk_interface, kDupeEdgeActionWarn);
   if (!parser.Load("build.ninja", &err)) {
     fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
     exit(1);

@@ -121,13 +121,15 @@ TEST_F(BuildLogTest, Truncate) {
 "build out: cat mid\n"
 "build mid: cat in\n");
 
-  BuildLog log1;
-  string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
-  ASSERT_EQ("", err);
-  log1.RecordCommand(state_.edges_[0], 15, 18);
-  log1.RecordCommand(state_.edges_[1], 20, 25);
-  log1.Close();
+  {
+    BuildLog log1;
+    string err;
+    EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
+    ASSERT_EQ("", err);
+    log1.RecordCommand(state_.edges_[0], 15, 18);
+    log1.RecordCommand(state_.edges_[1], 20, 25);
+    log1.Close();
+  }
 
   struct stat statbuf;
   ASSERT_EQ(0, stat(kTestFilename, &statbuf));

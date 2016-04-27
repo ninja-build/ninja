@@ -23,17 +23,18 @@ using namespace std;
 
 struct BindingEnv;
 struct EvalString;
+struct FileReader;
 struct State;
+
+enum DupeEdgeAction {
+  kDupeEdgeActionWarn,
+  kDupeEdgeActionError,
+};
 
 /// Parses .ninja files.
 struct ManifestParser {
-  struct FileReader {
-    virtual ~FileReader() {}
-    virtual bool ReadFile(const string& path, string* content, string* err) = 0;
-  };
-
   ManifestParser(State* state, FileReader* file_reader,
-                 bool dupe_edge_should_err = false);
+                 DupeEdgeAction dupe_edge_action);
 
   /// Load and parse a file.
   bool Load(const string& filename, string* err, Lexer* parent = NULL);
@@ -66,7 +67,7 @@ private:
   BindingEnv* env_;
   FileReader* file_reader_;
   Lexer lexer_;
-  bool dupe_edge_should_err_;
+  DupeEdgeAction dupe_edge_action_;
   bool quiet_;
 };
 
