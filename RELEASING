@@ -25,7 +25,7 @@ Make announcement on mailing list:
 Update website:
 1. Make sure your ninja checkout is on the v1.5.0 tag
 2. Clone https://github.com/ninja-build/ninja-build.github.io
-3. In that repo, `cd ninja && ./update-docs.sh`
+3. In that repo, `./update-docs.sh`
 4. Update index.html with newest version and link to release notes
 5. git commit -m 'run update-docs.sh, 1.5.0 release'
 6. git push origin master
