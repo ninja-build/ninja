@@ -339,8 +339,8 @@ bool ManifestParser::ParseEdge(string* err) {
   }
 
   edge->outputs_.reserve(outs.size());
-  for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
-    string path = i->Evaluate(env);
+  for (size_t i = 0, e = outs.size(); i != e; ++i) {
+    string path = outs[i].Evaluate(env);
     string path_err;
     unsigned int slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -350,11 +350,15 @@ bool ManifestParser::ParseEdge(string* err) {
         lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
                      err);
         return false;
-      } else if (!quiet_) {
-        Warning("multiple rules generate %s. "
-                "builds involving this target will not be correct; "
-                "continuing anyway [-w dupbuild=warn]",
-                path.c_str());
+      } else {
+        if (!quiet_) {
+          Warning("multiple rules generate %s. "
+                  "builds involving this target will not be correct; "
+                  "continuing anyway [-w dupbuild=warn]",
+                  path.c_str());
+        }
+        if (e - i <= static_cast<size_t>(implicit_outs))
+          --implicit_outs;
       }
     }
   }
