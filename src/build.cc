@@ -84,7 +84,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
-    progress_status_format_ = "[%s/%t] ";
+    progress_status_format_ = "[%f/%t] ";
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -222,7 +222,7 @@ string BuildStatus::FormatProgressStatus(
 
         // Percentage
       case 'p':
-        percent = (100 * started_edges_) / total_edges_;
+        percent = (100 * finished_edges_) / total_edges_;
         snprintf(buf, sizeof(buf), "%3i%%", percent);
         out += buf;
         break;
