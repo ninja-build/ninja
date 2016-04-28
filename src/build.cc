@@ -84,7 +84,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
 
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
-    progress_status_format_ = "[%s/%t] ";
+    progress_status_format_ = "[%f/%t] ";
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
