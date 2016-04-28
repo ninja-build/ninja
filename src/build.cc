@@ -97,7 +97,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   ++started_edges_;
 
   if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge);
+    PrintStatus(edge, kEdgeStarted);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
@@ -129,7 +129,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     return;
 
   if (!edge->use_console())
-    PrintStatus(edge);
+    PrintStatus(edge, kEdgeFinished);
 
   // Print the command that is spewing before printing its output.
   if (!success) {
@@ -170,7 +170,7 @@ void BuildStatus::BuildFinished() {
 }
 
 string BuildStatus::FormatProgressStatus(
-    const char* progress_status_format) const {
+    const char* progress_status_format, EdgeStatus status) const {
   string out;
   char buf[32];
   int percent;
@@ -195,10 +195,15 @@ string BuildStatus::FormatProgressStatus(
         break;
 
         // Running edges.
-      case 'r':
-        snprintf(buf, sizeof(buf), "%d", started_edges_ - finished_edges_);
+      case 'r': {
+        int running_edges = started_edges_ - finished_edges_;
+        // count the edge that just finished as a running edge
+        if (status == kEdgeFinished)
+          running_edges++;
+        snprintf(buf, sizeof(buf), "%d", running_edges);
         out += buf;
         break;
+      }
 
         // Unstarted edges.
       case 'u':
@@ -252,7 +257,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge) {
+void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -262,7 +267,7 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
