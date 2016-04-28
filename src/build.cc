@@ -109,6 +109,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
                                     int* start_time,
                                     int* end_time) {
   int64_t now = GetTimeMillis();
+
+  if (finished_edges_  == 0) {
+    overall_rate_.Restart();
+    current_rate_.Restart();
+  }
+
   ++finished_edges_;
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
@@ -256,10 +262,6 @@ void BuildStatus::PrintStatus(Edge* edge) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  if (finished_edges_ == 0) {
-    overall_rate_.Restart();
-    current_rate_.Restart();
-  }
   to_print = FormatProgressStatus(progress_status_format_) + to_print;
 
   printer_.Print(to_print,
