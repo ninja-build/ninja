@@ -222,7 +222,7 @@ string BuildStatus::FormatProgressStatus(
 
         // Percentage
       case 'p':
-        percent = (100 * started_edges_) / total_edges_;
+        percent = (100 * finished_edges_) / total_edges_;
         snprintf(buf, sizeof(buf), "%3i%%", percent);
         out += buf;
         break;
