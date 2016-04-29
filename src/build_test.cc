@@ -1286,7 +1286,8 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]"));
+  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]",
+      BuildStatus::kEdgeStarted));
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1726,7 +1727,8 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
-            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
+            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]",
+                BuildStatus::kEdgeStarted));
 }
 
 TEST_F(BuildTest, FailedDepsParse) {
