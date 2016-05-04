@@ -17,6 +17,8 @@
 """measure the runtime of a command by repeatedly running it.
 """
 
+from __future__ import print_function
+
 import time
 import subprocess
 import sys
@@ -24,7 +26,7 @@ import sys
 devnull = open('/dev/null', 'w')
 
 def run(cmd, repeat=10):
-    print 'sampling:',
+    print('sampling:', end=' ')
     sys.stdout.flush()
 
     samples = []
@@ -33,10 +35,10 @@ def run(cmd, repeat=10):
         subprocess.call(cmd, stdout=devnull, stderr=devnull)
         end = time.time()
         dt = (end - start) * 1000
-        print '%dms' % int(dt),
+        print('%dms' % int(dt), end=' ')
         sys.stdout.flush()
         samples.append(dt)
-    print
+    print()
 
     # We're interested in the 'pure' runtime of the code, which is
     # conceptually the smallest time we'd see if we ran it enough times
@@ -45,10 +47,10 @@ def run(cmd, repeat=10):
     # Also print how varied the outputs were in an attempt to make it
     # more obvious if something has gone terribly wrong.
     err = sum(s - best for s in samples) / float(len(samples))
-    print 'estimate: %dms (mean err %.1fms)' % (best, err)
+    print('estimate: %dms (mean err %.1fms)' % (best, err))
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print 'usage: measure.py command args...'
+        print('usage: measure.py command args...')
         sys.exit(1)
     run(cmd=sys.argv[1:])
