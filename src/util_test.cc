@@ -389,6 +389,39 @@ TEST(StripAnsiEscapeCodes, StripColors) {
             stripped);
 }
 
+TEST(Replace, Replacement) {
+  EXPECT_EQ("At About Above", Replace("at about above", "a", "A"));
+  EXPECT_EQ("at XXXut XXXve", Replace("at about above", "abo", "XXX"));
+  EXPECT_EQ("LONGLONGLONG", Replace("aaa", "a", "LONG"));
+  EXPECT_EQ("sss", Replace("SHORTSHORTSHORT", "SHORT", "s"));
+}
+
+TEST(Replace, EntireReplacement) {
+  EXPECT_EQ("new", Replace("at about above", "at about above", "new"));
+  EXPECT_EQ("", Replace("at about above", "at about above", ""));
+}
+
+TEST(Replace, NotFound) {
+  EXPECT_EQ("at about above", Replace("at about above", "abu", "XXX"));
+}
+
+TEST(Replace, EmptyInput) {
+  EXPECT_EQ("", Replace("", "a", "X"));
+}
+
+TEST(Replace, EmptyFind) {
+  EXPECT_EQ("Testing this", Replace("Testing this", "", "X"));
+}
+
+TEST(Replace, EmptyReplacement) {
+  EXPECT_EQ("Teting thi", Replace("Testing this", "s", ""));
+  EXPECT_EQ("at ut ve", Replace("at about above", "abo", ""));
+}
+
+TEST(Replace, Empty) {
+  EXPECT_EQ("", Replace("", "", ""));
+}
+
 TEST(ElideMiddle, NothingToElide) {
   string input = "Nothing to elide in this short string.";
   EXPECT_EQ(input, ElideMiddle(input, 80));

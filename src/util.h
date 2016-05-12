@@ -73,6 +73,10 @@ const char* SpellcheckString(const char* text, ...);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
+/// Replace all occurrences of \a find with \a replace in \a input
+/// and return the result.
+string Replace(const string& input, const string& find, const string& replace);
+
 /// @return the number of processors on the machine.  Useful for an initial
 /// guess for how many jobs to run in parallel.  @return 0 on error.
 int GetProcessorCount();

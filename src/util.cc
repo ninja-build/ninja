@@ -499,6 +499,19 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
+string Replace(const string& input, const string& find, const string& replace) {
+  // Must handle empty `find` string to prevent infinite loop.
+  if (find.length() == 0)
+    return input;
+  string result = input;
+  size_t start_pos = 0;
+  while ((start_pos = result.find(find, start_pos)) != string::npos) {
+    result.replace(start_pos, find.length(), replace);
+    start_pos += replace.length();
+  }
+  return result;
+}
+
 int GetProcessorCount() {
 #ifdef _WIN32
   SYSTEM_INFO info;
