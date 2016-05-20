@@ -27,6 +27,7 @@ try:
 except ImportError:
     import BaseHTTPServer as httpserver
 import argparse
+import cgi
 import os
 import socket
 import subprocess
@@ -57,6 +58,9 @@ def match_strip(line, prefix):
     if not line.startswith(prefix):
         return (False, line)
     return (True, line[len(prefix):])
+
+def html_escape(text):
+    return cgi.escape(text, quote=True)
 
 def parse(text):
     lines = iter(text.split('\n'))
@@ -124,19 +128,19 @@ tt {
 ''' + body
 
 def generate_html(node):
-    document = ['<h1><tt>%s</tt></h1>' % node.target]
+    document = ['<h1><tt>%s</tt></h1>' % html_escape(node.target)]
 
     if node.inputs:
         document.append('<h2>target is built using rule <tt>%s</tt> of</h2>' %
-                        node.rule)
+                        html_escape(node.rule))
         if len(node.inputs) > 0:
             document.append('<div class=filelist>')
             for input, type in sorted(node.inputs):
                 extra = ''
                 if type:
-                    extra = ' (%s)' % type
+                    extra = ' (%s)' % html_escape(type)
                 document.append('<tt><a href="?%s">%s</a>%s</tt><br>' %
-                                (input, input, extra))
+                                (html_escape(input), html_escape(input), extra))
             document.append('</div>')
 
     if node.outputs:
@@ -144,7 +148,7 @@ def generate_html(node):
         document.append('<div class=filelist>')
         for output in sorted(node.outputs):
             document.append('<tt><a href="?%s">%s</a></tt><br>' %
-                            (output, output))
+                            (html_escape(output), html_escape(output)))
         document.append('</div>')
 
     return '\n'.join(document)
@@ -177,7 +181,7 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
             page_body = generate_html(parse(ninja_output.strip()))
         else:
             # Relay ninja's error message.
-            page_body = '<h1><tt>%s</tt></h1>' % ninja_error
+            page_body = '<h1><tt>%s</tt></h1>' % html_escape(ninja_error)
 
         self.send_response(200)
         self.end_headers()
