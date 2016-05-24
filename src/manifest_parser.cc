@@ -236,16 +236,13 @@ bool ManifestParser::ParseEdge(string* err) {
     EvalString out;
     if (!lexer_.ReadPath(&out, err))
       return false;
-    if (out.empty())
-      return lexer_.Error("expected path", err);
-
-    do {
+    while (!out.empty()) {
       outs.push_back(out);
 
       out.Clear();
       if (!lexer_.ReadPath(&out, err))
         return false;
-    } while (!out.empty());
+    }
   }
 
   // Add all implicit outs, counting how many as we go.
@@ -261,6 +258,9 @@ bool ManifestParser::ParseEdge(string* err) {
       ++implicit_outs;
     }
   }
+
+  if (outs.empty())
+    return lexer_.Error("expected path", err);
 
   if (!ExpectToken(Lexer::COLON, err))
     return false;

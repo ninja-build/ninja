@@ -149,6 +149,45 @@ TEST_F(GraphTest, ImplicitOutputOutOfDate) {
   EXPECT_TRUE(GetNode("out.imp")->dirty());
 }
 
+TEST_F(GraphTest, ImplicitOutputOnlyParse) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build | out.imp: cat in\n"));
+
+  Edge* edge = GetNode("out.imp")->in_edge();
+  EXPECT_EQ(1, edge->outputs_.size());
+  EXPECT_EQ("out.imp", edge->outputs_[0]->path());
+  EXPECT_EQ(1, edge->implicit_outs_);
+  EXPECT_EQ(edge, GetNode("out.imp")->in_edge());
+}
+
+TEST_F(GraphTest, ImplicitOutputOnlyMissing) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build | out.imp: cat in\n"));
+  fs_.Create("in", "");
+
+  Edge* edge = GetNode("out.imp")->in_edge();
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
+TEST_F(GraphTest, ImplicitOutputOnlyOutOfDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build | out.imp: cat in\n"));
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  Edge* edge = GetNode("out.imp")->in_edge();
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
 TEST_F(GraphTest, PathWithCurrentDirectory) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule catdep\n"
