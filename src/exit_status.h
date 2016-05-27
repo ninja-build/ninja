@@ -18,7 +18,8 @@
 enum ExitStatus {
   ExitSuccess,
   ExitFailure,
-  ExitInterrupted
+  ExitTokenAvailable,
+  ExitInterrupted,
 };
 
 #endif  // NINJA_EXIT_STATUS_H_

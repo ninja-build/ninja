@@ -21,6 +21,12 @@ struct TokenPool {
   virtual void Release() = 0;
   virtual void Clear() = 0;
 
+#ifdef _WIN32
+  // @TODO
+#else
+  virtual int GetMonitorFd() = 0;
+#endif
+
   // returns NULL if token pool is not available
   static struct TokenPool *Get(void);
 };

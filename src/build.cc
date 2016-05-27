@@ -48,8 +48,9 @@ struct DryRunCommandRunner : public CommandRunner {
 
   // Overridden from CommandRunner:
   virtual bool CanRunMore() const;
+  virtual bool AcquireToken();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual bool WaitForCommand(Result* result, bool more_ready);
 
  private:
   queue<Edge*> finished_;
@@ -59,12 +60,16 @@ bool DryRunCommandRunner::CanRunMore() const {
   return true;
 }
 
+bool DryRunCommandRunner::AcquireToken() {
+  return true;
+}
+
 bool DryRunCommandRunner::StartCommand(Edge* edge) {
   finished_.push(edge);
   return true;
 }
 
-bool DryRunCommandRunner::WaitForCommand(Result* result) {
+bool DryRunCommandRunner::WaitForCommand(Result* result, bool more_ready) {
    if (finished_.empty())
      return false;
 
@@ -452,8 +457,9 @@ struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config);
   virtual ~RealCommandRunner();
   virtual bool CanRunMore() const;
+  virtual bool AcquireToken();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual bool WaitForCommand(Result* result, bool more_ready);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -490,9 +496,12 @@ bool RealCommandRunner::CanRunMore() const {
       subprocs_.running_.size() + subprocs_.finished_.size();
   return (int)subproc_number < config_.parallelism
     && (subprocs_.running_.empty() ||
-        ((config_.max_load_average <= 0.0f ||
-          GetLoadAverage() < config_.max_load_average)
-      && (!tokens_ || tokens_->Acquire())));
+        (config_.max_load_average <= 0.0f ||
+         GetLoadAverage() < config_.max_load_average));
+}
+
+bool RealCommandRunner::AcquireToken() {
+  return (!tokens_ || tokens_->Acquire());
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -507,14 +516,23 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool RealCommandRunner::WaitForCommand(Result* result) {
+bool RealCommandRunner::WaitForCommand(Result* result, bool more_ready) {
   Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
+  subprocs_.ResetTokenAvailable();
+  while (((subproc = subprocs_.NextFinished()) == NULL) &&
+         !subprocs_.IsTokenAvailable()) {
+    bool interrupted = subprocs_.DoWork(more_ready ? tokens_ : NULL);
     if (interrupted)
       return false;
   }
 
+  // token became available
+  if (subproc == NULL) {
+    result->status = ExitTokenAvailable;
+    return true;
+  }
+
+  // command completed
   if (tokens_)
     tokens_->Release();
 
@@ -647,9 +665,14 @@ bool Builder::Build(string* err) {
   // command runner.
   // Second, we attempt to wait for / reap the next finished command.
   while (plan_.more_to_do()) {
-    // See if we can start any more commands.
-    if (failures_allowed && plan_.more_ready() &&
-        command_runner_->CanRunMore()) {
+    // See if we can start any more commands...
+    bool can_run_more =
+        failures_allowed   &&
+        plan_.more_ready() &&
+        command_runner_->CanRunMore();
+
+    // ... but we also need a token to do that.
+    if (can_run_more && command_runner_->AcquireToken()) {
       Edge* edge = plan_.FindWork();
       if (edge->GetBindingBool("generator")) {
           scan_.build_log()->Close();
@@ -678,13 +701,17 @@ bool Builder::Build(string* err) {
     // See if we can reap any finished commands.
     if (pending_commands) {
       CommandRunner::Result result;
-      if (!command_runner_->WaitForCommand(&result) ||
+      if (!command_runner_->WaitForCommand(&result, can_run_more) ||
           result.status == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
       }
+
+      // We might be able to start another command; start the main loop over.
+      if (result.status == ExitTokenAvailable)
+        continue;
 
       --pending_commands;
       if (!FinishCommand(&result, err)) {

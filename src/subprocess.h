@@ -76,6 +76,8 @@ struct Subprocess {
   friend struct SubprocessSet;
 };
 
+struct TokenPool;
+
 /// SubprocessSet runs a ppoll/pselect() loop around a set of Subprocesses.
 /// DoWork() waits for any state change in subprocesses; finished_
 /// is a queue of subprocesses as they finish.
@@ -84,12 +86,16 @@ struct SubprocessSet {
   ~SubprocessSet();
 
   Subprocess* Add(const std::string& command, bool use_console = false);
-  bool DoWork();
+  bool DoWork(struct TokenPool* tokens);
   Subprocess* NextFinished();
   void Clear();
 
   std::vector<Subprocess*> running_;
   std::queue<Subprocess*> finished_;
+
+  bool token_available_;
+  bool IsTokenAvailable() { return token_available_; }
+  void ResetTokenAvailable() { token_available_ = false; }
 
 #ifdef _WIN32
   static BOOL WINAPI NotifyInterrupted(DWORD dwCtrlType);

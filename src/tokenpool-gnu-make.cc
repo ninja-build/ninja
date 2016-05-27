@@ -33,6 +33,7 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual void Reserve();
   virtual void Release();
   virtual void Clear();
+  virtual int GetMonitorFd();
 
   bool Setup();
 
@@ -199,6 +200,10 @@ void GNUmakeTokenPool::Clear() {
     Release();
   while (available_ > 1)
     Return();
+}
+
+int GNUmakeTokenPool::GetMonitorFd() {
+  return(rfd_);
 }
 
 struct TokenPool *TokenPool::Get(void) {

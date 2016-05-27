@@ -139,6 +139,7 @@ private:
 struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() const = 0;
+  virtual bool AcquireToken() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
@@ -150,7 +151,7 @@ struct CommandRunner {
     bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
-  virtual bool WaitForCommand(Result* result) = 0;
+  virtual bool WaitForCommand(Result* result, bool more_ready) = 0;
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
