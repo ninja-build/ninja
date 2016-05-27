@@ -976,13 +976,10 @@ TEST_F(ParserTest, ImplicitOutputDupes) {
 TEST_F(ParserTest, NoExplicitOutput) {
   ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
   string err;
-  EXPECT_FALSE(parser.ParseTest(
+  EXPECT_TRUE(parser.ParseTest(
 "rule cat\n"
 "  command = cat $in > $out\n"
 "build | imp : cat bar\n", &err));
-  ASSERT_EQ("input:3: expected path\n"
-            "build | imp : cat bar\n"
-            "      ^ near here", err);
 }
 
 TEST_F(ParserTest, DefaultDefault) {
