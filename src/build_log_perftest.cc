@@ -92,7 +92,8 @@ bool WriteTestData(string* err) {
     log.RecordCommand(state.edges_[i],
                       /*start_time=*/100 * i,
                       /*end_time=*/100 * i + 1,
-                      /*mtime=*/0);
+                      /*mtime=*/0,
+                      /*input_mtime=*/0);
   }
 
   return true;

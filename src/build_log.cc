@@ -47,7 +47,7 @@ namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
 const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kCurrentVersion = 6;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
@@ -103,9 +103,10 @@ BuildLog::LogEntry::LogEntry(const string& output)
   : output(output) {}
 
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp restat_mtime)
+  int start_time, int end_time, TimeStamp restat_mtime, TimeStamp input_mtime)
   : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(restat_mtime)
+    start_time(start_time), end_time(end_time), mtime(restat_mtime),
+    input_mtime(input_mtime)
 {}
 
 BuildLog::BuildLog()
@@ -145,7 +146,7 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 }
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             TimeStamp mtime) {
+                             TimeStamp mtime, TimeStamp input_mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -163,6 +164,7 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->mtime = mtime;
+    log_entry->input_mtime = input_mtime;
 
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
@@ -274,7 +276,7 @@ bool BuildLog::Load(const string& path, string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp restat_mtime = 0;
+    TimeStamp restat_mtime = 0, input_mtime = 0;
 
     start_time = atoi(start);
     start = end + 1;
@@ -292,6 +294,15 @@ bool BuildLog::Load(const string& path, string* err) {
     *end = 0;
     restat_mtime = strtoll(start, NULL, 10);
     start = end + 1;
+
+    if (log_version >= 6) {
+        end = (char*)memchr(start, kFieldSeparator, line_end - start);
+        if (!end)
+            continue;
+        *end = 0;
+        input_mtime = strtoll(start, NULL, 10);
+        start = end + 1;
+    }
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
@@ -315,6 +326,7 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->mtime = restat_mtime;
+    entry->input_mtime = input_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
       entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
@@ -353,8 +365,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.mtime,
+  return fprintf(f, "%d\t%d\t%" PRId64 "\t%" PRId64 "\t%s\t%" PRIx64 "\n",
+          entry.start_time, entry.end_time, entry.mtime, entry.input_mtime,
           entry.output.c_str(), entry.command_hash) > 0;
 }
 

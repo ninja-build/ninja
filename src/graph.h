@@ -134,8 +134,8 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone),
-           outputs_ready_(false), deps_missing_(false),
+  Edge() : rule_(NULL), pool_(NULL), most_recent_input_(NULL), env_(NULL),
+           mark_(VisitNone), outputs_ready_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
@@ -161,6 +161,7 @@ struct Edge {
   Pool* pool_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
+  Node* most_recent_input_;
   BindingEnv* env_;
   VisitMark mark_;
   bool outputs_ready_;
@@ -263,8 +264,7 @@ struct DependencyScan {
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
-  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                             bool* dirty, string* err);
+  bool RecomputeOutputsDirty(Edge* edge, bool* dirty, string* err);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -283,8 +283,7 @@ struct DependencyScan {
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
-                            const string& command, Node* output);
+  bool RecomputeOutputDirty(Edge* edge, const string& command, Node* output);
 
   BuildLog* build_log_;
   DiskInterface* disk_interface_;

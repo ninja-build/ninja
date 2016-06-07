@@ -566,6 +566,14 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
              edge->rule().name() == "interrupt" ||
              edge->rule().name() == "console") {
     // Don't do anything.
+  } else if (edge->rule().name() == "long-cc") {
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+        out != edge->outputs_.end(); ++out) {
+      fs_->Tick();
+      fs_->Tick();
+      fs_->Tick();
+      fs_->Create((*out)->path(), "");
+    }
   } else {
     printf("unknown command\n");
     return false;
@@ -1984,6 +1992,91 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 
   builder.command_runner_.release();
 }
+
+TEST_F(BuildWithDepsLogTest, TestBuildTime) {
+  string err;
+  const char* manifest =
+      "rule long-cc\n"
+      "  command = long-cc\n"
+      "build out: long-cc in\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+
+  fs_.Create("in", "");
+  fs_.Create("header.h", "");
+  fs_.Create("in1.d", "out: header.h");
+
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+  BuildLog build_log;
+  ASSERT_TRUE(build_log.Load("build_log", &err));
+  ASSERT_TRUE(build_log.OpenForWrite("build_log", *this, &err));
+
+  DepsLog deps_log;
+  ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+
+  Builder builder(&state, config_, &build_log, &deps_log, &fs_);
+  builder.command_runner_.reset(&command_runner_);
+  command_runner_.commands_ran_.clear();
+
+  // Run the build, out gets built, dep file is created
+  TimeStamp input_mtime = fs_.Tick();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+
+  // See that an entry in the logfile is created. the input_mtime is 0 to start
+  // with, since the dep file didn't exist when the build started
+  BuildLog::LogEntry* log_entry = build_log.LookupByOutput("out");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ(0, log_entry->input_mtime);
+
+  // Touch a dependency of the input file, and rebuild so the build log is
+  // updated with the mtime of the dependency
+  input_mtime = fs_.Tick();
+  fs_.files_["header.h"].mtime = input_mtime;
+
+  command_runner_.commands_ran_.clear();
+  state.Reset();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+
+  // Set the input file's mtime to something newer than when the build started,
+  // but before the output's actual mtime
+  fs_.files_["in"].mtime = input_mtime+1;
+  ASSERT_TRUE(fs_.files_["in"].mtime < fs_.files_["out"].mtime);
+
+  // Trigger the build again - "out" should rebuild despite having a newer mtime
+  // than "in"
+  fs_.Tick();
+  command_runner_.commands_ran_.clear();
+  state.Reset();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+
+  // Check that the logfile entry is still correct
+  log_entry = build_log.LookupByOutput("out");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ(fs_.files_["in"].mtime, log_entry->input_mtime);
+
+  // And a subsequent run should not have any work to do
+  command_runner_.commands_ran_.clear();
+  state.Reset();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder.AlreadyUpToDate());
+
+  builder.command_runner_.release();
+}
+
 
 /// Check that a restat rule generating a header cancels compilations correctly.
 TEST_F(BuildTest, RestatDepfileDependency) {

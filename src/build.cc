@@ -449,12 +449,13 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
           most_recent_input = *i;
       }
 
+      (*oe)->most_recent_input_ = most_recent_input;
+
       // Now, this edge is dirty if any of the outputs are dirty.
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
       bool outputs_dirty = false;
-      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
-                                       &outputs_dirty, err)) {
+      if (!scan->RecomputeOutputsDirty(*oe, &outputs_dirty, err)) {
         return false;
       }
       if (!outputs_dirty) {
@@ -837,14 +838,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
-  if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
-                                          output_mtime)) {
-      *err = string("Error writing to build log: ") + strerror(errno);
-      return false;
-    }
-  }
-
+  TimeStamp input_mtime = 0;
   if (!deps_type.empty() && !config_.dry_run) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
@@ -855,7 +849,31 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       *err = string("Error writing to deps log: ") + strerror(errno);
       return false;
     }
+    // Determine which mtime to record in the log file
+    if (edge->most_recent_input_)
+      input_mtime = edge->most_recent_input_->mtime();
+    for (vector<Node*>::const_iterator i = deps_nodes.begin();
+         i != deps_nodes.end(); ++i) {
+        TimeStamp mtime = (*i)->mtime();
+        // there is incomplete information if any of the inputs don't have an mtime
+        if (mtime == -1) {
+          input_mtime = 0;
+          break;
+        }
+        if (input_mtime < mtime)
+          input_mtime = mtime;
+    }
+
   }
+
+  if (scan_.build_log()) {
+    if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
+                                          output_mtime, input_mtime)) {
+      *err = string("Error writing to build log: ") + strerror(errno);
+      return false;
+    }
+  }
+
   return true;
 }
 
