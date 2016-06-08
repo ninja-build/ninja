@@ -135,8 +135,13 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (!success) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
-         o != edge->outputs_.end(); ++o)
-      outputs += (*o)->path() + " ";
+         o != edge->outputs_.end(); ++o) {
+      if((*o)->path().find(' ') != string::npos) {
+        outputs += "'" + (*o)->path() + "' ";
+      } else {
+        outputs += (*o)->path() + " ";
+      }
+    }
 
     printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
