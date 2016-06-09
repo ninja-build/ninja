@@ -110,8 +110,8 @@ struct State {
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
-  vector<Node*> RootNodes(string* error);
-  vector<Node*> DefaultNodes(string* error);
+  vector<Node*> RootNodes(string* error) const;
+  vector<Node*> DefaultNodes(string* error) const;
 
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
