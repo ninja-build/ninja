@@ -38,6 +38,7 @@
 #include "debug_flags.h"
 #include "disk_interface.h"
 #include "graph.h"
+#include "graph_stats.h"
 #include "graphviz.h"
 #include "manifest_parser.h"
 #include "metrics.h"
@@ -113,6 +114,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolDeps(const Options* options, int argc, char* argv[]);
   int ToolBrowse(const Options* options, int argc, char* argv[]);
   int ToolMSVC(const Options* options, int argc, char* argv[]);
+  int ToolStats(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
@@ -697,6 +699,24 @@ int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
   return 0;
 }
 
+int NinjaMain::ToolStats(const Options* options, int argc, char* argv[]) {
+  GraphStats stats;
+  GetGraphStats(state_, &stats);
+  printf("nnodes: %zu\n", stats.nnodes);
+  printf("nsources: %zu (%.2f%%)\n", stats.nsources, stats.sources_ratio());
+  printf("noutputs: %zu (%.2f%%)\n", stats.noutputs, stats.outputs_ratio());
+  printf("nintermed: %zu (%.2f%%)\n", stats.nintermed, stats.intermed_ratio());
+  printf("nedges: %zu\n", stats.nedges);
+  printf("nphony_edges: %zu\n", stats.nphony_edges);
+  printf("max_edge_output: %zu\n", stats.max_edge_output);
+  printf("min_edge_output: %zu\n", stats.min_edge_output);
+  printf("max_edge_input: %zu\n", stats.max_edge_input);
+  printf("min_edge_input: %zu\n", stats.min_edge_input);
+  printf("width: %zu\n", stats.width);
+  printf("height: %zu\n", stats.height);
+  return 0;
+}
+
 /// Find the function to execute for \a tool_name and return it via \a func.
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const string& tool_name) {
@@ -719,6 +739,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
+    { "stats", "show basic graph statistics",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolStats },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
