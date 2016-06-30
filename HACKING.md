@@ -22,6 +22,35 @@ run everything under a Visual Studio Tools Command Prompt (or after
 running `vcvarsall` in a normal command prompt).  See below if you
 want to use mingw or some other compiler instead of Visual Studio.
 
+Assuming that you have python installed, then the steps for building under
+ Windows using Visual Studio are:
+ 
+In a bash window, clone and checkout the latest release
+(or whatever branch you want):
+
+```
+    $ git clone git://github.com/ninja-build/ninja.git && cd ninja 
+    $ git checkout release 
+    $ cat README 
+```
+
+Then:
+
+1. Open a Windows command prompt in the folder where you checked out ninja.
+2. Select the Microsoft build environment by running
+`vcvars.bat` with the appropriate environment.
+3. Build ninja and test it.
+
+The steps for a Visual Studio 2015 64-bit build are oultined here:
+
+```
+    >"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+    >python configure.py --bootstrap
+    >ninja --help
+```
+
+ Finally add the path where ninja.exe is to the PATH variable.
+
 ### Adjusting build flags
 
 Build in "debug" mode while developing (disables optimizations and builds
