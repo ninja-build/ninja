@@ -31,17 +31,16 @@ In a bash window, clone and checkout the latest release
 ```
     $ git clone git://github.com/ninja-build/ninja.git && cd ninja 
     $ git checkout release 
-    $ cat README 
 ```
 
 Then:
 
 1. Open a Windows command prompt in the folder where you checked out ninja.
 2. Select the Microsoft build environment by running
-`vcvars.bat` with the appropriate environment.
+`vcvarsall.bat` with the appropriate environment.
 3. Build ninja and test it.
 
-The steps for a Visual Studio 2015 64-bit build are oultined here:
+The steps for a Visual Studio 2015 64-bit build are outlined here:
 
 ```
     >"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
