@@ -174,11 +174,22 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     }
 
     if (output_mtime < most_recent_input->mtime()) {
+      time_t output_t = static_cast<time_t>(output_mtime);
+      time_t most_recent_input_t = static_cast<time_t>(most_recent_input->mtime());
+
+      // Convert to human readable time string instead of epoch time
+      char *output_t_str = ctime(&output_t);
+      char *most_recent_input_t_str = ctime(&most_recent_input_t);
+
+      // Get rid of new-line character
+      output_t_str[strlen(output_t_str) - 1] = '\0';
+      most_recent_input_t_str[strlen(most_recent_input_t_str) - 1] = '\0';
+
       EXPLAIN("%soutput %s older than most recent input %s "
-              "(%d vs %d)",
+              "(%s vs %s)",
               used_restat ? "restat of " : "", output->path().c_str(),
               most_recent_input->path().c_str(),
-              output_mtime, most_recent_input->mtime());
+              output_t_str, most_recent_input_t_str);
       return true;
     }
   }
