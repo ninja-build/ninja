@@ -110,11 +110,6 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
                                     int* end_time) {
   int64_t now = GetTimeMillis();
 
-  if (finished_edges_  == 0) {
-    overall_rate_.Restart();
-    current_rate_.Restart();
-  }
-
   ++finished_edges_;
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
@@ -162,6 +157,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       final_output = output;
     printer_.PrintOnNewLine(final_output);
   }
+}
+
+void BuildStatus::BuildStarted() {
+  overall_rate_.Restart();
+  current_rate_.Restart();
 }
 
 void BuildStatus::BuildFinished() {
@@ -649,6 +649,9 @@ bool Builder::Build(string* err) {
     else
       command_runner_.reset(new RealCommandRunner(config_));
   }
+
+  // We are about to start the build process.
+  status_->BuildStarted();
 
   // This main loop runs the entire build process.
   // It is structured like this:
