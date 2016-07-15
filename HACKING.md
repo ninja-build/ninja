@@ -19,14 +19,21 @@ You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
 
 On Windows, you'll need to install Python to run `configure.py`, and
 run everything under a Visual Studio Tools Command Prompt (or after
-running `vcvarsall` in a normal command prompt).  See below if you
-want to use mingw or some other compiler instead of Visual Studio.
+running `vcvarsall` in a normal command prompt).
 
-Assuming that you have python installed, then the steps for building under
+For other combinations such as gcc/clang you will need the compiler
+(gcc/cl) in your PATH and you will have to set the appropriate
+platform configuration script.
+
+See below if you want to use mingw or some other compiler instead of
+Visual Studio.
+
+##### Using Visual Studio
+Assuming that you now have python installed, then the steps for building under
  Windows using Visual Studio are:
  
-In a bash window, clone and checkout the latest release
-(or whatever branch you want):
+Clone and checkout the latest release (or whatever branch you want). You
+can do this in either a command prompt or by opening a git bash prompt:
 
 ```
     $ git clone git://github.com/ninja-build/ninja.git && cd ninja 
@@ -43,12 +50,13 @@ Then:
 The steps for a Visual Studio 2015 64-bit build are outlined here:
 
 ```
-    >"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
-    >python configure.py --bootstrap
-    >ninja --help
+    > "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+    > python configure.py --bootstrap
+    > ninja --help
 ```
+Copy the ninja executable to another location, if desired, e.g. C:\local\Ninja.
 
- Finally add the path where ninja.exe is to the PATH variable.
+Finally add the path where ninja.exe is to the PATH variable.
 
 ### Adjusting build flags
 
