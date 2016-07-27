@@ -127,7 +127,9 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
     *err = strerror(errno);
     return false;
   }
-  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
+  if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
+    Error("log file line-buffering setup failed.");
+  }
   SetCloseOnExec(fileno(log_file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's

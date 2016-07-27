@@ -1073,7 +1073,9 @@ int real_main(int argc, char** argv) {
   Options options = {};
   options.input_file = "build.ninja";
 
-  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  if (setvbuf(stdout, NULL, _IOLBF, BUFSIZ) != 0) {
+    Error("stdout line-buffering setup failed.");
+  }
   const char* ninja_command = argv[0];
 
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
