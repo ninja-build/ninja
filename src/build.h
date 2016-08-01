@@ -200,6 +200,7 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildStarted();
   void BuildFinished();
 
   enum EdgeStatus {
