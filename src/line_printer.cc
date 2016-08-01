@@ -37,7 +37,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
   if (setvbuf(stdout, NULL, _IONBF, 0) != 0) {
-    Error("stdout no-buffering setup failed.");
+    Fatal("stdout no-buffering setup failed.");
   }
   console_ = GetStdHandle(STD_OUTPUT_HANDLE);
   CONSOLE_SCREEN_BUFFER_INFO csbi;

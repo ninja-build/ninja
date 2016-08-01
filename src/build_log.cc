@@ -128,7 +128,7 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
     return false;
   }
   if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
-    Error("log file line-buffering setup failed.");
+    Fatal("log file line-buffering setup failed.");
   }
   SetCloseOnExec(fileno(log_file_));
 

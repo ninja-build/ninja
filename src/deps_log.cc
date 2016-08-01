@@ -54,7 +54,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
   // Set the buffer size to this and flush the file buffer after every record
   // to make sure records aren't written partially.
   if (setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1) != 0) {
-    Error("file %s buffer-size setup failed.", path.c_str());
+    Fatal("file %s buffer-size setup failed.", path.c_str());
   }
   SetCloseOnExec(fileno(file_));
 
