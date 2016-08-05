@@ -87,7 +87,12 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
 
-  progress_status_format_ = getenv("NINJA_STATUS");
+  if (config_.status_format) {
+    // Command line arg overrides env if given.
+    progress_status_format_ = config_.status_format;
+  } else {
+    progress_status_format_ = getenv("NINJA_STATUS");
+  }
   if (!progress_status_format_)
     progress_status_format_ = "[%f/%t] ";
 }
@@ -279,7 +284,7 @@ string BuildStatus::FormatProgressStatus(
       }
 
       default:
-        Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
+        Fatal("unknown placeholder '%%%c' in the status format string", *s);
         return "";
       }
     } else {
