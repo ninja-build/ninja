@@ -206,8 +206,9 @@ void Usage(const BuildConfig& config) {
 "if targets are unspecified, builds the 'default' target (see manual).\n"
 "\n"
 "options:\n"
-"  --version      print ninja version (\"%s\")\n"
-"  -v, --verbose  show all command lines while building\n"
+"  --version                   print ninja version (\"%s\")\n"
+"  -v, --verbose               show all command lines while building\n"
+"  -s, --status-format=STATUS  specify the status format string\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -1190,6 +1191,7 @@ int ReadFlags(int* argc, char*** argv,
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
+    { "status-format", required_argument, NULL, 's' },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1238,6 +1240,10 @@ int ReadFlags(int* argc, char*** argv,
       }
       case 'n':
         config->dry_run = true;
+        break;
+      case 's':
+        // status-format value is in optarg
+        config->status_format = optarg;
         break;
       case 't':
         options->tool = ChooseTool(optarg);
