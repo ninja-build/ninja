@@ -103,7 +103,7 @@ bool IncludesNormalize::Normalize(const string& input, const char* relative_to,
     return false;
   }
   strncpy(copy, input.c_str(), input.size() + 1);
-  unsigned int slash_bits;
+  uint64_t slash_bits;
   if (!CanonicalizePath(copy, &len, &slash_bits, err))
     return false;
   StringPiece partially_fixed(copy, len);

@@ -43,8 +43,8 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
 /// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err);
-bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
+bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err);
+bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       string* err);
 
 /// Appends |input| to |*result|, escaping according to the whims of either

@@ -90,7 +90,7 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
 #else
       // TODO: should this make the path relative to cwd?
       normalized = include;
-      unsigned int slash_bits;
+      uint64_t slash_bits;
       if (!CanonicalizePath(&normalized, &slash_bits, err))
         return false;
 #endif

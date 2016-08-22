@@ -420,7 +420,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
-  unsigned int unused;
+  uint64_t unused;
   if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
                         &depfile.out_.len_, &unused, err))
     return false;
@@ -442,7 +442,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    unsigned int slash_bits;
+    uint64_t slash_bits;
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
                           err))
       return false;

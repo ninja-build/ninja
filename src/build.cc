@@ -918,7 +918,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->reserve(deps.ins_.size());
     for (vector<StringPiece>::iterator i = deps.ins_.begin();
          i != deps.ins_.end(); ++i) {
-      unsigned int slash_bits;
+      uint64_t slash_bits;
       if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
                             err))
         return false;
