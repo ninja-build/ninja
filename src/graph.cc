@@ -348,10 +348,10 @@ bool Edge::use_console() const {
 }
 
 // static
-string Node::PathDecanonicalized(const string& path, unsigned int slash_bits) {
+string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   string result = path;
 #ifdef _WIN32
-  unsigned int mask = 1;
+  uint64_t mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
     if (slash_bits & mask)
       *c = '\\';

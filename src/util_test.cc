@@ -290,8 +290,7 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x.h";
 
   EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
-  printf("%x\n",slash_bits);
-  EXPECT_EQ(slash_bits, 0xffffffffLL);
+  EXPECT_EQ(slash_bits, 0xffffffff);
 
   // 65 is not.
   err = "";
