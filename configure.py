@@ -98,7 +98,7 @@ class Platform(object):
         return self._platform in ('freebsd', 'openbsd', 'bitrig')
 
     def supports_ppoll(self):
-        return self._platform in ('linux', 'openbsd', 'bitrig')
+        return self._platform in ('freebsd', 'linux', 'openbsd', 'bitrig')
 
     def supports_ninja_browse(self):
         return (not self.is_windows()
