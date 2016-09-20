@@ -24,6 +24,13 @@
 #include <sys/wait.h>
 #include <spawn.h>
 
+#ifdef __FreeBSD__
+#  include <sys/param.h>
+#  if defined USE_PPOLL && __FreeBSD_version < 1002000
+#    undef USE_PPOLL
+#  endif
+#endif
+
 extern char** environ;
 
 #include "util.h"
