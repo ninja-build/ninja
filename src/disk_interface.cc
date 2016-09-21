@@ -131,7 +131,7 @@ bool DiskInterface::MakeDirs(const string& path) {
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   string err;
-  TimeStamp mtime = Stat(dir, &err);
+  TimeStamp mtime = Stat(dir, kDontFollow, &err);
   if (mtime < 0) {
     Error("%s", err.c_str());
     return false;
@@ -148,7 +148,10 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+TimeStamp RealDiskInterface::Stat(
+    const string& path,
+    DiskInterface::SymlinkTreatment symlink_treatment,
+    string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
@@ -181,7 +184,22 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   return di != ci->second.end() ? di->second : 0;
 #else
   struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
+  int result;
+  switch (symlink_treatment) {
+  case kDontFollow:
+    result = lstat(path.c_str(), &st);
+    break;
+  case kTakeNewest:
+  default:
+    result = lstat(path.c_str(), &st);
+    if (result == 0 && S_ISLNK(st.st_mode)) {
+      struct stat st2;
+      if (stat(path.c_str(), &st2) == 0) {
+        st.st_mtime = max(st.st_mtime, st2.st_mtime);
+      }
+    }
+  }
+  if (result < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
     *err = "stat(" + path + "): " + strerror(errno);

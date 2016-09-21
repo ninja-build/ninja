@@ -146,7 +146,10 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
+TimeStamp VirtualFileSystem::Stat(
+    const string& path,
+    DiskInterface::SymlinkTreatment symlink_treatment,
+    string* err) const {
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
     *err = i->second.stat_error;

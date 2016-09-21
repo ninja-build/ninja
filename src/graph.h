@@ -19,12 +19,12 @@
 #include <vector>
 using namespace std;
 
+#include "disk_interface.h"
 #include "eval_env.h"
 #include "timestamp.h"
 #include "util.h"
 
 struct BuildLog;
-struct DiskInterface;
 struct DepsLog;
 struct Edge;
 struct Node;
@@ -43,13 +43,17 @@ struct Node {
         id_(-1) {}
 
   /// Return false on error.
-  bool Stat(DiskInterface* disk_interface, string* err);
+  bool Stat(DiskInterface* disk_interface,
+            DiskInterface::SymlinkTreatment symlink_treatment,
+            string* err);
 
   /// Return false on error.
-  bool StatIfNecessary(DiskInterface* disk_interface, string* err) {
+  bool StatIfNecessary(DiskInterface* disk_interface,
+            DiskInterface::SymlinkTreatment symlink_treatment,
+            string* err) {
     if (status_known())
       return true;
-    return Stat(disk_interface, err);
+    return Stat(disk_interface, symlink_treatment, err);
   }
 
   /// Mark as not-yet-stat()ed and not dirty.

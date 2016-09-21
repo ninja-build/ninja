@@ -50,7 +50,8 @@ int Cleaner::RemoveFile(const string& path) {
 
 bool Cleaner::FileExists(const string& path) {
   string err;
-  TimeStamp mtime = disk_interface_->Stat(path, &err);
+  TimeStamp mtime =
+      disk_interface_->Stat(path, DiskInterface::kDontFollow, &err);
   if (mtime == -1)
     Error("%s", err.c_str());
   return mtime > 0;  // Treat Stat() errors as "file does not exist".

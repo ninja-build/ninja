@@ -45,10 +45,10 @@ TEST_F(CleanTest, CleanAll) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -77,10 +77,10 @@ TEST_F(CleanTest, CleanAllDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -108,10 +108,10 @@ TEST_F(CleanTest, CleanTarget) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -140,10 +140,10 @@ TEST_F(CleanTest, CleanTargetDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -173,10 +173,10 @@ TEST_F(CleanTest, CleanRule) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -207,10 +207,10 @@ TEST_F(CleanTest, CleanRuleDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_LT(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -335,12 +335,12 @@ TEST_F(CleanTest, CleanRsp) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
-  EXPECT_EQ(0, fs_.Stat("in2.rsp", &err));
-  EXPECT_EQ(0, fs_.Stat("out2.rsp", &err));
+  EXPECT_EQ(0, fs_.Stat("in1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("in2", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out2", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("in2.rsp", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out2.rsp", DiskInterface::kDontFollow, &err));
 }
 
 TEST_F(CleanTest, CleanFailure) {
@@ -366,7 +366,7 @@ TEST_F(CleanTest, CleanPhony) {
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_LT(0, fs_.Stat("phony", DiskInterface::kDontFollow, &err));
 
   fs_.Create("t1", "");
   fs_.Create("t2", "");
@@ -374,7 +374,7 @@ TEST_F(CleanTest, CleanPhony) {
   // Check that CleanTarget does not remove "phony".
   EXPECT_EQ(0, cleaner.CleanTarget("phony"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_LT(0, fs_.Stat("phony", DiskInterface::kDontFollow, &err));
 }
 
 TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
@@ -400,8 +400,8 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
   string err;
-  EXPECT_EQ(0, fs_.Stat("out 1", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2", &err));
-  EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2.rsp", &err));
+  EXPECT_EQ(0, fs_.Stat("out 1", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out 2", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out 1.d", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(0, fs_.Stat("out 2.rsp", DiskInterface::kDontFollow, &err));
 }

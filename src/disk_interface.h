@@ -44,9 +44,24 @@ struct FileReader {
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
 struct DiskInterface: public FileReader {
+  /// How to treat symlinks when calling Stat().
+  enum SymlinkTreatment {
+    // Used for outputs. Even though outputs are often used as inputs as well, a
+    // newly created symlink should always have an mtime newer than the thing it
+    // points to at the time of its creation.
+    kDontFollow,
+    // Takes the newest mtime of the symlink or the file it points to. Does not
+    // follow symlink chains. Used when computing input mtimes, as it will cause
+    // a target to be dirty when either the symlink changes, or the thing it
+    // points to changes.
+    kTakeNewest,
+  };
+
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path, string* err) const = 0;
+  virtual TimeStamp Stat(const string& path,
+                         SymlinkTreatment symlink_treatment,
+                         string* err) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -75,7 +90,8 @@ struct RealDiskInterface : public DiskInterface {
 #endif
                       {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path, string* err) const;
+  virtual TimeStamp Stat(const string& path, SymlinkTreatment symlink_treatment,
+                         string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual Status ReadFile(const string& path, string* contents, string* err);

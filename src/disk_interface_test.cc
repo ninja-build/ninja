@@ -17,6 +17,9 @@
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
+#else
+#include <unistd.h>
+#include <utime.h>
 #endif
 
 #include "disk_interface.h"
@@ -48,18 +51,20 @@ struct DiskInterfaceTest : public testing::Test {
 
 TEST_F(DiskInterfaceTest, StatMissingFile) {
   string err;
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(0, disk_.Stat("nosuchfile", DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
 
   // On Windows, the errno for a file in a nonexistent directory
   // is different.
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(
+      0, disk_.Stat("nosuchdir/nosuchfile", DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
 
   // On POSIX systems, the errno is different if a component of the
   // path prefix is not a directory.
   ASSERT_TRUE(Touch("notadir"));
-  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ(0,
+            disk_.Stat("notadir/nosuchfile", DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
 }
 
@@ -67,11 +72,11 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
   string err;
 #ifdef _WIN32
   string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(-1, disk_.Stat(bad_path, DiskInterface::kDontFollow, &err));
   EXPECT_NE("", err);
 #else
   string too_long_name(512, 'x');
-  EXPECT_EQ(-1, disk_.Stat(too_long_name, &err));
+  EXPECT_EQ(-1, disk_.Stat(too_long_name, DiskInterface::kDontFollow, &err));
   EXPECT_NE("", err);
 #endif
 }
@@ -79,7 +84,7 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
 TEST_F(DiskInterfaceTest, StatExistingFile) {
   string err;
   ASSERT_TRUE(Touch("file"));
-  EXPECT_GT(disk_.Stat("file", &err), 1);
+  EXPECT_GT(disk_.Stat("file", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
 }
 
@@ -87,19 +92,21 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
   string err;
   ASSERT_TRUE(disk_.MakeDir("subdir"));
   ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat(".", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir", DiskInterface::kDontFollow, &err),
+            1);
   EXPECT_EQ("", err);
 
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/.", &err));
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/subsubdir/..", &err));
-  EXPECT_EQ(disk_.Stat("subdir/subsubdir", &err),
-            disk_.Stat("subdir/subsubdir/.", &err));
+  EXPECT_EQ(disk_.Stat("subdir", DiskInterface::kDontFollow, &err),
+            disk_.Stat("subdir/.", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(
+      disk_.Stat("subdir", DiskInterface::kDontFollow, &err),
+      disk_.Stat("subdir/subsubdir/..", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir", DiskInterface::kDontFollow, &err),
+            disk_.Stat("subdir/subsubdir/.", DiskInterface::kDontFollow, &err));
 }
 
 #ifdef _WIN32
@@ -115,42 +122,84 @@ TEST_F(DiskInterfaceTest, StatCache) {
   ASSERT_TRUE(Touch("subdir\\SUBFILE2"));
   ASSERT_TRUE(Touch("subdir\\SUBFILE3"));
 
-  EXPECT_GT(disk_.Stat("FIle1", &err), 1);
+  EXPECT_GT(disk_.Stat("FIle1", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("file1", &err), 1);
-  EXPECT_EQ("", err);
-
-  EXPECT_GT(disk_.Stat("subdir/subfile2", &err), 1);
-  EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", &err), 1);
+  EXPECT_GT(disk_.Stat("file1", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
 
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subfile2", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
-  EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", DiskInterface::kDontFollow, &err),
+            1);
   EXPECT_EQ("", err);
 
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/.", &err));
+  EXPECT_GT(disk_.Stat(".", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/subsubdir/..", &err));
+  EXPECT_GT(disk_.Stat("subdir", DiskInterface::kDontFollow, &err), 1);
   EXPECT_EQ("", err);
-  EXPECT_EQ(disk_.Stat("subdir/subsubdir", &err),
-            disk_.Stat("subdir/subsubdir/.", &err));
+  EXPECT_GT(disk_.Stat("subdir/subsubdir", DiskInterface::kDontFollow, &err),
+            1);
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(disk_.Stat("subdir", DiskInterface::kDontFollow, &err),
+            disk_.Stat("subdir/.", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(
+      disk_.Stat("subdir", DiskInterface::kDontFollow, &err),
+      disk_.Stat("subdir/subsubdir/..", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir", DiskInterface::kDontFollow, &err),
+            disk_.Stat("subdir/subsubdir/.", DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
 
   // Test error cases.
   string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(-1, disk_.Stat(bad_path, DiskInterface::kDontFollow, &err));
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(-1, disk_.Stat(bad_path, DiskInterface::kDontFollow, &err));
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(0, disk_.Stat("nosuchfile", DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(
+      0, disk_.Stat("nosuchdir/nosuchfile", DiskInterface::kDontFollow, &err));
+  EXPECT_EQ("", err);
+}
+#else
+TEST_F(DiskInterfaceTest, StatSymlinkDontFollow) {
+  string err;
+  ASSERT_TRUE(Touch("file"));
+  utimbuf old_mtime = { 10, 10 };
+  EXPECT_EQ(0, utime("file", &old_mtime));
+  EXPECT_EQ(0, symlink("file", "symlink"));
+
+  EXPECT_GT(disk_.Stat("symlink", DiskInterface::kDontFollow, &err), 10);
+  EXPECT_EQ("", err);
+}
+
+TEST_F(DiskInterfaceTest, StatSymlinkTakeNewest) {
+  string err;
+  ASSERT_TRUE(Touch("file"));
+  utimbuf old_mtime = { 10, 10 };
+  EXPECT_EQ(0, utime("file", &old_mtime));
+  EXPECT_EQ(0, symlink("file", "symlink"));
+
+  EXPECT_GT(disk_.Stat("symlink", DiskInterface::kTakeNewest, &err), 10);
+  EXPECT_EQ("", err);
+}
+
+TEST_F(DiskInterfaceTest, StatSymlinkBrokenDontFollow) {
+  string err;
+  EXPECT_EQ(0, symlink("file", "symlink"));
+
+  EXPECT_GT(disk_.Stat("symlink", DiskInterface::kDontFollow, &err), 0);
+  EXPECT_EQ("", err);
+}
+
+TEST_F(DiskInterfaceTest, StatSymlinkBrokenTakeNewest) {
+  string err;
+  EXPECT_EQ(0, symlink("file", "symlink"));
+
+  EXPECT_GT(disk_.Stat("symlink", DiskInterface::kTakeNewest, &err), 0);
   EXPECT_EQ("", err);
 }
 #endif
@@ -205,7 +254,9 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, NULL, NULL, this) {}
 
   // DiskInterface implementation.
-  virtual TimeStamp Stat(const string& path, string* err) const;
+  virtual TimeStamp Stat(const string& path,
+                         SymlinkTreatment symlink_treatment,
+                         string* err) const;
   virtual bool WriteFile(const string& path, const string& contents) {
     assert(false);
     return true;
@@ -228,7 +279,9 @@ struct StatTest : public StateTestWithBuiltinRules,
   mutable vector<string> stats_;
 };
 
-TimeStamp StatTest::Stat(const string& path, string* err) const {
+TimeStamp StatTest::Stat(const string& path,
+                         DiskInterface::SymlinkTreatment symlink_treatment,
+                         string* err) const {
   stats_.push_back(path);
   map<string, TimeStamp>::const_iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
@@ -242,7 +295,7 @@ TEST_F(StatTest, Simple) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_TRUE(out->Stat(this, DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL);
@@ -258,7 +311,7 @@ TEST_F(StatTest, TwoStep) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_TRUE(out->Stat(this, DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL);
@@ -278,7 +331,7 @@ TEST_F(StatTest, Tree) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_TRUE(out->Stat(this, DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL);
@@ -299,7 +352,7 @@ TEST_F(StatTest, Middle) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  EXPECT_TRUE(out->Stat(this, DiskInterface::kDontFollow, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL);

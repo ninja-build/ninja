@@ -27,8 +27,11 @@
 #include "state.h"
 #include "util.h"
 
-bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+bool Node::Stat(DiskInterface* disk_interface,
+                DiskInterface::SymlinkTreatment symlink_treatment,
+                string* err) {
+  mtime_ = disk_interface->Stat(path_, DiskInterface::kDontFollow, err);
+  return mtime_ != -1;
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
@@ -44,7 +47,8 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
     if (node->status_known())
       return true;
     // This node has no in-edge; it is dirty if it is missing.
-    if (!node->StatIfNecessary(disk_interface_, err))
+    if (!node->StatIfNecessary(disk_interface_, DiskInterface::kTakeNewest,
+                               err))
       return false;
     if (!node->exists())
       EXPLAIN("%s has no in-edge and is missing", node->path().c_str());
@@ -71,7 +75,8 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
   // Load output mtimes so we can compare them to the most recent input below.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
+    if (!(*o)->StatIfNecessary(disk_interface_, DiskInterface::kDontFollow,
+                               err))
       return false;
   }
 

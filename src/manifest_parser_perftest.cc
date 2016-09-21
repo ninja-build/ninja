@@ -39,7 +39,8 @@
 
 bool WriteFakeManifests(const string& dir, string* err) {
   RealDiskInterface disk_interface;
-  TimeStamp mtime = disk_interface.Stat(dir + "/build.ninja", err);
+  TimeStamp mtime = disk_interface.Stat(dir + "/build.ninja",
+                                        DiskInterface::kDontFollow, err);
   if (mtime != 0)  // 0 means that the file doesn't exist yet.
     return mtime != -1;
 

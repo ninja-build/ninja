@@ -158,7 +158,8 @@ struct NinjaMain : public BuildLogUser {
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
     string err;
-    TimeStamp mtime = disk_interface_.Stat(s.AsString(), &err);
+    TimeStamp mtime =
+        disk_interface_.Stat(s.AsString(), DiskInterface::kDontFollow, &err);
     if (mtime == -1)
       Error("%s", err.c_str());  // Log and ignore Stat() errors.
     return mtime == 0;
@@ -488,7 +489,8 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
     }
 
     string err;
-    TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
+    TimeStamp mtime =
+        disk_interface.Stat((*it)->path(), DiskInterface::kTakeNewest, &err);
     if (mtime == -1)
       Error("%s", err.c_str());  // Log and ignore Stat() errors;
     printf("%s: #deps %d, deps mtime %d (%s)\n",

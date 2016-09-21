@@ -142,7 +142,9 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path, string* err) const;
+  virtual TimeStamp Stat(const string& path,
+                         DiskInterface::SymlinkTreatment symlink_treatment,
+                         string* err) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual Status ReadFile(const string& path, string* contents, string* err);
