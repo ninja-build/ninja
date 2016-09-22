@@ -50,9 +50,10 @@ def moar(avg_options, p_suffix):
 
 
 class GenRandom(object):
-    def __init__(self):
+    def __init__(self, src_dir):
         self.seen_names = set([None])
         self.seen_defines = set([None])
+        self.src_dir = src_dir
 
     def _unique_string(self, seen, avg_options=1.3, p_suffix=0.1):
         s = None
@@ -76,7 +77,7 @@ class GenRandom(object):
 
     def src_obj_pairs(self, path, name):
         num_sources = paretoint(55, alpha=2) + 1
-        return [(os.path.join('..', '..', path, s + '.cc'),
+        return [(os.path.join(self.src_dir, path, s + '.cc'),
                  os.path.join('obj', path, '%s.%s.o' % (name, s)))
                 for s in self._n_unique_strings(num_sources)]
 
@@ -103,12 +104,8 @@ class Target(object):
         self.kind = kind
         self.has_compile_depends = random.random() < 0.4
 
-    @property
-    def includes(self):
-        return ['-I' + dep.dir_path for dep in self.deps]
 
-
-def write_target_ninja(ninja, target):
+def write_target_ninja(ninja, target, src_dir):
     compile_depends = None
     if target.has_compile_depends:
       compile_depends = os.path.join(
@@ -117,8 +114,7 @@ def write_target_ninja(ninja, target):
       ninja.newline()
 
     ninja.variable('defines', target.defines)
-    if target.deps:
-        ninja.variable('includes', target.includes)
+    ninja.variable('includes', '-I' + src_dir)
     ninja.variable('cflags', ['-Wall', '-fno-rtti', '-fno-exceptions'])
     ninja.newline()
 
@@ -129,17 +125,63 @@ def write_target_ninja(ninja, target):
     deps = [dep.output for dep in target.deps]
     libs = [dep.output for dep in target.deps if dep.kind == LIB]
     if target.kind == EXE:
-        ninja.variable('ldflags', '-Wl,pie')
         ninja.variable('libs', libs)
+        if sys.platform == "darwin":
+            ninja.variable('ldflags', '-Wl,-pie')
     link = { LIB: 'alink', EXE: 'link'}[target.kind]
     ninja.build(target.output, link, [obj for _, obj in target.src_obj_pairs],
                 implicit=deps)
 
 
+def write_sources(target, root_dir):
+    need_main = target.kind == EXE
+
+    includes = []
+
+    # Include siblings.
+    for cc_filename, _ in target.src_obj_pairs:
+        h_filename = os.path.basename(os.path.splitext(cc_filename)[0] + '.h')
+        includes.append(h_filename)
+
+    # Include deps.
+    for dep in target.deps:
+        for cc_filename, _ in dep.src_obj_pairs:
+            h_filename = os.path.basename(
+                os.path.splitext(cc_filename)[0] + '.h')
+            includes.append("%s/%s" % (dep.dir_path, h_filename))
+
+    for cc_filename, _ in target.src_obj_pairs:
+        cc_path = os.path.join(root_dir, cc_filename)
+        h_path = os.path.splitext(cc_path)[0] + '.h'
+        namespace = os.path.basename(target.dir_path)
+        class_ = os.path.splitext(os.path.basename(cc_filename))[0]
+        try:
+            os.makedirs(os.path.dirname(cc_path))
+        except OSError:
+            pass
+
+        with open(h_path, 'w') as f:
+            f.write('namespace %s { struct %s { %s(); }; }' % (namespace,
+                                                               class_, class_))
+        with open(cc_path, 'w') as f:
+            for include in includes:
+                f.write('#include "%s"\n' % include)
+            f.write('\n')
+            f.write('namespace %s { %s::%s() {} }' % (namespace,
+                                                      class_, class_))
+
+            if need_main:
+                f.write('int main(int argc, char **argv) {}\n')
+                need_main = False
+
 def write_master_ninja(master_ninja, targets):
     """Writes master build.ninja file, referencing all given subninjas."""
     master_ninja.variable('cxx', 'c++')
     master_ninja.variable('ld', '$cxx')
+    if sys.platform == 'darwin':
+        master_ninja.variable('alink', 'libtool -static')
+    else:
+        master_ninja.variable('alink', 'ar rcs')
     master_ninja.newline()
 
     master_ninja.pool('link_pool', depth=4)
@@ -148,8 +190,8 @@ def write_master_ninja(master_ninja, targets):
     master_ninja.rule('cxx', description='CXX $out',
       command='$cxx -MMD -MF $out.d $defines $includes $cflags -c $in -o $out',
       depfile='$out.d', deps='gcc')
-    master_ninja.rule('alink', description='LIBTOOL-STATIC $out',
-      command='rm -f $out && libtool -static -o $out $in')
+    master_ninja.rule('alink', description='ARCHIVE $out',
+      command='rm -f $out && $alink -o $out $in')
     master_ninja.rule('link', description='LINK $out', pool='link_pool',
       command='$ld $ldflags -o $out $in $libs')
     master_ninja.rule('stamp', description='STAMP $out', command='touch $out')
@@ -181,9 +223,8 @@ def FileWriter(path):
     f.close()
 
 
-def random_targets():
-    num_targets = 1500
-    gen = GenRandom()
+def random_targets(num_targets, src_dir):
+    gen = GenRandom(src_dir)
 
     # N-1 static libraries, and 1 executable depending on all of them.
     targets = [Target(gen, LIB) for i in xrange(num_targets - 1)]
@@ -199,16 +240,28 @@ def random_targets():
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--sources', nargs="?", const="src",
+        help='write sources to directory (relative to output directory)')
+    parser.add_argument('-t', '--targets', type=int, default=1500)
+                        help='number of targets (default: 1500)',
+    parser.add_argument('-S', '--seed', type=int, help='random seed',
+                        default=12345)
     parser.add_argument('outdir', help='output directory')
     args = parser.parse_args()
     root_dir = args.outdir
 
-    random.seed(12345)
+    random.seed(args.seed)
 
-    targets = random_targets()
+    do_write_sources = args.sources is not None
+    src_dir = args.sources if do_write_sources else "src"
+
+    targets = random_targets(args.targets, src_dir)
     for target in targets:
         with FileWriter(os.path.join(root_dir, target.ninja_file_path)) as n:
-            write_target_ninja(n, target)
+            write_target_ninja(n, target, src_dir)
+
+        if do_write_sources:
+            write_sources(target, root_dir)
 
     with FileWriter(os.path.join(root_dir, 'build.ninja')) as master_ninja:
         master_ninja.width = 120
