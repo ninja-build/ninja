@@ -220,14 +220,14 @@ string BuildStatus::FormatProgressStatus(
         // Overall finished edges per second.
       case 'o':
         overall_rate_.UpdateRate(finished_edges_);
-        snprinfRate(overall_rate_.rate(), buf, "%.1f");
+        SnprintfRate(overall_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
         // Current rate, average over the last '-j' jobs.
       case 'c':
         current_rate_.UpdateRate(finished_edges_);
-        snprinfRate(current_rate_.rate(), buf, "%.1f");
+        SnprintfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 

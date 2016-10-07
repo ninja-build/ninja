@@ -212,9 +212,9 @@ struct BuildStatus {
   /// See the user manual for more information about the available
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
-  /// @param finished True if the edge being printed just finished
+  /// @param status The status of the edge.
   string FormatProgressStatus(const char* progress_status_format,
-                              EdgeStatus kEdgeFinished) const;
+                              EdgeStatus status) const;
 
  private:
   void PrintStatus(Edge* edge, EdgeStatus status);
@@ -237,9 +237,11 @@ struct BuildStatus {
   const char* progress_status_format_;
 
   template<size_t S>
-  void snprinfRate(double rate, char(&buf)[S], const char* format) const {
-    if (rate == -1) snprintf(buf, S, "?");
-    else            snprintf(buf, S, format, rate);
+  void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
+    if (rate == -1)
+      snprintf(buf, S, "?");
+    else
+      snprintf(buf, S, format, rate);
   }
 
   struct RateInfo {
