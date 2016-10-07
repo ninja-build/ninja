@@ -76,6 +76,8 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       progress_status_format_(NULL),
+      progress_status_format_started_(NULL),
+      progress_status_format_finished_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
@@ -85,6 +87,9 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
     progress_status_format_ = "[%f/%t] ";
+
+  progress_status_format_started_ = getenv("NINJA_STATUS_STARTED");
+  progress_status_format_finished_ = getenv("NINJA_STATUS_FINISHED");
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -96,8 +101,12 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, kEdgeStarted);
+  if (progress_status_format_started_ || progress_status_format_finished_) {
+    if (progress_status_format_started_)
+      PrintStatus(edge, kEdgeStarted, progress_status_format_started_);
+  } else if (edge->use_console() || printer_.is_smart_terminal()) {
+    PrintStatus(edge, kEdgeStarted, progress_status_format_);
+  }
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
@@ -123,8 +132,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
-    PrintStatus(edge, kEdgeFinished);
+  if (progress_status_format_started_ || progress_status_format_finished_) {
+    if (progress_status_format_finished_)
+      PrintStatus(edge, kEdgeFinished, progress_status_format_finished_);
+  } else if (!edge->use_console()) {
+    PrintStatus(edge, kEdgeFinished, progress_status_format_);
+  }
 
   // Print the command that is spewing before printing its output.
   if (!success) {
@@ -257,7 +270,8 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
+void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status,
+                              const char* format) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -267,7 +281,7 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  to_print = FormatProgressStatus(format, status) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
