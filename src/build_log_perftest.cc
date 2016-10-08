@@ -18,9 +18,9 @@
 #include "build_log.h"
 #include "graph.h"
 #include "manifest_parser.h"
+#include "metrics.h"
 #include "state.h"
 #include "util.h"
-#include "metrics.h"
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -139,11 +139,9 @@ int main() {
       max = times[i];
   }
 
-  printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+  printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
 
   unlink(kTestFilename);
 
   return 0;
 }
-

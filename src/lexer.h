@@ -27,7 +27,7 @@ struct EvalString;
 struct Lexer {
   Lexer() {}
   /// Helper ctor useful for tests.
-  explicit Lexer(const char* input);
+  explicit Lexer(const char *input);
 
   enum Token {
     ERROR,
@@ -48,10 +48,10 @@ struct Lexer {
   };
 
   /// Return a human-readable form of a token, used in error messages.
-  static const char* TokenName(Token t);
+  static const char *TokenName(Token t);
 
   /// Return a human-readable token hint, used in error messages.
-  static const char* TokenErrorHint(Token expected);
+  static const char *TokenErrorHint(Token expected);
 
   /// If the last token read was an ERROR token, provide more info
   /// or the empty string.
@@ -71,35 +71,35 @@ struct Lexer {
 
   /// Read a simple identifier (a rule or variable name).
   /// Returns false if a name can't be read.
-  bool ReadIdent(string* out);
+  bool ReadIdent(string *out);
 
   /// Read a path (complete with $escapes).
   /// Returns false only on error, returned path may be empty if a delimiter
   /// (space, newline) is hit.
-  bool ReadPath(EvalString* path, string* err) {
+  bool ReadPath(EvalString *path, string *err) {
     return ReadEvalString(path, true, err);
   }
 
   /// Read the value side of a var = value line (complete with $escapes).
   /// Returns false only on error.
-  bool ReadVarValue(EvalString* value, string* err) {
+  bool ReadVarValue(EvalString *value, string *err) {
     return ReadEvalString(value, false, err);
   }
 
   /// Construct an error message with context.
-  bool Error(const string& message, string* err);
+  bool Error(const string &message, string *err);
 
-private:
+ private:
   /// Skip past whitespace (called after each read token/ident/etc.).
   void EatWhitespace();
 
   /// Read a $-escaped string.
-  bool ReadEvalString(EvalString* eval, bool path, string* err);
+  bool ReadEvalString(EvalString *eval, bool path, string *err);
 
   StringPiece filename_;
   StringPiece input_;
-  const char* ofs_;
-  const char* last_token_;
+  const char *ofs_;
+  const char *last_token_;
 };
 
-#endif // NINJA_LEXER_H_
+#endif  // NINJA_LEXER_H_

@@ -27,59 +27,56 @@ struct FileReader {
   virtual ~FileReader() {}
 
   /// Result of ReadFile.
-  enum Status {
-    Okay,
-    NotFound,
-    OtherError
-  };
+  enum Status { Okay, NotFound, OtherError };
 
   /// Read and store in given string.  On success, return Okay.
   /// On error, return another Status and fill |err|.
-  virtual Status ReadFile(const string& path, string* contents,
-                          string* err) = 0;
+  virtual Status ReadFile(const string &path, string *contents,
+                          string *err) = 0;
 };
 
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
-struct DiskInterface: public FileReader {
+struct DiskInterface : public FileReader {
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
-  virtual TimeStamp Stat(const string& path, string* err) const = 0;
+  virtual TimeStamp Stat(const string &path, string *err) const = 0;
 
   /// Create a directory, returning false on failure.
-  virtual bool MakeDir(const string& path) = 0;
+  virtual bool MakeDir(const string &path) = 0;
 
   /// Create a file, with the specified name and contents
   /// Returns true on success, false on failure
-  virtual bool WriteFile(const string& path, const string& contents) = 0;
+  virtual bool WriteFile(const string &path, const string &contents) = 0;
 
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
   ///          1 if the file does not exist, and
   ///          -1 if an error occurs.
-  virtual int RemoveFile(const string& path) = 0;
+  virtual int RemoveFile(const string &path) = 0;
 
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
-  bool MakeDirs(const string& path);
+  bool MakeDirs(const string &path);
 };
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   RealDiskInterface()
 #ifdef _WIN32
-                      : use_cache_(false)
+      : use_cache_(false)
 #endif
-                      {}
+  {
+  }
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path, string* err) const;
-  virtual bool MakeDir(const string& path);
-  virtual bool WriteFile(const string& path, const string& contents);
-  virtual Status ReadFile(const string& path, string* contents, string* err);
-  virtual int RemoveFile(const string& path);
+  virtual TimeStamp Stat(const string &path, string *err) const;
+  virtual bool MakeDir(const string &path);
+  virtual bool WriteFile(const string &path, const string &contents);
+  virtual Status ReadFile(const string &path, string *contents, string *err);
+  virtual int RemoveFile(const string &path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);

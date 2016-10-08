@@ -87,13 +87,12 @@ TEST(IncludesNormalize, Join) {
 }
 
 TEST(IncludesNormalize, Split) {
-  EXPECT_EQ("", IncludesNormalize::Join(IncludesNormalize::Split("", '/'),
-                                        ':'));
-  EXPECT_EQ("a", IncludesNormalize::Join(IncludesNormalize::Split("a", '/'),
-                                         ':'));
-  EXPECT_EQ("a:b:c",
-            IncludesNormalize::Join(
-                IncludesNormalize::Split("a/b/c", '/'), ':'));
+  EXPECT_EQ("",
+            IncludesNormalize::Join(IncludesNormalize::Split("", '/'), ':'));
+  EXPECT_EQ("a",
+            IncludesNormalize::Join(IncludesNormalize::Split("a", '/'), ':'));
+  EXPECT_EQ("a:b:c", IncludesNormalize::Join(
+                         IncludesNormalize::Split("a/b/c", '/'), ':'));
 }
 
 TEST(IncludesNormalize, ToLower) {
@@ -163,6 +162,5 @@ TEST(IncludesNormalize, LongInvalidPath) {
   string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly _MAX_PATH long is canonicalized.
-  EXPECT_EQ(forward_slashes,
-            NormalizeAndCheckNoError(kExactlyMaxPath));
+  EXPECT_EQ(forward_slashes, NormalizeAndCheckNoError(kExactlyMaxPath));
 }

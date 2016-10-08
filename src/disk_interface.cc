@@ -23,9 +23,9 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
-#include <sstream>
-#include <windows.h>
 #include <direct.h>  // _mkdir
+#include <windows.h>
+#include <sstream>
 #endif
 
 #include "util.h"
@@ -62,8 +62,8 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // We don't much care about epoch correctness but we do want the
   // resulting value to fit in an integer.
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
+                   ((uint64_t)filetime.dwLowDateTime);
+  mtime /= 1000000000LL / 100;  // 100ns -> s.
   mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
   return (TimeStamp)mtime;
 }
@@ -82,7 +82,7 @@ TimeStamp StatSingleFile(const string& path, string* err) {
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 4996)  // GetVersionExA is deprecated post SDK 8.1.
+#pragma warning(disable : 4996)  // GetVersionExA is deprecated post SDK 8.1.
 #endif
 bool IsWindows7OrLater() {
   OSVERSIONINFO version_info = { sizeof(version_info) };
@@ -118,8 +118,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   do {
     string lowername = ffd.cFileName;
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(lowername,
-                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
+    stamps->insert(
+        make_pair(lowername, TimeStampFromFileTime(ffd.ftLastWriteTime)));
   } while (FindNextFileA(find_handle, &ffd));
   FindClose(find_handle);
   return true;
@@ -197,21 +197,21 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
   FILE* fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
-    Error("WriteFile(%s): Unable to create file. %s",
-          path.c_str(), strerror(errno));
+    Error("WriteFile(%s): Unable to create file. %s", path.c_str(),
+          strerror(errno));
     return false;
   }
 
-  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
-    Error("WriteFile(%s): Unable to write to the file. %s",
-          path.c_str(), strerror(errno));
+  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length()) {
+    Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(),
+          strerror(errno));
     fclose(fp);
     return false;
   }
 
   if (fclose(fp) == EOF) {
-    Error("WriteFile(%s): Unable to close the file. %s",
-          path.c_str(), strerror(errno));
+    Error("WriteFile(%s): Unable to close the file. %s", path.c_str(),
+          strerror(errno));
     return false;
   }
 
@@ -230,23 +230,25 @@ bool RealDiskInterface::MakeDir(const string& path) {
 }
 
 FileReader::Status RealDiskInterface::ReadFile(const string& path,
-                                               string* contents,
-                                               string* err) {
+                                               string* contents, string* err) {
   switch (::ReadFile(path, contents, err)) {
-  case 0:       return Okay;
-  case -ENOENT: return NotFound;
-  default:      return OtherError;
+  case 0:
+    return Okay;
+  case -ENOENT:
+    return NotFound;
+  default:
+    return OtherError;
   }
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {
   if (remove(path.c_str()) < 0) {
     switch (errno) {
-      case ENOENT:
-        return 1;
-      default:
-        Error("remove(%s): %s", path.c_str(), strerror(errno));
-        return -1;
+    case ENOENT:
+      return 1;
+    default:
+      Error("remove(%s): %s", path.c_str(), strerror(errno));
+      return -1;
     }
   } else {
     return 0;

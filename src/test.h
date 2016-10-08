@@ -29,6 +29,7 @@ namespace testing {
 class Test {
   bool failed_;
   int assertion_failures_;
+
  public:
   Test() : failed_(false), assertion_failures_(0) {}
   virtual ~Test() {}
@@ -39,16 +40,16 @@ class Test {
   bool Failed() const { return failed_; }
   int AssertionFailures() const { return assertion_failures_; }
   void AddAssertionFailure() { assertion_failures_++; }
-  bool Check(bool condition, const char* file, int line, const char* error);
+  bool Check(bool condition, const char *file, int line, const char *error);
 };
 }
 
-void RegisterTest(testing::Test* (*)(), const char*);
+void RegisterTest(testing::Test *(*)(), const char *);
 
-extern testing::Test* g_current_test;
+extern testing::Test *g_current_test;
 #define TEST_F_(x, y, name)                                           \
   struct y : public x {                                               \
-    static testing::Test* Create() { return g_current_test = new y; } \
+    static testing::Test *Create() { return g_current_test = new y; } \
     virtual void Run();                                               \
   };                                                                  \
   struct Register##y {                                                \
@@ -77,22 +78,46 @@ extern testing::Test* g_current_test;
 #define EXPECT_FALSE(a) \
   g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
 
-#define ASSERT_EQ(a, b) \
-  if (!EXPECT_EQ(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_NE(a, b) \
-  if (!EXPECT_NE(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_GT(a, b) \
-  if (!EXPECT_GT(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_LT(a, b) \
-  if (!EXPECT_LT(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_GE(a, b) \
-  if (!EXPECT_GE(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_LE(a, b) \
-  if (!EXPECT_LE(a, b)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_TRUE(a)  \
-  if (!EXPECT_TRUE(a))  { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_FALSE(a) \
-  if (!EXPECT_FALSE(a)) { g_current_test->AddAssertionFailure(); return; }
+#define ASSERT_EQ(a, b)                    \
+  if (!EXPECT_EQ(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_NE(a, b)                    \
+  if (!EXPECT_NE(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_GT(a, b)                    \
+  if (!EXPECT_GT(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_LT(a, b)                    \
+  if (!EXPECT_LT(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_GE(a, b)                    \
+  if (!EXPECT_GE(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_LE(a, b)                    \
+  if (!EXPECT_LE(a, b)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_TRUE(a)                     \
+  if (!EXPECT_TRUE(a)) {                   \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
+#define ASSERT_FALSE(a)                    \
+  if (!EXPECT_FALSE(a)) {                  \
+    g_current_test->AddAssertionFailure(); \
+    return;                                \
+  }
 #define ASSERT_NO_FATAL_FAILURE(a)                           \
   {                                                          \
     int fail_count = g_current_test->AssertionFailures();    \
@@ -114,17 +139,17 @@ struct StateTestWithBuiltinRules : public testing::Test {
 
   /// Add a "cat" rule to \a state.  Used by some tests; it's
   /// otherwise done by the ctor to state_.
-  void AddCatRule(State* state);
+  void AddCatRule(State *state);
 
   /// Short way to get a Node by its path from state_.
-  Node* GetNode(const string& path);
+  Node *GetNode(const string &path);
 
   State state_;
 };
 
-void AssertParse(State* state, const char* input);
-void AssertHash(const char* expected, uint64_t actual);
-void VerifyGraph(const State& state);
+void AssertParse(State *state, const char *input);
+void AssertHash(const char *expected, uint64_t actual);
+void VerifyGraph(const State &state);
 
 /// An implementation of DiskInterface that uses an in-memory representation
 /// of disk state.  It also logs file accesses and directory creations
@@ -133,20 +158,18 @@ struct VirtualFileSystem : public DiskInterface {
   VirtualFileSystem() : now_(1) {}
 
   /// "Create" a file with contents.
-  void Create(const string& path, const string& contents);
+  void Create(const string &path, const string &contents);
 
   /// Tick "time" forwards; subsequent file operations will be newer than
   /// previous ones.
-  int Tick() {
-    return ++now_;
-  }
+  int Tick() { return ++now_; }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path, string* err) const;
-  virtual bool WriteFile(const string& path, const string& contents);
-  virtual bool MakeDir(const string& path);
-  virtual Status ReadFile(const string& path, string* contents, string* err);
-  virtual int RemoveFile(const string& path);
+  virtual TimeStamp Stat(const string &path, string *err) const;
+  virtual bool WriteFile(const string &path, const string &contents);
+  virtual bool MakeDir(const string &path);
+  virtual Status ReadFile(const string &path, string *contents, string *err);
+  virtual int RemoveFile(const string &path);
 
   /// An entry for a single in-memory file.
   struct Entry {
@@ -168,7 +191,7 @@ struct VirtualFileSystem : public DiskInterface {
 
 struct ScopedTempDir {
   /// Create a temporary directory and chdir into it.
-  void CreateAndEnter(const string& name);
+  void CreateAndEnter(const string &name);
 
   /// Clean up the temporary directory.
   void Cleanup();
@@ -179,4 +202,4 @@ struct ScopedTempDir {
   string temp_dir_name_;
 };
 
-#endif // NINJA_TEST_H_
+#endif  // NINJA_TEST_H_

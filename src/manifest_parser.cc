@@ -36,7 +36,8 @@ bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
-  if (file_reader_->ReadFile(filename, &contents, &read_err) != FileReader::Okay) {
+  if (file_reader_->ReadFile(filename, &contents, &read_err) !=
+      FileReader::Okay) {
     *err = "loading '" + filename + "': " + read_err;
     if (parent)
       parent->Error(string(*err), err);
@@ -106,13 +107,11 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::NEWLINE:
       break;
     default:
-      return lexer_.Error(string("unexpected ") + Lexer::TokenName(token),
-                          err);
+      return lexer_.Error(string("unexpected ") + Lexer::TokenName(token), err);
     }
   }
   return false;  // not reached
 }
-
 
 bool ManifestParser::ParsePool(string* err) {
   string name;
@@ -150,7 +149,6 @@ bool ManifestParser::ParsePool(string* err) {
   return true;
 }
 
-
 bool ManifestParser::ParseRule(string* err) {
   string name;
   if (!lexer_.ReadIdent(&name))
@@ -181,8 +179,10 @@ bool ManifestParser::ParseRule(string* err) {
 
   if (rule->bindings_["rspfile"].empty() !=
       rule->bindings_["rspfile_content"].empty()) {
-    return lexer_.Error("rspfile and rspfile_content need to be "
-                        "both specified", err);
+    return lexer_.Error(
+        "rspfile and rspfile_content need to be "
+        "both specified",
+        err);
   }
 
   if (rule->bindings_["command"].empty())
@@ -352,10 +352,11 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       } else {
         if (!quiet_) {
-          Warning("multiple rules generate %s. "
-                  "builds involving this target will not be correct; "
-                  "continuing anyway [-w dupbuild=warn]",
-                  path.c_str());
+          Warning(
+              "multiple rules generate %s. "
+              "builds involving this target will not be correct; "
+              "continuing anyway [-w dupbuild=warn]",
+              path.c_str());
         }
         if (e - i <= static_cast<size_t>(implicit_outs))
           --implicit_outs;
@@ -386,9 +387,10 @@ bool ManifestParser::ParseEdge(string* err) {
   // Multiple outputs aren't (yet?) supported with depslog.
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty() && edge->outputs_.size() > 1) {
-    return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
-                        "bring this up on the mailing list if it affects you",
-                        err);
+    return lexer_.Error(
+        "multiple outputs aren't (yet?) supported by depslog; "
+        "bring this up on the mailing list if it affects you",
+        err);
   }
 
   return true;

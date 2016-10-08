@@ -27,5 +27,4 @@ typedef unsigned long long uint64_t;
 #define PRIx64 "I64x"
 #endif
 
-#endif // NINJA_WIN32PORT_H_
-
+#endif  // NINJA_WIN32PORT_H_

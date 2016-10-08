@@ -33,15 +33,14 @@ struct Metric {
   int64_t sum;
 };
 
-
 /// A scoped object for recording a metric across the body of a function.
 /// Used by the METRIC_RECORD macro.
 struct ScopedMetric {
-  explicit ScopedMetric(Metric* metric);
+  explicit ScopedMetric(Metric *metric);
   ~ScopedMetric();
 
-private:
-  Metric* metric_;
+ private:
+  Metric *metric_;
   /// Timestamp when the measurement started.
   /// Value is platform-dependent.
   int64_t start_;
@@ -49,13 +48,13 @@ private:
 
 /// The singleton that stores metrics and prints the report.
 struct Metrics {
-  Metric* NewMetric(const string& name);
+  Metric *NewMetric(const string &name);
 
   /// Print a summary report to stdout.
   void Report();
 
-private:
-  vector<Metric*> metrics_;
+ private:
+  vector<Metric *> metrics_;
 };
 
 /// Get the current time as relative to some epoch.
@@ -82,11 +81,11 @@ struct Stopwatch {
 
 /// The primary interface to metrics.  Use METRIC_RECORD("foobar") at the top
 /// of a function to get timing stats recorded for each call of the function.
-#define METRIC_RECORD(name)                                             \
-  static Metric* metrics_h_metric =                                     \
-      g_metrics ? g_metrics->NewMetric(name) : NULL;                    \
+#define METRIC_RECORD(name)                          \
+  static Metric *metrics_h_metric =                  \
+      g_metrics ? g_metrics->NewMetric(name) : NULL; \
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
-extern Metrics* g_metrics;
+extern Metrics *g_metrics;
 
-#endif // NINJA_METRICS_H_
+#endif  // NINJA_METRICS_H_

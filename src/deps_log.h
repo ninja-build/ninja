@@ -68,25 +68,25 @@ struct DepsLog {
   ~DepsLog();
 
   // Writing (build-time) interface.
-  bool OpenForWrite(const string& path, string* err);
-  bool RecordDeps(Node* node, TimeStamp mtime, const vector<Node*>& nodes);
-  bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
+  bool OpenForWrite(const string &path, string *err);
+  bool RecordDeps(Node *node, TimeStamp mtime, const vector<Node *> &nodes);
+  bool RecordDeps(Node *node, TimeStamp mtime, int node_count, Node **nodes);
   void Close();
 
   // Reading (startup-time) interface.
   struct Deps {
     Deps(int mtime, int node_count)
-        : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
-    ~Deps() { delete [] nodes; }
+        : mtime(mtime), node_count(node_count), nodes(new Node *[node_count]) {}
+    ~Deps() { delete[] nodes; }
     int mtime;
     int node_count;
-    Node** nodes;
+    Node **nodes;
   };
-  bool Load(const string& path, State* state, string* err);
-  Deps* GetDeps(Node* node);
+  bool Load(const string &path, State *state, string *err);
+  Deps *GetDeps(Node *node);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const string& path, string* err);
+  bool Recompact(const string &path, string *err);
 
   /// Returns if the deps entry for a node is still reachable from the manifest.
   ///
@@ -94,26 +94,26 @@ struct DepsLog {
   /// past but are no longer part of the manifest.  This function returns if
   /// this is the case for a given node.  This function is slow, don't call
   /// it from code that runs on every build.
-  bool IsDepsEntryLiveFor(Node* node);
+  bool IsDepsEntryLiveFor(Node *node);
 
   /// Used for tests.
-  const vector<Node*>& nodes() const { return nodes_; }
-  const vector<Deps*>& deps() const { return deps_; }
+  const vector<Node *> &nodes() const { return nodes_; }
+  const vector<Deps *> &deps() const { return deps_; }
 
  private:
   // Updates the in-memory representation.  Takes ownership of |deps|.
   // Returns true if a prior deps record was deleted.
-  bool UpdateDeps(int out_id, Deps* deps);
+  bool UpdateDeps(int out_id, Deps *deps);
   // Write a node name record, assigning it an id.
-  bool RecordId(Node* node);
+  bool RecordId(Node *node);
 
   bool needs_recompaction_;
-  FILE* file_;
+  FILE *file_;
 
   /// Maps id -> Node.
-  vector<Node*> nodes_;
+  vector<Node *> nodes_;
   /// Maps id -> deps of that id.
-  vector<Deps*> deps_;
+  vector<Deps *> deps_;
 
   friend struct DepsLogTest;
 };

@@ -25,8 +25,8 @@ struct GraphTest : public StateTestWithBuiltinRules {
 };
 
 TEST_F(GraphTest, MissingImplicit) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out: cat in | implicit\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_, "build out: cat in | implicit\n"));
   fs_.Create("in", "");
   fs_.Create("out", "");
 
@@ -42,8 +42,8 @@ TEST_F(GraphTest, MissingImplicit) {
 }
 
 TEST_F(GraphTest, ModifiedImplicit) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out: cat in | implicit\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_, "build out: cat in | implicit\n"));
   fs_.Create("in", "");
   fs_.Create("out", "");
   fs_.Tick();
@@ -60,11 +60,11 @@ TEST_F(GraphTest, ModifiedImplicit) {
 
 TEST_F(GraphTest, FunkyMakefilePath) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule catdep\n"
-"  depfile = $out.d\n"
-"  command = cat $in > $out\n"
-"build out.o: catdep foo.cc\n"));
-  fs_.Create("foo.cc",  "");
+                                      "rule catdep\n"
+                                      "  depfile = $out.d\n"
+                                      "  command = cat $in > $out\n"
+                                      "build out.o: catdep foo.cc\n"));
+  fs_.Create("foo.cc", "");
   fs_.Create("out.o.d", "out.o: ./foo/../implicit.h\n");
   fs_.Create("out.o", "");
   fs_.Tick();
@@ -81,12 +81,13 @@ TEST_F(GraphTest, FunkyMakefilePath) {
 }
 
 TEST_F(GraphTest, ExplicitImplicit) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule catdep\n"
-"  depfile = $out.d\n"
-"  command = cat $in > $out\n"
-"build implicit.h: cat data\n"
-"build out.o: catdep foo.cc || implicit.h\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_,
+                  "rule catdep\n"
+                  "  depfile = $out.d\n"
+                  "  command = cat $in > $out\n"
+                  "build implicit.h: cat data\n"
+                  "build out.o: catdep foo.cc || implicit.h\n"));
   fs_.Create("implicit.h", "");
   fs_.Create("foo.cc", "");
   fs_.Create("out.o.d", "out.o: implicit.h\n");
@@ -106,8 +107,8 @@ TEST_F(GraphTest, ExplicitImplicit) {
 }
 
 TEST_F(GraphTest, ImplicitOutputParse) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_, "build out | out.imp: cat in\n"));
 
   Edge* edge = GetNode("out")->in_edge();
   EXPECT_EQ(2, edge->outputs_.size());
@@ -118,8 +119,8 @@ TEST_F(GraphTest, ImplicitOutputParse) {
 }
 
 TEST_F(GraphTest, ImplicitOutputMissing) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_, "build out | out.imp: cat in\n"));
   fs_.Create("in", "");
   fs_.Create("out", "");
 
@@ -133,8 +134,8 @@ TEST_F(GraphTest, ImplicitOutputMissing) {
 }
 
 TEST_F(GraphTest, ImplicitOutputOutOfDate) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_, "build out | out.imp: cat in\n"));
   fs_.Create("out.imp", "");
   fs_.Tick();
   fs_.Create("in", "");
@@ -150,8 +151,7 @@ TEST_F(GraphTest, ImplicitOutputOutOfDate) {
 }
 
 TEST_F(GraphTest, ImplicitOutputOnlyParse) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build | out.imp: cat in\n"));
 
   Edge* edge = GetNode("out.imp")->in_edge();
   EXPECT_EQ(1, edge->outputs_.size());
@@ -161,8 +161,7 @@ TEST_F(GraphTest, ImplicitOutputOnlyParse) {
 }
 
 TEST_F(GraphTest, ImplicitOutputOnlyMissing) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build | out.imp: cat in\n"));
   fs_.Create("in", "");
 
   Edge* edge = GetNode("out.imp")->in_edge();
@@ -174,8 +173,7 @@ TEST_F(GraphTest, ImplicitOutputOnlyMissing) {
 }
 
 TEST_F(GraphTest, ImplicitOutputOnlyOutOfDate) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build | out.imp: cat in\n"));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, "build | out.imp: cat in\n"));
   fs_.Create("out.imp", "");
   fs_.Tick();
   fs_.Create("in", "");
@@ -190,10 +188,10 @@ TEST_F(GraphTest, ImplicitOutputOnlyOutOfDate) {
 
 TEST_F(GraphTest, PathWithCurrentDirectory) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule catdep\n"
-"  depfile = $out.d\n"
-"  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+                                      "rule catdep\n"
+                                      "  depfile = $out.d\n"
+                                      "  command = cat $in > $out\n"
+                                      "build ./out.o: catdep ./foo.cc\n"));
   fs_.Create("foo.cc", "");
   fs_.Create("out.o.d", "out.o: foo.cc\n");
   fs_.Create("out.o", "");
@@ -208,10 +206,10 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
 
 TEST_F(GraphTest, RootNodes) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out1: cat in1\n"
-"build mid1: cat in1\n"
-"build out2: cat mid1\n"
-"build out3 out4: cat mid1\n"));
+                                      "build out1: cat in1\n"
+                                      "build mid1: cat in1\n"
+                                      "build out2: cat mid1\n"
+                                      "build out3 out4: cat mid1\n"));
 
   string err;
   vector<Node*> root_nodes = state_.RootNodes(&err);
@@ -223,26 +221,26 @@ TEST_F(GraphTest, RootNodes) {
 }
 
 TEST_F(GraphTest, VarInOutPathEscaping) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a$ b: cat no'space with$ space$$ no\"space2\n"));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+      &state_, "build a$ b: cat no'space with$ space$$ no\"space2\n"));
 
   Edge* edge = GetNode("a b")->in_edge();
 #if _WIN32
   EXPECT_EQ("cat no'space \"with space$\" \"no\\\"space2\" > \"a b\"",
-      edge->EvaluateCommand());
+            edge->EvaluateCommand());
 #else
   EXPECT_EQ("cat 'no'\\''space' 'with space$' 'no\"space2' > 'a b'",
-      edge->EvaluateCommand());
+            edge->EvaluateCommand());
 #endif
 }
 
 // Regression test for https://github.com/ninja-build/ninja/issues/380
 TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule catdep\n"
-"  depfile = $out.d\n"
-"  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+                                      "rule catdep\n"
+                                      "  depfile = $out.d\n"
+                                      "  command = cat $in > $out\n"
+                                      "build ./out.o: catdep ./foo.cc\n"));
   fs_.Create("foo.cc", "");
   fs_.Create("out.o.d", "out.o: bar/../foo.cc\n");
   fs_.Create("out.o", "");
@@ -258,10 +256,10 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
 // Regression test for https://github.com/ninja-build/ninja/issues/404
 TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule catdep\n"
-"  depfile = $out.d\n"
-"  command = cat $in > $out\n"
-"build ./out.o: catdep ./foo.cc\n"));
+                                      "rule catdep\n"
+                                      "  depfile = $out.d\n"
+                                      "  command = cat $in > $out\n"
+                                      "build ./out.o: catdep ./foo.cc\n"));
   fs_.Create("foo.h", "");
   fs_.Create("foo.cc", "");
   fs_.Tick();
@@ -284,10 +282,10 @@ TEST_F(GraphTest, DepfileRemoved) {
 // Check that rule-level variables are in scope for eval.
 TEST_F(GraphTest, RuleVariablesInScope) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule r\n"
-"  depfile = x\n"
-"  command = depfile is $depfile\n"
-"build out: r in\n"));
+                                      "rule r\n"
+                                      "  depfile = x\n"
+                                      "  command = depfile is $depfile\n"
+                                      "build out: r in\n"));
   Edge* edge = GetNode("out")->in_edge();
   EXPECT_EQ("depfile is x", edge->EvaluateCommand());
 }
@@ -295,11 +293,11 @@ TEST_F(GraphTest, RuleVariablesInScope) {
 // Check that build statements can override rule builtins like depfile.
 TEST_F(GraphTest, DepfileOverride) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule r\n"
-"  depfile = x\n"
-"  command = unused\n"
-"build out: r in\n"
-"  depfile = y\n"));
+                                      "rule r\n"
+                                      "  depfile = x\n"
+                                      "  command = unused\n"
+                                      "build out: r in\n"
+                                      "  depfile = y\n"));
   Edge* edge = GetNode("out")->in_edge();
   EXPECT_EQ("y", edge->GetBinding("depfile"));
 }
@@ -307,11 +305,11 @@ TEST_F(GraphTest, DepfileOverride) {
 // Check that overridden values show up in expansion of rule-level bindings.
 TEST_F(GraphTest, DepfileOverrideParent) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"rule r\n"
-"  depfile = x\n"
-"  command = depfile is $depfile\n"
-"build out: r in\n"
-"  depfile = y\n"));
+                                      "rule r\n"
+                                      "  depfile = x\n"
+                                      "  command = depfile is $depfile\n"
+                                      "build out: r in\n"
+                                      "  depfile = y\n"));
   Edge* edge = GetNode("out")->in_edge();
   EXPECT_EQ("depfile is y", edge->GetBinding("command"));
 }
@@ -319,9 +317,8 @@ TEST_F(GraphTest, DepfileOverrideParent) {
 // Verify that building a nested phony rule prints "no work to do"
 TEST_F(GraphTest, NestedPhonyPrintsDone) {
   AssertParse(&state_,
-"build n1: phony \n"
-"build n2: phony n1\n"
-  );
+              "build n1: phony \n"
+              "build n2: phony n1\n");
   string err;
   Edge* edge = GetNode("n2")->in_edge();
   EXPECT_TRUE(scan_.RecomputeDirty(edge, &err));
@@ -339,11 +336,10 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
 // in RecomputeDirty() and don't cause deps to be loaded multiple times.
 TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
   AssertParse(&state_,
-"rule deprule\n"
-"   depfile = dep.d\n"
-"   command = unused\n"
-"build a b: deprule\n"
-  );
+              "rule deprule\n"
+              "   depfile = dep.d\n"
+              "   command = unused\n"
+              "build a b: deprule\n");
   fs_.Create("dep.d", "a: b\n");
 
   string err;
@@ -361,14 +357,13 @@ TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
 // Like CycleWithLengthZeroFromDepfile but with a higher cycle length.
 TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
   AssertParse(&state_,
-"rule deprule\n"
-"   depfile = dep.d\n"
-"   command = unused\n"
-"rule r\n"
-"   command = unused\n"
-"build a b: deprule\n"
-"build c: r b\n"
-  );
+              "rule deprule\n"
+              "   depfile = dep.d\n"
+              "   command = unused\n"
+              "rule r\n"
+              "   command = unused\n"
+              "build a b: deprule\n"
+              "build c: r b\n");
   fs_.Create("dep.d", "a: c\n");
 
   string err;
@@ -387,15 +382,14 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
 // the cycle.
 TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
   AssertParse(&state_,
-"rule deprule\n"
-"   depfile = dep.d\n"
-"   command = unused\n"
-"rule r\n"
-"   command = unused\n"
-"build a b: deprule\n"
-"build c: r b\n"
-"build d: r a\n"
-  );
+              "rule deprule\n"
+              "   depfile = dep.d\n"
+              "   command = unused\n"
+              "rule r\n"
+              "   command = unused\n"
+              "build a b: deprule\n"
+              "build c: r b\n"
+              "build d: r a\n");
   fs_.Create("dep.d", "a: c\n");
 
   string err;
@@ -413,9 +407,9 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
 #ifdef _WIN32
 TEST_F(GraphTest, Decanonicalize) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out\\out1: cat src\\in1\n"
-"build out\\out2/out3\\out4: cat mid1\n"
-"build out3 out4\\foo: cat mid1\n"));
+                                      "build out\\out1: cat src\\in1\n"
+                                      "build out\\out2/out3\\out4: cat mid1\n"
+                                      "build out3 out4\\foo: cat mid1\n"));
 
   string err;
   vector<Node*> root_nodes = state_.RootNodes(&err);

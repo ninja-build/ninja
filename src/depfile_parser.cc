@@ -45,126 +45,134 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
-      
-    {
-      unsigned char yych;
-      static const unsigned char yybm[] = {
-          0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0,   0,   0,   0,   0,   0, 
-          0,   0,   0,   0,   0,   0,   0,   0, 
-          0, 128,   0,   0,   0,   0,   0,   0, 
-        128, 128,   0, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0, 128,   0,   0, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0,   0,   0, 128, 
-          0, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128,   0, 128, 128,   0, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128, 128, 128, 128, 128, 128, 
-      };
 
-      yych = *in;
-      if (yych <= '=') {
-        if (yych <= '$') {
-          if (yych <= ' ') {
-            if (yych <= 0x00) goto yy7;
-            goto yy9;
-          } else {
-            if (yych <= '!') goto yy5;
-            if (yych <= '#') goto yy9;
-            goto yy4;
-          }
-        } else {
-          if (yych <= '*') {
-            if (yych <= '\'') goto yy9;
-            if (yych <= ')') goto yy5;
-            goto yy9;
-          } else {
-            if (yych <= ':') goto yy5;
-            if (yych <= '<') goto yy9;
-            goto yy5;
-          }
-        }
-      } else {
-        if (yych <= '_') {
-          if (yych <= '[') {
-            if (yych <= '?') goto yy9;
-            if (yych <= 'Z') goto yy5;
-            goto yy9;
-          } else {
-            if (yych <= '\\') goto yy2;
-            if (yych <= '^') goto yy9;
-            goto yy5;
-          }
-        } else {
-          if (yych <= '|') {
-            if (yych <= '`') goto yy9;
-            if (yych <= '{') goto yy5;
-            goto yy9;
-          } else {
-            if (yych == 0x7F) goto yy9;
-            goto yy5;
-          }
-        }
-      }
-yy2:
-      ++in;
-      if ((yych = *in) <= '"') {
-        if (yych <= '\f') {
-          if (yych <= 0x00) goto yy3;
-          if (yych != '\n') goto yy14;
-        } else {
-          if (yych <= '\r') goto yy3;
-          if (yych == ' ') goto yy16;
-          goto yy14;
-        }
-      } else {
-        if (yych <= 'Z') {
-          if (yych <= '#') goto yy16;
-          if (yych == '*') goto yy16;
-          goto yy14;
-        } else {
-          if (yych <= '\\') goto yy16;
-          if (yych == '|') goto yy16;
-          goto yy14;
-        }
-      }
-yy3:
       {
+        unsigned char yych;
+        static const unsigned char yybm[] = {
+          0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+          0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+          0,   0,   0,   0,   0,   128, 0,   0,   0,   0,   0,   0,   128, 128,
+          0,   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 0,   0,   128, 0,   0,   128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 0,   0,   0,   0,   128, 0,   128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 0,   128,
+          128, 0,   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+          128, 128, 128, 128,
+        };
+
+        yych = *in;
+        if (yych <= '=') {
+          if (yych <= '$') {
+            if (yych <= ' ') {
+              if (yych <= 0x00)
+                goto yy7;
+              goto yy9;
+            } else {
+              if (yych <= '!')
+                goto yy5;
+              if (yych <= '#')
+                goto yy9;
+              goto yy4;
+            }
+          } else {
+            if (yych <= '*') {
+              if (yych <= '\'')
+                goto yy9;
+              if (yych <= ')')
+                goto yy5;
+              goto yy9;
+            } else {
+              if (yych <= ':')
+                goto yy5;
+              if (yych <= '<')
+                goto yy9;
+              goto yy5;
+            }
+          }
+        } else {
+          if (yych <= '_') {
+            if (yych <= '[') {
+              if (yych <= '?')
+                goto yy9;
+              if (yych <= 'Z')
+                goto yy5;
+              goto yy9;
+            } else {
+              if (yych <= '\\')
+                goto yy2;
+              if (yych <= '^')
+                goto yy9;
+              goto yy5;
+            }
+          } else {
+            if (yych <= '|') {
+              if (yych <= '`')
+                goto yy9;
+              if (yych <= '{')
+                goto yy5;
+              goto yy9;
+            } else {
+              if (yych == 0x7F)
+                goto yy9;
+              goto yy5;
+            }
+          }
+        }
+      yy2:
+        ++in;
+        if ((yych = *in) <= '"') {
+          if (yych <= '\f') {
+            if (yych <= 0x00)
+              goto yy3;
+            if (yych != '\n')
+              goto yy14;
+          } else {
+            if (yych <= '\r')
+              goto yy3;
+            if (yych == ' ')
+              goto yy16;
+            goto yy14;
+          }
+        } else {
+          if (yych <= 'Z') {
+            if (yych <= '#')
+              goto yy16;
+            if (yych == '*')
+              goto yy16;
+            goto yy14;
+          } else {
+            if (yych <= '\\')
+              goto yy16;
+            if (yych == '|')
+              goto yy16;
+            goto yy14;
+          }
+        }
+      yy3 : {
         // For any other character (e.g. whitespace), swallow it here,
         // allowing the outer logic to loop around again.
         break;
       }
-yy4:
-      yych = *++in;
-      if (yych == '$') goto yy12;
-      goto yy3;
-yy5:
-      ++in;
-      yych = *in;
-      goto yy11;
-yy6:
-      {
+      yy4:
+        yych = *++in;
+        if (yych == '$')
+          goto yy12;
+        goto yy3;
+      yy5:
+        ++in;
+        yych = *in;
+        goto yy11;
+      yy6 : {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
@@ -173,46 +181,43 @@ yy6:
         out += len;
         continue;
       }
-yy7:
-      ++in;
-      {
-        break;
+      yy7:
+        ++in;
+        { break; }
+      yy9:
+        yych = *++in;
+        goto yy3;
+      yy10:
+        ++in;
+        yych = *in;
+      yy11:
+        if (yybm[0 + yych] & 128) {
+          goto yy10;
+        }
+        goto yy6;
+      yy12:
+        ++in;
+        {
+          // De-escape dollar character.
+          *out++ = '$';
+          continue;
+        }
+      yy14:
+        ++in;
+        {
+          // Let backslash before other characters through verbatim.
+          *out++ = '\\';
+          *out++ = yych;
+          continue;
+        }
+      yy16:
+        ++in;
+        {
+          // De-escape backslashed character.
+          *out++ = yych;
+          continue;
+        }
       }
-yy9:
-      yych = *++in;
-      goto yy3;
-yy10:
-      ++in;
-      yych = *in;
-yy11:
-      if (yybm[0+yych] & 128) {
-        goto yy10;
-      }
-      goto yy6;
-yy12:
-      ++in;
-      {
-        // De-escape dollar character.
-        *out++ = '$';
-        continue;
-      }
-yy14:
-      ++in;
-      {
-        // Let backslash before other characters through verbatim.
-        *out++ = '\\';
-        *out++ = yych;
-        continue;
-      }
-yy16:
-      ++in;
-      {
-        // De-escape backslashed character.
-        *out++ = yych;
-        continue;
-      }
-    }
-
     }
 
     int len = (int)(out - filename);

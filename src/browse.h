@@ -22,7 +22,7 @@ struct State;
 /// \a args are the number of arguments to be passed to the Python script.
 /// \a argv are arguments to be passed to the Python script.
 /// This function does not return if it runs successfully.
-void RunBrowsePython(State* state, const char* ninja_command,
-                     const char* input_file, int argc, char* argv[]);
+void RunBrowsePython(State *state, const char *ninja_command,
+                     const char *input_file, int argc, char *argv[]);
 
 #endif  // NINJA_BROWSE_H_

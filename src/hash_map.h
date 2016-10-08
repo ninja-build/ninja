@@ -15,18 +15,17 @@
 #ifndef NINJA_MAP_H_
 #define NINJA_MAP_H_
 
-#include <algorithm>
 #include <string.h>
+#include <algorithm>
 #include "string_piece.h"
 
 // MurmurHash2, by Austin Appleby
-static inline
-unsigned int MurmurHash2(const void* key, size_t len) {
+static inline unsigned int MurmurHash2(const void *key, size_t len) {
   static const unsigned int seed = 0xDECAFBAD;
   const unsigned int m = 0x5bd1e995;
   const int r = 24;
   unsigned int h = seed ^ len;
-  const unsigned char* data = (const unsigned char*)key;
+  const unsigned char *data = (const unsigned char *)key;
   while (len >= 4) {
     unsigned int k;
     memcpy(&k, data, sizeof k);
@@ -39,9 +38,12 @@ unsigned int MurmurHash2(const void* key, size_t len) {
     len -= 4;
   }
   switch (len) {
-  case 3: h ^= data[2] << 16;
-  case 2: h ^= data[1] << 8;
-  case 1: h ^= data[0];
+  case 3:
+    h ^= data[2] << 16;
+  case 2:
+    h ^= data[1] << 8;
+  case 1:
+    h ^= data[0];
     h *= m;
   };
   h ^= h >> 13;
@@ -54,7 +56,7 @@ unsigned int MurmurHash2(const void* key, size_t len) {
 #include <unordered_map>
 
 namespace std {
-template<>
+template <>
 struct hash<StringPiece> {
   typedef StringPiece argument_type;
   typedef size_t result_type;
@@ -72,10 +74,10 @@ using stdext::hash_map;
 using stdext::hash_compare;
 
 struct StringPieceCmp : public hash_compare<StringPiece> {
-  size_t operator()(const StringPiece& key) const {
+  size_t operator()(const StringPiece &key) const {
     return MurmurHash2(key.str_, key.len_);
   }
-  bool operator()(const StringPiece& a, const StringPiece& b) const {
+  bool operator()(const StringPiece &a, const StringPiece &b) const {
     int cmp = memcmp(a.str_, b.str_, min(a.len_, b.len_));
     if (cmp < 0) {
       return true;
@@ -93,7 +95,7 @@ struct StringPieceCmp : public hash_compare<StringPiece> {
 using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
-template<>
+template <>
 struct hash<StringPiece> {
   size_t operator()(StringPiece key) const {
     return MurmurHash2(key.str_, key.len_);
@@ -106,7 +108,7 @@ struct hash<StringPiece> {
 /// owned externally (typically by the values).  Use like:
 /// ExternalStringHash<Foo*>::Type foos; to make foos into a hash
 /// mapping StringPiece => Foo*.
-template<typename V>
+template <typename V>
 struct ExternalStringHashMap {
 #if (__cplusplus >= 201103L) || (_MSC_VER >= 1900)
   typedef std::unordered_map<StringPiece, V> Type;
@@ -117,4 +119,4 @@ struct ExternalStringHashMap {
 #endif
 };
 
-#endif // NINJA_MAP_H_
+#endif  // NINJA_MAP_H_

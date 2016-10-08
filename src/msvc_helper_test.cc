@@ -18,8 +18,7 @@
 #include "util.h"
 
 TEST(EscapeForDepfileTest, SpacesInFilename) {
-  ASSERT_EQ("sub\\some\\ sdk\\foo.h",
-            EscapeForDepfile("sub\\some sdk\\foo.h"));
+  ASSERT_EQ("sub\\some\\ sdk\\foo.h", EscapeForDepfile("sub\\some sdk\\foo.h"));
 }
 
 TEST(MSVCHelperTest, EnvBlock) {

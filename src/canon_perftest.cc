@@ -15,8 +15,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util.h"
 #include "metrics.h"
+#include "util.h"
 
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
@@ -52,6 +52,5 @@ int main() {
       max = times[i];
   }
 
-  printf("min %dms  max %dms  avg %.1fms\n",
-         min, max, total / times.size());
+  printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
 }

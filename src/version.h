@@ -20,13 +20,13 @@ using namespace std;
 
 /// The version number of the current Ninja release.  This will always
 /// be "git" on trunk.
-extern const char* kNinjaVersion;
+extern const char *kNinjaVersion;
 
 /// Parse the major/minor components of a version string.
-void ParseVersion(const string& version, int* major, int* minor);
+void ParseVersion(const string &version, int *major, int *minor);
 
 /// Check whether \a version is compatible with the current Ninja version,
 /// aborting if not.
-void CheckNinjaVersion(const string& required_version);
+void CheckNinjaVersion(const string &required_version);
 
 #endif  // NINJA_VERSION_H_

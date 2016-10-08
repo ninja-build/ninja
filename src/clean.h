@@ -29,23 +29,22 @@ struct DiskInterface;
 
 struct Cleaner {
   /// Build a cleaner object with a real disk interface.
-  Cleaner(State* state, const BuildConfig& config);
+  Cleaner(State *state, const BuildConfig &config);
 
   /// Build a cleaner object with the given @a disk_interface
   /// (Useful for testing).
-  Cleaner(State* state,
-          const BuildConfig& config,
-          DiskInterface* disk_interface);
+  Cleaner(State *state, const BuildConfig &config,
+          DiskInterface *disk_interface);
 
   /// Clean the given @a target and all the file built for it.
   /// @return non-zero if an error occurs.
-  int CleanTarget(Node* target);
+  int CleanTarget(Node *target);
   /// Clean the given target @a target.
   /// @return non-zero if an error occurs.
-  int CleanTarget(const char* target);
+  int CleanTarget(const char *target);
   /// Clean the given target @a targets.
   /// @return non-zero if an error occurs.
-  int CleanTargets(int target_count, char* targets[]);
+  int CleanTargets(int target_count, char *targets[]);
 
   /// Clean all built files, except for files created by generator rules.
   /// @param generator If set, also clean files created by generator rules.
@@ -54,53 +53,51 @@ struct Cleaner {
 
   /// Clean all the file built with the given rule @a rule.
   /// @return non-zero if an error occurs.
-  int CleanRule(const Rule* rule);
+  int CleanRule(const Rule *rule);
   /// Clean the file produced by the given @a rule.
   /// @return non-zero if an error occurs.
-  int CleanRule(const char* rule);
+  int CleanRule(const char *rule);
   /// Clean the file produced by the given @a rules.
   /// @return non-zero if an error occurs.
-  int CleanRules(int rule_count, char* rules[]);
+  int CleanRules(int rule_count, char *rules[]);
 
   /// @return the number of file cleaned.
-  int cleaned_files_count() const {
-    return cleaned_files_count_;
-  }
+  int cleaned_files_count() const { return cleaned_files_count_; }
 
   /// @return whether the cleaner is in verbose mode.
   bool IsVerbose() const {
-    return (config_.verbosity != BuildConfig::QUIET
-            && (config_.verbosity == BuildConfig::VERBOSE || config_.dry_run));
+    return (config_.verbosity != BuildConfig::QUIET &&
+            (config_.verbosity == BuildConfig::VERBOSE || config_.dry_run));
   }
 
  private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
-  int RemoveFile(const string& path);
+  int RemoveFile(const string &path);
   /// @returns whether the file @a path exists.
-  bool FileExists(const string& path);
-  void Report(const string& path);
+  bool FileExists(const string &path);
+  void Report(const string &path);
 
   /// Remove the given @a path file only if it has not been already removed.
-  void Remove(const string& path);
+  void Remove(const string &path);
   /// @return whether the given @a path has already been removed.
-  bool IsAlreadyRemoved(const string& path);
+  bool IsAlreadyRemoved(const string &path);
   /// Remove the depfile and rspfile for an Edge.
-  void RemoveEdgeFiles(Edge* edge);
+  void RemoveEdgeFiles(Edge *edge);
 
   /// Helper recursive method for CleanTarget().
-  void DoCleanTarget(Node* target);
+  void DoCleanTarget(Node *target);
   void PrintHeader();
   void PrintFooter();
-  void DoCleanRule(const Rule* rule);
+  void DoCleanRule(const Rule *rule);
   void Reset();
 
-  State* state_;
-  const BuildConfig& config_;
+  State *state_;
+  const BuildConfig &config_;
   set<string> removed_;
-  set<Node*> cleaned_;
+  set<Node *> cleaned_;
   int cleaned_files_count_;
-  DiskInterface* disk_interface_;
+  DiskInterface *disk_interface_;
   int status_;
 };
 

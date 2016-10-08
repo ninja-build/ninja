@@ -14,8 +14,8 @@
 
 #include "build_log.h"
 
-#include "util.h"
 #include "test.h"
+#include "util.h"
 
 #include <sys/stat.h>
 #ifdef _WIN32
@@ -35,16 +35,14 @@ struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
   }
-  virtual void TearDown() {
-    unlink(kTestFilename);
-  }
+  virtual void TearDown() { unlink(kTestFilename); }
   virtual bool IsPathDead(StringPiece s) const { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
   AssertParse(&state_,
-"build out: cat mid\n"
-"build mid: cat in\n");
+              "build out: cat mid\n"
+              "build mid: cat in\n");
 
   BuildLog log1;
   string err;
@@ -118,8 +116,8 @@ TEST_F(BuildLogTest, DoubleEntry) {
 
 TEST_F(BuildLogTest, Truncate) {
   AssertParse(&state_,
-"build out: cat mid\n"
-"build mid: cat in\n");
+              "build out: cat mid\n"
+              "build mid: cat in\n");
 
   {
     BuildLog log1;
@@ -245,8 +243,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
 }
 
 TEST_F(BuildLogTest, MultiTargetEdge) {
-  AssertParse(&state_,
-"build out out.d: cat\n");
+  AssertParse(&state_, "build out out.d: cat\n");
 
   BuildLog log;
   log.RecordCommand(state_.edges_[0], 21, 22);
@@ -270,8 +267,8 @@ struct BuildLogRecompactTest : public BuildLogTest {
 
 TEST_F(BuildLogRecompactTest, Recompact) {
   AssertParse(&state_,
-"build out: cat in\n"
-"build out2: cat in\n");
+              "build out: cat in\n"
+              "build out2: cat in\n");
 
   BuildLog log1;
   string err;

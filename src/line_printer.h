@@ -27,16 +27,13 @@ struct LinePrinter {
   bool is_smart_terminal() const { return smart_terminal_; }
   void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
 
-  enum LineType {
-    FULL,
-    ELIDE
-  };
+  enum LineType { FULL, ELIDE };
   /// Overprints the current line. If type is ELIDE, elides to_print to fit on
   /// one line.
   void Print(string to_print, LineType type);
 
   /// Prints a string on a new line, not overprinting previous output.
-  void PrintOnNewLine(const string& to_print);
+  void PrintOnNewLine(const string &to_print);
 
   /// Lock or unlock the console.  Any output sent to the LinePrinter while the
   /// console is locked will not be printed until it is unlocked.
@@ -62,7 +59,7 @@ struct LinePrinter {
   string output_buffer_;
 
 #ifdef _WIN32
-  void* console_;
+  void *console_;
 #endif
 
   /// Print the given data to the console, or buffer it if it is locked.

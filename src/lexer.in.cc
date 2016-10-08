@@ -71,21 +71,36 @@ void Lexer::Start(StringPiece filename, StringPiece input) {
 
 const char* Lexer::TokenName(Token t) {
   switch (t) {
-  case ERROR:    return "lexing error";
-  case BUILD:    return "'build'";
-  case COLON:    return "':'";
-  case DEFAULT:  return "'default'";
-  case EQUALS:   return "'='";
-  case IDENT:    return "identifier";
-  case INCLUDE:  return "'include'";
-  case INDENT:   return "indent";
-  case NEWLINE:  return "newline";
-  case PIPE2:    return "'||'";
-  case PIPE:     return "'|'";
-  case POOL:     return "'pool'";
-  case RULE:     return "'rule'";
-  case SUBNINJA: return "'subninja'";
-  case TEOF:     return "eof";
+  case ERROR:
+    return "lexing error";
+  case BUILD:
+    return "'build'";
+  case COLON:
+    return "':'";
+  case DEFAULT:
+    return "'default'";
+  case EQUALS:
+    return "'='";
+  case IDENT:
+    return "identifier";
+  case INCLUDE:
+    return "'include'";
+  case INDENT:
+    return "indent";
+  case NEWLINE:
+    return "newline";
+  case PIPE2:
+    return "'||'";
+  case PIPE:
+    return "'|'";
+  case POOL:
+    return "'pool'";
+  case RULE:
+    return "'rule'";
+  case SUBNINJA:
+    return "'subninja'";
+  case TEOF:
+    return "eof";
   }
   return NULL;  // not reached
 }

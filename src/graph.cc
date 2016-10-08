@@ -135,10 +135,8 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   return true;
 }
 
-bool DependencyScan::RecomputeOutputDirty(Edge* edge,
-                                          Node* most_recent_input,
-                                          const string& command,
-                                          Node* output) {
+bool DependencyScan::RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
+                                          const string& command, Node* output) {
   if (edge->is_phony()) {
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
@@ -174,11 +172,12 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     }
 
     if (output_mtime < most_recent_input->mtime()) {
-      EXPLAIN("%soutput %s older than most recent input %s "
-              "(%d vs %d)",
-              used_restat ? "restat of " : "", output->path().c_str(),
-              most_recent_input->path().c_str(),
-              output_mtime, most_recent_input->mtime());
+      EXPLAIN(
+          "%soutput %s older than most recent input %s "
+          "(%d vs %d)",
+          used_restat ? "restat of " : "", output->path().c_str(),
+          most_recent_input->path().c_str(), output_mtime,
+          most_recent_input->mtime());
       return true;
     }
   }
@@ -203,8 +202,8 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
 }
 
 bool Edge::AllInputsReady() const {
-  for (vector<Node*>::const_iterator i = inputs_.begin();
-       i != inputs_.end(); ++i) {
+  for (vector<Node*>::const_iterator i = inputs_.begin(); i != inputs_.end();
+       ++i) {
     if ((*i)->in_edge() && !(*i)->in_edge()->outputs_ready())
       return false;
   }
@@ -222,8 +221,7 @@ struct EdgeEnv : public Env {
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
   string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end,
-                      char sep);
+                      vector<Node*>::iterator end, char sep);
 
  private:
   vector<string> lookups_;
@@ -234,16 +232,15 @@ struct EdgeEnv : public Env {
 
 string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
-    int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
-      edge_->order_only_deps_;
+    int explicit_deps_count =
+        edge_->inputs_.size() - edge_->implicit_deps_ - edge_->order_only_deps_;
     return MakePathList(edge_->inputs_.begin(),
                         edge_->inputs_.begin() + explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
     int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.begin() + explicit_outs_count,
-                        ' ');
+                        edge_->outputs_.begin() + explicit_outs_count, ' ');
   }
 
   if (recursive_) {
@@ -269,8 +266,7 @@ string EdgeEnv::LookupVariable(const string& var) {
 }
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end,
-                             char sep) {
+                             vector<Node*>::iterator end, char sep) {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
@@ -363,10 +359,8 @@ string Node::PathDecanonicalized(const string& path, unsigned int slash_bits) {
 }
 
 void Node::Dump(const char* prefix) const {
-  printf("%s <%s 0x%p> mtime: %d%s, (:%s), ",
-         prefix, path().c_str(), this,
-         mtime(), mtime() ? "" : " (:missing)",
-         dirty() ? " dirty" : " clean");
+  printf("%s <%s 0x%p> mtime: %d%s, (:%s), ", prefix, path().c_str(), this,
+         mtime(), mtime() ? "" : " (:missing)", dirty() ? " dirty" : " clean");
   if (in_edge()) {
     in_edge()->Dump("in-edge: ");
   } else {
