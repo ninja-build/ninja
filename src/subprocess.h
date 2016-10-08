@@ -15,9 +15,9 @@
 #ifndef NINJA_SUBPROCESS_H_
 #define NINJA_SUBPROCESS_H_
 
+#include <queue>
 #include <string>
 #include <vector>
-#include <queue>
 using namespace std;
 
 #ifdef _WIN32
@@ -41,11 +41,11 @@ struct Subprocess {
 
   bool Done() const;
 
-  const string& GetOutput() const;
+  const string &GetOutput() const;
 
  private:
   Subprocess(bool use_console);
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(struct SubprocessSet *set, const string &command);
   void OnPipeReady();
 
   string buf_;
@@ -76,13 +76,13 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const string& command, bool use_console = false);
+  Subprocess *Add(const string &command, bool use_console = false);
   bool DoWork();
-  Subprocess* NextFinished();
+  Subprocess *NextFinished();
   void Clear();
 
-  vector<Subprocess*> running_;
-  queue<Subprocess*> finished_;
+  vector<Subprocess *> running_;
+  queue<Subprocess *> finished_;
 
 #ifdef _WIN32
   static BOOL WINAPI NotifyInterrupted(DWORD dwCtrlType);
@@ -103,4 +103,4 @@ struct SubprocessSet {
 #endif
 };
 
-#endif // NINJA_SUBPROCESS_H_
+#endif  // NINJA_SUBPROCESS_H_

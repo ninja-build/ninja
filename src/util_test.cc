@@ -32,7 +32,8 @@ TEST(CanonicalizePath, PathSamples) {
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("empty path", err);
 
-  path = "foo.h"; err = "";
+  path = "foo.h";
+  err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo.h", path);
 
@@ -117,7 +118,8 @@ TEST(CanonicalizePath, PathSamplesWindows) {
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("empty path", err);
 
-  path = "foo.h"; err = "";
+  path = "foo.h";
+  err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("foo.h", path);
 
@@ -179,7 +181,8 @@ TEST(CanonicalizePath, SlashTracking) {
   string err;
   unsigned int slash_bits;
 
-  path = "foo.h"; err = "";
+  path = "foo.h";
+  err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ("foo.h", path);
   EXPECT_EQ(0, slash_bits);
@@ -382,8 +385,9 @@ TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
 
 TEST(StripAnsiEscapeCodes, StripColors) {
   // An actual clang warning.
-  string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
-                 "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
+  string input =
+      "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
+      "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
   string stripped = StripAnsiEscapeCodes(input);
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);

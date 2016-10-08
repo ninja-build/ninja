@@ -28,12 +28,11 @@ namespace {
 
 void Usage() {
   printf(
-"usage: ninja -t msvc [options] -- cl.exe /showIncludes /otherArgs\n"
-"options:\n"
-"  -e ENVFILE load environment block from ENVFILE as environment\n"
-"  -o FILE    write output dependency information to FILE.d\n"
-"  -p STRING  localized prefix of msvc's /showIncludes output\n"
-         );
+      "usage: ninja -t msvc [options] -- cl.exe /showIncludes /otherArgs\n"
+      "options:\n"
+      "  -e ENVFILE load environment block from ENVFILE as environment\n"
+      "  -o FILE    write output dependency information to FILE.d\n"
+      "  -p STRING  localized prefix of msvc's /showIncludes output\n");
 }
 
 void PushPathIntoEnvironment(const string& env_block) {
@@ -53,8 +52,7 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
-    Fatal("opening %s: %s", depfile_path.c_str(),
-          GetLastErrorString().c_str());
+    Fatal("opening %s: %s", depfile_path.c_str(), GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
     unlink(object_path);
@@ -63,8 +61,8 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
     Fatal("writing %s", depfile_path.c_str());
   }
   const set<string>& headers = parse.includes_;
-  for (set<string>::const_iterator i = headers.begin();
-       i != headers.end(); ++i) {
+  for (set<string>::const_iterator i = headers.begin(); i != headers.end();
+       ++i) {
     if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
       unlink(object_path);
       fclose(depfile);
@@ -81,27 +79,25 @@ int MSVCHelperMain(int argc, char** argv) {
   const char* output_filename = NULL;
   const char* envfile = NULL;
 
-  const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { NULL, 0, NULL, 0 }
-  };
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { NULL, 0, NULL, 0 } };
   int opt;
   string deps_prefix;
   while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
-      case 'e':
-        envfile = optarg;
-        break;
-      case 'o':
-        output_filename = optarg;
-        break;
-      case 'p':
-        deps_prefix = optarg;
-        break;
-      case 'h':
-      default:
-        Usage();
-        return 0;
+    case 'e':
+      envfile = optarg;
+      break;
+    case 'o':
+      output_filename = optarg;
+      break;
+    case 'p':
+      deps_prefix = optarg;
+      break;
+    case 'h':
+    default:
+      Usage();
+      return 0;
     }
   }
 

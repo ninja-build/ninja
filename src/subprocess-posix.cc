@@ -18,26 +18,25 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <unistd.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <spawn.h>
+#include <unistd.h>
 
 #ifdef __FreeBSD__
-#  include <sys/param.h>
-#  if defined USE_PPOLL && __FreeBSD_version < 1002000
-#    undef USE_PPOLL
-#  endif
+#include <sys/param.h>
+#if defined USE_PPOLL && __FreeBSD_version < 1002000
+#undef USE_PPOLL
+#endif
 #endif
 
 extern char** environ;
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
-                                           use_console_(use_console) {
-}
+Subprocess::Subprocess(bool use_console)
+    : fd_(-1), pid_(-1), use_console_(use_console) {}
 
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
@@ -143,8 +142,8 @@ ExitStatus Subprocess::Finish() {
     if (exit == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
-        || WTERMSIG(status) == SIGHUP)
+    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM ||
+        WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
   return ExitFailure;
@@ -212,8 +211,8 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
-  Subprocess *subprocess = new Subprocess(use_console);
+Subprocess* SubprocessSet::Add(const string& command, bool use_console) {
+  Subprocess* subprocess = new Subprocess(use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
@@ -227,8 +226,8 @@ bool SubprocessSet::DoWork() {
   vector<pollfd> fds;
   nfds_t nfds = 0;
 
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i) {
+  for (vector<Subprocess*>::iterator i = running_.begin(); i != running_.end();
+       ++i) {
     int fd = (*i)->fd_;
     if (fd < 0)
       continue;
@@ -253,7 +252,7 @@ bool SubprocessSet::DoWork() {
 
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
+       i != running_.end();) {
     int fd = (*i)->fd_;
     if (fd < 0)
       continue;
@@ -272,19 +271,19 @@ bool SubprocessSet::DoWork() {
   return IsInterrupted();
 }
 
-#else  // !defined(USE_PPOLL)
+#else   // !defined(USE_PPOLL)
 bool SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
   FD_ZERO(&set);
 
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i) {
+  for (vector<Subprocess*>::iterator i = running_.begin(); i != running_.end();
+       ++i) {
     int fd = (*i)->fd_;
     if (fd >= 0) {
       FD_SET(fd, &set);
-      if (nfds < fd+1)
-        nfds = fd+1;
+      if (nfds < fd + 1)
+        nfds = fd + 1;
     }
   }
 
@@ -303,7 +302,7 @@ bool SubprocessSet::DoWork() {
     return true;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ) {
+       i != running_.end();) {
     int fd = (*i)->fd_;
     if (fd >= 0 && FD_ISSET(fd, &set)) {
       (*i)->OnPipeReady();
@@ -329,14 +328,14 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
+  for (vector<Subprocess*>::iterator i = running_.begin(); i != running_.end();
+       ++i)
     // Since the foreground process is in our process group, it will receive
     // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
     if (!(*i)->use_console_)
       kill(-(*i)->pid_, interrupted_);
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
+  for (vector<Subprocess*>::iterator i = running_.begin(); i != running_.end();
+       ++i)
     delete *i;
   running_.clear();
 }

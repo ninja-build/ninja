@@ -15,8 +15,8 @@
 #include "deps_log.h"
 
 #include <assert.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #ifndef _WIN32
 #include <unistd.h>
@@ -45,7 +45,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     if (!Recompact(path, err))
       return false;
   }
-  
+
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -83,8 +83,8 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                     nodes.empty() ? NULL : (Node**)&nodes.front());
 }
 
-bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         int node_count, Node** nodes) {
+bool DepsLog::RecordDeps(Node* node, TimeStamp mtime, int node_count,
+                         Node** nodes) {
   // Track whether there's any new data to be recorded.
   bool made_change = false;
 
@@ -105,9 +105,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   // See if the new data is different than the existing data, if any.
   if (!made_change) {
     Deps* deps = GetDeps(node);
-    if (!deps ||
-        deps->mtime != mtime ||
-        deps->node_count != node_count) {
+    if (!deps || deps->mtime != mtime || deps->node_count != node_count) {
       made_change = true;
     } else {
       for (int i = 0; i < node_count; ++i) {
@@ -236,9 +234,12 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       int path_size = size - 4;
       assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
       // There can be up to 3 bytes of padding.
-      if (buf[path_size - 1] == '\0') --path_size;
-      if (buf[path_size - 1] == '\0') --path_size;
-      if (buf[path_size - 1] == '\0') --path_size;
+      if (buf[path_size - 1] == '\0')
+        --path_size;
+      if (buf[path_size - 1] == '\0')
+        --path_size;
+      if (buf[path_size - 1] == '\0')
+        --path_size;
       StringPiece subpath(buf, path_size);
       // It is not necessary to pass in a correct slash_bits here. It will
       // either be a Node that's in the manifest (in which case it will already
@@ -323,17 +324,18 @@ bool DepsLog::Recompact(const string& path, string* err) {
   // will refer to the ordering in new_log, not in the current log.
   for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
-  
+
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
-    if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
+    if (!deps)
+      continue;  // If nodes_[old_id] is a leaf, it has no deps.
 
     if (!IsDepsEntryLiveFor(nodes_[old_id]))
       continue;
 
-    if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
-                            deps->node_count, deps->nodes)) {
+    if (!new_log.RecordDeps(nodes_[old_id], deps->mtime, deps->node_count,
+                            deps->nodes)) {
       new_log.Close();
       return false;
     }

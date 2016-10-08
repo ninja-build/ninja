@@ -38,7 +38,7 @@ int64_t HighResTimer() {
   timeval tv;
   if (gettimeofday(&tv, NULL) < 0)
     Fatal("gettimeofday: %s", strerror(errno));
-  return (int64_t)tv.tv_sec * 1000*1000 + tv.tv_usec;
+  return (int64_t)tv.tv_sec * 1000 * 1000 + tv.tv_usec;
 }
 
 /// Convert a delta of HighResTimer() values to microseconds.
@@ -74,7 +74,6 @@ int64_t TimerToMicros(int64_t dt) {
 
 }  // anonymous namespace
 
-
 ScopedMetric::ScopedMetric(Metric* metric) {
   metric_ = metric;
   if (!metric_)
@@ -100,15 +99,15 @@ Metric* Metrics::NewMetric(const string& name) {
 
 void Metrics::Report() {
   int width = 0;
-  for (vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
+  for (vector<Metric*>::iterator i = metrics_.begin(); i != metrics_.end();
+       ++i) {
     width = max((int)(*i)->name.size(), width);
   }
 
-  printf("%-*s\t%-6s\t%-9s\t%s\n", width,
-         "metric", "count", "avg (us)", "total (ms)");
-  for (vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
+  printf("%-*s\t%-6s\t%-9s\t%s\n", width, "metric", "count", "avg (us)",
+         "total (ms)");
+  for (vector<Metric*>::iterator i = metrics_.begin(); i != metrics_.end();
+       ++i) {
     Metric* metric = *i;
     double total = metric->sum / (double)1000;
     double avg = metric->sum / (double)metric->count;
@@ -124,4 +123,3 @@ uint64_t Stopwatch::Now() const {
 int64_t GetTimeMillis() {
   return TimerToMicros(HighResTimer()) / 1000;
 }
-

@@ -33,39 +33,39 @@ enum DupeEdgeAction {
 
 /// Parses .ninja files.
 struct ManifestParser {
-  ManifestParser(State* state, FileReader* file_reader,
+  ManifestParser(State *state, FileReader *file_reader,
                  DupeEdgeAction dupe_edge_action);
 
   /// Load and parse a file.
-  bool Load(const string& filename, string* err, Lexer* parent = NULL);
+  bool Load(const string &filename, string *err, Lexer *parent = NULL);
 
   /// Parse a text string of input.  Used by tests.
-  bool ParseTest(const string& input, string* err) {
+  bool ParseTest(const string &input, string *err) {
     quiet_ = true;
     return Parse("input", input, err);
   }
 
-private:
+ private:
   /// Parse a file, given its contents as a string.
-  bool Parse(const string& filename, const string& input, string* err);
+  bool Parse(const string &filename, const string &input, string *err);
 
   /// Parse various statement types.
-  bool ParsePool(string* err);
-  bool ParseRule(string* err);
-  bool ParseLet(string* key, EvalString* val, string* err);
-  bool ParseEdge(string* err);
-  bool ParseDefault(string* err);
+  bool ParsePool(string *err);
+  bool ParseRule(string *err);
+  bool ParseLet(string *key, EvalString *val, string *err);
+  bool ParseEdge(string *err);
+  bool ParseDefault(string *err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(bool new_scope, string* err);
+  bool ParseFileInclude(bool new_scope, string *err);
 
   /// If the next token is not \a expected, produce an error string
   /// saying "expectd foo, got bar".
-  bool ExpectToken(Lexer::Token expected, string* err);
+  bool ExpectToken(Lexer::Token expected, string *err);
 
-  State* state_;
-  BindingEnv* env_;
-  FileReader* file_reader_;
+  State *state_;
+  BindingEnv *env_;
+  FileReader *file_reader_;
   Lexer lexer_;
   DupeEdgeAction dupe_edge_action_;
   bool quiet_;

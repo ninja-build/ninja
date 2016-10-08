@@ -38,16 +38,18 @@ void CheckNinjaVersion(const string& version) {
   ParseVersion(version, &file_major, &file_minor);
 
   if (bin_major > file_major) {
-    Warning("ninja executable version (%s) greater than build file "
-            "ninja_required_version (%s); versions may be incompatible.",
-            kNinjaVersion, version.c_str());
+    Warning(
+        "ninja executable version (%s) greater than build file "
+        "ninja_required_version (%s); versions may be incompatible.",
+        kNinjaVersion, version.c_str());
     return;
   }
 
   if ((bin_major == file_major && bin_minor < file_minor) ||
       bin_major < file_major) {
-    Fatal("ninja version (%s) incompatible with build file "
-          "ninja_required_version version (%s).",
-          kNinjaVersion, version.c_str());
+    Fatal(
+        "ninja version (%s) incompatible with build file "
+        "ninja_required_version version (%s).",
+        kNinjaVersion, version.c_str());
   }
 }

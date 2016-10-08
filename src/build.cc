@@ -60,24 +60,21 @@ bool DryRunCommandRunner::StartCommand(Edge* edge) {
 }
 
 bool DryRunCommandRunner::WaitForCommand(Result* result) {
-   if (finished_.empty())
-     return false;
+  if (finished_.empty())
+    return false;
 
-   result->status = ExitSuccess;
-   result->edge = finished_.front();
-   finished_.pop();
-   return true;
+  result->status = ExitSuccess;
+  result->edge = finished_.front();
+  finished_.pop();
+  return true;
 }
 
 }  // namespace
 
 BuildStatus::BuildStatus(const BuildConfig& config)
-    : config_(config),
-      start_time_millis_(GetTimeMillis()),
-      started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
+    : config_(config), start_time_millis_(GetTimeMillis()), started_edges_(0),
+      finished_edges_(0), total_edges_(0), progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
-
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
@@ -103,10 +100,8 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
     printer_.SetConsoleLocked(true);
 }
 
-void BuildStatus::BuildEdgeFinished(Edge* edge,
-                                    bool success,
-                                    const string& output,
-                                    int* start_time,
+void BuildStatus::BuildEdgeFinished(Edge* edge, bool success,
+                                    const string& output, int* start_time,
                                     int* end_time) {
   int64_t now = GetTimeMillis();
 
@@ -169,8 +164,8 @@ void BuildStatus::BuildFinished() {
   printer_.PrintOnNewLine("");
 }
 
-string BuildStatus::FormatProgressStatus(
-    const char* progress_status_format, EdgeStatus status) const {
+string BuildStatus::FormatProgressStatus(const char* progress_status_format,
+                                         EdgeStatus status) const {
   string out;
   char buf[32];
   int percent;
@@ -182,19 +177,19 @@ string BuildStatus::FormatProgressStatus(
         out.push_back('%');
         break;
 
-        // Started edges.
+      // Started edges.
       case 's':
         snprintf(buf, sizeof(buf), "%d", started_edges_);
         out += buf;
         break;
 
-        // Total edges.
+      // Total edges.
       case 't':
         snprintf(buf, sizeof(buf), "%d", total_edges_);
         out += buf;
         break;
 
-        // Running edges.
+      // Running edges.
       case 'r': {
         int running_edges = started_edges_ - finished_edges_;
         // count the edge that just finished as a running edge
@@ -205,33 +200,33 @@ string BuildStatus::FormatProgressStatus(
         break;
       }
 
-        // Unstarted edges.
+      // Unstarted edges.
       case 'u':
         snprintf(buf, sizeof(buf), "%d", total_edges_ - started_edges_);
         out += buf;
         break;
 
-        // Finished edges.
+      // Finished edges.
       case 'f':
         snprintf(buf, sizeof(buf), "%d", finished_edges_);
         out += buf;
         break;
 
-        // Overall finished edges per second.
+      // Overall finished edges per second.
       case 'o':
         overall_rate_.UpdateRate(finished_edges_);
         snprinfRate(overall_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
-        // Current rate, average over the last '-j' jobs.
+      // Current rate, average over the last '-j' jobs.
       case 'c':
         current_rate_.UpdateRate(finished_edges_);
         snprinfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
-        // Percentage
+      // Percentage
       case 'p':
         percent = (100 * finished_edges_) / total_edges_;
         snprintf(buf, sizeof(buf), "%3i%%", percent);
@@ -287,7 +282,8 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
       string referenced;
       if (!stack->empty())
         referenced = ", needed by '" + stack->back()->path() + "',";
-      *err = "'" + node->path() + "'" + referenced + " missing "
+      *err = "'" + node->path() + "'" + referenced +
+             " missing "
              "and no known rule to make it";
     }
     return false;
@@ -302,7 +298,7 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   // If an entry in want_ does not already exist for edge, create an entry which
   // maps to false, indicating that we do not want to build this entry itself.
   pair<map<Edge*, bool>::iterator, bool> want_ins =
-    want_.insert(make_pair(edge, false));
+      want_.insert(make_pair(edge, false));
   bool& want = want_ins.first->second;
 
   // If we do need to build edge and we haven't already marked it as wanted,
@@ -377,7 +373,8 @@ void Plan::ScheduleWork(Edge* edge) {
   if (e != ready_.end() && !ready_.key_comp()(edge, *e)) {
     // This edge has already been scheduled.  We can get here again if an edge
     // and one of its dependencies share an order-only input, or if a node
-    // duplicates an out edge (see https://github.com/ninja-build/ninja/pull/519).
+    // duplicates an out edge (see
+    // https://github.com/ninja-build/ninja/pull/519).
     // Avoid scheduling the work again.
     return;
   }
@@ -455,9 +452,9 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
-    vector<Node*>::iterator
-        begin = (*oe)->inputs_.begin(),
-        end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
+    vector<Node *>::iterator begin = (*oe)->inputs_.begin(),
+                             end =
+                                 (*oe)->inputs_.end() - (*oe)->order_only_deps_;
     if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
       // Recompute most_recent_input.
       Node* most_recent_input = NULL;
@@ -470,8 +467,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
       bool outputs_dirty = false;
-      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
-                                       &outputs_dirty, err)) {
+      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input, &outputs_dirty,
+                                       err)) {
         return false;
       }
       if (!outputs_dirty) {
@@ -530,9 +527,9 @@ void RealCommandRunner::Abort() {
 bool RealCommandRunner::CanRunMore() {
   size_t subproc_number =
       subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
-    && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
-        || GetLoadAverage() < config_.max_load_average);
+  return (int)subproc_number < config_.parallelism &&
+         ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f) ||
+          GetLoadAverage() < config_.max_load_average);
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -564,9 +561,8 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface)
+Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+                 DepsLog* deps_log, DiskInterface* disk_interface)
     : state_(state), config_(config), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface) {
   status_ = new BuildStatus(config);
@@ -870,10 +866,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 }
 
 bool Builder::ExtractDeps(CommandRunner::Result* result,
-                          const string& deps_type,
-                          const string& deps_prefix,
-                          vector<Node*>* deps_nodes,
-                          string* err) {
+                          const string& deps_type, const string& deps_prefix,
+                          vector<Node*>* deps_nodes, string* err) {
   if (deps_type == "msvc") {
     CLParser parser;
     string output;
@@ -888,8 +882,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else
-  if (deps_type == "gcc") {
+  } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");

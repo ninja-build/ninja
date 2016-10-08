@@ -52,11 +52,10 @@ const int kCurrentVersion = 5;
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
 #define BIG_CONSTANT(x) (x)
-#else   // defined(_MSC_VER)
+#else  // defined(_MSC_VER)
 #define BIG_CONSTANT(x) (x##LLU)
-#endif // !defined(_MSC_VER)
-inline
-uint64_t MurmurHash64A(const void* key, size_t len) {
+#endif  // !defined(_MSC_VER)
+inline uint64_t MurmurHash64A(const void* key, size_t len) {
   static const uint64_t seed = 0xDECAFBADDECAFBADull;
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
@@ -73,16 +72,22 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
     data += 8;
     len -= 8;
   }
-  switch (len & 7)
-  {
-  case 7: h ^= uint64_t(data[6]) << 48;
-  case 6: h ^= uint64_t(data[5]) << 40;
-  case 5: h ^= uint64_t(data[4]) << 32;
-  case 4: h ^= uint64_t(data[3]) << 24;
-  case 3: h ^= uint64_t(data[2]) << 16;
-  case 2: h ^= uint64_t(data[1]) << 8;
-  case 1: h ^= uint64_t(data[0]);
-          h *= m;
+  switch (len & 7) {
+  case 7:
+    h ^= uint64_t(data[6]) << 48;
+  case 6:
+    h ^= uint64_t(data[5]) << 40;
+  case 5:
+    h ^= uint64_t(data[4]) << 32;
+  case 4:
+    h ^= uint64_t(data[3]) << 24;
+  case 3:
+    h ^= uint64_t(data[2]) << 16;
+  case 2:
+    h ^= uint64_t(data[1]) << 8;
+  case 1:
+    h ^= uint64_t(data[0]);
+    h *= m;
   };
   h ^= h >> r;
   h *= m;
@@ -91,7 +96,6 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
 }
 #undef BIG_CONSTANT
 
-
 }  // namespace
 
 // static
@@ -99,17 +103,15 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const string& output)
-  : output(output) {}
+BuildLog::LogEntry::LogEntry(const string& output) : output(output) {}
 
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp restat_mtime)
-  : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
-{}
+                             int start_time, int end_time,
+                             TimeStamp restat_mtime)
+    : output(output), command_hash(command_hash), start_time(start_time),
+      end_time(end_time), restat_mtime(restat_mtime) {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog() : log_file_(NULL), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -180,8 +182,8 @@ void BuildLog::Close() {
 
 struct LineReader {
   explicit LineReader(FILE* file)
-    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
-      memset(buf_, 0, sizeof(buf_));
+      : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
+    memset(buf_, 0, sizeof(buf_));
   }
 
   // Reads a \n-terminated line from the file passed to the constructor.
@@ -251,8 +253,9 @@ bool BuildLog::Load(const string& path, string* err) {
       sscanf(line_start, kFileSignature, &log_version);
 
       if (log_version < kOldestSupportedVersion) {
-        *err = ("build log version invalid, perhaps due to being too old; "
-                "starting over");
+        *err =
+            ("build log version invalid, perhaps due to being too old; "
+             "starting over");
         fclose(file);
         unlink(path.c_str());
         // Don't report this as a failure.  An empty build log will cause
@@ -316,18 +319,19 @@ bool BuildLog::Load(const string& path, string* err) {
     entry->end_time = end_time;
     entry->restat_mtime = restat_mtime;
     if (log_version >= 5) {
-      char c = *end; *end = '\0';
+      char c = *end;
+      *end = '\0';
       entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
       *end = c;
     } else {
-      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
-                                                              end - start));
+      entry->command_hash =
+          LogEntry::HashCommand(StringPiece(start, end - start));
     }
   }
   fclose(file);
 
   if (!line_start) {
-    return true; // file was empty
+    return true;  // file was empty
   }
 
   // Decide whether it's time to rebuild the log:
@@ -353,9 +357,9 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.restat_mtime,
-          entry.output.c_str(), entry.command_hash) > 0;
+  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n", entry.start_time,
+                 entry.end_time, entry.restat_mtime, entry.output.c_str(),
+                 entry.command_hash) > 0;
 }
 
 bool BuildLog::Recompact(const string& path, const BuildLogUser& user,

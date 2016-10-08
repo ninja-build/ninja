@@ -14,28 +14,24 @@
 
 #ifdef _MSC_VER
 
-#include <windows.h>
 #include <DbgHelp.h>
+#include <windows.h>
 
 #include "util.h"
 
-typedef BOOL (WINAPI *MiniDumpWriteDumpFunc) (
-    IN HANDLE,
-    IN DWORD,
-    IN HANDLE,
-    IN MINIDUMP_TYPE,
-    IN CONST PMINIDUMP_EXCEPTION_INFORMATION, OPTIONAL
-    IN CONST PMINIDUMP_USER_STREAM_INFORMATION, OPTIONAL
-    IN CONST PMINIDUMP_CALLBACK_INFORMATION OPTIONAL
-    );
+typedef BOOL(WINAPI* MiniDumpWriteDumpFunc)(
+    IN HANDLE, IN DWORD, IN HANDLE, IN MINIDUMP_TYPE,
+    IN CONST PMINIDUMP_EXCEPTION_INFORMATION,
+    OPTIONAL IN CONST PMINIDUMP_USER_STREAM_INFORMATION,
+    OPTIONAL IN CONST PMINIDUMP_CALLBACK_INFORMATION OPTIONAL);
 
 /// Creates a windows minidump in temp folder.
 void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   char temp_path[MAX_PATH];
   GetTempPath(sizeof(temp_path), temp_path);
   char temp_file[MAX_PATH];
-  sprintf(temp_file, "%s\\ninja_crash_dump_%d.dmp",
-          temp_path, GetCurrentProcessId());
+  sprintf(temp_file, "%s\\ninja_crash_dump_%d.dmp", temp_path,
+          GetCurrentProcessId());
 
   // Delete any previous minidump of the same name.
   DeleteFile(temp_file);
@@ -60,17 +56,17 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   HANDLE hFile = CreateFileA(temp_file, GENERIC_READ | GENERIC_WRITE, 0, NULL,
                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == NULL) {
-    Error("failed to create minidump: CreateFileA(%s): %s",
-          temp_file, GetLastErrorString().c_str());
+    Error("failed to create minidump: CreateFileA(%s): %s", temp_file,
+          GetLastErrorString().c_str());
     return;
   }
 
   MINIDUMP_EXCEPTION_INFORMATION mdei;
-  mdei.ThreadId           = GetCurrentThreadId();
-  mdei.ExceptionPointers  = pep;
-  mdei.ClientPointers     = FALSE;
-  MINIDUMP_TYPE mdt       = (MINIDUMP_TYPE) (MiniDumpWithDataSegs |
-                                             MiniDumpWithHandleData);
+  mdei.ThreadId = GetCurrentThreadId();
+  mdei.ExceptionPointers = pep;
+  mdei.ClientPointers = FALSE;
+  MINIDUMP_TYPE mdt =
+      (MINIDUMP_TYPE)(MiniDumpWithDataSegs | MiniDumpWithHandleData);
 
   BOOL rv = mini_dump_write_dump(GetCurrentProcess(), GetCurrentProcessId(),
                                  hFile, mdt, (pep != 0) ? &mdei : 0, 0, 0);
