@@ -422,8 +422,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   unsigned int unused;
   if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, &unused, err))
+                        &depfile.out_.len_, &unused, err)) {
+    *err = path + ": " + *err;
     return false;
+  }
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
