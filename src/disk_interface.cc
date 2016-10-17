@@ -229,14 +229,14 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-string RealDiskInterface::ReadFile(const string& path, string* err) {
-  string contents;
-  int ret = ::ReadFile(path, &contents, err);
-  if (ret == -ENOENT) {
-    // Swallow ENOENT.
-    err->clear();
+FileReader::Status RealDiskInterface::ReadFile(const string& path,
+                                               string* contents,
+                                               string* err) {
+  switch (::ReadFile(path, contents, err)) {
+  case 0:       return Okay;
+  case -ENOENT: return NotFound;
+  default:      return OtherError;
   }
-  return contents;
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {

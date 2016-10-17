@@ -176,11 +176,12 @@ bool State::PathExistsBetween(Edge* from, Edge* to) {
   return found;
 }
 
-vector<Node*> State::RootNodes(string* err) {
+vector<Node*> State::RootNodes(string* err) const {
   vector<Node*> root_nodes;
   // Search for nodes with no output.
-  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
-    for (vector<Node*>::iterator out = (*e)->outputs_.begin();
+  for (vector<Edge*>::const_iterator e = edges_.begin();
+       e != edges_.end(); ++e) {
+    for (vector<Node*>::const_iterator out = (*e)->outputs_.begin();
          out != (*e)->outputs_.end(); ++out) {
       if ((*out)->out_edges().empty())
         root_nodes.push_back(*out);
@@ -193,7 +194,7 @@ vector<Node*> State::RootNodes(string* err) {
   return root_nodes;
 }
 
-vector<Node*> State::DefaultNodes(string* err) {
+vector<Node*> State::DefaultNodes(string* err) const {
   return defaults_.empty() ? RootNodes(err) : defaults_;
 }
 

@@ -58,11 +58,13 @@ class Platform(object):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
             self._platform = 'netbsd'
+        elif self._platform.startswith('aix'):
+            self._platform = 'aix'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd']
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix']
 
     def platform(self):
         return self._platform
@@ -81,7 +83,7 @@ class Platform(object):
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
-        return '/FS ' in str(out)
+        return b'/FS' in out
 
     def is_windows(self):
         return self.is_mingw() or self.is_msvc()
@@ -89,15 +91,22 @@ class Platform(object):
     def is_solaris(self):
         return self._platform == 'solaris'
 
+    def is_aix(self):
+        return self._platform == 'aix'
+
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig')
 
     def supports_ppoll(self):
-        return self._platform in ('linux', 'openbsd', 'bitrig')
+        return self._platform in ('freebsd', 'linux', 'openbsd', 'bitrig')
 
     def supports_ninja_browse(self):
-        return not self.is_windows() and not self.is_solaris()
+        return (not self.is_windows()
+                and not self.is_solaris()
+                and not self.is_aix())
 
+    def can_rebuild_in_place(self):
+        return not (self.is_windows() or self.is_aix())
 
 class Bootstrap:
     """API shim for ninja_syntax.Writer that instead runs the commands.
@@ -124,7 +133,9 @@ class Bootstrap:
         return self.writer.newline()
 
     def variable(self, key, val):
-        self.vars[key] = self._expand(val)
+        # In bootstrap mode, we have no ninja process to catch /showIncludes
+        # output.
+        self.vars[key] = self._expand(val).replace('/showIncludes', '')
         return self.writer.variable(key, val)
 
     def rule(self, name, **kwargs):
@@ -256,11 +267,11 @@ if platform.is_msvc():
     objext = '.obj'
 
 def src(filename):
-    return os.path.join('$sourcedir', 'src', filename)
+    return os.path.join('$root', 'src', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
-    return os.path.join('$sourcedir', 'doc', filename)
+    return os.path.join('$root', 'doc', filename)
 def cc(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
@@ -272,7 +283,12 @@ def binary(name):
         return exe
     return name
 
-n.variable('sourcedir', sourcedir)
+root = sourcedir
+if root == os.getcwd():
+    # In the common case where we're building directly in the source
+    # tree, simplify all the paths to just be cwd-relative.
+    root = '.'
+n.variable('root', root)
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
 if platform.is_msvc():
@@ -288,6 +304,8 @@ if platform.is_msvc():
               '/WX',  # Warnings as errors.
               '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              # Disable warnings about constant conditional expressions.
+              '/wd4127',
               # Disable warnings about passing "this" during initialization.
               '/wd4355',
               # Disable warnings about ignored typedef in DbgHelp.h
@@ -299,10 +317,6 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
-    if options.bootstrap:
-        # In bootstrap mode, we have no ninja process to catch /showIncludes
-        # output.
-        cflags.remove('/showIncludes')
     if platform.msvc_needs_fs():
         cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
@@ -312,11 +326,11 @@ if platform.is_msvc():
 else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
+              '-Wno-missing-field-initializers',
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
-              '-Wno-missing-field-initializers',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
@@ -345,6 +359,8 @@ if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
 elif platform.is_solaris():
+    cflags.remove('-fvisibility=hidden')
+elif platform.is_aix():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass
@@ -459,6 +475,7 @@ n.comment('Core source files all build into ninja library.')
 for name in ['build',
              'build_log',
              'clean',
+             'clparser',
              'debug_flags',
              'depfile_parser',
              'deps_log',
@@ -486,6 +503,8 @@ if platform.is_windows():
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
+if platform.is_aix():
+    objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
@@ -496,6 +515,9 @@ if platform.is_msvc():
     libs.append('ninja.lib')
 else:
     libs.append('-lninja')
+
+if platform.is_aix():
+    libs.append('-lperfstat')
 
 all_targets = []
 
@@ -519,6 +541,7 @@ objs = []
 for name in ['build_log_test',
              'build_test',
              'clean_test',
+             'clparser_test',
              'depfile_parser_test',
              'deps_log_test',
              'disk_interface_test',
@@ -576,12 +599,18 @@ n.rule('asciidoc',
 n.rule('xsltproc',
        command='xsltproc --nonet doc/docbook.xsl $in > $out',
        description='XSLTPROC $out')
-xml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
-manual = n.build(doc('manual.html'), 'xsltproc', xml,
-                 implicit=doc('style.css'))
+docbookxml = n.build(built('manual.xml'), 'asciidoc', doc('manual.asciidoc'))
+manual = n.build(doc('manual.html'), 'xsltproc', docbookxml,
+                 implicit=[doc('style.css'), doc('docbook.xsl')])
 n.build('manual', 'phony',
         order_only=manual)
 n.newline()
+
+n.rule('dblatex',
+       command='dblatex -q -o $out -p doc/dblatex.xsl $in',
+       description='DBLATEX $out')
+n.build(doc('manual.pdf'), 'dblatex', docbookxml,
+        implicit=[doc('dblatex.xsl')])
 
 n.comment('Generate Doxygen.')
 n.rule('doxygen',
@@ -602,12 +631,12 @@ n.newline()
 if not host.is_mingw():
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
-           command='${configure_env}%s $sourcedir/configure.py $configure_args' %
+           command='${configure_env}%s $root/configure.py $configure_args' %
                options.with_python,
            generator=True)
     n.build('build.ninja', 'configure',
-            implicit=['$sourcedir/configure.py',
-                      os.path.normpath('$sourcedir/misc/ninja_syntax.py')])
+            implicit=['$root/configure.py',
+                      os.path.normpath('$root/misc/ninja_syntax.py')])
     n.newline()
 
 n.default(ninja)
@@ -626,17 +655,28 @@ n.build('all', 'phony', all_targets)
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
 
-verbose = ''
-if options.verbose:
-    verbose = ' -v'
-
 if options.bootstrap:
     print('bootstrap complete.  rebuilding...')
-    if platform.is_windows():
-        bootstrap_exe = 'ninja.bootstrap.exe'
+
+    rebuild_args = []
+
+    if platform.can_rebuild_in_place():
+        rebuild_args.append('./ninja')
+    else:
+        if platform.is_windows():
+            bootstrap_exe = 'ninja.bootstrap.exe'
+            final_exe = 'ninja.exe'
+        else:
+            bootstrap_exe = './ninja.bootstrap'
+            final_exe = './ninja'
+
         if os.path.exists(bootstrap_exe):
             os.unlink(bootstrap_exe)
-        os.rename('ninja.exe', bootstrap_exe)
-        subprocess.check_call('ninja.bootstrap.exe%s' % verbose, shell=True)
-    else:
-        subprocess.check_call('./ninja%s' % verbose, shell=True)
+        os.rename(final_exe, bootstrap_exe)
+
+        rebuild_args.append(bootstrap_exe)
+
+    if options.verbose:
+        rebuild_args.append('-v')
+
+    subprocess.check_call(rebuild_args)

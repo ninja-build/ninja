@@ -56,9 +56,13 @@ struct Plan {
   /// Dumps the current state of the plan.
   void Dump();
 
-  /// Mark an edge as done building.  Used internally and by
-  /// tests.
-  void EdgeFinished(Edge* edge);
+  enum EdgeResult {
+    kEdgeFailed,
+    kEdgeSucceeded
+  };
+
+  /// Mark an edge as done building (whether it succeeded or failed).
+  void EdgeFinished(Edge* edge, EdgeResult result);
 
   /// Clean the given node during the build.
   /// Return false on error.
@@ -196,16 +200,24 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildStarted();
   void BuildFinished();
+
+  enum EdgeStatus {
+    kEdgeStarted,
+    kEdgeFinished,
+  };
 
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
-  string FormatProgressStatus(const char* progress_status_format) const;
+  /// @param finished True if the edge being printed just finished
+  string FormatProgressStatus(const char* progress_status_format,
+                              EdgeStatus kEdgeFinished) const;
 
  private:
-  void PrintStatus(Edge* edge);
+  void PrintStatus(Edge* edge, EdgeStatus status);
 
   const BuildConfig& config_;
 

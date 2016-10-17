@@ -431,10 +431,12 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   }
 
   // Shorten the file, corrupting the last record.
-  struct stat st;
-  ASSERT_EQ(0, stat(kTestFilename, &st));
-  string err;
-  ASSERT_TRUE(Truncate(kTestFilename, st.st_size - 2, &err));
+  {
+    struct stat st;
+    ASSERT_EQ(0, stat(kTestFilename, &st));
+    string err;
+    ASSERT_TRUE(Truncate(kTestFilename, st.st_size - 2, &err));
+  }
 
   // Load the file again, add an entry.
   {

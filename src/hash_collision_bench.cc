@@ -17,6 +17,7 @@
 #include <algorithm>
 using namespace std;
 
+#include <stdlib.h>
 #include <time.h>
 
 int random(int low, int high) {

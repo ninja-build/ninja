@@ -68,14 +68,14 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
   ASSERT_EQ("mid", edge->inputs_[0]->path());
   ASSERT_EQ("out", edge->outputs_[0]->path());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
@@ -99,11 +99,11 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid1 mid2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -129,19 +129,19 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat b1 b2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -167,19 +167,19 @@ TEST_F(PlanTest, DoubleDependent) {
   Edge* edge;
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat in
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat mid
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);  // cat a1 a2
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);  // done
@@ -257,7 +257,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
   // This will be false since poolcat is serialized
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -266,7 +266,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
@@ -342,7 +342,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   ASSERT_EQ("outb3", edge->outputs_[0]->path());
 
   // finish out1
-  plan_.EdgeFinished(edges.front());
+  plan_.EdgeFinished(edges.front(), Plan::kEdgeSucceeded);
   edges.pop_front();
 
   // out3 should be available
@@ -353,19 +353,19 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  plan_.EdgeFinished(out3);
+  plan_.EdgeFinished(out3, Plan::kEdgeSucceeded);
 
   ASSERT_FALSE(plan_.FindWork());
 
   for (deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
-    plan_.EdgeFinished(*it);
+    plan_.EdgeFinished(*it, Plan::kEdgeSucceeded);
   }
 
   Edge* last = plan_.FindWork();
   ASSERT_TRUE(last);
   ASSERT_EQ("allTheThings", last->outputs_[0]->path());
 
-  plan_.EdgeFinished(last);
+  plan_.EdgeFinished(last, Plan::kEdgeSucceeded);
 
   ASSERT_FALSE(plan_.more_to_do());
   ASSERT_FALSE(plan_.FindWork());
@@ -407,7 +407,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
 
   edge = initial_edges[1];  // Foo first
   ASSERT_EQ("foo.cpp", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -415,11 +415,11 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("foo.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("foo.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("foo.cpp.obj", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = initial_edges[0];  // Now for bar
   ASSERT_EQ("bar.cpp", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -427,7 +427,7 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("bar.cpp", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp", edge->inputs_[1]->path());
   ASSERT_EQ("bar.cpp.obj", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
@@ -435,18 +435,60 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   ASSERT_EQ("foo.cpp.obj", edge->inputs_[0]->path());
   ASSERT_EQ("bar.cpp.obj", edge->inputs_[1]->path());
   ASSERT_EQ("libfoo.a", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_TRUE(edge);
   ASSERT_FALSE(plan_.FindWork());
   ASSERT_EQ("libfoo.a", edge->inputs_[0]->path());
   ASSERT_EQ("all", edge->outputs_[0]->path());
-  plan_.EdgeFinished(edge);
+  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
 
   edge = plan_.FindWork();
   ASSERT_FALSE(edge);
   ASSERT_FALSE(plan_.more_to_do());
+}
+
+TEST_F(PlanTest, PoolWithFailingEdge) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "pool foobar\n"
+    "  depth = 1\n"
+    "rule poolcat\n"
+    "  command = cat $in > $out\n"
+    "  pool = foobar\n"
+    "build out1: poolcat in\n"
+    "build out2: poolcat in\n"));
+  GetNode("out1")->MarkDirty();
+  GetNode("out2")->MarkDirty();
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out1"), &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(plan_.AddTarget(GetNode("out2"), &err));
+  ASSERT_EQ("", err);
+  ASSERT_TRUE(plan_.more_to_do());
+
+  Edge* edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in",  edge->inputs_[0]->path());
+  ASSERT_EQ("out1", edge->outputs_[0]->path());
+
+  // This will be false since poolcat is serialized
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge, Plan::kEdgeFailed);
+
+  edge = plan_.FindWork();
+  ASSERT_TRUE(edge);
+  ASSERT_EQ("in", edge->inputs_[0]->path());
+  ASSERT_EQ("out2", edge->outputs_[0]->path());
+
+  ASSERT_FALSE(plan_.FindWork());
+
+  plan_.EdgeFinished(edge, Plan::kEdgeFailed);
+
+  ASSERT_TRUE(plan_.more_to_do()); // Jobs have failed
+  edge = plan_.FindWork();
+  ASSERT_EQ(0, edge);
 }
 
 /// Fake implementation of CommandRunner, useful for tests.
@@ -717,8 +759,24 @@ TEST_F(BuildTest, TwoOutputs) {
   EXPECT_EQ("touch out1 out2", command_runner_.commands_ran_[0]);
 }
 
+TEST_F(BuildTest, ImplicitOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out $out.imp\n"
+"build out | out.imp: touch in.txt\n"));
+  fs_.Create("in.txt", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[0]);
+}
+
 // Test case from
-//   https://github.com/martine/ninja/issues/148
+//   https://github.com/ninja-build/ninja/issues/148
 TEST_F(BuildTest, MultiOutIn) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
@@ -857,6 +915,29 @@ TEST_F(BuildTest, DepFileParseError) {
   fs_.Create("foo.o.d", "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("foo.o.d: expected ':' in depfile", err);
+}
+
+TEST_F(BuildTest, EncounterReadyTwice) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"build c: touch\n"
+"build b: touch || c\n"
+"build a: touch | b || c\n"));
+
+  vector<Edge*> c_out = GetNode("c")->out_edges();
+  ASSERT_EQ(2u, c_out.size());
+  EXPECT_EQ("b", c_out[0]->outputs_[0]->path());
+  EXPECT_EQ("a", c_out[1]->outputs_[0]->path());
+
+  fs_.Create("b", "");
+  EXPECT_TRUE(builder_.AddTarget("a", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, OrderOnlyDeps) {
@@ -1095,6 +1176,30 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   ASSERT_EQ("cannot make progress due to previous errors", err);
 }
 
+TEST_F(BuildTest, SwallowFailuresPool) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"pool failpool\n"
+"  depth = 1\n"
+"rule fail\n"
+"  command = fail\n"
+"  pool = failpool\n"
+"build out1: fail\n"
+"build out2: fail\n"
+"build out3: fail\n"
+"build final: cat out1 out2 out3\n"));
+
+  // Swallow ten failures; we should stop before building final.
+  config_.failures_allowed = 11;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("final", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  ASSERT_EQ("cannot make progress due to previous errors", err);
+}
+
 TEST_F(BuildTest, PoolEdgesReadyButNotWanted) {
   fs_.Create("x", "");
 
@@ -1181,7 +1286,8 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]"));
+  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]",
+      BuildStatus::kEdgeStarted));
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1299,7 +1405,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
 }
 
 // Test scenario, in which an input file is removed, but output isn't changed
-// https://github.com/martine/ninja/issues/295
+// https://github.com/ninja-build/ninja/issues/295
 TEST_F(BuildWithLogTest, RestatMissingInput) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
     "rule true\n"
@@ -1619,9 +1725,18 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildTest, StatusFormatElapsed) {
+  status_.BuildStarted();
+  // Before any task is done, the elapsed time must be zero.
+  EXPECT_EQ("[%/e0.000]",
+            status_.FormatProgressStatus("[%%/e%e]",
+                BuildStatus::kEdgeStarted));
+}
+
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
-            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]"));
+            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]",
+                BuildStatus::kEdgeStarted));
 }
 
 TEST_F(BuildTest, FailedDepsParse) {
@@ -2047,7 +2162,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 #endif
 
 /// Check that a restat rule doesn't clear an edge if the depfile is missing.
-/// Follows from: https://github.com/martine/ninja/issues/603
+/// Follows from: https://github.com/ninja-build/ninja/issues/603
 TEST_F(BuildTest, RestatMissingDepfile) {
 const char* manifest =
 "rule true\n"
@@ -2071,7 +2186,7 @@ const char* manifest =
 }
 
 /// Check that a restat rule doesn't clear an edge if the deps are missing.
-/// https://github.com/martine/ninja/issues/603
+/// https://github.com/ninja-build/ninja/issues/603
 TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   string err;
   const char* manifest =

@@ -93,14 +93,14 @@ extern testing::Test* g_current_test;
   if (!EXPECT_TRUE(a))  { g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_FALSE(a) \
   if (!EXPECT_FALSE(a)) { g_current_test->AddAssertionFailure(); return; }
-#define ASSERT_NO_FATAL_FAILURE(a)                  \
-  {                                                 \
-    int f = g_current_test->AssertionFailures();    \
-    a;                                              \
-    if (f != g_current_test->AssertionFailures()) { \
-      g_current_test->AddAssertionFailure();        \
-      return;                                       \
-    }                                               \
+#define ASSERT_NO_FATAL_FAILURE(a)                           \
+  {                                                          \
+    int fail_count = g_current_test->AssertionFailures();    \
+    a;                                                       \
+    if (fail_count != g_current_test->AssertionFailures()) { \
+      g_current_test->AddAssertionFailure();                 \
+      return;                                                \
+    }                                                        \
   }
 
 // Support utilites for tests.
@@ -145,7 +145,7 @@ struct VirtualFileSystem : public DiskInterface {
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
-  virtual string ReadFile(const string& path, string* err);
+  virtual Status ReadFile(const string& path, string* contents, string* err);
   virtual int RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.

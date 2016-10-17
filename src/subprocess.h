@@ -98,6 +98,7 @@ struct SubprocessSet {
 
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;
+  struct sigaction old_hup_act_;
   sigset_t old_mask_;
 #endif
 };
