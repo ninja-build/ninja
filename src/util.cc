@@ -380,9 +380,19 @@ int ReadFile(const string& path, string* contents, string* err) {
     return -errno;
   }
 
+  struct stat st;
+  if (fstat(fileno(f), &st) < 0) {
+    err->assign(strerror(errno));
+    fclose(f);
+    return -errno;
+  }
+
+  // +1 is for the resize in ManifestParser::Load
+  contents->reserve(st.st_size + 1);
+
   char buf[64 << 10];
   size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+  while (!feof(f) && (len = fread(buf, 1, sizeof(buf), f)) > 0) {
     contents->append(buf, len);
   }
   if (ferror(f)) {
