@@ -73,7 +73,6 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
-      start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
@@ -92,7 +91,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  int start_time = (int)(GetTimeMillis() - start_time_millis_);
+  int start_time = (int)(GetTimeMillis() - config_.start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
@@ -114,7 +113,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
+  *end_time = (int)(now - config_.start_time_millis_);
   running_edges_.erase(i);
 
   if (edge->use_console())
