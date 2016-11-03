@@ -17,20 +17,20 @@
 #include "test.h"
 
 struct DepfileParserTest : public testing::Test {
-  bool Parse(const char* input, string* err);
+  bool ParseGcc(const char* input, string* err);
 
   DepfileParser parser_;
   string input_;
 };
 
-bool DepfileParserTest::Parse(const char* input, string* err) {
+bool DepfileParserTest::ParseGcc(const char* input, string* err) {
   input_ = input;
-  return parser_.Parse(&input_, err);
+  return parser_.ParseGcc(&input_, err);
 }
 
 TEST_F(DepfileParserTest, Basic) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
   ASSERT_EQ("", err);
@@ -40,7 +40,7 @@ TEST_F(DepfileParserTest, Basic) {
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 " \\\n"
 "  out: in\n",
       &err));
@@ -49,7 +49,7 @@ TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
 
 TEST_F(DepfileParserTest, Continuation) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "foo.o: \\\n"
 "  bar.h baz.h\n",
       &err));
@@ -60,7 +60,7 @@ TEST_F(DepfileParserTest, Continuation) {
 
 TEST_F(DepfileParserTest, CarriageReturnContinuation) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "foo.o: \\\r\n"
 "  bar.h baz.h\r\n",
       &err));
@@ -71,7 +71,7 @@ TEST_F(DepfileParserTest, CarriageReturnContinuation) {
 
 TEST_F(DepfileParserTest, BackSlashes) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
 "  Dir\\Library\\Foo.rc \\\n"
 "  Dir\\Library\\Version\\Bar.h \\\n"
@@ -86,7 +86,7 @@ TEST_F(DepfileParserTest, BackSlashes) {
 
 TEST_F(DepfileParserTest, Spaces) {
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "a\\ bc\\ def:   a\\ b c d",
       &err));
   ASSERT_EQ("", err);
@@ -105,7 +105,7 @@ TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "\\!\\@\\#$$\\%\\^\\&\\\\:",
       &err));
   ASSERT_EQ("", err);
@@ -118,7 +118,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
   // See filenames like istreambuf.iterator_op!= in
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
   string err;
-  EXPECT_TRUE(Parse(
+  EXPECT_TRUE(ParseGcc(
 "C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \n"
 " en@quot.header~ t+t-x!=1 \n"
 " openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\n"
@@ -141,7 +141,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
   string err;
-  EXPECT_TRUE(Parse("foo foo: x y z", &err));
+  EXPECT_TRUE(ParseGcc("foo foo: x y z", &err));
   ASSERT_EQ("foo", parser_.out_.AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
   EXPECT_EQ("x", parser_.ins_[0].AsString());
@@ -152,6 +152,36 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
 TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   string err;
-  EXPECT_FALSE(Parse("foo bar: x y z", &err));
+  EXPECT_FALSE(ParseGcc("foo bar: x y z", &err));
   ASSERT_EQ("depfile has multiple output paths", err);
+}
+
+TEST_F(DepfileParserTest, ParseList) {
+  parser_.ParseList(
+"C:/Program Files (x86)/Microsoft crtdefs.h\n"
+" \ten@quot.header~ t+t-x!=1 \r"  // Preserve all whitespace, even around ends.
+"openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\r\n"
+"\n"
+"Fu\303\244ball");
+  EXPECT_EQ("", parser_.out_.AsString());  // No output.
+  ASSERT_EQ(4u, parser_.ins_.size());
+  EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
+            parser_.ins_[0].AsString());
+  EXPECT_EQ(" \ten@quot.header~ t+t-x!=1 ",
+            parser_.ins_[1].AsString());
+  EXPECT_EQ("openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif",
+            parser_.ins_[2].AsString());
+  EXPECT_EQ("Fu\303\244ball", parser_.ins_[3].AsString());
+}
+
+TEST_F(DepfileParserTest, ParseEmptyList) {
+  parser_.ParseList(string());
+  EXPECT_EQ(0u, parser_.out_.len_);
+  EXPECT_TRUE(parser_.ins_.empty());
+}
+
+TEST_F(DepfileParserTest, ParseListOnlyNewlines) {
+  parser_.ParseList("\n\n\r");
+  EXPECT_EQ(0u, parser_.out_.len_);
+  EXPECT_TRUE(parser_.ins_.empty());
 }

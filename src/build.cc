@@ -889,10 +889,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
   } else
-  if (deps_type == "gcc") {
+  if (deps_type == "gcc" || deps_type == "list") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
-      *err = string("edge with deps=gcc but no depfile makes no sense");
+      *err = string(
+          "edge with deps=gcc or deps=list but no depfile makes no sense");
       return false;
     }
 
@@ -911,8 +912,12 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       return true;
 
     DepfileParser deps;
-    if (!deps.Parse(&content, err))
-      return false;
+    if (deps_type == "gcc") {
+      if (!deps.ParseGcc(&content, err))
+        return false;
+    } else if (deps_type == "list") {
+      deps.ParseList(content);
+    }
 
     // XXX check depfile matches expected output.
     deps_nodes->reserve(deps.ins_.size());

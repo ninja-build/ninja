@@ -23,12 +23,28 @@ using namespace std;
 
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
-  /// Parse an input file.  Input must be NUL-terminated.
+  /// Parse an input file with GCC-formatted deps.  Input must be
+  /// NUL-terminated.
   /// Warning: may mutate the content in-place and parsed StringPieces are
   /// pointers within it.
-  bool Parse(string* content, string* err);
+  bool ParseGcc(string* content, string* err);
+
+  /// Parses the "list" format of a dep file, where the format is one-file-per
+  /// line with no other transformations applied. Can not fail.
+  /// Warning: parsed StringPieces are pointers to within the content.
+  void ParseList(const string& content);
 
   StringPiece out_;
+  vector<StringPiece> ins_;
+};
+
+/// Parser for the "list" format for depfiles (file-per-line).
+struct DepfileListParser {
+  /// Parse an input file. This format is very simple so there are no errors
+  /// that can be generated.
+  /// Warning: parsed StringPieces are pointers within the content string.
+  void Parse(const string& content);
+
   vector<StringPiece> ins_;
 };
 

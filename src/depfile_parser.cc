@@ -29,7 +29,7 @@
 // otherwise they are passed through verbatim.
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(string* content, string* err) {
+bool DepfileParser::ParseGcc(string* content, string* err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
@@ -239,4 +239,18 @@ yy16:
     return false;
   }
   return true;
+}
+
+void DepfileParser::ParseList(const string& content) {
+  size_t start = 0;
+  while (start < content.size()) {
+    size_t end = content.find_first_of("\r\n", start);
+    if (end == string::npos)
+      end = content.size();
+
+    int len = end - start;
+    if (len > 0)
+      ins_.push_back(StringPiece(&content[start], len));
+    start = end + 1;
+  }
 }

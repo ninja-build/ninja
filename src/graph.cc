@@ -415,7 +415,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   DepfileParser depfile;
   string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
+  if (!depfile.ParseGcc(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;
     return false;
   }
