@@ -533,21 +533,51 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
   }
 }
 
-void PrintCommands(Edge* edge, set<Edge*>* seen) {
+enum PrintCommandMode { PCM_Single, PCM_All };
+void PrintCommands(Edge* edge, set<Edge*>* seen, PrintCommandMode mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
     return;
 
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in)
-    PrintCommands((*in)->in_edge(), seen);
+  if (mode == PCM_All) {
+    for (vector<Node*>::iterator in = edge->inputs_.begin();
+         in != edge->inputs_.end(); ++in)
+      PrintCommands((*in)->in_edge(), seen, mode);
+  }
 
   if (!edge->is_phony())
     puts(edge->EvaluateCommand().c_str());
 }
 
 int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
+  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "commands".
+  ++argc;
+  --argv;
+
+  PrintCommandMode mode = PCM_All;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hs"))) != -1) {
+    switch (opt) {
+    case 's':
+      mode = PCM_Single;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t commands [options] [targets]\n"
+"\n"
+"options:\n"
+"  -s     only print the final command to build [target], not the whole chain\n"
+             );
+    return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -557,7 +587,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
 
   set<Edge*> seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge(), &seen);
+    PrintCommands((*in)->in_edge(), &seen, mode);
 
   return 0;
 }
