@@ -26,6 +26,14 @@ using namespace std;
 #include <signal.h>
 #endif
 
+// ppoll() exists on FreeBSD, but only on newer versions.
+#ifdef __FreeBSD__
+#  include <sys/param.h>
+#  if defined USE_PPOLL && __FreeBSD_version < 1002000
+#    undef USE_PPOLL
+#  endif
+#endif
+
 #include "exit_status.h"
 
 /// Subprocess wraps a single async subprocess.  It is entirely
