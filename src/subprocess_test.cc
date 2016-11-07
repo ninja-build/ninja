@@ -214,9 +214,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
   }
 }
 
-// OS X's process limit is less than 1025 by default
-// (|sysctl kern.maxprocperuid| is 709 on 10.7 and 10.8 and less prior to that).
-#if !defined(__APPLE__) && !defined(_WIN32)
+#if defined(USE_PPOLL)
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.

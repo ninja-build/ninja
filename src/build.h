@@ -200,16 +200,24 @@ struct BuildStatus {
   void BuildEdgeStarted(Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildStarted();
   void BuildFinished();
+
+  enum EdgeStatus {
+    kEdgeStarted,
+    kEdgeFinished,
+  };
 
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
-  string FormatProgressStatus(const char* progress_status_format) const;
+  /// @param status The status of the edge.
+  string FormatProgressStatus(const char* progress_status_format,
+                              EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge);
+  void PrintStatus(Edge* edge, EdgeStatus status);
 
   const BuildConfig& config_;
 
@@ -229,9 +237,11 @@ struct BuildStatus {
   const char* progress_status_format_;
 
   template<size_t S>
-  void snprinfRate(double rate, char(&buf)[S], const char* format) const {
-    if (rate == -1) snprintf(buf, S, "?");
-    else            snprintf(buf, S, format, rate);
+  void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
+    if (rate == -1)
+      snprintf(buf, S, "?");
+    else
+      snprintf(buf, S, format, rate);
   }
 
   struct RateInfo {
