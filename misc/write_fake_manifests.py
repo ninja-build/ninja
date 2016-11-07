@@ -242,8 +242,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--sources', nargs="?", const="src",
         help='write sources to directory (relative to output directory)')
-    parser.add_argument('-t', '--targets', type=int, default=1500)
-                        help='number of targets (default: 1500)',
+    parser.add_argument('-t', '--targets', type=int, default=1500,
+                        help='number of targets (default: 1500)')
     parser.add_argument('-S', '--seed', type=int, help='random seed',
                         default=12345)
     parser.add_argument('outdir', help='output directory')
