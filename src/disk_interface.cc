@@ -80,20 +80,15 @@ TimeStamp StatSingleFile(const string& path, string* err) {
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
 }
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)  // GetVersionExA is deprecated post SDK 8.1.
-#endif
 bool IsWindows7OrLater() {
-  OSVERSIONINFO version_info = { sizeof(version_info) };
-  if (!GetVersionEx(&version_info))
-    Fatal("GetVersionEx: %s", GetLastErrorString().c_str());
-  return version_info.dwMajorVersion > 6 ||
-         (version_info.dwMajorVersion == 6 && version_info.dwMinorVersion >= 1);
+  OSVERSIONINFOEX version_info =
+      { sizeof(OSVERSIONINFOEX), 6, 1, 0, 0, {0}, 0, 0, 0, 0, 0};
+  DWORDLONG comparison = 0;
+  VER_SET_CONDITION(comparison, VER_MAJORVERSION, VER_GREATER_EQUAL);
+  VER_SET_CONDITION(comparison, VER_MINORVERSION, VER_GREATER_EQUAL);
+  return VerifyVersionInfo(
+      &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                        string* err) {
