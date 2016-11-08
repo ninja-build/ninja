@@ -34,7 +34,7 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   char temp_path[MAX_PATH];
   GetTempPath(sizeof(temp_path), temp_path);
   char temp_file[MAX_PATH];
-  sprintf(temp_file, "%s\\ninja_crash_dump_%d.dmp",
+  sprintf(temp_file, "%s\\ninja_crash_dump_%lu.dmp",
           temp_path, GetCurrentProcessId());
 
   // Delete any previous minidump of the same name.
