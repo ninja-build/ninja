@@ -195,7 +195,7 @@ TEST_F(ParserTest, Continuation) {
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
   const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("link", rule->name());
-  EXPECT_EQ("[foo bar baz]", rule->GetBinding("command")->Serialize());
+  EXPECT_EQ("[foo bar ][baz]", rule->GetBinding("command")->Serialize());
 }
 
 TEST_F(ParserTest, Backslash) {
