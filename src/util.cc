@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,6 +39,7 @@
 #include <sys/time.h>
 #endif
 
+#include <algorithm>
 #include <vector>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -239,22 +241,38 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   return true;
 }
 
-static inline bool IsKnownShellSafeCharacter(char ch) {
-  if ('A' <= ch && ch <= 'Z') return true;
-  if ('a' <= ch && ch <= 'z') return true;
-  if ('0' <= ch && ch <= '9') return true;
-
-  switch (ch) {
-    case '_':
-    case '+':
-    case '-':
-    case '.':
-    case '/':
-      return true;
-    default:
-      return false;
+struct IsKnownShellSafeCharacterImpl {
+  IsKnownShellSafeCharacterImpl() {
+    for (int ch = 0; ch < UCHAR_MAX; ch++) {
+      known_shell_safe_characters_[ch] = safe(ch);
+    }
   }
-}
+
+  bool safe(char ch) {
+    if ('A' <= ch && ch <= 'Z') return true;
+    if ('a' <= ch && ch <= 'z') return true;
+    if ('0' <= ch && ch <= '9') return true;
+
+    switch (ch) {
+      case '_':
+      case '+':
+      case '-':
+      case '.':
+      case '/':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool operator()(char ch) const {
+    return known_shell_safe_characters_[static_cast<unsigned char>(ch)];
+  }
+
+  bool known_shell_safe_characters_[UCHAR_MAX];
+};
+
+static IsKnownShellSafeCharacterImpl IsKnownShellSafeCharacter;
 
 static inline bool IsKnownWin32SafeCharacter(char ch) {
   switch (ch) {
@@ -289,18 +307,18 @@ void GetShellEscapedString(const string& input, string* result) {
   }
 
   const char kQuote = '\'';
-  const char kEscapeSequence[] = "'\\'";
+  const char kEscapeSequence[] = "'\\''";
+
+  result->reserve(result->size() + input.size() + 2 * sizeof(kQuote));
 
   result->push_back(kQuote);
 
   string::const_iterator span_begin = input.begin();
-  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
-       ++it) {
-    if (*it == kQuote) {
-      result->append(span_begin, it);
-      result->append(kEscapeSequence);
-      span_begin = it;
-    }
+  string::const_iterator it = std::find(span_begin, input.end(), kQuote);
+  for (; it != input.end(); it = std::find(span_begin, input.end(), kQuote)) {
+    result->append(span_begin, it);
+    result->append(kEscapeSequence);
+    span_begin = ++it;
   }
   result->append(span_begin, input.end());
   result->push_back(kQuote);
