@@ -25,16 +25,15 @@
 #include "depfile_parser.h"
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
-#include "line_printer.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
-struct BuildStatus;
 struct Builder;
 struct DiskInterface;
 struct Edge;
 struct Node;
 struct State;
+struct Status;
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
@@ -178,7 +177,8 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface, int64_t start_time_millis);
+          DiskInterface* disk_interface, Status* status,
+          int64_t start_time_millis);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -219,7 +219,7 @@ struct Builder {
 #else
   std::unique_ptr<CommandRunner> command_runner_;  // auto_ptr was removed in C++17.
 #endif
-  BuildStatus* status_;
+  Status* status_;
 
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
@@ -239,74 +239,6 @@ struct Builder {
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT
-};
-
-/// Tracks the status of a build: completion fraction, printing updates.
-struct BuildStatus {
-  explicit BuildStatus(const BuildConfig& config);
-  void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
-  void BuildEdgeFinished(Edge* edge, int64_t end_time_millis, bool success,
-                         const std::string& output);
-  void BuildLoadDyndeps();
-  void BuildStarted();
-  void BuildFinished();
-
-  /// Format the progress status string by replacing the placeholders.
-  /// See the user manual for more information about the available
-  /// placeholders.
-  /// @param progress_status_format The format of the progress status.
-  /// @param status The status of the edge.
-  std::string FormatProgressStatus(const char* progress_status_format,
-                                   int64_t time) const;
-
- private:
-  void PrintStatus(const Edge* edge, int64_t time);
-
-  const BuildConfig& config_;
-
-  int started_edges_, finished_edges_, total_edges_, running_edges_;
-  int64_t time_millis_;
-
-  /// Prints progress output.
-  LinePrinter printer_;
-
-  /// The custom progress status format to use.
-  const char* progress_status_format_;
-
-  template<size_t S>
-  void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
-    if (rate == -1)
-      snprintf(buf, S, "?");
-    else
-      snprintf(buf, S, format, rate);
-  }
-
-  struct SlidingRateInfo {
-    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
-
-    double rate() { return rate_; }
-
-    void UpdateRate(int update_hint, int64_t time_millis_) {
-      if (update_hint == last_update_)
-        return;
-      last_update_ = update_hint;
-
-      if (times_.size() == N)
-        times_.pop();
-      times_.push(time_millis_);
-      if (times_.back() != times_.front())
-        rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
-    }
-
-  private:
-    double rate_;
-    const size_t N;
-    std::queue<double> times_;
-    int last_update_;
-  };
-
-  mutable SlidingRateInfo current_rate_;
 };
 
 #endif  // NINJA_BUILD_H_
