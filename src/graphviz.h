@@ -18,6 +18,7 @@
 #include <set>
 
 #include "dyndep.h"
+#include "graph.h"
 
 struct DiskInterface;
 struct Node;
@@ -34,7 +35,7 @@ struct GraphViz {
 
   DyndepLoader dyndep_loader_;
   std::set<Node*> visited_nodes_;
-  std::set<Edge*> visited_edges_;
+  EdgeSet visited_edges_;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_

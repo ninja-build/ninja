@@ -19,7 +19,6 @@
 #include <map>
 #include <memory>
 #include <queue>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -122,7 +121,7 @@ private:
   /// we want for the edge.
   map<Edge*, Want> want_;
 
-  set<Edge*> ready_;
+  EdgeSet ready_;
 
   Builder* builder_;
 

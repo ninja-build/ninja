@@ -612,7 +612,7 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
 }
 
 enum PrintCommandMode { PCM_Single, PCM_All };
-void PrintCommands(Edge* edge, set<Edge*>* seen, PrintCommandMode mode) {
+void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -663,7 +663,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  set<Edge*> seen;
+  EdgeSet seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands((*in)->in_edge(), &seen, mode);
 
