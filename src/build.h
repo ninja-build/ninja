@@ -19,7 +19,6 @@
 #include <map>
 #include <memory>
 #include <queue>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -90,7 +89,7 @@ private:
   /// want to build it.
   map<Edge*, bool> want_;
 
-  set<Edge*> ready_;
+  EdgeSet ready_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;

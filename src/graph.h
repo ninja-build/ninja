@@ -15,6 +15,7 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
+#include <set>
 #include <string>
 #include <vector>
 using namespace std;
@@ -134,7 +135,7 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone),
+  Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone), id_(0),
            outputs_ready_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
@@ -163,6 +164,7 @@ struct Edge {
   vector<Node*> outputs_;
   BindingEnv* env_;
   VisitMark mark_;
+  size_t id_;
   bool outputs_ready_;
   bool deps_missing_;
 
@@ -204,6 +206,13 @@ struct Edge {
   bool maybe_phonycycle_diagnostic() const;
 };
 
+struct EdgeCmp {
+  bool operator()(const Edge* a, const Edge* b) const {
+    return a->id_ < b->id_;
+  }
+};
+
+typedef set<Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.

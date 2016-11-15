@@ -22,6 +22,7 @@
 using namespace std;
 
 #include "eval_env.h"
+#include "graph.h"
 #include "hash_map.h"
 #include "util.h"
 
@@ -39,7 +40,7 @@ struct Rule;
 /// completes).
 struct Pool {
   Pool(const string& name, int depth)
-    : name_(name), current_use_(0), depth_(depth), delayed_(&WeightedEdgeCmp) {}
+    : name_(name), current_use_(0), depth_(depth), delayed_() {}
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
@@ -62,7 +63,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(set<Edge*>* ready_queue);
+  void RetrieveReadyEdges(EdgeSet* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
@@ -75,9 +76,16 @@ struct Pool {
   int current_use_;
   int depth_;
 
-  static bool WeightedEdgeCmp(const Edge* a, const Edge* b);
+  struct WeightedEdgeCmp {
+    bool operator()(const Edge* a, const Edge* b) const {
+      if (!a) return b;
+      if (!b) return false;
+      int weight_diff = a->weight() - b->weight();
+      return ((weight_diff < 0) || (weight_diff == 0 && EdgeCmp()(a, b)));
+    }
+  };
 
-  typedef set<Edge*,bool(*)(const Edge*, const Edge*)> DelayedEdges;
+  typedef set<Edge*, WeightedEdgeCmp> DelayedEdges;
   DelayedEdges delayed_;
 };
 

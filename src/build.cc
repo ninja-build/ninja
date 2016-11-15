@@ -349,14 +349,14 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  set<Edge*>::iterator e = ready_.begin();
+  EdgeSet::iterator e = ready_.begin();
   Edge* edge = *e;
   ready_.erase(e);
   return edge;
 }
 
 void Plan::ScheduleWork(Edge* edge) {
-  set<Edge*>::iterator e = ready_.lower_bound(edge);
+  EdgeSet::iterator e = ready_.lower_bound(edge);
   if (e != ready_.end() && !ready_.key_comp()(edge, *e)) {
     // This edge has already been scheduled.  We can get here again if an edge
     // and one of its dependencies share an order-only input, or if a node

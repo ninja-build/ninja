@@ -17,6 +17,8 @@
 
 #include <set>
 
+#include "graph.h"
+
 struct Node;
 struct Edge;
 
@@ -27,7 +29,7 @@ struct GraphViz {
   void Finish();
 
   std::set<Node*> visited_nodes_;
-  std::set<Edge*> visited_edges_;
+  EdgeSet visited_edges_;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_
