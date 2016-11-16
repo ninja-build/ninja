@@ -534,7 +534,7 @@ void Builder::Cleanup() {
         string err;
         TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
         if (new_mtime == -1)  // Log and ignore Stat() errors.
-          Error("%s", err.c_str());
+          status_->Error("%s", err.c_str());
         if (!depfile.empty() || (*o)->mtime() != new_mtime)
           disk_interface_->RemoveFile((*o)->path());
       }
