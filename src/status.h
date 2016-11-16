@@ -31,10 +31,15 @@ struct Status {
   virtual void BuildLoadDyndeps() = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
+
+  virtual void Info(const char* msg, ...) = 0;
+  virtual void Warning(const char* msg, ...) = 0;
+  virtual void Error(const char* msg, ...) = 0;
+
   virtual ~Status() { }
 };
 
-/// Implementation of the BuildStatus interface that prints the status as
+/// Implementation of the Status interface that prints the status as
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
@@ -45,6 +50,11 @@ struct StatusPrinter : Status {
   virtual void BuildLoadDyndeps();
   virtual void BuildStarted();
   virtual void BuildFinished();
+
+  virtual void Info(const char* msg, ...);
+  virtual void Warning(const char* msg, ...);
+  virtual void Error(const char* msg, ...);
+
   virtual ~StatusPrinter() { }
 
   /// Format the progress status string by replacing the placeholders.

@@ -245,7 +245,7 @@ int GuessParallelism() {
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
 bool NinjaMain::RebuildManifest(const char* input_file, string* err,
-                                Status *status) {
+                                Status* status) {
   string path = input_file;
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
@@ -1199,7 +1199,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
-    Error("%s", err.c_str());
+    status->Error("%s", err.c_str());
     return 1;
   }
 
@@ -1210,7 +1210,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
-        Error("%s", err.c_str());
+        status->Error("%s", err.c_str());
         return 1;
       } else {
         // Added a target that is already up-to-date; not really
@@ -1223,12 +1223,12 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
-    printf("ninja: no work to do.\n");
+    status->Info("no work to do.");
     return 0;
   }
 
   if (!builder.Build(&err)) {
-    printf("ninja: build stopped: %s.\n", err.c_str());
+    status->Info("build stopped: %s.", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
       return 2;
     }
@@ -1375,7 +1375,7 @@ NORETURN void real_main(int argc, char** argv) {
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
     if (!options.tool)
-      printf("ninja: Entering directory `%s'\n", options.working_dir);
+      status->Info("Entering directory `%s'", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
@@ -1403,7 +1403,7 @@ NORETURN void real_main(int argc, char** argv) {
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
-      Error("%s", err.c_str());
+      status->Error("%s", err.c_str());
       exit(1);
     }
 
@@ -1428,7 +1428,7 @@ NORETURN void real_main(int argc, char** argv) {
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", options.input_file, err.c_str());
+      status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
     }
 
@@ -1438,7 +1438,7 @@ NORETURN void real_main(int argc, char** argv) {
     exit(result);
   }
 
-  Error("manifest '%s' still dirty after %d tries\n",
+  status->Error("manifest '%s' still dirty after %d tries",
       options.input_file, kCycleLimit);
   exit(1);
 }
