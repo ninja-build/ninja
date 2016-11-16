@@ -36,6 +36,7 @@
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
+#include "metrics.h"
 #include "state.h"
 #include "subprocess.h"
 #include "util.h"
@@ -78,10 +79,9 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
-      start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
-      overall_rate_(), current_rate_(config.parallelism) {
+      time_millis_(0), progress_status_format_(NULL),
+      current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
@@ -96,32 +96,22 @@ void BuildStatus::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void BuildStatus::BuildEdgeStarted(Edge* edge) {
-  assert(running_edges_.find(edge) == running_edges_.end());
-  int start_time = (int)(GetTimeMillis() - start_time_millis_);
-  running_edges_.insert(make_pair(edge, start_time));
+void BuildStatus::BuildEdgeStarted(Edge* edge, int64_t start_time_millis) {
   ++started_edges_;
+  time_millis_ = start_time_millis;
 
   if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, kEdgeStarted);
+    PrintStatus(edge, start_time_millis, kEdgeStarted);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
 }
 
-void BuildStatus::BuildEdgeFinished(Edge* edge,
+void BuildStatus::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
                                     bool success,
-                                    const string& output,
-                                    int* start_time,
-                                    int* end_time) {
-  int64_t now = GetTimeMillis();
-
+                                    const string& output) {
+  time_millis_ = end_time_millis;
   ++finished_edges_;
-
-  RunningEdgeMap::iterator i = running_edges_.find(edge);
-  *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
-  running_edges_.erase(i);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(false);
@@ -130,7 +120,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     return;
 
   if (!edge->use_console())
-    PrintStatus(edge, kEdgeFinished);
+    PrintStatus(edge, end_time_millis, kEdgeFinished);
 
   // Print the command that is spewing before printing its output.
   if (!success) {
@@ -193,8 +183,6 @@ void BuildStatus::BuildLoadDyndeps() {
 }
 
 void BuildStatus::BuildStarted() {
-  overall_rate_.Restart();
-  current_rate_.Restart();
 }
 
 void BuildStatus::BuildFinished() {
@@ -203,10 +191,9 @@ void BuildStatus::BuildFinished() {
 }
 
 string BuildStatus::FormatProgressStatus(
-    const char* progress_status_format, EdgeStatus status) const {
+    const char* progress_status_format, int64_t time, EdgeStatus status) const {
   string out;
   char buf[32];
-  int percent;
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
       ++s;
@@ -252,28 +239,27 @@ string BuildStatus::FormatProgressStatus(
 
         // Overall finished edges per second.
       case 'o':
-        overall_rate_.UpdateRate(finished_edges_);
-        SnprintfRate(overall_rate_.rate(), buf, "%.1f");
+        SnprintfRate(finished_edges_ / (time_millis_ / 1e3), buf, "%.1f");
         out += buf;
         break;
 
         // Current rate, average over the last '-j' jobs.
       case 'c':
-        current_rate_.UpdateRate(finished_edges_);
+        current_rate_.UpdateRate(finished_edges_, time_millis_);
         SnprintfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
         // Percentage
-      case 'p':
-        percent = (100 * finished_edges_) / total_edges_;
+      case 'p': {
+        int percent = (100 * finished_edges_) / total_edges_;
         snprintf(buf, sizeof(buf), "%3i%%", percent);
         out += buf;
         break;
+      }
 
       case 'e': {
-        double elapsed = overall_rate_.Elapsed();
-        snprintf(buf, sizeof(buf), "%.3f", elapsed);
+        snprintf(buf, sizeof(buf), "%.3f", time_millis_ / 1e3);
         out += buf;
         break;
       }
@@ -290,7 +276,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
+void BuildStatus::PrintStatus(Edge* edge, int64_t time, EdgeStatus status) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -300,7 +286,7 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_, time, status) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
@@ -730,9 +716,9 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface)
-    : state_(state), config_(config),
-      plan_(this), disk_interface_(disk_interface),
+                 DiskInterface* disk_interface, int64_t start_time_millis)
+    : state_(state), config_(config), plan_(this),
+      start_time_millis_(start_time_millis), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options) {
   status_ = new BuildStatus(config);
@@ -901,7 +887,10 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
 
-  status_->BuildEdgeStarted(edge);
+  int64_t start_time_millis = GetTimeMillis() - start_time_millis_;
+  running_edges_.insert(make_pair(edge, start_time_millis));
+
+  status_->BuildEdgeStarted(edge, start_time_millis);
 
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
@@ -954,9 +943,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  int start_time, end_time;
-  status_->BuildEdgeFinished(edge, result->success(), result->output,
-                             &start_time, &end_time);
+  int64_t start_time_millis, end_time_millis;
+  RunningEdgeMap::iterator itr = running_edges_.find(edge);
+  start_time_millis = itr->second;
+  end_time_millis = GetTimeMillis() - start_time_millis_;
+  running_edges_.erase(itr);
+
+  status_->BuildEdgeFinished(edge, end_time_millis, result->success(),
+                             result->output);
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
@@ -1025,8 +1019,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
-                                          output_mtime)) {
+    if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
+                                          end_time_millis, output_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
