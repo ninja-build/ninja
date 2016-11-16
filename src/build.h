@@ -26,7 +26,6 @@
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
 #include "line_printer.h"
-#include "metrics.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -179,7 +178,7 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface);
+          DiskInterface* disk_interface, int64_t start_time_millis);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -227,6 +226,13 @@ struct Builder {
                    const std::string& deps_prefix,
                    std::vector<Node*>* deps_nodes, std::string* err);
 
+  /// Map of running edge to time the edge started running.
+  typedef std::map<const Edge*, int> RunningEdgeMap;
+  RunningEdgeMap running_edges_;
+
+  /// Time the build started.
+  int64_t start_time_millis_;
+
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 
@@ -239,9 +245,9 @@ struct Builder {
 struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(const Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const std::string& output,
-                         int* start_time, int* end_time);
+  void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
+  void BuildEdgeFinished(Edge* edge, int64_t end_time_millis, bool success,
+                         const std::string& output);
   void BuildLoadDyndeps();
   void BuildStarted();
   void BuildFinished();
@@ -257,21 +263,15 @@ struct BuildStatus {
   /// @param progress_status_format The format of the progress status.
   /// @param status The status of the edge.
   std::string FormatProgressStatus(const char* progress_status_format,
-                                   EdgeStatus status) const;
+                                   int64_t time, EdgeStatus status) const;
 
  private:
-  void PrintStatus(const Edge* edge, EdgeStatus status);
+  void PrintStatus(const Edge* edge, int64_t time, EdgeStatus status);
 
   const BuildConfig& config_;
 
-  /// Time the build started.
-  int64_t start_time_millis_;
-
   int started_edges_, finished_edges_, total_edges_;
-
-  /// Map of running edge to time the edge started running.
-  typedef std::map<const Edge*, int> RunningEdgeMap;
-  RunningEdgeMap running_edges_;
+  int64_t time_millis_;
 
   /// Prints progress output.
   LinePrinter printer_;
@@ -287,50 +287,30 @@ struct BuildStatus {
       snprintf(buf, S, format, rate);
   }
 
-  struct RateInfo {
-    RateInfo() : rate_(-1) {}
-
-    void Restart() { stopwatch_.Restart(); }
-    double Elapsed() const { return stopwatch_.Elapsed(); }
-    double rate() { return rate_; }
-
-    void UpdateRate(int edges) {
-      if (edges && stopwatch_.Elapsed())
-        rate_ = edges / stopwatch_.Elapsed();
-    }
-
-  private:
-    double rate_;
-    Stopwatch stopwatch_;
-  };
-
   struct SlidingRateInfo {
     SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
-    void Restart() { stopwatch_.Restart(); }
     double rate() { return rate_; }
 
-    void UpdateRate(int update_hint) {
+    void UpdateRate(int update_hint, int64_t time_millis_) {
       if (update_hint == last_update_)
         return;
       last_update_ = update_hint;
 
       if (times_.size() == N)
         times_.pop();
-      times_.push(stopwatch_.Elapsed());
+      times_.push(time_millis_);
       if (times_.back() != times_.front())
-        rate_ = times_.size() / (times_.back() - times_.front());
+        rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }
 
   private:
     double rate_;
-    Stopwatch stopwatch_;
     const size_t N;
     std::queue<double> times_;
     int last_update_;
   };
 
-  mutable RateInfo overall_rate_;
   mutable SlidingRateInfo current_rate_;
 };
 
