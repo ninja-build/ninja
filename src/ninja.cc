@@ -79,7 +79,8 @@ struct Options {
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config) {}
+      ninja_command_(ninja_command), config_(config),
+      start_time_millis_(GetTimeMillis()) {}
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -166,6 +167,8 @@ struct NinjaMain : public BuildLogUser {
       Error("%s", err.c_str());  // Log and ignore Stat() errors.
     return mtime == 0;
   }
+
+  int64_t start_time_millis_;
 };
 
 /// Subtools, accessible via "-t foo".
@@ -243,7 +246,8 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -977,7 +981,8 @@ int NinjaMain::RunBuild(int argc, char** argv) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
