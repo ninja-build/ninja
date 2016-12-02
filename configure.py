@@ -566,7 +566,7 @@ if options.bootstrap:
 
 libninja_objs = []
 for name in srcs:
-  libninja_objs += cxxbuild(name, order_only=order_only_deps.get(name))
+    libninja_objs += cxxbuild(name, order_only=order_only_deps.get(name))
 
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', libninja_objs)
