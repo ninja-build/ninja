@@ -157,7 +157,9 @@ class Bootstrap:
         for key, val in kwargs.get('variables', []):
             local_vars[key] = ' '.join(ninja_syntax.as_list(val))
 
-        self._run_command(self._expand(cmd, local_vars))
+        if (outputs == binary('ninja.bootstrap') or
+            not options.bootstrap_from_amalgamation):
+            self._run_command(self._expand(cmd, local_vars))
 
         return self.writer.build(outputs, rule, inputs, **kwargs)
 
@@ -192,6 +194,8 @@ parser = OptionParser()
 profilers = ['gmon', 'pprof']
 parser.add_option('--bootstrap', action='store_true',
                   help='bootstrap a ninja binary from nothing')
+parser.add_option('--bootstrap_from_amalgamation', action='store_true',
+                  help='bootstrap a ninja binary from the amalgamation')
 parser.add_option('--verbose', action='store_true',
                   help='enable verbose build')
 parser.add_option('--platform',
@@ -219,6 +223,9 @@ if args:
     print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
 
+if options.bootstrap_from_amalgamation:
+    options.bootstrap = True
+
 platform = Platform(options.platform)
 if options.host:
     host = Platform(options.host)
@@ -230,11 +237,12 @@ ninja_writer = ninja_syntax.Writer(open(BUILD_FILENAME, 'w'))
 n = ninja_writer
 
 if options.bootstrap:
-    # Make the build directory.
-    try:
-        os.mkdir('build')
-    except OSError:
-        pass
+    if not options.bootstrap_from_amalgamation:
+      # Make the build directory.
+      try:
+          os.mkdir('build')
+      except OSError:
+          pass
     # Wrap ninja_writer with the Bootstrapper, which also executes the
     # commands.
     print('bootstrapping ninja...')
@@ -268,14 +276,20 @@ if platform.is_msvc():
 
 def src(filename):
     return os.path.join('$root', 'src', filename)
+def cxxsrc(name):
+    return src(name + '.cc')
+def ccsrc(name):
+    return src(name + '.c')
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
     return os.path.join('$root', 'doc', filename)
+def cxxbuild(name, **kwargs):
+    return n.build(built(name + objext), 'cxx', name, **kwargs)
 def cc(name, **kwargs):
-    return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
+    return cxxbuild(ccsrc(name), **kwargs)
 def cxx(name, **kwargs):
-    return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
+    return cxxbuild(cxxsrc(name), **kwargs)
 def binary(name):
     if platform.is_windows():
         exe = name + '.exe'
@@ -405,9 +419,21 @@ if platform.is_msvc():
         description='CXX $out',
         deps='msvc'  # /showIncludes is included in $cflags.
     )
+    n.newline()
+    n.rule('amalgamate_build',
+        command='$cxx, $cflags $in /link /out:$out',
+        description='CXX $out',
+        deps='msvc'
+    )
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
+        depfile='$out.d',
+        deps='gcc',
+        description='CXX $out')
+    n.newline()
+    n.rule('amalgamate_build',
+        command='$cxx $cflags $in -o $out',
         depfile='$out.d',
         deps='gcc',
         description='CXX $out')
@@ -437,7 +463,14 @@ else:
         description='LINK $out')
 n.newline()
 
+n.rule('amalgamate',
+    command='src/amalgamate.py $out $in',
+    description='AMALGAMATE $out')
+n.newline()
+
 objs = []
+srcs = []
+order_only_deps = {}
 
 if platform.supports_ninja_browse():
     n.comment('browse_py.h is used to inline browse.py.')
@@ -449,8 +482,8 @@ if platform.supports_ninja_browse():
             variables=[('varname', 'kBrowsePy')])
     n.newline()
 
-    objs += cxx('browse', order_only=built('browse_py.h'))
-    n.newline()
+    srcs += [cxxsrc('browse')]
+    order_only_deps['browse'] = built('browse_py.h')
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
 def has_re2c():
@@ -491,25 +524,20 @@ for name in ['build',
              'state',
              'util',
              'version']:
-    objs += cxx(name)
+    srcs += [cxxsrc(name)]
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',
                  'msvc_helper-win32',
                  'msvc_helper_main-win32']:
-        objs += cxx(name)
+        srcs += [cxxsrc(name)]
     if platform.is_msvc():
-        objs += cxx('minidump-win32')
-    objs += cc('getopt')
+        srcs += [cxxsrc('minidump-win32')]
+    srcs += [ccsrc('getopt')]
 else:
-    objs += cxx('subprocess-posix')
+    srcs += [cxxsrc('subprocess-posix')]
 if platform.is_aix():
-    objs += cc('getopt')
-if platform.is_msvc():
-    ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
-else:
-    ninja_lib = n.build(built('libninja.a'), 'ar', objs)
-n.newline()
+    srcs += [ccsrc('getopt')]
 
 if platform.is_msvc():
     libs.append('ninja.lib')
@@ -521,18 +549,37 @@ if platform.is_aix():
 
 all_targets = []
 
-n.comment('Main executable is library plus main() function.')
-objs = cxx('ninja')
-ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
-                variables=[('libs', libs)])
+amalgamation = n.build('ninja-bootstrap.cc', 'amalgamate',
+                       srcs + [cxxsrc('ninja')])
 n.newline()
-all_targets += ninja
+all_targets += amalgamation
+
+# Build the ninja bootstrap binary from the amalgamation.
+bootstrap_binary = binary('ninja.bootstrap')
+n.build(bootstrap_binary, 'amalgamate_build', 'ninja-bootstrap.cc')
 
 if options.bootstrap:
     # We've built the ninja binary.  Don't run any more commands
     # through the bootstrap executor, but continue writing the
     # build.ninja file.
     n = ninja_writer
+
+libninja_objs = []
+for name in srcs:
+  libninja_objs += cxxbuild(name, order_only=order_only_deps.get(name))
+
+if platform.is_msvc():
+    ninja_lib = n.build(built('ninja.lib'), 'ar', libninja_objs)
+else:
+    ninja_lib = n.build(built('libninja.a'), 'ar', libninja_objs)
+n.newline()
+
+n.comment('Main executable is library plus main() function.')
+ninja = n.build(binary('ninja'), 'link', cxx('ninja'), implicit=ninja_lib,
+                variables=[('libs', libs)])
+n.newline()
+all_targets += ninja
+
 
 n.comment('Tests all build into ninja_test executable.')
 
@@ -655,26 +702,11 @@ n.build('all', 'phony', all_targets)
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
 
-if options.bootstrap:
+if options.bootstrap and not options.bootstrap_from_amalgamation:
     print('bootstrap complete.  rebuilding...')
 
     rebuild_args = []
-
-    if platform.can_rebuild_in_place():
-        rebuild_args.append('./ninja')
-    else:
-        if platform.is_windows():
-            bootstrap_exe = 'ninja.bootstrap.exe'
-            final_exe = 'ninja.exe'
-        else:
-            bootstrap_exe = './ninja.bootstrap'
-            final_exe = './ninja'
-
-        if os.path.exists(bootstrap_exe):
-            os.unlink(bootstrap_exe)
-        os.rename(final_exe, bootstrap_exe)
-
-        rebuild_args.append(bootstrap_exe)
+    rebuild_args.append(os.path.join(".", bootstrap_binary))
 
     if options.verbose:
         rebuild_args.append('-v')
