@@ -20,11 +20,13 @@
 #include <poll.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
 
 extern char** environ;
+ char * const environ_verbose = "VERBOSE=1";
 
 #include "util.h"
 
@@ -40,7 +42,7 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command, const BuildConfig::Verbosity& verbosity) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -95,6 +97,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   flags |= POSIX_SPAWN_USEVFORK;
 #endif
 
+  if (verbosity == BuildConfig::VERBOSE) {
+    int result = putenv(environ_verbose);
+    if (result != 0)
+      printf("problem setting env:%i, %s",result, strerror(result));
+  }
+  
   if (posix_spawnattr_setflags(&attr, flags) != 0)
     Fatal("posix_spawnattr_setflags: %s", strerror(errno));
 
@@ -206,9 +214,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+Subprocess *SubprocessSet::Add(const string& command, const BuildConfig::Verbosity& verbosity, bool use_console) {
   Subprocess *subprocess = new Subprocess(use_console);
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, verbosity)) {
     delete subprocess;
     return 0;
   }

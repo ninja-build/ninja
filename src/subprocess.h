@@ -26,6 +26,8 @@ using namespace std;
 #include <signal.h>
 #endif
 
+#include "build.h"
+
 // ppoll() exists on FreeBSD, but only on newer versions.
 #ifdef __FreeBSD__
 #  include <sys/param.h>
@@ -53,7 +55,7 @@ struct Subprocess {
 
  private:
   Subprocess(bool use_console);
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(struct SubprocessSet* set, const string& command, const BuildConfig::Verbosity& verbosity);
   void OnPipeReady();
 
   string buf_;
@@ -84,7 +86,7 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const string& command, bool use_console = false);
+  Subprocess* Add(const string& command, const BuildConfig::Verbosity& verbosity, bool use_console = false);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
