@@ -457,6 +457,8 @@ def has_re2c():
     try:
         proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
         return int(proc.communicate()[0], 10) >= 1103
+    except ValueError:
+        return False
     except OSError:
         return False
 if has_re2c():
