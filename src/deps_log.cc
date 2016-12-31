@@ -30,7 +30,7 @@
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 3;
+const int kCurrentVersion = 4;
 
 // Record size is currently limited to less than the full 32 bit, due to
 // internal buffers having to have this size.
@@ -124,7 +124,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     return true;
 
   // Update on-disk representation.
-  unsigned size = 4 * (1 + 1 + node_count);
+  unsigned size = 4 * (1 + 2 + node_count);
   if (size > kMaxRecordSize) {
     errno = ERANGE;
     return false;
@@ -135,8 +135,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   int id = node->id();
   if (fwrite(&id, 4, 1, file_) < 1)
     return false;
-  int timestamp = mtime;
-  if (fwrite(&timestamp, 4, 1, file_) < 1)
+  if (fwrite(&mtime, 8, 1, file_) < 1)
     return false;
   for (int i = 0; i < node_count; ++i) {
     id = nodes[i]->id();
@@ -218,9 +217,9 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       assert(size % 4 == 0);
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
-      int mtime = deps_data[1];
-      deps_data += 2;
-      int deps_count = (size / 4) - 2;
+      TimeStamp mtime = reinterpret_cast<TimeStamp*>(&deps_data[1])[0];
+      deps_data += 3;
+      int deps_count = (size / 4) - 3;
 
       Deps* deps = new Deps(mtime, deps_count);
       for (int i = 0; i < deps_count; ++i) {
