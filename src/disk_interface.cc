@@ -61,12 +61,11 @@ int MakeDir(const string& path) {
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
+  // resulting value to fit in a 64-bit integer.
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime - 12622770400LL * 1000000000LL / 100;
 }
 
 TimeStamp StatSingleFile(const string& path, string* err) {
@@ -192,7 +191,17 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   // that it doesn't exist.
   if (st.st_mtime == 0)
     return 1;
-  return st.st_mtime;
+#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+  return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
+          st.st_mtimespec.tv_nsec);
+#elif defined(_LARGEFILE64_SOURCE)
+  return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+#elif defined(__CYGWIN__)
+  return (int64_t)st.st_mtime * 1000000000LL;
+#else
+  // see http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
+#endif
 #endif
 }
 
