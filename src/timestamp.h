@@ -18,6 +18,9 @@
 #ifdef _WIN32
 #include "win32port.h"
 #else
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 #endif
 
