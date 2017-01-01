@@ -15,6 +15,12 @@
 #ifndef NINJA_TIMESTAMP_H_
 #define NINJA_TIMESTAMP_H_
 
+#ifdef _WIN32
+#include "win32port.h"
+#else
+#include <inttypes.h>
+#endif
+
 // When considering file modification times we only care to compare
 // them against one another -- we never convert them to an absolute
 // real time.  On POSIX we use timespec (seconds&nanoseconds since epoch)
