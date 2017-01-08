@@ -71,7 +71,7 @@ bool WriteTestData(string* err) {
   long_rule_command += "$in -o $out\n";
 
   State state;
-  ManifestParser parser(&state, NULL);
+  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
   if (!parser.ParseTest("rule cxx\n  command = " + long_rule_command, err))
     return false;
 

@@ -26,12 +26,17 @@ try:
     import http.server as httpserver
 except ImportError:
     import BaseHTTPServer as httpserver
+import argparse
+import cgi
 import os
 import socket
 import subprocess
 import sys
 import webbrowser
-import urllib2
+try:
+    from urllib.request import unquote
+except ImportError:
+    from urllib2 import unquote
 from collections import namedtuple
 
 Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
@@ -53,6 +58,9 @@ def match_strip(line, prefix):
     if not line.startswith(prefix):
         return (False, line)
     return (True, line[len(prefix):])
+
+def html_escape(text):
+    return cgi.escape(text, quote=True)
 
 def parse(text):
     lines = iter(text.split('\n'))
@@ -120,19 +128,19 @@ tt {
 ''' + body
 
 def generate_html(node):
-    document = ['<h1><tt>%s</tt></h1>' % node.target]
+    document = ['<h1><tt>%s</tt></h1>' % html_escape(node.target)]
 
     if node.inputs:
         document.append('<h2>target is built using rule <tt>%s</tt> of</h2>' %
-                        node.rule)
+                        html_escape(node.rule))
         if len(node.inputs) > 0:
             document.append('<div class=filelist>')
             for input, type in sorted(node.inputs):
                 extra = ''
                 if type:
-                    extra = ' (%s)' % type
+                    extra = ' (%s)' % html_escape(type)
                 document.append('<tt><a href="?%s">%s</a>%s</tt><br>' %
-                                (input, input, extra))
+                                (html_escape(input), html_escape(input), extra))
             document.append('</div>')
 
     if node.outputs:
@@ -140,25 +148,25 @@ def generate_html(node):
         document.append('<div class=filelist>')
         for output in sorted(node.outputs):
             document.append('<tt><a href="?%s">%s</a></tt><br>' %
-                            (output, output))
+                            (html_escape(output), html_escape(output)))
         document.append('</div>')
 
     return '\n'.join(document)
 
 def ninja_dump(target):
-    proc = subprocess.Popen([sys.argv[1], '-t', 'query', target],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    cmd = [args.ninja_command, '-f', args.f, '-t', 'query', target]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             universal_newlines=True)
     return proc.communicate() + (proc.returncode,)
 
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path[0] == '/'
-        target = urllib2.unquote(self.path[1:])
+        target = unquote(self.path[1:])
 
         if target == '':
             self.send_response(302)
-            self.send_header('Location', '?' + sys.argv[2])
+            self.send_header('Location', '?' + args.initial_target)
             self.end_headers()
             return
 
@@ -173,7 +181,7 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
             page_body = generate_html(parse(ninja_output.strip()))
         else:
             # Relay ninja's error message.
-            page_body = '<h1><tt>%s</tt></h1>' % ninja_error
+            page_body = '<h1><tt>%s</tt></h1>' % html_escape(ninja_error)
 
         self.send_response(200)
         self.end_headers()
@@ -182,13 +190,28 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Swallow console spam.
 
-port = 8000
+parser = argparse.ArgumentParser(prog='ninja -t browse')
+parser.add_argument('--port', '-p', default=8000, type=int,
+    help='Port number to use (default %(default)d)')
+parser.add_argument('--no-browser', action='store_true',
+    help='Do not open a webbrowser on startup.')
+
+parser.add_argument('--ninja-command', default='ninja',
+    help='Path to ninja binary (default %(default)s)')
+parser.add_argument('-f', default='build.ninja',
+    help='Path to build.ninja file (default %(default)s)')
+parser.add_argument('initial_target', default='all', nargs='?',
+    help='Initial target to show (default %(default)s)')
+
+args = parser.parse_args()
+port = args.port
 httpd = httpserver.HTTPServer(('',port), RequestHandler)
 try:
     hostname = socket.gethostname()
     print('Web server running on %s:%d, ctl-C to abort...' % (hostname,port) )
     print('Web server pid %d' % os.getpid(), file=sys.stderr )
-    webbrowser.open_new('http://%s:%s' % (hostname, port) )
+    if not args.no_browser:
+        webbrowser.open_new('http://%s:%s' % (hostname, port) )
     httpd.serve_forever()
 except KeyboardInterrupt:
     print()

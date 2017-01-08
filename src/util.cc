@@ -226,8 +226,8 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   }
 
   if (dst == start) {
-    *err = "path canonicalizes to the empty path";
-    return false;
+    *dst++ = '.';
+    *dst++ = '\0';
   }
 
   *len = dst - start - 1;
@@ -584,6 +584,13 @@ double GetLoadAverage() {
 
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
+}
+#elif defined(__UCLIBC__)
+double GetLoadAverage() {
+  struct sysinfo si;
+  if (sysinfo(&si) != 0)
+    return -0.0f;
+  return 1.0 / (1 << SI_LOAD_SHIFT) * si.loads[0];
 }
 #else
 double GetLoadAverage() {

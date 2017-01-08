@@ -16,8 +16,6 @@
 
 #include "test.h"
 
-#include <string>
-
 #ifndef _WIN32
 // SetWithLots need setrlimit.
 #include <stdio.h>
@@ -146,22 +144,11 @@ TEST_F(SubprocessTest, InterruptParentWithSigHup) {
   ASSERT_FALSE("We should have been interrupted");
 }
 
-// A shell command to check if the current process is connected to a terminal.
-// This is different from having stdin/stdout/stderr be a terminal. (For
-// instance consider the command "yes < /dev/null > /dev/null 2>&1".
-// As "ps" will confirm, "yes" could still be connected to a terminal, despite
-// not having any of the standard file descriptors be a terminal.
-static const char kIsConnectedToTerminal[] = "tty < /dev/tty > /dev/null";
-
 TEST_F(SubprocessTest, Console) {
   // Skip test if we don't have the console ourselves.
   if (isatty(0) && isatty(1) && isatty(2)) {
-    // Test that stdin, stdout and stderr are a terminal.
-    // Also check that the current process is connected to a terminal.
     Subprocess* subproc =
-        subprocs_.Add(std::string("test -t 0 -a -t 1 -a -t 2 && ") +
-                          std::string(kIsConnectedToTerminal),
-                      /*use_console=*/true);
+        subprocs_.Add("test -t 0 -a -t 1 -a -t 2", /*use_console=*/true);
     ASSERT_NE((Subprocess*)0, subproc);
 
     while (!subproc->Done()) {
@@ -170,18 +157,6 @@ TEST_F(SubprocessTest, Console) {
 
     EXPECT_EQ(ExitSuccess, subproc->Finish());
   }
-}
-
-TEST_F(SubprocessTest, NoConsole) {
-  Subprocess* subproc =
-      subprocs_.Add(kIsConnectedToTerminal, /*use_console=*/false);
-  ASSERT_NE((Subprocess*)0, subproc);
-
-  while (!subproc->Done()) {
-    subprocs_.DoWork();
-  }
-
-  EXPECT_NE(ExitSuccess, subproc->Finish());
 }
 
 #endif
@@ -239,9 +214,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
   }
 }
 
-// OS X's process limit is less than 1025 by default
-// (|sysctl kern.maxprocperuid| is 709 on 10.7 and 10.8 and less prior to that).
-#if !defined(__APPLE__) && !defined(_WIN32)
+#if defined(USE_PPOLL)
 TEST_F(SubprocessTest, SetWithLots) {
   // Arbitrary big number; needs to be over 1024 to confirm we're no longer
   // hostage to pselect.
@@ -251,7 +224,8 @@ TEST_F(SubprocessTest, SetWithLots) {
   rlimit rlim;
   ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlim));
   if (rlim.rlim_cur < kNumProcs) {
-    printf("Raise [ulimit -n] well above %u (currently %lu) to make this test go\n", kNumProcs, rlim.rlim_cur);
+    printf("Raise [ulimit -n] above %u (currently %lu) to make this test go\n",
+           kNumProcs, rlim.rlim_cur);
     return;
   }
 

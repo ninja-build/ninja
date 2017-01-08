@@ -20,7 +20,7 @@ You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
 On Windows, you'll need to install Python to run `configure.py`, and
 run everything under a Visual Studio Tools Command Prompt (or after
 running `vcvarsall` in a normal command prompt).  See below if you
-want to use mingw or some other compiler instead using Visual Studio.
+want to use mingw or some other compiler instead of Visual Studio.
 
 ### Adjusting build flags
 
@@ -56,8 +56,8 @@ particular, new build file syntax or command-line flags) or increase
 the maintenance burden of Ninja.  Ninja is already successfully used
 by hundreds of developers for large projects and it already achieves
 (most of) the goals I set out for it to do.  It's probably best to
-discuss new feature ideas on the mailing list before I shoot down your
-patch.
+discuss new feature ideas on the [mailing list](https://groups.google.com/forum/#!forum/ninja-build)
+before I shoot down your patch.
 
 ## Testing
 

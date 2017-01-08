@@ -55,7 +55,7 @@ void Rule::AddBinding(const string& key, const EvalString& val) {
 }
 
 const EvalString* Rule::GetBinding(const string& key) const {
-  map<string, EvalString>::const_iterator i = bindings_.find(key);
+  Bindings::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())
     return NULL;
   return &i->second;
@@ -71,7 +71,8 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "pool" ||
       var == "restat" ||
       var == "rspfile" ||
-      var == "rspfile_content";
+      var == "rspfile_content" ||
+      var == "msvc_deps_prefix";
 }
 
 const map<string, const Rule*>& BindingEnv::GetRules() const {

@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <vector>
 
+#include "disk_interface.h"
 #include "graph.h"
 #include "metrics.h"
 #include "state.h"
@@ -25,9 +26,9 @@
 #include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
-                               bool dupe_edge_should_err)
+                               DupeEdgeAction dupe_edge_action)
     : state_(state), file_reader_(file_reader),
-      dupe_edge_should_err_(dupe_edge_should_err), quiet_(false) {
+      dupe_edge_action_(dupe_edge_action), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -35,7 +36,7 @@ bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
-  if (!file_reader_->ReadFile(filename, &contents, &read_err)) {
+  if (file_reader_->ReadFile(filename, &contents, &read_err) != FileReader::Okay) {
     *err = "loading '" + filename + "': " + read_err;
     if (parent)
       parent->Error(string(*err), err);
@@ -235,17 +236,31 @@ bool ManifestParser::ParseEdge(string* err) {
     EvalString out;
     if (!lexer_.ReadPath(&out, err))
       return false;
-    if (out.empty())
-      return lexer_.Error("expected path", err);
-
-    do {
+    while (!out.empty()) {
       outs.push_back(out);
 
       out.Clear();
       if (!lexer_.ReadPath(&out, err))
         return false;
-    } while (!out.empty());
+    }
   }
+
+  // Add all implicit outs, counting how many as we go.
+  int implicit_outs = 0;
+  if (lexer_.PeekToken(Lexer::PIPE)) {
+    for (;;) {
+      EvalString out;
+      if (!lexer_.ReadPath(&out, err))
+        return err;
+      if (out.empty())
+        break;
+      outs.push_back(out);
+      ++implicit_outs;
+    }
+  }
+
+  if (outs.empty())
+    return lexer_.Error("expected path", err);
 
   if (!ExpectToken(Lexer::COLON, err))
     return false;
@@ -324,22 +339,26 @@ bool ManifestParser::ParseEdge(string* err) {
   }
 
   edge->outputs_.reserve(outs.size());
-  for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
-    string path = i->Evaluate(env);
+  for (size_t i = 0, e = outs.size(); i != e; ++i) {
+    string path = outs[i].Evaluate(env);
     string path_err;
     unsigned int slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
-      if (dupe_edge_should_err_) {
+      if (dupe_edge_action_ == kDupeEdgeActionError) {
         lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
                      err);
         return false;
-      } else if (!quiet_) {
-        Warning("multiple rules generate %s. "
-                "builds involving this target will not be correct; "
-                "continuing anyway [-w dupbuild=warn]",
-                path.c_str());
+      } else {
+        if (!quiet_) {
+          Warning("multiple rules generate %s. "
+                  "builds involving this target will not be correct; "
+                  "continuing anyway [-w dupbuild=warn]",
+                  path.c_str());
+        }
+        if (e - i <= static_cast<size_t>(implicit_outs))
+          --implicit_outs;
       }
     }
   }
@@ -350,6 +369,7 @@ bool ManifestParser::ParseEdge(string* err) {
     delete edge;
     return true;
   }
+  edge->implicit_outs_ = implicit_outs;
 
   edge->inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
@@ -380,7 +400,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_);
+  ManifestParser subparser(state_, file_reader_, dupe_edge_action_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {

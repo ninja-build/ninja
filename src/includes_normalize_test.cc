@@ -30,15 +30,15 @@ string GetCurDir() {
   return parts[parts.size() - 1];
 }
 
-string NormalizeAndCheckNoError(const std::string& input) {
+string NormalizeAndCheckNoError(const string& input) {
   string result, err;
   EXPECT_TRUE(IncludesNormalize::Normalize(input.c_str(), NULL, &result, &err));
   EXPECT_EQ("", err);
   return result;
 }
 
-string NormalizeRelativeAndCheckNoError(const std::string& input,
-                                        const std::string& relative_to) {
+string NormalizeRelativeAndCheckNoError(const string& input,
+                                        const string& relative_to) {
   string result, err;
   EXPECT_TRUE(IncludesNormalize::Normalize(input.c_str(), relative_to.c_str(),
                                            &result, &err));
@@ -160,8 +160,8 @@ TEST(IncludesNormalize, LongInvalidPath) {
       "012345678\\"
       "012345678\\"
       "0123456789";
-  std::string forward_slashes(kExactlyMaxPath);
-  std::replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
+  string forward_slashes(kExactlyMaxPath);
+  replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly _MAX_PATH long is canonicalized.
   EXPECT_EQ(forward_slashes,
             NormalizeAndCheckNoError(kExactlyMaxPath));

@@ -37,6 +37,7 @@ bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  // Load output mtimes so we can compare them to the most recent input below.
   // RecomputeDirty() recursively walks the graph following the input nodes
   // of |edge| and the in_edges of these nodes.  It uses the stat state of each
   // node to mark nodes as visited and doesn't traverse across nodes that have
@@ -126,8 +127,6 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
-      return false;
     if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
       *outputs_dirty = true;
       return true;
@@ -241,8 +240,9 @@ string EdgeEnv::LookupVariable(const string& var) {
                         edge_->inputs_.begin() + explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
+    int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
     return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.end(),
+                        edge_->outputs_.begin() + explicit_outs_count,
                         ' ');
   }
 
@@ -395,8 +395,15 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                                     string* err) {
   METRIC_RECORD("depfile load");
-  string content = disk_interface_->ReadFile(path, err);
-  if (!err->empty()) {
+  // Read depfile content.  Treat a missing depfile as empty.
+  string content;
+  switch (disk_interface_->ReadFile(path, &content, err)) {
+  case DiskInterface::Okay:
+    break;
+  case DiskInterface::NotFound:
+    err->clear();
+    break;
+  case DiskInterface::OtherError:
     *err = "loading '" + path + "': " + *err;
     return false;
   }
@@ -415,8 +422,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   unsigned int unused;
   if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, &unused, err))
+                        &depfile.out_.len_, &unused, err)) {
+    *err = path + ": " + *err;
     return false;
+  }
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.

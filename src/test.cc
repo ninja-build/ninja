@@ -21,6 +21,7 @@
 #include <algorithm>
 
 #include <errno.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -95,7 +96,7 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
 }
 
 void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state, NULL);
+  ManifestParser parser(state, NULL, kDupeEdgeActionWarn);
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
@@ -115,7 +116,7 @@ void VerifyGraph(const State& state) {
     for (vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
          in_node != (*e)->inputs_.end(); ++in_node) {
       const vector<Edge*>& out_edges = (*in_node)->out_edges();
-      EXPECT_NE(std::find(out_edges.begin(), out_edges.end(), *e),
+      EXPECT_NE(find(out_edges.begin(), out_edges.end(), *e),
                 out_edges.end());
     }
     // Check that the edge's outputs have the edge as in-edge.
@@ -164,12 +165,17 @@ bool VirtualFileSystem::MakeDir(const string& path) {
   return true;  // success
 }
 
-string VirtualFileSystem::ReadFile(const string& path, string* err) {
+FileReader::Status VirtualFileSystem::ReadFile(const string& path,
+                                               string* contents,
+                                               string* err) {
   files_read_.push_back(path);
   FileMap::iterator i = files_.find(path);
-  if (i != files_.end())
-    return i->second.contents;
-  return "";
+  if (i != files_.end()) {
+    *contents = i->second.contents;
+    return Okay;
+  }
+  *err = strerror(ENOENT);
+  return NotFound;
 }
 
 int VirtualFileSystem::RemoveFile(const string& path) {

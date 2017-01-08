@@ -57,7 +57,6 @@ struct Rule {
 
   const string& name() const { return name_; }
 
-  typedef map<string, EvalString> Bindings;
   void AddBinding(const string& key, const EvalString& val);
 
   static bool IsReservedBinding(const string& var);
@@ -69,7 +68,8 @@ struct Rule {
   friend struct ManifestParser;
 
   string name_;
-  map<string, EvalString> bindings_;
+  typedef map<string, EvalString> Bindings;
+  Bindings bindings_;
 };
 
 /// An Env which contains a mapping of variables to values
