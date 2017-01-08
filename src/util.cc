@@ -585,6 +585,13 @@ double GetLoadAverage() {
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
 }
+#elif defined(__UCLIBC__)
+double GetLoadAverage() {
+  struct sysinfo si;
+  if (sysinfo(&si) != 0)
+    return -0.0f;
+  return 1.0 / (1 << SI_LOAD_SHIFT) * si.loads[0];
+}
 #else
 double GetLoadAverage() {
   double loadavg[3] = { 0.0f, 0.0f, 0.0f };
