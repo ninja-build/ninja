@@ -662,9 +662,67 @@ void EncodeJSONString(const char *str) {
   }
 }
 
-int NinjaMain::ToolCompilationDatabase(const Options* options, int argc, char* argv[]) {
+enum EvaluateCommandMode {
+  ECM_NORMAL,
+  ECM_EXPAND_RSPFILE
+};
+string EvaluateCommandWithRspfile(Edge* edge, EvaluateCommandMode mode) {
+  string command = edge->EvaluateCommand();
+  if (mode == ECM_NORMAL)
+    return command;
+
+  string rspfile = edge->GetUnescapedRspfile();
+  if (rspfile.empty())
+    return command;
+
+  size_t index = command.find(rspfile);
+  if (index == 0 || index == string::npos || command[index - 1] != '@')
+    return command;
+
+  string rspfile_content = edge->GetBinding("rspfile_content");
+  size_t newline_index = 0;
+  while ((newline_index = rspfile_content.find('\n', newline_index)) !=
+         string::npos) {
+    rspfile_content.replace(newline_index, 1, 1, ' ');
+    ++newline_index;
+  }
+  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  return command;
+}
+
+int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
+                                       char* argv[]) {
+  // The compdb tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "compdb".
+  argc++;
+  argv--;
+
   bool first = true;
   vector<char> cwd;
+
+  EvaluateCommandMode eval_mode = ECM_NORMAL;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
+    switch(opt) {
+      case 'x':
+        eval_mode = ECM_EXPAND_RSPFILE;
+        break;
+
+      case 'h':
+      default:
+        printf(
+            "usage: ninja -t compdb [options] [rules]\n"
+            "\n"
+            "options:\n"
+            "  -x     expand @rspfile style response file invocations\n"
+            );
+        return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
 
   do {
     cwd.resize(cwd.size() + 1024);
@@ -688,7 +746,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc, char* a
         printf("\n  {\n    \"directory\": \"");
         EncodeJSONString(&cwd[0]);
         printf("\",\n    \"command\": \"");
-        EncodeJSONString((*e)->EvaluateCommand().c_str());
+        EncodeJSONString(EvaluateCommandWithRspfile(*e, eval_mode).c_str());
         printf("\",\n    \"file\": \"");
         EncodeJSONString((*e)->inputs_[0]->path().c_str());
         printf("\",\n    \"output\": \"");
