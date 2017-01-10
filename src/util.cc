@@ -505,7 +505,7 @@ int GetProcessorCount() {
   GetNativeSystemInfo(&info);
   return info.dwNumberOfProcessors;
 #else
-  return sysconf(_SC_NPROCESSORS_ONLN);
+  return sysconf(_SC_NPROCESSORS_CONF);
 #endif
 }
 
