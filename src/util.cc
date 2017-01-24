@@ -90,7 +90,7 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
+bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
@@ -103,19 +103,19 @@ bool CanonicalizePath(string* path, unsigned int* slash_bits, string* err) {
 }
 
 #ifdef _WIN32
-static unsigned int ShiftOverBit(int offset, unsigned int bits) {
+static uint64_t ShiftOverBit(int offset, uint64_t bits) {
   // e.g. for |offset| == 2:
   // | ... 9 8 7 6 5 4 3 2 1 0 |
   // \_________________/   \_/
   //        above         below
   // So we drop the bit at offset and move above "down" into its place.
-  unsigned int above = bits & ~((1 << (offset + 1)) - 1);
-  unsigned int below = bits & ((1 << offset) - 1);
+  uint64_t above = bits & ~((1 << (offset + 1)) - 1);
+  uint64_t below = bits & ((1 << offset) - 1);
   return (above >> 1) | below;
 }
 #endif
 
-bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
+bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
@@ -125,7 +125,7 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
     return false;
   }
 
-  const int kMaxPathComponents = 30;
+  const int kMaxPathComponents = 60;
   char* components[kMaxPathComponents];
   int component_count = 0;
 
@@ -135,8 +135,8 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
   const char* end = start + *len;
 
 #ifdef _WIN32
-  unsigned int bits = 0;
-  unsigned int bits_mask = 1;
+  uint64_t bits = 0;
+  uint64_t bits_mask = 1;
   int bits_offset = 0;
   // Convert \ to /, setting a bit in |bits| for each \ encountered.
   for (char* c = path; c < end; ++c) {
@@ -150,7 +150,7 @@ bool CanonicalizePath(char* path, size_t* len, unsigned int* slash_bits,
         bits_offset++;
     }
   }
-  if (bits_offset > 32) {
+  if (bits_offset > 64) {
     *err = "too many path components";
     return false;
   }

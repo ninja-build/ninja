@@ -21,6 +21,7 @@ using namespace std;
 
 #include "eval_env.h"
 #include "timestamp.h"
+#include "util.h"
 
 struct BuildLog;
 struct DiskInterface;
@@ -33,7 +34,7 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const string& path, unsigned int slash_bits)
+  Node(const string& path, uint64_t slash_bits)
       : path_(path),
         slash_bits_(slash_bits),
         mtime_(-1),
@@ -76,8 +77,8 @@ struct Node {
     return PathDecanonicalized(path_, slash_bits_);
   }
   static string PathDecanonicalized(const string& path,
-                                    unsigned int slash_bits);
-  unsigned int slash_bits() const { return slash_bits_; }
+                                    uint64_t slash_bits);
+  uint64_t slash_bits() const { return slash_bits_; }
 
   TimeStamp mtime() const { return mtime_; }
 
@@ -101,7 +102,7 @@ private:
 
   /// Set bits starting from lowest for backslashes that were normalized to
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
-  unsigned int slash_bits_;
+  uint64_t slash_bits_;
 
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined

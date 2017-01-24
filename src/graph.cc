@@ -348,10 +348,10 @@ bool Edge::use_console() const {
 }
 
 // static
-string Node::PathDecanonicalized(const string& path, unsigned int slash_bits) {
+string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   string result = path;
 #ifdef _WIN32
-  unsigned int mask = 1;
+  uint64_t mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
     if (slash_bits & mask)
       *c = '\\';
@@ -420,7 +420,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
-  unsigned int unused;
+  uint64_t unused;
   if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
                         &depfile.out_.len_, &unused, err)) {
     *err = path + ": " + *err;
@@ -444,7 +444,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // Add all its in-edges.
   for (vector<StringPiece>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    unsigned int slash_bits;
+    uint64_t slash_bits;
     if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
                           err))
       return false;

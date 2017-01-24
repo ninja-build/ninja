@@ -212,7 +212,7 @@ bool ManifestParser::ParseDefault(string* err) {
   do {
     string path = eval.Evaluate(env_);
     string path_err;
-    unsigned int slash_bits;  // Unused because this only does lookup.
+    uint64_t slash_bits;  // Unused because this only does lookup.
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddDefault(path, &path_err))
@@ -342,7 +342,7 @@ bool ManifestParser::ParseEdge(string* err) {
   for (size_t i = 0, e = outs.size(); i != e; ++i) {
     string path = outs[i].Evaluate(env);
     string path_err;
-    unsigned int slash_bits;
+    uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
@@ -375,7 +375,7 @@ bool ManifestParser::ParseEdge(string* err) {
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
     string path_err;
-    unsigned int slash_bits;
+    uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     state_->AddIn(edge, path, slash_bits);
