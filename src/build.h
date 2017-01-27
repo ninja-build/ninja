@@ -123,15 +123,24 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  failures_allowed(1), max_load_average(-0.0f) {}
+  BuildConfig() : verbosity(NORMAL), control_sequences(SMART), dry_run(false),
+                  parallelism(1), failures_allowed(1), max_load_average(-0.0f) {
+  }
 
   enum Verbosity {
     NORMAL,
-    QUIET,  // No output -- used when testing.
-    VERBOSE
+    QUIET,  // No output -- used for output mode "quiet".
+    VERBOSE  // Print all command lines -- used for output mode "verbose".
+  };
+  enum ControlSequences {
+    SMART,  // ninja will decide whether to strip control sequences.
+    KEEP_ALL,  // Never strip control sequences.
+    KEEP_NONE,  // Always strip control sequences.
+    KEEP_COLORS  // Always strip control sequences except for color codes.
   };
   Verbosity verbosity;
+  /// Specifies what control sequences to retain in the output.
+  ControlSequences control_sequences;
   bool dry_run;
   int parallelism;
   int failures_allowed;

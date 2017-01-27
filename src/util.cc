@@ -476,7 +476,7 @@ static bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-string StripAnsiEscapeCodes(const string& in) {
+string StripAnsiEscapeCodes(const string& in, bool preserve_color) {
   string stripped;
   stripped.reserve(in.size());
 
@@ -491,6 +491,17 @@ string StripAnsiEscapeCodes(const string& in) {
     if (i + 1 >= in.size()) break;
     if (in[i + 1] != '[') continue;  // Not a CSI.
     i += 2;
+
+    if (preserve_color) {
+      size_t start = i - 2;
+      // Check for display attributes, e.g. "ESC[4m" or "ESC[31;46m".
+      while (i < in.size() && (isdigit(in[i]) || in[i] == ';'))
+        ++i;
+      if (i < in.size() && in[i] == 'm') {
+        stripped.insert(stripped.size(), in, start, i - start + 1);
+        continue;
+      }
+    }
 
     // Skip everything up to and including the next [a-zA-Z].
     while (i < in.size() && !islatinalpha(in[i]))

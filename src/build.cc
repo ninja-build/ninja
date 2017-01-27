@@ -79,7 +79,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       overall_rate_(), current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
-  if (config_.verbosity != BuildConfig::NORMAL)
+  if (config_.verbosity == BuildConfig::VERBOSE)
     printer_.set_smart_terminal(false);
 
   progress_status_format_ = getenv("NINJA_STATUS");
@@ -145,16 +145,19 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // be run with a flag that forces them to always print color escape codes.
     // To make sure these escape codes don't show up in a file if ninja's output
     // is piped to a file, ninja strips ansi escape codes again if it's not
-    // writing to a |smart_terminal_|.
+    // writing to a |smart_terminal_| unless overridden by an -o flag.
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
-      final_output = StripAnsiEscapeCodes(output);
-    else
+    if (config_.control_sequences == BuildConfig::KEEP_ALL ||
+        (config_.control_sequences == BuildConfig::SMART &&
+         printer_.is_smart_terminal())) {
       final_output = output;
+    } else {
+      final_output = StripAnsiEscapeCodes(
+          output, config_.control_sequences == BuildConfig::KEEP_COLORS);
+    }
     printer_.PrintOnNewLine(final_output);
   }
 }

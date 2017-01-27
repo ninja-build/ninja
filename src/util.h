@@ -70,8 +70,9 @@ const char* SpellcheckStringV(const string& text,
 /// Like SpellcheckStringV, but takes a NULL-terminated list.
 const char* SpellcheckString(const char* text, ...);
 
-/// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
-string StripAnsiEscapeCodes(const string& in);
+/// Removes Ansi escape codes, optionally preserving color codes (see
+/// http://www.termsys.demon.co.uk/vtansi.htm).
+string StripAnsiEscapeCodes(const string& in, bool preserve_color);
 
 /// @return the number of processors on the machine.  Useful for an initial
 /// guess for how many jobs to run in parallel.  @return 0 on error.

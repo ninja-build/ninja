@@ -380,10 +380,16 @@ TEST(PathEscaping, SensibleWin32PathsAreNotNeedlesslyEscaped) {
 }
 
 TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
-  string stripped = StripAnsiEscapeCodes("foo\33");
+  string stripped = StripAnsiEscapeCodes("foo\33", false);
   EXPECT_EQ("foo", stripped);
 
-  stripped = StripAnsiEscapeCodes("foo\33[");
+  stripped = StripAnsiEscapeCodes("foo\33", true);
+  EXPECT_EQ("foo", stripped);
+
+  stripped = StripAnsiEscapeCodes("foo\33[", false);
+  EXPECT_EQ("foo", stripped);
+
+  stripped = StripAnsiEscapeCodes("foo\33[", true);
   EXPECT_EQ("foo", stripped);
 }
 
@@ -391,9 +397,24 @@ TEST(StripAnsiEscapeCodes, StripColors) {
   // An actual clang warning.
   string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
                  "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
-  string stripped = StripAnsiEscapeCodes(input);
+  string stripped = StripAnsiEscapeCodes(input, false);
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);
+
+  stripped = StripAnsiEscapeCodes(input, true);
+  EXPECT_EQ("\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
+            "\33[0m\33[1musing the result... [-Wparentheses]\33[0m",
+            stripped);
+
+  // Mix colors and other escape codes.
+  input = "\33[33mfoo\33[4i\33[30;44mbar\33[5u\33[mz";
+  stripped = StripAnsiEscapeCodes(input, true);
+  EXPECT_EQ("\33[33mfoo\33[30;44mbar\33[mz", stripped);
+
+  // Unusual but valid color code.
+  input = "bland\33[;;;0;1;4;32mexciting";
+  stripped = StripAnsiEscapeCodes(input, true);
+  EXPECT_EQ(input, stripped);
 }
 
 TEST(ElideMiddle, NothingToElide) {

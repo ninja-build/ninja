@@ -207,7 +207,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
-"  -v       show all command lines while building\n"
+"  -o MODE  change output mode (use -o list to list modes)\n"
 "\n"
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
@@ -857,6 +857,47 @@ bool WarningEnable(const string& name, Options* options) {
   }
 }
 
+/// Enable an output mode. Returns false if Ninja should exit instead of
+/// continuing.
+bool OutputEnable(const string& name, BuildConfig* config) {
+  if (name == "list") {
+    printf("output modes:\n"
+"  verbose  show all command lines while building\n"
+"  quiet    hide command lines and outputs while building\n"
+"\n"
+"  raw      never strip control sequences from output\n"
+"  strip    always strip control sequences from output\n"
+"  color    strip most control sequences from output, but retain color codes\n"
+"\n"
+"multiple modes can be enabled via -o FOO -o BAR\n"
+"by default, ninja will decide whether to output control sequences\n"
+);
+    return false;
+  } else if (name == "quiet") {
+    config->verbosity = BuildConfig::QUIET;
+  } else if (name == "verbose") {
+    config->verbosity = BuildConfig::VERBOSE;
+  } else if (name == "raw") {
+    config->control_sequences = BuildConfig::KEEP_ALL;
+  } else if (name == "strip") {
+    config->control_sequences = BuildConfig::KEEP_NONE;
+  } else if (name == "color") {
+    config->control_sequences = BuildConfig::KEEP_COLORS;
+  } else {
+    const char* suggestion =
+        SpellcheckString(name.c_str(),
+                         "quiet", "verbose", "raw", "strip", "color", NULL);
+    if (suggestion) {
+      Error("unknown output setting '%s', did you mean '%s'?",
+            name.c_str(), suggestion);
+    } else {
+      Error("unknown output setting '%s'", name.c_str());
+    }
+    return false;
+  }
+  return true;
+}
+
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
   string log_path = ".ninja_log";
   if (!build_dir_.empty())
@@ -1027,7 +1068,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:no:t:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1068,12 +1109,16 @@ int ReadFlags(int* argc, char*** argv,
       case 'n':
         config->dry_run = true;
         break;
+      case 'o':
+        if (!OutputEnable(optarg, config))
+          return 1;
+        break;
       case 't':
         options->tool = ChooseTool(optarg);
         if (!options->tool)
           return 0;
         break;
-      case 'v':
+      case 'v':  // Retained for backwards compatibility.
         config->verbosity = BuildConfig::VERBOSE;
         break;
       case 'w':
