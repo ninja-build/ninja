@@ -33,7 +33,7 @@ int main() {
   for (int j = 0; j < 5; ++j) {
     const int kNumRepetitions = 2000000;
     int64_t start = GetTimeMillis();
-    unsigned int slash_bits;
+    uint64_t slash_bits;
     for (int i = 0; i < kNumRepetitions; ++i) {
       CanonicalizePath(buf, &len, &slash_bits, &err);
     }
