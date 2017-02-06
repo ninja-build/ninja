@@ -854,6 +854,16 @@ TEST_F(ParserTest, MultipleOutputs) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(ParserTest, MultipleImplicitOutputsWithDeps) {
+  State local_state;
+  ManifestParser parser(&local_state, NULL);
+  string err;
+  EXPECT_TRUE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
+                               "build a.o | a.gcno: cc c.cc\n",
+                               &err));
+  EXPECT_EQ("", err);
+}
+
 TEST_F(ParserTest, MultipleOutputsWithDeps) {
   State local_state;
   ManifestParser parser(&local_state, NULL);

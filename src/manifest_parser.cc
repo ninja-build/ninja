@@ -404,7 +404,7 @@ bool ManifestParser::ParseEdge(string* err) {
 
   // Multiple outputs aren't (yet?) supported with depslog.
   string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty() && edge->outputs_.size() > 1) {
+  if (!deps_type.empty() && edge->outputs_.size() - edge->implicit_outs_ > 1) {
     return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
                         "bring this up on the mailing list if it affects you",
                         err);
