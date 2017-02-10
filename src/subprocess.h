@@ -36,6 +36,13 @@ using namespace std;
 
 #include "exit_status.h"
 
+#ifdef _WIN32
+// On Windows, stderr and stdout must be captured separately,
+// because otherwise the output of both streams may be mixed
+// and hence be corrupt
+enum PipeType { PIPE_StdOut = 0, PIPE_StdErr = 1};
+#endif
+
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
@@ -49,26 +56,28 @@ struct Subprocess {
 
   bool Done() const;
 
-  const string& GetOutput() const;
+  string GetOutput() const;
 
  private:
   Subprocess(bool use_console);
   bool Start(struct SubprocessSet* set, const string& command);
-  void OnPipeReady();
-
-  string buf_;
 
 #ifdef _WIN32
+  void OnPipeReady(PipeType pipe_type);
+  string buf_[2];
   /// Set up pipe_ as the parent-side pipe of the subprocess; return the
   /// other end of the pipe, usable in the child process.
-  HANDLE SetupPipe(HANDLE ioport);
+  HANDLE SetupPipe(HANDLE ioport, PipeType pipe_type);
 
   HANDLE child_;
-  HANDLE pipe_;
-  OVERLAPPED overlapped_;
-  char overlapped_buf_[4 << 10];
-  bool is_reading_;
+  HANDLE pipe_[2];
+  OVERLAPPED overlapped_[2];
+  char overlapped_buf_[2][4 << 10];
+  bool is_reading_[2];
 #else
+  void OnPipeReady();
+  string buf_;
+
   int fd_;
   pid_t pid_;
 #endif

@@ -150,7 +150,7 @@ bool Subprocess::Done() const {
   return fd_ == -1;
 }
 
-const string& Subprocess::GetOutput() const {
+string Subprocess::GetOutput() const {
   return buf_;
 }
 

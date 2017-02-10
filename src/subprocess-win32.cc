@@ -21,14 +21,20 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
-                                           is_reading_(false),
+Subprocess::Subprocess(bool use_console) : child_(NULL),
                                            use_console_(use_console) {
+  memset(&overlapped_[PIPE_StdOut], 0, sizeof(overlapped_[PIPE_StdOut]));
+  memset(&overlapped_[PIPE_StdErr], 0, sizeof(overlapped_[PIPE_StdErr]));
+  is_reading_[PIPE_StdOut] = is_reading_[PIPE_StdErr] = false, false;
 }
 
 Subprocess::~Subprocess() {
-  if (pipe_) {
-    if (!CloseHandle(pipe_))
+  if (pipe_[PIPE_StdOut]) {
+    if (!CloseHandle(pipe_[PIPE_StdOut]))
+      Win32Fatal("CloseHandle");
+  }
+  if (pipe_[PIPE_StdErr]) {
+    if (!CloseHandle(pipe_[PIPE_StdErr]))
       Win32Fatal("CloseHandle");
   }
   // Reap child if forgotten.
@@ -36,24 +42,37 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-HANDLE Subprocess::SetupPipe(HANDLE ioport) {
+HANDLE Subprocess::SetupPipe(HANDLE ioport, PipeType pipe_type) {
   char pipe_name[100];
-  snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
 
-  pipe_ = ::CreateNamedPipeA(pipe_name,
-                             PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                             PIPE_TYPE_BYTE,
-                             PIPE_UNLIMITED_INSTANCES,
-                             0, 0, INFINITE, NULL);
-  if (pipe_ == INVALID_HANDLE_VALUE)
+  if (pipe_type == PIPE_StdOut)
+    snprintf(pipe_name, sizeof(pipe_name),
+            "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
+  else
+    snprintf(pipe_name, sizeof(pipe_name),
+             "\\\\.\\pipe\\ninja_pid%lu_sp%p_err", GetCurrentProcessId(), this);
+
+  pipe_[pipe_type] = ::CreateNamedPipeA(pipe_name,
+                                        PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                                        PIPE_TYPE_BYTE,
+                                        PIPE_UNLIMITED_INSTANCES,
+                                        0, 0, INFINITE, NULL);
+  if (pipe_[pipe_type] == INVALID_HANDLE_VALUE)
     Win32Fatal("CreateNamedPipe");
 
-  if (!CreateIoCompletionPort(pipe_, ioport, (ULONG_PTR)this, 0))
+  // multiple pipes can be associated to a completion port, but
+  // the key must be different
+  ULONG_PTR  key = (ULONG_PTR)this;
+  if (pipe_type == PIPE_StdErr)
+    key |= 1;  // since on Window 'this' will be 8-byte aligned, use
+               // the last bit to encode the pipe type (0 -> PIPE_StdOut,
+               //                                       1 -> PIPE_StdErr)
+
+  if (!CreateIoCompletionPort(pipe_[pipe_type], ioport, (ULONG_PTR)key, 0))
     Win32Fatal("CreateIoCompletionPort");
 
-  memset(&overlapped_, 0, sizeof(overlapped_));
-  if (!ConnectNamedPipe(pipe_, &overlapped_) &&
+  memset(&overlapped_[pipe_type], 0, sizeof(overlapped_[pipe_type]));
+  if (!ConnectNamedPipe(pipe_[pipe_type], &overlapped_[pipe_type]) &&
       GetLastError() != ERROR_IO_PENDING) {
     Win32Fatal("ConnectNamedPipe");
   }
@@ -73,7 +92,8 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
-  HANDLE child_pipe = SetupPipe(set->ioport_);
+  HANDLE child_out_pipe = SetupPipe(set->ioport_, PIPE_StdOut);
+  HANDLE child_err_pipe = SetupPipe(set->ioport_, PIPE_StdErr);
 
   SECURITY_ATTRIBUTES security_attributes;
   memset(&security_attributes, 0, sizeof(SECURITY_ATTRIBUTES));
@@ -92,8 +112,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (!use_console_) {
     startup_info.dwFlags = STARTF_USESTDHANDLES;
     startup_info.hStdInput = nul;
-    startup_info.hStdOutput = child_pipe;
-    startup_info.hStdError = child_pipe;
+    startup_info.hStdOutput = child_out_pipe;
+    startup_info.hStdError = child_err_pipe;
   }
   // In the console case, child_pipe is still inherited by the child and closed
   // when the subprocess finishes, which then notifies ninja.
@@ -114,13 +134,18 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     if (error == ERROR_FILE_NOT_FOUND) {
       // File (program) not found error is treated as a normal build
       // action failure.
-      if (child_pipe)
-        CloseHandle(child_pipe);
-      CloseHandle(pipe_);
+      if (child_out_pipe)
+        CloseHandle(child_out_pipe);
+      if (child_err_pipe)
+        CloseHandle(child_err_pipe);
+      CloseHandle(pipe_[PIPE_StdOut]);
+      CloseHandle(pipe_[PIPE_StdErr]);
       CloseHandle(nul);
-      pipe_ = NULL;
+      printf("pipe to null\n");
+      pipe_[PIPE_StdOut] = NULL;
+      pipe_[PIPE_StdErr] = NULL;
       // child_ is already NULL;
-      buf_ = "CreateProcess failed: The system cannot find the file "
+      buf_[PIPE_StdOut] = "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
     } else {
@@ -129,8 +154,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   }
 
   // Close pipe channel only used by the child.
-  if (child_pipe)
-    CloseHandle(child_pipe);
+  if (child_out_pipe)
+    CloseHandle(child_out_pipe);
+  if (child_err_pipe)
+    CloseHandle(child_err_pipe);
   CloseHandle(nul);
 
   CloseHandle(process_info.hThread);
@@ -139,27 +166,29 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   return true;
 }
 
-void Subprocess::OnPipeReady() {
+void Subprocess::OnPipeReady(PipeType pipe_type) {
   DWORD bytes;
-  if (!GetOverlappedResult(pipe_, &overlapped_, &bytes, TRUE)) {
+  if (!GetOverlappedResult(pipe_[pipe_type], &overlapped_[pipe_type],
+                           &bytes, TRUE)) {
     if (GetLastError() == ERROR_BROKEN_PIPE) {
-      CloseHandle(pipe_);
-      pipe_ = NULL;
+      CloseHandle(pipe_[pipe_type]);
+      pipe_[pipe_type] = NULL;
       return;
     }
     Win32Fatal("GetOverlappedResult");
   }
 
-  if (is_reading_ && bytes)
-    buf_.append(overlapped_buf_, bytes);
+  if (is_reading_[pipe_type] && bytes)
+    buf_[pipe_type].append(overlapped_buf_[pipe_type], bytes);
 
-  memset(&overlapped_, 0, sizeof(overlapped_));
-  is_reading_ = true;
-  if (!::ReadFile(pipe_, overlapped_buf_, sizeof(overlapped_buf_),
-                  &bytes, &overlapped_)) {
+  memset(&overlapped_[pipe_type], 0, sizeof(overlapped_[pipe_type]));
+  is_reading_[pipe_type] = true;
+  if (!::ReadFile(pipe_[pipe_type], overlapped_buf_[pipe_type],
+                  sizeof(overlapped_buf_[pipe_type]),
+                  &bytes, &overlapped_[pipe_type])) {
     if (GetLastError() == ERROR_BROKEN_PIPE) {
-      CloseHandle(pipe_);
-      pipe_ = NULL;
+      CloseHandle(pipe_[pipe_type]);
+      pipe_[pipe_type] = NULL;
       return;
     }
     if (GetLastError() != ERROR_IO_PENDING)
@@ -189,11 +218,11 @@ ExitStatus Subprocess::Finish() {
 }
 
 bool Subprocess::Done() const {
-  return pipe_ == NULL;
+  return pipe_[PIPE_StdOut] == NULL && pipe_[PIPE_StdErr] == NULL;
 }
 
-const string& Subprocess::GetOutput() const {
-  return buf_;
+string Subprocess::GetOutput() const {
+  return buf_[PIPE_StdOut] + buf_[PIPE_StdErr];
 }
 
 HANDLE SubprocessSet::ioport_;
@@ -240,18 +269,27 @@ bool SubprocessSet::DoWork() {
   DWORD bytes_read;
   Subprocess* subproc;
   OVERLAPPED* overlapped;
+  ULONG_PTR  ptr;
 
-  if (!GetQueuedCompletionStatus(ioport_, &bytes_read, (PULONG_PTR)&subproc,
+  if (!GetQueuedCompletionStatus(ioport_, &bytes_read, &ptr,
                                  &overlapped, INFINITE)) {
     if (GetLastError() != ERROR_BROKEN_PIPE)
       Win32Fatal("GetQueuedCompletionStatus");
   }
 
+  bool is_std_err_pipe = ptr & 1;
+  if (is_std_err_pipe)
+    ptr &= ~1;
+  subproc = (Subprocess*)ptr;
+
   if (!subproc) // A NULL subproc indicates that we were interrupted and is
                 // delivered by NotifyInterrupted above.
     return true;
 
-  subproc->OnPipeReady();
+  if (!is_std_err_pipe)
+    subproc->OnPipeReady(PIPE_StdOut);
+  else
+    subproc->OnPipeReady(PIPE_StdErr);
 
   if (subproc->Done()) {
     vector<Subprocess*>::iterator end =

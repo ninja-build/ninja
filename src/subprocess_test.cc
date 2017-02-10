@@ -70,6 +70,22 @@ TEST_F(SubprocessTest, NoSuchCommand) {
 #endif
 }
 
+#ifdef _WIN32
+// Run a command that outputs to stdout and stderr
+TEST_F(SubprocessTest, CommandStdOutAndStdErr) {
+  Subprocess* subproc = subprocs_.Add("cmd /c \"echo hello&& echo err 1>&2\"");
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  while (!subproc->Done()) {
+    // Pretend we discovered that stderr was ready for writing.
+    subprocs_.DoWork();
+  }
+
+  EXPECT_EQ(ExitSuccess, subproc->Finish());
+  EXPECT_EQ("hello\r\nerr \r\n", subproc->GetOutput());
+}
+#endif
+
 #ifndef _WIN32
 
 TEST_F(SubprocessTest, InterruptChild) {
