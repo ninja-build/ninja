@@ -45,7 +45,7 @@ struct StringPiece {
   }
 
   const char* str_;
-  size_t len_;
+  std::size_t len_;
 };
 
 #endif  // NINJA_STRINGPIECE_H_
