@@ -29,7 +29,7 @@ struct StringPiece {
   StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}
   StringPiece(const char* str) : str_(str), len_(strlen(str)) {}
 
-  StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
+  StringPiece(const char* str, std::size_t len) : str_(str), len_(len) {}
 
   bool operator==(const StringPiece& other) const {
     return len_ == other.len_ && memcmp(str_, other.str_, len_) == 0;
