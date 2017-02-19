@@ -17,18 +17,16 @@
 
 #include <string>
 
-using namespace std;
-
 #include <string.h>
 
-/// StringPiece represents a slice of a string whose memory is managed
-/// externally.  It is useful for reducing the number of std::strings
+/// StringPiece represents a slice of a std::string whose memory is managed
+/// externally.  It is useful for reducing the number of std::std::strings
 /// we need to allocate.
 struct StringPiece {
   StringPiece() : str_(NULL), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
-  StringPiece(const string& str) : str_(str.data()), len_(str.size()) {}
+  StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}
   StringPiece(const char* str) : str_(str), len_(strlen(str)) {}
 
   StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
@@ -41,9 +39,9 @@ struct StringPiece {
   }
 
   /// Convert the slice into a full-fledged std::string, copying the
-  /// data into a new string.
-  string AsString() const {
-    return len_ ? string(str_, len_) : string();
+  /// data into a new std::string.
+  std::string AsString() const {
+    return len_ ? std::string(str_, len_) : std::string();
   }
 
   const char* str_;
