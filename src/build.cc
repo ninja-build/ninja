@@ -745,6 +745,8 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
+    // Add a trailing newline. Some compilers drop the last flag if this is missing.
+    content += '\n';
     if (!disk_interface_->WriteFile(rspfile, content))
       return false;
   }

@@ -1581,7 +1581,7 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_EQ(0u, fs_.files_removed_.count("out.rsp"));
 
   // The RSP file contains what it should
-  ASSERT_EQ("Another very long command", fs_.files_["out.rsp"].contents);
+  ASSERT_EQ("Another very long command\n", fs_.files_["out.rsp"].contents);
 }
 
 // Test that contents of the RSP file behaves like a regular part of
