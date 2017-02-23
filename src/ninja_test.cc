@@ -116,12 +116,18 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 
 }  // namespace
 
+// static
 bool testing::Test::Check(bool condition, const char* file, int line,
                           const char* error) {
   if (!condition) {
     printer.PrintOnNewLine(
         StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
-    failed_ = true;
+    if (!g_current_test) {
+      printer.PrintOnNewLine(
+          StringPrintf("*** No current test fixture, aborting\n"));
+      abort();
+    }
+    g_current_test->failed_ = true;
   }
   return condition;
 }
@@ -150,6 +156,7 @@ int main(int argc, char **argv) {
     test->SetUp();
     test->Run();
     test->TearDown();
+    g_current_test = NULL;
     if (test->Failed())
       passed = false;
     delete test;

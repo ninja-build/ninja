@@ -39,7 +39,8 @@ class Test {
   bool Failed() const { return failed_; }
   int AssertionFailures() const { return assertion_failures_; }
   void AddAssertionFailure() { assertion_failures_++; }
-  bool Check(bool condition, const char* file, int line, const char* error);
+  static bool Check(bool condition, const char* file, int line,
+                    const char* error);
 };
 }
 
@@ -61,21 +62,21 @@ extern testing::Test* g_current_test;
 #define TEST(x, y) TEST_F_(testing::Test, x##y, #x "." #y)
 
 #define EXPECT_EQ(a, b) \
-  g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
+  testing::Test::Check(a == b, __FILE__, __LINE__, #a " == " #b)
 #define EXPECT_NE(a, b) \
-  g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
+  testing::Test::Check(a != b, __FILE__, __LINE__, #a " != " #b)
 #define EXPECT_GT(a, b) \
-  g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
+  testing::Test::Check(a > b, __FILE__, __LINE__, #a " > " #b)
 #define EXPECT_LT(a, b) \
-  g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
+  testing::Test::Check(a < b, __FILE__, __LINE__, #a " < " #b)
 #define EXPECT_GE(a, b) \
-  g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
+  testing::Test::Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
 #define EXPECT_LE(a, b) \
-  g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
+  testing::Test::Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
 #define EXPECT_TRUE(a) \
-  g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
+  testing::Test::Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
 #define EXPECT_FALSE(a) \
-  g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
+  testing::Test::Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
 
 #define ASSERT_EQ(a, b) \
   if (!EXPECT_EQ(a, b)) { g_current_test->AddAssertionFailure(); return; }
