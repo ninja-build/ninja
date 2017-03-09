@@ -128,7 +128,7 @@ private:
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), pool_(NULL), env_(NULL),
+  Edge() : rule_(NULL), pool_(NULL), weight_(1), env_(NULL),
            outputs_ready_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
@@ -153,6 +153,7 @@ struct Edge {
 
   const Rule* rule_;
   Pool* pool_;
+  int weight_;
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   BindingEnv* env_;
@@ -161,7 +162,7 @@ struct Edge {
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }
-  int weight() const { return 1; }
+  int weight() const { return weight_; }
   bool outputs_ready() const { return outputs_ready_; }
 
   // There are three types of inputs.

@@ -338,6 +338,14 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
+  string weight_string = edge->GetBinding("weight");
+  if (!weight_string.empty()) {
+    int weight = atol(weight_string.c_str());
+    if (weight < 1)
+      return lexer_.Error("invalid weight '" + weight_string + "'", err);
+    edge->weight_ = weight;
+  }
+
   edge->outputs_.reserve(outs.size());
   for (size_t i = 0, e = outs.size(); i != e; ++i) {
     string path = outs[i].Evaluate(env);
