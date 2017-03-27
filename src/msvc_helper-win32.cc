@@ -61,7 +61,7 @@ int CLWrapper::Run(const string& command, string* output) {
   STARTUPINFO startup_info = {};
   startup_info.cb = sizeof(STARTUPINFO);
   startup_info.hStdInput = nul;
-  startup_info.hStdError = ::GetStdHandle(STD_ERROR_HANDLE);
+  startup_info.hStdError = stdout_write;
   startup_info.hStdOutput = stdout_write;
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
