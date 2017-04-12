@@ -212,7 +212,8 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use -d list to list modes)\n"
 "  -t TOOL  run a subtool (use -t list to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use -w list to list warnings)\n",
+"  -w FLAG  adjust warnings (use -w list to list warnings)\n"
+"  -c       force using color output\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -1094,6 +1095,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
+        return 0;
+      case 'c':
+        config->force_color_output = true;
         return 0;
       case 'h':
       default:

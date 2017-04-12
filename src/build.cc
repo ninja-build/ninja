@@ -149,9 +149,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
+    if (!printer_.is_smart_terminal() && !config_.force_color_output)
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
