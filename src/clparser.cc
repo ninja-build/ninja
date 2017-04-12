@@ -18,8 +18,11 @@
 #include <assert.h>
 #include <string.h>
 
+#include "metrics.h"
+
 #ifdef _WIN32
 #include "includes_normalize.h"
+#include "string_piece.h"
 #else
 #include "util.h"
 #endif
@@ -72,9 +75,15 @@ bool CLParser::FilterInputFilename(string line) {
 // static
 bool CLParser::Parse(const string& output, const string& deps_prefix,
                      string* filtered_output, string* err) {
+  METRIC_RECORD("CLParser::Parse");
+
   // Loop over all lines in the output to process them.
   assert(&output != filtered_output);
   size_t start = 0;
+#ifdef _WIN32
+  IncludesNormalize normalizer(".");
+#endif
+
   while (start < output.size()) {
     size_t end = output.find_first_of("\r\n", start);
     if (end == string::npos)
@@ -85,7 +94,7 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
     if (!include.empty()) {
       string normalized;
 #ifdef _WIN32
-      if (!IncludesNormalize::Normalize(include, NULL, &normalized, err))
+      if (!normalizer.Normalize(include, &normalized, err))
         return false;
 #else
       // TODO: should this make the path relative to cwd?

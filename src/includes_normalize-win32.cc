@@ -15,6 +15,7 @@
 #include "includes_normalize.h"
 
 #include "string_piece.h"
+#include "string_piece_util.h"
 #include "util.h"
 
 #include <algorithm>
@@ -25,8 +26,45 @@
 
 namespace {
 
-/// Return true if paths a and b are on the same Windows drive.
+bool IsPathSeparator(char c) {
+  return c == '/' ||  c == '\\';
+}
+
+// Return true if paths a and b are on the same windows drive.
+// Return false if this funcation cannot check
+// whether or not on the same windows drive.
+bool SameDriveFast(StringPiece a, StringPiece b) {
+  if (a.size() < 3 || b.size() < 3) {
+    return false;
+  }
+
+  if (!isalpha(a[0]) || !isalpha(b[0])) {
+    return false;
+  }
+
+  if (tolower(a[0]) != tolower(b[0])) {
+    return false;
+  }
+
+  if (a[1] != ':' || b[1] != ':') {
+    return false;
+  }
+
+  if (!IsPathSeparator(a[2]) ||
+      !IsPathSeparator(b[2])) {
+    return false;
+  }
+
+  return true;
+}
+
+// Return true if paths a and b are on the same Windows drive.
 bool SameDrive(StringPiece a, StringPiece b)  {
+  // Fast check.
+  if (SameDriveFast(a, b)) {
+    return true;
+  }
+
   char a_absolute[_MAX_PATH];
   char b_absolute[_MAX_PATH];
   GetFullPathName(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
@@ -38,34 +76,54 @@ bool SameDrive(StringPiece a, StringPiece b)  {
   return _stricmp(a_drive, b_drive) == 0;
 }
 
+bool IsAbsPath(StringPiece s) {
+  if (s.size() < 3 ||
+      !isalpha(s[0]) ||
+      s[1] != ':' ||
+      !IsPathSeparator(s[2])) {
+    return false;
+  }
+
+  // Check "." or ".." is contained in path.
+  for (size_t i = 2; i < s.size(); ++i) {
+    if (!IsPathSeparator(s[i])) {
+      continue;
+    }
+
+    // Check ".".
+    if (i + 1 < s.size() && s[i+1] == '.' &&
+        (i + 2 >= s.size() || IsPathSeparator(s[i+2]))) {
+      return false;
+    }
+
+    // Check "..".
+    if (i + 2 < s.size() && s[i+1] == '.' && s[i+2] == '.' &&
+        (i + 3 >= s.size() || IsPathSeparator(s[i+3]))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // anonymous namespace
 
-string IncludesNormalize::Join(const vector<string>& list, char sep) {
-  string ret;
-  for (size_t i = 0; i < list.size(); ++i) {
-    ret += list[i];
-    if (i != list.size() - 1)
-      ret += sep;
-  }
-  return ret;
-}
-
-vector<string> IncludesNormalize::Split(const string& input, char sep) {
-  vector<string> elems;
-  stringstream ss(input);
-  string item;
-  while (getline(ss, item, sep))
-    elems.push_back(item);
-  return elems;
-}
-
-string IncludesNormalize::ToLower(const string& s) {
-  string ret;
-  transform(s.begin(), s.end(), back_inserter(ret), ::tolower);
-  return ret;
+IncludesNormalize::IncludesNormalize(const string& relative_to) {
+  relative_to_ = AbsPath(relative_to);
+  splitted_relative_to_ = SplitStringPiece(relative_to_, '/');
 }
 
 string IncludesNormalize::AbsPath(StringPiece s) {
+  if (IsAbsPath(s)) {
+    string result = s.AsString();
+    for (size_t i = 0; i < result.size(); ++i) {
+      if (result[i] == '\\') {
+        result[i] = '/';
+      }
+    }
+    return result;
+  }
+
   char result[_MAX_PATH];
   GetFullPathName(s.AsString().c_str(), sizeof(result), result, NULL);
   for (char* c = result; *c; ++c)
@@ -74,28 +132,30 @@ string IncludesNormalize::AbsPath(StringPiece s) {
   return result;
 }
 
-string IncludesNormalize::Relativize(StringPiece path, const string& start) {
-  vector<string> start_list = Split(AbsPath(start), '/');
-  vector<string> path_list = Split(AbsPath(path), '/');
+string IncludesNormalize::Relativize(StringPiece path, const vector<StringPiece>& start_list) {
+  string abs_path = AbsPath(path);
+  vector<StringPiece> path_list = SplitStringPiece(abs_path, '/');
   int i;
   for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size()));
        ++i) {
-    if (ToLower(start_list[i]) != ToLower(path_list[i]))
+    if (!EqualsCaseInsensitiveASCII(start_list[i], path_list[i])) {
       break;
+    }
   }
 
-  vector<string> rel_list;
+  vector<StringPiece> rel_list;
+  rel_list.reserve(start_list.size() - i + path_list.size() - i);
   for (int j = 0; j < static_cast<int>(start_list.size() - i); ++j)
     rel_list.push_back("..");
   for (int j = i; j < static_cast<int>(path_list.size()); ++j)
     rel_list.push_back(path_list[j]);
   if (rel_list.size() == 0)
     return ".";
-  return Join(rel_list, '/');
+  return JoinStringPiece(rel_list, '/');
 }
 
-bool IncludesNormalize::Normalize(const string& input, const char* relative_to,
-                                  string* result, string* err) {
+bool IncludesNormalize::Normalize(const string& input,
+                                  string* result, string* err) const {
   char copy[_MAX_PATH + 1];
   size_t len = input.size();
   if (len > _MAX_PATH) {
@@ -108,15 +168,10 @@ bool IncludesNormalize::Normalize(const string& input, const char* relative_to,
     return false;
   StringPiece partially_fixed(copy, len);
 
-  string curdir;
-  if (!relative_to) {
-    curdir = AbsPath(".");
-    relative_to = curdir.c_str();
-  }
-  if (!SameDrive(partially_fixed, relative_to)) {
+  if (!SameDrive(partially_fixed, relative_to_)) {
     *result = partially_fixed.AsString();
     return true;
   }
-  *result = Relativize(partially_fixed, relative_to);
+  *result = Relativize(partially_fixed, splitted_relative_to_);
   return true;
 }
