@@ -10,6 +10,7 @@ TAGS
 /ninja.bootstrap
 /build_log_perftest
 /canon_perftest
+/clparser_perftest
 /depfile_parser_perftest
 /hash_collision_bench
 /ninja_test
