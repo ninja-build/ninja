@@ -17,7 +17,6 @@
 
 #include "clparser.h"
 #include "metrics.h"
-#include "util.h"
 
 int main(int argc, char* argv[]) {
   // Output of /showIncludes from #include <iostream>
