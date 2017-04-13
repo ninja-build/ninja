@@ -53,7 +53,7 @@ string CLParser::FilterShowIncludes(const string& line,
 
 // static
 bool CLParser::IsSystemInclude(string path) {
-  transform(path.begin(), path.end(), path.begin(), ::tolower);
+  transform(path.begin(), path.end(), path.begin(), [](const char c) { return static_cast<char>(::tolower(c)); });
   // TODO: this is a heuristic, perhaps there's a better way?
   return (path.find("program files") != string::npos ||
           path.find("microsoft visual studio") != string::npos);
@@ -61,7 +61,7 @@ bool CLParser::IsSystemInclude(string path) {
 
 // static
 bool CLParser::FilterInputFilename(string line) {
-  transform(line.begin(), line.end(), line.begin(), ::tolower);
+  transform(line.begin(), line.end(), line.begin(), [](const char c) { return static_cast<char>(::tolower(c)); });
   // TODO: other extensions, like .asm?
   return EndsWith(line, ".c") ||
       EndsWith(line, ".cc") ||
