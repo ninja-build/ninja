@@ -651,6 +651,13 @@ if host.is_linux():
     n.newline()
 
 n.build('all', 'phony', all_targets)
+n.newline()
+
+n.comment('Print all primary targets available.')
+n.rule('help',
+       command='ninja -t targets',
+       description='All primary targets available:')
+n.build('help', 'help')
 
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
