@@ -14,6 +14,8 @@
 
 #ifdef _MSC_VER
 
+asdf
+
 #include <windows.h>
 #include <DbgHelp.h>
 
