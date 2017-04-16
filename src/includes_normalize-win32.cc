@@ -40,7 +40,8 @@ bool SameDrive(StringPiece a, StringPiece b)  {
 
 }  // anonymous namespace
 
-string IncludesNormalize::Join(const vector<string>& list, char sep) {
+namespace IncludesNormalize {
+string Join(const vector<string>& list, char sep) {
   string ret;
   for (size_t i = 0; i < list.size(); ++i) {
     ret += list[i];
@@ -50,7 +51,7 @@ string IncludesNormalize::Join(const vector<string>& list, char sep) {
   return ret;
 }
 
-vector<string> IncludesNormalize::Split(const string& input, char sep) {
+vector<string> Split(const string& input, char sep) {
   vector<string> elems;
   stringstream ss(input);
   string item;
@@ -59,13 +60,13 @@ vector<string> IncludesNormalize::Split(const string& input, char sep) {
   return elems;
 }
 
-string IncludesNormalize::ToLower(const string& s) {
+string ToLower(const string& s) {
   string ret;
   transform(s.begin(), s.end(), back_inserter(ret), ::tolower);
   return ret;
 }
 
-string IncludesNormalize::AbsPath(StringPiece s) {
+string AbsPath(StringPiece s) {
   char result[_MAX_PATH];
   GetFullPathName(s.AsString().c_str(), sizeof(result), result, NULL);
   for (char* c = result; *c; ++c)
@@ -74,7 +75,7 @@ string IncludesNormalize::AbsPath(StringPiece s) {
   return result;
 }
 
-string IncludesNormalize::Relativize(StringPiece path, const string& start) {
+string Relativize(StringPiece path, const string& start) {
   vector<string> start_list = Split(AbsPath(start), '/');
   vector<string> path_list = Split(AbsPath(path), '/');
   int i;
@@ -94,8 +95,8 @@ string IncludesNormalize::Relativize(StringPiece path, const string& start) {
   return Join(rel_list, '/');
 }
 
-bool IncludesNormalize::Normalize(const string& input, const char* relative_to,
-                                  string* result, string* err) {
+bool Normalize(const string& input, const char* relative_to, string* result,
+               string* err) {
   char copy[_MAX_PATH + 1];
   size_t len = input.size();
   if (len > _MAX_PATH) {
@@ -119,4 +120,5 @@ bool IncludesNormalize::Normalize(const string& input, const char* relative_to,
   }
   *result = Relativize(partially_fixed, relative_to);
   return true;
+}
 }
