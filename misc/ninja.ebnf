@@ -1,0 +1,60 @@
+# ninja EBNF grammar for grako https://pypi.python.org/pypi/grako
+
+@@whitespace :: / +/
+@@comments :: /#.*?$/
+@@eol_comments :: /#.*?$/
+whitespace_opt = / */;
+eol = >whitespace_opt /(\n|$)/;
+
+simple_varname = /[a-zA-Z0-9_-]+/;
+varname = /[a-zA-Z0-9_.-]+/;
+
+EXPR = /(\$\n|.)*?$/;
+PATH = /((?<!\$)\$\n|\$ |\$:|[^ :|\n])+/;
+path_once = PATH;
+paths = {@+:PATH >whitespace_opt}*;
+
+assign = assign:varname "=" >whitespace_opt value:EXPR >eol;
+
+SCOPED_VARS = {/  / @+:assign}*;
+
+rule =
+	"rule"
+	rule:varname
+	>eol
+	vars:SCOPED_VARS;
+
+build =
+	"build"
+	targets_explicit:paths
+	[/(?<!\|)\|(?!\|)/ targets_implicit:paths]
+	/:/
+	build:varname
+	inputs_explicit:paths
+	[/(?<!\|)\|(?!\|)/ inputs_implicit:paths]
+	[/\|\|/ inputs_order:paths]
+	>eol
+	vars:SCOPED_VARS;
+
+default =
+	"default"
+	defaults:paths
+	>eol;
+
+pool =
+	"pool"
+	pool:varname
+	>eol
+	vars:SCOPED_VARS;
+
+include =
+	"include"
+	include:path_once
+	>eol;
+
+subninja =
+	"subninja"
+	subninja:path_once
+	>eol;
+
+manifest = {@+:rule | @+:build | @+:default | @+:pool | @+:include | @+:subninja | @+:assign}* $;
