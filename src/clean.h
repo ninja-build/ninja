@@ -36,6 +36,7 @@ struct Cleaner {
   Cleaner(State* state,
           const BuildConfig& config,
           DiskInterface* disk_interface);
+  ~Cleaner();
 
   /// Clean the given @a target and all the file built for it.
   /// @return non-zero if an error occurs.
@@ -101,6 +102,7 @@ struct Cleaner {
   set<Node*> cleaned_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
+  bool own_disk_interface_;
   int status_;
 };
 

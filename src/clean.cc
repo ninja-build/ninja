@@ -29,6 +29,7 @@ Cleaner::Cleaner(State* state, const BuildConfig& config)
     cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(new RealDiskInterface),
+    own_disk_interface_(true),
     status_(0) {
 }
 
@@ -41,7 +42,13 @@ Cleaner::Cleaner(State* state,
     cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
+    own_disk_interface_(false),
     status_(0) {
+}
+
+Cleaner::~Cleaner() {
+  if (own_disk_interface_ && disk_interface_)
+    delete disk_interface_;
 }
 
 int Cleaner::RemoveFile(const string& path) {
