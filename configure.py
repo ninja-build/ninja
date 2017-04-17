@@ -651,6 +651,13 @@ if host.is_linux():
     n.newline()
 
 n.build('all', 'phony', all_targets)
+n.newline()
+
+n.comment('Clean ninja built files.')
+n.rule('clean',
+       command='ninja -t clean',
+       description='Cleaning all built files...')
+n.build('clean', 'clean')
 
 n.close()
 print('wrote %s.' % BUILD_FILENAME)
