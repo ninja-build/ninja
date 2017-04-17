@@ -93,7 +93,7 @@ struct Node {
   void set_id(int id) { id_ = id; }
 
   const vector<Edge*>& out_edges() const { return out_edges_; }
-  void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
+  void AddOutEdge(Edge* edge);
 
   void Dump(const char* prefix="") const;
 

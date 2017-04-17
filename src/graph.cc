@@ -509,3 +509,9 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
   // this node, it will simply set outputs_ready_ to the correct value.
   phony_edge->outputs_ready_ = true;
 }
+
+void Node::AddOutEdge(Edge* edge) {
+    if (find(out_edges_.begin(), out_edges_.end(), edge) != out_edges_.end())
+        return;
+    out_edges_.push_back(edge);
+}
