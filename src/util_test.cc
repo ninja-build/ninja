@@ -406,3 +406,116 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   string elided = ElideMiddle(input, 10);
   EXPECT_EQ("012...789", elided);
 }
+
+TEST(SplitArgv, Empty) {
+  int argc = 0;
+  char* argv[16];
+  SplitArgv("", &argc, argv, 16);
+  EXPECT_EQ(0, argc);
+  EXPECT_EQ(NULL, argv[0]);
+}
+
+TEST(SplitArgv, OnlyWhitespace) {
+  int argc = 0;
+  char* argv[16];
+  SplitArgv("    ", &argc, argv, 16);
+  EXPECT_EQ(0, argc);
+  EXPECT_EQ(NULL, argv[0]);
+}
+
+TEST(SplitArgv, SingleFlags) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("-n");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(1, argc);
+  EXPECT_TRUE(strcmp("-n", argv[0]) == 0);
+  EXPECT_EQ(NULL, argv[1]);
+  free(flags);
+}
+
+TEST(SplitArgv, SingleFlagsSurroundedBySpaces) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("  -n   ");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(1, argc);
+  EXPECT_TRUE(strcmp("-n", argv[0]) == 0);
+  EXPECT_EQ(NULL, argv[1]);
+  free(flags);
+}
+
+TEST(SplitArgv, SingleFlagsWithArgs) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("-k 1000");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(2, argc);
+  EXPECT_TRUE(strcmp("-k", argv[0]) == 0);
+  EXPECT_TRUE(strcmp("1000", argv[1]) == 0);
+  EXPECT_EQ(NULL, argv[2]);
+  free(flags);
+}
+
+TEST(SplitArgv, SingleFlagsWithArgsStuck) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("-k1000");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(1, argc);
+  EXPECT_TRUE(strcmp("-k1000", argv[0]) == 0);
+  EXPECT_EQ(NULL, argv[1]);
+  free(flags);
+}
+
+TEST(SplitArgv, TwoFlagsWithArgsStuck) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("-j10 -k1000");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(2, argc);
+  EXPECT_TRUE(strcmp("-j10", argv[0]) == 0);
+  EXPECT_TRUE(strcmp("-k1000", argv[1]) == 0);
+  EXPECT_EQ(NULL, argv[2]);
+  free(flags);
+}
+
+TEST(SplitArgv, TwoFlagsWithArgsStuckSurroundedBySpaces) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("  -j10 -k1000   ");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(2, argc);
+  EXPECT_TRUE(strcmp("-j10", argv[0]) == 0);
+  EXPECT_TRUE(strcmp("-k1000", argv[1]) == 0);
+  EXPECT_EQ(NULL, argv[2]);
+  free(flags);
+}
+
+TEST(SplitArgv, TwoFlagsWithArgs) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("-j 10 -k 1000");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(4, argc);
+  EXPECT_TRUE(strcmp("-j", argv[0]) == 0);
+  EXPECT_TRUE(strcmp("10", argv[1]) == 0);
+  EXPECT_TRUE(strcmp("-k", argv[2]) == 0);
+  EXPECT_TRUE(strcmp("1000", argv[3]) == 0);
+  EXPECT_EQ(NULL, argv[4]);
+  free(flags);
+}
+
+TEST(SplitArgv, TwoFlagsWithArgsSurroundedBySpaces) {
+  int argc = 0;
+  char* argv[16];
+  char* flags = strdup("  -j 10 -k 1000   ");
+  SplitArgv(flags, &argc, argv, 16);
+  EXPECT_EQ(4, argc);
+  EXPECT_TRUE(strcmp("-j", argv[0]) == 0);
+  EXPECT_TRUE(strcmp("10", argv[1]) == 0);
+  EXPECT_TRUE(strcmp("-k", argv[2]) == 0);
+  EXPECT_TRUE(strcmp("1000", argv[3]) == 0);
+  EXPECT_EQ(NULL, argv[4]);
+  free(flags);
+}

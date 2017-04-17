@@ -633,3 +633,31 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
+void SplitArgv(char* flags, int* argc, char** argv, const int max_argc) {
+  assert(*argc < max_argc - 1);
+  char* start = flags;
+  {
+    char* s = flags;
+    while (true) {
+      while (*s == ' ')
+        ++s;
+      if (*s == '\0')
+        break;
+      start = s;
+      while (*s != '\0' && *s != ' ')
+        ++s;
+      if (*argc >= max_argc - 1)
+        Fatal("more than %d arguments in NINJA_FLAGS", max_argc);
+      argv[*argc] = start;
+      ++*argc;
+      if (*s == '\0')
+        break;
+      else {
+        *s = '\0';
+        ++s;
+      }
+    }
+  }
+  argv[*argc] = NULL;
+}
