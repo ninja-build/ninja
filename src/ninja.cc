@@ -1026,6 +1026,9 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
+  if (getenv("VERBOSE") != NULL) {
+    config->verbosity = BuildConfig::VERBOSE;
+  }
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
