@@ -30,9 +30,17 @@ echo Building..
 mkdir -p %{buildroot}%{_bindir} %{buildroot}%{_docdir}
 cp -p ninja %{buildroot}%{_bindir}/
 
+%post
+ln -fs %_docdir/%name-%version/bash-completion %{_sysconfdir}/bash_completion.d/ninja
+ln -fs %_docdir/%name-%version/ninja.vim %{_datadir}/vim/*/syntax/
+
+%postun
+[ -h %{_datadir}/vim/*/syntax/ninja.vim ] && rm -f %{_datadir}/vim/*/syntax/ninja.vim 
+[ -h %{_sysconfdir}/bash_completion.d/ninja ] && rm -f %{_sysconfdir}/bash_completion.d/ninja
+
 %files
 %defattr(-, root, root)
-%doc COPYING README doc/manual.html
+%doc COPYING README doc/manual.html misc/bash-completion misc/ninja.vim misc/ninja_syntax.py
 %{_bindir}/*
 
 %clean

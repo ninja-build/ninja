@@ -10,7 +10,7 @@ RPMTOPDIR=$GITROOT/rpm-build
 echo "Ver: $VER, Release: $REL"
 
 # Create tarball
-mkdir -p $RPMTOPDIR/{SOURCES,SPECS}
+mkdir -p $RPMTOPDIR/{BUILD,SOURCES,SPECS}
 git archive --format=tar --prefix=ninja-${VER}-${REL}/ HEAD | gzip -c > $RPMTOPDIR/SOURCES/ninja-${VER}-${REL}.tar.gz
 
 # Convert git log to RPM's ChangeLog format (shown with rpm -qp --changelog <rpm file>)
