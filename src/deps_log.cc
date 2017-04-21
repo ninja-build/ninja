@@ -135,7 +135,11 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   int id = node->id();
   if (fwrite(&id, 4, 1, file_) < 1)
     return false;
-  if (fwrite(&mtime, 8, 1, file_) < 1)
+  uint32_t mtime_part = static_cast<uint32_t>(mtime & 0xffffffff);
+  if (fwrite(&mtime_part, 4, 1, file_) < 1)
+    return false;
+  mtime_part = static_cast<uint32_t>((mtime >> 32) & 0xffffffff);
+  if (fwrite(&mtime_part, 4, 1, file_) < 1)
     return false;
   for (int i = 0; i < node_count; ++i) {
     id = nodes[i]->id();
@@ -217,7 +221,9 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
       assert(size % 4 == 0);
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
-      TimeStamp mtime = reinterpret_cast<TimeStamp*>(&deps_data[1])[0];
+      TimeStamp mtime;
+      mtime = (TimeStamp)(((uint64_t)(unsigned int)deps_data[2] << 32) |
+                          (uint64_t)(unsigned int)deps_data[1]);
       deps_data += 3;
       int deps_count = (size / 4) - 3;
 

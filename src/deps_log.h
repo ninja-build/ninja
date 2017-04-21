@@ -57,8 +57,9 @@ struct State;
 ///      one's complement of the expected index of the record (to detect
 ///      concurrent writes of multiple ninja processes to the log).
 ///    dependency records are an array of 4-byte integers
-///      [output path id, output path mtime (8-byte int), input path id,
-///       input path id...]
+///      [output path id,
+///       output path mtime (lower 4 bytes), output path mtime (upper 8 bytes),
+///       input path id, input path id...]
 ///      (The mtime is compared against the on-disk output path mtime
 ///      to verify the stored data is up-to-date.)
 /// If two records reference the same output the latter one in the file
