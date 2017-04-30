@@ -744,7 +744,18 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // XXX: this may also block; do we care?
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
+    const size_t max_rspfile_linelength = 130000;
     string content = edge->GetBinding("rspfile_content");
+    if (content.length() > max_rspfile_linelength) {
+      size_t pos = content.rfind(" ", max_rspfile_linelength);
+      while (pos != string::npos) {
+        content.replace(pos, 1, "\n");
+        pos += max_rspfile_linelength;
+        if (pos > content.length())
+          break;
+        pos = content.rfind(" ", pos);
+      }
+    }
     if (!disk_interface_->WriteFile(rspfile, content))
       return false;
   }
