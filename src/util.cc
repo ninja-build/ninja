@@ -413,7 +413,6 @@ void SetCloseOnExec(int fd) {
 #endif  // ! _WIN32
 }
 
-
 const char* SpellcheckStringV(const string& text,
                               const vector<const char*>& words) {
   const bool kAllowReplacements = true;
@@ -471,7 +470,7 @@ void Win32Fatal(const char* function) {
 }
 #endif
 
-static bool islatinalpha(int c) {
+static bool IsLatinAlpha(int c) {
   // isalpha() is locale-dependent.
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
@@ -493,7 +492,7 @@ string StripAnsiEscapeCodes(const string& in) {
     i += 2;
 
     // Skip everything up to and including the next [a-zA-Z].
-    while (i < in.size() && !islatinalpha(in[i]))
+    while (i < in.size() && !IsLatinAlpha(in[i]))
       ++i;
   }
   return stripped;
@@ -510,8 +509,8 @@ int GetProcessorCount() {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
-{
+static double CalculateProcessorLoad(uint64_t idle_ticks,
+                                     uint64_t total_ticks) {
   static uint64_t previous_idle_ticks = 0;
   static uint64_t previous_total_ticks = 0;
   static double previous_load = -0.0;
@@ -546,8 +545,7 @@ static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
   return load;
 }
 
-static uint64_t FileTimeToTickCount(const FILETIME & ft)
-{
+static uint64_t FileTimeToTickCount(const FILETIME& ft) {
   uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
   uint64_t low  = ft.dwLowDateTime;
   return (high | low);
