@@ -1,0 +1,4 @@
+exclude *.py
+include ninja_syntax.py
+include version.py
+include setup.py

@@ -20,6 +20,11 @@ Release on github:
 1. https://github.com/blog/1547-release-your-software
    Add binaries to https://github.com/ninja-build/ninja/releases
 
+Release on PyPI:
+1. http://peterdowns.com/posts/first-time-with-pypi.html
+2. Navigate to "misc" and execute
+       python setup.py sdist upload -r pypi
+
 Make announcement on mailing list:
 1. copy old mail
 

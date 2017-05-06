@@ -6,6 +6,9 @@
 TAGS
 /build
 /build.ninja
+/misc/MANIFEST
+/misc/version.py
+/misc/dist/
 /ninja
 /ninja.bootstrap
 /build_log_perftest
