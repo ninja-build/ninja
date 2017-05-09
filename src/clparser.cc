@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "metrics.h"
+#include "string_piece_util.h"
 
 #ifdef _WIN32
 #include "includes_normalize.h"
@@ -56,7 +57,7 @@ string CLParser::FilterShowIncludes(const string& line,
 
 // static
 bool CLParser::IsSystemInclude(string path) {
-  transform(path.begin(), path.end(), path.begin(), ::tolower);
+  transform(path.begin(), path.end(), path.begin(), ToLowerASCII);
   // TODO: this is a heuristic, perhaps there's a better way?
   return (path.find("program files") != string::npos ||
           path.find("microsoft visual studio") != string::npos);
@@ -64,7 +65,7 @@ bool CLParser::IsSystemInclude(string path) {
 
 // static
 bool CLParser::FilterInputFilename(string line) {
-  transform(line.begin(), line.end(), line.begin(), ::tolower);
+  transform(line.begin(), line.end(), line.begin(), ToLowerASCII);
   // TODO: other extensions, like .asm?
   return EndsWith(line, ".c") ||
       EndsWith(line, ".cc") ||

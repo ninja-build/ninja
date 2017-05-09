@@ -30,10 +30,10 @@ struct IncludesNormalize {
                            const vector<StringPiece>& start_list);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
-  /// path relative to |relative_to_|.
+  /// path |input| relative to |this->relative_to_| and store to |result|.
   bool Normalize(const string& input, string* result, string* err) const;
 
  private:
   string relative_to_;
-  vector<StringPiece> splitted_relative_to_;
+  vector<StringPiece> split_relative_to_;
 };

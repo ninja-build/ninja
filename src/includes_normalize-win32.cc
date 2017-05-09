@@ -38,11 +38,11 @@ bool SameDriveFast(StringPiece a, StringPiece b) {
     return false;
   }
 
-  if (!isalpha(a[0]) || !isalpha(b[0])) {
+  if (!islatinalpha(a[0]) || !islatinalpha(b[0])) {
     return false;
   }
 
-  if (tolower(a[0]) != tolower(b[0])) {
+  if (ToLowerASCII(a[0]) != ToLowerASCII(b[0])) {
     return false;
   }
 
@@ -50,17 +50,11 @@ bool SameDriveFast(StringPiece a, StringPiece b) {
     return false;
   }
 
-  if (!IsPathSeparator(a[2]) ||
-      !IsPathSeparator(b[2])) {
-    return false;
-  }
-
-  return true;
+  return IsPathSeparator(a[2]) && IsPathSeparator(b[2]);
 }
 
 // Return true if paths a and b are on the same Windows drive.
 bool SameDrive(StringPiece a, StringPiece b)  {
-  // Fast check.
   if (SameDriveFast(a, b)) {
     return true;
   }
@@ -76,9 +70,11 @@ bool SameDrive(StringPiece a, StringPiece b)  {
   return _stricmp(a_drive, b_drive) == 0;
 }
 
-bool IsAbsPath(StringPiece s) {
+// Check path |s| is FullPath style returned by GetFullPathName.
+// This ignores difference of path separator.
+bool IsFullPathName(StringPiece s) {
   if (s.size() < 3 ||
-      !isalpha(s[0]) ||
+      !islatinalpha(s[0]) ||
       s[1] != ':' ||
       !IsPathSeparator(s[2])) {
     return false;
@@ -110,11 +106,11 @@ bool IsAbsPath(StringPiece s) {
 
 IncludesNormalize::IncludesNormalize(const string& relative_to) {
   relative_to_ = AbsPath(relative_to);
-  splitted_relative_to_ = SplitStringPiece(relative_to_, '/');
+  split_relative_to_ = SplitStringPiece(relative_to_, '/');
 }
 
 string IncludesNormalize::AbsPath(StringPiece s) {
-  if (IsAbsPath(s)) {
+  if (IsFullPathName(s)) {
     string result = s.AsString();
     for (size_t i = 0; i < result.size(); ++i) {
       if (result[i] == '\\') {
@@ -132,7 +128,8 @@ string IncludesNormalize::AbsPath(StringPiece s) {
   return result;
 }
 
-string IncludesNormalize::Relativize(StringPiece path, const vector<StringPiece>& start_list) {
+string IncludesNormalize::Relativize(
+    StringPiece path, const vector<StringPiece>& start_list) {
   string abs_path = AbsPath(path);
   vector<StringPiece> path_list = SplitStringPiece(abs_path, '/');
   int i;
@@ -172,6 +169,6 @@ bool IncludesNormalize::Normalize(const string& input,
     *result = partially_fixed.AsString();
     return true;
   }
-  *result = Relativize(partially_fixed, splitted_relative_to_);
+  *result = Relativize(partially_fixed, split_relative_to_);
   return true;
 }
