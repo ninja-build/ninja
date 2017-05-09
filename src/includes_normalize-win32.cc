@@ -72,6 +72,7 @@ bool SameDrive(StringPiece a, StringPiece b)  {
 
 // Check path |s| is FullPath style returned by GetFullPathName.
 // This ignores difference of path separator.
+// This is used not to call very slow GetFullPathName API.
 bool IsFullPathName(StringPiece s) {
   if (s.size() < 3 ||
       !islatinalpha(s[0]) ||
@@ -164,11 +165,12 @@ bool IncludesNormalize::Normalize(const string& input,
   if (!CanonicalizePath(copy, &len, &slash_bits, err))
     return false;
   StringPiece partially_fixed(copy, len);
+  string abs_input = AbsPath(partially_fixed);
 
-  if (!SameDrive(partially_fixed, relative_to_)) {
+  if (!SameDrive(abs_input, relative_to_)) {
     *result = partially_fixed.AsString();
     return true;
   }
-  *result = Relativize(partially_fixed, split_relative_to_);
+  *result = Relativize(abs_input, split_relative_to_);
   return true;
 }
