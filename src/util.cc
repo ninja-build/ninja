@@ -471,7 +471,7 @@ void Win32Fatal(const char* function) {
 }
 #endif
 
-static bool islatinalpha(int c) {
+bool islatinalpha(int c) {
   // isalpha() is locale-dependent.
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }

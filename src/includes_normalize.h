@@ -21,15 +21,19 @@ struct StringPiece;
 /// Utility functions for normalizing include paths on Windows.
 /// TODO: this likely duplicates functionality of CanonicalizePath; refactor.
 struct IncludesNormalize {
+  /// Normalize path relative to |relative_to|.
+  IncludesNormalize(const string& relative_to);
+
   // Internal utilities made available for testing, maybe useful otherwise.
-  static string Join(const vector<string>& list, char sep);
-  static vector<string> Split(const string& input, char sep);
-  static string ToLower(const string& s);
   static string AbsPath(StringPiece s);
-  static string Relativize(StringPiece path, const string& start);
+  static string Relativize(StringPiece path,
+                           const vector<StringPiece>& start_list);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
-  /// path relative to |relative_to|.
-  static bool Normalize(const string& input, const char* relative_to,
-                        string* result, string* err);
+  /// path |input| relative to |this->relative_to_| and store to |result|.
+  bool Normalize(const string& input, string* result, string* err) const;
+
+ private:
+  string relative_to_;
+  vector<StringPiece> split_relative_to_;
 };

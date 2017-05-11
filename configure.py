@@ -489,6 +489,7 @@ for name in ['build',
              'manifest_parser',
              'metrics',
              'state',
+             'string_piece_util',
              'util',
              'version']:
     objs += cxx(name)
@@ -551,6 +552,7 @@ for name in ['build_log_test',
              'manifest_parser_test',
              'ninja_test',
              'state_test',
+             'string_piece_util_test',
              'subprocess_test',
              'test',
              'util_test']:
