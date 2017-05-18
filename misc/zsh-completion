@@ -22,7 +22,12 @@ __get_targets() {
   then
     eval dir="${opt_args[-C]}"
   fi
-  targets_command="ninja -C \"${dir}\" -t targets all"
+  file="build.ninja"
+  if [ -n "${opt_args[-f]}" ];
+  then
+    eval file="${opt_args[-f]}"
+  fi
+  targets_command="ninja -f \"${file}\" -C \"${dir}\" -t targets all"
   eval ${targets_command} 2>/dev/null | cut -d: -f1
 }
 
