@@ -168,7 +168,7 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     bool used_restat = false;
     if (edge->GetBindingBool("restat") && build_log() &&
         (entry = build_log()->LookupByOutput(output->path()))) {
-      output_mtime = entry->restat_mtime;
+      output_mtime = entry->mtime;
       used_restat = true;
     }
 
@@ -182,17 +182,29 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     }
   }
 
-  // May also be dirty due to the command changing since the last build.
-  // But if this is a generator rule, the command changing does not make us
-  // dirty.
-  if (!edge->GetBindingBool("generator") && build_log()) {
+  if (build_log()) {
+    bool generator = edge->GetBindingBool("generator");
     if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
-      if (BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
+      if (!generator &&
+          BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
+        // May also be dirty due to the command changing since the last build.
+        // But if this is a generator rule, the command changing does not make us
+        // dirty.
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
+      if (entry->mtime < most_recent_input->mtime()) {
+        // May also be dirty due to the mtime in the log being older than the
+        // mtime of the most recent input.  This can occur even when the mtime
+        // on disk is newer if a previous run wrote to the output file but
+        // exited with an error or was interrupted.
+        EXPLAIN("recorded mtime of %s older than most recent input %s (%d vs %d)",
+                output->path().c_str(), most_recent_input->path().c_str(),
+                entry->mtime, most_recent_input->mtime());
+        return true;
+      }
     }
-    if (!entry) {
+    if (!entry && !generator) {
       EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }

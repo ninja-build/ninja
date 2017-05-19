@@ -1485,7 +1485,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // the right mtime
   BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 
   // Now remove a file, referenced from depfile, so that target becomes
   // dirty, but the output does not change
@@ -1502,7 +1502,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // Check that the logfile entry remains correctly set
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 }
 
 struct BuildDryRun : public BuildWithLogTest {
