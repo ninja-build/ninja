@@ -275,6 +275,13 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
+void Plan::Reset() {
+  command_edges_ = 0;
+  wanted_edges_ = 0;
+  ready_.clear();
+  want_.clear();
+}
+
 bool Plan::AddTarget(Node* node, string* err) {
   vector<Node*> stack;
   return AddSubTarget(node, &stack, err);
