@@ -28,7 +28,6 @@
 #include "util.h"
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  METRIC_RECORD("node stat");
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
 
