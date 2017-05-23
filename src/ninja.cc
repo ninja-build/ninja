@@ -218,6 +218,14 @@ void Usage(const BuildConfig& config) {
 
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
+  const char* env_parallel = getenv("NINJA_PARALLELISM");
+  if (env_parallel) {
+    char* end;
+    int value = strtol(env_parallel, &end, 10);
+    if (*end != 0 || value <= 0)
+      Fatal("invalid NINJA_PARALLELISM value");
+    return value;
+  }
   switch (int processors = GetProcessorCount()) {
   case 0:
   case 1:
