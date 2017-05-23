@@ -45,9 +45,9 @@
 
 namespace {
 
-const char kFileSignature[] = "# ninja log v%d\n";
+const char kLogFileSignature[] = "# ninja log v%d\n";
 const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kLogCurrentVersion = 5;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
@@ -135,7 +135,7 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
   fseek(log_file_, 0, SEEK_END);
 
   if (ftell(log_file_) == 0) {
-    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
+    if (fprintf(log_file_, kLogFileSignature, kLogCurrentVersion) < 0) {
       *err = strerror(errno);
       return false;
     }
@@ -248,7 +248,7 @@ bool BuildLog::Load(const string& path, string* err) {
   char* line_end = 0;
   while (reader.ReadLine(&line_start, &line_end)) {
     if (!log_version) {
-      sscanf(line_start, kFileSignature, &log_version);
+      sscanf(line_start, kLogFileSignature, &log_version);
 
       if (log_version < kOldestSupportedVersion) {
         *err = ("build log version invalid, perhaps due to being too old; "
@@ -335,7 +335,7 @@ bool BuildLog::Load(const string& path, string* err) {
   // - if it's getting large
   int kMinCompactionEntryCount = 100;
   int kCompactionRatio = 3;
-  if (log_version < kCurrentVersion) {
+  if (log_version < kLogCurrentVersion) {
     needs_recompaction_ = true;
   } else if (total_entry_count > kMinCompactionEntryCount &&
              total_entry_count > unique_entry_count * kCompactionRatio) {
@@ -370,7 +370,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     return false;
   }
 
-  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
+  if (fprintf(f, kLogFileSignature, kLogCurrentVersion) < 0) {
     *err = strerror(errno);
     fclose(f);
     return false;

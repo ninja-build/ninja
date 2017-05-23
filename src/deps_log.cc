@@ -29,8 +29,8 @@
 
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
-const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 3;
+const char kDepsFileSignature[] = "# ninjadeps\n";
+const int kDepsCurrentVersion = 3;
 
 // Record size is currently limited to less than the full 32 bit, due to
 // internal buffers having to have this size.
@@ -45,7 +45,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     if (!Recompact(path, err))
       return false;
   }
-  
+
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -61,11 +61,12 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
   fseek(file_, 0, SEEK_END);
 
   if (ftell(file_) == 0) {
-    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, file_) < 1) {
+    if (fwrite(kDepsFileSignature, sizeof(kDepsFileSignature) - 1, 1, file_) <
+        1) {
       *err = strerror(errno);
       return false;
     }
-    if (fwrite(&kCurrentVersion, 4, 1, file_) < 1) {
+    if (fwrite(&kDepsCurrentVersion, 4, 1, file_) < 1) {
       *err = strerror(errno);
       return false;
     }
@@ -180,8 +181,8 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
   // But the v1 format could sometimes (rarely) end up with invalid data, so
   // don't migrate v1 to v3 to force a rebuild. (v2 only existed for a few days,
   // and there was no release with it, so pretend that it never happened.)
-  if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
-      version != kCurrentVersion) {
+  if (!valid_header || strcmp(buf, kDepsFileSignature) != 0 ||
+      version != kDepsCurrentVersion) {
     if (version == 1)
       *err = "deps log version change; rebuilding";
     else
