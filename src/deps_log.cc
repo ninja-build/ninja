@@ -53,7 +53,9 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
   }
   // Set the buffer size to this and flush the file buffer after every record
   // to make sure records aren't written partially.
-  setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1);
+  if (setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1) != 0) {
+    Fatal("file %s buffer-size setup failed.", path.c_str());
+  }
   SetCloseOnExec(fileno(file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
