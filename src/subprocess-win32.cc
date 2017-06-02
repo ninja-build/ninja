@@ -102,7 +102,9 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   memset(&process_info, 0, sizeof(process_info));
 
   // Ninja handles ctrl-c, except for subprocesses in console pools.
-  DWORD process_flags = use_console_ ? 0 : CREATE_NEW_PROCESS_GROUP;
+  // Use DETACHED_PROCESS when possible to work around Windows bug:
+  // https://github.com/ninja-build/ninja/issues/1283
+  DWORD process_flags = use_console_ ? DETACHED_PROCESS : CREATE_NEW_PROCESS_GROUP;
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
