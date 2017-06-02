@@ -65,8 +65,10 @@ int CLWrapper::Run(const string& command, string* output) {
   startup_info.hStdOutput = stdout_write;
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
+  // Use DETACHED_PROCESS when possible to work around Windows bug:
+  // https://github.com/ninja-build/ninja/issues/1283
   if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
-                      /* inherit handles */ TRUE, 0,
+                      /* inherit handles */ TRUE, DETACHED_PROCESS,
                       env_block_, NULL,
                       &startup_info, &process_info)) {
     Win32Fatal("CreateProcess");
