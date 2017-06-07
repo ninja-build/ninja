@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <script src='view.json'></script>
+        <script type="text/javascript" src="canvas2svg.js"></script>
+        <script type="text/javascript">
+            function drawShape()
+            {
+                var canvas = document.getElementById('canvas');
+                
+                if (canvas.getContext){
+                
+                var ctx = canvas.getContext("2d");
+                var svg = document.getElementById("svg");
+                
+                var max_w = 0;
+                var max_h = (data.length + 1) * 16;
+                for (var i = 0; i < data.length; ++i) {
+                    if (data[i].end > max_w)
+                    {
+                        max_w = data[i].end;
+                    }
+                }
+                
+                var c2s = new C2S(max_w / 8 + 314, max_h);
+                
+                c2s.fillStyle    = '#ff0000';
+                c2s.font = '14px Courier';
+                c2s.textBaseline = 'Top';
+                c2s.fillText(max_w +' ms = ' + Math.round(max_w / 60 + 1) + ' sec ~ ' + Math.round(max_w / (60.0*60.0) + 1) + ' min: ' + data[data.length - 1].target, max_w / 8, (data.length + 1)*16 - 4);
+                
+                for (var i = 0; i < data.length; ++i) {
+                    var cmd = data[i];
+                
+                    c2s.fillStyle    = '#000';
+                    c2s.fillRect(cmd.start/8, i*16, (cmd.end-cmd.start)/8, 16);
+                
+                    c2s.fillStyle    = '#ff0000';
+                    c2s.font = '14px Courier';
+                    c2s.textBaseline = 'Top';
+                    c2s.fillText((cmd.end - cmd.start) +' ms: ' + cmd.target, cmd.start/8, (i+1)*16 - 4);
+                }
+                
+                
+                svg.appendChild(c2s.getSvg());
+                
+                } 
+                else 
+                {
+                    alert('You need Safari or Firefox 1.5+ to see this demo.');
+                }
+            }
+        </script>
+    </head>
+    <body onload="drawShape();">
+        <div> build map: </div>
+        <canvas id="canvas"  width="1" height="1" ></canvas>
+        <div id="svg"/>
+    </body>
+</html>
