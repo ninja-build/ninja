@@ -40,7 +40,8 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command,
+                       int extra_fd) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -59,6 +60,11 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   if (posix_spawn_file_actions_addclose(&action, output_pipe[0]) != 0)
     Fatal("posix_spawn_file_actions_addclose: %s", strerror(errno));
+
+  if (extra_fd >= 0) {
+    if (posix_spawn_file_actions_adddup2(&action, extra_fd, 3) != 0)
+      Fatal("posix_spawn_file_actions_adddup2: %s", strerror(errno));
+  }
 
   posix_spawnattr_t attr;
   if (posix_spawnattr_init(&attr) != 0)
@@ -208,9 +214,10 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+Subprocess *SubprocessSet::Add(const string& command, bool use_console,
+                               int extra_fd) {
   Subprocess *subprocess = new Subprocess(use_console);
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, extra_fd)) {
     delete subprocess;
     return 0;
   }
