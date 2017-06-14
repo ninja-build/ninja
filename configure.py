@@ -60,11 +60,14 @@ class Platform(object):
             self._platform = 'netbsd'
         elif self._platform.startswith('aix'):
             self._platform = 'aix'
+        elif self._platform.startswith('dragonfly'):
+            self._platform = 'dragonfly'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
-              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix']
+              'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
+              'dragonfly']
 
     def platform(self):
         return self._platform
@@ -95,10 +98,11 @@ class Platform(object):
         return self._platform == 'aix'
 
     def uses_usr_local(self):
-        return self._platform in ('freebsd', 'openbsd', 'bitrig')
+        return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly')
 
     def supports_ppoll(self):
-        return self._platform in ('freebsd', 'linux', 'openbsd', 'bitrig')
+        return self._platform in ('freebsd', 'linux', 'openbsd', 'bitrig',
+                                  'dragonfly')
 
     def supports_ninja_browse(self):
         return (not self.is_windows()
