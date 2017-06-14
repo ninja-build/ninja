@@ -20,6 +20,11 @@
 #include <stdlib.h>
 #include <functional>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
 #endif
@@ -155,7 +160,17 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
+
+#ifdef _WIN32
+    // Fix extra CR being added on Windows, writing out CR CR LF (#773)
+    _setmode(_fileno(stdout), _O_BINARY);  // Begin Windows extra CR fix
+#endif
+
     printer_.PrintOnNewLine(final_output);
+
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
+#endif
   }
 }
 
