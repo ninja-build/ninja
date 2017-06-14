@@ -18,20 +18,6 @@
 
 #include "util.h"
 
-namespace {
-
-string Replace(const string& input, const string& find, const string& replace) {
-  string result = input;
-  size_t start_pos = 0;
-  while ((start_pos = result.find(find, start_pos)) != string::npos) {
-    result.replace(start_pos, find.length(), replace);
-    start_pos += replace.length();
-  }
-  return result;
-}
-
-}  // anonymous namespace
-
 string EscapeForDepfile(const string& path) {
   // Depfiles don't escape single \.
   return Replace(path, " ", "\\ ");

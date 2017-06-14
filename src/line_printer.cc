@@ -115,10 +115,17 @@ void LinePrinter::PrintOnNewLine(const string& to_print) {
   if (!have_blank_line_) {
     PrintOrBuffer("\n", 1);
   }
-  if (!to_print.empty()) {
-    PrintOrBuffer(&to_print[0], to_print.size());
+
+  // Universal newline conversion to prevent CR CR LF issue (#773)
+  // on Windows.  When we do fwrite(), any \n will be automatically
+  // converted to \r\n by the C standard library on Windows, so
+  // remove any extra \r characters.
+  const string text_to_print(Replace(to_print, "\r\n", "\n"));
+
+  if (!text_to_print.empty()) {
+    PrintOrBuffer(&text_to_print[0], text_to_print.size());
   }
-  have_blank_line_ = to_print.empty() || *to_print.rbegin() == '\n';
+  have_blank_line_ = text_to_print.empty() || *text_to_print.rbegin() == '\n';
 }
 
 void LinePrinter::SetConsoleLocked(bool locked) {
