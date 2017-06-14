@@ -28,6 +28,7 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "metrics.h"
 #include "util.h"
 
 namespace {
@@ -148,6 +149,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 // RealDiskInterface -----------------------------------------------------------
 
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+  METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx

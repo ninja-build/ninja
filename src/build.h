@@ -71,6 +71,9 @@ struct Plan {
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
 
+  /// Reset state.  Clears want and ready sets.
+  void Reset();
+
 private:
   bool AddSubTarget(Node* node, vector<Node*>* stack, string* err);
   bool CheckDependencyCycle(Node* node, const vector<Node*>& stack,

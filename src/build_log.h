@@ -45,7 +45,7 @@ struct BuildLog {
 
   bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp restat_mtime = 0);
+                     TimeStamp mtime = 0);
   void Close();
 
   /// Load the on-disk log.
@@ -56,7 +56,7 @@ struct BuildLog {
     uint64_t command_hash;
     int start_time;
     int end_time;
-    TimeStamp restat_mtime;
+    TimeStamp mtime;
 
     static uint64_t HashCommand(StringPiece command);
 
@@ -64,7 +64,7 @@ struct BuildLog {
     bool operator==(const LogEntry& o) {
       return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
-          restat_mtime == o.restat_mtime;
+          mtime == o.mtime;
     }
 
     explicit LogEntry(const string& output);

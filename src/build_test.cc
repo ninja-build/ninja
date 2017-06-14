@@ -608,7 +608,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "cat_rsp_out" ||
       edge->rule().name() == "cc" ||
       edge->rule().name() == "touch" ||
-      edge->rule().name() == "touch-interrupt") {
+      edge->rule().name() == "touch-interrupt" ||
+      edge->rule().name() == "touch-fail-tick2") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
@@ -649,7 +650,8 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     return true;
   }
 
-  if (edge->rule().name() == "fail")
+  if (edge->rule().name() == "fail" ||
+      (edge->rule().name() == "touch-fail-tick2" && fs_->now_ == 2))
     result->status = ExitFailure;
   else
     result->status = ExitSuccess;
@@ -1258,6 +1260,51 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
+TEST_F(BuildWithLogTest, RebuildAfterFailure) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch-fail-tick2\n"
+"  command = touch-fail-tick2\n"
+"build out1: touch-fail-tick2 in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  // Run once successfully to get out1 in the log
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  // Run again with a failure that updates the output file timestamp
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  fs_.Tick();
+
+  // Run again, should rerun even though the output file is up to date on disk
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("", err);
+}
+
 TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule true\n"
@@ -1438,7 +1485,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // the right mtime
   BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 
   // Now remove a file, referenced from depfile, so that target becomes
   // dirty, but the output does not change
@@ -1455,7 +1502,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // Check that the logfile entry remains correctly set
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 }
 
 struct BuildDryRun : public BuildWithLogTest {
