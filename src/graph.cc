@@ -193,7 +193,7 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
-      if (entry->mtime < most_recent_input->mtime()) {
+      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
         // May also be dirty due to the mtime in the log being older than the
         // mtime of the most recent input.  This can occur even when the mtime
         // on disk is newer if a previous run wrote to the output file but
