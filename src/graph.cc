@@ -28,7 +28,14 @@
 #include "util.h"
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  StatResult result;
+  if (!disk_interface->Stat(path_, &result, err))
+    return false;
+
+  status_known_ = true;
+  exists_ = result.exists;
+  mtime_ = result.mtime;
+  return true;
 }
 
 bool DependencyScan::RecomputeDirty(Edge* edge, string* err) {

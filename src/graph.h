@@ -37,8 +37,10 @@ struct Node {
   Node(const string& path, uint64_t slash_bits)
       : path_(path),
         slash_bits_(slash_bits),
-        mtime_(-1),
+        mtime_(0),
+        status_known_(false),
         dirty_(false),
+        exists_(false),
         in_edge_(NULL),
         id_(-1) {}
 
@@ -54,22 +56,27 @@ struct Node {
 
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
-    mtime_ = -1;
+    status_known_ = false;
     dirty_ = false;
+    exists_ = false;
+    mtime_ = 0;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    status_known_ = true;
+    exists_ = false;
   }
 
-  bool exists() const {
-    return mtime_ != 0;
+  /// Mark the Node as already-stat()ed and dirty.
+  void MarkDirty() {
+    status_known_ = true;
+    dirty_ = true;
   }
 
-  bool status_known() const {
-    return mtime_ != -1;
-  }
+  bool exists() const { return exists_; }
+
+  bool status_known() const { return status_known_; }
 
   const string& path() const { return path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
@@ -84,7 +91,6 @@ struct Node {
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
-  void MarkDirty() { dirty_ = true; }
 
   Edge* in_edge() const { return in_edge_; }
   void set_in_edge(Edge* edge) { in_edge_ = edge; }
@@ -104,16 +110,19 @@ private:
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
   uint64_t slash_bits_;
 
-  /// Possible values of mtime_:
-  ///   -1: file hasn't been examined
-  ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
+  /// The file's mtime
   TimeStamp mtime_;
+
+  /// Status is unknown until a stat has been performed on the file
+  bool status_known_:1;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
   /// edges to build.
-  bool dirty_;
+  bool dirty_:1;
+
+  /// Whether the file exists
+  bool exists_:1;
 
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
