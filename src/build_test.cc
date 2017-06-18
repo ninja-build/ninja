@@ -1305,6 +1305,37 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch\n"
+"build out1: touch\n"
+"build out2: touch in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  fs_.Tick();
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule true\n"
