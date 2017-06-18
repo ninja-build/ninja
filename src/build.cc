@@ -616,10 +616,11 @@ void Builder::Cleanup() {
         // mentioned in a depfile, and the command touches its depfile
         // but is interrupted before it touches its output file.)
         string err;
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
-        if (new_mtime == -1)  // Log and ignore Stat() errors.
+        StatResult stat_result = { -1, false };
+        if (!disk_interface_->Stat((*o)->path(), &stat_result, &err))
+          // Log and ignore Stat() errors.
           Error("%s", err.c_str());
-        if (!depfile.empty() || (*o)->mtime() != new_mtime)
+        if (!depfile.empty() || (*o)->mtime() != stat_result.mtime)
           disk_interface_->RemoveFile((*o)->path());
       }
       if (!depfile.empty())
@@ -823,12 +824,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
     for (vector<Node*>::iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
-      TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
-      if (new_mtime == -1)
+
+      StatResult new_stat;
+      if (!disk_interface_->Stat((*o)->path(), &new_stat, err))
         return false;
-      if (new_mtime > output_mtime)
-        output_mtime = new_mtime;
-      if ((*o)->mtime() == new_mtime && restat) {
+      if (new_stat.mtime > output_mtime)
+        output_mtime = new_stat.mtime;
+
+      if (((*o)->mtime() == new_stat.mtime) && restat) {
         // The rule command did not change the output.  Propagate the clean
         // state through the build graph.
         // Note that this also applies to nonexistent outputs (mtime == 0).
@@ -844,20 +847,20 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       // (existing) non-order-only input or the depfile.
       for (vector<Node*>::iterator i = edge->inputs_.begin();
            i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-        TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
-        if (input_mtime == -1)
+        StatResult input_stat;
+        if (!disk_interface_->Stat((*i)->path(), &input_stat, err))
           return false;
-        if (input_mtime > restat_mtime)
-          restat_mtime = input_mtime;
+        if (input_stat.mtime > restat_mtime)
+          restat_mtime = input_stat.mtime;
       }
 
       string depfile = edge->GetUnescapedDepfile();
       if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
-        TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
-        if (depfile_mtime == -1)
+        StatResult depfile_stat;
+        if (!disk_interface_->Stat(depfile, &depfile_stat, err))
           return false;
-        if (depfile_mtime > restat_mtime)
-          restat_mtime = depfile_mtime;
+        if (depfile_stat.mtime > restat_mtime)
+          restat_mtime = depfile_stat.mtime;
       }
 
       // The total number of edges in the plan may have changed as a result
@@ -886,10 +889,10 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   if (!deps_type.empty() && !config_.dry_run) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
-    TimeStamp deps_mtime = disk_interface_->Stat(out->path(), err);
-    if (deps_mtime == -1)
+    StatResult deps_stat;
+    if (!disk_interface_->Stat(out->path(), &deps_stat, err))
       return false;
-    if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
+    if (!scan_.deps_log()->RecordDeps(out, deps_stat.mtime, deps_nodes)) {
       *err = string("Error writing to deps log: ") + strerror(errno);
       return false;
     }
