@@ -39,14 +39,21 @@ struct FileReader {
                           string* err) = 0;
 };
 
+/// The normalized results of a disk stat, only the parts
+/// that we care about
+struct StatResult {
+  TimeStamp mtime;
+  bool exists;
+};
+
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
 struct DiskInterface: public FileReader {
-  /// stat() a file, returning the mtime, or 0 if missing and -1 on
-  /// other errors.
-  virtual TimeStamp Stat(const string& path, string* err) const = 0;
+  /// stat() a file, filling in the passed StatResult
+  /// returns false on error
+  virtual bool Stat(const string& path, StatResult* result, string* err) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const string& path) = 0;
@@ -75,7 +82,7 @@ struct RealDiskInterface : public DiskInterface {
 #endif
                       {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const string& path, string* err) const;
+  virtual bool Stat(const string& path, StatResult* result, string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual Status ReadFile(const string& path, string* contents, string* err);

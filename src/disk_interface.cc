@@ -69,16 +69,22 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime;
 }
 
-TimeStamp StatSingleFile(const string& path, string* err) {
+TimeStamp StatSingleFile(const string& path, StatResult* result, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
-      return 0;
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
+      result->mtime = 0
+      result->exists = false
+      return true;
+    }
     *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
-    return -1;
+    return false;
   }
-  return TimeStampFromFileTime(attrs.ftLastWriteTime);
+
+  result->mtime = TimeStampFromFileTime(attrs.ftLastWriteTime);
+  result->exists = true
+  return true
 }
 
 bool IsWindows7OrLater() {
@@ -131,12 +137,13 @@ bool DiskInterface::MakeDirs(const string& path) {
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   string err;
-  TimeStamp mtime = Stat(dir, &err);
-  if (mtime < 0) {
+  StatResult result;
+  if (!Stat(dir, &result, &err)) {
     Error("%s", err.c_str());
     return false;
   }
-  if (mtime > 0)
+
+  if (result.exists)
     return true;  // Exists already; we're done.
 
   // Directory doesn't exist.  Try creating its parent first.
@@ -148,7 +155,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+bool RealDiskInterface::Stat(const string& path, StatResult* result, string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
@@ -158,10 +165,10 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
                << " characters";
     *err = err_stream.str();
-    return -1;
+    return false;
   }
   if (!use_cache_)
-    return StatSingleFile(path, err);
+    return StatSingleFile(path, result, err);
 
   string dir = DirName(path);
   string base(path.substr(dir.size() ? dir.size() + 1 : 0));
@@ -174,20 +181,32 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     ci = cache_.insert(make_pair(dir, DirCache())).first;
     if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
       cache_.erase(ci);
-      return -1;
+      return false;
     }
   }
   DirCache::iterator di = ci->second.find(base);
-  return di != ci->second.end() ? di->second : 0;
+  if (di != ci->second.end()) {
+    result->exists = true;
+    result->mtime = di->second;
+  } else {
+    result->exists = false;
+    result->mtime = 0;
+  }
+  return true;
 #else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT || errno == ENOTDIR)
-      return 0;
+    if (errno == ENOENT || errno == ENOTDIR) {
+      result->exists = false;
+      result->mtime = 0;
+      return true;
+    }
     *err = "stat(" + path + "): " + strerror(errno);
-    return -1;
+    return false;
   }
-  return st.st_mtime;
+  result->exists = true;
+  result->mtime = st.st_mtime;
+  return true;
 #endif
 }
 
