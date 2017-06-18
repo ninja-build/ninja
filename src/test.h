@@ -77,6 +77,28 @@ extern testing::Test* g_current_test;
 #define EXPECT_FALSE(a) \
   g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
 
+#define EXPECT_STAT(disk, path, _success, _exists)    \
+  do {                                                \
+    string errstr;                                    \
+    StatResult result;                                \
+    bool success = disk.Stat(path, &result, &errstr); \
+    g_current_test->Check(success == _success,        \
+			  __FILE__, __LINE__,         \
+			  "success == " #_success);   \
+    if (_success) {                                   \
+      EXPECT_EQ("", errstr);                          \
+      g_current_test->Check(result.exists == _exists, \
+			    __FILE__, __LINE__,       \
+			    "exists == " #_exists);   \
+    } else {                                          \
+      EXPECT_NE("", errstr);                          \
+    }                                                 \
+  } while (0)
+#define EXPECT_STAT_EXISTS(di, path, exists) \
+  EXPECT_STAT(di, path, true, exists)
+#define EXPECT_STAT_ERR(di, path) \
+  EXPECT_STAT(di, path, false, false)
+
 #define ASSERT_EQ(a, b) \
   if (!EXPECT_EQ(a, b)) { g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_NE(a, b) \
@@ -142,7 +164,7 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path, string* err) const;
+  virtual bool Stat(const string& path, StatResult* result, string* err) const;
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual Status ReadFile(const string& path, string* contents, string* err);

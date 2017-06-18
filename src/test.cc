@@ -146,13 +146,23 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
+bool VirtualFileSystem::Stat(const string& path, StatResult* result, string* err) const {
   FileMap::const_iterator i = files_.find(path);
+
+  *err = "";
+
   if (i != files_.end()) {
-    *err = i->second.stat_error;
-    return i->second.mtime;
+    if (i->second.mtime < 0) {
+      *err = i->second.stat_error;
+      return false;
+    }
+    result->mtime = i->second.mtime;
+    result->exists = true;
+    return true;
   }
-  return 0;
+  result->mtime = 0;
+  result->exists = false;
+  return true;
 }
 
 bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {

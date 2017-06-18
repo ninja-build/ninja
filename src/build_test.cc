@@ -1732,8 +1732,8 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_GT(fs_.Stat("out1", &err), 0);
-  err = "";
+
+  EXPECT_STAT_EXISTS(fs_, "out1", true);
 
   // A touched output of an interrupted command should be deleted.
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
@@ -1741,7 +1741,8 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+
+  EXPECT_STAT_EXISTS(fs_, "out2", false);
 }
 
 TEST_F(BuildTest, StatFailureAbortsBuild) {
@@ -1885,7 +1886,8 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     EXPECT_EQ("", err);
 
     // The deps file should have been removed.
-    EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+    EXPECT_STAT_EXISTS(fs_, "in1.d", false);
+
     // Recreate it for the next step.
     fs_.Create("in1.d", "out: in2");
     deps_log.Close();
@@ -1965,7 +1967,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
   fs_.Create("out", "");
 
   // The deps file should have been removed, so no need to timestamp it.
-  EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1.d", false);
 
   {
     State state;

@@ -44,11 +44,10 @@ TEST_F(CleanTest, CleanAll) {
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", false);
+  EXPECT_STAT_EXISTS(fs_, "out1", false);
+  EXPECT_STAT_EXISTS(fs_, "in2", false);
+  EXPECT_STAT_EXISTS(fs_, "out2", false);
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -76,11 +75,10 @@ TEST_F(CleanTest, CleanAllDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", true);
+  EXPECT_STAT_EXISTS(fs_, "out1", true);
+  EXPECT_STAT_EXISTS(fs_, "in2", true);
+  EXPECT_STAT_EXISTS(fs_, "out2", true);
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -107,11 +105,10 @@ TEST_F(CleanTest, CleanTarget) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", false);
+  EXPECT_STAT_EXISTS(fs_, "out1", false);
+  EXPECT_STAT_EXISTS(fs_, "in2", true);
+  EXPECT_STAT_EXISTS(fs_, "out2", true);
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -139,11 +136,10 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", true);
+  EXPECT_STAT_EXISTS(fs_, "out1", true);
+  EXPECT_STAT_EXISTS(fs_, "in2", true);
+  EXPECT_STAT_EXISTS(fs_, "out2", true);
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -172,11 +168,10 @@ TEST_F(CleanTest, CleanRule) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", false);
+  EXPECT_STAT_EXISTS(fs_, "out1", true);
+  EXPECT_STAT_EXISTS(fs_, "in2", false);
+  EXPECT_STAT_EXISTS(fs_, "out2", true);
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -206,11 +201,10 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", true);
+  EXPECT_STAT_EXISTS(fs_, "out1", true);
+  EXPECT_STAT_EXISTS(fs_, "in2", true);
+  EXPECT_STAT_EXISTS(fs_, "out2", true);
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -334,13 +328,12 @@ TEST_F(CleanTest, CleanRsp) {
   EXPECT_EQ(6u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
-  EXPECT_EQ(0, fs_.Stat("in2.rsp", &err));
-  EXPECT_EQ(0, fs_.Stat("out2.rsp", &err));
+  EXPECT_STAT_EXISTS(fs_, "in1", false);
+  EXPECT_STAT_EXISTS(fs_, "out1", false);
+  EXPECT_STAT_EXISTS(fs_, "in2", false);
+  EXPECT_STAT_EXISTS(fs_, "out2", false);
+  EXPECT_STAT_EXISTS(fs_, "in2.rsp", false);
+  EXPECT_STAT_EXISTS(fs_, "out2.rsp", false);
 }
 
 TEST_F(CleanTest, CleanFailure) {
@@ -352,7 +345,6 @@ TEST_F(CleanTest, CleanFailure) {
 }
 
 TEST_F(CleanTest, CleanPhony) {
-  string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build phony: phony t1 t2\n"
 "build t1: cat\n"
@@ -366,7 +358,7 @@ TEST_F(CleanTest, CleanPhony) {
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_STAT_EXISTS(fs_, "phony", true);
 
   fs_.Create("t1", "");
   fs_.Create("t2", "");
@@ -374,7 +366,7 @@ TEST_F(CleanTest, CleanPhony) {
   // Check that CleanTarget does not remove "phony".
   EXPECT_EQ(0, cleaner.CleanTarget("phony"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_STAT_EXISTS(fs_, "phony", true);
 }
 
 TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
@@ -399,9 +391,8 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(4, cleaner.cleaned_files_count());
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
-  string err;
-  EXPECT_EQ(0, fs_.Stat("out 1", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2", &err));
-  EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2.rsp", &err));
+  EXPECT_STAT_EXISTS(fs_, "out 1", false);
+  EXPECT_STAT_EXISTS(fs_, "out 2", false);
+  EXPECT_STAT_EXISTS(fs_, "out 1.d", false);
+  EXPECT_STAT_EXISTS(fs_, "out 2.rsp", false);
 }
