@@ -187,6 +187,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     *err = "stat(" + path + "): " + strerror(errno);
     return -1;
   }
+  // Some users (Flatpak) set mtime to 0, this should be harmless
+  // and avoids conflicting with our return value of 0 meaning
+  // that it doesn't exist.
+  if (st.st_mtime == 0)
+    return 1;
   return st.st_mtime;
 #endif
 }
