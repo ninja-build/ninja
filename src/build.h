@@ -78,17 +78,29 @@ private:
   bool AddSubTarget(Node* node, Node* dependent, string* err);
   void NodeFinished(Node* node);
 
+  /// Enumerate possible steps we want for an edge.
+  enum Want
+  {
+    /// We do not want to build the edge, but we might want to build one of
+    /// its dependents.
+    kWantNothing,
+    /// We want to build the edge, but have not yet scheduled it.
+    kWantToStart,
+    /// We want to build the edge, have scheduled it, and are waiting
+    /// for it to complete.
+    kWantToFinish
+  };
+
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
-  void ScheduleWork(Edge* edge);
+  void ScheduleWork(map<Edge*, Want>::iterator want_e);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
-  /// dependents.  If an entry maps to false, we do not want to build it, but we
-  /// might want to build one of its dependents.  If the entry maps to true, we
-  /// want to build it.
-  map<Edge*, bool> want_;
+  /// dependents.  If it does contain an entry, the enumeration indicates what
+  /// we want for the edge.
+  map<Edge*, Want> want_;
 
   set<Edge*> ready_;
 
