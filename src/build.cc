@@ -97,6 +97,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 }
 
 void BuildStatus::BuildEdgeStarted(Edge* edge) {
+  assert(running_edges_.find(edge) == running_edges_.end());
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
