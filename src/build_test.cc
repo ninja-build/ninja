@@ -21,6 +21,12 @@
 #include "graph.h"
 #include "test.h"
 
+struct CompareEdgesByOutput {
+  static bool cmp(const Edge* a, const Edge* b) {
+    return a->outputs_[0]->path() < b->outputs_[0]->path();
+  }
+};
+
 /// Fixture for tests involving Plan.
 // Though Plan doesn't use State, it's useful to have one around
 // to create Nodes and Edges.
@@ -31,12 +37,6 @@ struct PlanTest : public StateTestWithBuiltinRules {
   // provide a means to get available Edges in order and in a format which is
   // easy to write tests around.
   void FindWorkSorted(deque<Edge*>* ret, int count) {
-    struct CompareEdgesByOutput {
-      static bool cmp(const Edge* a, const Edge* b) {
-        return a->outputs_[0]->path() < b->outputs_[0]->path();
-      }
-    };
-
     for (int i = 0; i < count; ++i) {
       ASSERT_TRUE(plan_.more_to_do());
       Edge* edge = plan_.FindWork();
@@ -441,7 +441,7 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
 /// Fake implementation of CommandRunner, useful for tests.
 struct FakeCommandRunner : public CommandRunner {
   explicit FakeCommandRunner(VirtualFileSystem* fs) :
-      last_command_(NULL), fs_(fs) {}
+      max_active_edges_(1), fs_(fs) {}
 
   // CommandRunner impl
   virtual bool CanRunMore();
@@ -451,7 +451,8 @@ struct FakeCommandRunner : public CommandRunner {
   virtual void Abort();
 
   vector<string> commands_ran_;
-  Edge* last_command_;
+  vector<Edge*> active_edges_;
+  size_t max_active_edges_;
   VirtualFileSystem* fs_;
 };
 
@@ -543,12 +544,13 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
 }
 
 bool FakeCommandRunner::CanRunMore() {
-  // Only run one at a time.
-  return last_command_ == NULL;
+  return active_edges_.size() < max_active_edges_;
 }
 
 bool FakeCommandRunner::StartCommand(Edge* edge) {
-  assert(!last_command_);
+  assert(active_edges_.size() < max_active_edges_);
+  assert(find(active_edges_.begin(), active_edges_.end(), edge)
+         == active_edges_.end());
   commands_ran_.push_back(edge->EvaluateCommand());
   if (edge->rule().name() == "cat"  ||
       edge->rule().name() == "cat_rsp" ||
@@ -571,15 +573,25 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     return false;
   }
 
-  last_command_ = edge;
+  active_edges_.push_back(edge);
+
+  // Allow tests to control the order by the name of the first output.
+  sort(active_edges_.begin(), active_edges_.end(),
+       CompareEdgesByOutput::cmp);
+
   return true;
 }
 
 bool FakeCommandRunner::WaitForCommand(Result* result) {
-  if (!last_command_)
+  if (active_edges_.empty())
     return false;
 
-  Edge* edge = last_command_;
+  // All active edges were already completed immediately when started,
+  // so we can pick any edge here.  Pick the last edge.  Tests can
+  // control the order of edges by the name of the first output.
+  vector<Edge*>::iterator edge_iter = active_edges_.end() - 1;
+
+  Edge* edge = *edge_iter;
   result->edge = edge;
 
   if (edge->rule().name() == "interrupt" ||
@@ -593,7 +605,7 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
       result->status = ExitSuccess;
     else
       result->status = ExitFailure;
-    last_command_ = NULL;
+    active_edges_.erase(edge_iter);
     return true;
   }
 
@@ -602,19 +614,16 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     result->status = ExitFailure;
   else
     result->status = ExitSuccess;
-  last_command_ = NULL;
+  active_edges_.erase(edge_iter);
   return true;
 }
 
 vector<Edge*> FakeCommandRunner::GetActiveEdges() {
-  vector<Edge*> edges;
-  if (last_command_)
-    edges.push_back(last_command_);
-  return edges;
+  return active_edges_;
 }
 
 void FakeCommandRunner::Abort() {
-  last_command_ = NULL;
+  active_edges_.clear();
 }
 
 void BuildTest::Dirty(const string& path) {
