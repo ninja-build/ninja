@@ -298,25 +298,21 @@ void Plan::Reset() {
 }
 
 bool Plan::AddTarget(Node* node, string* err) {
-  vector<Node*> stack;
-  return AddSubTarget(node, &stack, err);
+  return AddSubTarget(node, NULL, err);
 }
 
-bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
+bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
       string referenced;
-      if (!stack->empty())
-        referenced = ", needed by '" + stack->back()->path() + "',";
+      if (dependent)
+        referenced = ", needed by '" + dependent->path() + "',";
       *err = "'" + node->path() + "'" + referenced + " missing "
              "and no known rule to make it";
     }
     return false;
   }
-
-  if (CheckDependencyCycle(node, *stack, err))
-    return false;
 
   if (edge->outputs_ready())
     return false;  // Don't need to do anything.
@@ -341,47 +337,12 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (!want_ins.second)
     return true;  // We've already processed the inputs.
 
-  stack->push_back(node);
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!AddSubTarget(*i, stack, err) && !err->empty())
+    if (!AddSubTarget(*i, node, err) && !err->empty())
       return false;
   }
-  assert(stack->back() == node);
-  stack->pop_back();
 
-  return true;
-}
-
-bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
-                                string* err) {
-  vector<Node*>::const_iterator start = stack.begin();
-  while (start != stack.end() && (*start)->in_edge() != node->in_edge())
-    ++start;
-  if (start == stack.end())
-    return false;
-
-  // Build error string for the cycle.
-  vector<Node*> cycle(start, stack.end());
-  cycle.push_back(node);
-
-  if (cycle.front() != cycle.back()) {
-    // Consider
-    //   build a b: cat c
-    //   build c: cat a
-    // stack will contain [b, c], node will be a.  To not print b -> c -> a,
-    // shift by one to get c -> a -> c which makes the cycle clear.
-    cycle.erase(cycle.begin());
-    cycle.push_back(cycle.front());
-    assert(cycle.front() == cycle.back());
-  }
-
-  *err = "dependency cycle: ";
-  for (vector<Node*>::const_iterator i = cycle.begin(); i != cycle.end(); ++i) {
-    if (i != cycle.begin())
-      err->append(" -> ");
-    err->append((*i)->path());
-  }
   return true;
 }
 
@@ -640,9 +601,10 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
+  if (!scan_.RecomputeDirty(node, err))
+    return false;
+
   if (Edge* in_edge = node->in_edge()) {
-    if (!scan_.RecomputeDirty(in_edge, err))
-      return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
   }

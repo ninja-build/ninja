@@ -128,7 +128,13 @@ private:
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  Edge() : rule_(NULL), pool_(NULL), env_(NULL),
+  enum VisitMark {
+    VisitNone,
+    VisitInStack,
+    VisitDone
+  };
+
+  Edge() : rule_(NULL), pool_(NULL), env_(NULL), mark_(VisitNone),
            outputs_ready_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
@@ -156,6 +162,7 @@ struct Edge {
   vector<Node*> inputs_;
   vector<Node*> outputs_;
   BindingEnv* env_;
+  VisitMark mark_;
   bool outputs_ready_;
   bool deps_missing_;
 
@@ -246,11 +253,12 @@ struct DependencyScan {
         disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface) {}
 
+  /// Update the |dirty_| state of the given node by inspecting its input edge.
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
   /// Returns false on failure.
-  bool RecomputeDirty(Edge* edge, string* err);
+  bool RecomputeDirty(Node* node, string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
@@ -269,6 +277,9 @@ struct DependencyScan {
   }
 
  private:
+  bool RecomputeDirty(Node* node, vector<Node*>* stack, string* err);
+  bool VerifyDAG(Node* node, vector<Node*>* stack, string* err);
+
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
   bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,

@@ -184,8 +184,10 @@ vector<Node*> State::DefaultNodes(string* err) const {
 void State::Reset() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
     i->second->ResetState();
-  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
+  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
     (*e)->outputs_ready_ = false;
+    (*e)->mark_ = Edge::VisitNone;
+  }
 }
 
 void State::Dump() {
