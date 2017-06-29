@@ -335,6 +335,7 @@ else:
               '-fno-rtti',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
+              '-D_LARGEFILE_SOURCE', '-D_FILE_OFFSET_BITS=64',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
