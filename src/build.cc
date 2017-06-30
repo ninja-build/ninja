@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <functional>
 
 #ifdef _WIN32
@@ -130,6 +131,18 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   if (!edge->use_console())
     PrintStatus(edge, kEdgeFinished);
+  if (printer_.is_smart_terminal()) {
+    int oldest_start = INT_MAX;
+    Edge *oldest = NULL;
+    for (i = running_edges_.begin(); i != running_edges_.end(); i++) {
+      if (i->second < oldest_start) {
+        oldest_start = i->second;
+        oldest = i->first;
+      }
+    }
+    if (oldest)
+      PrintStatus(oldest, kEdgeRunning);
+  }
 
   // Print the command that is spewing before printing its output.
   if (!success) {
