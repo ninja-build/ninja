@@ -65,7 +65,7 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
   // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime - 12622770400LL * 1000000000LL / 100;
+  return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
 TimeStamp StatSingleFile(const string& path, string* err) {
