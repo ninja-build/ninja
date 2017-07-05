@@ -101,6 +101,7 @@ void Cleaner::PrintHeader() {
     printf("\n");
   else
     printf(" ");
+  fflush(stdout);
 }
 
 void Cleaner::PrintFooter() {
