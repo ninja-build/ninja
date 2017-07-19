@@ -22,6 +22,10 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #endif
 
 namespace {
@@ -159,7 +163,81 @@ TEST_F(SubprocessTest, Console) {
   }
 }
 
-#endif
+// This test takes 10s to fail but is very fast to succeed.
+TEST_F(SubprocessTest, Suspend) {
+  // Fork so that signal exchange does not bother the test suite process.
+  pid_t pid = fork();
+  if (pid == 0) { // child process
+    // Redirect stdout to /dev/null to prevent message
+    // 'ninja: entire build suspended.' to clutter the test suite output.
+    // Use stderr to print debugging information.
+    {
+      int devnull = open("/dev/null", O_WRONLY);
+      if (devnull < 0)
+        Fatal("open('/dev/null'): %s", strerror(errno));
+      if (dup2(devnull, STDOUT_FILENO) < 0)
+        Fatal("dup2: %s", strerror(errno));
+      if (close(devnull) < 0)
+        Fatal("close: %s", strerror(errno));
+    }
+    // A command that succeed only if SIGTSTP followed by SIGCONT handler are
+    // called.
+    // Detailed control flow of this test between this process (aka Ninja)
+    // and the command (aka CMD).
+    //   1) Ninja starts CMD
+    //   2) CMD sends SIGTSTP to Ninja
+    //   3) Ninja starts handling SIGTSTP
+    //   3.1) Ninja sends SIGTSTP to CMD
+    //   3.2) Ninja sends SIGTSTP to itself to trigger default SIGTSTP handler
+    //        and be effectively suspended.
+    //   4) CMD sends SIGCONT to Ninja
+    //   5) Ninja sends SIGCONT to CMD and return from its handler.
+    //   6) CMD exists with status 0
+    Subprocess* subproc =
+      subprocs_.Add(// Useful to check SIGTSTP is caught before SIGCONT.
+                    "tstp_handler_called=false; "
+                    // Resume Ninja once it has suspended us.
+                    "trap 'tst_handler_called=true; kill -CONT $PPID' TSTP; "
+                    // Exit normally when we are resumed by Ninja.
+                    "trap '$tst_handler_called && exit 0; exit 1' CONT; "
+                    // Suspend Ninja.
+                    "kill -TSTP $PPID; "
+                    // Give 10s max to Ninja to send SIGTSTP to its children.
+                    // Note: using "sleep 10" slow down the test in the success
+                    // case because signals are delivered when the instruction
+                    // finishes.
+                    "for i in `seq 1 10`; do sleep 1; done; "
+                    // At this point our signal handlers were not called.
+                    // It means that Ninja did not worked as expected.
+                    // We wake Ninja up so that the test finished and fails.
+                    "kill -CONT $PPID; "
+                    "exit 1; ");
+    if (subproc == (Subprocess*)0)
+      Fatal("cannot add sub-process");
+    // Execute the commands and exit.
+    while (!subproc->Done()) {
+      subprocs_.DoWork();
+    }
+    exit(subproc->Finish() == ExitSuccess ? 0 : 1);
+  } else { // parent process
+    int status;
+    if (waitpid(pid, &status, 0) < 0)
+      Fatal("waitpid(%d): %s", pid, strerror(errno));
+    if (WIFEXITED(status)) {
+      int exit = WEXITSTATUS(status);
+      // ExitSuccess must be returned by Subprocess::Finish()
+      ASSERT_EQ(0, exit);
+      return; // end of the test
+    } else if (WIFSIGNALED(status)) {
+      ASSERT_FALSE("We should have been interrupted");
+    } else {
+      ASSERT_FALSE("should never happen");
+    }
+    ASSERT_FALSE("We should have returned before this point");
+  }
+}
+
+#endif // !_WIN32
 
 TEST_F(SubprocessTest, SetWithSingle) {
   Subprocess* subproc = subprocs_.Add(kSimpleCommand);
