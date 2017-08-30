@@ -292,12 +292,12 @@ TEST(CanonicalizePath, TooManyComponents) {
   EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
   EXPECT_EQ(slash_bits, 0xffffffff);
 
-  // 65 is not.
+  // 65 is OK if #component is less than 60 after path canonicalization.
   err = "";
   path = "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./"
          "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./x/y.h";
-  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
-  EXPECT_EQ(err, "too many path components");
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x0);
 
   // Backslashes version.
   err = "";
@@ -306,8 +306,28 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x\\y.h";
-  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
-  EXPECT_EQ(err, "too many path components");
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x1ffffffff);
+
+
+  // 59 after canonicalization is OK.
+  err = "";
+  path = "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+         "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/x/y.h";
+  EXPECT_EQ(58, std::count(path.begin(), path.end(), '/'));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x0);
+
+  // Backslashes version.
+  err = "";
+  path =
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\x\\y.h";
+  EXPECT_EQ(58, std::count(path.begin(), path.end(), '\\'));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x3ffffffffffffff);
 }
 #endif
 
