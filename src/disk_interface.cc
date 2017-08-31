@@ -28,6 +28,7 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "metrics.h"
 #include "util.h"
 
 namespace {
@@ -80,20 +81,15 @@ TimeStamp StatSingleFile(const string& path, string* err) {
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
 }
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)  // GetVersionExA is deprecated post SDK 8.1.
-#endif
 bool IsWindows7OrLater() {
-  OSVERSIONINFO version_info = { sizeof(version_info) };
-  if (!GetVersionEx(&version_info))
-    Fatal("GetVersionEx: %s", GetLastErrorString().c_str());
-  return version_info.dwMajorVersion > 6 ||
-         (version_info.dwMajorVersion == 6 && version_info.dwMinorVersion >= 1);
+  OSVERSIONINFOEX version_info =
+      { sizeof(OSVERSIONINFOEX), 6, 1, 0, 0, {0}, 0, 0, 0, 0, 0};
+  DWORDLONG comparison = 0;
+  VER_SET_CONDITION(comparison, VER_MAJORVERSION, VER_GREATER_EQUAL);
+  VER_SET_CONDITION(comparison, VER_MINORVERSION, VER_GREATER_EQUAL);
+  return VerifyVersionInfo(
+      &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
                        string* err) {
@@ -153,6 +149,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 // RealDiskInterface -----------------------------------------------------------
 
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+  METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
@@ -190,6 +187,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     *err = "stat(" + path + "): " + strerror(errno);
     return -1;
   }
+  // Some users (Flatpak) set mtime to 0, this should be harmless
+  // and avoids conflicting with our return value of 0 meaning
+  // that it doesn't exist.
+  if (st.st_mtime == 0)
+    return 1;
   return st.st_mtime;
 #endif
 }

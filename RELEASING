@@ -2,17 +2,18 @@ Notes to myself on all the steps to make for a Ninja release.
 
 Push new release branch:
 1. Consider sending a heads-up to the ninja-build mailing list first
-2. update src/version.cc with new version (with ".git"), then
-       git commit -a -m 'mark this 1.5.0.git'
-3. git checkout release; git merge master
-4. fix version number in src/version.cc (it will likely conflict in the above)
-5. fix version in doc/manual.asciidoc
-6. commit, tag, push (don't forget to push --tags)
-       git commit -a -m v1.5.0; git push origin release
+2. Make sure branches 'master' and 'release' are synced up locally
+3. update src/version.cc with new version (with ".git"), then
+       git commit -am 'mark this 1.5.0.git'
+4. git checkout release; git merge master
+5. fix version number in src/version.cc (it will likely conflict in the above)
+6. fix version in doc/manual.asciidoc (exists only on release branch)
+7. commit, tag, push (don't forget to push --tags)
+       git commit -am v1.5.0; git push origin release
        git tag v1.5.0; git push --tags
        # Push the 1.5.0.git change on master too:
        git checkout master; git push origin master
-7. construct release notes from prior notes
+8. construct release notes from prior notes
    credits: git shortlog -s --no-merges REV..
 
 Release on github:
