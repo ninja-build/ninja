@@ -279,6 +279,11 @@ http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
 by the Clang tooling interface.
 _Available since Ninja 1.2._
 
+`deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
+target, show just the target's dependencies. _Available since Ninja 1.4._
+
+`recompact`:: recompact the `.ninja_deps` file. _Available since Ninja 1.4._
+
 
 Writing your own Ninja files
 ----------------------------
