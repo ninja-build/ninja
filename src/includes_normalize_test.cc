@@ -108,36 +108,33 @@ TEST(IncludesNormalize, LongInvalidPath) {
       normalizer.Normalize(kLongInputString, &result, &err));
   EXPECT_EQ("path too long", err);
 
-  const char kExactlyMaxPath[] =
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "012345678\\"
-      "0123456789";
+
+  // Construct max size path having cwd prefix.
+  // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
+  char kExactlyMaxPath[_MAX_PATH + 1];
+  ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
+
+  int cwd_len = strlen(kExactlyMaxPath);
+  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
+  kExactlyMaxPath[cwd_len] = '\\';
+  kExactlyMaxPath[cwd_len + 1] = 'a';
+  kExactlyMaxPath[cwd_len + 2] = '\\';
+
+  kExactlyMaxPath[cwd_len + 3] = 'a';
+
+  for (int i = cwd_len + 4; i < _MAX_PATH; ++i) {
+    if (i > cwd_len + 4 && i < _MAX_PATH - 1 && i % 10 == 0)
+      kExactlyMaxPath[i] = '\\';
+    else
+      kExactlyMaxPath[i] = 'a';
+  }
+
+  kExactlyMaxPath[_MAX_PATH] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+
   string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly _MAX_PATH long is canonicalized.
-  EXPECT_EQ(forward_slashes,
+  EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
             NormalizeAndCheckNoError(kExactlyMaxPath));
 }
