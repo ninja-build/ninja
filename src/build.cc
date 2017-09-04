@@ -20,6 +20,11 @@
 #include <stdlib.h>
 #include <functional>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
 #endif
@@ -155,7 +160,17 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
+
+#ifdef _WIN32
+    // Fix extra CR being added on Windows, writing out CR CR LF (#773)
+    _setmode(_fileno(stdout), _O_BINARY);  // Begin Windows extra CR fix
+#endif
+
     printer_.PrintOnNewLine(final_output);
+
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
+#endif
   }
 }
 
@@ -275,26 +290,29 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
 Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
 
-bool Plan::AddTarget(Node* node, string* err) {
-  vector<Node*> stack;
-  return AddSubTarget(node, &stack, err);
+void Plan::Reset() {
+  command_edges_ = 0;
+  wanted_edges_ = 0;
+  ready_.clear();
+  want_.clear();
 }
 
-bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
+bool Plan::AddTarget(Node* node, string* err) {
+  return AddSubTarget(node, NULL, err);
+}
+
+bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
       string referenced;
-      if (!stack->empty())
-        referenced = ", needed by '" + stack->back()->path() + "',";
+      if (dependent)
+        referenced = ", needed by '" + dependent->path() + "',";
       *err = "'" + node->path() + "'" + referenced + " missing "
              "and no known rule to make it";
     }
     return false;
   }
-
-  if (CheckDependencyCycle(node, *stack, err))
-    return false;
 
   if (edge->outputs_ready())
     return false;  // Don't need to do anything.
@@ -319,47 +337,12 @@ bool Plan::AddSubTarget(Node* node, vector<Node*>* stack, string* err) {
   if (!want_ins.second)
     return true;  // We've already processed the inputs.
 
-  stack->push_back(node);
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!AddSubTarget(*i, stack, err) && !err->empty())
+    if (!AddSubTarget(*i, node, err) && !err->empty())
       return false;
   }
-  assert(stack->back() == node);
-  stack->pop_back();
 
-  return true;
-}
-
-bool Plan::CheckDependencyCycle(Node* node, const vector<Node*>& stack,
-                                string* err) {
-  vector<Node*>::const_iterator start = stack.begin();
-  while (start != stack.end() && (*start)->in_edge() != node->in_edge())
-    ++start;
-  if (start == stack.end())
-    return false;
-
-  // Build error string for the cycle.
-  vector<Node*> cycle(start, stack.end());
-  cycle.push_back(node);
-
-  if (cycle.front() != cycle.back()) {
-    // Consider
-    //   build a b: cat c
-    //   build c: cat a
-    // stack will contain [b, c], node will be a.  To not print b -> c -> a,
-    // shift by one to get c -> a -> c which makes the cycle clear.
-    cycle.erase(cycle.begin());
-    cycle.push_back(cycle.front());
-    assert(cycle.front() == cycle.back());
-  }
-
-  *err = "dependency cycle: ";
-  for (vector<Node*>::const_iterator i = cycle.begin(); i != cycle.end(); ++i) {
-    if (i != cycle.begin())
-      err->append(" -> ");
-    err->append((*i)->path());
-  }
   return true;
 }
 
@@ -618,9 +601,10 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* node, string* err) {
+  if (!scan_.RecomputeDirty(node, err))
+    return false;
+
   if (Edge* in_edge = node->in_edge()) {
-    if (!scan_.RecomputeDirty(in_edge, err))
-      return false;
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
   }
@@ -793,9 +777,10 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     return true;
   }
 
-  // Restat the edge outputs, if necessary.
-  TimeStamp restat_mtime = 0;
-  if (edge->GetBindingBool("restat") && !config_.dry_run) {
+  // Restat the edge outputs
+  TimeStamp output_mtime = 0;
+  bool restat = edge->GetBindingBool("restat");
+  if (!config_.dry_run) {
     bool node_cleaned = false;
 
     for (vector<Node*>::iterator o = edge->outputs_.begin();
@@ -803,7 +788,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
       if (new_mtime == -1)
         return false;
-      if ((*o)->mtime() == new_mtime) {
+      if (new_mtime > output_mtime)
+        output_mtime = new_mtime;
+      if ((*o)->mtime() == new_mtime && restat) {
         // The rule command did not change the output.  Propagate the clean
         // state through the build graph.
         // Note that this also applies to nonexistent outputs (mtime == 0).
@@ -814,6 +801,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
 
     if (node_cleaned) {
+      TimeStamp restat_mtime = 0;
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
       for (vector<Node*>::iterator i = edge->inputs_.begin();
@@ -837,6 +825,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       // The total number of edges in the plan may have changed as a result
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
+
+      output_mtime = restat_mtime;
     }
   }
 
@@ -849,7 +839,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
-                                          restat_mtime)) {
+                                          output_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
@@ -918,7 +908,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->reserve(deps.ins_.size());
     for (vector<StringPiece>::iterator i = deps.ins_.begin();
          i != deps.ins_.end(); ++i) {
-      unsigned int slash_bits;
+      uint64_t slash_bits;
       if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
                             err))
         return false;

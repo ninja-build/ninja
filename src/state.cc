@@ -100,7 +100,7 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(StringPiece path, unsigned int slash_bits) {
+Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
   Node* node = LookupNode(path);
   if (node)
     return node;
@@ -134,13 +134,13 @@ Node* State::SpellcheckNode(const string& path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, StringPiece path, unsigned int slash_bits) {
+void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
   Node* node = GetNode(path, slash_bits);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
 
-bool State::AddOut(Edge* edge, StringPiece path, unsigned int slash_bits) {
+bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
   Node* node = GetNode(path, slash_bits);
   if (node->in_edge())
     return false;
@@ -184,8 +184,10 @@ vector<Node*> State::DefaultNodes(string* err) const {
 void State::Reset() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
     i->second->ResetState();
-  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e)
+  for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
     (*e)->outputs_ready_ = false;
+    (*e)->mark_ = Edge::VisitNone;
+  }
 }
 
 void State::Dump() {

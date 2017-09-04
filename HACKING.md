@@ -105,7 +105,7 @@ Generally it's the [Google C++ coding style][], but in brief:
 * Lines are 80 columns maximum.
 * All source files should have the Google Inc. license header.
 
-[Google C++ coding style]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+[Google C++ coding style]: https://google.github.io/styleguide/cppguide.html
 
 ## Documentation
 

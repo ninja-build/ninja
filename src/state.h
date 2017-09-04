@@ -23,6 +23,7 @@ using namespace std;
 
 #include "eval_env.h"
 #include "hash_map.h"
+#include "util.h"
 
 struct Edge;
 struct Node;
@@ -93,12 +94,12 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(StringPiece path, unsigned int slash_bits);
+  Node* GetNode(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const string& path);
 
-  void AddIn(Edge* edge, StringPiece path, unsigned int slash_bits);
-  bool AddOut(Edge* edge, StringPiece path, unsigned int slash_bits);
+  void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
+  bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the

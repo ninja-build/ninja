@@ -105,7 +105,7 @@ BuildLog::LogEntry::LogEntry(const string& output)
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
   int start_time, int end_time, TimeStamp restat_mtime)
   : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
+    start_time(start_time), end_time(end_time), mtime(restat_mtime)
 {}
 
 BuildLog::BuildLog()
@@ -145,7 +145,7 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 }
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             TimeStamp restat_mtime) {
+                             TimeStamp mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -162,7 +162,7 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
-    log_entry->restat_mtime = restat_mtime;
+    log_entry->mtime = mtime;
 
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
@@ -314,7 +314,7 @@ bool BuildLog::Load(const string& path, string* err) {
 
     entry->start_time = start_time;
     entry->end_time = end_time;
-    entry->restat_mtime = restat_mtime;
+    entry->mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
       entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
@@ -354,7 +354,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
   return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.restat_mtime,
+          entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;
 }
 

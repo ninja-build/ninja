@@ -19,7 +19,7 @@
 namespace {
 
 bool CanonicalizePath(string* path, string* err) {
-  unsigned int unused;
+  uint64_t unused;
   return ::CanonicalizePath(path, &unused, err);
 }
 
@@ -177,7 +177,7 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 TEST(CanonicalizePath, SlashTracking) {
   string path;
   string err;
-  unsigned int slash_bits;
+  uint64_t slash_bits;
 
   path = "foo.h"; err = "";
   EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
@@ -263,7 +263,7 @@ TEST(CanonicalizePath, SlashTracking) {
 TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
   // Make sure searching \/ doesn't go past supplied len.
   char buf[] = "foo/bar\\baz.h\\";  // Last \ past end.
-  unsigned int slash_bits;
+  uint64_t slash_bits;
   string err;
   size_t size = 13;
   EXPECT_TRUE(::CanonicalizePath(buf, &size, &slash_bits, &err));
@@ -274,33 +274,60 @@ TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
 TEST(CanonicalizePath, TooManyComponents) {
   string path;
   string err;
-  unsigned int slash_bits;
+  uint64_t slash_bits;
 
-  // 32 is OK.
-  path = "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./x.h";
+  // 64 is OK.
+  path = "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./"
+         "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./x.h";
   EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x0);
 
   // Backslashes version.
   path =
-      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\."
-      "\\a\\.\\a\\.\\a\\.\\a\\.\\x.h";
-  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
-  EXPECT_EQ(slash_bits, 0xffff);
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x.h";
 
-  // 33 is not.
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0xffffffff);
+
+  // 65 is OK if #component is less than 60 after path canonicalization.
   err = "";
-  path =
-      "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/x.h";
-  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
-  EXPECT_EQ(err, "too many path components");
+  path = "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./"
+         "a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./a/./x/y.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x0);
 
   // Backslashes version.
   err = "";
   path =
-      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\."
-      "\\a\\.\\a\\.\\a\\.\\a\\.\\a\\x.h";
-  EXPECT_FALSE(CanonicalizePath(&path, &slash_bits, &err));
-  EXPECT_EQ(err, "too many path components");
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
+      "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x\\y.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x1ffffffff);
+
+
+  // 59 after canonicalization is OK.
+  err = "";
+  path = "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+         "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/x/y.h";
+  EXPECT_EQ(58, std::count(path.begin(), path.end(), '/'));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x0);
+
+  // Backslashes version.
+  err = "";
+  path =
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\x\\y.h";
+  EXPECT_EQ(58, std::count(path.begin(), path.end(), '\\'));
+  EXPECT_TRUE(CanonicalizePath(&path, &slash_bits, &err));
+  EXPECT_EQ(slash_bits, 0x3ffffffffffffff);
 }
 #endif
 
@@ -326,7 +353,7 @@ TEST(CanonicalizePath, NotNullTerminated) {
   string path;
   string err;
   size_t len;
-  unsigned int unused;
+  uint64_t unused;
 
   path = "foo/. bar/.";
   len = strlen("foo/.");  // Canonicalize only the part before the space.
