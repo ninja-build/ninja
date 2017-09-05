@@ -369,6 +369,15 @@ string Edge::EvaluateCommand(bool incl_rsp_file) {
   return command;
 }
 
+string Edge::GetDescription(bool force_full_command) {
+  string description;
+  if (!force_full_command)
+    description = GetBinding("description");
+  if (description.empty())
+    description = EvaluateCommand();
+  return description;
+}
+
 string Edge::GetBinding(const string& key) {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);

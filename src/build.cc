@@ -160,14 +160,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       outputs += (*o)->path() + " ";
 
     // Print the description before anything else.
-    string to_print = edge->GetBinding("description");
-    if (to_print.empty())
-      to_print = edge->GetBinding("command");
-    to_print = FormatProgressStatus(progress_line_format_, kEdgeFinished) + to_print + "\n";
+    string to_print = FormatProgressStatus(progress_line_format_, kEdgeFinished) +
+      edge->GetDescription() + '\n';
     printer_.Print(to_print);
 
     printer_.Print("FAILED: " + outputs + "\n");
-    printer_.Print(edge->EvaluateCommand() + "\n");
+    printer_.Print(edge->GetDescription(true) + "\n");
   }
 
   if (!output.empty()) {
@@ -362,7 +360,7 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (printer_.is_smart_terminal() && progress_table_format_[0] != '\0') {
     if (edge != NULL && force_full_command) {
       string to_print = FormatProgressStatus(progress_line_format_, status) +
-        edge->GetBinding("command") + '\n';
+        edge->GetDescription(true) + '\n';
       printer_.Print(to_print);
     }
 
@@ -386,17 +384,13 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
     int64_t now = GetTimeMillis();
     int now_time = (int)(now - start_time_millis_);
     for (RunningEdgeList::iterator i = running_edges_.begin(); i != running_edges_.end(); ++i) {
-      Edge* cur_edge = i->first;
-      string to_print = cur_edge->GetBinding("description");
-      if (to_print.empty())
-        to_print = cur_edge->GetBinding("command");
-
       int start_time = i->second;
       int elapsed_millis = now_time - start_time;
       char elapsed_str[32];
       snprintf(elapsed_str, sizeof(elapsed_str), "%4.1fs ", elapsed_millis/1000.0f);
 
-      to_print_lines.push_back(elapsed_str + to_print);
+      Edge* cur_edge = i->first;
+      to_print_lines.push_back(elapsed_str + cur_edge->GetDescription());
     }
     for (int i = (int)running_edges_.size(); i < config_.parallelism; ++i)
       to_print_lines.push_back("[IDLE]");
@@ -406,10 +400,8 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
     // Just print the normal status line.
     // Cannot print the normal status line without any specific edge specified.
     if (edge != NULL) {
-      string to_print = edge->GetBinding("description");
-      if (to_print.empty() || force_full_command)
-        to_print = edge->GetBinding("command");
-      to_print = FormatProgressStatus(progress_line_format_, status) + to_print;
+      string to_print = FormatProgressStatus(progress_line_format_, status) +
+        edge->GetDescription(force_full_command);
       if (printer_.is_smart_terminal())
         printer_.PrintTemporaryElide(to_print);
       else
@@ -425,10 +417,8 @@ void BuildStatus::PrintEdgeStatusPermanently(Edge* edge, EdgeStatus status) {
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
 
   // Just print a single line.
-  string to_print = edge->GetBinding("description");
-  if (to_print.empty() || force_full_command)
-    to_print = edge->GetBinding("command");
-  to_print = FormatProgressStatus(progress_line_format_, status) + to_print + "\n";
+  string to_print = FormatProgressStatus(progress_line_format_, status) +
+    edge->GetDescription(force_full_command) + "\n";
   printer_.Print(to_print);
 }
 
