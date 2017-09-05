@@ -87,8 +87,8 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       progress_line_format_(NULL), progress_table_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
-  // Don't do anything fancy in verbose mode.
-  if (config_.verbosity != BuildConfig::NORMAL)
+  // Don't do anything fancy in verbose mode nor dry run.
+  if (config_.verbosity != BuildConfig::NORMAL || config_.dry_run)
     printer_.set_smart_terminal(false);
 
   progress_line_format_ = getenv("NINJA_STATUS");
