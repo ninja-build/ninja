@@ -41,6 +41,9 @@
 #include "subprocess.h"
 #include "util.h"
 
+static const int kStatusUpdateTimeoutMillis = 100;
+static const int kStatusUpdateMininumWaitMillis = 20;
+
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
@@ -339,6 +342,10 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
+void BuildStatus::UpdateStatus() {
+  PrintStatus(NULL, kEdgeRunning);
+}
+
 void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
@@ -351,7 +358,7 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   }
 
   if (printer_.is_smart_terminal() && progress_table_format_[0] != '\0') {
-    if (force_full_command) {
+    if (edge != NULL && force_full_command) {
       string to_print = FormatProgressStatus(progress_line_format_, status) +
         edge->GetBinding("command") + '\n';
       printer_.Print(to_print);
@@ -361,12 +368,20 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
     vector<string> to_print_lines;
     to_print_lines.push_back(FormatProgressStatus(progress_table_format_, status));
 
+    int64_t now = GetTimeMillis();
+    int now_time = (int)(now - start_time_millis_);
     for (RunningEdgeList::iterator i = running_edges_.begin(); i != running_edges_.end(); ++i) {
       Edge* cur_edge = i->first;
       string to_print = cur_edge->GetBinding("description");
       if (to_print.empty())
         to_print = cur_edge->GetBinding("command");
-      to_print_lines.push_back(to_print);
+
+      int start_time = i->second;
+      int elapsed_millis = now_time - start_time;
+      char elapsed_str[32];
+      snprintf(elapsed_str, sizeof(elapsed_str), "%4.1fs ", elapsed_millis/1000.0f);
+
+      to_print_lines.push_back(elapsed_str + to_print);
     }
     for (int i = (int)running_edges_.size(); i < config_.parallelism; ++i)
       to_print_lines.push_back("[IDLE]");
@@ -374,14 +389,17 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
     printer_.PrintTemporaryElide(to_print_lines);
   } else {
     // Just print the normal status line.
-    string to_print = edge->GetBinding("description");
-    if (to_print.empty() || force_full_command)
-      to_print = edge->GetBinding("command");
-    to_print = FormatProgressStatus(progress_line_format_, status) + to_print;
-    if (printer_.is_smart_terminal())
-      printer_.PrintTemporaryElide(to_print);
-    else
-      printer_.Print(to_print + '\n');
+    // Cannot print the normal status line without any specific edge specified.
+    if (edge != NULL) {
+      string to_print = edge->GetBinding("description");
+      if (to_print.empty() || force_full_command)
+        to_print = edge->GetBinding("command");
+      to_print = FormatProgressStatus(progress_line_format_, status) + to_print;
+      if (printer_.is_smart_terminal())
+        printer_.PrintTemporaryElide(to_print);
+      else
+        printer_.Print(to_print + '\n');
+    }
   }
 }
 
@@ -787,8 +805,14 @@ bool Builder::Build(string* err) {
     if (pending_commands) {
       CommandRunner::Result result;
       CommandRunner::WaitForCommandStatus wait_status;
+      int64_t last_status_update = GetTimeMillis();
       do {
-        wait_status = command_runner_->WaitForCommand(&result, -1);
+        int64_t now = GetTimeMillis();
+        if (now - last_status_update > kStatusUpdateMininumWaitMillis) {
+          status_->UpdateStatus();
+          last_status_update = now;
+        }
+        wait_status = command_runner_->WaitForCommand(&result, kStatusUpdateTimeoutMillis);
       } while (wait_status == CommandRunner::WaitTimeout);
       if (wait_status == CommandRunner::WaitFailure ||
           result.status == ExitInterrupted) {

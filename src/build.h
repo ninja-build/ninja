@@ -242,6 +242,8 @@ struct BuildStatus {
   string FormatProgressStatus(const char* progress_status_format,
                               EdgeStatus status) const;
 
+  void UpdateStatus();
+
  private:
   void PrintStatus(Edge* edge, EdgeStatus status);
   void PrintEdgeStatusPermanently(Edge* edge, EdgeStatus status);
