@@ -368,7 +368,20 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
     // Print all active edges
     vector<string> to_print_lines;
-    to_print_lines.push_back(FormatProgressStatus(progress_table_format_, status));
+
+    char first_line_status[128];
+    overall_rate_.UpdateRate(finished_edges_);
+    double elapsed = overall_rate_.Elapsed();
+    int elapsed_minutes = (int)elapsed / 60;
+    double elapsed_seconds = elapsed - 60 * elapsed_minutes;
+    double estimated_left = (total_edges_ - started_edges_) * elapsed / max(started_edges_, 1);
+    int estimated_left_minutes = (int)estimated_left / 60;
+    double estimated_left_seconds = estimated_left - 60 * estimated_left_minutes;
+    snprintf(first_line_status, sizeof(first_line_status), "%d:%02.0f elapsed, %d%%, %d:%02.0f left",
+        elapsed_minutes, elapsed_seconds,
+        (100 * finished_edges_) / total_edges_,
+        estimated_left_minutes, estimated_left_seconds);
+    to_print_lines.push_back(FormatProgressStatus(progress_line_format_, status) + first_line_status);
 
     int64_t now = GetTimeMillis();
     int now_time = (int)(now - start_time_millis_);
