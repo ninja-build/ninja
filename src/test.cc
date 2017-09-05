@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <direct.h>  // Has to be before util.h is included.
 #endif
 
@@ -22,7 +22,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -35,7 +35,7 @@
 
 namespace {
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #ifndef _mktemp_s
 /// mingw has no mktemp.  Implement one with the same type as the one
 /// found in the Windows API.
@@ -62,10 +62,10 @@ char* mkdtemp(char* name_template) {
 
   return name_template;
 }
-#endif  // _WIN32
+#endif  // _MSC_VER
 
 string GetSystemTempDir() {
-#ifdef _WIN32
+#ifdef _MSC_VER
   char buf[1024];
   if (!GetTempPath(sizeof(buf), buf))
     return "";
@@ -223,7 +223,7 @@ void ScopedTempDir::Cleanup() {
   if (chdir(start_dir_.c_str()) < 0)
     Fatal("chdir: %s", strerror(errno));
 
-#ifdef _WIN32
+#ifdef _MSC_VER
   string command = "rmdir /s /q " + temp_dir_name_;
 #else
   string command = "rm -rf " + temp_dir_name_;

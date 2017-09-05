@@ -14,7 +14,7 @@
 
 // On AIX, inttypes.h gets indirectly included by build_log.h.
 // It's easiest just to ask for the printf format macros right away.
-#ifndef _WIN32
+#ifndef _MSC_VER
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 #include <inttypes.h>
 #include <unistd.h>
 #endif

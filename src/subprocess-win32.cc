@@ -21,6 +21,10 @@
 
 #include "util.h"
 
+#ifdef __CYGWIN__
+#include <sys/cygwin.h>
+#endif
+
 Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
                                            is_reading_(false),
                                            use_console_(use_console) {
@@ -39,7 +43,7 @@ Subprocess::~Subprocess() {
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
+           "\\\\.\\pipe\\ninja_pid%u_sp%p", GetCurrentProcessId(), this);
 
   pipe_ = ::CreateNamedPipeA(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
@@ -200,6 +204,10 @@ const string& Subprocess::GetOutput() const {
 HANDLE SubprocessSet::ioport_;
 
 SubprocessSet::SubprocessSet() {
+#ifdef __CYGWIN__
+  // Sync the full Windows environment.
+  cygwin_internal(CW_SYNC_WINENV);
+#endif
   ioport_ = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if (!ioport_)
     Win32Fatal("CreateIoCompletionPort");

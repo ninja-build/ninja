@@ -16,7 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -28,7 +28,7 @@
 #include "util.h"
 
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
-#ifndef _WIN32
+#ifndef _MSC_VER
   const char* term = getenv("TERM");
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
@@ -57,7 +57,7 @@ void LinePrinter::Print(string to_print, LineType type) {
   }
 
   if (smart_terminal_ && type == ELIDE) {
-#ifdef _WIN32
+#ifdef _MSC_VER
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(console_, &csbi);
 

@@ -25,6 +25,8 @@
 #ifdef _WIN32
 #include <sstream>
 #include <windows.h>
+#endif
+#ifdef _MSC_VER
 #include <direct.h>  // _mkdir
 #endif
 
@@ -50,7 +52,7 @@ string DirName(const string& path) {
 }
 
 int MakeDir(const string& path) {
-#ifdef _WIN32
+#ifdef _MSC_VER
   return _mkdir(path.c_str());
 #else
   return mkdir(path.c_str(), 0777);

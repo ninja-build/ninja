@@ -351,7 +351,7 @@ else:
     except:
         pass
     if platform.is_mingw():
-        cflags += ['-D_WIN32_WINNT=0x0501']
+        cflags += ['-D_WIN32_WINNT=0x0501', '-D_WIN32']
     ldflags = ['-L$builddir']
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
@@ -509,7 +509,7 @@ if platform.is_windows():
         objs += cxx(name)
     if platform.is_msvc():
         objs += cxx('minidump-win32')
-    objs += cc('getopt')
+        objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
 if platform.is_aix():

@@ -15,7 +15,7 @@
 #ifndef NINJA_TIMESTAMP_H_
 #define NINJA_TIMESTAMP_H_
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include "win32port.h"
 #else
 #ifndef __STDC_FORMAT_MACROS

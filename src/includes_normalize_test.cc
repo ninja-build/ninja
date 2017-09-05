@@ -16,7 +16,11 @@
 
 #include <algorithm>
 
+#ifdef _MSC_VER
 #include <direct.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "string_piece_util.h"
 #include "test.h"
@@ -26,7 +30,10 @@ namespace {
 
 string GetCurDir() {
   char buf[_MAX_PATH];
-  _getcwd(buf, sizeof(buf));
+  getcwd(buf, sizeof(buf));
+#ifndef _MSC_VER  // mingw returns / paths on Windows
+  replace(buf, buf + strlen(buf), '/', '\\');
+#endif
   vector<StringPiece> parts = SplitStringPiece(buf, '\\');
   return parts[parts.size() - 1].AsString();
 }
@@ -115,10 +122,11 @@ TEST(IncludesNormalize, LongInvalidPath) {
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
   char kExactlyMaxPath[_MAX_PATH + 1];
-  ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
+  string cwd = IncludesNormalize::AbsPath(".", &err);
+  ASSERT_LE(cwd.size() + 3 + 1, _MAX_PATH)
+  strcpy(kExactlyMaxPath, cwd.c_str());
 
   int cwd_len = strlen(kExactlyMaxPath);
-  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';
   kExactlyMaxPath[cwd_len + 2] = '\\';

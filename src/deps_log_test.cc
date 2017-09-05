@@ -15,7 +15,7 @@
 #include "deps_log.h"
 
 #include <sys/stat.h>
-#ifndef _WIN32
+#ifndef _MSC_VER
 #include <unistd.h>
 #endif
 

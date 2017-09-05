@@ -18,7 +18,7 @@
 #include "test.h"
 
 #include <sys/stat.h>
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <fcntl.h>
 #include <share.h>
 #else

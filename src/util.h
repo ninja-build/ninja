@@ -15,7 +15,7 @@
 #ifndef NINJA_UTIL_H_
 #define NINJA_UTIL_H_
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include "win32port.h"
 #else
 #include <stdint.h>
@@ -92,11 +92,14 @@ bool Truncate(const string& path, size_t size, string* err);
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
 #define fileno _fileno
 #define unlink _unlink
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
+#define putenv _putenv
 #define PATH_MAX _MAX_PATH
 #endif
 

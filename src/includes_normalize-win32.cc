@@ -82,11 +82,16 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
   if (!InternalGetFullPathName(b, b_absolute, sizeof(b_absolute), err)) {
     return false;
   }
+#ifdef _MSC_VER
   char a_drive[_MAX_DIR];
   char b_drive[_MAX_DIR];
   _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
   _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
-  return _stricmp(a_drive, b_drive) == 0;
+  return strcasecmp(a_drive, b_drive) == 0;
+#else
+  // TODO: Find some Win32 API to use to compare drives.
+  return SameDriveFast(a_absolute, b_absolute);
+#endif
 }
 
 // Check path |s| is FullPath style returned by GetFullPathName.

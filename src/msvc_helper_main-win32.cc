@@ -18,11 +18,18 @@
 #include <io.h>
 #include <stdio.h>
 #include <windows.h>
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
 
 #include "clparser.h"
 #include "util.h"
 
+#ifdef _MSC_VER
 #include "getopt.h"
+#else
+#include <getopt.h>
+#endif
 
 namespace {
 
@@ -39,8 +46,8 @@ void Usage() {
 void PushPathIntoEnvironment(const string& env_block) {
   const char* as_str = env_block.c_str();
   while (as_str[0]) {
-    if (_strnicmp(as_str, "path=", 5) == 0) {
-      _putenv(as_str);
+    if (strncasecmp(as_str, "path=", 5) == 0) {
+      putenv(const_cast<char*>(as_str));  // const_cast required under mingw
       return;
     } else {
       as_str = &as_str[strlen(as_str) + 1];
@@ -139,7 +146,9 @@ int MSVCHelperMain(int argc, char** argv) {
 
   // CLWrapper's output already as \r\n line endings, make sure the C runtime
   // doesn't expand this to \r\r\n.
+#ifdef _MSC_VER
   _setmode(_fileno(stdout), _O_BINARY);
+#endif
   // Avoid printf and C strings, since the actual output might contain null
   // bytes like UTF-16 does (yuck).
   fwrite(&output[0], 1, output.size(), stdout);

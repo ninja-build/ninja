@@ -16,6 +16,11 @@
 #include <vector>
 using namespace std;
 
+#ifndef _MSC_VER
+#define _MAX_PATH 260
+#define _MAX_DIR  256
+#endif
+
 struct StringPiece;
 
 /// Utility functions for normalizing include paths on Windows.

@@ -61,7 +61,7 @@ struct LinePrinter {
   /// Buffered console output while console is locked.
   string output_buffer_;
 
-#ifdef _WIN32
+#ifdef _MSC_VER
   void* console_;
 #endif
 

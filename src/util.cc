@@ -14,13 +14,13 @@
 
 #include "util.h"
 
-#ifdef __CYGWIN__
-#include <windows.h>
-#include <io.h>
-#elif defined( _WIN32)
+#ifdef _MSC_VER
 #include <windows.h>
 #include <io.h>
 #include <share.h>
+#elif defined( _WIN32)
+#include <windows.h>
+#include <io.h>
 #endif
 
 #include <assert.h>
@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 #include <unistd.h>
 #include <sys/time.h>
 #endif
@@ -583,7 +583,7 @@ string ElideMiddle(const string& str, size_t width) {
 }
 
 bool Truncate(const string& path, size_t size, string* err) {
-#ifdef _WIN32
+#ifdef _MSC_VER
   int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);
   int success = _chsize(fh, size);
