@@ -58,9 +58,12 @@ TEST(IncludesNormalize, Simple) {
 }
 
 TEST(IncludesNormalize, WithRelative) {
+  string err;
   string currentdir = GetCurDir();
   EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
-  EXPECT_EQ("a", NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a")));
+  EXPECT_EQ("a",
+            NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
+  EXPECT_EQ("", err);
   EXPECT_EQ(string("../") + currentdir + string("/a"),
             NormalizeRelativeAndCheckNoError("a", "../b"));
   EXPECT_EQ(string("../") + currentdir + string("/a/b"),
@@ -137,4 +140,28 @@ TEST(IncludesNormalize, LongInvalidPath) {
   // Make sure a path that's exactly _MAX_PATH long is canonicalized.
   EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
             NormalizeAndCheckNoError(kExactlyMaxPath));
+}
+
+TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
+  string result, err;
+  IncludesNormalize normalizer(".");
+  // A short path should work
+  EXPECT_TRUE(normalizer.Normalize("a", &result, &err));
+  EXPECT_EQ("", err);
+
+  // Construct max size path having cwd prefix.
+  // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
+  char kExactlyMaxPath[_MAX_PATH + 1];
+  for (int i = 0; i < _MAX_PATH; ++i) {
+    if (i < _MAX_PATH - 1 && i % 10 == 4)
+      kExactlyMaxPath[i] = '\\';
+    else
+      kExactlyMaxPath[i] = 'a';
+  }
+  kExactlyMaxPath[_MAX_PATH] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+
+  // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
+  EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
+  EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
 }
