@@ -384,6 +384,32 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
             err);
 }
 
+TEST_F(ParserTest, PhonySelfReferenceIgnored) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_TRUE(edge->inputs_.empty());
+}
+
+TEST_F(ParserTest, PhonySelfReferenceKept) {
+  const char kInput[] =
+"build a: phony a\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_EQ(edge->inputs_.size(), 1);
+  ASSERT_EQ(edge->inputs_[0], node);
+}
+
 TEST_F(ParserTest, ReservedWords) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule build\n"

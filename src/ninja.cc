@@ -70,6 +70,9 @@ struct Options {
 
   /// Whether duplicate rules for one target should warn or print an error.
   bool dupe_edges_should_err;
+
+  /// Whether phony cycles should warn or print an error.
+  bool phony_cycle_should_err;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -845,7 +848,8 @@ bool DebugEnable(const string& name) {
 bool WarningEnable(const string& name, Options* options) {
   if (name == "list") {
     printf("warning flags:\n"
-"  dupbuild={err,warn}  multiple build lines for one target\n");
+"  dupbuild={err,warn}  multiple build lines for one target\n"
+"  phonycycle={err,warn}  phony build statement references itself\n");
     return false;
   } else if (name == "dupbuild=err") {
     options->dupe_edges_should_err = true;
@@ -853,9 +857,16 @@ bool WarningEnable(const string& name, Options* options) {
   } else if (name == "dupbuild=warn") {
     options->dupe_edges_should_err = false;
     return true;
+  } else if (name == "phonycycle=err") {
+    options->phony_cycle_should_err = true;
+    return true;
+  } else if (name == "phonycycle=warn") {
+    options->phony_cycle_should_err = false;
+    return true;
   } else {
     const char* suggestion =
-        SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn", NULL);
+        SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn",
+                         "phonycycle=err", "phonycycle=warn", NULL);
     if (suggestion) {
       Error("unknown warning flag '%s', did you mean '%s'?",
             name.c_str(), suggestion);
@@ -1147,6 +1158,9 @@ int real_main(int argc, char** argv) {
     ManifestParserOptions parser_opts;
     if (options.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    }
+    if (options.phony_cycle_should_err) {
+      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;

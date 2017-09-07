@@ -170,6 +170,13 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
     err->append(" -> ");
   }
   err->append((*start)->path());
+
+  if ((start + 1) == stack->end() && edge->maybe_phonycycle_diagnostic()) {
+    // The manifest parser would have filtered out the self-referencing
+    // input if it were not configured to allow the error.
+    err->append(" [-w phonycycle=err]");
+  }
+
   return false;
 }
 
@@ -408,6 +415,14 @@ bool Edge::is_phony() const {
 
 bool Edge::use_console() const {
   return pool() == &State::kConsolePool;
+}
+
+bool Edge::maybe_phonycycle_diagnostic() const {
+  // CMake 2.8.12.x and 3.0.x produced self-referencing phony rules
+  // of the form "build a: phony ... a ...".   Restrict our
+  // "phonycycle" diagnostic option to the form it used.
+  return is_phony() && outputs_.size() == 1 && implicit_outs_ == 0 &&
+      implicit_deps_ == 0;
 }
 
 // static

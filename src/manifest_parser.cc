@@ -383,6 +383,25 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
+  if (options_.phony_cycle_action_ == kPhonyCycleActionWarn &&
+      edge->maybe_phonycycle_diagnostic()) {
+    // CMake 2.8.12.x and 3.0.x incorrectly write phony build statements
+    // that reference themselves.  Ninja used to tolerate these in the
+    // build graph but that has since been fixed.  Filter them out to
+    // support users of those old CMake versions.
+    Node* out = edge->outputs_[0];
+    vector<Node*>::iterator new_end =
+        remove(edge->inputs_.begin(), edge->inputs_.end(), out);
+    if (new_end != edge->inputs_.end()) {
+      edge->inputs_.erase(new_end, edge->inputs_.end());
+      if (!quiet_) {
+        Warning("phony target '%s' names itself as an input; "
+                "ignoring [-w phonycycle=warn]",
+                out->path().c_str());
+      }
+    }
+  }
+
   // Multiple outputs aren't (yet?) supported with depslog.
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty() && edge->outputs_.size() > 1) {
