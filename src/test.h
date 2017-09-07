@@ -16,6 +16,7 @@
 #define NINJA_TEST_H_
 
 #include "disk_interface.h"
+#include "manifest_parser.h"
 #include "state.h"
 #include "util.h"
 
@@ -122,7 +123,8 @@ struct StateTestWithBuiltinRules : public testing::Test {
   State state_;
 };
 
-void AssertParse(State* state, const char* input);
+void AssertParse(State* state, const char* input,
+                 ManifestParserOptions = ManifestParserOptions());
 void AssertHash(const char* expected, uint64_t actual);
 void VerifyGraph(const State& state);
 

@@ -31,10 +31,15 @@ enum DupeEdgeAction {
   kDupeEdgeActionError,
 };
 
+struct ManifestParserOptions {
+  ManifestParserOptions(): dupe_edge_action_(kDupeEdgeActionWarn) {}
+  DupeEdgeAction dupe_edge_action_;
+};
+
 /// Parses .ninja files.
 struct ManifestParser {
   ManifestParser(State* state, FileReader* file_reader,
-                 DupeEdgeAction dupe_edge_action);
+                 ManifestParserOptions options = ManifestParserOptions());
 
   /// Load and parse a file.
   bool Load(const string& filename, string* err, Lexer* parent = NULL);
@@ -67,7 +72,7 @@ private:
   BindingEnv* env_;
   FileReader* file_reader_;
   Lexer lexer_;
-  DupeEdgeAction dupe_edge_action_;
+  ManifestParserOptions options_;
   bool quiet_;
 };
 

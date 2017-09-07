@@ -1144,10 +1144,11 @@ int real_main(int argc, char** argv) {
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
-                          options.dupe_edges_should_err
-                              ? kDupeEdgeActionError
-                              : kDupeEdgeActionWarn);
+    ManifestParserOptions parser_opts;
+    if (options.dupe_edges_should_err) {
+      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    }
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       Error("%s", err.c_str());

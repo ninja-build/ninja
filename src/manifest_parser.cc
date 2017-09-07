@@ -26,9 +26,9 @@
 #include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
-                               DupeEdgeAction dupe_edge_action)
+                               ManifestParserOptions options)
     : state_(state), file_reader_(file_reader),
-      dupe_edge_action_(dupe_edge_action), quiet_(false) {
+      options_(options), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -346,7 +346,7 @@ bool ManifestParser::ParseEdge(string* err) {
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
-      if (dupe_edge_action_ == kDupeEdgeActionError) {
+      if (options_.dupe_edge_action_ == kDupeEdgeActionError) {
         lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
                      err);
         return false;
@@ -400,7 +400,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, dupe_edge_action_);
+  ManifestParser subparser(state_, file_reader_, options_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {
