@@ -347,6 +347,8 @@ void BuildStatus::UpdateStatus() {
 }
 
 void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
+  METRIC_RECORD("print status")
+
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
