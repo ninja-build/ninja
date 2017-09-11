@@ -1068,6 +1068,19 @@ TEST_F(BuildTest, PhonyNoWork) {
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
+// Test a self-referencing phony.  Ideally this should not work, but
+// ninja 1.7 and below tolerated and CMake 2.8.12.x and 3.0.x both
+// incorrectly produce it.  We tolerate it for compatibility.
+TEST_F(BuildTest, PhonySelfReference) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a: phony a\n"));
+
+  EXPECT_TRUE(builder_.AddTarget("a", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
 TEST_F(BuildTest, Fail) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule fail\n"

@@ -201,6 +201,7 @@ struct Edge {
 
   bool is_phony() const;
   bool use_console() const;
+  bool maybe_phonycycle_diagnostic() const;
 };
 
 

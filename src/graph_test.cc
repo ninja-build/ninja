@@ -323,6 +323,18 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
   ASSERT_FALSE(plan_.more_to_do());
 }
 
+TEST_F(GraphTest, PhonySelfReferenceError) {
+  ManifestParserOptions parser_opts;
+  parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+  AssertParse(&state_,
+"build a: phony a\n",
+  parser_opts);
+
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
+  ASSERT_EQ("dependency cycle: a -> a [-w phonycycle=err]", err);
+}
+
 TEST_F(GraphTest, DependencyCycle) {
   AssertParse(&state_,
 "build out: cat mid\n"
