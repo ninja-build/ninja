@@ -23,7 +23,7 @@
 
 struct ParserTest : public testing::Test {
   void AssertParse(const char* input) {
-    ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
+    ManifestParser parser(&state, &fs_);
     string err;
     EXPECT_TRUE(parser.ParseTest(input, &err));
     ASSERT_EQ("", err);
@@ -358,7 +358,9 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
 "build out1 out2: cat in1\n"
 "build out1: cat in2\n"
 "build final: cat out1\n";
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionError);
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
@@ -373,11 +375,39 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
     "build final: cat out1\n");
   const char kInput[] =
     "subninja sub.ninja\n";
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionError);
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("sub.ninja:5: multiple rules generate out1 [-w dupbuild=err]\n",
             err);
+}
+
+TEST_F(ParserTest, PhonySelfReferenceIgnored) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_TRUE(edge->inputs_.empty());
+}
+
+TEST_F(ParserTest, PhonySelfReferenceKept) {
+  const char kInput[] =
+"build a: phony a\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_EQ(edge->inputs_.size(), 1);
+  ASSERT_EQ(edge->inputs_[0], node);
 }
 
 TEST_F(ParserTest, ReservedWords) {
@@ -391,7 +421,7 @@ TEST_F(ParserTest, ReservedWords) {
 TEST_F(ParserTest, Errors) {
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest(string("subn", 4), &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
@@ -402,7 +432,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
@@ -413,7 +443,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x 3", &err));
     EXPECT_EQ("input:1: expected '=', got identifier\n"
@@ -424,7 +454,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = 3", &err));
     EXPECT_EQ("input:1: unexpected EOF\n"
@@ -435,7 +465,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = 3\ny 2", &err));
     EXPECT_EQ("input:2: expected '=', got identifier\n"
@@ -446,7 +476,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = $", &err));
     EXPECT_EQ("input:1: bad $-escape (literal $ must be written as $$)\n"
@@ -457,7 +487,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = $\n $[\n", &err));
     EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
@@ -468,7 +498,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = a$\n b$\n $\n", &err));
     EXPECT_EQ("input:4: unexpected EOF\n"
@@ -477,7 +507,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build\n", &err));
     EXPECT_EQ("input:1: expected path\n"
@@ -488,7 +518,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
     EXPECT_EQ("input:1: unknown build rule 'y'\n"
@@ -499,7 +529,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build x:: y z\n", &err));
     EXPECT_EQ("input:1: expected build command name\n"
@@ -510,7 +540,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n  command = cat ok\n"
                                   "build x: cat $\n :\n",
@@ -523,7 +553,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n",
                                   &err));
@@ -532,7 +562,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                   "  command = echo\n"
@@ -546,7 +576,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                   "  command = echo\n"
@@ -558,7 +588,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                   "  command = ${fafsd\n"
@@ -573,7 +603,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                   "  command = cat\n"
@@ -588,7 +618,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
                                   "  command = cat\n"
@@ -602,7 +632,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule %foo\n",
                                   &err));
@@ -611,7 +641,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n"
                                   "  command = foo\n"
@@ -625,7 +655,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
                                   "build $.: cc bar.cc\n",
@@ -638,7 +668,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  && bar",
                                   &err));
@@ -647,7 +677,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
                                   "build $: cc bar.cc\n",
@@ -660,7 +690,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default\n",
                                   &err));
@@ -672,7 +702,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default nonexistent\n",
                                   &err));
@@ -684,7 +714,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule r\n  command = r\n"
                                   "build b: r\n"
@@ -698,7 +728,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default $a\n", &err));
     EXPECT_EQ("input:1: empty path\n"
@@ -709,7 +739,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule r\n"
                                   "  command = r\n"
@@ -721,7 +751,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     // the indented blank line must terminate the rule
     // this also verifies that "unexpected (token)" errors are correct
@@ -734,7 +764,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool\n", &err));
     EXPECT_EQ("input:1: expected pool name\n", err);
@@ -742,7 +772,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n", &err));
     EXPECT_EQ("input:2: expected 'depth =' line\n", err);
@@ -750,7 +780,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
                                   "  depth = 4\n"
@@ -763,7 +793,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
                                   "  depth = -1\n", &err));
@@ -775,7 +805,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
                                   "  bar = 1\n", &err));
@@ -787,7 +817,7 @@ TEST_F(ParserTest, Errors) {
 
   {
     State local_state;
-    ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+    ManifestParser parser(&local_state, NULL);
     string err;
     // Pool names are dereferenced at edge parsing time.
     EXPECT_FALSE(parser.ParseTest("rule run\n"
@@ -800,7 +830,7 @@ TEST_F(ParserTest, Errors) {
 
 TEST_F(ParserTest, MissingInput) {
   State local_state;
-  ManifestParser parser(&local_state, &fs_, kDupeEdgeActionWarn);
+  ManifestParser parser(&local_state, &fs_);
   string err;
   EXPECT_FALSE(parser.Load("build.ninja", &err));
   EXPECT_EQ("loading 'build.ninja': No such file or directory", err);
@@ -808,7 +838,7 @@ TEST_F(ParserTest, MissingInput) {
 
 TEST_F(ParserTest, MultipleOutputs) {
   State local_state;
-  ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+  ManifestParser parser(&local_state, NULL);
   string err;
   EXPECT_TRUE(parser.ParseTest("rule cc\n  command = foo\n  depfile = bar\n"
                                "build a.o b.o: cc c.cc\n",
@@ -818,7 +848,7 @@ TEST_F(ParserTest, MultipleOutputs) {
 
 TEST_F(ParserTest, MultipleOutputsWithDeps) {
   State local_state;
-  ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+  ManifestParser parser(&local_state, NULL);
   string err;
   EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
                                "build a.o b.o: cc c.cc\n",
@@ -853,7 +883,7 @@ TEST_F(ParserTest, SubNinja) {
 }
 
 TEST_F(ParserTest, MissingSubNinja) {
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest("subninja foo.ninja\n", &err));
   EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
@@ -866,7 +896,7 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
   // Test that rules are scoped to subninjas.
   fs_.Create("test.ninja", "rule cat\n"
                          "  command = cat\n");
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_TRUE(parser.ParseTest("rule cat\n"
                                 "  command = cat\n"
@@ -879,7 +909,7 @@ TEST_F(ParserTest, DuplicateRuleInDifferentSubninjasWithInclude) {
                          "  command = cat\n");
   fs_.Create("test.ninja", "include rules.ninja\n"
                          "build x : cat\n");
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_TRUE(parser.ParseTest("include rules.ninja\n"
                                 "subninja test.ninja\n"
@@ -899,7 +929,7 @@ TEST_F(ParserTest, Include) {
 
 TEST_F(ParserTest, BrokenInclude) {
   fs_.Create("include.ninja", "build\n");
-  ManifestParser parser(&state, &fs_, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
   EXPECT_EQ("include.ninja:1: expected path\n"
@@ -974,7 +1004,7 @@ TEST_F(ParserTest, ImplicitOutputDupes) {
 }
 
 TEST_F(ParserTest, NoExplicitOutput) {
-  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, NULL);
   string err;
   EXPECT_TRUE(parser.ParseTest(
 "rule cat\n"
@@ -1034,7 +1064,7 @@ TEST_F(ParserTest, UTF8) {
 
 TEST_F(ParserTest, CRLF) {
   State local_state;
-  ManifestParser parser(&local_state, NULL, kDupeEdgeActionWarn);
+  ManifestParser parser(&local_state, NULL);
   string err;
 
   EXPECT_TRUE(parser.ParseTest("# comment with crlf\r\n", &err));

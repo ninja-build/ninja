@@ -193,6 +193,8 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
 parser = argparse.ArgumentParser(prog='ninja -t browse')
 parser.add_argument('--port', '-p', default=8000, type=int,
     help='Port number to use (default %(default)d)')
+parser.add_argument('--hostname', '-a', default='localhost', type=str,
+    help='Hostname to bind to (default %(default)s)')
 parser.add_argument('--no-browser', action='store_true',
     help='Do not open a webbrowser on startup.')
 
@@ -205,9 +207,11 @@ parser.add_argument('initial_target', default='all', nargs='?',
 
 args = parser.parse_args()
 port = args.port
-httpd = httpserver.HTTPServer(('',port), RequestHandler)
+hostname = args.hostname
+httpd = httpserver.HTTPServer((hostname,port), RequestHandler)
 try:
-    hostname = socket.gethostname()
+    if hostname == "":
+        hostname = socket.gethostname()
     print('Web server running on %s:%d, ctl-C to abort...' % (hostname,port) )
     print('Web server pid %d' % os.getpid(), file=sys.stderr )
     if not args.no_browser:

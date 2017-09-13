@@ -185,59 +185,6 @@ TEST_F(PlanTest, DoubleDependent) {
   ASSERT_FALSE(edge);  // done
 }
 
-TEST_F(PlanTest, DependencyCycle) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out: cat mid\n"
-"build mid: cat in\n"
-"build in: cat pre\n"
-"build pre: cat out\n"));
-  GetNode("out")->MarkDirty();
-  GetNode("mid")->MarkDirty();
-  GetNode("in")->MarkDirty();
-  GetNode("pre")->MarkDirty();
-
-  string err;
-  EXPECT_FALSE(plan_.AddTarget(GetNode("out"), &err));
-  ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
-}
-
-TEST_F(PlanTest, CycleInEdgesButNotInNodes1) {
-  string err;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a b: cat a\n"));
-  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
-  ASSERT_EQ("dependency cycle: a -> a", err);
-}
-
-TEST_F(PlanTest, CycleInEdgesButNotInNodes2) {
-  string err;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build b a: cat a\n"));
-  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
-  ASSERT_EQ("dependency cycle: a -> a", err);
-}
-
-TEST_F(PlanTest, CycleInEdgesButNotInNodes3) {
-  string err;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build a b: cat c\n"
-"build c: cat a\n"));
-  EXPECT_FALSE(plan_.AddTarget(GetNode("b"), &err));
-  ASSERT_EQ("dependency cycle: c -> a -> c", err);
-}
-
-TEST_F(PlanTest, CycleInEdgesButNotInNodes4) {
-  string err;
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build d: cat c\n"
-"build c: cat b\n"
-"build b: cat a\n"
-"build a e: cat d\n"
-"build f: cat e\n"));
-  EXPECT_FALSE(plan_.AddTarget(GetNode("f"), &err));
-  ASSERT_EQ("dependency cycle: d -> c -> b -> a -> d", err);
-}
-
 void PlanTest::TestPoolWithDepthOne(const char* test_case) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, test_case));
   GetNode("out1")->MarkDirty();
@@ -608,7 +555,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "cat_rsp_out" ||
       edge->rule().name() == "cc" ||
       edge->rule().name() == "touch" ||
-      edge->rule().name() == "touch-interrupt") {
+      edge->rule().name() == "touch-interrupt" ||
+      edge->rule().name() == "touch-fail-tick2") {
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
@@ -649,7 +597,8 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     return true;
   }
 
-  if (edge->rule().name() == "fail")
+  if (edge->rule().name() == "fail" ||
+      (edge->rule().name() == "touch-fail-tick2" && fs_->now_ == 2))
     result->status = ExitFailure;
   else
     result->status = ExitSuccess;
@@ -1119,6 +1068,19 @@ TEST_F(BuildTest, PhonyNoWork) {
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
+// Test a self-referencing phony.  Ideally this should not work, but
+// ninja 1.7 and below tolerated and CMake 2.8.12.x and 3.0.x both
+// incorrectly produce it.  We tolerate it for compatibility.
+TEST_F(BuildTest, PhonySelfReference) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build a: phony a\n"));
+
+  EXPECT_TRUE(builder_.AddTarget("a", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
 TEST_F(BuildTest, Fail) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule fail\n"
@@ -1256,6 +1218,82 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
+TEST_F(BuildWithLogTest, RebuildAfterFailure) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch-fail-tick2\n"
+"  command = touch-fail-tick2\n"
+"build out1: touch-fail-tick2 in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  // Run once successfully to get out1 in the log
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  // Run again with a failure that updates the output file timestamp
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  fs_.Tick();
+
+  // Run again, should rerun even though the output file is up to date on disk
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("", err);
+}
+
+TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch\n"
+"build out1: touch\n"
+"build out2: touch in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  fs_.Tick();
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildWithLogTest, RestatTest) {
@@ -1438,7 +1476,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // the right mtime
   BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 
   // Now remove a file, referenced from depfile, so that target becomes
   // dirty, but the output does not change
@@ -1455,7 +1493,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   // Check that the logfile entry remains correctly set
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
-  ASSERT_EQ(restat_mtime, log_entry->restat_mtime);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
 }
 
 struct BuildDryRun : public BuildWithLogTest {
@@ -1669,8 +1707,8 @@ TEST_F(BuildTest, InterruptCleanup) {
 TEST_F(BuildTest, StatFailureAbortsBuild) {
   const string kTooLongToStat(400, 'i');
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-("build " + kTooLongToStat + ": cat " + kTooLongToStat + "\n").c_str()));
-  // Also cyclic, for good measure.
+("build " + kTooLongToStat + ": cat in\n").c_str()));
+  fs_.Create("in", "");
 
   // This simulates a stat failure:
   fs_.files_[kTooLongToStat].mtime = -1;

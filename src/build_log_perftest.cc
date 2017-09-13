@@ -71,7 +71,7 @@ bool WriteTestData(string* err) {
   long_rule_command += "$in -o $out\n";
 
   State state;
-  ManifestParser parser(&state, NULL, kDupeEdgeActionWarn);
+  ManifestParser parser(&state, NULL);
   if (!parser.ParseTest("rule cxx\n  command = " + long_rule_command, err))
     return false;
 
@@ -92,7 +92,7 @@ bool WriteTestData(string* err) {
     log.RecordCommand(state.edges_[i],
                       /*start_time=*/100 * i,
                       /*end_time=*/100 * i + 1,
-                      /*restat_mtime=*/0);
+                      /*mtime=*/0);
   }
 
   return true;
