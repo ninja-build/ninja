@@ -213,10 +213,45 @@ SubprocessSet::SubprocessSet() {
     Win32Fatal("CreateIoCompletionPort");
   if (!SetConsoleCtrlHandler(NotifyInterrupted, TRUE))
     Win32Fatal("SetConsoleCtrlHandler");
+
+#ifdef __CYGWIN__
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = &HandleInterruptSignal;
+  if (sigaction(SIGINT, &act, &old_int_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGTERM, &act, &old_term_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGHUP, &act, &old_hup_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+
+  // Make sure all pending signals are handled before relying on the
+  // registered signal handler.
+  sigset_t pending;
+  sigemptyset(&pending);
+  if (sigpending(&pending) == -1) {
+    Fatal("ninja: sigpending");
+  }
+  if (sigismember(&pending, SIGINT))
+    HandleInterruptSignal(SIGINT);
+  else if (sigismember(&pending, SIGTERM))
+    HandleInterruptSignal(SIGTERM);
+  else if (sigismember(&pending, SIGHUP))
+    HandleInterruptSignal(SIGHUP);
+#endif // __CYGWIN
 }
 
 SubprocessSet::~SubprocessSet() {
   Clear();
+
+#ifdef __CYGWIN__
+  if (sigaction(SIGINT, &old_int_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGHUP, &old_hup_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+#endif
 
   SetConsoleCtrlHandler(NotifyInterrupted, FALSE);
   CloseHandle(ioport_);
@@ -231,6 +266,13 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
 
   return FALSE;
 }
+
+#ifdef __CYGWIN__
+void SubprocessSet::HandleInterruptSignal(int signum) {
+  // Just interrupt, that's all we're listening to.
+  NotifyInterrupted(CTRL_BREAK_EVENT);
+}
+#endif
 
 Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
   Subprocess *subprocess = new Subprocess(use_console);

@@ -1268,6 +1268,20 @@ NORETURN void real_main(int argc, char** argv) {
   exit(1);
 }
 
+#ifdef __CYGWIN__
+struct real_main_data_t {
+  int argc;
+  char** argv;
+  int ret;
+};
+
+void* real_main_thread_start(void* voidarg) {
+  real_main_data_t* arg = (real_main_data_t*)(voidarg);
+  arg->ret = real_main(arg->argc, arg->argv);
+  return NULL;
+}
+#endif  // __CYGWIN__
+
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -1285,6 +1299,18 @@ int main(int argc, char** argv) {
     // indicate a more serious problem.
     return 2;
   }
+#elif defined(__CYGWIN__)
+  real_main_data_t thread_data;
+  thread_data.argc = argc;
+  thread_data.argv = argv;
+  thread_data.ret = -1;
+  pthread_t thread;
+  // Start the thread that runs real_main
+  if(pthread_create(&thread, NULL, real_main_thread_start, &thread_data))
+    Fatal("pthread_create: %s", strerror(errno));
+  // Wait for a signal to occur or for real_main to exit
+  pthread_join(thread, NULL);
+  return thread_data.ret;
 #else
   real_main(argc, argv);
 #endif

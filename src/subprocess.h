@@ -92,9 +92,17 @@ struct SubprocessSet {
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 
+#ifndef _MSC_VER
+  struct sigaction old_int_act_;
+  struct sigaction old_term_act_;
+  struct sigaction old_hup_act_;
+#endif
 #ifdef _WIN32
   static BOOL WINAPI NotifyInterrupted(DWORD dwCtrlType);
   static HANDLE ioport_;
+#ifdef __CYGWIN__
+  static void HandleInterruptSignal(int signum);
+#endif  // __CYGWIN__
 #else
   static void SetInterruptedFlag(int signum);
   static void HandlePendingInterruption();
@@ -104,9 +112,6 @@ struct SubprocessSet {
 
   static bool IsInterrupted() { return interrupted_ != 0; }
 
-  struct sigaction old_int_act_;
-  struct sigaction old_term_act_;
-  struct sigaction old_hup_act_;
   sigset_t old_mask_;
 #endif
 };
