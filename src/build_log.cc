@@ -290,7 +290,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
