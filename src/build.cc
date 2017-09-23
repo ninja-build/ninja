@@ -765,7 +765,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   while (!edgesQ.empty()) {
     Edge* e = edgesQ.front(); edgesQ.pop();
     bool all_nodes_ready = true;
-    int max_crit = 0;
+    uint64_t max_crit = 0;
     for (vector<Node*>::iterator it = e->outputs_.begin(),
                                  end = e->outputs_.end();
          it != end; ++it) {
@@ -809,7 +809,8 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       Edge* edge = *it;
       Node* input = edge->inputs_[0];
       Node* output = edge->outputs_[0];
-      printf("%s %s crit %d edge %d\n", input->path().c_str(),
+
+      printf("%s %s crit %" PRIu64 " edge %d\n", input->path().c_str(),
              output->path().c_str(), edge->critical_time(),
              edge->run_time_ms_);
     }
