@@ -271,6 +271,9 @@ the given rules.
 Files created but not referenced in the graph are not removed. This
 tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
++
+Non-empty directories created by the generator or any build targets are not
+recursively removed, these are silently ignored.
 
 `compdb`:: given a list of rules, each of which is expected to be a
 C family language compiler rule whose first input is the name of the
