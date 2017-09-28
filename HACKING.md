@@ -13,7 +13,7 @@ run `ninja_test` when developing.
 Ninja is built using itself.  To bootstrap the first binary, run the
 configure script as `./configure.py --bootstrap`.  This first compiles
 all non-test source files together, then re-builds Ninja using itself.
-You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
+You should end up with a `ninja` binary (or `ninja.exe`) in the project root.
 
 #### Windows
 
