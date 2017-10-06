@@ -85,6 +85,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
       progress_line_format_(NULL), progress_table_format_(NULL),
+      progress_sleep_millis_(0),
       overall_rate_(), current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode nor dry run.
@@ -97,6 +98,12 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   progress_table_format_ = getenv("NINJA_STATUS_TABLE");
   if (!progress_table_format_)
     progress_table_format_ = "[%s/%t] %E elapsed, %L left";
+  if (config_.verbosity != BuildConfig::VERBOSE) {
+    const char* progress_sleep_millis_str = getenv("NINJA_STATUS_SLEEP");
+    if (progress_sleep_millis_str)
+      progress_sleep_millis_ = atoi(progress_sleep_millis_str);
+  }
+  last_progress_print_millis_ = start_time_millis_ - progress_sleep_millis_;
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -404,10 +411,15 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
     if (edge != NULL) {
       string to_print = FormatProgressStatus(progress_line_format_, status) +
         edge->GetDescription(force_full_command);
-      if (printer_.is_smart_terminal())
+      if (printer_.is_smart_terminal()) {
         printer_.PrintTemporaryElide(to_print);
-      else
-        printer_.Print(to_print + '\n');
+      } else {
+        int64_t now = GetTimeMillis();
+        if (now - last_progress_print_millis_ >= progress_sleep_millis_) {
+          printer_.Print(to_print + '\n');
+          last_progress_print_millis_ = now;
+        }
+      }
     }
   }
 }

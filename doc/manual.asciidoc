@@ -193,8 +193,10 @@ Environment variables
 
 Ninja supports two environment variables to control its behavior:
 
-- `NINJA_STATUS`, the progress status line printed before the rule being run, and
-- `NINJA_STATUS_TABLE`, the progress status table printed while rules are running.
+- `NINJA_STATUS`, the progress status line printed before the rule being run,
+- `NINJA_STATUS_TABLE`, the progress status table printed while rules are running, and
+- `NINJA_STATUS_SLEEP`, the minimum time, in milliseconds, between progress
+  status updates on a dumb terminal.
 
 Several placeholders are available:
 

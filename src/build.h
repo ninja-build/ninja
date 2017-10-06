@@ -269,6 +269,10 @@ struct BuildStatus {
   /// The custom progress status format to used for the
   /// table printout.
   const char* progress_table_format_;
+  /// The number of milliseconds to wait between each
+  /// progress print on a dumb terminal.
+  int progress_sleep_millis_;
+  int64_t last_progress_print_millis_;
 
   template<size_t S>
   void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
