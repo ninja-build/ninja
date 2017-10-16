@@ -209,7 +209,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     bool is_deps = (size >> 31) != 0;
     size = size & 0x7FFFFFFF;
 
-    if (fread(buf, size, 1, f) < 1 || size > kMaxRecordSize) {
+    if (size > kMaxRecordSize || fread(buf, size, 1, f) < 1) {
       read_failed = true;
       break;
     }
