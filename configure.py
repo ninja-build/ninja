@@ -78,12 +78,15 @@ class Platform(object):
     def is_msvc(self):
         return self._platform == 'msvc'
 
-    def msvc_needs_fs(self):
-        popen = subprocess.Popen(['cl', '/nologo', '/?'],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-        out, err = popen.communicate()
-        return b'/FS' in out
+    def msvc_feature_check(self):
+        try:
+            popen = subprocess.Popen(['cl', '/nologo', '/?'],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+            out, err = popen.communicate()
+            return 'has_fs' if b'/FS' in out else 'no_fs'
+        except WindowsError:
+            return 'no_cl'
 
     def is_windows(self):
         return self.is_mingw() or self.is_msvc()
@@ -317,7 +320,11 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
-    if platform.msvc_needs_fs():
+    msvc_features = platform.msvc_feature_check()
+    if msvc_features == 'no_cl':
+        print('ERROR: cl.exe not found; run this in Developer Command Prompt')
+        sys.exit(1)
+    if msvc_features == 'has_fs':
         cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
