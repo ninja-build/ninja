@@ -212,10 +212,10 @@ void Usage(const BuildConfig& config) {
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "  -v       show all command lines while building\n"
 "\n"
-"  -d MODE  enable debugging (use -d list to list modes)\n"
-"  -t TOOL  run a subtool (use -t list to list subtools)\n"
+"  -d MODE  enable debugging (use '-d list' to list modes)\n"
+"  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use -w list to list warnings)\n",
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
           kNinjaVersion, config.parallelism);
 }
 
