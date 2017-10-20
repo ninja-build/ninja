@@ -219,19 +219,6 @@ void Usage(const BuildConfig& config) {
           kNinjaVersion, config.parallelism);
 }
 
-/// Choose a default value for the -j (parallelism) flag.
-int GuessParallelism() {
-  switch (int processors = GetProcessorCount()) {
-  case 0:
-  case 1:
-    return 2;
-  case 2:
-    return 3;
-  default:
-    return processors + 2;
-  }
-}
-
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
 bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
@@ -1036,7 +1023,7 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
+  config->parallelism = GetProcessorCount();
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
