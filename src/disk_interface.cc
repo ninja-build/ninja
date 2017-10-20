@@ -61,12 +61,11 @@ int MakeDir(const string& path) {
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
+  // resulting value to fit in a 64-bit integer.
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
 TimeStamp StatSingleFile(const string& path, string* err) {
@@ -192,7 +191,19 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   // that it doesn't exist.
   if (st.st_mtime == 0)
     return 1;
-  return st.st_mtime;
+#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+  return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
+          st.st_mtimespec.tv_nsec);
+#elif (_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700 || defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || \
+       defined(__BIONIC__))
+  // For glibc, see "Timestamp files" in the Notes of http://www.kernel.org/doc/man-pages/online/pages/man2/stat.2.html
+  // newlib, uClibc and musl follow the kernel (or Cygwin) headers and define the right macro values above.
+  // For bsd, see https://github.com/freebsd/freebsd/blob/master/sys/sys/stat.h and similar
+  // For bionic, C and POSIX API is always enabled.
+  return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+#else
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
+#endif
 #endif
 }
 

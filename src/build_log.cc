@@ -290,7 +290,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -353,7 +353,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;
 }
