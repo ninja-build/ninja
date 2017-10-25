@@ -86,6 +86,7 @@ struct DepsLog {
   };
   bool Load(const string& path, State* state, string* err);
   Deps* GetDeps(Node* node);
+  Node* GetFirstReverseDepsNode(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);

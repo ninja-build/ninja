@@ -282,15 +282,20 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   if (node) {
     if (first_dependent) {
       if (node->out_edges().empty()) {
-        *err = "'" + path + "' has no out edge";
-        return NULL;
+        Node* rev_deps = deps_log_.GetFirstReverseDepsNode(node);
+        if (!rev_deps) {
+          *err = "'" + path + "' has no out edge";
+          return NULL;
+        }
+        node = rev_deps;
+      } else {
+        Edge* edge = node->out_edges()[0];
+        if (edge->outputs_.empty()) {
+          edge->Dump();
+          Fatal("edge has no outputs");
+        }
+        node = edge->outputs_[0];
       }
-      Edge* edge = node->out_edges()[0];
-      if (edge->outputs_.empty()) {
-        edge->Dump();
-        Fatal("edge has no outputs");
-      }
-      node = edge->outputs_[0];
     }
     return node;
   } else {
