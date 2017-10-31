@@ -61,8 +61,8 @@ bool SameDrive(StringPiece a, StringPiece b)  {
 
   char a_absolute[_MAX_PATH];
   char b_absolute[_MAX_PATH];
-  GetFullPathName(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
-  GetFullPathName(b.AsString().c_str(), sizeof(b_absolute), b_absolute, NULL);
+  GetFullPathNameA(a.AsString().c_str(), sizeof(a_absolute), a_absolute, NULL);
+  GetFullPathNameA(b.AsString().c_str(), sizeof(b_absolute), b_absolute, NULL);
   char a_drive[_MAX_DIR];
   char b_drive[_MAX_DIR];
   _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
@@ -122,7 +122,7 @@ string IncludesNormalize::AbsPath(StringPiece s) {
   }
 
   char result[_MAX_PATH];
-  GetFullPathName(s.AsString().c_str(), sizeof(result), result, NULL);
+  GetFullPathNameA(s.AsString().c_str(), sizeof(result), result, NULL);
   for (char* c = result; *c; ++c)
     if (*c == '\\')
       *c = '/';
