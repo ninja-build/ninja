@@ -464,13 +464,17 @@ struct RealCommandRunner : public CommandRunner {
   virtual void Abort();
 
   const BuildConfig& config_;
+  // copy of config_.max_load_average; can be modified by TokenPool setup
+  double max_load_average_;
   SubprocessSet subprocs_;
   TokenPool *tokens_;
   map<const Subprocess*, Edge*> subproc_to_edge_;
 };
 
 RealCommandRunner::RealCommandRunner(const BuildConfig& config) : config_(config) {
-  tokens_ = TokenPool::Get(config_.parallelism_from_cmdline);
+  max_load_average_ = config.max_load_average;
+  tokens_ = TokenPool::Get(config_.parallelism_from_cmdline,
+                           max_load_average_);
 }
 
 RealCommandRunner::~RealCommandRunner() {
@@ -498,8 +502,8 @@ bool RealCommandRunner::CanRunMore() const {
             subprocs_.finished_.size()) < config_.parallelism);
   return parallelism_limit_not_reached
     && (subprocs_.running_.empty() ||
-        (config_.max_load_average <= 0.0f ||
-         GetLoadAverage() < config_.max_load_average));
+        (max_load_average_ <= 0.0f ||
+         GetLoadAverage() < max_load_average_));
 }
 
 bool RealCommandRunner::AcquireToken() {

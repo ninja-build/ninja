@@ -35,7 +35,7 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual void Clear();
   virtual int GetMonitorFd();
 
-  bool Setup(bool ignore);
+  bool Setup(bool ignore, double& max_load_average);
 
  private:
   int available_;
@@ -100,7 +100,7 @@ bool GNUmakeTokenPool::SetAlarmHandler() {
   }
 }
 
-bool GNUmakeTokenPool::Setup(bool ignore) {
+bool GNUmakeTokenPool::Setup(bool ignore, double& max_load_average) {
   const char *value = getenv("MAKEFLAGS");
   if (value) {
     // GNU make <= 4.1
@@ -118,9 +118,20 @@ bool GNUmakeTokenPool::Setup(bool ignore) {
             CheckFd(rfd) &&
             CheckFd(wfd) &&
             SetAlarmHandler()) {
+          const char *l_arg = strstr(value, " -l");
+          int load_limit = -1;
+
           printf("ninja: using GNU make jobserver.\n");
           rfd_ = rfd;
           wfd_ = wfd;
+
+          // translate GNU make -lN to ninja -lN
+          if (l_arg &&
+              (sscanf(l_arg + 3, "%d ", &load_limit) == 1) &&
+              (load_limit > 0)) {
+            max_load_average = load_limit;
+          }
+
           return true;
         }
       }
@@ -210,9 +221,9 @@ int GNUmakeTokenPool::GetMonitorFd() {
   return(rfd_);
 }
 
-struct TokenPool *TokenPool::Get(bool ignore) {
+struct TokenPool *TokenPool::Get(bool ignore, double& max_load_average) {
   GNUmakeTokenPool *tokenpool = new GNUmakeTokenPool;
-  if (tokenpool->Setup(ignore))
+  if (tokenpool->Setup(ignore, max_load_average))
     return tokenpool;
   else
     delete tokenpool;

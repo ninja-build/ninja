@@ -28,5 +28,5 @@ struct TokenPool {
 #endif
 
   // returns NULL if token pool is not available
-  static struct TokenPool *Get(bool ignore);
+  static struct TokenPool *Get(bool ignore, double& max_load_average);
 };
