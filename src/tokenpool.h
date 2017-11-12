@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016-2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,5 +28,5 @@ struct TokenPool {
 #endif
 
   // returns NULL if token pool is not available
-  static struct TokenPool *Get(void);
+  static struct TokenPool *Get(bool ignore);
 };

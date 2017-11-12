@@ -1448,6 +1448,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
         config->parallelism = value > 0 ? value : INT_MAX;
+        config->parallelism_from_cmdline = true;
         deferGuessParallelism.needGuess = false;
         break;
       }

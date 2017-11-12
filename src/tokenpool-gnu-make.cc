@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016-2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual void Clear();
   virtual int GetMonitorFd();
 
-  bool Setup();
+  bool Setup(bool ignore);
 
  private:
   int available_;
@@ -100,7 +100,7 @@ bool GNUmakeTokenPool::SetAlarmHandler() {
   }
 }
 
-bool GNUmakeTokenPool::Setup() {
+bool GNUmakeTokenPool::Setup(bool ignore) {
   const char *value = getenv("MAKEFLAGS");
   if (value) {
     // GNU make <= 4.1
@@ -109,16 +109,20 @@ bool GNUmakeTokenPool::Setup() {
     if (!jobserver)
       jobserver = strstr(value, "--jobserver-auth=");
     if (jobserver) {
-      int rfd = -1;
-      int wfd = -1;
-      if ((sscanf(jobserver, "%*[^=]=%d,%d", &rfd, &wfd) == 2) &&
-          CheckFd(rfd) &&
-          CheckFd(wfd) &&
-          SetAlarmHandler()) {
-        printf("ninja: using GNU make jobserver.\n");
-        rfd_ = rfd;
-        wfd_ = wfd;
-        return true;
+      if (ignore) {
+        printf("ninja: warning: -jN forced on command line; ignoring GNU make jobserver.\n");
+      } else {
+        int rfd = -1;
+        int wfd = -1;
+        if ((sscanf(jobserver, "%*[^=]=%d,%d", &rfd, &wfd) == 2) &&
+            CheckFd(rfd) &&
+            CheckFd(wfd) &&
+            SetAlarmHandler()) {
+          printf("ninja: using GNU make jobserver.\n");
+          rfd_ = rfd;
+          wfd_ = wfd;
+          return true;
+        }
       }
     }
   }
@@ -206,9 +210,9 @@ int GNUmakeTokenPool::GetMonitorFd() {
   return(rfd_);
 }
 
-struct TokenPool *TokenPool::Get(void) {
+struct TokenPool *TokenPool::Get(bool ignore) {
   GNUmakeTokenPool *tokenpool = new GNUmakeTokenPool;
-  if (tokenpool->Setup())
+  if (tokenpool->Setup(ignore))
     return tokenpool;
   else
     delete tokenpool;

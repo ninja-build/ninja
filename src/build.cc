@@ -470,7 +470,7 @@ struct RealCommandRunner : public CommandRunner {
 };
 
 RealCommandRunner::RealCommandRunner(const BuildConfig& config) : config_(config) {
-  tokens_ = TokenPool::Get();
+  tokens_ = TokenPool::Get(config_.parallelism_from_cmdline);
 }
 
 RealCommandRunner::~RealCommandRunner() {
@@ -492,9 +492,11 @@ void RealCommandRunner::Abort() {
 }
 
 bool RealCommandRunner::CanRunMore() const {
-  size_t subproc_number =
-      subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
+  bool parallelism_limit_not_reached =
+    tokens_ || // ignore config_.parallelism
+    ((int) (subprocs_.running_.size() +
+            subprocs_.finished_.size()) < config_.parallelism);
+  return parallelism_limit_not_reached
     && (subprocs_.running_.empty() ||
         (config_.max_load_average <= 0.0f ||
          GetLoadAverage() < config_.max_load_average));

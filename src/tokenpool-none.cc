@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016-2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,6 @@
 #include <stdlib.h>
 
 // No-op TokenPool implementation
-struct TokenPool *TokenPool::Get(void) {
+struct TokenPool *TokenPool::Get(bool ignore) {
   return NULL;
 }
