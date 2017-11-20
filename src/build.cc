@@ -282,7 +282,18 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  int time = (int)(GetTimeMillis() - start_time_millis_);
+  char buf[32];
+  if (finished_edges_ > 0)
+    {
+      int remaining_time = (time / finished_edges_) * (total_edges_ - finished_edges_);
+      int seconds = remaining_time / 1000;
+      snprintf(buf, sizeof(buf), " Remaining Time: %d min. %d sec", seconds / 60, seconds % 60);
+    }
+  else
+    snprintf(buf, sizeof(buf), " ");
+
+  to_print = FormatProgressStatus(progress_status_format_, status) + to_print + buf;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
