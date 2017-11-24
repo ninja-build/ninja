@@ -167,6 +167,9 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
         return false;
+      if (fflush(log_file_) != 0) {
+          return false;
+      }
     }
   }
   return true;
