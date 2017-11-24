@@ -18,6 +18,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #ifndef _WIN32
 #include <unistd.h>
 #elif defined(_MSC_VER) && (_MSC_VER < 1900)
@@ -353,13 +356,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  if (unlink(path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
-    *err = strerror(errno);
+  if (!ReplaceContent(path, temp_path, err)) {
     return false;
   }
 
