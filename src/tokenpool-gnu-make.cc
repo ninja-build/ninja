@@ -23,6 +23,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "line_printer.h"
+
 // TokenPool implementation for GNU make jobserver
 // (http://make.mad-scientist.net/papers/jobserver-implementation/)
 struct GNUmakeTokenPool : public TokenPool {
@@ -35,7 +37,7 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual void Clear();
   virtual int GetMonitorFd();
 
-  bool Setup(bool ignore, double& max_load_average);
+  bool Setup(bool ignore, bool verbose, double& max_load_average);
 
  private:
   int available_;
@@ -100,7 +102,9 @@ bool GNUmakeTokenPool::SetAlarmHandler() {
   }
 }
 
-bool GNUmakeTokenPool::Setup(bool ignore, double& max_load_average) {
+bool GNUmakeTokenPool::Setup(bool ignore,
+                             bool verbose,
+                             double& max_load_average) {
   const char *value = getenv("MAKEFLAGS");
   if (value) {
     // GNU make <= 4.1
@@ -109,8 +113,10 @@ bool GNUmakeTokenPool::Setup(bool ignore, double& max_load_average) {
     if (!jobserver)
       jobserver = strstr(value, "--jobserver-auth=");
     if (jobserver) {
+      LinePrinter printer;
+
       if (ignore) {
-        printf("ninja: warning: -jN forced on command line; ignoring GNU make jobserver.\n");
+        printer.PrintOnNewLine("ninja: warning: -jN forced on command line; ignoring GNU make jobserver.\n");
       } else {
         int rfd = -1;
         int wfd = -1;
@@ -121,7 +127,9 @@ bool GNUmakeTokenPool::Setup(bool ignore, double& max_load_average) {
           const char *l_arg = strstr(value, " -l");
           int load_limit = -1;
 
-          printf("ninja: using GNU make jobserver.\n");
+          if (verbose) {
+            printer.PrintOnNewLine("ninja: using GNU make jobserver.\n");
+          }
           rfd_ = rfd;
           wfd_ = wfd;
 
@@ -221,9 +229,11 @@ int GNUmakeTokenPool::GetMonitorFd() {
   return(rfd_);
 }
 
-struct TokenPool *TokenPool::Get(bool ignore, double& max_load_average) {
+struct TokenPool *TokenPool::Get(bool ignore,
+                                 bool verbose,
+                                 double& max_load_average) {
   GNUmakeTokenPool *tokenpool = new GNUmakeTokenPool;
-  if (tokenpool->Setup(ignore, max_load_average))
+  if (tokenpool->Setup(ignore, verbose, max_load_average))
     return tokenpool;
   else
     delete tokenpool;
