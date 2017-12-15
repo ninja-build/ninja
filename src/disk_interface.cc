@@ -112,6 +112,11 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   }
   do {
     string lowername = ffd.cFileName;
+    if (lowername == "..") {
+      // Seems to just copy the timestamp for ".." from ".", which is wrong.
+      // This is the case at least on NTFS under Windows 7.
+      continue;
+    }
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
@@ -164,6 +169,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 
   string dir = DirName(path);
   string base(path.substr(dir.size() ? dir.size() + 1 : 0));
+  if (base == "..") {
+    // StatAllFilesInDir does not report any information for base = "..".
+    base = ".";
+    dir = path;
+  }
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
