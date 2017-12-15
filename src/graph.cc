@@ -537,28 +537,30 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 }
 
 bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
-  // NOTE: deps are only supported for single-target edges.
-  Node* output = edge->outputs_[0];
-  DepsLog::Deps* deps = deps_log_->GetDeps(output);
-  if (!deps) {
-    EXPLAIN("deps for '%s' are missing", output->path().c_str());
-    return false;
-  }
+  for (vector<Node*>::const_iterator o = edge->outputs_.begin();
+       o != edge->outputs_.end(); ++o) {
+    Node* output = *o;
+    DepsLog::Deps* deps = deps_log_->GetDeps(output);
+    if (!deps) {
+      EXPLAIN("deps for '%s' are missing", output->path().c_str());
+      return false;
+    }
 
-  // Deps are invalid if the output is newer than the deps.
-  if (output->mtime() > deps->mtime) {
-    EXPLAIN("stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
-            output->path().c_str(), deps->mtime, output->mtime());
-    return false;
-  }
+    // Deps are invalid if the output is newer than the deps.
+    if (output->mtime() > deps->mtime) {
+      EXPLAIN("stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
+              output->path().c_str(), deps->mtime, output->mtime());
+      return false;
+    }
 
-  vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, deps->node_count);
-  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
-    Node* node = deps->nodes[i];
-    *implicit_dep = node;
-    node->AddOutEdge(edge);
-    CreatePhonyInEdge(node);
+    vector<Node*>::iterator implicit_dep =
+        PreallocateSpace(edge, deps->node_count);
+    for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
+      Node* node = deps->nodes[i];
+      *implicit_dep = node;
+      node->AddOutEdge(edge);
+      CreatePhonyInEdge(node);
+    }
   }
   return true;
 }

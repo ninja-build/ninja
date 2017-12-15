@@ -1882,6 +1882,308 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
   }
 }
 
+/// Run a build. Then rerun with the implicit output as the only output.
+TEST_F(BuildWithDepsLogTest, MoveOutputFromImplicitToExplicit) {
+  string err;
+  // Note: in1 was created by the superclass SetUp().
+  const char* manifest_exp =
+      "rule touch\n"  // Will touch all outputs, explicit and implicit.
+      "  command = touch foobar\n"
+      "build outexp | outimp: touch in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  const char* manifest_imp =
+      "rule touch\n"
+      "  command = touch foobar\n"
+      "build outimp: touch in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_exp));
+
+    // Run the build once, everything should be ok.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("outexp", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("in1.d", "outexp: in2");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_imp));
+
+    // Run the build again, nothing touched. If the deps, erroneously, was not
+    // recorded before, this will trigger a rebuild, so verify that everything
+    // is up to date.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("outimp", &err));
+    ASSERT_EQ("", err);
+    ASSERT_TRUE(builder.AlreadyUpToDate());
+
+    builder.command_runner_.release();
+  }
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_imp));
+
+    // Touch the file only mentioned in the deps.
+    fs_.Tick();
+    fs_.Create("in2", "");
+
+    // Run the build again.
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    builder.command_runner_.reset(&command_runner_);
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder.AddTarget("outimp", &err));
+    ASSERT_EQ("", err);
+    fs_.Create("in1.d", "outimp: in2");
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // We should have rebuilt the output due to in2 being
+    // out of date.
+    EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+    builder.command_runner_.release();
+  }
+}
+
+/// Verify that the deps are recorded for each output.
+TEST_F(BuildWithDepsLogTest, RecordForEachOutput) {
+  string err;
+  // Note: in1 and in2 was created by the superclass SetUp().
+  const char* manifest_together =
+      "rule touch\n"  // Will touch all outputs, explicit and implicit.
+      "  command = touch foobar\n"
+      "build out1 | out2: touch in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+  const char* manifest_individually =
+      "rule touch\n"
+      "  command = touch foobar\n"
+      "build out1: touch in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n"
+      "build out2: touch in1\n"
+      "  deps = gcc\n"
+      "  depfile = in1.d\n";
+
+  for (int i = 0; i < 2; ++i) {
+    const char* ninja_deps = (i == 0 ? "ninja_deps1" : "ninja_deps2");
+    // Run the build once, everything should be ok.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_together));
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.OpenForWrite(ninja_deps, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      EXPECT_TRUE(builder.AddTarget("out2", &err));
+      ASSERT_EQ("", err);
+      fs_.Create("in1.d", "out1: in2");
+      fs_.Tick();
+      EXPECT_TRUE(builder.Build(&err));
+      EXPECT_EQ("", err);
+
+      deps_log.Close();
+      builder.command_runner_.release();
+    }
+
+    // Run the build again, but with manifest_individually, nothing touched.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_individually));
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.Load(ninja_deps, &state, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      EXPECT_TRUE(builder.AddTarget("out1", &err));
+      ASSERT_EQ("", err);
+      EXPECT_TRUE(builder.AddTarget("out2", &err));
+      ASSERT_EQ("", err);
+      ASSERT_TRUE(builder.AlreadyUpToDate());
+
+      builder.command_runner_.release();
+    }
+
+    // Verify that deps are used for out{i}.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_individually));
+
+      // Touch the deps and no other file.
+      fs_.Tick();
+      fs_.Create("in2", "");
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.Load(ninja_deps, &state, &err));
+      ASSERT_TRUE(deps_log.OpenForWrite(ninja_deps, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      command_runner_.commands_ran_.clear();
+      EXPECT_TRUE(builder.AddTarget(i == 0 ? "out1" : "out2", &err));
+      ASSERT_EQ("", err);
+      fs_.Create("in1.d", i == 0 ? "out1: in2" : "out2: in2");
+      fs_.Tick();
+      EXPECT_TRUE(builder.Build(&err));
+      EXPECT_EQ("", err);
+
+      EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+      // The deps file should have been removed.
+      EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+
+      deps_log.Close();
+      builder.command_runner_.release();
+    }
+  }
+}
+
+/// Verify that all the deps from all outputs are considered when rebuilding.
+TEST_F(BuildWithDepsLogTest, DepsFromAllOutputsShouldBeUsed) {
+  string err;
+  // Note: in1 and in2 was created by the superclass SetUp().
+  fs_.Create("in0", "");
+  const char* manifest_individually =
+      "rule touch\n"
+      "  command = touch foobar\n"
+      "build out1: touch in0\n"
+      "  deps = gcc\n"
+      "  depfile = out1.d\n"
+      "build out2: touch in0\n"
+      "  deps = gcc\n"
+      "  depfile = out2.d\n";
+  const char* manifest_together =
+      "rule touch\n"
+      "  command = touch foobar\n"
+      "build out1 | out2: touch in0\n"
+      "  deps = gcc\n"
+      "  depfile = out0.d\n";
+
+  for (int i = 0; i < 2; ++i) {
+    const char* ninja_deps = (i == 0 ? "ninja_deps1" : "ninja_deps2");
+    // Run the build once, everything should be ok.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_individually));
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.OpenForWrite(ninja_deps, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      EXPECT_TRUE(builder.AddTarget("out1", &err));
+      ASSERT_EQ("", err);
+      EXPECT_TRUE(builder.AddTarget("out2", &err));
+      ASSERT_EQ("", err);
+      fs_.Create("out1.d", "out1: in1");
+      fs_.Create("out2.d", "out2: in2");
+      fs_.Tick();
+      EXPECT_TRUE(builder.Build(&err));
+      EXPECT_EQ("", err);
+
+      deps_log.Close();
+      builder.command_runner_.release();
+    }
+
+    // Run the build again, but with manifest_together, nothing touched.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_together));
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.Load(ninja_deps, &state, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      EXPECT_TRUE(builder.AddTarget("out1", &err));
+      ASSERT_EQ("", err);
+      EXPECT_TRUE(builder.AddTarget("out2", &err));
+      ASSERT_EQ("", err);
+      ASSERT_TRUE(builder.AlreadyUpToDate());
+
+      builder.command_runner_.release();
+    }
+
+    // Verify that deps for out{i} are loaded when building together.
+    {
+      State state;
+      ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+      ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest_together));
+
+      // Touch the file only mentioned in the deps for out{i}, not the other.
+      fs_.Tick();
+      fs_.Create(i == 0 ? "in1" : "in2", "");
+
+      DepsLog deps_log;
+      ASSERT_TRUE(deps_log.Load(ninja_deps, &state, &err));
+      ASSERT_TRUE(deps_log.OpenForWrite(ninja_deps, &err));
+      ASSERT_EQ("", err);
+
+      Builder builder(&state, config_, NULL, &deps_log, &fs_);
+      builder.command_runner_.reset(&command_runner_);
+      command_runner_.commands_ran_.clear();
+      // If in1 was touched, build out2.
+      EXPECT_TRUE(builder.AddTarget(i == 0 ? "out2" : "out1", &err));
+      ASSERT_EQ("", err);
+      fs_.Create("out0.d", "out1: in1");
+      fs_.Tick();
+      EXPECT_TRUE(builder.Build(&err));
+      EXPECT_EQ("", err);
+
+      EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+      // The deps file should have been removed.
+      EXPECT_EQ(0, fs_.Stat("out0.d", &err));
+
+      deps_log.Close();
+      builder.command_runner_.release();
+    }
+  }
+}
+
 /// Verify that obsolete dependency info causes a rebuild.
 /// 1) Run a successful build where everything has time t, record deps.
 /// 2) Move input/output to time t+1 -- despite files in alignment,

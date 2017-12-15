@@ -852,14 +852,17 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   }
 
   if (!deps_type.empty() && !config_.dry_run) {
-    assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
-    Node* out = edge->outputs_[0];
-    TimeStamp deps_mtime = disk_interface_->Stat(out->path(), err);
-    if (deps_mtime == -1)
-      return false;
-    if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
-      *err = string("Error writing to deps log: ") + strerror(errno);
-      return false;
+    assert(edge->outputs_.size() - edge->implicit_outs_ == 1 &&
+           "should have been rejected by parser");
+    for (vector<Node*>::const_iterator o = edge->outputs_.begin();
+         o != edge->outputs_.end(); ++o) {
+      TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
+      if (deps_mtime == -1)
+        return false;
+      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
+        *err = string("Error writing to deps log: ") + strerror(errno);
+        return false;
+      }
     }
   }
   return true;

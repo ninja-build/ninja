@@ -402,11 +402,13 @@ bool ManifestParser::ParseEdge(string* err) {
     }
   }
 
-  // Multiple outputs aren't (yet?) supported with depslog.
+  // Exactly one non-implicit output with zero or more implicit outputs is
+  // supported, although the regular output is not (yet?) used for matching
+  // the output in the deps file.
   string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty() && edge->outputs_.size() - edge->implicit_outs_ > 1) {
-    return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
-                        "bring this up on the mailing list if it affects you",
+  if (!deps_type.empty() && edge->outputs_.size() - edge->implicit_outs_ != 1) {
+    return lexer_.Error("multiple implicit outputs are supported by depslog, "
+                        "but only exactly one non-implicit output",
                         err);
   }
 
