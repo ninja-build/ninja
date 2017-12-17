@@ -366,8 +366,6 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
   Close();
   string temp_path = path + ".recompact";
-  struct stat old_file;
-  bool found_uid_gid = true;
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
@@ -397,30 +395,9 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
   for (size_t i = 0; i < dead_outputs.size(); ++i)
     entries_.erase(dead_outputs[i]);
 
-  //get the stat
-  if (stat(path.c_str(), &old_file) < 0) {
-    //save if we found the stat
-    found_uid_gid = false;
-  }
-
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
 
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  //apply uid and gid again so we always stay as the uid and gid of the first caller that created a file
-  if (found_uid_gid) {
-    if (chown(path.c_str(), old_file.st_uid, old_file.st_gid)) {
-      *err = strerror(errno);
-      return false;
-    }
-  }
+  ReplaceContent(path, temp_path, err);
 
   return true;
 }

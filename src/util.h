@@ -100,6 +100,8 @@ bool Truncate(const string& path, size_t size, string* err);
 #define PATH_MAX _MAX_PATH
 #endif
 
+bool ReplaceContent(const string& old_path, const string& new_path, string* err);
+
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();

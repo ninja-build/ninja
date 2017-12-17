@@ -48,7 +48,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     if (!Recompact(path, err))
       return false;
   }
-  
+
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -318,8 +318,6 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   Close();
   string temp_path = path + ".recompact";
-  struct stat old_file;
-  bool found_uid_gid = true;
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
   // left-over file from a previous recompaction attempt that crashed somehow.
@@ -333,7 +331,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   // will refer to the ordering in new_log, not in the current log.
   for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
-  
+
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
@@ -355,29 +353,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  //get the stat
-  if (stat(path.c_str(), &old_file) < 0) {
-    //save if we found the stat
-    found_uid_gid = false;
-  }
-
-  if (unlink(path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  //apply uid and gid again so we always stay as the uid and gid of the first caller that created a file
-  if (found_uid_gid) {
-    if (chown(path.c_str(), old_file.st_uid, old_file.st_gid)) {
-      *err = strerror(errno);
-      return false;
-    }
-  }
+  ReplaceContent(path, temp_path, err);
 
   return true;
 }

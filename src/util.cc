@@ -604,3 +604,33 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
+bool ReplaceContent(const string& path, const string& old_path, string* err) {
+  struct stat old_file;
+  bool found_uid_gid = true;
+
+  //get the stat
+  if (stat(path.c_str(), &old_file) < 0) {
+    //save if we found the stat
+    found_uid_gid = false;
+  }
+
+  if (unlink(path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (rename(old_path.c_str(), path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  //apply uid and gid again so we always stay as the uid and gid of the first caller that created a file
+  if (found_uid_gid) {
+    if (chown(path.c_str(), old_file.st_uid, old_file.st_gid)) {
+      *err = strerror(errno);
+      return false;
+    }
+  }
+  return true;
+}
