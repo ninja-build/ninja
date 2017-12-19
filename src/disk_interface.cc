@@ -105,7 +105,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND ||
+        win_err == ERROR_DIRECTORY)  // File and not a directory
       return true;
     *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
     return false;

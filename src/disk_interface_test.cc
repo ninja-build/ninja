@@ -63,6 +63,27 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
   EXPECT_EQ("", err);
 }
 
+#ifdef _WIN32
+TEST_F(DiskInterfaceTest, StatMissingFileWithCache) {
+  string err;
+  disk_.AllowStatCache(true);
+
+  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ("", err);
+
+  // On Windows, the errno for a file in a nonexistent directory
+  // is different.
+  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ("", err);
+
+  // On POSIX systems, the errno is different if a component of the
+  // path prefix is not a directory.
+  ASSERT_TRUE(Touch("notadir"));
+  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ("", err);
+}
+#endif
+
 TEST_F(DiskInterfaceTest, StatBadPath) {
   string err;
 #ifdef _WIN32
