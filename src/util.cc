@@ -36,6 +36,8 @@
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/time.h>
+#else
+#include <windows.h>
 #endif
 
 #include <vector>
@@ -606,6 +608,7 @@ bool Truncate(const string& path, size_t size, string* err) {
 }
 
 bool ReplaceContent(const string& path, const string& old_path, string* err) {
+#ifndef _WIN32
   struct stat old_file;
   bool found_uid_gid = true;
 
@@ -632,5 +635,22 @@ bool ReplaceContent(const string& path, const string& old_path, string* err) {
       return false;
     }
   }
+#else
+  if (!CopyFile(old_path.c_str(), path.c_str(), false))
+    {
+       *err = "Cannot copy file";
+       return false;
+    }
+
+  if (!DeleteFile(old_path.c_str()))
+    {
+       if (GetLastError() == ERROR_ACCESS_DENIED)
+         {
+            *err = "Access Denied";
+            return false;
+         }
+    }
+#endif
+
   return true;
 }
