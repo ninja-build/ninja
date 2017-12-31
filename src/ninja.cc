@@ -738,16 +738,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<char> cwd;
-
-  do {
-    cwd.resize(cwd.size() + 1024);
-    errno = 0;
-  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
-  if (errno != 0 && errno != ERANGE) {
-    Error("cannot determine working directory: %s", strerror(errno));
-    return 1;
-  }
+  string cwd = getcwd_string();
 
   putchar('[');
   for (vector<Edge*>::iterator e = state_.edges_.begin();
@@ -760,7 +751,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
           putchar(',');
 
         printf("\n  {\n    \"directory\": \"");
-        EncodeJSONString(&cwd[0]);
+        EncodeJSONString(cwd.c_str());
         printf("\",\n    \"command\": \"");
         EncodeJSONString(EvaluateCommandWithRspfile(*e, eval_mode).c_str());
         printf("\",\n    \"file\": \"");

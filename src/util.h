@@ -89,6 +89,9 @@ bool islatinalpha(int c);
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 string StripAnsiEscapeCodes(const string& in);
 
+/// @return the current working directory.
+string getcwd_string();
+
 /// @return the number of processors on the machine.  Useful for an initial
 /// guess for how many jobs to run in parallel.  @return 0 on error.
 int GetProcessorCount();

@@ -19,6 +19,7 @@
 #include <io.h>
 #elif defined( _WIN32)
 #include <windows.h>
+#include <direct.h>
 #include <io.h>
 #include <share.h>
 #endif
@@ -477,6 +478,19 @@ string StripAnsiEscapeCodes(const string& in) {
       ++i;
   }
   return stripped;
+}
+
+string getcwd_string() {
+  vector<char> cwd;
+
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
+  if (errno != 0 && errno != ERANGE) {
+    Fatal("cannot determine working directory: %s", strerror(errno));
+  }
+  return &cwd[0];
 }
 
 int GetProcessorCount() {
