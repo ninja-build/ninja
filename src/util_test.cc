@@ -342,6 +342,25 @@ TEST(CanonicalizePath, UpDir) {
   EXPECT_EQ("../foo/bar.h", path);
 }
 
+TEST(CanonicalizePath, UpDirAsWorkingDir) {
+  string path, err;
+  SetWorkingDirForCanonicalizePath("/baz/foo/bar");
+
+  path = "../foo/bar.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("../foo/bar.h", path);
+
+  path = "../../foo/bar.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("../bar.h", path);
+
+  path = "test/../../../foo/bar/baz/xyz.h";
+  EXPECT_TRUE(CanonicalizePath(&path, &err));
+  EXPECT_EQ("baz/xyz.h", path);
+
+  SetWorkingDirForCanonicalizePath("");
+}
+
 TEST(CanonicalizePath, AbsolutePath) {
   string path = "/usr/include/stdio.h";
   string err;

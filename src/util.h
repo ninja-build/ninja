@@ -60,6 +60,7 @@ void Error(const char* msg, ...);
 bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err);
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       string* err);
+void SetWorkingDirForCanonicalizePath(const string& working_dir);
 
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().

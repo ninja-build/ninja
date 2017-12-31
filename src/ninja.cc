@@ -1228,6 +1228,8 @@ NORETURN void real_main(int argc, char** argv) {
     }
   }
 
+  SetWorkingDirForCanonicalizePath(getcwd_string());
+
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
