@@ -675,6 +675,11 @@ bool EdgeCom(const Edge* lhs, const Edge* rhs) {
 }  // namespace
 
 void Plan::ComputePriorityList(BuildLog* build_log) {
+
+  //testcase have no build_log
+  if (!build_log)
+    return;
+
   vector<Edge*> edges;
   map<Node*, int> num_out_edges;
   for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
