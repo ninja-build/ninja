@@ -320,7 +320,7 @@ void Plan::Reset() {
 }
 
 bool Plan::AddTarget(Node* node, string* err) {
-  targets_.insert(node);
+  targets_.push_back(node);
   return AddSubTarget(node, NULL, err, NULL);
 }
 
@@ -383,7 +383,7 @@ void Plan::EdgeWanted(Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  set<Edge*>::iterator i;
+  set<Edge*>::iterator i = ready_.end();
   for (list<Edge*>::iterator it = priority_list_.begin(),
                              end = priority_list_.end();
        it != end; ++it) {
@@ -394,7 +394,7 @@ Edge* Plan::FindWork() {
     }
   }
   if (i == ready_.end())
-    return NULL;  // Shouldn't happen.
+    i = ready_.begin();
   Edge* edge = *i;
   ready_.erase(i);
   return edge;
@@ -680,6 +680,19 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   if (!build_log)
     return;
 
+  METRIC_RECORD("ComputePriorityList");
+  set<Node*> dedup;
+  vector<Node*> deduped;
+  for (vector<Node*>::iterator it = targets_.begin(); it != targets_.end();
+       ++it) {
+    pair<set<Node*>::iterator, bool> insert_result = dedup.insert(*it);
+    if (!insert_result.second)
+      continue;
+    deduped.push_back(*it);
+  }
+  targets_.swap(deduped);
+
+
   vector<Edge*> edges;
   map<Node*, int> num_out_edges;
   for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
@@ -709,29 +722,35 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     }
   }
 
+
+
+  // this is total time if building all edges in serial, so this value is big
+  // enough to ensure higher priority target initial critical time always bigger
+  // than lower one
+  uint64_t total_time = 0;
   // Critical path scheduling.
   // 0. Assign costs to all edges, using:
   // a) The time the edge needed last time, if available.
   // b) The average time this edge type needed, if this edge hasn't run before.
-  // c) A fixed cost if this type of edge hasn't run before.
+  //    (not implemented .log entries is not grouped by rule type, and even
+  //    similar rule type may not have same name , for example two compile rule
+  //    with different compile flags)
+  // c) A fixed cost if this type of edge hasn't run before (0 for phony target,
+  //    1 for others)
+  //
   for (vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
-       ++it) {
+       total_time += (*it)->run_time_ms_, ++it) {
     Edge* edge = *it;
-    if (edge->outputs_.size() < 1)
-      continue;  // XXX: possible? phony?
+    if (edge->is_phony())
+      continue;
     BuildLog::LogEntry* entry =
         build_log->LookupByOutput(edge->outputs_[0]->path());
-    if (!entry)
+    if (!entry) {
+      edge->run_time_ms_ = 1;
       continue;
+    }
     int duration = entry->end_time - entry->start_time;  // XXX: + 1?
     edge->run_time_ms_ = duration;
-    // XXX: also count on rule, and globally
-  }
-  for (vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
-       ++it) {
-    Edge* edge = *it;
-    if (edge->run_time_ms_ == 0)
-      edge->run_time_ms_ = 1;  // XXX: smarter
   }
 
 
@@ -748,7 +767,9 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   }
 
   // 1. Use backflow algorithm to compute critical times for all nodes, starting
-  // from the destination nodes.
+  // from the destination nodes. use priority_weight = total_time * N as
+  // initial critical time to makes forward edgs of higher priority always
+  // get higher critical time value
   // XXX: ignores pools
   queue<Edge*> edgesQ;
 
@@ -758,9 +779,14 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   // binary would be added ot the queue 50 times.
   set<Edge*> done;
 
-  for (set<Node*>::iterator it = targets_.begin(), end = targets_.end();
+  for (vector<Node*>::reverse_iterator it = targets_.rbegin(),
+                                       end = targets_.rend();
        it != end; ++it) {
     if (Edge* in = (*it)->in_edge()) {
+      uint64_t priority_weight = (it - targets_.rbegin()) * total_time;
+      in->set_critical_time(
+          max(max<uint64_t>(in->run_time_ms_, priority_weight),
+              in->critical_time()));
       if (done.count(in) == 0) {
         edgesQ.push(in);
         done.insert(in);
@@ -790,7 +816,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       edgesQ.push(e);
       continue;
     }
-    e->set_critical_time(max_crit + e->run_time_ms_);
+    e->set_critical_time(max(max_crit + e->run_time_ms_, e->critical_time()));
 
     for (vector<Node*>::iterator it = e->inputs_.begin(),
                                  end = e->inputs_.end();

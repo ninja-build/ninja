@@ -127,7 +127,8 @@ private:
   set<Edge*> ready_;
 
   Builder* builder_;
-  set<Node*> targets_;
+  /// user provided targets in build order, earlier one have higher priority
+  vector<Node*> targets_;
   list<Edge*> priority_list_;
 
   /// Total number of edges that have commands (not phony).
