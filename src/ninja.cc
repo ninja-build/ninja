@@ -691,6 +691,8 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc, char* a
         EncodeJSONString((*e)->EvaluateCommand().c_str());
         printf("\",\n    \"file\": \"");
         EncodeJSONString((*e)->inputs_[0]->path().c_str());
+        printf("\",\n    \"output\": \"");
+        EncodeJSONString((*e)->outputs_[0]->path().c_str());
         printf("\"\n  }");
 
         first = false;
