@@ -83,10 +83,6 @@ BuildStatus::BuildStatus(const BuildConfig& config)
       progress_status_format_(NULL),
       overall_rate_(), current_rate_(config.parallelism) {
 
-  // Don't do anything fancy in verbose mode.
-  if (config_.verbosity != BuildConfig::NORMAL)
-    printer_.set_smart_terminal(false);
-
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
     progress_status_format_ = "[%f/%t] ";
