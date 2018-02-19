@@ -73,6 +73,9 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+
+  /// Whether to remain persistent.
+  bool persistent;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -210,6 +213,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
+"  -p       persist and rebuild upon receiving a line of input on stdin\n"
 "  -v       show all command lines while building\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
@@ -1047,7 +1051,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:ph", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1103,6 +1107,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'C':
         options->working_dir = optarg;
         break;
+      case 'p':
+        options->persistent = true;
+        break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
@@ -1116,6 +1123,19 @@ int ReadFlags(int* argc, char*** argv,
   *argc -= optind;
 
   return -1;
+}
+
+static void WaitForInput(const BuildConfig& config) {
+  static char* buf = NULL;
+  static size_t len = 0;
+
+  if (config.verbosity == BuildConfig::VERBOSE) {
+    fprintf(stderr, "ninja waiting for input...\n");
+  }
+  ssize_t rc = getline(&buf, &len, stdin);
+  if (rc < 0) {
+    exit(0);
+  }
 }
 
 int real_main(int argc, char** argv) {
@@ -1194,7 +1214,23 @@ int real_main(int argc, char** argv) {
       return 1;
     }
 
-    int result = ninja.RunBuild(argc, argv);
+    int result = 0;
+    do {
+      Stopwatch stopwatch;
+
+      if (options.persistent) {
+        WaitForInput(config);
+        stopwatch.Restart();
+      }
+
+      result = ninja.RunBuild(argc, argv);
+      if (options.persistent) {
+        fprintf(stderr, "build %s in %0.3f seconds\n",
+               result == 0 ? "succeeded" : "failed", stopwatch.Elapsed());
+        ninja.state_.Reset();
+      }
+    } while (options.persistent);
+
     if (g_metrics)
       ninja.DumpMetrics();
     return result;
