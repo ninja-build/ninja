@@ -1118,7 +1118,9 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
-int real_main(int argc, char** argv) {
+NORETURN void real_main(int argc, char** argv) {
+  // Use exit() instead of return in this function to avoid potentially
+  // expensive cleanup when destructing NinjaMain.
   BuildConfig config;
   Options options = {};
   options.input_file = "build.ninja";
@@ -1128,7 +1130,7 @@ int real_main(int argc, char** argv) {
 
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
-    return exit_code;
+    exit(exit_code);
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -1147,7 +1149,7 @@ int real_main(int argc, char** argv) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
     NinjaMain ninja(ninja_command, config);
-    return (ninja.*options.tool->func)(&options, argc, argv);
+    exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
   // Limit number of rebuilds, to prevent infinite loops.
@@ -1166,43 +1168,43 @@ int real_main(int argc, char** argv) {
     string err;
     if (!parser.Load(options.input_file, &err)) {
       Error("%s", err.c_str());
-      return 1;
+      exit(1);
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
-      return (ninja.*options.tool->func)(&options, argc, argv);
+      exit((ninja.*options.tool->func)(&options, argc, argv));
 
     if (!ninja.EnsureBuildDirExists())
-      return 1;
+      exit(1);
 
     if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
-      return 1;
+      exit(1);
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
-      return (ninja.*options.tool->func)(&options, argc, argv);
+      exit((ninja.*options.tool->func)(&options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
     if (ninja.RebuildManifest(options.input_file, &err)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
-        return 0;
+        exit(0);
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
       Error("rebuilding '%s': %s", options.input_file, err.c_str());
-      return 1;
+      exit(1);
     }
 
     int result = ninja.RunBuild(argc, argv);
     if (g_metrics)
       ninja.DumpMetrics();
-    return result;
+    exit(result);
   }
 
   Error("manifest '%s' still dirty after %d tries\n",
       options.input_file, kCycleLimit);
-  return 1;
+  exit(1);
 }
 
 }  // anonymous namespace
@@ -1215,7 +1217,7 @@ int main(int argc, char** argv) {
   __try {
     // Running inside __try ... __except suppresses any Windows error
     // dialogs for errors such as bad_alloc.
-    return real_main(argc, argv);
+    real_main(argc, argv);
   }
   __except(ExceptionFilter(GetExceptionCode(), GetExceptionInformation())) {
     // Common error situations return exitCode=1. 2 was chosen to
@@ -1223,6 +1225,6 @@ int main(int argc, char** argv) {
     return 2;
   }
 #else
-  return real_main(argc, argv);
+  real_main(argc, argv);
 #endif
 }
