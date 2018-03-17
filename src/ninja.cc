@@ -1138,7 +1138,7 @@ int ReadFlagsFromEnv(Options* options, BuildConfig* config) {
   int argc = 0, i = 0;
   bool in_arg = false;
 
-  argv[argc++] = ""; // fake argv[0] (command) for getopt
+  argv[argc++] = (char *)""; // fake argv[0] (command) for getopt
 
   while(str[i] != 0) {
     switch(str[i]) {
