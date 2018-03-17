@@ -1034,9 +1034,8 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv,
+int ReadFlagsFromArray(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -1045,6 +1044,7 @@ int ReadFlags(int* argc, char*** argv,
     { NULL, 0, NULL, 0 }
   };
 
+  optind = 1;
   int opt;
   while (!options->tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
@@ -1118,15 +1118,79 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
+int ReadFlagsFromCommandLine(int* argc, char*** argv,
+              Options* options, BuildConfig* config) {
+  int exit_code = ReadFlagsFromArray(argc, argv, options, config);
+  if ( exit_code == -1 ) {
+    *argv += optind;
+    *argc -= optind;
+  }
+  return exit_code;
+}
+
+int ReadFlagsFromEnv(Options* options, BuildConfig* config) {
+  char *str = getenv("NINJA_FLAGS");
+  if (str == NULL || strlen(str) == 0 )
+    return -1;
+
+  char *str_copy = (char *)malloc(strlen(str)+1);
+  char **argv = (char **)calloc(strlen(str), sizeof(char *));
+  int argc = 0, i = 0;
+  bool in_arg = false;
+
+  argv[argc++] = ""; // fake argv[0] (command) for getopt
+
+  while(str[i] != 0) {
+    switch(str[i]) {
+      case ' ':
+      case '\t':
+        str_copy[i] = 0;  // replace separators by 0 in the copy
+        in_arg = false;
+        break;
+      default:
+        str_copy[i] = str[i];
+        if (in_arg) {
+          break;
+        }
+        else {
+          argv[argc++] = &(str_copy[i]);
+          in_arg =  true;
+          break;
+        }
+    }
+    i++;
+  }
+  char **argv_copy = argv; // ReadFlagsFromArray modifies argv, so create a copy
+  int exit_code = ReadFlagsFromArray(&argc, &argv_copy, options, config);
+
+  free(argv);
+  free(str_copy);
+
+  return exit_code;
+}
+
+int ReadConfig(int* argc, char*** argv, Options* options, BuildConfig* config) {
+  // Default values:
+  config->parallelism = GuessParallelism();
+  options->input_file = "build.ninja";
+
+  // Read config from the environment:
+  int exit_code = ReadFlagsFromEnv(options, config);
+  if (exit_code >= 0)
+    return exit_code;
+
+  // Read config from the command line:
+  return ReadFlagsFromCommandLine(argc, argv, options, config);;
+}
+
 int real_main(int argc, char** argv) {
   BuildConfig config;
   Options options = {};
-  options.input_file = "build.ninja";
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
 
-  int exit_code = ReadFlags(&argc, &argv, &options, &config);
+  int exit_code = ReadConfig(&argc, &argv, &options, &config);
   if (exit_code >= 0)
     return exit_code;
 
