@@ -1184,6 +1184,7 @@ NORETURN void real_main(int argc, char** argv) {
   BuildConfig config;
   Options options = {};
   options.input_file = "build.ninja";
+  options.dupe_edges_should_err = true;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
