@@ -363,7 +363,11 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
+  EXPECT_EQ(
+      "input:4: multiple rules generate out1 [-w dupbuild=err]\n"
+      "build out1: cat in2\n"
+      "                    ^ near here",
+      err);
 }
 
 TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
@@ -380,8 +384,11 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("sub.ninja:5: multiple rules generate out1 [-w dupbuild=err]\n",
-            err);
+  EXPECT_EQ(
+      "sub.ninja:4: multiple rules generate out1 [-w dupbuild=err]\n"
+      "build out1: cat in2\n"
+      "                    ^ near here",
+      err);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceIgnored) {
@@ -501,8 +508,10 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = a$\n b$\n $\n", &err));
-    EXPECT_EQ("input:4: unexpected EOF\n"
-              , err);
+    EXPECT_EQ("input:3: unexpected EOF\n"
+              " $\n"
+              "   ^ near here",
+              err);
   }
 
   {
@@ -557,7 +566,10 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n",
                                   &err));
-    EXPECT_EQ("input:2: expected 'command =' line\n", err);
+    // FIXME: this is worse
+    EXPECT_EQ("input:1: expected 'command =' line\n"
+              "rule cat\n"
+              "         ^ near here", err);
   }
 
   {
@@ -582,7 +594,9 @@ TEST_F(ParserTest, Errors) {
                                   "  command = echo\n"
                                   "  rspfile = cat.rsp\n", &err));
     EXPECT_EQ(
-        "input:4: rspfile and rspfile_content need to be both specified\n",
+        "input:3: rspfile and rspfile_content need to be both specified\n"
+        "  rspfile = cat.rsp\n"
+        "                    ^ near here",
         err);
   }
 
@@ -750,9 +764,12 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("rule r\n"
                                   "  command = r\n"
                                   "build $a: r $c\n", &err));
-    // XXX the line number is wrong; we should evaluate paths in ParseEdge
-    // as we see them, not after we've read them all!
-    EXPECT_EQ("input:4: empty path\n", err);
+    // XXX the column is wrong; we should evaluate paths in ParseEdge
+    // as we see them, not after we've read them all.
+    EXPECT_EQ("input:3: empty path\n"
+              "build $a: r $c\n"
+              "               ^ near here",
+              err);
   }
 
   {
@@ -765,7 +782,10 @@ TEST_F(ParserTest, Errors) {
                                   "  command = r\n"
                                   "  \n"
                                   "  generator = 1\n", &err));
-    EXPECT_EQ("input:4: unexpected indent\n", err);
+    EXPECT_EQ("input:3: unexpected indent\n"
+              "  \n"
+              "   ^ near here",
+              err);
   }
 
   {
@@ -783,7 +803,11 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n", &err));
-    EXPECT_EQ("input:2: expected 'depth =' line\n", err);
+    // FIXME: this is worse
+    EXPECT_EQ("input:1: expected 'depth =' line\n"
+              "pool foo\n"
+              "         ^ near here",
+              err);
   }
 
   {
@@ -827,12 +851,16 @@ TEST_F(ParserTest, Errors) {
     State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
-    // Pool names are dereferenced at edge parsing time.
+    // Pool names are dereferenced at edge parsing time, which causes a
+    // confusing diagnostic.
     EXPECT_FALSE(parser.ParseTest("rule run\n"
                                   "  command = echo\n"
                                   "  pool = unnamed_pool\n"
                                   "build out: run in\n", &err));
-    EXPECT_EQ("input:5: unknown pool name 'unnamed_pool'\n", err);
+    EXPECT_EQ("input:4: unknown pool name 'unnamed_pool'\n"
+              "build out: run in\n"
+              "                  ^ near here",
+              err);
   }
 }
 
@@ -861,8 +889,11 @@ TEST_F(ParserTest, MultipleOutputsWithDeps) {
   EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
                                "build a.o b.o: cc c.cc\n",
                                &err));
-  EXPECT_EQ("input:5: multiple outputs aren't (yet?) supported by depslog; "
-            "bring this up on the mailing list if it affects you\n", err);
+  EXPECT_EQ("input:4: multiple outputs aren't (yet?) supported by depslog; "
+            "bring this up on the mailing list if it affects you\n"
+            "build a.o b.o: cc c.cc\n"
+            "                       ^ near here",
+            err);
 }
 
 TEST_F(ParserTest, SubNinja) {

@@ -22,12 +22,17 @@
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
   int line = 1;
-  const char* line_start = input_.str_;
+  const char* line_start = input_.str_, * prev_line_start = NULL;
   for (const char* p = input_.str_; p < last_token_; ++p) {
     if (*p == '\n') {
       ++line;
+      prev_line_start = line_start;
       line_start = p + 1;
     }
+  }
+  if (last_token_ == line_start && prev_line_start) {
+    --line;
+    line_start = prev_line_start;
   }
   int col = last_token_ ? (int)(last_token_ - line_start) : 0;
 
