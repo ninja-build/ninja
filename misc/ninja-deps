@@ -1,0 +1,238 @@
+#!/usr/bin/env perl
+# author: joe.zheng
+
+# load .ninja_deps and then query dependencies
+# details in https://github.com/ninja-build/ninja/blob/master/src/deps_log.h
+
+use strict;
+use warnings;
+
+use FindBin;
+use lib "$FindBin::RealBin/../lib";
+
+use Getopt::Long;
+use File::Basename;
+use autodie;
+
+# constants
+
+use constant WORD_SIZE  => 4;
+use constant FILE_MAGIC => "# ninjadeps\n";
+
+# usage
+
+my $script = basename($0);
+
+sub usage {
+  print <<"EOF";
+NAME
+    $script - Query the ninja_deps database
+
+SYNOPSIS
+    $script query [<options>] [<targets>...]
+    $script dump  [<options>]
+
+DESCRIPTION
+
+    Ninja has already maintain a internal database to store the dependencies
+	for the target files, the information is generated from the compiler,
+	which is very useful. But Ninja has not open the API to query this
+	database, so that is the reason for this tool
+
+COMMAND
+    $script query [-f <file>] [-r] [<targets>...]
+      query the dependencies for targets, if "-r" option is enabled,
+      query which files need to be built depend on the targets
+      <file>:    ninja_deps database
+      <targets>: target to query
+
+    $script dump [-f <file>]
+      dump the ninja_deps database
+      <file>:    ninja_deps database
+
+OPTIONS
+
+    -f, --file
+      the ninja_deps database, default is ".ninja_deps"
+
+    -r, --reverse
+      find out files which depend on the targets when query dependencies
+
+EXAMPLES
+    1. $script dump
+      load the default ".ninja_deps" and dump it
+
+    2. $script query string.o
+      load the default ".ninja_deps" and query the files "string.o"
+	  depends on
+
+    3. $script query -r -f out/.ninja_deps string.h
+	  load the "out/.ninja_deps" and find out files need to be re-built
+	  in case the "string.h" is changed
+
+EOF
+
+  exit;
+}
+
+# main
+
+my %opt = (file => '.ninja_deps', reverse => 0,);
+
+my $help;
+GetOptions(
+  "help|h"    => \$help,
+  "reverse|r" => \$opt{reverse},
+  "file|f=s"  => \$opt{file},
+) or usage();
+
+my $cmd = lc(shift || '');
+usage() if $help || !$cmd;
+
+my %cmdcbs = ("query" => \&do_query, "dump" => \&do_dump,);
+
+my $cb = $cmdcbs{$cmd};
+if ($cb) {
+  $cb->(@ARGV);
+}
+else {
+  warn 'no such command';
+  usage();
+}
+
+# subs
+
+sub do_query {
+  my $db = load_db($opt{file});
+
+  my $dep = $opt{reverse} ? 'rdeps' : 'deps';
+  for my $q (@_) {
+    my $id = $db->{path}{$q};
+    if (defined $id && exists $db->{$dep}{$id}) {
+      print $db->{node}[$_] . "\n" for @{$db->{$dep}{$id}};
+    }
+  }
+}
+
+sub do_dump {
+  my $db = load_db($opt{file});
+  dump_db($db);
+}
+
+sub load_db {
+  my $path = shift or die;
+
+  my $db = {
+    version => 0,
+    count   => 0,
+    node    => [],
+    deps    => {},
+    path    => {},
+    rdeps   => {},
+  };
+
+  open my $fh, "<:raw", $path;
+
+  if (parse_header($fh, $db)) {
+    1 while (parse_record($fh, $db));
+  }
+
+  close $fh;
+
+  return $db;
+}
+
+sub parse_header {
+  my $fh = shift or die;
+  my $db = shift or die;
+
+  my $read;
+
+  # read the magic
+  my $magic;
+  $read = read($fh, $magic, length FILE_MAGIC);
+  if ($magic ne FILE_MAGIC) {
+    die "Ninja magic not found. Giving up.\n";
+    return;
+  }
+
+  # read the version
+  my $version;
+  $read = read($fh, $version, WORD_SIZE);
+  if ($read == WORD_SIZE) {
+    $db->{version} = unpack 'L', $version;
+    return 1;
+  }
+
+  return;
+}
+
+sub parse_record {
+  my $fh = shift or die;
+  my $db = shift or die;
+
+  return if eof $fh;
+
+  # size (highest bit is 1), id, mtime, deps
+  # size (highest bit is 0), string with null padding, checksum
+  # padding = (4 - path_size % 4) % 4;
+
+  my $read;
+  my $buf;
+
+  # size and type
+  my $size;
+  my $is_deps;
+  $read = read($fh, $buf, WORD_SIZE);
+  if ($read != WORD_SIZE) {
+    die "Can't read the size of the record\n";
+    return;
+  }
+  else {
+    $size    = unpack 'L', $buf;
+    $is_deps = $size & 0x80000000;
+    $size    = $size & ~0x80000000;
+  }
+
+  $read = read($fh, $buf, $size);
+  if ($read != $size) {
+    die "Record corrupted\n";
+    return;
+  }
+
+  if ($is_deps) {
+    my ($id, $mtime, @deps) = unpack 'L L L*', $buf;
+    my (%seen, @uniq);
+    for my $d (@deps) {
+      push @uniq, $d unless $seen{$d}++;
+    }
+    $db->{deps}{$id} = \@uniq;
+    push @{$db->{rdeps}{$_}}, $id for @uniq;
+  }
+  else {
+    # the path may not be null padded, so parse them into two
+    # my $checksum = unpack 'L', substr($buf, $size - WORD_SIZE);
+    my $path = unpack 'Z*', substr($buf, 0, $size - WORD_SIZE);
+    my $id = $db->{count}++;
+
+    $db->{node}[$id] = $path;
+    $db->{path}{$path} = $id;
+  }
+
+  return 1;
+}
+
+sub dump_db {
+  my $db = shift or die;
+
+  print 'magic: ' . FILE_MAGIC;
+  print 'version: ' . $db->{version} . "\n";
+  print 'count: ' . $db->{count} . "\n";
+  print "\n";
+
+  for my $id (sort { $a cmp $b } keys %{$db->{deps}}) {
+    print $db->{node}[$id] . ":\n";
+    print '    ' . $db->{node}[$_] . "\n" for @{$db->{deps}{$id}};
+    print "\n";
+  }
+}
