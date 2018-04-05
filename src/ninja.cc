@@ -697,9 +697,6 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc++;
   argv--;
 
-  bool first = true;
-  vector<char> cwd;
-
   EvaluateCommandMode eval_mode = ECM_NORMAL;
 
   optind = 1;
@@ -723,6 +720,9 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   }
   argv += optind;
   argc -= optind;
+
+  bool first = true;
+  vector<char> cwd;
 
   do {
     cwd.resize(cwd.size() + 1024);
