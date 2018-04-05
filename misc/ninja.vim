@@ -21,7 +21,10 @@ set cpo&vim
 
 syn case match
 
-syn match ninjaComment /#.*/  contains=@Spell
+" Comments are only matched when the # is at the beginning of the line (with
+" optional whitespace), as long as the prior line didn't end with a $
+" continuation.
+syn match ninjaComment /\(\$\n\)\@<!\_^\s*#.*$/  contains=@Spell
 
 " Toplevel statements are the ones listed here and
 " toplevel variable assignments (ident '=' value).
@@ -38,12 +41,13 @@ syn match ninjaKeyword "^subninja\>"
 " limited set of magic variables, 'build' allows general
 " let assignments.
 " manifest_parser.cc, ParseRule()
-syn region ninjaRule start="^rule" end="^\ze\S" contains=ALL transparent
-syn keyword ninjaRuleCommand contained command deps depfile description generator
+syn region ninjaRule start="^rule" end="^\ze\S" contains=TOP transparent
+syn keyword ninjaRuleCommand contained containedin=ninjaRule command
+                                     \ deps depfile description generator
                                      \ pool restat rspfile rspfile_content
 
-syn region ninjaPool start="^pool" end="^\ze\S" contains=ALL transparent
-syn keyword ninjaPoolCommand contained depth
+syn region ninjaPool start="^pool" end="^\ze\S" contains=TOP transparent
+syn keyword ninjaPoolCommand contained containedin=ninjaPool  depth
 
 " Strings are parsed as follows:
 " lexer.in.cc, ReadEvalString()
