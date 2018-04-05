@@ -222,6 +222,7 @@ struct BuildStatus {
 
   enum EdgeStatus {
     kEdgeStarted,
+    kEdgeRunning,
     kEdgeFinished,
   };
 
