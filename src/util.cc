@@ -318,13 +318,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFile(path.c_str(),
-                          GENERIC_READ,
-                          FILE_SHARE_READ,
-                          NULL,
-                          OPEN_EXISTING,
-                          FILE_FLAG_SEQUENTIAL_SCAN,
-                          NULL);
+  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;

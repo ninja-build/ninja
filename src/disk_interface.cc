@@ -70,7 +70,7 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
