@@ -60,7 +60,6 @@
 
 #include "edit_distance.h"
 
-using namespace std;
 
 void Fatal(const char* msg, ...) {
   va_list ap;
@@ -119,7 +118,7 @@ void Info(const char* msg, ...) {
   va_end(ap);
 }
 
-void CanonicalizePath(string* path, uint64_t* slash_bits) {
+void CanonicalizePath(std::string* path, uint64_t* slash_bits) {
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
@@ -259,21 +258,21 @@ static inline bool IsKnownWin32SafeCharacter(char ch) {
   }
 }
 
-static inline bool StringNeedsShellEscaping(const string& input) {
+static inline bool StringNeedsShellEscaping(const std::string& input) {
   for (size_t i = 0; i < input.size(); ++i) {
     if (!IsKnownShellSafeCharacter(input[i])) return true;
   }
   return false;
 }
 
-static inline bool StringNeedsWin32Escaping(const string& input) {
+static inline bool StringNeedsWin32Escaping(const std::string& input) {
   for (size_t i = 0; i < input.size(); ++i) {
     if (!IsKnownWin32SafeCharacter(input[i])) return true;
   }
   return false;
 }
 
-void GetShellEscapedString(const string& input, string* result) {
+void GetShellEscapedString(const std::string& input, std::string* result) {
   assert(result);
 
   if (!StringNeedsShellEscaping(input)) {
@@ -286,8 +285,8 @@ void GetShellEscapedString(const string& input, string* result) {
 
   result->push_back(kQuote);
 
-  string::const_iterator span_begin = input.begin();
-  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+  std::string::const_iterator span_begin = input.begin();
+  for (std::string::const_iterator it = input.begin(), end = input.end(); it != end;
        ++it) {
     if (*it == kQuote) {
       result->append(span_begin, it);
@@ -300,7 +299,7 @@ void GetShellEscapedString(const string& input, string* result) {
 }
 
 
-void GetWin32EscapedString(const string& input, string* result) {
+void GetWin32EscapedString(const std::string& input, std::string* result) {
   assert(result);
   if (!StringNeedsWin32Escaping(input)) {
     result->append(input);
@@ -312,8 +311,8 @@ void GetWin32EscapedString(const string& input, string* result) {
 
   result->push_back(kQuote);
   size_t consecutive_backslash_count = 0;
-  string::const_iterator span_begin = input.begin();
-  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+  std::string::const_iterator span_begin = input.begin();
+  for (std::string::const_iterator it = input.begin(), end = input.end(); it != end;
        ++it) {
     switch (*it) {
       case kBackslash:
@@ -335,7 +334,7 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
+int ReadFile(const std::string& path, std::string* contents, std::string* err) {
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
@@ -413,14 +412,14 @@ void SetCloseOnExec(int fd) {
 }
 
 
-const char* SpellcheckStringV(const string& text,
-                              const vector<const char*>& words) {
+const char* SpellcheckStringV(const std::string& text,
+                              const std::vector<const char*>& words) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
   const char* result = NULL;
-  for (vector<const char*>::const_iterator i = words.begin();
+  for (std::vector<const char*>::const_iterator i = words.begin();
        i != words.end(); ++i) {
     int distance = EditDistance(*i, text, kAllowReplacements,
                                 kMaxValidEditDistance);
@@ -433,11 +432,11 @@ const char* SpellcheckStringV(const string& text,
 }
 
 const char* SpellcheckString(const char* text, ...) {
-  // Note: This takes a const char* instead of a string& because using
+  // Note: This takes a const char* instead of a std::string& because using
   // va_start() with a reference parameter is undefined behavior.
   va_list ap;
   va_start(ap, text);
-  vector<const char*> words;
+  std::vector<const char*> words;
   const char* word;
   while ((word = va_arg(ap, const char*)))
     words.push_back(word);
@@ -446,7 +445,7 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
-string GetLastErrorString() {
+std::string GetLastErrorString() {
   DWORD err = GetLastError();
 
   char* msg_buf;
@@ -460,7 +459,7 @@ string GetLastErrorString() {
         (char*)&msg_buf,
         0,
         NULL);
-  string msg = msg_buf;
+  std::string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
 }
@@ -479,8 +478,8 @@ bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-string StripAnsiEscapeCodes(const string& in) {
-  string stripped;
+std::string StripAnsiEscapeCodes(const std::string& in) {
+  std::string stripped;
   stripped.reserve(in.size());
 
   for (size_t i = 0; i < in.size(); ++i) {
@@ -520,13 +519,13 @@ struct MountPoint {
   StringPiece deviceId;
   StringPiece root;
   StringPiece mountPoint;
-  vector<StringPiece> options;
-  vector<StringPiece> optionalFields;
+  std::vector<StringPiece> options;
+  std::vector<StringPiece> optionalFields;
   StringPiece fsType;
   StringPiece mountSource;
-  vector<StringPiece> superOptions;
-  bool parse(const string& line) {
-    vector<StringPiece> pieces = SplitStringPiece(line, ' ');
+  std::vector<StringPiece> superOptions;
+  bool parse(const std::string& line) {
+    std::vector<StringPiece> pieces = SplitStringPiece(line, ' ');
     if (pieces.size() < 10)
       return false;
     size_t optionalStart = 0;
@@ -547,20 +546,20 @@ struct MountPoint {
     mountPoint = pieces[4];
     options = SplitStringPiece(pieces[5], ',');
     optionalFields =
-        vector<StringPiece>(&pieces[6], &pieces[optionalStart - 1]);
+        std::vector<StringPiece>(&pieces[6], &pieces[optionalStart - 1]);
     fsType = pieces[optionalStart];
     mountSource = pieces[optionalStart + 1];
     superOptions = SplitStringPiece(pieces[optionalStart + 2], ',');
     return true;
   }
-  string translate(string& path) const {
+  std::string translate(std::string& path) const {
     // path must be sub dir of root
     if (path.compare(0, root.len_, root.str_, root.len_) != 0) {
-      return string();
+      return std::string();
     }
     path.erase(0, root.len_);
     if (path == ".." || (path.length() > 2 && path.compare(0, 3, "../") == 0)) {
-      return string();
+      return std::string();
     }
     return mountPoint.AsString() + "/" + path;
   }
@@ -568,20 +567,20 @@ struct MountPoint {
 
 struct CGroupSubSys {
   int id;
-  string name;
-  vector<string> subsystems;
-  bool parse(string& line) {
+  std::string name;
+  std::vector<std::string> subsystems;
+  bool parse(std::string& line) {
     size_t first = line.find(':');
-    if (first == string::npos)
+    if (first == std::string::npos)
       return false;
     line[first] = '\0';
     size_t second = line.find(':', first + 1);
-    if (second == string::npos)
+    if (second == std::string::npos)
       return false;
     line[second] = '\0';
     id = atoi(line.c_str());
     name = line.substr(second + 1);
-    vector<StringPiece> pieces =
+    std::vector<StringPiece> pieces =
         SplitStringPiece(StringPiece(line.c_str() + first + 1), ',');
     for (size_t i = 0; i < pieces.size(); i++) {
       subsystems.push_back(pieces[i].AsString());
@@ -590,13 +589,13 @@ struct CGroupSubSys {
   }
 };
 
-map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
-  map<string, string> cgroups;
-  ifstream mountinfo("/proc/self/mountinfo");
+std::map<std::string, std::string> ParseMountInfo(std::map<std::string, CGroupSubSys>& subsystems) {
+  std::map<std::string, std::string> cgroups;
+  std::ifstream mountinfo("/proc/self/mountinfo");
   if (!mountinfo.is_open())
     return cgroups;
   while (!mountinfo.eof()) {
-    string line;
+    std::string line;
     getline(mountinfo, line);
     MountPoint mp;
     if (!mp.parse(line))
@@ -604,11 +603,11 @@ map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
     if (mp.fsType != "cgroup")
       continue;
     for (size_t i = 0; i < mp.superOptions.size(); i++) {
-      string opt = mp.superOptions[i].AsString();
-      map<string, CGroupSubSys>::iterator subsys = subsystems.find(opt);
+      std::string opt = mp.superOptions[i].AsString();
+      std::map<std::string, CGroupSubSys>::iterator subsys = subsystems.find(opt);
       if (subsys == subsystems.end())
         continue;
-      string newPath = mp.translate(subsys->second.name);
+      std::string newPath = mp.translate(subsys->second.name);
       if (!newPath.empty())
         cgroups.insert(make_pair(opt, newPath));
     }
@@ -616,28 +615,28 @@ map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
   return cgroups;
 }
 
-map<string, CGroupSubSys> ParseSelfCGroup() {
-  map<string, CGroupSubSys> cgroups;
-  ifstream cgroup("/proc/self/cgroup");
+std::map<std::string, CGroupSubSys> ParseSelfCGroup() {
+  std::map<std::string, CGroupSubSys> cgroups;
+  std::ifstream cgroup("/proc/self/cgroup");
   if (!cgroup.is_open())
     return cgroups;
-  string line;
+  std::string line;
   while (!cgroup.eof()) {
     getline(cgroup, line);
     CGroupSubSys subsys;
     if (!subsys.parse(line))
       continue;
     for (size_t i = 0; i < subsys.subsystems.size(); i++) {
-      cgroups.insert(make_pair(subsys.subsystems[i], subsys));
+      cgroups.insert(std::make_pair(subsys.subsystems[i], subsys));
     }
   }
   return cgroups;
 }
 
 int ParseCPUFromCGroup() {
-  map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
-  map<string, string> cgroups = ParseMountInfo(subsystems);
-  map<string, string>::iterator cpu = cgroups.find("cpu");
+  std::map<std::string, CGroupSubSys> subsystems = ParseSelfCGroup();
+  std::map<std::string, std::string> cgroups = ParseMountInfo(subsystems);
+  std::map<std::string, std::string>::iterator cpu = cgroups.find("cpu");
   if (cpu == cgroups.end())
     return -1;
   std::pair<int64_t, bool> quota = readCount(cpu->second + "/cpu.cfs_quota_us");
@@ -830,7 +829,7 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-string ElideMiddle(const string& str, size_t width) {
+std::string ElideMiddle(const std::string& str, size_t width) {
   switch (width) {
       case 0: return "";
       case 1: return ".";
@@ -838,7 +837,7 @@ string ElideMiddle(const string& str, size_t width) {
       case 3: return "...";
   }
   const int kMargin = 3;  // Space for "...".
-  string result = str;
+  std::string result = str;
   if (result.size() > width) {
     size_t elide_size = (width - kMargin) / 2;
     result = result.substr(0, elide_size)
@@ -848,7 +847,7 @@ string ElideMiddle(const string& str, size_t width) {
   return result;
 }
 
-bool Truncate(const string& path, size_t size, string* err) {
+bool Truncate(const std::string& path, size_t size, std::string* err) {
 #ifdef _WIN32
   int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);

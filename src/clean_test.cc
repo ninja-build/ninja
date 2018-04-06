@@ -22,7 +22,6 @@
 #include <unistd.h>
 #endif
 
-using namespace std;
 
 namespace {
 
@@ -55,7 +54,7 @@ TEST_F(CleanTest, CleanAll) {
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("in1", &err));
   EXPECT_EQ(0, fs_.Stat("out1", &err));
   EXPECT_EQ(0, fs_.Stat("in2", &err));
@@ -87,7 +86,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
+  std::string err;
   EXPECT_LT(0, fs_.Stat("in1", &err));
   EXPECT_LT(0, fs_.Stat("out1", &err));
   EXPECT_LT(0, fs_.Stat("in2", &err));
@@ -118,7 +117,7 @@ TEST_F(CleanTest, CleanTarget) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("in1", &err));
   EXPECT_EQ(0, fs_.Stat("out1", &err));
   EXPECT_LT(0, fs_.Stat("in2", &err));
@@ -150,7 +149,7 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
+  std::string err;
   EXPECT_LT(0, fs_.Stat("in1", &err));
   EXPECT_LT(0, fs_.Stat("out1", &err));
   EXPECT_LT(0, fs_.Stat("in2", &err));
@@ -183,7 +182,7 @@ TEST_F(CleanTest, CleanRule) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("in1", &err));
   EXPECT_LT(0, fs_.Stat("out1", &err));
   EXPECT_EQ(0, fs_.Stat("in2", &err));
@@ -217,7 +216,7 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 
   // Check they are not removed.
-  string err;
+  std::string err;
   EXPECT_LT(0, fs_.Stat("in1", &err));
   EXPECT_LT(0, fs_.Stat("out1", &err));
   EXPECT_LT(0, fs_.Stat("in2", &err));
@@ -318,7 +317,7 @@ TEST_F(CleanTest, CleanDyndep) {
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("out", &err));
   EXPECT_EQ(0, fs_.Stat("out.imp", &err));
 }
@@ -340,7 +339,7 @@ TEST_F(CleanTest, CleanDyndepMissing) {
   EXPECT_EQ(1, cleaner.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
 
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("out", &err));
   EXPECT_EQ(1, fs_.Stat("out.imp", &err));
 }
@@ -394,7 +393,7 @@ TEST_F(CleanTest, CleanRsp) {
   EXPECT_EQ(6u, fs_.files_removed_.size());
 
   // Check they are removed.
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("in1", &err));
   EXPECT_EQ(0, fs_.Stat("out1", &err));
   EXPECT_EQ(0, fs_.Stat("in2", &err));
@@ -412,7 +411,7 @@ TEST_F(CleanTest, CleanFailure) {
 }
 
 TEST_F(CleanTest, CleanPhony) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build phony: phony t1 t2\n"
 "build t1: cat\n"
@@ -459,7 +458,7 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(4, cleaner.cleaned_files_count());
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
-  string err;
+  std::string err;
   EXPECT_EQ(0, fs_.Stat("out 1", &err));
   EXPECT_EQ(0, fs_.Stat("out 2", &err));
   EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
@@ -494,7 +493,7 @@ TEST_F(CleanDeadTest, CleanDead) {
   fs_.Create("out2", "");
 
   BuildLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state.edges_[0], 15, 18);
@@ -557,7 +556,7 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   fs_.Create("out2", "");
 
   BuildLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state.edges_[0], 15, 18);

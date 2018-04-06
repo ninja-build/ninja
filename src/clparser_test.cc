@@ -17,7 +17,6 @@
 #include "test.h"
 #include "util.h"
 
-using namespace std;
 
 TEST(CLParserTest, ShowIncludes) {
   ASSERT_EQ("", CLParser::FilterShowIncludes("", ""));
@@ -48,7 +47,8 @@ TEST(CLParserTest, FilterInputFilename) {
 
 TEST(CLParserTest, ParseSimple) {
   CLParser parser;
-  string output, err;
+  std::string output;
+  std::string err;
   ASSERT_TRUE(parser.Parse(
       "foo\r\n"
       "Note: inc file prefix:  foo.h\r\n"
@@ -62,7 +62,8 @@ TEST(CLParserTest, ParseSimple) {
 
 TEST(CLParserTest, ParseFilenameFilter) {
   CLParser parser;
-  string output, err;
+  std::string output;
+  std::string err;
   ASSERT_TRUE(parser.Parse(
       "foo.cc\r\n"
       "cl: warning\r\n",
@@ -72,7 +73,7 @@ TEST(CLParserTest, ParseFilenameFilter) {
 
 TEST(CLParserTest, NoFilenameFilterAfterShowIncludes) {
   CLParser parser;
-  string output, err;
+  std::string output, err;
   ASSERT_TRUE(parser.Parse(
       "foo.cc\r\n"
       "Note: including file: foo.h\r\n"
@@ -83,7 +84,8 @@ TEST(CLParserTest, NoFilenameFilterAfterShowIncludes) {
 
 TEST(CLParserTest, ParseSystemInclude) {
   CLParser parser;
-  string output, err;
+  std::string output;
+  std::string err;
   ASSERT_TRUE(parser.Parse(
       "Note: including file: c:\\Program Files\\foo.h\r\n"
       "Note: including file: d:\\Microsoft Visual Studio\\bar.h\r\n"
@@ -98,7 +100,8 @@ TEST(CLParserTest, ParseSystemInclude) {
 
 TEST(CLParserTest, DuplicatedHeader) {
   CLParser parser;
-  string output, err;
+  std::string output;
+  std::string err;
   ASSERT_TRUE(parser.Parse(
       "Note: including file: foo.h\r\n"
       "Note: including file: bar.h\r\n"
@@ -111,7 +114,8 @@ TEST(CLParserTest, DuplicatedHeader) {
 
 TEST(CLParserTest, DuplicatedHeaderPathConverted) {
   CLParser parser;
-  string output, err;
+  std::string output;
+  std::string err;
 
   // This isn't inline in the Parse() call below because the #ifdef in
   // a macro expansion would confuse MSVC2013's preprocessor.

@@ -17,7 +17,6 @@
 
 #include <algorithm>
 
-using namespace std;
 
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
@@ -44,7 +43,7 @@ DepfileParser::DepfileParser(DepfileParserOptions options)
 //
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(string* content, string* err) {
+bool DepfileParser::Parse(std::string* content, std::string* err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
