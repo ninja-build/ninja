@@ -229,7 +229,7 @@ TEST_F(SubprocessTest, SetWithLots) {
     return;
   }
 
-  vector<Subprocess*> procs;
+  std::vector<Subprocess*> procs;
   for (size_t i = 0; i < kNumProcs; ++i) {
     Subprocess* subproc = subprocs_.Add("/bin/echo");
     ASSERT_NE((Subprocess *) 0, subproc);

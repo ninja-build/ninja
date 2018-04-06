@@ -17,19 +17,19 @@
 #include "test.h"
 
 struct DepfileParserTest : public testing::Test {
-  bool Parse(const char* input, string* err);
+  bool Parse(const char* input, std::string* err);
 
   DepfileParser parser_;
-  string input_;
+  std::string input_;
 };
 
-bool DepfileParserTest::Parse(const char* input, string* err) {
+bool DepfileParserTest::Parse(const char* input, std::string* err) {
   input_ = input;
   return parser_.Parse(&input_, err);
 }
 
 TEST_F(DepfileParserTest, Basic) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
@@ -39,7 +39,7 @@ TEST_F(DepfileParserTest, Basic) {
 }
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 " \\\n"
 "  out: in\n",
@@ -48,7 +48,7 @@ TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
 }
 
 TEST_F(DepfileParserTest, Continuation) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "foo.o: \\\n"
 "  bar.h baz.h\n",
@@ -59,7 +59,7 @@ TEST_F(DepfileParserTest, Continuation) {
 }
 
 TEST_F(DepfileParserTest, CarriageReturnContinuation) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "foo.o: \\\r\n"
 "  bar.h baz.h\r\n",
@@ -70,7 +70,7 @@ TEST_F(DepfileParserTest, CarriageReturnContinuation) {
 }
 
 TEST_F(DepfileParserTest, BackSlashes) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
 "  Dir\\Library\\Foo.rc \\\n"
@@ -85,7 +85,7 @@ TEST_F(DepfileParserTest, BackSlashes) {
 }
 
 TEST_F(DepfileParserTest, Spaces) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "a\\ bc\\ def:   a\\ b c d",
       &err));
@@ -104,7 +104,7 @@ TEST_F(DepfileParserTest, Spaces) {
 TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "\\!\\@\\#$$\\%\\^\\&\\\\:",
       &err));
@@ -117,7 +117,7 @@ TEST_F(DepfileParserTest, Escapes) {
 TEST_F(DepfileParserTest, SpecialChars) {
   // See filenames like istreambuf.iterator_op!= in
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \n"
 " en@quot.header~ t+t-x!=1 \n"
@@ -140,7 +140,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
 
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
   ASSERT_EQ("foo", parser_.out_.AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
@@ -151,7 +151,7 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
 
 TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
-  string err;
+  std::string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
   ASSERT_EQ("depfile has multiple output paths", err);
 }

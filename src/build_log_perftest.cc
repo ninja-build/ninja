@@ -32,7 +32,7 @@ struct NoDeadPaths : public BuildLogUser {
   virtual bool IsPathDead(StringPiece) const { return false; }
 };
 
-bool WriteTestData(string* err) {
+bool WriteTestData(std::string* err) {
   BuildLog log;
 
   NoDeadPaths no_dead_paths;
@@ -62,7 +62,7 @@ bool WriteTestData(string* err) {
 
   // ManifestParser is the only object allowed to create Rules.
   const size_t kRuleSize = 4000;
-  string long_rule_command = "gcc ";
+  std::string long_rule_command = "gcc ";
   for (int i = 0; long_rule_command.size() < kRuleSize; ++i) {
     char buf[80];
     sprintf(buf, "-I../../and/arbitrary/but/fairly/long/path/suffixed/%d ", i);
@@ -78,7 +78,7 @@ bool WriteTestData(string* err) {
   // Create build edges. Using ManifestParser is as fast as using the State api
   // for edge creation, so just use that.
   const int kNumCommands = 30000;
-  string build_rules;
+  std::string build_rules;
   for (int i = 0; i < kNumCommands; ++i) {
     char buf[80];
     sprintf(buf, "build input%d.o: cxx input%d.cc\n", i, i);
@@ -99,8 +99,8 @@ bool WriteTestData(string* err) {
 }
 
 int main() {
-  vector<int> times;
-  string err;
+  std::vector<int> times;
+  std::string err;
 
   if (!WriteTestData(&err)) {
     fprintf(stderr, "Failed to write test data: %s\n", err.c_str());

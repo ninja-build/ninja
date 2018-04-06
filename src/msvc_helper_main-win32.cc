@@ -36,7 +36,7 @@ void Usage() {
          );
 }
 
-void PushPathIntoEnvironment(const string& env_block) {
+void PushPathIntoEnvironment(const std::string& env_block) {
   const char* as_str = env_block.c_str();
   while (as_str[0]) {
     if (_strnicmp(as_str, "path=", 5) == 0) {
@@ -49,7 +49,7 @@ void PushPathIntoEnvironment(const string& env_block) {
 }
 
 void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
-  string depfile_path = string(object_path) + ".d";
+  std::string depfile_path = std::string(object_path) + ".d";
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
@@ -62,8 +62,8 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
     unlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
-  const set<string>& headers = parse.includes_;
-  for (set<string>::const_iterator i = headers.begin();
+  const std::set<std::string>& headers = parse.includes_;
+  for (std::set<std::string>::const_iterator i = headers.begin();
        i != headers.end(); ++i) {
     if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
       unlink(object_path);
@@ -86,7 +86,7 @@ int MSVCHelperMain(int argc, char** argv) {
     { NULL, 0, NULL, 0 }
   };
   int opt;
-  string deps_prefix;
+  std::string deps_prefix;
   while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
     switch (opt) {
       case 'e':
@@ -105,9 +105,9 @@ int MSVCHelperMain(int argc, char** argv) {
     }
   }
 
-  string env;
+  std::string env;
   if (envfile) {
-    string err;
+    std::string err;
     if (ReadFile(envfile, &env, &err) != 0)
       Fatal("couldn't open %s: %s", envfile, err.c_str());
     PushPathIntoEnvironment(env);
@@ -123,12 +123,12 @@ int MSVCHelperMain(int argc, char** argv) {
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
-  string output;
+  std::string output;
   int exit_code = cl.Run(command, &output);
 
   if (output_filename) {
     CLParser parser;
-    string err;
+    std::string err;
     if (!parser.Parse(output, deps_prefix, &output, &err))
       Fatal("%s\n", err.c_str());
     WriteDepFileOrDie(output_filename, parser);
@@ -140,7 +140,7 @@ int MSVCHelperMain(int argc, char** argv) {
   // CLWrapper's output already as \r\n line endings, make sure the C runtime
   // doesn't expand this to \r\r\n.
   _setmode(_fileno(stdout), _O_BINARY);
-  // Avoid printf and C strings, since the actual output might contain null
+  // Avoid printf and C std::strings, since the actual output might contain null
   // bytes like UTF-16 does (yuck).
   fwrite(&output[0], 1, output.size(), stdout);
 

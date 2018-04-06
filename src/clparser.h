@@ -17,7 +17,6 @@
 
 #include <set>
 #include <string>
-using namespace std;
 
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
@@ -27,26 +26,26 @@ struct CLParser {
   /// Parse a line of cl.exe output and extract /showIncludes info.
   /// If a dependency is extracted, returns a nonempty string.
   /// Exposed for testing.
-  static string FilterShowIncludes(const string& line,
-                                   const string& deps_prefix);
+  static std::string FilterShowIncludes(const std::string& line,
+                                   const std::string& deps_prefix);
 
   /// Return true if a mentioned include file is a system path.
   /// Filtering these out reduces dependency information considerably.
-  static bool IsSystemInclude(string path);
+  static bool IsSystemInclude(std::string path);
 
   /// Parse a line of cl.exe output and return true if it looks like
   /// it's printing an input filename.  This is a heuristic but it appears
   /// to be the best we can do.
   /// Exposed for testing.
-  static bool FilterInputFilename(string line);
+  static bool FilterInputFilename(std::string line);
 
   /// Parse the full output of cl, filling filtered_output with the text that
   /// should be printed (if any). Returns true on success, or false with err
   /// filled. output must not be the same object as filtered_object.
-  bool Parse(const string& output, const string& deps_prefix,
-             string* filtered_output, string* err);
+  bool Parse(const std::string& output, const std::string& deps_prefix,
+             std::string* filtered_output, std::string* err);
 
-  set<string> includes_;
+  std::set<std::string> includes_;
 };
 
 #endif  // NINJA_CLPARSER_H_
