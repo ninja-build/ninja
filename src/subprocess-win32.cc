@@ -289,19 +289,16 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i) {
+  for (auto const& item : running_) {
     // Since the foreground process is in our process group, it will receive a
     // CTRL_C_EVENT or CTRL_BREAK_EVENT at the same time as us.
-    if ((*i)->child_ && !(*i)->use_console_) {
-      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT,
-                                    GetProcessId((*i)->child_))) {
+    if (item->child_ && !item->use_console_) {
+      if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, GetProcessId(item->child_))) {
         Win32Fatal("GenerateConsoleCtrlEvent");
       }
     }
   }
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
-    delete *i;
+  for (auto const& item : running_)
+    delete item;
   running_.clear();
 }

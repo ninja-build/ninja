@@ -45,12 +45,12 @@ int main() {
   int min = times[0];
   int max = times[0];
   float total = 0;
-  for (size_t i = 0; i < times.size(); ++i) {
-    total += times[i];
-    if (times[i] < min)
-      min = times[i];
-    else if (times[i] > max)
-      max = times[i];
+  for (auto const& time : times) {
+    total += time;
+    if (time < min)
+      min = time;
+    else if (time > max)
+      max = time;
   }
 
   printf("min %dms  max %dms  avg %.1fms\n",

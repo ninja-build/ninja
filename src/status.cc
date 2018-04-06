@@ -76,10 +76,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
 
   // Print the command that is spewing before printing its output.
   if (!success) {
-    string outputs;
-    for (vector<Node*>::const_iterator o = edge->outputs_.begin();
-         o != edge->outputs_.end(); ++o)
-      outputs += (*o)->path() + " ";
+    std::string outputs;
+    for (auto const& out : edge->outputs_)
+      outputs += out->path() + " ";
 
     if (printer_.supports_color()) {
         printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");

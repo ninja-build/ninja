@@ -133,9 +133,8 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
   if (!want_ins.second)
     return true;  // We've already processed the inputs.
 
-  for (vector<Node*>::iterator i = edge->inputs_.begin();
-       i != edge->inputs_.end(); ++i) {
-    if (!AddSubTarget(*i, node, err, dyndep_walk) && !err->empty())
+  for (auto const& item : edge->inputs_) {
+    if (!AddSubTarget(item, node, err, dyndep_walk) && !err->empty())
       return false;
   }
 
@@ -199,9 +198,8 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!NodeFinished(*o, err))
+  for (auto const& item : edge->outputs_) {
+    if (!NodeFinished(item, err))
       return false;
   }
   return true;
@@ -217,9 +215,8 @@ bool Plan::NodeFinished(Node* node, string* err) {
   }
 
   // See if we we want any edges from this node.
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+  for (auto const& item : node->out_edges()) {
+    std::map<Edge*, Want>::iterator want_e = want_.find(item);
     if (want_e == want_.end())
       continue;
 
@@ -248,22 +245,21 @@ bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
 bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   node->set_dirty(false);
 
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
+  for (auto const& item : node->out_edges()) {
     // Don't process edges that we don't actually want.
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+    std::map<Edge*, Want>::iterator want_e = want_.find(item);
     if (want_e == want_.end() || want_e->second == kWantNothing)
       continue;
 
     // Don't attempt to clean an edge if it failed to load deps.
-    if ((*oe)->deps_missing_)
+    if (item->deps_missing_)
       continue;
 
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
-    vector<Node*>::iterator
-        begin = (*oe)->inputs_.begin(),
-        end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
+    std::vector<Node*>::iterator
+        begin = item->inputs_.begin(),
+        end = item->inputs_.end() - item->order_only_deps_;
 #if __cplusplus < 201703L
 #define MEM_FN mem_fun
 #else
@@ -281,20 +277,19 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
       bool outputs_dirty = false;
-      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
+      if (!scan->RecomputeOutputsDirty(item, most_recent_input,
                                        &outputs_dirty, err)) {
         return false;
       }
       if (!outputs_dirty) {
-        for (vector<Node*>::iterator o = (*oe)->outputs_.begin();
-             o != (*oe)->outputs_.end(); ++o) {
-          if (!CleanNode(scan, *o, err))
+        for (auto const& inner : item->outputs_) {
+          if (!CleanNode(scan, inner, err))
             return false;
         }
 
         want_e->second = kWantNothing;
         --wanted_edges_;
-        if (!(*oe)->is_phony())
+        if (!item->is_phony())
           --command_edges_;
       }
     }
@@ -336,12 +331,9 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
 
   // Walk dyndep-discovered portion of the graph to add it to the build plan.
   std::set<Edge*> dyndep_walk;
-  for (std::vector<DyndepFile::const_iterator>::iterator
-       oei = dyndep_roots.begin(); oei != dyndep_roots.end(); ++oei) {
-    DyndepFile::const_iterator oe = *oei;
-    for (vector<Node*>::const_iterator i = oe->second.implicit_inputs_.begin();
-         i != oe->second.implicit_inputs_.end(); ++i) {
-      if (!AddSubTarget(*i, oe->first->outputs_[0], err, &dyndep_walk) &&
+  for (auto const& oe : dyndep_roots) {
+    for (auto const& item : oe->second.implicit_inputs_) {
+      if (!AddSubTarget(item, oe->first->outputs_[0], err, &dyndep_walk) &&
           !err->empty())
         return false;
     }
@@ -349,18 +341,16 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
 
   // Add out edges from this node that are in the plan (just as
   // Plan::NodeFinished would have without taking the dyndep code path).
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+  for (auto const& item : node->out_edges()) {
+    std::map<Edge*, Want>::iterator want_e = want_.find(item);
     if (want_e == want_.end())
       continue;
     dyndep_walk.insert(want_e->first);
   }
 
   // See if any encountered edges are now ready.
-  for (set<Edge*>::iterator wi = dyndep_walk.begin();
-       wi != dyndep_walk.end(); ++wi) {
-    map<Edge*, Want>::iterator want_e = want_.find(*wi);
+  for (auto const& item : dyndep_walk) {
+    std::map<Edge*, Want>::iterator want_e = want_.find(item);
     if (want_e == want_.end())
       continue;
     if (!EdgeMaybeReady(want_e, err))
@@ -379,10 +369,7 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
 
   // Update the dirty state of all dependents and check if their edges
   // have become wanted.
-  for (set<Node*>::iterator i = dependents.begin();
-       i != dependents.end(); ++i) {
-    Node* n = *i;
-
+  for (auto const& n : dependents) {
     // Check if this dependent node is now dirty.  Also checks for new cycles.
     std::vector<Node*> validation_nodes;
     if (!scan->RecomputeDirty(n, &validation_nodes, err))
@@ -390,11 +377,10 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
 
     // Add any validation nodes found during RecomputeDirty as new top level
     // targets.
-    for (std::vector<Node*>::iterator v = validation_nodes.begin();
-         v != validation_nodes.end(); ++v) {
-      if (Edge* in_edge = (*v)->in_edge()) {
+    for (auto const& loopnode : validation_nodes) {
+      if (Edge* in_edge = loopnode->in_edge()) {
         if (!in_edge->outputs_ready() &&
-            !AddTarget(*v, err)) {
+            !AddTarget(loopnode, err)) {
           return false;
         }
       }
@@ -417,21 +403,17 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
   return true;
 }
 
-void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    Edge* edge = *oe;
-
-    map<Edge*, Want>::iterator want_e = want_.find(edge);
+void Plan::UnmarkDependents(const Node* node, std::set<Node*>* dependents) {
+  for (auto const& edge : node->out_edges()) {
+    std::map<Edge*, Want>::iterator want_e = want_.find(edge);
     if (want_e == want_.end())
       continue;
 
     if (edge->mark_ != Edge::VisitNone) {
       edge->mark_ = Edge::VisitNone;
-      for (vector<Node*>::iterator o = edge->outputs_.begin();
-           o != edge->outputs_.end(); ++o) {
-        if (dependents->insert(*o).second)
-          UnmarkDependents(*o, dependents);
+      for (auto const& item : edge->outputs_) {
+        if (dependents->insert(item).second)
+          UnmarkDependents(item, dependents);
       }
     }
   }
@@ -439,10 +421,10 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 
 void Plan::Dump() const {
   printf("pending: %d\n", (int)want_.size());
-  for (map<Edge*, Want>::const_iterator e = want_.begin(); e != want_.end(); ++e) {
-    if (e->second != kWantNothing)
+  for (auto const& item : want_) {
+    if (item.second != kWantNothing)
       printf("want ");
-    e->first->Dump();
+    item.first->Dump();
   }
   printf("ready: %d\n", (int)ready_.size());
 }
@@ -461,11 +443,10 @@ struct RealCommandRunner : public CommandRunner {
   map<const Subprocess*, Edge*> subproc_to_edge_;
 };
 
-vector<Edge*> RealCommandRunner::GetActiveEdges() {
-  vector<Edge*> edges;
-  for (map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
-       e != subproc_to_edge_.end(); ++e)
-    edges.push_back(e->second);
+std::vector<Edge*> RealCommandRunner::GetActiveEdges() {
+  std::vector<Edge*> edges;
+  for (auto const& item : subproc_to_edge_)
+    edges.push_back(item.second);
   return edges;
 }
 
@@ -533,11 +514,9 @@ void Builder::Cleanup() {
     vector<Edge*> active_edges = command_runner_->GetActiveEdges();
     command_runner_->Abort();
 
-    for (vector<Edge*>::iterator e = active_edges.begin();
-         e != active_edges.end(); ++e) {
-      string depfile = (*e)->GetUnescapedDepfile();
-      for (vector<Node*>::iterator o = (*e)->outputs_.begin();
-           o != (*e)->outputs_.end(); ++o) {
+    for (auto const& item : active_edges) {
+      std::string depfile = item->GetUnescapedDepfile();
+      for (auto const& inner : item->outputs_) {
         // Only delete this output if it was actually modified.  This is
         // important for things like the generator where we don't want to
         // delete the manifest file if we can avoid it.  But if the rule
@@ -545,12 +524,12 @@ void Builder::Cleanup() {
         // need to rebuild an output because of a modified header file
         // mentioned in a depfile, and the command touches its depfile
         // but is interrupted before it touches its output file.)
-        string err;
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
+        std::string err;
+        TimeStamp new_mtime = disk_interface_->Stat(inner->path(), &err);
         if (new_mtime == -1)  // Log and ignore Stat() errors.
           status_->Error("%s", err.c_str());
-        if (!depfile.empty() || (*o)->mtime() != new_mtime)
-          disk_interface_->RemoveFile((*o)->path());
+        if (!depfile.empty() || inner->mtime() != new_mtime)
+          disk_interface_->RemoveFile(inner->path());
       }
       if (!depfile.empty())
         disk_interface_->RemoveFile(depfile);
@@ -587,11 +566,10 @@ bool Builder::AddTarget(Node* target, string* err) {
 
   // Also add any validation nodes found during RecomputeDirty as top level
   // targets.
-  for (std::vector<Node*>::iterator n = validation_nodes.begin();
-       n != validation_nodes.end(); ++n) {
-    if (Edge* validation_in_edge = (*n)->in_edge()) {
+  for (auto const& node : validation_nodes) {
+    if (Edge* validation_in_edge = node->in_edge()) {
       if (!validation_in_edge->outputs_ready() &&
-          !plan_.AddTarget(*n, err)) {
+          !plan_.AddTarget(node, err)) {
         return false;
       }
     }
@@ -717,9 +695,8 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   // Create directories necessary for outputs and remember the current
   // filesystem mtime to record later
   // XXX: this will block; do we care?
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!disk_interface_->MakeDirs((*o)->path()))
+  for (auto const& item : edge->outputs_) {
+    if (!disk_interface_->MakeDirs(item->path()))
       return false;
     if (build_start == -1) {
       disk_interface_->WriteFile(lock_file_path_, "");
@@ -802,18 +779,17 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     // we should fall back to recording the outputs' current mtime in the
     // log.
     if (record_mtime == 0 || restat || generator) {
-      for (vector<Node*>::iterator o = edge->outputs_.begin();
-           o != edge->outputs_.end(); ++o) {
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
+      for (auto const& item : edge->outputs_) {
+        TimeStamp new_mtime = disk_interface_->Stat(item->path(), err);
         if (new_mtime == -1)
           return false;
         if (new_mtime > record_mtime)
           record_mtime = new_mtime;
-        if ((*o)->mtime() == new_mtime && restat) {
+        if (item->mtime() == new_mtime && restat) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          if (!plan_.CleanNode(&scan_, *o, err))
+          if (!plan_.CleanNode(&scan_, item, err))
             return false;
           node_cleaned = true;
         }
@@ -846,12 +822,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   if (!deps_type.empty() && !config_.dry_run) {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
-    for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
-         o != edge->outputs_.end(); ++o) {
-      TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
+    for (auto const& output : edge->outputs_) {
+      TimeStamp deps_mtime = disk_interface_->Stat(output->path(), err);
       if (deps_mtime == -1)
         return false;
-      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
+
+      if (!scan_.deps_log()->RecordDeps(output, deps_mtime, deps_nodes)) {
         *err = std::string("Error writing to deps log: ") + strerror(errno);
         return false;
       }
@@ -871,13 +847,12 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     if (!parser.Parse(result->output, deps_prefix, &output, err))
       return false;
     result->output = output;
-    for (set<string>::iterator i = parser.includes_.begin();
-         i != parser.includes_.end(); ++i) {
+    for (auto const& item : parser.includes_) {
       // ~0 is assuming that with MSVC-parsed headers, it's ok to always make
       // all backslashes (as some of the slashes will certainly be backslashes
       // anyway). This could be fixed if necessary with some additional
       // complexity in IncludesNormalize::Relativize.
-      deps_nodes->push_back(state_->GetNode(*i, ~0u));
+      deps_nodes->push_back(state_->GetNode(item, ~0u));
     }
   } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
@@ -906,11 +881,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 
     // XXX check depfile matches expected output.
     deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
-         i != deps.ins_.end(); ++i) {
+    for (auto & item : deps.ins_)
+    {
       uint64_t slash_bits;
-      CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      CanonicalizePath(const_cast<char*>(item.str_), &item.len_, &slash_bits);
+      deps_nodes->push_back(state_->GetNode(item, slash_bits));
     }
 
     if (!g_keep_depfile) {

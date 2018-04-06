@@ -399,9 +399,8 @@ TEST_F(DepsLogTest, Truncated) {
 
     // Count how many non-NULL deps entries there are.
     int new_deps_count = 0;
-    for (vector<DepsLog::Deps*>::const_iterator i = log.deps().begin();
-         i != log.deps().end(); ++i) {
-      if (*i)
+    for (auto const& item : log.deps()) {
+      if (item)
         ++new_deps_count;
     }
     ASSERT_GE(deps_count, new_deps_count);

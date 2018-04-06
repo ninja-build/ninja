@@ -21,6 +21,15 @@
 #ifndef _WIN32
 #include <sys/time.h>
 #else
+#ifndef VC_EXTRALEAN
+  #define VC_EXTRALEAN
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+  #define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -101,20 +110,17 @@ Metric* Metrics::NewMetric(const string& name) {
 }
 
 void Metrics::Report() {
-  int width = 0;
-  for (vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
-    width = max((int)(*i)->name.size(), width);
+  size_t width = 0;
+  for (auto const& metric : metrics_) {
+    width = std::max(metric->name.size(), width);
   }
 
-  printf("%-*s\t%-6s\t%-9s\t%s\n", width,
+  printf("%-*s\t%-6s\t%-9s\t%s\n", static_cast<int>(width),
          "metric", "count", "avg (us)", "total (ms)");
-  for (vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
-    Metric* metric = *i;
+  for (auto const& metric : metrics_) {
     double total = metric->sum / (double)1000;
     double avg = metric->sum / (double)metric->count;
-    printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", width, metric->name.c_str(),
+    printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", static_cast<int>(width), metric->name.c_str(),
            metric->count, avg, total);
   }
 }

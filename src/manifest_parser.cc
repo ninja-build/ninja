@@ -361,8 +361,8 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_outs_ = implicit_outs;
 
   edge->inputs_.reserve(ins.size());
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
-    string path = i->Evaluate(env);
+  for (auto const& item : ins) {
+    std::string path = item.Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -373,9 +373,8 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->order_only_deps_ = order_only;
 
   edge->validations_.reserve(validations.size());
-  for (std::vector<EvalString>::iterator v = validations.begin();
-      v != validations.end(); ++v) {
-    string path = v->Evaluate(env);
+  for (auto const& item : validations) {
+    std::string path = item.Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;

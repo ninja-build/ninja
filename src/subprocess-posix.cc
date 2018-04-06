@@ -253,9 +253,8 @@ bool SubprocessSet::DoWork() {
   vector<pollfd> fds;
   nfds_t nfds = 0;
 
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i) {
-    int fd = (*i)->fd_;
+  for (auto const& item : running_) {
+    int fd = item->fd_;
     if (fd < 0)
       continue;
     pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
@@ -304,9 +303,8 @@ bool SubprocessSet::DoWork() {
   int nfds = 0;
   FD_ZERO(&set);
 
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i) {
-    int fd = (*i)->fd_;
+  for (auto const& item : running_) {
+    int fd = item->fd_;
     if (fd >= 0) {
       FD_SET(fd, &set);
       if (nfds < fd+1)
@@ -355,14 +353,12 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
+  for (auto const& item : running_)
     // Since the foreground process is in our process group, it will receive
     // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
-    if (!(*i)->use_console_)
-      kill(-(*i)->pid_, interrupted_);
-  for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
-    delete *i;
+    if (!item->use_console_)
+      kill(-item->pid_, interrupted_);
+  for (auto const& item : running_)
+    delete item;
   running_.clear();
 }

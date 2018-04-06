@@ -323,8 +323,8 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  for (deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
-    plan_.EdgeFinished(*it, Plan::kEdgeSucceeded, &err);
+  for (auto const& item : edges) {
+    plan_.EdgeFinished(item, Plan::kEdgeSucceeded, &err);
     ASSERT_EQ("", err);
   }
 
@@ -592,9 +592,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      fs_->Create((*out)->path(), "");
+    for (auto const& item : edge->outputs_) {
+      fs_->Create(item->path(), "");
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
@@ -614,15 +613,13 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     fs_->Tick();
     fs_->Create(dep, "");
     fs_->Tick();
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      fs_->Create((*out)->path(), "");
+    for (auto const& output : edge->outputs_) {
+      fs_->Create(output->path(), "");
     }
   } else if (edge->rule().name() == "touch-out-implicit-dep") {
-    string dep = edge->GetBinding("test_dependency");
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      fs_->Create((*out)->path(), "");
+    std::string dep = edge->GetBinding("test_dependency");
+    for (auto const& output : edge->outputs_) {
+      fs_->Create(output->path(), "");
     }
     fs_->Tick();
     fs_->Create(dep, "");
@@ -634,11 +631,10 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       fs_->Tick();
       fs_->Create(dep, "");
     }
-    string contents;
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      contents += (*out)->path() + ": " + dep + "\n";
-      fs_->Create((*out)->path(), "");
+    std::string contents;
+    for (auto const& output : edge->outputs_) {
+      contents += output->path() + ": " + dep + "\n";
+      fs_->Create(output->path(), "");
     }
     fs_->Create(depfile, contents);
   } else if (edge->rule().name() == "long-cc") {
@@ -698,9 +694,8 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
 
   if (edge->rule().name() == "cp_multi_msvc") {
     const std::string prefix = edge->GetBinding("msvc_deps_prefix");
-    for (std::vector<Node*>::iterator in = edge->inputs_.begin();
-         in != edge->inputs_.end(); ++in) {
-      result->output += prefix + (*in)->path() + '\n';
+    for (auto const& in : edge->inputs_) {
+      result->output += prefix + in->path() + '\n';
     }
   }
 
@@ -728,10 +723,9 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   const string& verify_active_edge = edge->GetBinding("verify_active_edge");
   if (!verify_active_edge.empty()) {
     bool verify_active_edge_found = false;
-    for (vector<Edge*>::iterator i = active_edges_.begin();
-         i != active_edges_.end(); ++i) {
-      if (!(*i)->outputs_.empty() &&
-          (*i)->outputs_[0]->path() == verify_active_edge) {
+    for (auto const& item : active_edges_) {
+      if (!item->outputs_.empty() &&
+          item->outputs_[0]->path() == verify_active_edge) {
         verify_active_edge_found = true;
       }
     }

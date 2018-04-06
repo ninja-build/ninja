@@ -98,13 +98,13 @@ string BindingEnv::LookupWithFallback(const string& var,
   return "";
 }
 
-string EvalString::Evaluate(Env* env) const {
-  string result;
-  for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
-    if (i->second == RAW)
-      result.append(i->first);
+std::string EvalString::Evaluate(Env* env) const {
+  std::string result;
+  for (auto const& item : parsed_) {
+    if (item.second == RAW)
+      result.append(item.first);
     else
-      result.append(env->LookupVariable(i->first));
+      result.append(env->LookupVariable(item.first));
   }
   return result;
 }
@@ -121,27 +121,25 @@ void EvalString::AddSpecial(StringPiece text) {
   parsed_.push_back(make_pair(text.AsString(), SPECIAL));
 }
 
-string EvalString::Serialize() const {
-  string result;
-  for (TokenList::const_iterator i = parsed_.begin();
-       i != parsed_.end(); ++i) {
+std::string EvalString::Serialize() const {
+  std::string result;
+  for (auto const& item : parsed_) {
     result.append("[");
-    if (i->second == SPECIAL)
+    if (item.second == SPECIAL)
       result.append("$");
-    result.append(i->first);
+    result.append(item.first);
     result.append("]");
   }
   return result;
 }
 
-string EvalString::Unparse() const {
-  string result;
-  for (TokenList::const_iterator i = parsed_.begin();
-       i != parsed_.end(); ++i) {
-    bool special = (i->second == SPECIAL);
+std::string EvalString::Unparse() const {
+  std::string result;
+  for (auto const& item : parsed_) {
+    bool special = (item.second == SPECIAL);
     if (special)
       result.append("${");
-    result.append(i->first);
+    result.append(item.first);
     if (special)
       result.append("}");
   }
