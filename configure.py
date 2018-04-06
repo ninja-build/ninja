@@ -256,7 +256,7 @@ configure_args = sys.argv[1:]
 if '--bootstrap' in configure_args:
     configure_args.remove('--bootstrap')
 n.variable('configure_args', ' '.join(configure_args))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'LDFLAGS'])
+env_keys = set(['CXX', 'AR', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + pipes.quote(configure_env[k])
@@ -397,6 +397,10 @@ def shell_escape(str):
 
 if 'CFLAGS' in configure_env:
     cflags.append(configure_env['CFLAGS'])
+    ldflags.append(configure_env['CFLAGS'])
+if 'CXXFLAGS' in configure_env:
+    cflags.append(configure_env['CXXFLAGS'])
+    ldflags.append(configure_env['CXXFLAGS'])
 n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
 if 'LDFLAGS' in configure_env:
     ldflags.append(configure_env['LDFLAGS'])
