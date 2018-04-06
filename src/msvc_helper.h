@@ -13,9 +13,8 @@
 // limitations under the License.
 
 #include <string>
-using namespace std;
 
-string EscapeForDepfile(const string& path);
+std::string EscapeForDepfile(const std::string& path);
 
 /// Wraps a synchronous execution of a CL subprocess.
 struct CLWrapper {
@@ -27,7 +26,7 @@ struct CLWrapper {
 
   /// Start a process and gather its raw output.  Returns its exit code.
   /// Crashes (calls Fatal()) on error.
-  int Run(const string& command, string* output);
+  int Run(const std::string& command, std::string* output);
 
   void* env_block_;
 };

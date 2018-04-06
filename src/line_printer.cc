@@ -30,7 +30,7 @@
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifndef _WIN32
   const char* term = getenv("TERM");
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  smart_terminal_ = isatty(1) && term && std::string(term) != "dumb";
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
@@ -43,7 +43,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #endif
 }
 
-void LinePrinter::Print(string to_print, LineType type) {
+void LinePrinter::Print(std::string to_print, LineType type) {
   if (console_locked_) {
     line_buffer_ = to_print;
     line_type_ = type;
@@ -100,13 +100,13 @@ void LinePrinter::PrintOrBuffer(const char* data, size_t size) {
   if (console_locked_) {
     output_buffer_.append(data, size);
   } else {
-    // Avoid printf and C strings, since the actual output might contain null
+    // Avoid printf and C std::strings, since the actual output might contain null
     // bytes like UTF-16 does (yuck).
     fwrite(data, 1, size, stdout);
   }
 }
 
-void LinePrinter::PrintOnNewLine(const string& to_print) {
+void LinePrinter::PrintOnNewLine(const std::string& to_print) {
   if (console_locked_ && !line_buffer_.empty()) {
     output_buffer_.append(line_buffer_);
     output_buffer_.append(1, '\n');
