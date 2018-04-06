@@ -17,7 +17,6 @@
 
 #include <string>
 #include <vector>
-using namespace std;
 
 #include "dyndep.h"
 #include "eval_env.h"
@@ -36,7 +35,7 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const string& path, uint64_t slash_bits)
+  Node(const std::string& path, uint64_t slash_bits)
       : path_(path),
         slash_bits_(slash_bits),
         mtime_(-1),
@@ -46,10 +45,10 @@ struct Node {
         id_(-1) {}
 
   /// Return false on error.
-  bool Stat(DiskInterface* disk_interface, string* err);
+  bool Stat(DiskInterface* disk_interface, std::string* err);
 
   /// Return false on error.
-  bool StatIfNecessary(DiskInterface* disk_interface, string* err) {
+  bool StatIfNecessary(DiskInterface* disk_interface, std::string* err) {
     if (status_known())
       return true;
     return Stat(disk_interface, err);
@@ -74,13 +73,13 @@ struct Node {
     return mtime_ != -1;
   }
 
-  const string& path() const { return path_; }
+  const std::string& path() const { return path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
-  string PathDecanonicalized() const {
+  std::string PathDecanonicalized() const {
     return PathDecanonicalized(path_, slash_bits_);
   }
-  static string PathDecanonicalized(const string& path,
-                                    uint64_t slash_bits);
+  static std::string PathDecanonicalized(const std::string& path,
+                                         uint64_t slash_bits);
   uint64_t slash_bits() const { return slash_bits_; }
 
   TimeStamp mtime() const { return mtime_; }
@@ -98,13 +97,13 @@ struct Node {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  const vector<Edge*>& out_edges() const { return out_edges_; }
+  const std::vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
 
   void Dump(const char* prefix="") const;
 
 private:
-  string path_;
+  std::string path_;
 
   /// Set bits starting from lowest for backslashes that were normalized to
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
@@ -130,7 +129,7 @@ private:
   Edge* in_edge_;
 
   /// All Edges that use this Node as an input.
-  vector<Edge*> out_edges_;
+  std::vector<Edge*> out_edges_;
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
@@ -158,13 +157,13 @@ struct Edge {
   std::string EvaluateCommand(bool incl_rsp_file = false) const;
 
   /// Returns the shell-escaped value of |key|.
-  std::string GetBinding(const string& key) const;
-  bool GetBindingBool(const string& key) const;
+  std::string GetBinding(const std::string& key) const;
+  bool GetBindingBool(const std::string& key) const;
 
   /// Like GetBinding("depfile"), but without shell escaping.
-  string GetUnescapedDepfile() const;
+  std::string GetUnescapedDepfile() const;
   /// Like GetBinding("dyndep"), but without shell escaping.
-  string GetUnescapedDyndep() const;
+  std::string GetUnescapedDyndep() const;
   /// Like GetBinding("rspfile"), but without shell escaping.
   std::string GetUnescapedRspfile() const;
 
@@ -172,8 +171,8 @@ struct Edge {
 
   const Rule* rule_;
   Pool* pool_;
-  vector<Node*> inputs_;
-  vector<Node*> outputs_;
+  std::vector<Node*> inputs_;
+  std::vector<Node*> outputs_;
   Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
@@ -232,7 +231,7 @@ struct ImplicitDepLoader {
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
-  bool LoadDeps(Edge* edge, string* err);
+  bool LoadDeps(Edge* edge, std::string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -241,15 +240,15 @@ struct ImplicitDepLoader {
  private:
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepFile(Edge* edge, const string& path, string* err);
+  bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, string* err);
+  bool LoadDepsFromLog(Edge* edge, std::string* err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
-  vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
+  std::vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
 
   /// If we don't have a edge that generates this input already,
   /// create one; this makes us not abort if the input is missing,
@@ -279,12 +278,12 @@ struct DependencyScan {
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
   /// Returns false on failure.
-  bool RecomputeDirty(Node* node, string* err);
+  bool RecomputeDirty(Node* node, std::string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
   bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                             bool* dirty, string* err);
+                             bool* dirty, std::string* err);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -301,17 +300,17 @@ struct DependencyScan {
   /// build graph with the new information.  One overload accepts
   /// a caller-owned 'DyndepFile' object in which to store the
   /// information loaded from the dyndep file.
-  bool LoadDyndeps(Node* node, string* err) const;
-  bool LoadDyndeps(Node* node, DyndepFile* ddf, string* err) const;
+  bool LoadDyndeps(Node* node, std::string* err) const;
+  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
  private:
-  bool RecomputeDirty(Node* node, vector<Node*>* stack, string* err);
-  bool VerifyDAG(Node* node, vector<Node*>* stack, string* err);
+  bool RecomputeDirty(Node* node, std::vector<Node*>* stack, std::string* err);
+  bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
   bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
-                            const string& command, Node* output);
+                            const std::string& command, Node* output);
 
   BuildLog* build_log_;
   DiskInterface* disk_interface_;

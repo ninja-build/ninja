@@ -118,7 +118,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
   void AddCatRule(State* state);
 
   /// Short way to get a Node by its path from state_.
-  Node* GetNode(const string& path);
+  Node* GetNode(const std::string& path);
 
   State state_;
 };
@@ -135,7 +135,7 @@ struct VirtualFileSystem : public DiskInterface {
   VirtualFileSystem() : now_(1) {}
 
   /// "Create" a file with contents.
-  void Create(const string& path, const string& contents);
+  void Create(const std::string& path, const std::string& contents);
 
   /// Tick "time" forwards; subsequent file operations will be newer than
   /// previous ones.
@@ -144,25 +144,25 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const string& path, string* err) const;
-  virtual bool WriteFile(const string& path, const string& contents);
-  virtual bool MakeDir(const string& path);
-  virtual Status ReadFile(const string& path, string* contents, string* err);
-  virtual int RemoveFile(const string& path);
+  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
+  virtual bool WriteFile(const std::string& path, const std::string& contents);
+  virtual bool MakeDir(const std::string& path);
+  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err);
+  virtual int RemoveFile(const std::string& path);
 
   /// An entry for a single in-memory file.
   struct Entry {
     int mtime;
-    string stat_error;  // If mtime is -1.
-    string contents;
+    std::string stat_error;  // If mtime is -1.
+    std::string contents;
   };
 
-  vector<string> directories_made_;
-  vector<string> files_read_;
-  typedef map<string, Entry> FileMap;
+  std::vector<std::string> directories_made_;
+  std::vector<std::string> files_read_;
+  typedef std::map<std::string, Entry> FileMap;
   FileMap files_;
-  set<string> files_removed_;
-  set<string> files_created_;
+  std::set<std::string> files_removed_;
+  std::set<std::string> files_created_;
 
   /// A simple fake timestamp for file operations.
   int now_;
@@ -170,15 +170,15 @@ struct VirtualFileSystem : public DiskInterface {
 
 struct ScopedTempDir {
   /// Create a temporary directory and chdir into it.
-  void CreateAndEnter(const string& name);
+  void CreateAndEnter(const std::string& name);
 
   /// Clean up the temporary directory.
   void Cleanup();
 
   /// The temp directory containing our dir.
-  string start_dir_;
+  std::string start_dir_;
   /// The subdirectory name for our dir, or empty if it hasn't been set up.
-  string temp_dir_name_;
+  std::string temp_dir_name_;
 };
 
 #endif // NINJA_TEST_H_

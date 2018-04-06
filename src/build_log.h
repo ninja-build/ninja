@@ -17,7 +17,6 @@
 
 #include <string>
 #include <stdio.h>
-using namespace std;
 
 #include "hash_map.h"
 #include "load_status.h"
@@ -47,17 +46,17 @@ struct BuildLog {
 
   /// Prepares writing to the log file without actually opening it - that will
   /// happen when/if it's needed
-  bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
+  bool OpenForWrite(const std::string& path, const BuildLogUser& user, std::string* err);
 
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp mtime = 0);
   void Close();
 
   /// Load the on-disk log.
-  LoadStatus Load(const string& path, string* err);
+  LoadStatus Load(const std::string& path, std::string* err);
 
   struct LogEntry {
-    string output;
+    std::string output;
     uint64_t command_hash;
     int start_time;
     int end_time;
@@ -72,19 +71,19 @@ struct BuildLog {
           mtime == o.mtime;
     }
 
-    explicit LogEntry(const string& output);
-    LogEntry(const string& output, uint64_t command_hash,
+    explicit LogEntry(const std::string& output);
+    LogEntry(const std::string& output, uint64_t command_hash,
              int start_time, int end_time, TimeStamp restat_mtime);
   };
 
   /// Lookup a previously-run command by its output path.
-  LogEntry* LookupByOutput(const string& path);
+  LogEntry* LookupByOutput(const std::string& path);
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const string& path, const BuildLogUser& user, string* err);
+  bool Recompact(const std::string& path, const BuildLogUser& user, std::string* err);
 
   /// Restat all outputs in the log
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
