@@ -119,11 +119,11 @@ bool ManifestParser::ParsePool(string* err) {
   if (!lexer_.ReadIdent(&name))
     return lexer_.Error("expected pool name", err);
 
-  if (!ExpectToken(Lexer::NEWLINE, err))
-    return false;
-
   if (state_->LookupPool(name) != NULL)
     return lexer_.Error("duplicate pool '" + name + "'", err);
+
+  if (!ExpectToken(Lexer::NEWLINE, err))
+    return false;
 
   int depth = -1;
 
@@ -156,11 +156,11 @@ bool ManifestParser::ParseRule(string* err) {
   if (!lexer_.ReadIdent(&name))
     return lexer_.Error("expected rule name", err);
 
-  if (!ExpectToken(Lexer::NEWLINE, err))
-    return false;
-
   if (env_->LookupRuleCurrentScope(name) != NULL)
     return lexer_.Error("duplicate rule '" + name + "'", err);
+
+  if (!ExpectToken(Lexer::NEWLINE, err))
+    return false;
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 

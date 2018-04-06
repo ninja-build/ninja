@@ -570,7 +570,7 @@ TEST_F(ParserTest, Errors) {
                                   "  command = echo\n", &err));
     EXPECT_EQ("input:3: duplicate rule 'cat'\n"
               "rule cat\n"
-              "        ^ near here"
+              "     ^ near here"
               , err);
   }
 
@@ -795,7 +795,7 @@ TEST_F(ParserTest, Errors) {
                                   "pool foo\n", &err));
     EXPECT_EQ("input:3: duplicate pool 'foo'\n"
               "pool foo\n"
-              "        ^ near here"
+              "     ^ near here"
               , err);
   }
 
