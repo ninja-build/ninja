@@ -537,8 +537,9 @@ yy92:
 
 bool Lexer::ReadIdent(string* out) {
   const char* p = ofs_;
+  const char* start;
   for (;;) {
-    const char* start = p;
+    start = p;
     
 {
 	unsigned char yych;
@@ -604,7 +605,10 @@ yy96:
     }
 yy97:
 	++p;
-	{ return false; }
+	{
+      last_token_ = start;
+      return false;
+    }
 yy99:
 	++p;
 	yych = *p;
@@ -616,6 +620,7 @@ yy100:
 }
 
   }
+  last_token_ = start;
   ofs_ = p;
   EatWhitespace();
   return true;
