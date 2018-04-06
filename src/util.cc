@@ -92,7 +92,7 @@ void Error(const char* msg, ...) {
   fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
+bool CanonicalizePath(std::string* path, uint64_t* slash_bits, std::string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
@@ -113,7 +113,7 @@ static bool IsPathSeparator(char c) {
 }
 
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      string* err) {
+                      std::string* err) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");
@@ -239,21 +239,21 @@ static inline bool IsKnownWin32SafeCharacter(char ch) {
   }
 }
 
-static inline bool StringNeedsShellEscaping(const string& input) {
+static inline bool StringNeedsShellEscaping(const std::string& input) {
   for (size_t i = 0; i < input.size(); ++i) {
     if (!IsKnownShellSafeCharacter(input[i])) return true;
   }
   return false;
 }
 
-static inline bool StringNeedsWin32Escaping(const string& input) {
+static inline bool StringNeedsWin32Escaping(const std::string& input) {
   for (size_t i = 0; i < input.size(); ++i) {
     if (!IsKnownWin32SafeCharacter(input[i])) return true;
   }
   return false;
 }
 
-void GetShellEscapedString(const string& input, string* result) {
+void GetShellEscapedString(const std::string& input, std::string* result) {
   assert(result);
 
   if (!StringNeedsShellEscaping(input)) {
@@ -266,8 +266,8 @@ void GetShellEscapedString(const string& input, string* result) {
 
   result->push_back(kQuote);
 
-  string::const_iterator span_begin = input.begin();
-  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+  std::string::const_iterator span_begin = input.begin();
+  for (std::string::const_iterator it = input.begin(), end = input.end(); it != end;
        ++it) {
     if (*it == kQuote) {
       result->append(span_begin, it);
@@ -280,7 +280,7 @@ void GetShellEscapedString(const string& input, string* result) {
 }
 
 
-void GetWin32EscapedString(const string& input, string* result) {
+void GetWin32EscapedString(const std::string& input, std::string* result) {
   assert(result);
   if (!StringNeedsWin32Escaping(input)) {
     result->append(input);
@@ -292,8 +292,8 @@ void GetWin32EscapedString(const string& input, string* result) {
 
   result->push_back(kQuote);
   size_t consecutive_backslash_count = 0;
-  string::const_iterator span_begin = input.begin();
-  for (string::const_iterator it = input.begin(), end = input.end(); it != end;
+  std::string::const_iterator span_begin = input.begin();
+  for (std::string::const_iterator it = input.begin(), end = input.end(); it != end;
        ++it) {
     switch (*it) {
       case kBackslash:
@@ -315,7 +315,7 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
+int ReadFile(const std::string& path, std::string* contents, std::string* err) {
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
@@ -392,14 +392,14 @@ void SetCloseOnExec(int fd) {
 }
 
 
-const char* SpellcheckStringV(const string& text,
-                              const vector<const char*>& words) {
+const char* SpellcheckStringV(const std::string& text,
+                              const std::vector<const char*>& words) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
   const char* result = NULL;
-  for (vector<const char*>::const_iterator i = words.begin();
+  for (std::vector<const char*>::const_iterator i = words.begin();
        i != words.end(); ++i) {
     int distance = EditDistance(*i, text, kAllowReplacements,
                                 kMaxValidEditDistance);
@@ -412,11 +412,11 @@ const char* SpellcheckStringV(const string& text,
 }
 
 const char* SpellcheckString(const char* text, ...) {
-  // Note: This takes a const char* instead of a string& because using
+  // Note: This takes a const char* instead of a std::string& because using
   // va_start() with a reference parameter is undefined behavior.
   va_list ap;
   va_start(ap, text);
-  vector<const char*> words;
+  std::vector<const char*> words;
   const char* word;
   while ((word = va_arg(ap, const char*)))
     words.push_back(word);
@@ -425,7 +425,7 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
-string GetLastErrorString() {
+std::string GetLastErrorString() {
   DWORD err = GetLastError();
 
   char* msg_buf;
@@ -439,7 +439,7 @@ string GetLastErrorString() {
         (char*)&msg_buf,
         0,
         NULL);
-  string msg = msg_buf;
+  std::string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
 }
@@ -458,8 +458,8 @@ bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-string StripAnsiEscapeCodes(const string& in) {
-  string stripped;
+std::string StripAnsiEscapeCodes(const std::string& in) {
+  std::string stripped;
   stripped.reserve(in.size());
 
   for (size_t i = 0; i < in.size(); ++i) {
@@ -597,7 +597,7 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-string ElideMiddle(const string& str, size_t width) {
+std::string ElideMiddle(const std::string& str, size_t width) {
   switch (width) {
       case 0: return "";
       case 1: return ".";
@@ -605,7 +605,7 @@ string ElideMiddle(const string& str, size_t width) {
       case 3: return "...";
   }
   const int kMargin = 3;  // Space for "...".
-  string result = str;
+  std::string result = str;
   if (result.size() > width) {
     size_t elide_size = (width - kMargin) / 2;
     result = result.substr(0, elide_size)
@@ -615,7 +615,7 @@ string ElideMiddle(const string& str, size_t width) {
   return result;
 }
 
-bool Truncate(const string& path, size_t size, string* err) {
+bool Truncate(const std::string& path, size_t size, std::string* err) {
 #ifdef _WIN32
   int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);

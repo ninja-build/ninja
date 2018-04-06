@@ -50,7 +50,7 @@ void RegisterTest(testing::Test* (*factory)(), const char* name) {
 }
 
 namespace {
-string StringPrintf(const char* format, ...) {
+std::string StringPrintf(const char* format, ...) {
   const int N = 1024;
   char buf[N];
 

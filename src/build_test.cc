@@ -38,7 +38,7 @@ struct PlanTest : public StateTestWithBuiltinRules {
   /// Because FindWork does not return Edges in any sort of predictable order,
   // provide a means to get available Edges in order and in a format which is
   // easy to write tests around.
-  void FindWorkSorted(deque<Edge*>* ret, int count) {
+  void FindWorkSorted(std::deque<Edge*>* ret, int count) {
     for (int i = 0; i < count; ++i) {
       ASSERT_TRUE(plan_.more_to_do());
       Edge* edge = plan_.FindWork();
@@ -58,7 +58,7 @@ TEST_F(PlanTest, Basic) {
 "build mid: cat in\n"));
   GetNode("mid")->MarkDirty();
   GetNode("out")->MarkDirty();
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
@@ -95,7 +95,7 @@ TEST_F(PlanTest, DoubleOutputDirect) {
   GetNode("mid2")->MarkDirty();
   GetNode("out")->MarkDirty();
 
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
@@ -127,7 +127,7 @@ TEST_F(PlanTest, DoubleOutputIndirect) {
   GetNode("b1")->MarkDirty();
   GetNode("b2")->MarkDirty();
   GetNode("out")->MarkDirty();
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
@@ -169,7 +169,7 @@ TEST_F(PlanTest, DoubleDependent) {
   GetNode("a2")->MarkDirty();
   GetNode("out")->MarkDirty();
 
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out"), &err));
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
@@ -203,7 +203,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, test_case));
   GetNode("out1")->MarkDirty();
   GetNode("out2")->MarkDirty();
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out1"), &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(plan_.AddTarget(GetNode("out2"), &err));
@@ -279,23 +279,23 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 ));
   // Mark all the out* nodes dirty
   for (int i = 0; i < 3; ++i) {
-    GetNode("out" + string(1, '1' + static_cast<char>(i)))->MarkDirty();
-    GetNode("outb" + string(1, '1' + static_cast<char>(i)))->MarkDirty();
+    GetNode("out" + std::string(1, '1' + static_cast<char>(i)))->MarkDirty();
+    GetNode("outb" + std::string(1, '1' + static_cast<char>(i)))->MarkDirty();
   }
   GetNode("allTheThings")->MarkDirty();
 
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("allTheThings"), &err));
   ASSERT_EQ("", err);
 
-  deque<Edge*> edges;
+  std::deque<Edge*> edges;
   FindWorkSorted(&edges, 5);
 
   for (int i = 0; i < 4; ++i) {
     Edge *edge = edges[i];
     ASSERT_EQ("in",  edge->inputs_[0]->path());
-    string base_name(i < 2 ? "out" : "outb");
-    ASSERT_EQ(base_name + string(1, '1' + (i % 2)), edge->outputs_[0]->path());
+    std::string base_name(i < 2 ? "out" : "outb");
+    ASSERT_EQ(base_name + std::string(1, '1' + (i % 2)), edge->outputs_[0]->path());
   }
 
   // outb3 is exempt because it has an empty pool
@@ -322,7 +322,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  for (deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
+  for (std::deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
     plan_.EdgeFinished(*it, Plan::kEdgeSucceeded, &err);
     ASSERT_EQ("", err);
   }
@@ -362,14 +362,14 @@ TEST_F(PlanTest, PoolWithRedundantEdges) {
   GetNode("bar.cpp.obj")->MarkDirty();
   GetNode("libfoo.a")->MarkDirty();
   GetNode("all")->MarkDirty();
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("all"), &err));
   ASSERT_EQ("", err);
   ASSERT_TRUE(plan_.more_to_do());
 
   Edge* edge = NULL;
 
-  deque<Edge*> initial_edges;
+  std::deque<Edge*> initial_edges;
   FindWorkSorted(&initial_edges, 2);
 
   edge = initial_edges[1];  // Foo first
@@ -433,7 +433,7 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
     "build out2: poolcat in\n"));
   GetNode("out1")->MarkDirty();
   GetNode("out2")->MarkDirty();
-  string err;
+  std::string err;
   EXPECT_TRUE(plan_.AddTarget(GetNode("out1"), &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(plan_.AddTarget(GetNode("out2"), &err));
@@ -475,11 +475,11 @@ struct FakeCommandRunner : public CommandRunner {
   virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
-  virtual vector<Edge*> GetActiveEdges();
+  virtual std::vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
-  vector<string> commands_ran_;
-  vector<Edge*> active_edges_;
+  std::vector<std::string> commands_ran_;
+  std::vector<Edge*> active_edges_;
   size_t max_active_edges_;
   VirtualFileSystem* fs_;
 };
@@ -517,12 +517,12 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   /// Rebuild target in the 'working tree' (fs_).
   /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
   /// Handy to check for NOOP builds, and higher-level rebuild tests.
-  void RebuildTarget(const string& target, const char* manifest,
+  void RebuildTarget(const std::string& target, const char* manifest,
                      const char* log_path = NULL, const char* deps_path = NULL,
                      State* state = NULL);
 
   // Mark a path dirty.
-  void Dirty(const string& path);
+  void Dirty(const std::string& path);
 
   BuildConfig MakeConfig() {
     BuildConfig config;
@@ -538,7 +538,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildStatus status_;
 };
 
-void BuildTest::RebuildTarget(const string& target, const char* manifest,
+void BuildTest::RebuildTarget(const std::string& target, const char* manifest,
                               const char* log_path, const char* deps_path,
                               State* state) {
   State local_state, *pstate = &local_state;
@@ -547,7 +547,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   ASSERT_NO_FATAL_FAILURE(AddCatRule(pstate));
   AssertParse(pstate, manifest);
 
-  string err;
+  std::string err;
   BuildLog build_log, *pbuild_log = NULL;
   if (log_path) {
     ASSERT_TRUE(build_log.Load(log_path, &err));
@@ -594,7 +594,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
+    for (std::vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
     }
@@ -606,8 +606,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   } else if (edge->rule().name() == "cp") {
     assert(!edge->inputs_.empty());
     assert(edge->outputs_.size() == 1);
-    string content;
-    string err;
+    std::string content;
+    std::string err;
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content);
@@ -632,7 +632,7 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   // All active edges were already completed immediately when started,
   // so we can pick any edge here.  Pick the last edge.  Tests can
   // control the order of edges by the name of the first output.
-  vector<Edge*>::iterator edge_iter = active_edges_.end() - 1;
+  std::vector<Edge*>::iterator edge_iter = active_edges_.end() - 1;
 
   Edge* edge = *edge_iter;
   result->edge = edge;
@@ -669,10 +669,10 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   // Provide a way for test cases to verify when an edge finishes that
   // some other edge is still active.  This is useful for test cases
   // covering behavior involving multiple active edges.
-  const string& verify_active_edge = edge->GetBinding("verify_active_edge");
+  const std::string& verify_active_edge = edge->GetBinding("verify_active_edge");
   if (!verify_active_edge.empty()) {
     bool verify_active_edge_found = false;
-    for (vector<Edge*>::iterator i = active_edges_.begin();
+    for (std::vector<Edge*>::iterator i = active_edges_.begin();
          i != active_edges_.end(); ++i) {
       if (!(*i)->outputs_.empty() &&
           (*i)->outputs_[0]->path() == verify_active_edge) {
@@ -686,7 +686,7 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-vector<Edge*> FakeCommandRunner::GetActiveEdges() {
+std::vector<Edge*> FakeCommandRunner::GetActiveEdges() {
   return active_edges_;
 }
 
@@ -694,7 +694,7 @@ void FakeCommandRunner::Abort() {
   active_edges_.clear();
 }
 
-void BuildTest::Dirty(const string& path) {
+void BuildTest::Dirty(const std::string& path) {
   Node* node = GetNode(path);
   node->MarkDirty();
 
@@ -705,7 +705,7 @@ void BuildTest::Dirty(const string& path) {
 }
 
 TEST_F(BuildTest, NoWork) {
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
@@ -713,7 +713,7 @@ TEST_F(BuildTest, OneStep) {
   // Given a dirty target with one ready input,
   // we should rebuild the target.
   Dirty("cat1");
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("cat1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -727,7 +727,7 @@ TEST_F(BuildTest, OneStep2) {
   // Given a target with one dirty input,
   // we should rebuild the target.
   Dirty("cat1");
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("cat1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -738,7 +738,7 @@ TEST_F(BuildTest, OneStep2) {
 }
 
 TEST_F(BuildTest, TwoStep) {
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -776,7 +776,7 @@ TEST_F(BuildTest, TwoOutputs) {
 
   fs_.Create("in.txt", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -792,7 +792,7 @@ TEST_F(BuildTest, ImplicitOutput) {
 "build out | out.imp: touch in.txt\n"));
   fs_.Create("in.txt", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -814,7 +814,7 @@ TEST_F(BuildTest, MultiOutIn) {
   fs_.Tick();
   fs_.Create("in1", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -830,7 +830,7 @@ TEST_F(BuildTest, Chain) {
 
   fs_.Create("c1", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -859,7 +859,7 @@ TEST_F(BuildTest, Chain) {
 
 TEST_F(BuildTest, MissingInput) {
   // Input is referenced by build file, but no rule for it.
-  string err;
+  std::string err;
   Dirty("in1");
   EXPECT_FALSE(builder_.AddTarget("cat1", &err));
   EXPECT_EQ("'in1', needed by 'cat1', missing and no known rule to make it",
@@ -868,13 +868,13 @@ TEST_F(BuildTest, MissingInput) {
 
 TEST_F(BuildTest, MissingTarget) {
   // Target is not referenced by build file.
-  string err;
+  std::string err;
   EXPECT_FALSE(builder_.AddTarget("meow", &err));
   EXPECT_EQ("unknown target: 'meow'", err);
 }
 
 TEST_F(BuildTest, MakeDirs) {
-  string err;
+  std::string err;
 
 #ifdef _WIN32
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -894,7 +894,7 @@ TEST_F(BuildTest, MakeDirs) {
 }
 
 TEST_F(BuildTest, DepFileMissing) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build fo$ o.o: cc foo.c\n"));
@@ -907,7 +907,7 @@ TEST_F(BuildTest, DepFileMissing) {
 }
 
 TEST_F(BuildTest, DepFileOK) {
-  string err;
+  std::string err;
   int orig_edges = state_.edges_.size();
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
@@ -933,7 +933,7 @@ TEST_F(BuildTest, DepFileOK) {
 }
 
 TEST_F(BuildTest, DepFileParseError) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
@@ -944,7 +944,7 @@ TEST_F(BuildTest, DepFileParseError) {
 }
 
 TEST_F(BuildTest, EncounterReadyTwice) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out\n"
@@ -952,7 +952,7 @@ TEST_F(BuildTest, EncounterReadyTwice) {
 "build b: touch || c\n"
 "build a: touch | b || c\n"));
 
-  vector<Edge*> c_out = GetNode("c")->out_edges();
+  std::vector<Edge*> c_out = GetNode("c")->out_edges();
   ASSERT_EQ(2u, c_out.size());
   EXPECT_EQ("b", c_out[0]->outputs_[0]->path());
   EXPECT_EQ("a", c_out[1]->outputs_[0]->path());
@@ -966,8 +966,8 @@ TEST_F(BuildTest, EncounterReadyTwice) {
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
 
-TEST_F(BuildTest, OrderOnlyDeps) {
-  string err;
+TEST_F(BuildTest, OrderOnlyDeps)
+{
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c || otherfile\n"));
@@ -976,8 +976,12 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("foo.c", "");
   fs_.Create("otherfile", "");
   fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  ASSERT_EQ("", err);
+
+  {
+      std::string err;
+      EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+      ASSERT_EQ("", err);
+  }
 
   // One explicit, two implicit, one order only.
   ASSERT_EQ(4u, edge->inputs_.size());
@@ -994,8 +998,11 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
 
   // explicit dep dirty, expect a rebuild.
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ("", err);
+  {
+      std::string err;
+      EXPECT_TRUE(builder_.Build(&err));
+      ASSERT_EQ("", err);
+  }
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   fs_.Tick();
@@ -1008,9 +1015,12 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("bar.h", "");
   command_runner_.commands_ran_.clear();
   state_.Reset();
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ("", err);
+  {
+      std::string err;
+      EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+      EXPECT_TRUE(builder_.Build(&err));
+      ASSERT_EQ("", err);
+  }
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   fs_.Tick();
@@ -1022,22 +1032,29 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("otherfile", "");
   command_runner_.commands_ran_.clear();
   state_.Reset();
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_EQ("", err);
+
+  {
+      std::string err;
+      EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+      EXPECT_EQ("", err);
+  }
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
   // implicit dep missing, expect rebuild.
   fs_.RemoveFile("bar.h");
   command_runner_.commands_ran_.clear();
   state_.Reset();
-  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
-  ASSERT_EQ("", err);
+  {
+      std::string err;
+      EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+      EXPECT_TRUE(builder_.Build(&err));
+      ASSERT_EQ("", err);
+  }
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, RebuildOrderOnlyDeps) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n"
 "rule true\n  command = true\n"
@@ -1085,7 +1102,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 
 #ifdef _WIN32
 TEST_F(BuildTest, DepFileCanonicalize) {
-  string err;
+  std::string err;
   int orig_edges = state_.edges_.size();
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
@@ -1116,7 +1133,7 @@ TEST_F(BuildTest, DepFileCanonicalize) {
 #endif
 
 TEST_F(BuildTest, Phony) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
@@ -1133,7 +1150,7 @@ TEST_F(BuildTest, Phony) {
 }
 
 TEST_F(BuildTest, PhonyNoWork) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat bar.cc\n"
 "build all: phony out\n"));
@@ -1149,7 +1166,7 @@ TEST_F(BuildTest, PhonyNoWork) {
 // ninja 1.7 and below tolerated and CMake 2.8.12.x and 3.0.x both
 // incorrectly produce it.  We tolerate it for compatibility.
 TEST_F(BuildTest, PhonySelfReference) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build a: phony a\n"));
 
@@ -1164,7 +1181,7 @@ TEST_F(BuildTest, Fail) {
 "  command = fail\n"
 "build out1: fail\n"));
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
 
@@ -1185,7 +1202,7 @@ TEST_F(BuildTest, SwallowFailures) {
   // Swallow two failures, die on the third.
   config_.failures_allowed = 3;
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("all", &err));
   ASSERT_EQ("", err);
 
@@ -1206,7 +1223,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   // Swallow ten failures; we should stop before building final.
   config_.failures_allowed = 11;
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("final", &err));
   ASSERT_EQ("", err);
 
@@ -1230,7 +1247,7 @@ TEST_F(BuildTest, SwallowFailuresPool) {
   // Swallow ten failures; we should stop before building final.
   config_.failures_allowed = 11;
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("final", &err));
   ASSERT_EQ("", err);
 
@@ -1282,7 +1299,7 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   // not considering the command line hash.
   fs_.Create("in", "");
   fs_.Create("out1", "");
-  string err;
+  std::string err;
 
   // Because it's not in the log, it should not be up-to-date until
   // we build again.
@@ -1303,7 +1320,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
 "  command = touch-fail-tick2\n"
 "build out1: touch-fail-tick2 in\n"));
 
-  string err;
+  std::string err;
 
   fs_.Create("in", "");
 
@@ -1349,7 +1366,7 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
 "build out1: touch\n"
 "build out2: touch in\n"));
 
-  string err;
+  std::string err;
 
   fs_.Create("in", "");
 
@@ -1396,7 +1413,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   // Do a pre-build so that there's commands in the log for the outputs,
   // otherwise, the lack of an entry in the build log will cause out3 to rebuild
   // regardless of restat.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1458,7 +1475,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   // Do a pre-build so that there's commands in the log for the outputs,
   // otherwise, the lack of an entry in the build log will cause out2 to rebuild
   // regardless of restat.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1494,7 +1511,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
   // Create the necessary files
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out4", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1543,7 +1560,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   fs_.Create("restat.file", "");
 
   // Run the build, out1 and out2 get built
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1601,7 +1618,7 @@ TEST_F(BuildDryRun, AllCommandsShown) {
 
   // "cc" touches out1, so we should build out2.  But because "true" does not
   // touch out2, we should cancel the build of out3.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1636,7 +1653,7 @@ TEST_F(BuildTest, RspFileSuccess)
 
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
@@ -1676,7 +1693,7 @@ TEST_F(BuildTest, RspFileFailure) {
   fs_.Tick();
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
@@ -1715,7 +1732,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   fs_.Tick();
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
@@ -1763,7 +1780,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   fs_.Create("in2", "");
 
   // An untouched output of an interrupted command should be retained.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_EQ("", err);
   EXPECT_FALSE(builder_.Build(&err));
@@ -1782,7 +1799,7 @@ TEST_F(BuildTest, InterruptCleanup) {
 }
 
 TEST_F(BuildTest, StatFailureAbortsBuild) {
-  const string kTooLongToStat(400, 'i');
+  const std::string kTooLongToStat(400, 'i');
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 ("build " + kTooLongToStat + ": cat in\n").c_str()));
   fs_.Create("in", "");
@@ -1791,7 +1808,7 @@ TEST_F(BuildTest, StatFailureAbortsBuild) {
   fs_.files_[kTooLongToStat].mtime = -1;
   fs_.files_[kTooLongToStat].stat_error = "stat failed";
 
-  string err;
+  std::string err;
   EXPECT_FALSE(builder_.AddTarget(kTooLongToStat, &err));
   EXPECT_EQ("stat failed", err);
 }
@@ -1806,7 +1823,7 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
 
   // out1 should be up to date even though its input is dirty, because its
   // order-only dependency has nothing to do.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -1830,7 +1847,7 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
 "build out: cc\n"));
   Dirty("out");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
@@ -1860,7 +1877,7 @@ TEST_F(BuildTest, FailedDepsParse) {
 "  deps = gcc\n"
 "  depfile = in1.d\n"));
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("bad_deps.o", &err));
   ASSERT_EQ("", err);
 
@@ -2105,7 +2122,7 @@ struct BuildWithDepsLogTest : public BuildTest {
 
 /// Run a straightforwad build where the deps log is used.
 TEST_F(BuildWithDepsLogTest, Straightforward) {
-  string err;
+  std::string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
       "build out: cat in1\n"
@@ -2172,7 +2189,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
 /// 2) Move input/output to time t+1 -- despite files in alignment,
 ///    should still need to rebuild due to deps at older time.
 TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
-  string err;
+  std::string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
       "build out: cat in1\n"
@@ -2261,7 +2278,7 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   builder.command_runner_.reset(&command_runner_);
   command_runner_.commands_ran_.clear();
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder.Build(&err));
@@ -2285,7 +2302,7 @@ TEST_F(BuildTest, RestatDepfileDependency) {
   fs_.Tick();
   fs_.Create("header.in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2295,7 +2312,7 @@ TEST_F(BuildTest, RestatDepfileDependency) {
 /// Check that a restat rule generating a header cancels compilations correctly,
 /// depslog case.
 TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
-  string err;
+  std::string err;
   // Note: in1 was created by the superclass SetUp().
   const char* manifest =
       "rule true\n"
@@ -2358,7 +2375,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
 }
 
 TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
-  string err;
+  std::string err;
   const char* manifest =
       "rule cc\n  command = cc $in\n  depfile = $out.d\n  deps = gcc\n"
       "build fo$ o.o: cc foo.c\n";
@@ -2420,7 +2437,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
 #ifdef _WIN32
 TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
-  string err;
+  std::string err;
   const char* manifest =
       "rule cc\n  command = cc $in\n  depfile = $out.d\n  deps = gcc\n"
       "build a/b\\c\\d/e/fo$ o.o: cc x\\y/z\\foo.c\n";
@@ -2511,7 +2528,7 @@ const char* manifest =
 /// Check that a restat rule doesn't clear an edge if the deps are missing.
 /// https://github.com/ninja-build/ninja/issues/603
 TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
-  string err;
+  std::string err;
   const char* manifest =
 "rule true\n"
 "  command = true\n"  // Would be "write if out-of-date" in reality.
@@ -2561,7 +2578,7 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
 }
 
 TEST_F(BuildTest, WrongOutputInDepfileCausesRebuild) {
-  string err;
+  std::string err;
   const char* manifest =
 "rule cc\n"
 "  command = cc $in\n"
@@ -2586,7 +2603,7 @@ TEST_F(BuildTest, Console) {
 
   fs_.Create("in.txt", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("cons", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2604,7 +2621,7 @@ TEST_F(BuildTest, DyndepMissingAndNoRule) {
 "  dyndep = dd\n"
 ));
 
-  string err;
+  std::string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("loading 'dd': No such file or directory", err);
 }
@@ -2627,7 +2644,7 @@ TEST_F(BuildTest, DyndepReadyImplicitConnection) {
 "build tmp | tmp.imp: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2650,7 +2667,7 @@ TEST_F(BuildTest, DyndepReadySyntaxError) {
 "build out: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dd:1: expected 'ninja_dyndep_version = ...'\n", err);
 }
@@ -2671,7 +2688,7 @@ TEST_F(BuildTest, DyndepReadyCircular) {
   );
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dependency cycle: circ -> in -> circ", err);
 }
@@ -2692,7 +2709,7 @@ TEST_F(BuildTest, DyndepBuild) {
 "build out: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -2727,7 +2744,7 @@ TEST_F(BuildTest, DyndepBuildSyntaxError) {
 "build out: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -2755,7 +2772,7 @@ TEST_F(BuildTest, DyndepBuildUnrelatedOutput) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -2787,7 +2804,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutput) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -2820,7 +2837,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules1) {
   fs_.Create("out1", "");
   fs_.Create("out2", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   EXPECT_EQ("", err);
@@ -2860,7 +2877,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules2) {
   fs_.Create("out1", "");
   fs_.Create("out2", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   EXPECT_EQ("", err);
@@ -2889,7 +2906,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewInput) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -2922,7 +2939,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverImplicitConnection) {
 "build tmp | tmp.imp: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2955,7 +2972,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdge) {
 "build tmp | tmp.imp: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2986,7 +3003,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdgeAndDependent) {
 "build tmp | tmp.imp: dyndep\n"
 );
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -3020,7 +3037,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverCircular) {
   );
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -3057,7 +3074,7 @@ TEST_F(BuildWithLogTest, DyndepBuildDiscoverRestat) {
   // Do a pre-build so that there's commands in the log for the outputs,
   // otherwise, the lack of an entry in the build log will cause "out2" to
   // rebuild regardless of restat.
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -3113,7 +3130,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverScheduledEdge) {
   // also produced by the active edge.  The builder should not
   // re-schedule the already-active edge.
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
@@ -3165,7 +3182,7 @@ TEST_F(BuildTest, DyndepTwoLevelDirect) {
   // on dd1 has been satisfied).  This test case verifies that each dyndep
   // file is loaded to update the build graph independently.
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -3210,7 +3227,7 @@ TEST_F(BuildTest, DyndepTwoLevelIndirect) {
   // recognize that out2 needs to be built even though it was originally
   // clean without dyndep info.
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -3249,7 +3266,7 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredReady) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
@@ -3289,7 +3306,7 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 

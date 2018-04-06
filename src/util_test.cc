@@ -16,11 +16,9 @@
 
 #include "test.h"
 
-using namespace std;
-
 namespace {
 
-bool CanonicalizePath(string* path, string* err) {
+bool CanonicalizePath(std::string* path, std::string* err) {
   uint64_t unused;
   return ::CanonicalizePath(path, &unused, err);
 }
@@ -28,8 +26,8 @@ bool CanonicalizePath(string* path, string* err) {
 }  // namespace
 
 TEST(CanonicalizePath, PathSamples) {
-  string path;
-  string err;
+  std::string path;
+  std::string err;
 
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("empty path", err);
@@ -113,8 +111,8 @@ TEST(CanonicalizePath, PathSamples) {
 
 #ifdef _WIN32
 TEST(CanonicalizePath, PathSamplesWindows) {
-  string path;
-  string err;
+  std::string path;
+  std::string err;
 
   EXPECT_FALSE(CanonicalizePath(&path, &err));
   EXPECT_EQ("empty path", err);
@@ -177,8 +175,8 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 }
 
 TEST(CanonicalizePath, SlashTracking) {
-  string path;
-  string err;
+  std::string path;
+  std::string err;
   uint64_t slash_bits;
 
   path = "foo.h"; err = "";
@@ -266,7 +264,7 @@ TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
   // Make sure searching \/ doesn't go past supplied len.
   char buf[] = "foo/bar\\baz.h\\";  // Last \ past end.
   uint64_t slash_bits;
-  string err;
+  std::string err;
   size_t size = 13;
   EXPECT_TRUE(::CanonicalizePath(buf, &size, &slash_bits, &err));
   EXPECT_EQ(0, strncmp("foo/bar/baz.h", buf, size));
@@ -274,8 +272,8 @@ TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
 }
 
 TEST(CanonicalizePath, TooManyComponents) {
-  string path;
-  string err;
+  std::string path;
+  std::string err;
   uint64_t slash_bits;
 
   // 64 is OK.
@@ -334,7 +332,7 @@ TEST(CanonicalizePath, TooManyComponents) {
 #endif
 
 TEST(CanonicalizePath, UpDir) {
-  string path, err;
+  std::string path, err;
   path = "../../foo/bar.h";
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("../../foo/bar.h", path);
@@ -345,15 +343,15 @@ TEST(CanonicalizePath, UpDir) {
 }
 
 TEST(CanonicalizePath, AbsolutePath) {
-  string path = "/usr/include/stdio.h";
-  string err;
+  std::string path = "/usr/include/stdio.h";
+  std::string err;
   EXPECT_TRUE(CanonicalizePath(&path, &err));
   EXPECT_EQ("/usr/include/stdio.h", path);
 }
 
 TEST(CanonicalizePath, NotNullTerminated) {
-  string path;
-  string err;
+  std::string path;
+  std::string err;
   size_t len;
   uint64_t unused;
 
@@ -361,17 +359,17 @@ TEST(CanonicalizePath, NotNullTerminated) {
   len = strlen("foo/.");  // Canonicalize only the part before the space.
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("foo"), len);
-  EXPECT_EQ("foo/. bar/.", string(path));
+  EXPECT_EQ("foo/. bar/.", std::string(path));
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("file"), len);
-  EXPECT_EQ("file ./file bar/.", string(path));
+  EXPECT_EQ("file ./file bar/.", std::string(path));
 }
 
 TEST(PathEscaping, TortureTest) {
-  string result;
+  std::string result;
 
   GetWin32EscapedString("foo bar\\\"'$@d!st!c'\\path'\\", &result);
   EXPECT_EQ("\"foo bar\\\\\\\"'$@d!st!c'\\path'\\\\\"", result);
@@ -383,7 +381,7 @@ TEST(PathEscaping, TortureTest) {
 
 TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
   const char* path = "some/sensible/path/without/crazy/characters.c++";
-  string result;
+  std::string result;
 
   GetWin32EscapedString(path, &result);
   EXPECT_EQ(path, result);
@@ -395,14 +393,14 @@ TEST(PathEscaping, SensiblePathsAreNotNeedlesslyEscaped) {
 
 TEST(PathEscaping, SensibleWin32PathsAreNotNeedlesslyEscaped) {
   const char* path = "some\\sensible\\path\\without\\crazy\\characters.c++";
-  string result;
+  std::string result;
 
   GetWin32EscapedString(path, &result);
   EXPECT_EQ(path, result);
 }
 
 TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
-  string stripped = StripAnsiEscapeCodes("foo\33");
+  std::string stripped = StripAnsiEscapeCodes("foo\33");
   EXPECT_EQ("foo", stripped);
 
   stripped = StripAnsiEscapeCodes("foo\33[");
@@ -411,15 +409,15 @@ TEST(StripAnsiEscapeCodes, EscapeAtEnd) {
 
 TEST(StripAnsiEscapeCodes, StripColors) {
   // An actual clang warning.
-  string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
+  std::string input = "\33[1maffixmgr.cxx:286:15: \33[0m\33[0;1;35mwarning: "
                  "\33[0m\33[1musing the result... [-Wparentheses]\33[0m";
-  string stripped = StripAnsiEscapeCodes(input);
+  std::string stripped = StripAnsiEscapeCodes(input);
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);
 }
 
 TEST(ElideMiddle, NothingToElide) {
-  string input = "Nothing to elide in this short string.";
+  std::string input = "Nothing to elide in this short string.";
   EXPECT_EQ(input, ElideMiddle(input, 80));
   EXPECT_EQ(input, ElideMiddle(input, 38));
   EXPECT_EQ("", ElideMiddle(input, 0));
@@ -429,8 +427,8 @@ TEST(ElideMiddle, NothingToElide) {
 }
 
 TEST(ElideMiddle, ElideInTheMiddle) {
-  string input = "01234567890123456789";
-  string elided = ElideMiddle(input, 10);
+  std::string input = "01234567890123456789";
+  std::string elided = ElideMiddle(input, 10);
   EXPECT_EQ("012...789", elided);
   EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
 }

@@ -323,7 +323,7 @@ if platform.is_msvc():
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
-              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
+              '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
     if platform.msvc_needs_fs():

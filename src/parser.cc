@@ -17,23 +17,21 @@
 #include "disk_interface.h"
 #include "metrics.h"
 
-using namespace std;
-
-bool Parser::Load(const string& filename, string* err, Lexer* parent) {
+bool Parser::Load(const std::string& filename, std::string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
-  string contents;
-  string read_err;
+  std::string contents;
+  std::string read_err;
   if (file_reader_->ReadFile(filename, &contents, &read_err) !=
       FileReader::Okay) {
     *err = "loading '" + filename + "': " + read_err;
     if (parent)
-      parent->Error(string(*err), err);
+      parent->Error(std::string(*err), err);
     return false;
   }
 
   // The lexer needs a nul byte at the end of its input, to know when it's done.
-  // It takes a StringPiece, and StringPiece's string constructor uses
-  // string::data().  data()'s return value isn't guaranteed to be
+  // It takes a StringPiece, and StringPiece's std::string constructor uses
+  // std::string::data().  data()'s return value isn't guaranteed to be
   // null-terminated (although in practice - libc++, libstdc++, msvc's stl --
   // it is, and C++11 demands that too), so add an explicit nul byte.
   contents.resize(contents.size() + 1);
@@ -41,11 +39,11 @@ bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   return Parse(filename, contents, err);
 }
 
-bool Parser::ExpectToken(Lexer::Token expected, string* err) {
+bool Parser::ExpectToken(Lexer::Token expected, std::string* err) {
   Lexer::Token token = lexer_.ReadToken();
   if (token != expected) {
-    string message = string("expected ") + Lexer::TokenName(expected);
-    message += string(", got ") + Lexer::TokenName(token);
+    std::string message = std::string("expected ") + Lexer::TokenName(expected);
+    message += std::string(", got ") + Lexer::TokenName(token);
     message += Lexer::TokenErrorHint(expected);
     return lexer_.Error(message, err);
   }

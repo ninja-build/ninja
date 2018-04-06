@@ -16,10 +16,8 @@
 
 #include "eval_env.h"
 
-using namespace std;
-
-string BindingEnv::LookupVariable(const string& var) {
-  map<string, string>::iterator i = bindings_.find(var);
+std::string BindingEnv::LookupVariable(const std::string& var) {
+  std::map<std::string, std::string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
   if (parent_)
@@ -27,7 +25,7 @@ string BindingEnv::LookupVariable(const string& var) {
   return "";
 }
 
-void BindingEnv::AddBinding(const string& key, const string& val) {
+void BindingEnv::AddBinding(const std::string& key, const std::string& val) {
   bindings_[key] = val;
 }
 
@@ -36,15 +34,15 @@ void BindingEnv::AddRule(const Rule* rule) {
   rules_[rule->name()] = rule;
 }
 
-const Rule* BindingEnv::LookupRuleCurrentScope(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+const Rule* BindingEnv::LookupRuleCurrentScope(const std::string& rule_name) {
+  std::map<std::string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i == rules_.end())
     return NULL;
   return i->second;
 }
 
-const Rule* BindingEnv::LookupRule(const string& rule_name) {
-  map<string, const Rule*>::iterator i = rules_.find(rule_name);
+const Rule* BindingEnv::LookupRule(const std::string& rule_name) {
+  std::map<std::string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i != rules_.end())
     return i->second;
   if (parent_)
@@ -52,11 +50,11 @@ const Rule* BindingEnv::LookupRule(const string& rule_name) {
   return NULL;
 }
 
-void Rule::AddBinding(const string& key, const EvalString& val) {
+void Rule::AddBinding(const std::string& key, const EvalString& val) {
   bindings_[key] = val;
 }
 
-const EvalString* Rule::GetBinding(const string& key) const {
+const EvalString* Rule::GetBinding(const std::string& key) const {
   Bindings::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())
     return NULL;
@@ -64,7 +62,7 @@ const EvalString* Rule::GetBinding(const string& key) const {
 }
 
 // static
-bool Rule::IsReservedBinding(const string& var) {
+bool Rule::IsReservedBinding(const std::string& var) {
   return var == "command" ||
       var == "depfile" ||
       var == "dyndep" ||
@@ -78,14 +76,14 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "msvc_deps_prefix";
 }
 
-const map<string, const Rule*>& BindingEnv::GetRules() const {
+const std::map<std::string, const Rule*>& BindingEnv::GetRules() const {
   return rules_;
 }
 
-string BindingEnv::LookupWithFallback(const string& var,
+std::string BindingEnv::LookupWithFallback(const std::string& var,
                                       const EvalString* eval,
                                       Env* env) {
-  map<string, string>::iterator i = bindings_.find(var);
+  std::map<std::string, std::string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
 
@@ -98,8 +96,8 @@ string BindingEnv::LookupWithFallback(const string& var,
   return "";
 }
 
-string EvalString::Evaluate(Env* env) const {
-  string result;
+std::string EvalString::Evaluate(Env* env) const {
+  std::string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
       result.append(i->first);
@@ -121,8 +119,8 @@ void EvalString::AddSpecial(StringPiece text) {
   parsed_.push_back(make_pair(text.AsString(), SPECIAL));
 }
 
-string EvalString::Serialize() const {
-  string result;
+std::string EvalString::Serialize() const {
+  std::string result;
   for (TokenList::const_iterator i = parsed_.begin();
        i != parsed_.end(); ++i) {
     result.append("[");
@@ -134,8 +132,8 @@ string EvalString::Serialize() const {
   return result;
 }
 
-string EvalString::Unparse() const {
-  string result;
+std::string EvalString::Unparse() const {
+  std::string result;
   for (TokenList::const_iterator i = parsed_.begin();
        i != parsed_.end(); ++i) {
     bool special = (i->second == SPECIAL);

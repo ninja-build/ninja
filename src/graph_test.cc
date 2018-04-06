@@ -32,7 +32,7 @@ TEST_F(GraphTest, MissingImplicit) {
   fs_.Create("in", "");
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -50,7 +50,7 @@ TEST_F(GraphTest, ModifiedImplicit) {
   fs_.Tick();
   fs_.Create("implicit", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -70,7 +70,7 @@ TEST_F(GraphTest, FunkyMakefilePath) {
   fs_.Tick();
   fs_.Create("implicit.h", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
 
@@ -93,7 +93,7 @@ TEST_F(GraphTest, ExplicitImplicit) {
   fs_.Tick();
   fs_.Create("data", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
 
@@ -121,7 +121,7 @@ TEST_F(GraphTest, ImplicitOutputMissing) {
   fs_.Create("in", "");
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -137,7 +137,7 @@ TEST_F(GraphTest, ImplicitOutputOutOfDate) {
   fs_.Create("in", "");
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -161,7 +161,7 @@ TEST_F(GraphTest, ImplicitOutputOnlyMissing) {
 "build | out.imp: cat in\n"));
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.imp"), &err));
   ASSERT_EQ("", err);
 
@@ -175,7 +175,7 @@ TEST_F(GraphTest, ImplicitOutputOnlyOutOfDate) {
   fs_.Tick();
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.imp"), &err));
   ASSERT_EQ("", err);
 
@@ -192,7 +192,7 @@ TEST_F(GraphTest, PathWithCurrentDirectory) {
   fs_.Create("out.o.d", "out.o: foo.cc\n");
   fs_.Create("out.o", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
 
@@ -206,11 +206,11 @@ TEST_F(GraphTest, RootNodes) {
 "build out2: cat mid1\n"
 "build out3 out4: cat mid1\n"));
 
-  string err;
-  vector<Node*> root_nodes = state_.RootNodes(&err);
+  std::string err;
+  std::vector<Node*> root_nodes = state_.RootNodes(&err);
   EXPECT_EQ(4u, root_nodes.size());
   for (size_t i = 0; i < root_nodes.size(); ++i) {
-    string name = root_nodes[i]->path();
+    std::string name = root_nodes[i]->path();
     EXPECT_EQ("out", name.substr(0, 3));
   }
 }
@@ -240,7 +240,7 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
   fs_.Create("out.o.d", "out.o: bar/../foo.cc\n");
   fs_.Create("out.o", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
 
@@ -260,7 +260,7 @@ TEST_F(GraphTest, DepfileRemoved) {
   fs_.Create("out.o.d", "out.o: foo.h\n");
   fs_.Create("out.o", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(GetNode("out.o")->dirty());
@@ -313,7 +313,7 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
 "build n1: phony \n"
 "build n2: phony n1\n"
   );
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("n2"), &err));
   ASSERT_EQ("", err);
 
@@ -332,7 +332,7 @@ TEST_F(GraphTest, PhonySelfReferenceError) {
 "build a: phony a\n",
   parser_opts);
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
   ASSERT_EQ("dependency cycle: a -> a [-w phonycycle=err]", err);
 }
@@ -344,13 +344,13 @@ TEST_F(GraphTest, DependencyCycle) {
 "build in: cat pre\n"
 "build pre: cat out\n");
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("dependency cycle: out -> mid -> in -> pre -> out", err);
 }
 
 TEST_F(GraphTest, CycleInEdgesButNotInNodes1) {
-  string err;
+  std::string err;
   AssertParse(&state_,
 "build a b: cat a\n");
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), &err));
@@ -358,7 +358,7 @@ TEST_F(GraphTest, CycleInEdgesButNotInNodes1) {
 }
 
 TEST_F(GraphTest, CycleInEdgesButNotInNodes2) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build b a: cat a\n"));
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), &err));
@@ -366,7 +366,7 @@ TEST_F(GraphTest, CycleInEdgesButNotInNodes2) {
 }
 
 TEST_F(GraphTest, CycleInEdgesButNotInNodes3) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build a b: cat c\n"
 "build c: cat a\n"));
@@ -375,7 +375,7 @@ TEST_F(GraphTest, CycleInEdgesButNotInNodes3) {
 }
 
 TEST_F(GraphTest, CycleInEdgesButNotInNodes4) {
-  string err;
+  std::string err;
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build d: cat c\n"
 "build c: cat b\n"
@@ -397,7 +397,7 @@ TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
   );
   fs_.Create("dep.d", "a: b\n");
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
   ASSERT_EQ("dependency cycle: b -> b", err);
 
@@ -422,7 +422,7 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
   );
   fs_.Create("dep.d", "a: c\n");
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), &err));
   ASSERT_EQ("dependency cycle: b -> c -> b", err);
 
@@ -449,7 +449,7 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
   );
   fs_.Create("dep.d", "a: c\n");
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("d"), &err));
   ASSERT_EQ("dependency cycle: b -> c -> b", err);
 
@@ -468,8 +468,8 @@ TEST_F(GraphTest, Decanonicalize) {
 "build out\\out2/out3\\out4: cat mid1\n"
 "build out3 out4\\foo: cat mid1\n"));
 
-  string err;
-  vector<Node*> root_nodes = state_.RootNodes(&err);
+  std::string err;
+  std::vector<Node*> root_nodes = state_.RootNodes(&err);
   EXPECT_EQ(4u, root_nodes.size());
   EXPECT_EQ(root_nodes[0]->path(), "out/out1");
   EXPECT_EQ(root_nodes[1]->path(), "out/out2/out3/out4");
@@ -494,7 +494,7 @@ TEST_F(GraphTest, DyndepLoadTrivial) {
 "build out: dyndep\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("", err);
@@ -519,7 +519,7 @@ TEST_F(GraphTest, DyndepLoadMissingFile) {
 "  dyndep = dd\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("loading 'dd': No such file or directory", err);
@@ -536,7 +536,7 @@ TEST_F(GraphTest, DyndepLoadMissingEntry) {
 "ninja_dyndep_version = 1\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("'out' not mentioned in its dyndep file 'dd'", err);
@@ -556,7 +556,7 @@ TEST_F(GraphTest, DyndepLoadExtraEntry) {
 "build out2: dyndep\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("dyndep file 'dd' mentions output 'out2' whose build statement "
@@ -576,7 +576,7 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules1) {
 "build out2 | out-twice.imp: dyndep\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("multiple rules generate out-twice.imp", err);
@@ -600,7 +600,7 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules2) {
 "build out2 | out-twice.imp: dyndep\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd1")->dyndep_pending());
   EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd1"), &err));
   EXPECT_EQ("", err);
@@ -626,7 +626,7 @@ TEST_F(GraphTest, DyndepLoadMultiple) {
 "  restat = 1\n"
   );
 
-  string err;
+  std::string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
   EXPECT_EQ("", err);
@@ -673,7 +673,7 @@ TEST_F(GraphTest, DyndepFileMissing) {
 "  dyndep = dd\n"
   );
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("loading 'dd': No such file or directory", err);
 }
@@ -689,7 +689,7 @@ TEST_F(GraphTest, DyndepFileError) {
 "ninja_dyndep_version = 1\n"
   );
 
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("'out' not mentioned in its dyndep file 'dd'", err);
 }
@@ -709,7 +709,7 @@ TEST_F(GraphTest, DyndepImplicitInputNewer) {
   fs_.Tick();
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -737,7 +737,7 @@ TEST_F(GraphTest, DyndepFileReady) {
   fs_.Tick();
   fs_.Create("in", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -762,7 +762,7 @@ TEST_F(GraphTest, DyndepFileNotClean) {
   fs_.Create("dd-in", "");
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -788,7 +788,7 @@ TEST_F(GraphTest, DyndepFileNotReady) {
   fs_.Tick();
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -816,7 +816,7 @@ TEST_F(GraphTest, DyndepFileSecondNotReady) {
   fs_.Create("dd1-in", "");
   fs_.Create("out", "");
 
-  string err;
+  std::string err;
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
   ASSERT_EQ("", err);
 
@@ -845,7 +845,7 @@ TEST_F(GraphTest, DyndepFileCircular) {
   fs_.Create("out", "");
 
   Edge* edge = GetNode("out")->in_edge();
-  string err;
+  std::string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
   EXPECT_EQ("dependency cycle: circ -> in -> circ", err);
 

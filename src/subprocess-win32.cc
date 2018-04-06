@@ -74,7 +74,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const std::string& command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   SECURITY_ATTRIBUTES security_attributes;
@@ -207,7 +207,7 @@ bool Subprocess::Done() const {
   return pipe_ == NULL;
 }
 
-const string& Subprocess::GetOutput() const {
+const std::string& Subprocess::GetOutput() const {
   return buf_;
 }
 
@@ -238,7 +238,7 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   return FALSE;
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+Subprocess *SubprocessSet::Add(const std::string& command, bool use_console) {
   Subprocess *subprocess = new Subprocess(use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
@@ -269,7 +269,7 @@ bool SubprocessSet::DoWork() {
   subproc->OnPipeReady();
 
   if (subproc->Done()) {
-    vector<Subprocess*>::iterator end =
+    std::vector<Subprocess*>::iterator end =
         remove(running_.begin(), running_.end(), subproc);
     if (running_.end() != end) {
       finished_.push(subproc);
@@ -289,7 +289,7 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
+  for (std::vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     // Since the foreground process is in our process group, it will receive a
     // CTRL_C_EVENT or CTRL_BREAK_EVENT at the same time as us.
@@ -300,7 +300,7 @@ void SubprocessSet::Clear() {
       }
     }
   }
-  for (vector<Subprocess*>::iterator i = running_.begin();
+  for (std::vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
   running_.clear();

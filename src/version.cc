@@ -22,18 +22,18 @@ using namespace std;
 
 const char* kNinjaVersion = "1.10.1.git";
 
-void ParseVersion(const string& version, int* major, int* minor) {
+void ParseVersion(const std::string& version, int* major, int* minor) {
   size_t end = version.find('.');
   *major = atoi(version.substr(0, end).c_str());
   *minor = 0;
-  if (end != string::npos) {
+  if (end != std::string::npos) {
     size_t start = end + 1;
     end = version.find('.', start);
     *minor = atoi(version.substr(start, end).c_str());
   }
 }
 
-void CheckNinjaVersion(const string& version) {
+void CheckNinjaVersion(const std::string& version) {
   int bin_major, bin_minor;
   ParseVersion(kNinjaVersion, &bin_major, &bin_minor);
   int file_major, file_minor;

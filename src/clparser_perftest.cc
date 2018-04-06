@@ -22,7 +22,7 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
   // Output of /showIncludes from #include <iostream>
-  string perf_testdata =
+  std::string perf_testdata =
       "Note: including file: C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\iostream\r\n"
       "Note: including file:  C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\istream\r\n"
       "Note: including file:   C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\ostream\r\n"
@@ -136,8 +136,8 @@ int main(int argc, char* argv[]) {
   for (int limit = 1 << 10; limit < (1<<20); limit *= 2) {
     int64_t start = GetTimeMillis();
     for (int rep = 0; rep < limit; ++rep) {
-      string output;
-      string err;
+      std::string output;
+      std::string err;
 
       CLParser parser;
       if (!parser.Parse(perf_testdata, "", &output, &err)) {

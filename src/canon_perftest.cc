@@ -25,8 +25,8 @@ const char kPath[] =
     "platform/leveldb/LevelDBWriteBatch.cpp";
 
 int main() {
-  vector<int> times;
-  string err;
+  std::vector<int> times;
+  std::string err;
 
   char buf[200];
   size_t len = strlen(kPath);
