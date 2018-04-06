@@ -16,6 +16,9 @@
 
 #include "test.h"
 
+#include <algorithm>
+#include <cstring>
+
 using namespace std;
 
 namespace {

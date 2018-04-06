@@ -16,6 +16,7 @@
 // directory.
 
 #include <numeric>
+#include <algorithm>
 
 #include <errno.h>
 #include <stdio.h>

@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
+#include <algorithm>
 
 #ifdef _WIN32
 #include <fcntl.h>

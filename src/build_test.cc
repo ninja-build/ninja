@@ -15,6 +15,7 @@
 #include "build.h"
 
 #include <assert.h>
+#include <algorithm>
 
 #include "build_log.h"
 #include "deps_log.h"

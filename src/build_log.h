@@ -18,7 +18,8 @@
 #include <string>
 #include <stdio.h>
 
-#include "hash_map.h"
+#include "unordered_map.h"
+#include "string_piece.h"
 #include "load_status.h"
 #include "timestamp.h"
 #include "util.h"  // uint64_t
@@ -90,7 +91,7 @@ struct BuildLog {
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  typedef std::unordered_map<StringPiece, LogEntry*> Entries;
   const Entries& entries() const { return entries_; }
 
  private:

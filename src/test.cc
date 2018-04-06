@@ -19,6 +19,7 @@
 #include "test.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include <errno.h>
 #include <stdlib.h>

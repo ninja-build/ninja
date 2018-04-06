@@ -22,6 +22,8 @@
 #include "graph.h"
 #include "util.h"
 #include "test.h"
+#include <algorithm>
+#include <cstring>
 
 using namespace std;
 

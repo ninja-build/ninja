@@ -17,6 +17,9 @@
 #include "util.h"
 #include "test.h"
 
+#include <algorithm>
+#include <cstring>
+
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <fcntl.h>
