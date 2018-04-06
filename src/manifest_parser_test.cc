@@ -523,7 +523,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
     EXPECT_EQ("input:1: unknown build rule 'y'\n"
               "build x: y z\n"
-              "       ^ near here"
+              "         ^ near here"
               , err);
   }
 
@@ -534,7 +534,7 @@ TEST_F(ParserTest, Errors) {
     EXPECT_FALSE(parser.ParseTest("build x:: y z\n", &err));
     EXPECT_EQ("input:1: expected build command name\n"
               "build x:: y z\n"
-              "       ^ near here"
+              "        ^ near here"
               , err);
   }
 
@@ -636,7 +636,10 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.ParseTest("rule %foo\n",
                                   &err));
-    EXPECT_EQ("input:1: expected rule name\n", err);
+    EXPECT_EQ("input:1: expected rule name\n"
+              "rule %foo\n"
+              "     ^ near here",
+              err);
   }
 
   {
@@ -672,7 +675,10 @@ TEST_F(ParserTest, Errors) {
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  && bar",
                                   &err));
-    EXPECT_EQ("input:3: expected variable name\n", err);
+    EXPECT_EQ("input:3: expected variable name\n"
+              "  && bar\n"
+              "  ^ near here",
+              err);
   }
 
   {
@@ -767,7 +773,9 @@ TEST_F(ParserTest, Errors) {
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool\n", &err));
-    EXPECT_EQ("input:1: expected pool name\n", err);
+    EXPECT_EQ("input:1: expected pool name\n"
+              "pool\n"
+              "    ^ near here", err);
   }
 
   {

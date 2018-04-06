@@ -182,16 +182,21 @@ void Lexer::EatWhitespace() {
 
 bool Lexer::ReadIdent(string* out) {
   const char* p = ofs_;
+  const char* start;
   for (;;) {
-    const char* start = p;
+    start = p;
     /*!re2c
     varname {
       out->assign(start, p - start);
       break;
     }
-    [^] { return false; }
+    [^] {
+      last_token_ = start;
+      return false;
+    }
     */
   }
+  last_token_ = start;
   ofs_ = p;
   EatWhitespace();
   return true;
