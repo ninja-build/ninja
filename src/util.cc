@@ -197,7 +197,7 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
       case '\\':
         bits |= bits_mask;
         *c = '/';
-        // Intentional fallthrough.
+        NINJA_FALLTHROUGH;
       case '/':
         bits_mask <<= 1;
     }
