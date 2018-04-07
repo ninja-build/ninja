@@ -1,4 +1,4 @@
-// Copyright 2016-2017 Google Inc. All Rights Reserved.
+// Copyright 2016-2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -153,6 +154,15 @@ bool GNUmakeTokenPool::Acquire() {
   if (available_ > 0)
     return true;
 
+  // Please read
+  //
+  //   http://make.mad-scientist.net/papers/jobserver-implementation/
+  //
+  // for the reasoning behind the following code.
+  //
+  // Try to read one character from the pipe. Returns true on success.
+  //
+  // First check if read() would succeed without blocking.
 #ifdef USE_PPOLL
   pollfd pollfds[] = {{rfd_, POLLIN, 0}};
   int ret = poll(pollfds, 1, 0);
@@ -164,33 +174,62 @@ bool GNUmakeTokenPool::Acquire() {
   int ret = select(rfd_ + 1, &set, NULL, NULL, &timeout);
 #endif
   if (ret > 0) {
+    // Handle potential race condition:
+    //  - the above check succeeded, i.e. read() should not block
+    //  - the character disappears before we call read()
+    //
+    // Create a duplicate of rfd_. The duplicate file descriptor dup_rfd_
+    // can safely be closed by signal handlers without affecting rfd_.
     dup_rfd_ = dup(rfd_);
 
     if (dup_rfd_ != -1) {
       struct sigaction act, old_act;
       int ret = 0;
 
+      // Temporarily replace SIGCHLD handler with our own
       memset(&act, 0, sizeof(act));
       act.sa_handler = CloseDupRfd;
       if (sigaction(SIGCHLD, &act, &old_act) == 0) {
-        char buf;
+        struct itimerval timeout;
 
-        // block until token read, child exits or timeout
-        alarm(1);
-        ret = read(dup_rfd_, &buf, 1);
-        alarm(0);
+        // install a 100ms timeout that generates SIGALARM on expiration
+        memset(&timeout, 0, sizeof(timeout));
+        timeout.it_value.tv_usec = 100 * 1000; // [ms] -> [usec]
+        if (setitimer(ITIMER_REAL, &timeout, NULL) == 0) {
+          char buf;
+
+          // Now try to read() from dup_rfd_. Return values from read():
+          //
+          // 1. token read                               ->  1
+          // 2. pipe closed                              ->  0
+          // 3. alarm expires                            -> -1 (EINTR)
+          // 4. child exits                              -> -1 (EINTR)
+          // 5. alarm expired before entering read()     -> -1 (EBADF)
+          // 6. child exited before entering read()      -> -1 (EBADF)
+          // 7. child exited before handler is installed -> go to 1 - 3
+          ret = read(dup_rfd_, &buf, 1);
+
+          // disarm timer
+          memset(&timeout, 0, sizeof(timeout));
+          setitimer(ITIMER_REAL, &timeout, NULL);
+        }
 
         sigaction(SIGCHLD, &old_act, NULL);
       }
 
       CloseDupRfd(0);
 
+      // Case 1 from above list
       if (ret > 0) {
         available_++;
         return true;
       }
     }
   }
+
+  // read() would block, i.e. no token available,
+  // cases 2-6 from above list or
+  // select() / poll() / dup() / sigaction() / setitimer() failed
   return false;
 }
 

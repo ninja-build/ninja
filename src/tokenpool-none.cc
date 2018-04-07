@@ -1,4 +1,4 @@
-// Copyright 2016-2017 Google Inc. All Rights Reserved.
+// Copyright 2016-2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,6 @@
 
 #include "tokenpool.h"
 
-#include <fcntl.h>
-#include <poll.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 
 // No-op TokenPool implementation

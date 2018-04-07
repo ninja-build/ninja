@@ -151,6 +151,8 @@ struct CommandRunner {
     bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
+  /// If more_ready is true then the optional TokenPool is monitored too
+  /// and we return when a token becomes available.
   virtual bool WaitForCommand(Result* result, bool more_ready) = 0;
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
