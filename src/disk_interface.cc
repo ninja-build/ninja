@@ -155,24 +155,34 @@ bool DiskInterface::MakeDirs(const string& path) {
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
+  uint64_t slash_bits = 0;
+  string canonicalized_path = path;
+  if (!CanonicalizePath(&canonicalized_path, &slash_bits, err)) {
+    ostringstream err_stream;
+    err_stream << "Stat(" << path << "): Failed to canonicalize path " << *err;
+    *err = err_stream.str();
+    return -1;
+  }
+
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+  if (!canonicalized_path.empty() && canonicalized_path[0] != '\\' &&
+      canonicalized_path.size() > MAX_PATH) {
     ostringstream err_stream;
-    err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
-               << " characters";
+    err_stream << "Stat(" << canonicalized_path << "): Filename longer than "
+               << MAX_PATH << " characters";
     *err = err_stream.str();
     return -1;
   }
   if (!use_cache_)
-    return StatSingleFile(path, err);
+    return StatSingleFile(canonicalized_path, err);
 
-  string dir = DirName(path);
-  string base(path.substr(dir.size() ? dir.size() + 1 : 0));
+  string dir = DirName(canonicalized_path);
+  string base(canonicalized_path.substr(dir.size() ? dir.size() + 1 : 0));
   if (base == "..") {
     // StatAllFilesInDir does not report any information for base = "..".
     base = ".";
-    dir = path;
+    dir = canonicalized_path;
   }
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
