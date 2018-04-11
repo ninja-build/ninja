@@ -46,6 +46,7 @@ struct FileReader {
 struct DiskInterface: public FileReader {
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
+  /// |path| should be canonicalized.
   virtual TimeStamp Stat(const string& path, string* err) const = 0;
 
   /// Create a directory, returning false on failure.
