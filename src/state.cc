@@ -142,8 +142,9 @@ void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
 
 bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
   Node* node = GetNode(path, slash_bits);
-  if (node->in_edge())
-    return false;
+  if (Edge* existing_edge = node->in_edge()) {
+    return existing_edge->rule_ == &kPhonyRule && edge->rule_ == &kPhonyRule;
+  }
   edge->outputs_.push_back(node);
   node->set_in_edge(edge);
   return true;

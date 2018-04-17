@@ -351,6 +351,43 @@ TEST_F(ParserTest, NoDeadPointerFromDuplicateEdge) {
   // That's all the checking that this test needs.
 }
 
+TEST_F(ParserTest, DuplicatePhonyOutputIgnored) {
+  const char kInput[] =
+"build out out: phony\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+}
+
+TEST_F(ParserTest, DuplicatePhonyEdgeIgnored) {
+  const char kInput[] =
+"build out: phony\n"
+"build out: phony\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+}
+
+TEST_F(ParserTest, DuplicateNonPhonyEdgeNotIgnored) {
+  const char kInput[] =
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out: cat in\n"
+"build out: phony\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:5: multiple rules generate out [-w dupbuild=err]\n", err);
+}
+
 TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   const char kInput[] =
 "rule cat\n"
