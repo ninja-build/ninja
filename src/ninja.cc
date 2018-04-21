@@ -39,6 +39,7 @@
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "ipc.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
@@ -77,6 +78,10 @@ struct Options {
   /// Whether a depfile with multiple targets on separate lines should
   /// warn or print an error.
   bool depfile_distinct_target_lines_should_err;
+
+  /// Whether the ninja process should remain alive after building to speed up
+  /// subsequent builds.
+  bool persistent;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1130,7 +1135,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h:p", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1189,6 +1194,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'C':
         options->working_dir = optarg;
         break;
+      case 'p':
+        options->persistent = true;
+        break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
@@ -1205,6 +1213,9 @@ int ReadFlags(int* argc, char*** argv,
 }
 
 NORETURN void real_main(int argc, char** argv) {
+  int original_argc = argc;
+  char **original_argv = argv;
+
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
   BuildConfig config;
@@ -1237,6 +1248,9 @@ NORETURN void real_main(int argc, char** argv) {
     }
   }
 
+  if (options.persistent)
+    RequestBuildFromServerInCwd(original_argc, original_argv);
+
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
@@ -1263,6 +1277,13 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
+    if (options.persistent) {
+      // TODO: record mtime of all .ninja manifests before forking and compare
+      // afterward to see if we need to reload them.
+      ForkBuildServerInCwd(original_argc, original_argv);
+
+    }
+
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
@@ -1281,6 +1302,11 @@ NORETURN void real_main(int argc, char** argv) {
       // manifest forever. Better to return immediately.
       if (config.dry_run)
         exit(0);
+      // If the manifest changed, the parsed version we have is now outdated
+      // and we should exit persistent mode. The client will parse the manifest
+      // and fork a new server.
+      if (options.persistent)
+        exit(EXIT_CODE_SERVER_SHUTDOWN);
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
