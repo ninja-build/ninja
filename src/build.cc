@@ -266,10 +266,25 @@ string BuildStatus::FormatProgressStatus(
         out += buf;
         break;
 
+#define FORMAT_TIME(t) "%d:%02d:%02d", (t) / 3600, ((t) % 3600) / 60, (t) % 60
+
+      // Elapsed time
       case 'e': {
-        double elapsed = overall_rate_.Elapsed();
-        snprintf(buf, sizeof(buf), "%.3f", elapsed);
+        const int elapsed = overall_rate_.Elapsed();
+        snprintf(buf, sizeof(buf), FORMAT_TIME(elapsed));
         out += buf;
+        break;
+      }
+
+      // ETA
+      case 'E': {
+        if (finished_edges_ > 5 && overall_rate_.Elapsed() > 5.0) {
+          const int eta = (total_edges_ - finished_edges_) *
+                           overall_rate_.Elapsed() / finished_edges_;
+          snprintf(buf, sizeof(buf), FORMAT_TIME(eta));
+          out += buf;
+        } else
+          out.push_back('?');
         break;
       }
 
