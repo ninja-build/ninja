@@ -1766,7 +1766,7 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
 TEST_F(BuildTest, StatusFormatElapsed) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
-  EXPECT_EQ("[%/e0.000]",
+  EXPECT_EQ("[%/e0:00:00]",
             status_.FormatProgressStatus("[%%/e%e]",
                 BuildStatus::kEdgeStarted));
 }
