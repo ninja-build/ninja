@@ -95,7 +95,7 @@ and run that directly on some representative input files.
 Generally it's the [Google C++ coding style][], but in brief:
 
 * Function name are camelcase.
-* Member methods are camelcase, expect for trivial getters which are
+* Member methods are camelcase, except for trivial getters which are
   underscore separated.
 * Local variables are underscore separated.
 * Member variables are underscore separated and suffixed by an extra
