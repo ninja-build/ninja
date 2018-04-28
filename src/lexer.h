@@ -55,7 +55,7 @@ struct Lexer {
 
   /// If the last token read was an ERROR token, provide more info
   /// or the empty string.
-  string DescribeLastError();
+  std::string DescribeLastError();
 
   /// Start parsing some input.
   void Start(StringPiece filename, StringPiece input);
@@ -71,30 +71,30 @@ struct Lexer {
 
   /// Read a simple identifier (a rule or variable name).
   /// Returns false if a name can't be read.
-  bool ReadIdent(string* out);
+  bool ReadIdent(std::string* out);
 
   /// Read a path (complete with $escapes).
   /// Returns false only on error, returned path may be empty if a delimiter
   /// (space, newline) is hit.
-  bool ReadPath(EvalString* path, string* err) {
+  bool ReadPath(EvalString* path, std::string* err) {
     return ReadEvalString(path, true, err);
   }
 
   /// Read the value side of a var = value line (complete with $escapes).
   /// Returns false only on error.
-  bool ReadVarValue(EvalString* value, string* err) {
+  bool ReadVarValue(EvalString* value, std::string* err) {
     return ReadEvalString(value, false, err);
   }
 
   /// Construct an error message with context.
-  bool Error(const string& message, string* err);
+  bool Error(const std::string& message, std::string* err);
 
 private:
   /// Skip past whitespace (called after each read token/ident/etc.).
   void EatWhitespace();
 
   /// Read a $-escaped string.
-  bool ReadEvalString(EvalString* eval, bool path, string* err);
+  bool ReadEvalString(EvalString* eval, bool path, std::string* err);
 
   StringPiece filename_;
   StringPiece input_;

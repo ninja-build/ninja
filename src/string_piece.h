@@ -17,12 +17,10 @@
 
 #include <string>
 
-using namespace std;
-
 #include <string.h>
 
-/// StringPiece represents a slice of a string whose memory is managed
-/// externally.  It is useful for reducing the number of std::strings
+/// StringPiece represents a slice of a std::string whose memory is managed
+/// externally.  It is useful for reducing the number of std::std::strings
 /// we need to allocate.
 struct StringPiece {
   typedef const char* const_iterator;
@@ -30,10 +28,10 @@ struct StringPiece {
   StringPiece() : str_(NULL), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
-  StringPiece(const string& str) : str_(str.data()), len_(str.size()) {}
+  StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}
   StringPiece(const char* str) : str_(str), len_(strlen(str)) {}
 
-  StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
+  StringPiece(const char* str, std::size_t len) : str_(str), len_(len) {}
 
   bool operator==(const StringPiece& other) const {
     return len_ == other.len_ && memcmp(str_, other.str_, len_) == 0;
@@ -43,9 +41,9 @@ struct StringPiece {
   }
 
   /// Convert the slice into a full-fledged std::string, copying the
-  /// data into a new string.
-  string AsString() const {
-    return len_ ? string(str_, len_) : string();
+  /// data into a new std::string.
+  std::string AsString() const {
+    return len_ ? std::string(str_, len_) : std::string();
   }
 
   const_iterator begin() const {
@@ -65,7 +63,7 @@ struct StringPiece {
   }
 
   const char* str_;
-  size_t len_;
+  std::size_t len_;
 };
 
 #endif  // NINJA_STRINGPIECE_H_
