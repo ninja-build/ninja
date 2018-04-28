@@ -124,6 +124,19 @@ int Cleaner::CleanAll(bool generator) {
   return status_;
 }
 
+int Cleaner::CleanDead(const BuildLog::Entries& entries) {
+  Reset();
+  PrintHeader();
+  for (BuildLog::Entries::const_iterator i = entries.begin(); i != entries.end(); ++i) {
+    Node* n = state_->LookupNode(i->first);
+    if (!n || !n->in_edge()) {
+      Remove(i->first.AsString());
+    }
+  }
+  PrintFooter();
+  return status_;
+}
+
 void Cleaner::DoCleanTarget(Node* target) {
   if (Edge* e = target->in_edge()) {
     // Do not try to remove phony targets

@@ -123,6 +123,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
+  int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
@@ -153,9 +154,6 @@ struct NinjaMain : public BuildLogUser {
   void DumpMetrics();
 
   virtual bool IsPathDead(StringPiece s) const {
-    Node* n = state_.LookupNode(s);
-    if (!n || !n->in_edge())
-      return false;
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
     // have an in edge if one of its inputs is another output that's in the deps
@@ -719,6 +717,11 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   }
 }
 
+int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
+  Cleaner cleaner(&state_, config_, &disk_interface_);
+  return cleaner.CleanDead(build_log_.entries());
+}
+
 void EncodeJSONString(const char *str) {
   while (*str) {
     if (*str == '"' || *str == '\\')
@@ -893,6 +896,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
+    { "cleandead",  "clean built files that are no longer produced by the manifest",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolCleanDead },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
