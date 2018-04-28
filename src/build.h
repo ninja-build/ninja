@@ -44,7 +44,7 @@ struct Plan {
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
   /// fill in |err| with an error message if there's a problem.
-  bool AddTarget(Node* node, string* err);
+  bool AddTarget(Node* node, std::string* err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns NULL if there's no work to do.
@@ -66,7 +66,7 @@ struct Plan {
 
   /// Clean the given node during the build.
   /// Return false on error.
-  bool CleanNode(DependencyScan* scan, Node* node, string* err);
+  bool CleanNode(DependencyScan* scan, Node* node, std::string* err);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -75,7 +75,7 @@ struct Plan {
   void Reset();
 
 private:
-  bool AddSubTarget(Node* node, Node* dependent, string* err);
+  bool AddSubTarget(Node* node, Node* dependent, std::string* err);
   void NodeFinished(Node* node);
 
   /// Enumerate possible steps we want for an edge.
@@ -94,21 +94,21 @@ private:
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
-  void ScheduleWork(map<Edge*, Want>::iterator want_e);
+  void ScheduleWork(std::map<Edge*, Want>::iterator want_e);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
   /// dependents.  If it does contain an entry, the enumeration indicates what
   /// we want for the edge.
-  map<Edge*, Want> want_;
+  std::map<Edge*, Want> want_;
 
-  set<Edge*> ready_;
+  std::set<Edge*> ready_;
 
   /// Total number of edges that have commands (not phony).
-  int command_edges_;
+  int command_edges_ = 0;
 
   /// Total remaining number of wanted edges.
-  int wanted_edges_;
+  int wanted_edges_ = 0;
 };
 
 /// CommandRunner is an interface that wraps running the build
@@ -124,13 +124,13 @@ struct CommandRunner {
     Result() : edge(NULL) {}
     Edge* edge;
     ExitStatus status;
-    string output;
+    std::string output;
     bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
   virtual bool WaitForCommand(Result* result) = 0;
 
-  virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
+  virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
 };
 
@@ -163,24 +163,24 @@ struct Builder {
   /// Clean up after interrupted commands by deleting output files.
   void Cleanup();
 
-  Node* AddTarget(const string& name, string* err);
+  Node* AddTarget(const std::string& name, std::string* err);
 
   /// Add a target to the build, scanning dependencies.
   /// @return false on error.
-  bool AddTarget(Node* target, string* err);
+  bool AddTarget(Node* target, std::string* err);
 
   /// Returns true if the build targets are already up to date.
   bool AlreadyUpToDate() const;
 
   /// Run the build.  Returns false on error.
   /// It is an error to call this function when AlreadyUpToDate() is true.
-  bool Build(string* err);
+  bool Build(std::string* err);
 
-  bool StartEdge(Edge* edge, string* err);
+  bool StartEdge(Edge* edge, std::string* err);
 
   /// Update status ninja logs following a command termination.
   /// @return false if the build can not proceed further due to a fatal error.
-  bool FinishCommand(CommandRunner::Result* result, string* err);
+  bool FinishCommand(CommandRunner::Result* result, std::string* err);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -191,16 +191,16 @@ struct Builder {
   const BuildConfig& config_;
   Plan plan_;
 #if __cplusplus < 201703L
-  auto_ptr<CommandRunner> command_runner_;
+  std::auto_ptr<CommandRunner> command_runner_;
 #else
-  unique_ptr<CommandRunner> command_runner_;  // auto_ptr was removed in C++17.
+  std::unique_ptr<CommandRunner> command_runner_;  // auto_ptr was removed in C++17.
 #endif
   BuildStatus* status_;
 
  private:
-   bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
-                    const string& deps_prefix, vector<Node*>* deps_nodes,
-                    string* err);
+   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
+                    const std::string& deps_prefix, std::vector<Node*>* deps_nodes,
+                    std::string* err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;
@@ -215,7 +215,7 @@ struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+  void BuildEdgeFinished(Edge* edge, bool success, const std::string& output,
                          int* start_time, int* end_time);
   void BuildStarted();
   void BuildFinished();
@@ -231,7 +231,7 @@ struct BuildStatus {
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
   /// @param status The status of the edge.
-  string FormatProgressStatus(const char* progress_status_format,
+  std::string FormatProgressStatus(const char* progress_status_format,
                               EdgeStatus status) const;
 
  private:
@@ -245,14 +245,14 @@ struct BuildStatus {
   int started_edges_, finished_edges_, total_edges_;
 
   /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
+  typedef std::map<Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Prints progress output.
   LinePrinter printer_;
 
   /// The custom progress status format to use.
-  const char* progress_status_format_;
+  const char* progress_status_format_ = nullptr;
 
   template<size_t S>
   void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
@@ -301,7 +301,7 @@ struct BuildStatus {
     double rate_;
     Stopwatch stopwatch_;
     const size_t N;
-    queue<double> times_;
+    std::queue<double> times_;
     int last_update_;
   };
 

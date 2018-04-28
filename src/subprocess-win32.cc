@@ -275,7 +275,7 @@ Subprocess* SubprocessSet::NextFinished() {
 }
 
 void SubprocessSet::Clear() {
-  for (vector<Subprocess*>::iterator i = running_.begin();
+  for (std::vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     // Since the foreground process is in our process group, it will receive a
     // CTRL_C_EVENT or CTRL_BREAK_EVENT at the same time as us.
@@ -286,7 +286,7 @@ void SubprocessSet::Clear() {
       }
     }
   }
-  for (vector<Subprocess*>::iterator i = running_.begin();
+  for (std::vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
   running_.clear();

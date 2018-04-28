@@ -33,15 +33,15 @@
 
 namespace {
 
-string DirName(const string& path) {
+std::string DirName(const std::string& path) {
 #ifdef _WIN32
   const char kPathSeparators[] = "\\/";
 #else
   const char kPathSeparators[] = "/";
 #endif
-  string::size_type slash_pos = path.find_last_of(kPathSeparators);
-  if (slash_pos == string::npos)
-    return string();  // Nothing to do.
+  std::string::size_type slash_pos = path.find_last_of(kPathSeparators);
+  if (slash_pos == std::string::npos)
+    return std::string();  // Nothing to do.
   const char* const kEnd = kPathSeparators + strlen(kPathSeparators);
   while (slash_pos > 0 &&
          std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
@@ -49,7 +49,7 @@ string DirName(const string& path) {
   return path.substr(0, slash_pos);
 }
 
-int MakeDir(const string& path) {
+int MakeDir(const std::string& path) {
 #ifdef _WIN32
   return _mkdir(path.c_str());
 #else
@@ -68,7 +68,7 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
-TimeStamp StatSingleFile(const string& path, string* err) {
+TimeStamp StatSingleFile(const std::string& path, std::string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
   if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
@@ -90,8 +90,8 @@ bool IsWindows7OrLater() {
       &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
 
-bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
-                       string* err) {
+bool StatAllFilesInDir(const std::string& dir, map<std::string, TimeStamp>* stamps,
+                       std::string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
   // This is not in earlier SDKs.
@@ -111,7 +111,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
+    std::string lowername = ffd.cFileName;
     if (lowername == "..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
@@ -130,11 +130,11 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 
 // DiskInterface ---------------------------------------------------------------
 
-bool DiskInterface::MakeDirs(const string& path) {
-  string dir = DirName(path);
+bool DiskInterface::MakeDirs(const std::string& path) {
+  std::string dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
-  string err;
+  std::string err;
   TimeStamp mtime = Stat(dir, &err);
   if (mtime < 0) {
     Error("%s", err.c_str());
@@ -152,7 +152,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+TimeStamp RealDiskInterface::Stat(const std::string& path, std::string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
@@ -167,8 +167,8 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   if (!use_cache_)
     return StatSingleFile(path, err);
 
-  string dir = DirName(path);
-  string base(path.substr(dir.size() ? dir.size() + 1 : 0));
+  std::string dir = DirName(path);
+  std::string base(path.substr(dir.size() ? dir.size() + 1 : 0));
   if (base == "..") {
     // StatAllFilesInDir does not report any information for base = "..".
     base = ".";
@@ -218,7 +218,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 #endif
 }
 
-bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
+bool RealDiskInterface::WriteFile(const std::string& path, const std::string& contents) {
   FILE* fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
@@ -242,7 +242,7 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
   return true;
 }
 
-bool RealDiskInterface::MakeDir(const string& path) {
+bool RealDiskInterface::MakeDir(const std::string& path) {
   if (::MakeDir(path) < 0) {
     if (errno == EEXIST) {
       return true;
@@ -253,9 +253,9 @@ bool RealDiskInterface::MakeDir(const string& path) {
   return true;
 }
 
-FileReader::Status RealDiskInterface::ReadFile(const string& path,
-                                               string* contents,
-                                               string* err) {
+FileReader::Status RealDiskInterface::ReadFile(const std::string& path,
+                                               std::string* contents,
+                                               std::string* err) {
   switch (::ReadFile(path, contents, err)) {
   case 0:       return Okay;
   case -ENOENT: return NotFound;
@@ -263,7 +263,7 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
   }
 }
 
-int RealDiskInterface::RemoveFile(const string& path) {
+int RealDiskInterface::RemoveFile(const std::string& path) {
   if (remove(path.c_str()) < 0) {
     switch (errno) {
       case ENOENT:

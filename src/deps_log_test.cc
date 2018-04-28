@@ -40,12 +40,12 @@ struct DepsLogTest : public testing::Test {
 TEST_F(DepsLogTest, WriteRead) {
   State state1;
   DepsLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
 
   {
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state1.GetNode("foo.h", 0));
     deps.push_back(state1.GetNode("bar.h", 0));
     log1.RecordDeps(state1.GetNode("out.o", 0), 1, deps);
@@ -92,12 +92,12 @@ TEST_F(DepsLogTest, LotsOfDeps) {
 
   State state1;
   DepsLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
   ASSERT_EQ("", err);
 
   {
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     for (int i = 0; i < kNumDeps; ++i) {
       char buf[32];
       sprintf(buf, "file%d.h", i);
@@ -127,11 +127,11 @@ TEST_F(DepsLogTest, DoubleEntry) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
@@ -147,13 +147,13 @@ TEST_F(DepsLogTest, DoubleEntry) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
 
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
@@ -181,11 +181,11 @@ TEST_F(DepsLogTest, Recompact) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
-    string err;
+    std::string err;
     ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
@@ -209,13 +209,13 @@ TEST_F(DepsLogTest, Recompact) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
-    string err;
+    std::string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
 
     ASSERT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
     log.Close();
@@ -234,7 +234,7 @@ TEST_F(DepsLogTest, Recompact) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
-    string err;
+    std::string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
 
     Node* out = state.GetNode("out.o", 0);
@@ -283,7 +283,7 @@ TEST_F(DepsLogTest, Recompact) {
     State state;
     // Intentionally not parsing kManifest here.
     DepsLog log;
-    string err;
+    std::string err;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
 
     Node* out = state.GetNode("out.o", 0);
@@ -340,7 +340,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
         fwrite(kInvalidHeaders[i], 1, strlen(kInvalidHeaders[i]), deps_log));
     ASSERT_EQ(0 ,fclose(deps_log));
 
-    string err;
+    std::string err;
     DepsLog log;
     State state;
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -354,11 +354,11 @@ TEST_F(DepsLogTest, Truncated) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
@@ -381,7 +381,7 @@ TEST_F(DepsLogTest, Truncated) {
   int node_count = 5;
   int deps_count = 2;
   for (int size = (int)st.st_size; size > 0; --size) {
-    string err;
+    std::string err;
     ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 
     State state;
@@ -397,7 +397,7 @@ TEST_F(DepsLogTest, Truncated) {
 
     // Count how many non-NULL deps entries there are.
     int new_deps_count = 0;
-    for (vector<DepsLog::Deps*>::const_iterator i = log.deps().begin();
+    for (std::vector<DepsLog::Deps*>::const_iterator i = log.deps().begin();
          i != log.deps().end(); ++i) {
       if (*i)
         ++new_deps_count;
@@ -413,11 +413,11 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);
 
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
@@ -434,7 +434,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   {
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    string err;
+    std::string err;
     ASSERT_TRUE(Truncate(kTestFilename, st.st_size - 2, &err));
   }
 
@@ -442,7 +442,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
     ASSERT_EQ("premature end of file; recovering", err);
     err.clear();
@@ -454,7 +454,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
     ASSERT_EQ("", err);
 
     // Add a new entry.
-    vector<Node*> deps;
+    std::vector<Node*> deps;
     deps.push_back(state.GetNode("foo.h", 0));
     deps.push_back(state.GetNode("bar2.h", 0));
     log.RecordDeps(state.GetNode("out2.o", 0), 3, deps);
@@ -467,7 +467,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   {
     State state;
     DepsLog log;
-    string err;
+    std::string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
 
     // The truncated entry should exist.
