@@ -17,7 +17,6 @@
 
 #include <string>
 #include <vector>
-using namespace std;
 
 #include <stdio.h>
 
@@ -70,8 +69,8 @@ struct DepsLog {
   ~DepsLog();
 
   // Writing (build-time) interface.
-  bool OpenForWrite(const string& path, string* err);
-  bool RecordDeps(Node* node, TimeStamp mtime, const vector<Node*>& nodes);
+  bool OpenForWrite(const std::string& path, std::string* err);
+  bool RecordDeps(Node* node, TimeStamp mtime, const std::vector<Node*>& nodes);
   bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
   void Close();
 
@@ -84,11 +83,11 @@ struct DepsLog {
     int node_count;
     Node** nodes;
   };
-  bool Load(const string& path, State* state, string* err);
+  bool Load(const std::string& path, State* state, std::string* err);
   Deps* GetDeps(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const string& path, string* err);
+  bool Recompact(const std::string& path, std::string* err);
 
   /// Returns if the deps entry for a node is still reachable from the manifest.
   ///
@@ -99,8 +98,8 @@ struct DepsLog {
   bool IsDepsEntryLiveFor(Node* node);
 
   /// Used for tests.
-  const vector<Node*>& nodes() const { return nodes_; }
-  const vector<Deps*>& deps() const { return deps_; }
+  const std::vector<Node*>& nodes() const { return nodes_; }
+  const std::vector<Deps*>& deps() const { return deps_; }
 
  private:
   // Updates the in-memory representation.  Takes ownership of |deps|.
@@ -113,9 +112,9 @@ struct DepsLog {
   FILE* file_;
 
   /// Maps id -> Node.
-  vector<Node*> nodes_;
+  std::vector<Node*> nodes_;
   /// Maps id -> deps of that id.
-  vector<Deps*> deps_;
+  std::vector<Deps*> deps_;
 
   friend struct DepsLogTest;
 };
