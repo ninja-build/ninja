@@ -554,7 +554,7 @@ if options.bootstrap:
 n.comment('Tests all build into ninja_test executable.')
 
 objs = []
-if platform.is_windows():
+if platform.is_msvc():
     cxxvariables = [('pdb', 'ninja_test.pdb')]
 
 for name in ['build_log_test',
