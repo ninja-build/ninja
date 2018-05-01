@@ -35,7 +35,7 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
-#if (_MSC_VER < 1800)
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
 #define strtoll _strtoi64
 #endif
 
