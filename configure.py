@@ -414,7 +414,7 @@ n.newline()
 
 if platform.is_msvc():
     n.rule('cxx',
-        command='$cxx $cflags -c $in /Fo$out',
+        command='$cxx $cflags -c $in /Fo$out /Fd' + built('$pdb'),
         description='CXX $out',
         deps='msvc'  # /showIncludes is included in $cflags.
     )
@@ -485,6 +485,9 @@ else:
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
+cxxvariables = []
+if platform.is_windows():
+    cxxvariables = [('pdb', 'ninja.pdb')]
 for name in ['build',
              'build_log',
              'clean',
@@ -505,15 +508,15 @@ for name in ['build',
              'string_piece_util',
              'util',
              'version']:
-    objs += cxx(name)
+    objs += cxx(name, variables=cxxvariables) 
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',
                  'msvc_helper-win32',
                  'msvc_helper_main-win32']:
-        objs += cxx(name)
+        objs += cxx(name, variables=cxxvariables)
     if platform.is_msvc():
-        objs += cxx('minidump-win32')
+        objs += cxx('minidump-win32', variables=cxxvariables)
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
@@ -536,7 +539,7 @@ if platform.is_aix():
 all_targets = []
 
 n.comment('Main executable is library plus main() function.')
-objs = cxx('ninja')
+objs = cxx('ninja', variables=cxxvariables)
 ninja = n.build(binary('ninja'), 'link', objs, implicit=ninja_lib,
                 variables=[('libs', libs)])
 n.newline()
@@ -551,6 +554,8 @@ if options.bootstrap:
 n.comment('Tests all build into ninja_test executable.')
 
 objs = []
+if platform.is_windows():
+    cxxvariables = [('pdb', 'ninja_test.pdb')]
 
 for name in ['build_log_test',
              'build_test',
@@ -569,10 +574,10 @@ for name in ['build_log_test',
              'subprocess_test',
              'test',
              'util_test']:
-    objs += cxx(name)
+    objs += cxx(name, variables=cxxvariables)
 if platform.is_windows():
     for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name)
+        objs += cxx(name, variables=cxxvariables)
 
 ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
                      variables=[('libs', libs)])
@@ -588,7 +593,9 @@ for name in ['build_log_perftest',
              'hash_collision_bench',
              'manifest_parser_perftest',
              'clparser_perftest']:
-  objs = cxx(name)
+  if platform.is_windows():
+    cxxvariables = [('pdb', name + '.pdb')]
+  objs = cxx(name, variables=cxxvariables)
   all_targets += n.build(binary(name), 'link', objs,
                          implicit=ninja_lib, variables=[('libs', libs)])
 
