@@ -438,6 +438,6 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 bool ManifestParser::OutOfDate() {
   for (size_t i = 0; i < paths_.size(); i++)
     if (disk_interface_->Stat(paths_[i], nullptr) != mtimes_[i])
-      return false;
-  return true;
+      return true;
+  return false;
 }

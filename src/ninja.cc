@@ -82,8 +82,6 @@ struct Options {
   /// Whether the ninja process should remain alive after building to speed up
   /// subsequent builds.
   bool persistent;
-
-  bool is_server;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -221,6 +219,7 @@ void Usage(const BuildConfig& config) {
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
+"  -p       reduce time parsing .ninja files by leaving a server process running\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
@@ -1127,12 +1126,11 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1, OPT_IS_SERVER };
+  enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
-    { "is_server", no_argument, NULL, OPT_IS_SERVER },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1202,9 +1200,6 @@ int ReadFlags(int* argc, char*** argv,
         // It may be possible for things other than ninja to touch files in
         // between builds, so don't cache file info.
         g_experimental_statcache = false;
-        break;
-      case OPT_IS_SERVER:
-        options->is_server = true;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
