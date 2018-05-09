@@ -16,58 +16,38 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
 #include <signal.h>
-#include <vector>
 #include <fcntl.h>
-using namespace std;
 
-#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
 
 #include "version.h"
 #include "util.h"
 
+#define CHECK_ERRNO(x) ({ typeof(x) _x = (x); if (_x == -1) Fatal("%s:%d %s: %s", __FILE__, __LINE__, #x, strerror(errno)); _x;})
+
 // POSIX implementation of IPC for requesting builds from a persistent build
-// server.
+// server. We use Unix domain sockets for their ability to transfer file
+// descriptors between processes. This allows the server process to connect to
+// the client process's terminal to receive input and print messages.
 
-// We use Unix domain sockets for their ability to transfer file descriptors
-// between processes. This allows the server process to connect to the client
-// process's terminal to receive input and print messages. We use POSIX file
-// locks to synchronize the client and server because they are released
-// automatically when a process exits.
-
-static const int max_message_size = 1024 * 100;
-static const char *ipc_dir = "./.ninja_ipc";
-/// The server lock is used by the client to check whether a server is running.
-static const char *server_lock_file = "./.ninja_ipc/server_lock";
-/// The build lock is used by the client to wait until the build is finished.
-static const char *build_lock_file = "./.ninja_ipc/build_lock";
-static const sockaddr_un server_addr = { AF_UNIX, "./.ninja_ipc/server_socket" };
-static const sockaddr_un client_addr = { AF_UNIX, "./.ninja_ipc/client_socket" };
-static const vector<int> std_fds = { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO };
-
-/// The build lock is taken in WaitForBuildRequest after a request is
-/// received, and released in SendBuildResult.
-static int build_lock_server_fd = -1;
-/// If this process is a build server, this is set to the file descriptor of
-/// the server socket.
+static const sockaddr_un server_addr = { AF_UNIX, "./.ninja_ipc" };
+static const int fds_to_transfer[] = { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO };
+static const int num_fds_to_transfer = sizeof(fds_to_transfer) / sizeof(fds_to_transfer[0]);
 static int server_socket = -1;
-/// When the build server receives a build request, it stores the source
-/// address here so the exit code can be sent back to the source later.
-static struct sockaddr_un server_socket_source_address;
+static int server_connection = -1;
 
 /// In the client process we want to catch signals so we can forward them to
 /// the builder process before exiting.
-static int builder_pid;
+static int server_pid;
 void ForwardSignalAndExit(int sig, siginfo_t *, void *) {
-  kill(builder_pid, sig);
+  kill(server_pid, sig);
   exit(1);
 }
 
@@ -102,208 +82,150 @@ string GetStateString(int argc, char **argv) {
   return state;
 }
 
+/// Allocates the structs required to send or receive a unix domain socket
+/// message consisting of one int plus some file descriptors.
+template<int num_fds> struct FileDescriptorMessage {
+  struct msghdr msg = {0};
+  struct iovec io = {0};
+  int *fds = (int*)CMSG_DATA(&cmsg);
+  int data = 0;
+  union {
+    char cmsg_space[CMSG_SPACE(sizeof(int) * num_fds)];
+    struct cmsghdr cmsg;
+  };
+
+  FileDescriptorMessage() {
+    io.iov_base = &data;
+    io.iov_len = sizeof(data);
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+    msg.msg_control = &cmsg;
+    msg.msg_controllen = CMSG_LEN(sizeof(int) * num_fds);
+    cmsg.cmsg_level = SOL_SOCKET;
+    cmsg.cmsg_type = SCM_RIGHTS;
+    cmsg.cmsg_len = CMSG_LEN(sizeof(int) * num_fds);
+  }
+};
+
 /// This function will only return if the server refuses to do a build because
 /// of a mismatch in arguments or other state.
-void RequestBuildFromServer(int argc, char **argv) {
+void RequestBuildFromServer(const string &state) {
   // Connect to server socket.
-  unlink(client_addr.sun_path);
-  int client_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
-  bind(client_socket, (struct sockaddr*)&client_addr, sizeof(client_addr));
-  connect(client_socket, (struct sockaddr*) &server_addr, sizeof(server_addr));
+  int client_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
+  if (connect(client_socket, (struct sockaddr*) &server_addr, sizeof(server_addr)) == -1) {
+    // Server not running.
+    close(client_socket);
+    return;
+  }
 
   // Send build request to server with current state string and the FDs of our
   // terminal so the server can write to it.
-  string state = GetStateString(argc, argv);
-  struct iovec io = { 0 };
-  io.iov_base = (void*)state.data();
-  io.iov_len = state.size();
-  // The union guarantees correct alignment of the buffer.
-  union {
-    char buffer[CMSG_SPACE(sizeof(int) * 3)];
-    struct cmsghdr align;
-  } u;
-  struct msghdr msg = { 0 };
-  msg.msg_iov = &io;
-  msg.msg_iovlen = 1;
-  msg.msg_control = u.buffer;
-  msg.msg_controllen = sizeof(u.buffer);
-  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-  cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = SCM_RIGHTS;
-  cmsg->cmsg_len = CMSG_LEN(sizeof(int) * 3);
-  int *fds = (int *) CMSG_DATA(cmsg);
-  memcpy(fds, std_fds.data(), std_fds.size() * sizeof(int));
-  sendmsg(client_socket, &msg, 0);
+  FileDescriptorMessage<num_fds_to_transfer> message;
+  message.data = state.size();
+  memcpy(message.fds, fds_to_transfer, sizeof(fds_to_transfer));
+  CHECK_ERRNO(sendmsg(client_socket, &message.msg, 0));
+  send(client_socket, state.data(), state.size(), 0);
 
-  // Receive PID of process doing build from server.
-  recv(client_socket, &builder_pid, sizeof(builder_pid), 0);
+  // Check state compatibility.
+  int compatible = 0;
+  CHECK_ERRNO(recv(client_socket, &compatible, sizeof(compatible), 0));
+  if (!compatible) {
+    close(client_socket);
+    return;
+  }
 
-  // Forward termination signals (e.g. Control-C) to builder process while
-  // waiting for build to complete.
-  const vector<int> signals_to_forward = { SIGINT, SIGTERM, SIGHUP };
-  vector<struct sigaction> old_handlers(signals_to_forward.size());
+  // Forward termination signals (e.g. Control-C) to server while waiting for
+  // build to complete.
+  CHECK_ERRNO(recv(client_socket, &server_pid, sizeof(server_pid), 0));
   struct sigaction sa = {0};
   sa.sa_sigaction = &ForwardSignalAndExit;
-  for (size_t i = 0; i < signals_to_forward.size(); ++i) 
-    sigaction(signals_to_forward[i], &sa, &old_handlers[i]);
+  for (int sig : vector<int>{ SIGINT, SIGTERM, SIGHUP })
+    sigaction(sig, &sa, nullptr);
 
-  // Wait for build to complete.
-  int build_lock_client_fd = open(build_lock_file, O_RDWR);
-  if (build_lock_client_fd < 0) exit(1);
-  unlink(build_lock_file);
-  struct flock lock = {0};
-  lock.l_type = F_WRLCK;
-  lock.l_whence = SEEK_SET;
-  while (fcntl(build_lock_client_fd, F_SETLKW, &lock) < 0 && errno == EINTR);
-  close(build_lock_client_fd);
-
-  // Restore original signal handlers.
-  for (size_t i = 0; i < signals_to_forward.size(); ++i)
-    sigaction(signals_to_forward[i], &old_handlers[i], nullptr);
-
-  // Read build result from socket if it is available.
-  int flags = fcntl(client_socket, F_GETFL, 0);
-  fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
-  int result[2] = {1 /* exit code */, 1 /* compatible */};
+  // Read build result from socket.
+  int result = 1;
   recv(client_socket, &result, sizeof(result), 0);
-  // If the server reports that it was compatible, exit with the given code.
-  // Otherwise, return so that a new compatible server can be started.
-  if (result[1])
-    exit(result[0]);
-}
-
-void SendBuildResult(int exit_code, bool compatible) {
-  if (build_lock_server_fd < 0)
-    Fatal("SendBuildResult called when build lock not held.");
-  int message[2] = {exit_code, compatible ? 1 : 0};
-  sendto(server_socket, &message, sizeof(message), 0, (sockaddr*)&server_socket_source_address, sizeof(server_socket_source_address));
-  close(build_lock_server_fd);
-  build_lock_server_fd = -1;
+  close(client_socket);
+  exit(result);
 }
 
 void SendBuildResult(int exit_code) {
-  SendBuildResult(exit_code, true);
+  if (server_connection < 0)
+    Fatal("SendBuildResult called when not connected.");
+  send(server_connection, &exit_code, sizeof(exit_code), 0);
+  close(server_connection);
+  server_connection = -1;
 }
 
-void WaitForBuildRequest(int argc, char **argv) {
-  static string server_state = GetStateString(argc, argv);
-
+void WaitForBuildRequest(const string &state) {
   // Disconnect from any open console.
   int devnull = open("/dev/null", O_RDWR);
-  for (size_t i = 0; i < std_fds.size(); i++)
-    dup2(devnull, std_fds[i]);
+  for (size_t i = 0; i < num_fds_to_transfer; i++)
+    dup2(devnull, fds_to_transfer[i]);
   close(devnull);
 
-  // Create the build lock for clients to wait on.
-  if (build_lock_server_fd != -1)
-    Fatal("build lock not cleared");
-  struct flock lock = {0};
-  lock.l_type = F_WRLCK;
-  lock.l_whence = SEEK_SET;
-  build_lock_server_fd = open(build_lock_file, O_RDWR | O_CREAT, 0600);
-  fcntl(build_lock_server_fd, F_SETLKW, &lock);
-
-  // Setup to receive file descriptors over a unix domain socket.
-  vector<char> buffer(max_message_size);
-  struct iovec io = { 0 };
-  io.iov_base = buffer.data();
-  io.iov_len = max_message_size;
-  // The union guarantees correct alignment of the buffer.
-  union {
-    char buffer[CMSG_SPACE(sizeof(int) * 3)];
-    struct cmsghdr align;
-  } u;
-  memset(&server_socket_source_address, 0, sizeof(server_socket_source_address));
-  struct msghdr msg = { 0 };
-  msg.msg_iov = &io;
-  msg.msg_iovlen = 1;
-  msg.msg_control = u.buffer;
-  msg.msg_controllen = sizeof(u.buffer);
-  msg.msg_name = &server_socket_source_address;
-  msg.msg_namelen = sizeof(server_socket_source_address);
-  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-  cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = SCM_RIGHTS;
-  cmsg->cmsg_len = CMSG_LEN(sizeof(int) * std_fds.size());
-  // Actually wait for a build request.
-  int received_size = recvmsg(server_socket, &msg, 0);
-  if (received_size < 0 || !cmsg || cmsg->cmsg_level != SOL_SOCKET ||
-      cmsg->cmsg_type != SCM_RIGHTS ||
-      cmsg->cmsg_len != CMSG_LEN(sizeof(int) * std_fds.size())) 
+  // Wait for a build request.
+  server_connection = CHECK_ERRNO(accept(server_socket, NULL, NULL));
+  FileDescriptorMessage<num_fds_to_transfer> message;
+  message.fds[0] = -1;
+  if (CHECK_ERRNO(recvmsg(server_connection, &message.msg, 0)) < (int)sizeof(int) || 
+      message.cmsg.cmsg_len != CMSG_LEN(sizeof(fds_to_transfer)) ||
+      message.fds[0] < 0 || message.data < 0)
     Fatal("Received invalid message.\n");
+
+  // Connect to the console of the client process.
+  for (size_t i = 0; i < num_fds_to_transfer; i++) {
+    dup2(message.fds[i], fds_to_transfer[i]);
+    close(message.fds[i]);
+  }
+
+  // Check compatibility of build state with that sent by the client. The
+  // state is a string and is compatible only if it is identical.
+  vector<char> buffer(message.data);
+  for (int read = 0; read < (int)buffer.size();)
+    read += CHECK_ERRNO(recv(server_connection, buffer.data() + read, buffer.size() - read, 0));
+  int compatible = state == string(buffer.data(), buffer.size());
+  send(server_connection, &compatible, sizeof(compatible), 0);
+  if (!compatible)
+    exit(1);
 
   // Send our PID to the client so it can forward us any signals that come in.
   int pid = getpid();
-  sendto(server_socket, &pid, sizeof(pid), 0, (sockaddr*)&server_socket_source_address, sizeof(server_socket_source_address));
-
-  // Connect to the console of the client process.
-  int *received_fds = (int *) CMSG_DATA(cmsg);
-  for (size_t i = 0; i < std_fds.size(); i++) {
-    dup2(received_fds[i], std_fds[i]);
-    close(received_fds[i]);
-  }
-
-  // Check argument compatibility.
-  string received_state(buffer.data(), received_size);
-  if (server_state != received_state) {
-    SendBuildResult(1, false);
-    exit(1);
-  }
+  send(server_connection, &pid, sizeof(pid), 0);
 }
 
 void ForkBuildServer() {
-  mkdir(ipc_dir, 0700);
-  server_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
+  server_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
   unlink(server_addr.sun_path);
-  bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
+  CHECK_ERRNO(bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)));
+  CHECK_ERRNO(listen(server_socket, 0));
 
   if (fork()) {
     // Parent process, continue as build client.
     close(server_socket);
     server_socket = -1;
-    return;
+  } else {
+    // Disconnect from the terminal and become a persistent daemon.
+    setsid();
   }
-
-  // Hold a lock to inform clients that we are running.
-  int server_lock_fd = open(server_lock_file, O_RDWR | O_CREAT, 0600);
-  struct flock lock = {0};
-  lock.l_type = F_WRLCK;
-  lock.l_whence = SEEK_SET;
-  fcntl(server_lock_fd, F_SETLKW, &lock);
-
-  // Disconnect from the terminal and become a persistent daemon.
-  setsid();
-}
-
-bool BuildServerIsRunning() {
-  if (IsBuildServer())
-    return true;
-  struct flock lock = {0};
-  lock.l_type = F_WRLCK;
-  lock.l_whence = SEEK_SET;
-  int fd = open(server_lock_file, O_RDWR);
-  if (fd == -1)
-    return false;
-  fcntl(fd, F_GETLK, &lock);
-  close(fd);
-  return lock.l_type != F_UNLCK;
 }
 
 void MakeOrWaitForBuildRequest(int argc, char **argv) {
-  if (!BuildServerIsRunning())
+  static const string state = GetStateString(argc, argv);
+  if (IsBuildServer()) {
+    WaitForBuildRequest(state);
+  } else {
+    RequestBuildFromServer(state);
+    // If we get here, we failed to request a build from the server. It was
+    // either not running or it exited without building, possibly because the
+    // state was wrong. Fork a new server with the correct state and try
+    // again.
     ForkBuildServer();
-  if (IsBuildServer())
-    WaitForBuildRequest(argc, argv);
-  else {
-    RequestBuildFromServer(argc, argv);
-    // If we get here, the server exited because of an argument mismatch. Fork
-    // a new server with the correct arguments and try again.
-    ForkBuildServer();
-    if (IsBuildServer())
-      WaitForBuildRequest(argc, argv);
-    else {
-      RequestBuildFromServer(argc, argv);
-      Fatal("Build request should not fail after restarting server.");
+    if (IsBuildServer()) {
+      WaitForBuildRequest(state);
+    } else {
+      RequestBuildFromServer(state);
+      Fatal("Build request should not fail after forking server.");
     }
   }
 }
