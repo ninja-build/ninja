@@ -109,7 +109,7 @@ template<int num_fds> struct FileDescriptorMessage {
 
 /// This function will only return if the server refuses to do a build because
 /// of a mismatch in arguments or other state.
-void RequestBuildFromServer(const string &state) {
+void SendBuildRequestAndExit(const string &state) {
   // Connect to server socket.
   int client_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
   if (connect(client_socket, (struct sockaddr*) &server_addr, sizeof(server_addr)) == -1) {
@@ -157,7 +157,10 @@ void SendBuildResult(int exit_code) {
   server_connection = -1;
 }
 
-void WaitForBuildRequest(const string &state) {
+void WaitForBuildRequest(int argc, char **argv) {
+  static const string state = GetStateString(argc, argv);
+  if (!IsBuildServer())
+    Fatal("Tried to wait for build request when we are not a build server.");
   // Disconnect from any open console.
   int devnull = open("/dev/null", O_RDWR);
   for (size_t i = 0; i < num_fds_to_transfer; i++)
@@ -210,24 +213,16 @@ void ForkBuildServer() {
   }
 }
 
-void MakeOrWaitForBuildRequest(int argc, char **argv) {
-  static const string state = GetStateString(argc, argv);
-  if (IsBuildServer()) {
-    WaitForBuildRequest(state);
-  } else {
-    RequestBuildFromServer(state);
-    // If we get here, we failed to request a build from the server. It was
-    // either not running or it exited without building, possibly because the
-    // state was wrong. Fork a new server with the correct state and try
-    // again.
-    ForkBuildServer();
-    if (IsBuildServer()) {
-      WaitForBuildRequest(state);
-    } else {
-      RequestBuildFromServer(state);
-      Fatal("Build request should not fail after forking server.");
-    }
-  }
+void RequestBuildFromServer(int argc, char **argv) {
+  if (IsBuildServer())
+    return;
+  const string state = GetStateString(argc, argv);
+  SendBuildRequestAndExit(state);
+  ForkBuildServer();
+  if (IsBuildServer())
+    return;
+  SendBuildRequestAndExit(state);
+  Fatal("Build request should not fail after forking server.");
 }
 
 bool IsBuildServer() {

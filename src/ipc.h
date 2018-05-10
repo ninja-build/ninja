@@ -15,12 +15,8 @@
 #ifndef NINJA_IPC_H_
 #define NINJA_IPC_H_
 
-/// If this process is a build server, waits until a client requests a build
-/// before returning. If this process is not a build server, this function
-/// starts a build server if necessary, sends a build request to the server,
-/// and then exits after the build is complete.
-void MakeOrWaitForBuildRequest(int argc, char **argv);
-
+void RequestBuildFromServer(int argc, char **argv);
+void WaitForBuildRequest(int argc, char **argv);
 void SendBuildResult(int exit_code);
 
 /// Returns true if this process is a persistent build server, otherwise false.

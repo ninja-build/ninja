@@ -1197,9 +1197,6 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'p':
         options->persistent = true;
-        // It may be possible for things other than ninja to touch files in
-        // between builds, so don't cache file info.
-        g_experimental_statcache = false;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
@@ -1239,7 +1236,7 @@ NORETURN void real_main(int argc, char** argv) {
         kDepfileDistinctTargetLinesActionError;
   }
 
-  if (options.working_dir && (!options.persistent || !IsBuildServer())) {
+  if (options.working_dir && !(options.persistent && IsBuildServer())) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
@@ -1259,7 +1256,9 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
-  ManifestParser *parser = nullptr;
+  if (options.persistent)
+    RequestBuildFromServer(original_argc, original_argv);
+
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
@@ -1272,28 +1271,13 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
-    bool reparse = true;
-    if (options.persistent) {
-      if (cycle == 1) {
-        MakeOrWaitForBuildRequest(original_argc, original_argv);
-        // If we waited a while, our stat cache may be stale, so throw it out.
-        ninja.disk_interface_.ClearStatCache();
-      }
-      // Only reparse if the manifest has changed.
-      reparse = !parser || parser->OutOfDate();
+    if (!parser.Load(options.input_file, &err)) {
+      Error("%s", err.c_str());
+      exit(1);
     }
-    if (reparse) {
-      delete parser;
-      parser = new ManifestParser(&ninja.state_, &ninja.disk_interface_, parser_opts);
-      if (!parser->Load(options.input_file, &err)) {
-        Error("%s", err.c_str());
-        exit(1);
-      }
-    } else {
-      ninja.state_.Reset();
-    }
-    
+
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
@@ -1306,28 +1290,40 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
-    // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err)) {
-      // In dry_run mode the regeneration will succeed without changing the
-      // manifest forever. Better to return immediately.
-      if (config.dry_run)
-        exit(0);
-      // Start the build over with the new manifest.
-      continue;
-    } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", options.input_file, err.c_str());
-      exit(1);
-    }
+    for (;;) {
+      if (options.persistent && cycle == 1) {
+        WaitForBuildRequest(original_argc, original_argv);
+        // If anything changed while we were waiting, we need to reparse.
+        ninja.disk_interface_.ClearStatCache();
+        if (parser.OutOfDate())
+          break;
+      }
 
-    int result = ninja.RunBuild(argc, argv);
-    if (g_metrics)
-      ninja.DumpMetrics();
-    if (options.persistent && IsBuildServer()) {
-      SendBuildResult(result);
-      cycle = 0;
-      continue;
-    } else {
-      exit(result);
+      // Attempt to rebuild the manifest before building anything else
+      if (ninja.RebuildManifest(options.input_file, &err)) {
+        // In dry_run mode the regeneration will succeed without changing the
+        // manifest forever. Better to return immediately.
+        if (config.dry_run)
+          exit(0);
+        // Start the build over with the new manifest.
+        break;
+      } else if (!err.empty()) {
+        Error("rebuilding '%s': %s", options.input_file, err.c_str());
+        exit(1);
+      }
+
+      int result = ninja.RunBuild(argc, argv);
+      if (g_metrics)
+        ninja.DumpMetrics();
+      if (options.persistent) {
+        SendBuildResult(result);
+        // Loop around and wait for the next build request without reparsing.
+        cycle = 1;
+        ninja.state_.Reset();
+        continue;
+      } else {
+        exit(result);
+      }
     }
   }
 
