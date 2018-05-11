@@ -23,8 +23,14 @@ using namespace std;
 #include "util.h"
 #include "version.h"
 
+// Win32 implementation of IPC for requesting builds from a persistent build
+// server. We use Win32 named pipes for communication and synchronization.
+// Because Win32 doesn't support fork(), when spawning a server we have to use
+// CreateProcess to start a new process from the beginning of main(). We signal
+// to the new process that it should be a build server by creating a Win32 named
+// event object that it can set once it creates the named pipe.
+
 static const int max_message_size = 1024 * 256;
-static const int exit_code_build_not_attempted = 2;
 
 string GetCwd() {
   int size = GetCurrentDirectory(0, NULL);
@@ -53,18 +59,28 @@ string GetStateString(int argc, char **argv) {
   state += '\0';
   // Append environment variables.
   LPTCH env = GetEnvironmentStrings();
-  LPTCH end = env;
-  // Find the end of the environment variables, marked by two consecutive null
-  // chars.
-  while (*end || *(end + 1))
-    ++end;
-  state.append(env, sizeof(TCHAR) * (end - env));
+  // Windows stores some stuff in private env vars starting with '=' that we
+  // want to skip. In particular, the exit code of the previous command, which
+  // will confuse us into thinking a real env var has changed.
+  LPTCH start = env;
+  while (*start == '=') {
+    while (*start) ++start;
+    ++start;
+  }
+  if (*start) {
+    LPTCH end = start;
+    // Find the end of the environment variables, marked by two consecutive null
+    // chars.
+    while (*end || *(end + 1))
+      ++end;
+    state.append(start, sizeof(TCHAR) * (end - start));
+  }
   FreeEnvironmentStrings(env);
   return state;
 }
 
 string GetPipeName() {
-  const int max_len = 246; // max pipe length - required pipe prefix length
+  const int max_len = 246; // max pipe name length - required pipe prefix length
   string cwd = GetCwd().substr(0, max_len);
   replace(cwd.begin(), cwd.end(), '\\', '/');
   return R"(\\.\pipe\)" + cwd;
@@ -85,6 +101,7 @@ void StartServer(int argc, char **argv) {
     args += escaped;
     args += ' ';
   }
+  // Start the process and wait for it to create the pipe before continuing.
   STARTUPINFO si = {0};
   PROCESS_INFORMATION pi = {0};
   HANDLE pipe_created_event = CreateEvent(NULL, TRUE, FALSE, GetEventName().c_str());
@@ -98,36 +115,45 @@ void StartServer(int argc, char **argv) {
   CloseHandle(pi.hThread);
 }
 
-int SendRequestAndGetExitCode(int argc, char **argv) {
+void SendBuildRequestAndExit(int argc, char **argv) {
   string name = GetPipeName();
   // If another client is already talking to the server, wait for it.
   if (!WaitNamedPipe(name.c_str(), NMPWAIT_WAIT_FOREVER)) {
     // Pipe doesn't exist.
     StartServer(argc, argv);
   }
+  // Connect to server pipe.
+  HANDLE client_pipe = CreateFile(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+  if (client_pipe == INVALID_HANDLE_VALUE)
+    Win32Fatal("CreateFile");
+  // Send our pid and state string to the server.
   vector<char> send_buffer(max_message_size);
-  vector<char> receive_buffer(max_message_size);
   int pid = GetCurrentProcessId();
   memcpy(send_buffer.data(), &pid, sizeof(pid));
   string state = GetStateString(argc, argv);
   if (state.size() > max_message_size - sizeof(pid))
     Fatal("State too large.");
   memcpy(send_buffer.data() + sizeof(pid), state.data(), state.size());
-  HANDLE client_pipe = CreateFile(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-  if (client_pipe == INVALID_HANDLE_VALUE) Win32Fatal("CreateFile");
   DWORD bytes_written = 0;
   if (!WriteFile(client_pipe, send_buffer.data(), state.size() + sizeof(pid), &bytes_written, NULL))
     Win32Fatal("write to pipe");
   if (bytes_written != state.size() + sizeof(pid))
     Fatal("Didn't send correct number of bytes.");
-  int exit_code = 1;
+  // Check whether the server reports it's compatible or not.
   DWORD bytes_read = 0;
-  if (ReadFile(client_pipe, receive_buffer.data(), receive_buffer.size(), &bytes_read, nullptr)
-      && bytes_read == sizeof(int)) {
-    exit_code = *(int*)receive_buffer.data();
+  int compatible = 0;
+  if (!ReadFile(client_pipe, &compatible, sizeof(compatible), &bytes_read, nullptr)
+      || bytes_read != sizeof(compatible)) {
+    Win32Fatal("ReadFile in SendBuildRequestAndExit");
   }
+  if (!compatible) {
+    return;
+  }
+  // Wait for the build to complete and receive the exit code if available.
+  int exit_code = 1;
+  ReadFile(client_pipe, &exit_code, sizeof(exit_code), &bytes_read, nullptr);
   CloseHandle(client_pipe);
-  return exit_code;
+  exit(exit_code);
 }
 
 static HANDLE server_pipe = INVALID_HANDLE_VALUE;
@@ -166,44 +192,50 @@ void SendBuildResult(int exit_code) {
       || bytes_written != sizeof(exit_code)) {
     Fatal("Write failed in SendBuildResult");
   }
+  DisconnectNamedPipe(server_pipe);
 }
 
 void WaitForBuildRequest(int argc, char **argv) {
   if (!IsBuildServer())
     Fatal("WaitForBuildRequest called when we are not a build server.");
-  DisconnectNamedPipe(server_pipe);
+  // Disconnect from any console window.
   FreeConsole();
-  if (!ConnectNamedPipe(server_pipe, NULL)) {
+  // Wait for a client.
+  if (!ConnectNamedPipe(server_pipe, NULL) && GetLastError() != ERROR_PIPE_CONNECTED) {
     Win32Fatal("ConnectNamedPipe");
   }
+  // Receive the client's pid and state string.
   vector<char> receive_buffer(max_message_size);
   DWORD bytes_read;
   if (!ReadFile(server_pipe, receive_buffer.data(), receive_buffer.size(), &bytes_read, NULL)
       || bytes_read < sizeof(int)) {
     Win32Fatal("ReadFile");
   }
+  // Attach to the client's console.
   int client_pid = *(int*)receive_buffer.data();
+  AttachConsole(client_pid);
+  // Check that our state is compatible with the client's state.
   string state = GetStateString(argc, argv);
   string client_state(receive_buffer.data() + sizeof(int), bytes_read - sizeof(int));
-  if (state != client_state) {
-    SendBuildResult(exit_code_build_not_attempted);
-    exit(exit_code_build_not_attempted);
+  DWORD bytes_written;
+  int compatible = state == client_state;
+  if (!WriteFile(server_pipe, &compatible, sizeof(compatible), &bytes_written, NULL)
+      || bytes_written != sizeof(compatible)) {
+    Fatal("Write failed in WaitForBuildRequest");
   }
-  AttachConsole(client_pid);
+  if (!compatible) {
+    exit(1);
+  }
 }
 
-void MakeOrWaitForBuildRequest(int argc, char **argv) {
-  if (IsBuildServer()) {
-    WaitForBuildRequest(argc, argv);
+void RequestBuildFromServer(int argc, char **argv) {
+  if (IsBuildServer())
     return;
-  }
-  int exit_code = SendRequestAndGetExitCode(argc, argv);
-  if (exit_code == exit_code_build_not_attempted) {
-    // The server exited without attempting a build, probably because the
-    // arguments changed. Try again, which will start a new server with the
-    // right arguments. But first, wait for the server to delete the pipe.
-    WaitNamedPipe(GetPipeName().c_str(), NMPWAIT_WAIT_FOREVER);
-    exit_code = SendRequestAndGetExitCode(argc, argv);
-  }
-  exit(exit_code);
+  SendBuildRequestAndExit(argc, argv);
+  // The server is exiting without attempting a build, probably because the
+  // arguments changed. Try again, which will start a new server with the right
+  // arguments. But first, wait for the server to delete the pipe.
+  WaitNamedPipe(GetPipeName().c_str(), NMPWAIT_WAIT_FOREVER);
+  SendBuildRequestAndExit(argc, argv);
+  Fatal("Build request should not fail after restarting server.");
 }
