@@ -14,34 +14,51 @@
 
 #include "ipc.h"
 
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <unistd.h>
-#include <signal.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
 using namespace std;
 
-#include "version.h"
 #include "util.h"
+#include "version.h"
 
-#define CHECK_ERRNO(x) ({ typeof(x) _x = (x); if (_x == -1) Fatal("%s:%d %s: %s", __FILE__, __LINE__, #x, strerror(errno)); _x;})
+#define CHECK_ERRNO(x)                                                \
+  ({                                                                  \
+    typeof(x) _x = (x);                                               \
+    if (_x == -1)                                                     \
+      Fatal("%s:%d %s: %s", __FILE__, __LINE__, #x, strerror(errno)); \
+    _x;                                                               \
+  })
 
 // POSIX implementation of IPC for requesting builds from a persistent build
 // server. We use Unix domain sockets for their ability to transfer file
 // descriptors between processes. This allows the server process to connect to
 // the client process's terminal to receive input and print messages.
 
-static const sockaddr_un server_addr = { AF_UNIX, "./.ninja_ipc" };
-static const int fds_to_transfer[] = { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO };
-static const int num_fds_to_transfer = sizeof(fds_to_transfer) / sizeof(fds_to_transfer[0]);
+static const int fds_to_transfer[] = {STDIN_FILENO, STDOUT_FILENO,
+                                      STDERR_FILENO};
+static const int num_fds_to_transfer =
+    sizeof(fds_to_transfer) / sizeof(fds_to_transfer[0]);
 static int server_socket = -1;
 static int server_connection = -1;
+
+const sockaddr_un &ServerAddress() {
+  static sockaddr_un address = {};
+  address.sun_family = AF_UNIX;
+  strcpy(address.sun_path, "./.ninja_ipc");
+  return address;
+}
+static const sockaddr_un server_address = ServerAddress();
 
 /// In the client process we want to catch signals so we can forward them to
 /// the builder process before exiting.
@@ -51,6 +68,7 @@ void ForwardSignalAndExit(int sig, siginfo_t *, void *) {
   exit(1);
 }
 
+extern char **environ;
 /// Returns a string containing all of the state that can affect a build, such
 /// as ninja version and arguments. The server checks to make sure this
 /// matches the client before building.
@@ -65,7 +83,7 @@ string GetStateString(int argc, char **argv) {
   state += kNinjaVersion;
   state += '\0';
   // Environment variables
-  for (char **env_var = environ; *env_var != NULL; env_var++) { 
+  for (char **env_var = environ; *env_var != NULL; env_var++) {
     state += *env_var;
     state += '\0';
   }
@@ -78,23 +96,24 @@ string GetStateString(int argc, char **argv) {
   if (readlink("/proc/self/exe", buffer.data(), buffer.size() - 1) != -1 &&
       stat(buffer.data(), &file) != -1)
     state.append((char *)&file.st_mtim, sizeof(file.st_mtim));
-#endif // linux
+#endif  // linux
   return state;
 }
 
 /// Allocates the structs required to send or receive a unix domain socket
 /// message consisting of one int plus some file descriptors.
-template<int num_fds> struct FileDescriptorMessage {
-  struct msghdr msg = {0};
-  struct iovec io = {0};
-  int *fds = (int*)CMSG_DATA(&cmsg);
-  int data = 0;
+template <int num_fds>
+struct FileDescriptorMessage {
+  struct msghdr msg;
+  struct iovec io;
+  int data;
+  int *fds;
   union {
     char cmsg_space[CMSG_SPACE(sizeof(int) * num_fds)];
     struct cmsghdr cmsg;
   };
 
-  FileDescriptorMessage() {
+  FileDescriptorMessage() : msg(), io(), data(0), fds((int *)CMSG_DATA(&cmsg)) {
     io.iov_base = &data;
     io.iov_len = sizeof(data);
     msg.msg_iov = &io;
@@ -112,7 +131,8 @@ template<int num_fds> struct FileDescriptorMessage {
 void SendBuildRequestAndExit(const string &state) {
   // Connect to server socket.
   int client_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
-  if (connect(client_socket, (struct sockaddr*) &server_addr, sizeof(server_addr)) == -1) {
+  if (connect(client_socket, (struct sockaddr *)&server_address,
+              sizeof(server_address)) == -1) {
     // Server not running.
     close(client_socket);
     return;
@@ -137,10 +157,11 @@ void SendBuildRequestAndExit(const string &state) {
   // Forward termination signals (e.g. Control-C) to server while waiting for
   // build to complete.
   CHECK_ERRNO(recv(client_socket, &server_pid, sizeof(server_pid), 0));
-  struct sigaction sa = {0};
+  struct sigaction sa = {};
   sa.sa_sigaction = &ForwardSignalAndExit;
-  for (int sig : vector<int>{ SIGINT, SIGTERM, SIGHUP })
-    sigaction(sig, &sa, nullptr);
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGTERM, &sa, NULL);
+  sigaction(SIGHUP, &sa, NULL);
 
   // Read build result from socket.
   int result = 1;
@@ -171,7 +192,8 @@ void WaitForBuildRequest(int argc, char **argv) {
   server_connection = CHECK_ERRNO(accept(server_socket, NULL, NULL));
   FileDescriptorMessage<num_fds_to_transfer> message;
   message.fds[0] = -1;
-  if (CHECK_ERRNO(recvmsg(server_connection, &message.msg, 0)) < (int)sizeof(int) || 
+  if (CHECK_ERRNO(recvmsg(server_connection, &message.msg, 0)) <
+          (int)sizeof(int) ||
       message.cmsg.cmsg_len != CMSG_LEN(sizeof(fds_to_transfer)) ||
       message.fds[0] < 0 || message.data < 0)
     Fatal("Received invalid message.\n");
@@ -186,11 +208,11 @@ void WaitForBuildRequest(int argc, char **argv) {
   // state is a string and is compatible only if it is identical.
   vector<char> buffer(message.data);
   for (int read = 0; read < (int)buffer.size();)
-    read += CHECK_ERRNO(recv(server_connection, buffer.data() + read, buffer.size() - read, 0));
+    read += CHECK_ERRNO(
+        recv(server_connection, buffer.data() + read, buffer.size() - read, 0));
   int compatible = state == string(buffer.data(), buffer.size());
   send(server_connection, &compatible, sizeof(compatible), 0);
-  if (!compatible)
-    exit(1);
+  if (!compatible) exit(1);
 
   // Send our PID to the client so it can forward us any signals that come in.
   int pid = getpid();
@@ -199,8 +221,9 @@ void WaitForBuildRequest(int argc, char **argv) {
 
 void ForkBuildServer() {
   server_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
-  unlink(server_addr.sun_path);
-  CHECK_ERRNO(bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)));
+  unlink(server_address.sun_path);
+  CHECK_ERRNO(bind(server_socket, (struct sockaddr *)&server_address,
+                   sizeof(server_address)));
   CHECK_ERRNO(listen(server_socket, 0));
 
   if (fork()) {
@@ -214,17 +237,13 @@ void ForkBuildServer() {
 }
 
 void RequestBuildFromServer(int argc, char **argv) {
-  if (IsBuildServer())
-    return;
+  if (IsBuildServer()) return;
   const string state = GetStateString(argc, argv);
   SendBuildRequestAndExit(state);
   ForkBuildServer();
-  if (IsBuildServer())
-    return;
+  if (IsBuildServer()) return;
   SendBuildRequestAndExit(state);
   Fatal("Build request should not fail after forking server.");
 }
 
-bool IsBuildServer() {
-  return server_socket >= 0;
-}
+bool IsBuildServer() { return server_socket >= 0; }

@@ -34,7 +34,7 @@ ManifestParser::ManifestParser(State* state, DiskInterface* disk_interface,
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
   paths_.push_back(filename);
-  mtimes_.push_back(disk_interface_->Stat(filename, nullptr));
+  mtimes_.push_back(disk_interface_->Stat(filename, NULL));
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -437,7 +437,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
 bool ManifestParser::OutOfDate() {
   for (size_t i = 0; i < paths_.size(); i++)
-    if (disk_interface_->Stat(paths_[i], nullptr) != mtimes_[i])
+    if (disk_interface_->Stat(paths_[i], NULL) != mtimes_[i])
       return true;
   return false;
 }
