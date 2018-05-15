@@ -34,7 +34,10 @@ ManifestParser::ManifestParser(State* state, DiskInterface* disk_interface,
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
   paths_.push_back(filename);
-  mtimes_.push_back(disk_interface_->Stat(filename, NULL));
+  if (disk_interface_)
+    mtimes_.push_back(disk_interface_->Stat(filename, err));
+  else
+    mtimes_.push_back(-1);
   lexer_.Start(filename, input);
 
   for (;;) {
