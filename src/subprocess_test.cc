@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "subprocess.h"
+#include "tokenpool.h"
 
 #include "test.h"
 
@@ -34,8 +35,23 @@ const char* kSimpleCommand = "cmd /c dir \\";
 const char* kSimpleCommand = "ls /";
 #endif
 
+struct TokenPoolTest : public TokenPool {
+  bool Acquire()     { return false; }
+  void Reserve()     {}
+  void Release()     {}
+  void Clear()       {}
+
+#ifdef _WIN32
+  // @TODO
+#else
+  int _fd;
+  int GetMonitorFd() { return _fd; }
+#endif
+};
+
 struct SubprocessTest : public testing::Test {
   SubprocessSet subprocs_;
+  TokenPoolTest tokens_;
 };
 
 }  // anonymous namespace
@@ -278,5 +294,65 @@ TEST_F(SubprocessTest, ReadStdin) {
   ASSERT_EQ(false, subprocs_.IsTokenAvailable());
   ASSERT_EQ(ExitSuccess, subproc->Finish());
   ASSERT_EQ(1u, subprocs_.finished_.size());
+}
+#endif  // _WIN32
+
+// @TODO: remove once TokenPool implementation for Windows is available
+#ifndef _WIN32
+TEST_F(SubprocessTest, TokenAvailable) {
+  Subprocess* subproc = subprocs_.Add(kSimpleCommand);
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  // simulate GNUmake jobserver pipe with 1 token
+  int fds[2];
+  ASSERT_EQ(0u, pipe(fds));
+  tokens_._fd = fds[0];
+  ASSERT_EQ(1u, write(fds[1], "T", 1));
+
+  subprocs_.ResetTokenAvailable();
+  subprocs_.DoWork(&tokens_);
+
+  EXPECT_TRUE(subprocs_.IsTokenAvailable());
+  EXPECT_EQ(0u, subprocs_.finished_.size());
+
+  // remove token to let DoWork() wait for command again
+  char token;
+  ASSERT_EQ(1u, read(fds[0], &token, 1));
+
+  while (!subproc->Done()) {
+    subprocs_.DoWork(&tokens_);
+  }
+
+  close(fds[1]);
+  close(fds[0]);
+
+  EXPECT_EQ(ExitSuccess, subproc->Finish());
+  EXPECT_NE("", subproc->GetOutput());
+
+  EXPECT_EQ(1u, subprocs_.finished_.size());
+}
+
+TEST_F(SubprocessTest, TokenNotAvailable) {
+  Subprocess* subproc = subprocs_.Add(kSimpleCommand);
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  // simulate GNUmake jobserver pipe with 0 tokens
+  int fds[2];
+  ASSERT_EQ(0u, pipe(fds));
+  tokens_._fd = fds[0];
+
+  subprocs_.ResetTokenAvailable();
+  while (!subproc->Done()) {
+    subprocs_.DoWork(&tokens_);
+  }
+
+  close(fds[1]);
+  close(fds[0]);
+
+  EXPECT_FALSE(subprocs_.IsTokenAvailable());
+  EXPECT_EQ(ExitSuccess, subproc->Finish());
+  EXPECT_NE("", subproc->GetOutput());
+
+  EXPECT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
