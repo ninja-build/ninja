@@ -611,6 +611,7 @@ for name in ['build_log_test',
              'string_piece_util_test',
              'subprocess_test',
              'test',
+             'tokenpool_test',
              'util_test']:
     objs += cxx(name, variables=cxxvariables)
 if platform.is_windows():
