@@ -225,10 +225,8 @@ int GuessParallelism() {
   case 0:
   case 1:
     return 2;
-  case 2:
-    return 3;
   default:
-    return processors + 2;
+    return processors;
   }
 }
 
