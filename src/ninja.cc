@@ -223,8 +223,7 @@ void Usage(const BuildConfig& config) {
 int GuessParallelism() {
   switch (int processors = GetProcessorCount()) {
   case 0:
-  case 1:
-    return 2;
+    return 1;
   default:
     return processors;
   }
