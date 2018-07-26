@@ -90,6 +90,8 @@ string ElideMiddle(const string& str, size_t width);
 /// Truncates a file to the given size.
 bool Truncate(const string& path, size_t size, string* err);
 
+bool IsAnsiCodeForced();
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno

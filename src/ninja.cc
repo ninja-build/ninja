@@ -1059,7 +1059,15 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   }
 
   if (!builder.Build(&err)) {
+#if 0
     printf("ninja: build stopped: %s.\n", err.c_str());
+#else     
+  if(IsAnsiCodeForced()){
+    printf("\x1b[31m" "FAILED:" "\x1b[0m" " %s.\n", err.c_str());    
+  } else {
+    printf("FAILED: %s.\n", err.c_str());    
+  }
+#endif
     if (err.find("interrupted by user") != string::npos) {
       return 2;
     }
@@ -1199,7 +1207,7 @@ NORETURN void real_main(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool)
+    if (!options.tool && config.verbosity == BuildConfig::VERBOSE)
       printf("ninja: Entering directory `%s'\n", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));

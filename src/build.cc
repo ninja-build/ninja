@@ -150,8 +150,12 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
-
-    printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    if(IsAnsiCodeForced() || printer_.is_smart_terminal()){
+      printer_.PrintOnNewLine("\x1b[31mFAILED:\x1b[0m " + outputs + "\n");
+    } else {
+      printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    }
+    
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
@@ -169,7 +173,10 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
+    if (
+        !IsAnsiCodeForced()
+        && !printer_.is_smart_terminal()
+        )
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
