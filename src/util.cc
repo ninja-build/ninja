@@ -54,9 +54,34 @@
 #include "edit_distance.h"
 #include "metrics.h"
 
+
+bool IsAnsiCodeForced(){
+  static int initialized = -1;
+  if(initialized == 0){
+    return true;
+  } else if(initialized > 0){
+    return false;
+  } else {
+    const char* tmp = getenv("NINJA_ANSI_FORCED");
+    if(tmp && strcmp(tmp,"false") != 0){
+      initialized = 0;
+      return true;
+    } else {
+      initialized = 1;
+      return false;
+    }
+  }
+}
+
+
 void Fatal(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: fatal: ");
+  if (IsAnsiCodeForced()){
+    fprintf(stderr, "\x1b[31m" "ninja: fatal: " "\x1b[0m");
+  } else {
+    fprintf(stderr, "ninja: fatal: ");
+  }
+  
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -74,7 +99,11 @@ void Fatal(const char* msg, ...) {
 
 void Warning(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: warning: ");
+  if (IsAnsiCodeForced()){
+    fprintf(stderr, "\x1b[31m" "ninja: warning: " "\x1b[0m");
+  } else {
+    fprintf(stderr, "ninja: warning: ");
+  }
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -83,7 +112,11 @@ void Warning(const char* msg, ...) {
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: error: ");
+  if (IsAnsiCodeForced()){
+    fprintf(stderr, "\x1b[31m" "ninja: error: " "\x1b[0m");
+  } else {
+    fprintf(stderr, "ninja: error: ");
+  }
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
@@ -604,3 +637,4 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
