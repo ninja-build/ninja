@@ -203,7 +203,21 @@ string BuildStatus::FormatProgressStatus(
   char buf[32];
   int percent;
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
-    if (*s == '%') {
+    // Support ANSI color escape codes in NINJA_STATUS
+    if (strncmp(s, "\\033[", 5) == 0) {
+        const char *end = strchr(s + 5, 'm');
+        if (end == NULL) {
+            // Not a valid ANSI color sequence, treat as regular text
+        } else {
+            out.append("\x1B[");
+            for (const char *t = s + 5; t <= end; ++t) {
+                out.push_back(*t);
+            }
+            s = end;
+            continue;
+        }
+    }
+    else if (*s == '%') {
       ++s;
       switch (*s) {
       case '%':

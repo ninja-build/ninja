@@ -570,10 +570,23 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
+// Calculate the width of a string accounting for ANSI escape codes
+size_t CalculateWidth(const string& str) {
+    const int initial_width = str.size();
+    size_t zero_width_start = str.find("\x1B[");
+    if (zero_width_start != string::npos) {
+       size_t zero_width_end = str.find("m", zero_width_start);
+       if (zero_width_end != string::npos) {
+           return initial_width - (zero_width_end - zero_width_start) - 1;
+       }
+    }
+    return initial_width;
+}
+
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() + kMargin > width) {
+  if (CalculateWidth(result) + kMargin > width) {
     size_t elide_size = (width - kMargin) / 2;
     result = result.substr(0, elide_size)
       + "..."
