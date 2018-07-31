@@ -89,8 +89,12 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     printer_.set_smart_terminal(false);
 
   progress_status_format_ = getenv("NINJA_STATUS");
-  if (!progress_status_format_)
-    progress_status_format_ = "[%f/%t] ";
+  if (!progress_status_format_) {
+    if (printer_.is_smart_terminal())
+      progress_status_format_ = "\\033[32m[%f/%t] \\033[0m";
+    else
+      progress_status_format_ = "[%f/%t] ";
+  }
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -151,7 +155,10 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
-    printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    if (printer_.is_smart_terminal())
+      printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+    else
+      printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
