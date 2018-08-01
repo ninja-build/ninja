@@ -25,6 +25,7 @@
 #elif defined(_AIX)
 #include "getopt.h"
 #include <unistd.h>
+#include "aix_port.h"
 #else
 #include <getopt.h>
 #include <unistd.h>
