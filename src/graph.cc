@@ -293,7 +293,7 @@ struct EdgeEnv : public Env {
   /// line.
   string MakePathList(vector<Node*>::iterator begin,
                       vector<Node*>::iterator end,
-                      char sep);
+                      char sep) const;
 
  private:
   vector<string> lookups_;
@@ -340,7 +340,7 @@ string EdgeEnv::LookupVariable(const string& var) {
 
 string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
                              vector<Node*>::iterator end,
-                             char sep) {
+                             char sep) const {
   string result;
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())

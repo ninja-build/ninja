@@ -267,7 +267,7 @@ struct BuildStatus {
 
     void Restart() { stopwatch_.Restart(); }
     double Elapsed() const { return stopwatch_.Elapsed(); }
-    double rate() { return rate_; }
+    double rate() const { return rate_; }
 
     void UpdateRate(int edges) {
       if (edges && stopwatch_.Elapsed())
@@ -283,7 +283,7 @@ struct BuildStatus {
     SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }
-    double rate() { return rate_; }
+    double rate() const { return rate_; }
 
     void UpdateRate(int update_hint) {
       if (update_hint == last_update_)

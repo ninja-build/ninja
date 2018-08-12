@@ -355,7 +355,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   return NULL;
 }
 
-bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) const {
   return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;

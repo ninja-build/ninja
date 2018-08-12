@@ -82,7 +82,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual int RemoveFile(const string& path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
-  void AllowStatCache(bool allow);
+  void AllowStatCache(bool allow) const;
 
  private:
 #ifdef _WIN32

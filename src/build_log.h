@@ -61,7 +61,7 @@ struct BuildLog {
     static uint64_t HashCommand(StringPiece command);
 
     // Used by tests.
-    bool operator==(const LogEntry& o) {
+    bool operator==(const LogEntry& o) const {
       return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
           mtime == o.mtime;
@@ -76,7 +76,7 @@ struct BuildLog {
   LogEntry* LookupByOutput(const string& path);
 
   /// Serialize an entry into a log file.
-  bool WriteEntry(FILE* f, const LogEntry& entry);
+  bool WriteEntry(FILE* f, const LogEntry& entry) const;
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, const BuildLogUser& user, string* err);

@@ -55,7 +55,7 @@ struct Lexer {
 
   /// If the last token read was an ERROR token, provide more info
   /// or the empty string.
-  string DescribeLastError();
+  string DescribeLastError() const;
 
   /// Start parsing some input.
   void Start(StringPiece filename, StringPiece input);

@@ -100,7 +100,7 @@ const char* Lexer::TokenErrorHint(Token expected) {
   }
 }
 
-string Lexer::DescribeLastError() {
+string Lexer::DescribeLastError() const {
   if (last_token_) {
     switch (last_token_[0]) {
     case '\t':
