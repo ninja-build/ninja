@@ -33,7 +33,7 @@ struct Rule;
 /// Pools are scoped to a State. Edges within a State will share Pools. A Pool
 /// will keep a count of the total 'weight' of the currently scheduled edges. If
 /// a Plan attempts to schedule an Edge which would cause the total weight to
-/// exceed the depth of the Pool, the Pool will enque the Edge instead of
+/// exceed the depth of the Pool, the Pool will enqueue the Edge instead of
 /// allowing the Plan to schedule it. The Pool will relinquish queued Edges when
 /// the total scheduled weight diminishes enough (i.e. when a scheduled edge
 /// completes).
