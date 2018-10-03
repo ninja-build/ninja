@@ -880,7 +880,8 @@ quoting rules are deterimined by the called program, which on Windows
 are usually provided by the C library.  If you need shell
 interpretation of the command (such as the use of `&&` to chain
 multiple commands), make the command execute the Windows shell by
-prefixing the command with `cmd /c`.
+prefixing the command with `cmd /c`. Ninja may error with "invalid parameter"
+which usually indicates that the command line length has been exceeded.
 
 [[ref_outputs]]
 Build outputs
