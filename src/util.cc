@@ -432,8 +432,12 @@ string GetLastErrorString() {
   return msg;
 }
 
-void Win32Fatal(const char* function) {
-  Fatal("%s: %s", function, GetLastErrorString().c_str());
+void Win32Fatal(const char* function, const char* hint) {
+  if (hint) {
+    Fatal("%s: %s (%s)", function, GetLastErrorString().c_str(), hint);
+  } else {
+    Fatal("%s: %s", function, GetLastErrorString().c_str());
+  }
 }
 #endif
 
