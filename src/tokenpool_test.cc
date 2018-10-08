@@ -16,13 +16,25 @@
 
 #include "test.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
+#ifdef _WIN32
+// should contain all valid characters
+#define SEMAPHORE_NAME      "abcdefghijklmnopqrstwxyz01234567890_"
+#define AUTH_FORMAT(tmpl)   "foo " tmpl "=%s bar"
+#define ENVIRONMENT_CLEAR() SetEnvironmentVariable("MAKEFLAGS", NULL)
+#define ENVIRONMENT_INIT(v) SetEnvironmentVariable("MAKEFLAGS", v)
+#else
+#define AUTH_FORMAT(tmpl)   "foo " tmpl "=%d,%d bar"
 #define ENVIRONMENT_CLEAR() unsetenv("MAKEFLAGS")
-#define ENVIRONMENT_INIT(v) setenv("MAKEFLAGS", v, true);
+#define ENVIRONMENT_INIT(v) setenv("MAKEFLAGS", v, true)
 #endif
 
 namespace {
@@ -32,43 +44,60 @@ const double kLoadAverageDefault = -1.23456789;
 struct TokenPoolTest : public testing::Test {
   double load_avg_;
   TokenPool *tokens_;
-#ifndef _WIN32
   char buf_[1024];
+#ifdef _WIN32
+  const char *semaphore_name_;
+  HANDLE semaphore_;
+#else
   int fds_[2];
 #endif
 
   virtual void SetUp() {
     load_avg_ = kLoadAverageDefault;
     tokens_ = NULL;
-#ifndef _WIN32
     ENVIRONMENT_CLEAR();
+#ifdef _WIN32
+    semaphore_name_ = SEMAPHORE_NAME;
+    if ((semaphore_ = CreateSemaphore(0, 0, 2, SEMAPHORE_NAME)) == NULL)
+#else
     if (pipe(fds_) < 0)
-      ASSERT_TRUE(false);
 #endif
+      ASSERT_TRUE(false);
   }
 
-  void CreatePool(const char *format, bool ignore_jobserver) {
-#ifndef _WIN32
+  void CreatePool(const char *format, bool ignore_jobserver = false) {
     if (format) {
-      sprintf(buf_, format, fds_[0], fds_[1]);
+      sprintf(buf_, format,
+#ifdef _WIN32
+              semaphore_name_
+#else
+              fds_[0], fds_[1]
+#endif
+      );
       ENVIRONMENT_INIT(buf_);
     }
-#endif
-    tokens_ = TokenPool::Get(ignore_jobserver, false, load_avg_);
+    if ((tokens_ = TokenPool::Get()) != NULL) {
+      if (!tokens_->Setup(ignore_jobserver, false, load_avg_)) {
+        delete tokens_;
+        tokens_ = NULL;
+      }
+    }
   }
 
   void CreateDefaultPool() {
-    CreatePool("foo --jobserver-auth=%d,%d bar", false);
+    CreatePool(AUTH_FORMAT("--jobserver-auth"));
   }
 
   virtual void TearDown() {
     if (tokens_)
       delete tokens_;
-#ifndef _WIN32
+#ifdef _WIN32
+    CloseHandle(semaphore_);
+#else
     close(fds_[0]);
     close(fds_[1]);
-    ENVIRONMENT_CLEAR();
 #endif
+    ENVIRONMENT_CLEAR();
   }
 };
 
@@ -82,10 +111,9 @@ TEST_F(TokenPoolTest, NoTokenPool) {
   EXPECT_EQ(kLoadAverageDefault, load_avg_);
 }
 
-#ifndef _WIN32
 TEST_F(TokenPoolTest, SuccessfulOldSetup) {
   // GNUmake <= 4.1
-  CreatePool("foo --jobserver-fds=%d,%d bar", false);
+  CreatePool(AUTH_FORMAT("--jobserver-fds"));
 
   EXPECT_NE(NULL, tokens_);
   EXPECT_EQ(kLoadAverageDefault, load_avg_);
@@ -100,19 +128,37 @@ TEST_F(TokenPoolTest, SuccessfulNewSetup) {
 }
 
 TEST_F(TokenPoolTest, IgnoreWithJN) {
-  CreatePool("foo --jobserver-auth=%d,%d bar", true);
+  CreatePool(AUTH_FORMAT("--jobserver-auth"), true);
 
   EXPECT_EQ(NULL, tokens_);
   EXPECT_EQ(kLoadAverageDefault, load_avg_);
 }
 
 TEST_F(TokenPoolTest, HonorLN) {
-  CreatePool("foo -l9 --jobserver-auth=%d,%d bar", false);
+  CreatePool(AUTH_FORMAT("-l9 --jobserver-auth"));
 
   EXPECT_NE(NULL, tokens_);
   EXPECT_EQ(9.0, load_avg_);
 }
 
+#ifdef _WIN32
+TEST_F(TokenPoolTest, SemaphoreNotFound) {
+  semaphore_name_ = SEMAPHORE_NAME "_foobar";
+  CreateDefaultPool();
+
+  EXPECT_EQ(NULL, tokens_);
+  EXPECT_EQ(kLoadAverageDefault, load_avg_);
+}
+
+TEST_F(TokenPoolTest, TokenIsAvailable) {
+  CreateDefaultPool();
+
+  ASSERT_NE(NULL, tokens_);
+  EXPECT_EQ(kLoadAverageDefault, load_avg_);
+
+  EXPECT_TRUE(tokens_->TokenIsAvailable((ULONG_PTR)tokens_));
+}
+#else
 TEST_F(TokenPoolTest, MonitorFD) {
   CreateDefaultPool();
 
@@ -121,6 +167,7 @@ TEST_F(TokenPoolTest, MonitorFD) {
 
   EXPECT_EQ(fds_[0], tokens_->GetMonitorFd());
 }
+#endif
 
 TEST_F(TokenPoolTest, ImplicitToken) {
   CreateDefaultPool();
@@ -147,7 +194,13 @@ TEST_F(TokenPoolTest, TwoTokens) {
   EXPECT_FALSE(tokens_->Acquire());
 
   // jobserver offers 2nd token
+#ifdef _WIN32
+  LONG previous;
+  ASSERT_TRUE(ReleaseSemaphore(semaphore_, 1, &previous));
+  ASSERT_EQ(0, previous);
+#else
   ASSERT_EQ(1u, write(fds_[1], "T", 1));
+#endif
   EXPECT_TRUE(tokens_->Acquire());
   tokens_->Reserve();
   EXPECT_FALSE(tokens_->Acquire());
@@ -160,8 +213,14 @@ TEST_F(TokenPoolTest, TwoTokens) {
   tokens_->Release();
   EXPECT_TRUE(tokens_->Acquire());
 
-  // there must be one token in the pipe
+  // there must be one token available
+#ifdef _WIN32
+  EXPECT_EQ(WAIT_OBJECT_0, WaitForSingleObject(semaphore_, 0));
+  EXPECT_TRUE(ReleaseSemaphore(semaphore_, 1, &previous));
+  EXPECT_EQ(0, previous);
+#else
   EXPECT_EQ(1u, read(fds_[0], buf_, sizeof(buf_)));
+#endif
 
   // implicit token
   EXPECT_TRUE(tokens_->Acquire());
@@ -179,7 +238,13 @@ TEST_F(TokenPoolTest, Clear) {
   EXPECT_FALSE(tokens_->Acquire());
 
   // jobserver offers 2nd & 3rd token
+#ifdef _WIN32
+  LONG previous;
+  ASSERT_TRUE(ReleaseSemaphore(semaphore_, 2, &previous));
+  ASSERT_EQ(0, previous);
+#else
   ASSERT_EQ(2u, write(fds_[1], "TT", 2));
+#endif
   EXPECT_TRUE(tokens_->Acquire());
   tokens_->Reserve();
   EXPECT_TRUE(tokens_->Acquire());
@@ -189,10 +254,16 @@ TEST_F(TokenPoolTest, Clear) {
   tokens_->Clear();
   EXPECT_TRUE(tokens_->Acquire());
 
-  // there must be two tokens in the pipe
+  // there must be two tokens available
+#ifdef _WIN32
+  EXPECT_EQ(WAIT_OBJECT_0, WaitForSingleObject(semaphore_, 0));
+  EXPECT_EQ(WAIT_OBJECT_0, WaitForSingleObject(semaphore_, 0));
+  EXPECT_TRUE(ReleaseSemaphore(semaphore_, 2, &previous));
+  EXPECT_EQ(0, previous);
+#else
   EXPECT_EQ(2u, read(fds_[0], buf_, sizeof(buf_)));
+#endif
 
   // implicit token
   EXPECT_TRUE(tokens_->Acquire());
 }
-#endif

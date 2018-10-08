@@ -14,9 +14,27 @@
 
 #include "tokenpool.h"
 
-#include <stdlib.h>
+// interface to GNU make token pool
+struct GNUmakeTokenPool : public TokenPool {
+  GNUmakeTokenPool();
+  virtual ~GNUmakeTokenPool();
 
-// No-op TokenPool implementation
-struct TokenPool *TokenPool::Get() {
-  return NULL;
-}
+  // token pool implementation
+  virtual bool Acquire();
+  virtual void Reserve();
+  virtual void Release();
+  virtual void Clear();
+  virtual bool Setup(bool ignore, bool verbose, double& max_load_average);
+
+  // platform specific implementation
+  virtual const char *GetEnv(const char *name) = 0;
+  virtual bool ParseAuth(const char *jobserver) = 0;
+  virtual bool AcquireToken() = 0;
+  virtual bool ReturnToken() = 0;
+
+ private:
+  int available_;
+  int used_;
+
+  void Return();
+};
