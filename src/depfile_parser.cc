@@ -175,22 +175,21 @@ yy15:
     }
 
     int len = (int)(out - filename);
-    const bool is_target = parsing_targets;
+    const bool is_dependency = !parsing_targets;
     if (len > 0 && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
     }
 
-    if (len == 0)
-      continue;
-
-    if (!is_target) {
-      ins_.push_back(StringPiece(filename, len));
-    } else if (!out_.str_) {
-      out_ = StringPiece(filename, len);
-    } else if (out_ != StringPiece(filename, len)) {
-      *err = "depfile has multiple output paths";
-      return false;
+    if (len > 0) {
+      if (is_dependency) {
+        ins_.push_back(StringPiece(filename, len));
+      } else if (!out_.str_) {
+        out_ = StringPiece(filename, len);
+      } else if (out_ != StringPiece(filename, len)) {
+        *err = "depfile has multiple output paths";
+        return false;
+      }
     }
   }
   if (parsing_targets) {
