@@ -276,8 +276,15 @@ TEST_F(DepfileParserTest, MultipleRulesTolerateMP) {
 TEST_F(DepfileParserTest, MultipleRulesRejectDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
   // when spread across multiple rules
+  DepfileParserOptions parser_opts;
+  parser_opts.depfile_distinct_target_lines_action_ =
+      kDepfileDistinctTargetLinesActionError;
+  DepfileParser parser(parser_opts);
   string err;
-  EXPECT_FALSE(Parse("foo: x y\n"
-                     "bar: y z\n", &err));
-  ASSERT_EQ("depfile has multiple output paths", err);
+  string input =
+      "foo: x y\n"
+      "bar: y z\n";
+  EXPECT_FALSE(parser.Parse(&input, &err));
+  ASSERT_EQ("depfile has multiple output paths (on separate lines)"
+            " [-w depfilemulti=err]", err);
 }

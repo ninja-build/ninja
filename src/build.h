@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "depfile_parser.h"
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
 #include "line_printer.h"
@@ -151,6 +152,7 @@ struct BuildConfig {
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
   double max_load_average;
+  DepfileParserOptions depfile_parser_options;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
