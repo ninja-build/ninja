@@ -157,6 +157,15 @@ struct Edge {
   /// full contents of a response file (if applicable)
   std::string EvaluateCommand(bool incl_rsp_file = false) const;
 
+  /// Expand all variables in a command and return it as a string.
+  /// if ECM_EXPAND_RSPFILE is specified, the @rspfile will be
+  /// substituted with the contents of the response file
+  enum EvaluateCommandMode {
+    ECM_NORMAL,
+    ECM_EXPAND_RSPFILE
+  };
+  std::string EvaluateCommandWithRspfile(const EvaluateCommandMode mode = ECM_EXPAND_RSPFILE) const;
+
   /// Returns the shell-escaped value of |key|.
   std::string GetBinding(const string& key) const;
   bool GetBindingBool(const string& key);

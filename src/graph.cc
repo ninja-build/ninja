@@ -401,6 +401,30 @@ std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   return command;
 }
 
+std::string Edge::EvaluateCommandWithRspfile(const EvaluateCommandMode mode) const {
+  string command = EvaluateCommand();
+  if (mode == ECM_NORMAL)
+    return command;
+
+  string rspfile = GetUnescapedRspfile();
+  if (rspfile.empty())
+    return command;
+
+  size_t index = command.find(rspfile);
+  if (index == 0 || index == string::npos || command[index - 1] != '@')
+    return command;
+
+  string rspfile_content = GetBinding("rspfile_content");
+  size_t newline_index = 0;
+  while ((newline_index = rspfile_content.find('\n', newline_index)) !=
+         string::npos) {
+    rspfile_content.replace(newline_index, 1, 1, ' ');
+    ++newline_index;
+  }
+  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  return command;
+}
+
 std::string Edge::GetBinding(const std::string& key) const {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);
