@@ -46,13 +46,13 @@ class TestLineWordWrap(unittest.TestCase):
                          self.out.getvalue())
 
     def test_comment_wrap(self):
-        # Filenames shoud not be wrapped
+        # Filenames should not be wrapped
         self.n.comment('Hello /usr/local/build-tools/bin')
         self.assertEqual('# Hello\n# /usr/local/build-tools/bin\n',
                          self.out.getvalue())
 
     def test_short_words_indented(self):
-        # Test that indent is taking into acount when breaking subsequent lines.
+        # Test that indent is taking into account when breaking subsequent lines.
         # The second line should not be '    to tree', as that's longer than the
         # test layout width of 8.
         self.n._line('line_one to tree')
