@@ -76,11 +76,17 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   switch (len & 7)
   {
   case 7: h ^= uint64_t(data[6]) << 48;
+          NINJA_FALLTHROUGH;
   case 6: h ^= uint64_t(data[5]) << 40;
+          NINJA_FALLTHROUGH;
   case 5: h ^= uint64_t(data[4]) << 32;
+          NINJA_FALLTHROUGH;
   case 4: h ^= uint64_t(data[3]) << 24;
+          NINJA_FALLTHROUGH;
   case 3: h ^= uint64_t(data[2]) << 16;
+          NINJA_FALLTHROUGH;
   case 2: h ^= uint64_t(data[1]) << 8;
+          NINJA_FALLTHROUGH;
   case 1: h ^= uint64_t(data[0]);
           h *= m;
   };
