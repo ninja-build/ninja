@@ -626,7 +626,7 @@ yy100:
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadPath(EvalString* eval, string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;
@@ -673,22 +673,22 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 	if (yych <= ' ') {
 		if (yych <= '\n') {
 			if (yych <= 0x00) goto yy110;
-			if (yych >= '\n') goto yy107;
+			if (yych >= '\n') goto yy105;
 		} else {
-			if (yych == '\r') goto yy105;
-			if (yych >= ' ') goto yy107;
+			if (yych == '\r') goto yy107;
+			if (yych >= ' ') goto yy105;
 		}
 	} else {
 		if (yych <= '9') {
 			if (yych == '$') goto yy109;
 		} else {
-			if (yych <= ':') goto yy107;
-			if (yych == '|') goto yy107;
+			if (yych <= ':') goto yy105;
+			if (yych == '|') goto yy105;
 		}
 	}
 	++p;
 	yych = *p;
-	goto yy140;
+	goto yy139;
 yy104:
 	{
       eval->AddText(StringPiece(start, p - start));
@@ -696,23 +696,17 @@ yy104:
     }
 yy105:
 	++p;
+yy106:
+	{
+      p = start;
+      break;
+    }
+yy107:
+	++p;
 	if ((yych = *p) == '\n') goto yy137;
 	{
       last_token_ = start;
       return Error(DescribeLastError(), err);
-    }
-yy107:
-	++p;
-	{
-      if (path) {
-        p = start;
-        break;
-      } else {
-        if (*start == '\n')
-          break;
-        eval->AddText(StringPiece(start, 1));
-        continue;
-      }
     }
 yy109:
 	yych = *++p;
@@ -846,18 +840,14 @@ yy134:
       continue;
     }
 yy137:
-	++p;
-	{
-      if (path)
-        p = start;
-      break;
-    }
-yy139:
+	yych = *++p;
+	goto yy106;
+yy138:
 	++p;
 	yych = *p;
-yy140:
+yy139:
 	if (yybm[0+yych] & 128) {
-		goto yy139;
+		goto yy138;
 	}
 	goto yy104;
 }
@@ -865,8 +855,233 @@ yy140:
   }
   last_token_ = start;
   ofs_ = p;
-  if (path)
-    EatWhitespace();
+  EatWhitespace();
+  return true;
+}
+
+bool Lexer::ReadVarValue(EvalString* eval, string* err) {
+  const char* p = ofs_;
+  const char* q;
+  const char* start;
+  for (;;) {
+    start = p;
+    
+{
+	unsigned char yych;
+	static const unsigned char yybm[] = {
+		  0, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128,   0, 128, 128,   0, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		144, 128, 128, 128,   0, 128, 128, 128, 
+		128, 128, 128, 128, 128, 224, 160, 128, 
+		224, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 128, 128, 128, 128, 128, 128, 
+		128, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 128, 128, 128, 128, 224, 
+		128, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 224, 224, 224, 224, 224, 
+		224, 224, 224, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+		128, 128, 128, 128, 128, 128, 128, 128, 
+	};
+	yych = *p;
+	if (yych <= '\f') {
+		if (yych <= 0x00) goto yy150;
+		if (yych == '\n') goto yy144;
+	} else {
+		if (yych <= '\r') goto yy146;
+		if (yych == '$') goto yy148;
+	}
+	++p;
+	yych = *p;
+	goto yy179;
+yy143:
+	{
+      eval->AddText(StringPiece(start, p - start));
+      continue;
+    }
+yy144:
+	++p;
+yy145:
+	{
+      break;
+    }
+yy146:
+	++p;
+	if ((yych = *p) == '\n') goto yy177;
+	{
+      eval->AddText(StringPiece(start, 1));
+      continue;
+    }
+yy148:
+	++p;
+	if ((yych = *p) <= '-') {
+		if (yych <= 0x1F) {
+			if (yych <= '\n') {
+				if (yych <= '\t') goto yy152;
+				goto yy164;
+			} else {
+				if (yych == '\r') goto yy154;
+				goto yy152;
+			}
+		} else {
+			if (yych <= '#') {
+				if (yych <= ' ') goto yy155;
+				goto yy152;
+			} else {
+				if (yych <= '$') goto yy157;
+				if (yych <= ',') goto yy152;
+				goto yy159;
+			}
+		}
+	} else {
+		if (yych <= 'Z') {
+			if (yych <= '9') {
+				if (yych <= '/') goto yy152;
+				goto yy159;
+			} else {
+				if (yych <= ':') goto yy161;
+				if (yych <= '@') goto yy152;
+				goto yy159;
+			}
+		} else {
+			if (yych <= '`') {
+				if (yych == '_') goto yy159;
+				goto yy152;
+			} else {
+				if (yych <= 'z') goto yy159;
+				if (yych <= '{') goto yy163;
+				goto yy152;
+			}
+		}
+	}
+	{
+      last_token_ = start;
+      return Error(DescribeLastError(), err);
+    }
+yy150:
+	++p;
+	{
+      last_token_ = start;
+      return Error("unexpected EOF", err);
+    }
+yy152:
+	++p;
+yy153:
+	{
+      last_token_ = start;
+      return Error("bad $-escape (literal $ must be written as $$)", err);
+    }
+yy154:
+	yych = *++p;
+	if (yych == '\n') goto yy174;
+	goto yy153;
+yy155:
+	++p;
+	{
+      eval->AddText(StringPiece(" ", 1));
+      continue;
+    }
+yy157:
+	++p;
+	{
+      eval->AddText(StringPiece("$", 1));
+      continue;
+    }
+yy159:
+	++p;
+	yych = *p;
+	goto yy173;
+yy160:
+	{
+      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
+      continue;
+    }
+yy161:
+	++p;
+	{
+      eval->AddText(StringPiece(":", 1));
+      continue;
+    }
+yy163:
+	yych = *(q = ++p);
+	if (yybm[0+yych] & 32) {
+		goto yy167;
+	}
+	goto yy153;
+yy164:
+	++p;
+	yych = *p;
+	if (yybm[0+yych] & 16) {
+		goto yy164;
+	}
+	{
+      continue;
+    }
+yy167:
+	++p;
+	yych = *p;
+	if (yybm[0+yych] & 32) {
+		goto yy167;
+	}
+	if (yych == '}') goto yy170;
+	p = q;
+	goto yy153;
+yy170:
+	++p;
+	{
+      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
+      continue;
+    }
+yy172:
+	++p;
+	yych = *p;
+yy173:
+	if (yybm[0+yych] & 64) {
+		goto yy172;
+	}
+	goto yy160;
+yy174:
+	++p;
+	yych = *p;
+	if (yych == ' ') goto yy174;
+	{
+      continue;
+    }
+yy177:
+	yych = *++p;
+	goto yy145;
+yy178:
+	++p;
+	yych = *p;
+yy179:
+	if (yybm[0+yych] & 128) {
+		goto yy178;
+	}
+	goto yy143;
+}
+
+  }
+  last_token_ = start;
+  ofs_ = p;
   // Non-path strings end in newlines, so there's no whitespace to eat.
   return true;
 }

@@ -202,7 +202,7 @@ bool Lexer::ReadIdent(string* out) {
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadPath(EvalString* eval, string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;
@@ -213,21 +213,9 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
       eval->AddText(StringPiece(start, p - start));
       continue;
     }
-    "\r\n" {
-      if (path)
-        p = start;
+    "\r\n"|[ :|\n] {
+      p = start;
       break;
-    }
-    [ :|\n] {
-      if (path) {
-        p = start;
-        break;
-      } else {
-        if (*start == '\n')
-          break;
-        eval->AddText(StringPiece(start, 1));
-        continue;
-      }
     }
     "$$" {
       eval->AddText(StringPiece("$", 1));
@@ -271,8 +259,70 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
   }
   last_token_ = start;
   ofs_ = p;
-  if (path)
-    EatWhitespace();
+  EatWhitespace();
+  return true;
+}
+
+bool Lexer::ReadVarValue(EvalString* eval, string* err) {
+  const char* p = ofs_;
+  const char* q;
+  const char* start;
+  for (;;) {
+    start = p;
+    /*!re2c
+    [^$\r\n\000]+ {
+      eval->AddText(StringPiece(start, p - start));
+      continue;
+    }
+    "\r\n" | "\n" {
+      break;
+    }
+    "\r" {
+      eval->AddText(StringPiece(start, 1));
+      continue;
+    }
+    "$$" {
+      eval->AddText(StringPiece("$", 1));
+      continue;
+    }
+    "$ " {
+      eval->AddText(StringPiece(" ", 1));
+      continue;
+    }
+    "$\r\n"[ ]* {
+      continue;
+    }
+    "$\n"[ ]* {
+      continue;
+    }
+    "${"varname"}" {
+      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
+      continue;
+    }
+    "$"simple_varname {
+      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
+      continue;
+    }
+    "$:" {
+      eval->AddText(StringPiece(":", 1));
+      continue;
+    }
+    "$". {
+      last_token_ = start;
+      return Error("bad $-escape (literal $ must be written as $$)", err);
+    }
+    nul {
+      last_token_ = start;
+      return Error("unexpected EOF", err);
+    }
+    [^] {
+      last_token_ = start;
+      return Error(DescribeLastError(), err);
+    }
+    */
+  }
+  last_token_ = start;
+  ofs_ = p;
   // Non-path strings end in newlines, so there's no whitespace to eat.
   return true;
 }

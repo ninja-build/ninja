@@ -33,7 +33,7 @@ TEST(Lexer, ReadEvalStringEscapes) {
   string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("[ $ab c: cde]",
+  EXPECT_EQ("[ ][$][ab c][:][ ][cde]",
             eval.Serialize());
 }
 

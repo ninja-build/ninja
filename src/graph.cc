@@ -342,6 +342,12 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
                              vector<Node*>::iterator end,
                              char sep) {
   string result;
+  size_t len = 0;
+  for (vector<Node*>::iterator i = begin; i != end; ++i) {
+    len += (*i)->path().size() + 1;
+  }
+
+  result.reserve(len);
   for (vector<Node*>::iterator i = begin; i != end; ++i) {
     if (!result.empty())
       result.push_back(sep);
