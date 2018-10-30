@@ -593,7 +593,7 @@ for name in ['build_log_perftest',
              'hash_collision_bench',
              'manifest_parser_perftest',
              'clparser_perftest']:
-  if platform.is_windows():
+  if platform.is_msvc():
     cxxvariables = [('pdb', name + '.pdb')]
   objs = cxx(name, variables=cxxvariables)
   all_targets += n.build(binary(name), 'link', objs,
