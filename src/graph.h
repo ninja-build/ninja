@@ -62,11 +62,17 @@ struct Node {
   }
 
   /// Mark the Node as already-stat()ed and missing.
-  void MarkMissing() { mtime_ = 0; }
+  void MarkMissing() {
+    mtime_ = 0;
+  }
 
-  bool exists() const { return mtime_ != 0; }
+  bool exists() const {
+    return mtime_ != 0;
+  }
 
-  bool status_known() const { return mtime_ != -1; }
+  bool status_known() const {
+    return mtime_ != -1;
+  }
 
   const string& path() const { return path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
