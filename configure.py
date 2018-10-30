@@ -486,7 +486,7 @@ n.newline()
 
 n.comment('Core source files all build into ninja library.')
 cxxvariables = []
-if platform.is_windows():
+if platform.is_msvc():
     cxxvariables = [('pdb', 'ninja.pdb')]
 for name in ['build',
              'build_log',
