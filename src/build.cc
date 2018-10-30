@@ -1221,11 +1221,6 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-// XXX debug output: check if past run times predict future runtimes reasonably
-// well.
-//int actual = end_time - start_time;
-//printf("actual %d expected %d\n", actual, edge->run_time_ms_);
-
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
                                           output_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
