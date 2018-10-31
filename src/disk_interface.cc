@@ -173,6 +173,8 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     // StatAllFilesInDir does not report any information for base = "..".
     base = ".";
     dir = path;
+  } else if (!dir.size()) {
+    dir = ".";
   }
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
