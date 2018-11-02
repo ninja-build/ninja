@@ -32,3 +32,6 @@ TAGS
 # Ninja output
 .ninja_deps
 .ninja_log
+
+# Visual Studio Code project files
+/.vscode/
