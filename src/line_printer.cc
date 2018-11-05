@@ -83,7 +83,7 @@ void LinePrinter::Print(string to_print, LineType type) {
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
-    if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
+    if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       to_print = ElideMiddle(to_print, size.ws_col);
     }
     printf("%s", to_print.c_str());
