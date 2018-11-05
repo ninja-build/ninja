@@ -14,6 +14,7 @@
 
 #include "subprocess.h"
 
+#include <sys/select.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
