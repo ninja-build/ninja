@@ -212,6 +212,8 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   // For bionic, C and POSIX API is always enabled.
   // For solaris, see https://docs.oracle.com/cd/E88353_01/html/E37841/stat-2.html.
   return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+#elif defined(_AIX)
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
 #else
   return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
 #endif

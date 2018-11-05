@@ -356,6 +356,11 @@ else:
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
         ldflags.append('-L/usr/local/lib')
+    if platform.is_aix():
+        # printf formats for int64_t, uint64_t; large file support
+        cflags.append('-D__STDC_FORMAT_MACROS')
+        cflags.append('-D_LARGE_FILES')
+
 
 libs = []
 
