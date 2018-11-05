@@ -169,7 +169,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
+    if (!printer_.supports_color())
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;

@@ -41,6 +41,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
 #endif
+  supports_color_ = smart_terminal_;
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
