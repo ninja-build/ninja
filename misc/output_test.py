@@ -31,6 +31,27 @@ def run(build_ninja, flags='', pipe=False):
     return final_output
 
 class Output(unittest.TestCase):
+    def test_issue_1418(self):
+        self.assertEqual(run(
+'''rule echo
+  command = sleep 0.$delay && echo $out
+  description = echo $out
+
+build a: echo
+  delay = 3
+build b: echo
+  delay = 2
+build c: echo
+  delay = 1
+'''),
+'''[1/3] echo c\x1b[K
+c
+[2/3] echo b\x1b[K
+b
+[3/3] echo a\x1b[K
+a
+''')
+
     def test_issue_1214(self):
         print_red = '''rule echo
   command = printf '\x1b[31mred\x1b[0m'
