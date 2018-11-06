@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
+#include <errno.h>
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -102,7 +103,22 @@ void LinePrinter::PrintOrBuffer(const char* data, size_t size) {
   } else {
     // Avoid printf and C strings, since the actual output might contain null
     // bytes like UTF-16 does (yuck).
+#ifdef _WIN32
+    size_t bytes_written = fwrite(data, 1, size, stdout);
+    if (bytes_written == 0 &&
+        errno == ENOMEM &&
+        size > 0x4000)
+    {
+      // windows 8.0 and older consoles cannot write very much data
+      // at once so we try again until a reasonably small buffer size
+      // does not work either
+      const size_t half_size = size / 2;
+      PrintOrBuffer(data, half_size);
+      PrintOrBuffer(data + half_size, size - half_size);
+    }
+#else
     fwrite(data, 1, size, stdout);
+#endif
   }
 }
 
