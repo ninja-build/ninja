@@ -35,6 +35,9 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#define strtoll _strtoi64
+#endif
 
 // Implementation details:
 // Each run's log appends to the log file.
