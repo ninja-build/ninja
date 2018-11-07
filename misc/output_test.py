@@ -5,21 +5,27 @@
 In order to simulate a smart terminal it uses the 'script' command.
 """
 
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 
 def run(build_ninja, flags='', pipe=False):
+    env = dict(os.environ)
+    if 'NINJA_STATUS' in env:
+        del env['NINJA_STATUS']
+    env['TERM'] = ''
     with tempfile.NamedTemporaryFile('w') as f:
         f.write(build_ninja)
         f.flush()
         ninja_cmd = './ninja {} -f {}'.format(flags, f.name)
         try:
             if pipe:
-                output = subprocess.check_output([ninja_cmd], shell=True)
+                output = subprocess.check_output([ninja_cmd], shell=True, env=env)
             else:
-                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'])
+                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
+                                                 env=env)
         except subprocess.CalledProcessError as err:
             sys.stdout.buffer.write(err.output)
             raise err
