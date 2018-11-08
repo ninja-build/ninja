@@ -142,12 +142,23 @@ void VerifyGraph(const State& state) {
 
 void VirtualFileSystem::Create(const string& path,
                                const string& contents) {
+  map<string, string>::const_iterator it = hardlinks.find(path);
+  if (it != hardlinks.end()) {
+    Create(it->second, contents);
+    return;
+  }
+
   files_[path].mtime = now_;
   files_[path].contents = contents;
   files_created_.insert(path);
 }
 
 TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
+  map<string, string>::const_iterator it = hardlinks.find(path);
+  if (it != hardlinks.end()) {
+    return Stat(it->second, err);
+  }
+
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
     *err = i->second.stat_error;
@@ -162,6 +173,10 @@ bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
 }
 
 bool VirtualFileSystem::MakeDir(const string& path) {
+  map<string, string>::const_iterator it = hardlinks.find(path);
+  if (it != hardlinks.end()) {
+    return MakeDir(it->second);
+  }
   directories_made_.push_back(path);
   return true;  // success
 }
@@ -169,6 +184,11 @@ bool VirtualFileSystem::MakeDir(const string& path) {
 FileReader::Status VirtualFileSystem::ReadFile(const string& path,
                                                string* contents,
                                                string* err) {
+  map<string, string>::const_iterator it = hardlinks.find(path);
+  if (it != hardlinks.end()) {
+    return ReadFile(it->second, contents, err);
+  }
+
   files_read_.push_back(path);
   FileMap::iterator i = files_.find(path);
   if (i != files_.end()) {
@@ -180,6 +200,11 @@ FileReader::Status VirtualFileSystem::ReadFile(const string& path,
 }
 
 int VirtualFileSystem::RemoveFile(const string& path) {
+  map<string, string>::const_iterator it = hardlinks.find(path);
+  if (it != hardlinks.end()) {
+    return RemoveFile(it->second);
+  }
+
   if (find(directories_made_.begin(), directories_made_.end(), path)
       != directories_made_.end())
     return -1;
