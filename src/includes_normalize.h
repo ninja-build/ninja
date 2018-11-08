@@ -25,9 +25,9 @@ struct IncludesNormalize {
   IncludesNormalize(const string& relative_to);
 
   // Internal utilities made available for testing, maybe useful otherwise.
-  static string AbsPath(StringPiece s);
+  static string AbsPath(StringPiece s, string* err);
   static string Relativize(StringPiece path,
-                           const vector<StringPiece>& start_list);
+                           const vector<StringPiece>& start_list, string* err);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path |input| relative to |this->relative_to_| and store to |result|.
