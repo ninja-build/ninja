@@ -206,7 +206,7 @@ void Usage(const BuildConfig& config) {
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
-"  -j N     run N jobs in parallel [default=%d, derived from CPUs available]\n"
+"  -j N     run N jobs in parallel (0 means infinity) [default=%d, derived from CPUs available]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
@@ -1120,9 +1120,12 @@ int ReadFlags(int* argc, char*** argv,
       case 'j': {
         char* end;
         int value = strtol(optarg, &end, 10);
-        if (*end != 0 || value <= 0)
+        if (*end != 0 || value < 0)
           Fatal("invalid -j parameter");
-        config->parallelism = value;
+
+        // We want to run N jobs in parallel. For N = 0, INT_MAX
+        // is close enough to infinite for most sane builds.
+        config->parallelism = value > 0 ? value : INT_MAX;
         break;
       }
       case 'k': {
