@@ -442,26 +442,57 @@ bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+/// Return the end of a span in `in` starting at `from` and whether it is an
+/// ANSI escapse sequence or not.
+///
+/// The index returned creates an half-open interval with the input index over
+/// the span.
+static pair<size_t, bool> AnsiSpan(const string& in, size_t from) {
+  size_t pos = from;
+  bool in_seq = in[pos] == '\33';
+
+  if (in_seq) {
+    if (pos + 1 >= in.size()) {
+      // A lone escape character at the end of the string.
+      pos = in.size();
+    } else if (in[pos + 1] != '[') {
+      // A non-CSI sequence. Just ignore the escape character.
+      ++pos;
+    } else {
+      pos += 2;
+
+      // Skip everything up to and including the next [a-zA-Z].
+      while (pos < in.size() && !islatinalpha(in[pos])) {
+        ++pos;
+      }
+      // Also take the last character of the escape sequence.
+      ++pos;
+    }
+  } else {
+    // Find the next sequence.
+    pos = in.find('\33', pos);
+    if (pos == string::npos) {
+      pos = in.size();
+    }
+  }
+
+  return make_pair(pos, in_seq);
+}
+
 string StripAnsiEscapeCodes(const string& in) {
   string stripped;
   stripped.reserve(in.size());
 
-  for (size_t i = 0; i < in.size(); ++i) {
-    if (in[i] != '\33') {
-      // Not an escape code.
-      stripped.push_back(in[i]);
-      continue;
+  size_t pos = 0;
+  while (pos < in.size()) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (!span.second) {
+      stripped.append(in.begin() + pos, in.begin() + span.first);
     }
 
-    // Only strip CSIs for now.
-    if (i + 1 >= in.size()) break;
-    if (in[i + 1] != '[') continue;  // Not a CSI.
-    i += 2;
-
-    // Skip everything up to and including the next [a-zA-Z].
-    while (i < in.size() && !islatinalpha(in[i]))
-      ++i;
+    pos = span.first;
   }
+
   return stripped;
 }
 
