@@ -35,14 +35,15 @@ namespace {
 
 string DirName(const string& path) {
 #ifdef _WIN32
-  const char kPathSeparators[] = "\\/";
+  static const char kPathSeparators[] = "\\/";
 #else
-  const char kPathSeparators[] = "/";
+  static const char kPathSeparators[] = "/";
 #endif
+  static const char* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
+
   string::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == string::npos)
     return string();  // Nothing to do.
-  const char* const kEnd = kPathSeparators + strlen(kPathSeparators);
   while (slash_pos > 0 &&
          std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
     --slash_pos;
