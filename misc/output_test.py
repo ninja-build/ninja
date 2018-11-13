@@ -11,11 +11,14 @@ import sys
 import tempfile
 import unittest
 
-def run(build_ninja, flags='', pipe=False):
-    env = dict(os.environ)
-    if 'NINJA_STATUS' in env:
-        del env['NINJA_STATUS']
-    env['TERM'] = ''
+default_env = dict(os.environ)
+if 'NINJA_STATUS' in default_env:
+    del default_env['NINJA_STATUS']
+if 'CLICOLOR_FORCE' in default_env:
+    del default_env['CLICOLOR_FORCE']
+default_env['TERM'] = ''
+
+def run(build_ninja, flags='', pipe=False, env=default_env):
     with tempfile.NamedTemporaryFile('w') as f:
         f.write(build_ninja)
         f.flush()
@@ -82,6 +85,14 @@ red
         self.assertEqual(run(print_red, flags='-v', pipe=True),
 '''[1/1] printf '\x1b[31mred\x1b[0m'
 red
+''')
+
+        # CLICOLOR_FORCE=1 can be used to disable escape code stripping.
+        env = default_env.copy()
+        env['CLICOLOR_FORCE'] = '1'
+        self.assertEqual(run(print_red, pipe=True, env=env),
+'''[1/1] echo a
+\x1b[31mred\x1b[0m
 ''')
 
 if __name__ == '__main__':
