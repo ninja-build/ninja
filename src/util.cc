@@ -601,14 +601,73 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
+static size_t ConsoleWidth(const string& in) {
+  size_t size = 0;
+  size_t pos = 0;
+
+  while (pos < in.size()) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (!span.second) {
+      size += span.first - pos;
+    }
+
+    pos = span.first;
+  }
+
+  return size;
+}
+
+static string ConsoleSubstr(const string& in, size_t start, size_t end) {
+  string substr;
+  substr.reserve(in.size());
+
+  size_t skipped_size = 0;
+  size_t size = 0;
+  size_t pos = 0;
+  while (pos < in.size() && size < end) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (span.second) {
+      // An ANSI sequence; it has zero length.
+      substr.append(in.begin() + pos, in.begin() + span.first);
+    } else {
+      // Real output.
+      size += span.first - pos;
+
+      // Check if we have the start of the substring.
+      if (size >= start) {
+        // The substring start where we started at plus the size, but without
+        // any size that we've skipped.
+        size_t substr_begin = pos + start - skipped_size;
+        size_t substr_end;
+        if (size < end) {
+          // The entire span is wanted.
+          substr_end = span.first;
+        } else {
+          // The span has too much. Cut it off at the appropriate place.
+          substr_end = pos + end - skipped_size;
+        }
+        substr.append(in.begin() + substr_begin, in.begin() + substr_end);
+      } else {
+        // We've skipped some size. Keep track of it.
+        skipped_size += size;
+      }
+    }
+
+    pos = span.first;
+  }
+
+  return substr;
+}
+
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() > width) {
+  size_t console_width = ConsoleWidth(result);
+  if (console_width > width) {
     size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
+    result = ConsoleSubstr(result, 0, elide_size)
       + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+      + ConsoleSubstr(result, console_width - elide_size, console_width + 1);
   }
   return result;
 }

@@ -428,3 +428,10 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   EXPECT_EQ("012...789", elided);
   EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
 }
+
+TEST(ElideMiddle, ElideMiddleWithEscape) {
+  string input_no_elide = "Nothing \33[m string.";
+  string input = "0\33[m1234567890123456789";
+  EXPECT_EQ("Nothing \33[m string.", ElideMiddle(input_no_elide, 18));
+  EXPECT_EQ("0\33[m123...\33[m789", ElideMiddle(input, 10));
+}
