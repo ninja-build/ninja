@@ -29,7 +29,7 @@ See below if you want to use mingw or some other compiler instead of
 Visual Studio.
 
 ##### Using Visual Studio
-Assuming that you now have python installed, then the steps for building under
+Assuming that you now have Python installed, then the steps for building under
 Windows using Visual Studio are:
 
 Clone and checkout the latest release (or whatever branch you want). You
