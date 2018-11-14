@@ -387,7 +387,12 @@ int NinjaMain::ToolBrowse(const Options* options, int argc, char* argv[]) {
   // If we get here, the browse failed.
   return 1;
 }
-#endif  // _WIN32
+#else
+int NinjaMain::ToolBrowse(const Options*, int, char**) {
+  Fatal("browse tool not supported on this platform");
+  return 1;
+}
+#endif
 
 #if defined(_MSC_VER)
 int NinjaMain::ToolMSVC(const Options* options, int argc, char* argv[]) {
@@ -803,10 +808,8 @@ int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const string& tool_name) {
   static const Tool kTools[] = {
-#if defined(NINJA_HAVE_BROWSE)
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolBrowse },
-#endif
 #if defined(_MSC_VER)
     { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolMSVC },
