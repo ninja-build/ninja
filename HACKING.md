@@ -30,14 +30,14 @@ Visual Studio.
 
 ##### Using Visual Studio
 Assuming that you now have python installed, then the steps for building under
- Windows using Visual Studio are:
- 
+Windows using Visual Studio are:
+
 Clone and checkout the latest release (or whatever branch you want). You
 can do this in either a command prompt or by opening a git bash prompt:
 
 ```
-    $ git clone git://github.com/ninja-build/ninja.git && cd ninja 
-    $ git checkout release 
+    $ git clone git://github.com/ninja-build/ninja.git && cd ninja
+    $ git checkout release
 ```
 
 Then:
