@@ -43,7 +43,7 @@ bool WriteFakeManifests(const string& dir, string* err) {
   if (mtime != 0)  // 0 means that the file doesn't exist yet.
     return mtime != -1;
 
-  string command = "python misc/write_fake_manifests.py " + dir;
+  string command = "python2 misc/write_fake_manifests.py " + dir;
   printf("Creating manifest data..."); fflush(stdout);
   int exit_code = system(command.c_str());
   printf("done.\n");

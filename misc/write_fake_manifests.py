@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """Writes large manifest files, for manifest parser performance testing.
 
@@ -6,7 +6,7 @@ The generated manifest files are (eerily) similar in appearance and size to the
 ones used in the Chromium project.
 
 Usage:
-  python misc/write_fake_manifests.py outdir  # Will run for about 5s.
+  python2 misc/write_fake_manifests.py outdir  # Will run for about 5s.
 
 The program contains a hardcoded random seed, so it will generate the same
 output every time it runs.  By changing the seed, it's easy to generate many

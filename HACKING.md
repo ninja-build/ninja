@@ -51,7 +51,7 @@ The steps for a Visual Studio 2015 64-bit build are outlined here:
 
 ```
     > "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
-    > python configure.py --bootstrap
+    > python2 configure.py --bootstrap
     > ninja --help
 ```
 Copy the ninja executable to another location, if desired, e.g. C:\local\Ninja.
@@ -173,16 +173,16 @@ it's locked while in use.
 
 * Install Visual Studio (Express is fine), [Python for Windows][],
   and (if making changes) googletest (see above instructions)
-* In a Visual Studio command prompt: `python configure.py --bootstrap`
+* In a Visual Studio command prompt: `python2 configure.py --bootstrap`
 
 [Python for Windows]: http://www.python.org/getit/windows/
 
 ### Via mingw on Windows (not well supported)
 
-* Install mingw, msys, and python
+* Install mingw, msys, and python2
 * In the mingw shell, put Python in your path, and
-  `python configure.py --bootstrap`
-* To reconfigure, run `python configure.py`
+  `python2 configure.py --bootstrap`
+* To reconfigure, run `python2 configure.py`
 * Remember to strip the resulting executable if size matters to you
 
 ### Via mingw on Linux (not well supported)

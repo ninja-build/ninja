@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Copyright 2011 Google Inc. All Rights Reserved.
 #
@@ -80,9 +80,9 @@ line_one $
 
     def test_fit_many_words(self):
         self.n = ninja_syntax.Writer(self.out, width=78)
-        self.n._line('command = cd ../../chrome; python ../tools/grit/grit/format/repack.py ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak ../out/Debug/gen/chrome/theme_resources_large.pak', 1)
+        self.n._line('command = cd ../../chrome; python2 ../tools/grit/grit/format/repack.py ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak ../out/Debug/gen/chrome/theme_resources_large.pak', 1)
         self.assertEqual('''\
-  command = cd ../../chrome; python ../tools/grit/grit/format/repack.py $
+  command = cd ../../chrome; python2 ../tools/grit/grit/format/repack.py $
       ../out/Debug/obj/chrome/chrome_dll.gen/repack/theme_resources_large.pak $
       ../out/Debug/gen/chrome/theme_resources_large.pak
 ''',
