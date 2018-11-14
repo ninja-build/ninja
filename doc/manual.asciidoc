@@ -593,7 +593,7 @@ Ninja supports this processing in two forms.
    to its stdout.  Ninja then filters these lines from the displayed
    output.  No `depfile` attribute is necessary, but the localized string
    in front of the the header file path. For instance
-   `msvc_deps_prefix = Note: including file: `
+   `msvc_deps_prefix = Note: including file:`
    for a English Visual Studio (the default). Should be globally defined.
 +
 ----
