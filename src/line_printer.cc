@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
+#endif
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -46,6 +49,15 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
     const char* clicolor_force = getenv("CLICOLOR_FORCE");
     supports_color_ = clicolor_force && string(clicolor_force) != "0";
   }
+#ifdef _WIN32
+  // Try enabling ANSI escape sequence support on Windows 10 terminals.
+  if (supports_color_) {
+    DWORD mode;
+    if (GetConsoleMode(console_, &mode)) {
+      SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
+  }
+#endif
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
