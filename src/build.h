@@ -234,7 +234,7 @@ struct BuildStatus {
                               EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
+  void PrintStatus(Edge* edge, EdgeStatus status, bool skip_silence_timeout);
 
   const BuildConfig& config_;
 
@@ -252,6 +252,10 @@ struct BuildStatus {
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
+  /// The number of milliseconds to wait between each
+  /// progress print on a dumb terminal.
+  int progress_sleep_millis_;
+  int64_t last_progress_print_millis_;
 
   template<size_t S>
   void SnprintfRate(double rate, char(&buf)[S], const char* format) const {

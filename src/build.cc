@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
+#include <limits>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -80,7 +81,7 @@ BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),
       start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
+      progress_status_format_(NULL), progress_sleep_millis_(0),
       overall_rate_(), current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
@@ -90,6 +91,16 @@ BuildStatus::BuildStatus(const BuildConfig& config)
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
     progress_status_format_ = "[%f/%t] ";
+  if (config_.verbosity != BuildConfig::VERBOSE) {
+    const char* progress_sleep_millis_str = getenv("NINJA_STATUS_SLEEP");
+    if (progress_sleep_millis_str) {
+      if (strcmp(progress_sleep_millis_str, "inf") == 0)
+        progress_sleep_millis_ = std::numeric_limits<int>::max();
+      else
+        progress_sleep_millis_ = atoi(progress_sleep_millis_str);
+    }
+  }
+  last_progress_print_millis_ = start_time_millis_;
 }
 
 void BuildStatus::PlanHasTotalEdges(int total) {
@@ -102,7 +113,7 @@ void BuildStatus::BuildEdgeStarted(Edge* edge) {
   ++started_edges_;
 
   if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, kEdgeStarted);
+    PrintStatus(edge, kEdgeStarted, false);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
@@ -129,7 +140,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     return;
 
   if (!edge->use_console())
-    PrintStatus(edge, kEdgeFinished);
+    PrintStatus(edge, kEdgeFinished, !success);
 
   // Print the command that is spewing before printing its output.
   if (!success) {
@@ -271,11 +282,21 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
+void BuildStatus::PrintStatus(
+    Edge* edge, EdgeStatus status, bool skip_silence_timeout) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
+
+  if (progress_sleep_millis_ != 0) {
+    int64_t now = GetTimeMillis();
+    bool slept_enough =
+      now - last_progress_print_millis_ >= progress_sleep_millis_;
+    if (!force_full_command && !skip_silence_timeout && !slept_enough)
+      return;
+    last_progress_print_millis_ = now;
+  }
 
   string to_print = edge->GetBinding("description");
   if (to_print.empty() || force_full_command)

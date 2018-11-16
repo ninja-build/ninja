@@ -191,8 +191,10 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
-`NINJA_STATUS`, the progress status printed before the rule being run.
+Ninja supports two environment variables to control its behavior:
+- `NINJA_STATUS`, the progress status printed before the rule being run and
+- `NINJA_STATUS_SLEEP`, the minimum time, in milliseconds, between progress
+  status updates on a dumb terminal or `inf` to keep silent.
 
 Several placeholders are available:
 
