@@ -119,7 +119,7 @@ bool Truncate(const string& path, size_t size, string* err);
 string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
-NORETURN void Win32Fatal(const char* function);
+NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
 #endif
 
 #endif  // NINJA_UTIL_H_

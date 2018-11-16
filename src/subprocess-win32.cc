@@ -124,6 +124,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       buf_ = "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
+    } else if (error == ERROR_INVALID_PARAMETER) {
+      // This generally means that the command line was too long. Give extra
+      // context for this case.
+      Win32Fatal("CreateProcess", "is the command line too long?");
     } else {
       Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal
     }
