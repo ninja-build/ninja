@@ -1,8 +1,12 @@
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+    - os: linux
+      compiler: clang
+    - os: osx
 sudo: false
 language: cpp
-compiler:
-  - gcc
-  - clang
 script:
   - ./configure.py --bootstrap
   - ./ninja all

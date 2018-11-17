@@ -6,6 +6,7 @@ In order to simulate a smart terminal it uses the 'script' command.
 """
 
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,9 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
         try:
             if pipe:
                 output = subprocess.check_output([ninja_cmd], shell=True, env=env)
+            elif platform.system() == 'Darwin':
+                output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
+                                                 env=env)
             else:
                 output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
                                                  env=env)
@@ -43,7 +47,7 @@ class Output(unittest.TestCase):
     def test_issue_1418(self):
         self.assertEqual(run(
 '''rule echo
-  command = sleep 0.$delay && echo $out
+  command = sleep $delay && echo $out
   description = echo $out
 
 build a: echo
