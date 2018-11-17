@@ -27,7 +27,7 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
         try:
             if pipe:
                 output = subprocess.check_output([ninja_cmd], shell=True, env=env)
-            elif platform.name() == 'Darwin':
+            elif platform.system() == 'Darwin':
                 output = subprocess.check_output(['script', '-q', '/dev/null', ninja_cmd],
                                                  env=env)
             else:
