@@ -47,7 +47,7 @@ class Output(unittest.TestCase):
     def test_issue_1418(self):
         self.assertEqual(run(
 '''rule echo
-  command = sleep 0.$delay && echo $out
+  command = sleep $delay && echo $out
   description = echo $out
 
 build a: echo
