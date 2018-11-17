@@ -1,3 +1,7 @@
+matrix:
+  include:
+    - os: linux
+    - os: osx
 sudo: false
 language: cpp
 compiler:
