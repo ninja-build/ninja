@@ -6,6 +6,7 @@ In order to simulate a smart terminal it uses the 'script' command.
 """
 
 import os
+import platform
 import subprocess
 import sys
 import tempfile
