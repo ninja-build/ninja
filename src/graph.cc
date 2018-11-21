@@ -491,7 +491,9 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
-  DepfileParser depfile;
+  DepfileParser depfile(depfile_parser_options_
+                        ? *depfile_parser_options_
+                        : DepfileParserOptions());
   string depfile_err;
   if (!depfile.Parse(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;

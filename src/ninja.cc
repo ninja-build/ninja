@@ -73,6 +73,10 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+
+  /// Whether a depfile with multiple targets on separate lines should
+  /// warn or print an error.
+  bool depfile_distinct_target_lines_should_err;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -912,7 +916,9 @@ bool WarningEnable(const string& name, Options* options) {
   if (name == "list") {
     printf("warning flags:\n"
 "  dupbuild={err,warn}  multiple build lines for one target\n"
-"  phonycycle={err,warn}  phony build statement references itself\n");
+"  phonycycle={err,warn}  phony build statement references itself\n"
+"  depfilemulti={err,warn}  depfile has multiple output paths on separate lines\n"
+    );
     return false;
   } else if (name == "dupbuild=err") {
     options->dupe_edges_should_err = true;
@@ -925,6 +931,12 @@ bool WarningEnable(const string& name, Options* options) {
     return true;
   } else if (name == "phonycycle=warn") {
     options->phony_cycle_should_err = false;
+    return true;
+  } else if (name == "depfilemulti=err") {
+    options->depfile_distinct_target_lines_should_err = true;
+    return true;
+  } else if (name == "depfilemulti=warn") {
+    options->depfile_distinct_target_lines_should_err = false;
     return true;
   } else {
     const char* suggestion =
@@ -1199,6 +1211,11 @@ NORETURN void real_main(int argc, char** argv) {
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
     exit(exit_code);
+
+  if (options.depfile_distinct_target_lines_should_err) {
+    config.depfile_parser_options.depfile_distinct_target_lines_action_ =
+        kDepfileDistinctTargetLinesActionError;
+  }
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
