@@ -157,8 +157,7 @@ meta-build system.
 https://gn.googlesource.com/gn/[gn]:: The meta-build system used to
 generate build files for Google Chrome and related projects (v8,
 node.js), as well as Google Fuschia.  gn can generate Ninja files for
-all platforms supported by Chrome. See the
-https://chromium.googlesource.com/chromium/src/+/master/docs/ninja_build.md[Chromium Ninja documentation for more details].
+all platforms supported by Chrome.
 
 https://cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
