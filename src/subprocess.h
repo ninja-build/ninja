@@ -86,7 +86,7 @@ struct SubprocessSet {
   ~SubprocessSet();
 
   Subprocess* Add(const std::string& command, bool use_console = false);
-  bool DoWork(struct TokenPool* tokens);
+  bool DoWork(TokenPool* tokens);
   Subprocess* NextFinished();
   void Clear();
 

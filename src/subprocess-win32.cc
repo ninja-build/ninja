@@ -252,7 +252,7 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
   return subprocess;
 }
 
-bool SubprocessSet::DoWork(struct TokenPool* tokens) {
+bool SubprocessSet::DoWork(TokenPool* tokens) {
   DWORD bytes_read;
   Subprocess* subproc;
   OVERLAPPED* overlapped;

@@ -31,36 +31,37 @@ GNUmakeTokenPool::~GNUmakeTokenPool() {
 bool GNUmakeTokenPool::Setup(bool ignore,
                              bool verbose,
                              double& max_load_average) {
-  const char *value = GetEnv("MAKEFLAGS");
-  if (value) {
-    // GNU make <= 4.1
-    const char *jobserver = strstr(value, "--jobserver-fds=");
+  const char* value = GetEnv("MAKEFLAGS");
+  if (!value)
+    return false;
+
+  // GNU make <= 4.1
+  const char* jobserver = strstr(value, "--jobserver-fds=");
+  if (!jobserver)
     // GNU make => 4.2
-    if (!jobserver)
-      jobserver = strstr(value, "--jobserver-auth=");
-    if (jobserver) {
-      LinePrinter printer;
+    jobserver = strstr(value, "--jobserver-auth=");
+  if (jobserver) {
+    LinePrinter printer;
 
-      if (ignore) {
-        printer.PrintOnNewLine("ninja: warning: -jN forced on command line; ignoring GNU make jobserver.\n");
-      } else {
-        if (ParseAuth(jobserver)) {
-          const char *l_arg = strstr(value, " -l");
-          int load_limit = -1;
+    if (ignore) {
+      printer.PrintOnNewLine("ninja: warning: -jN forced on command line; ignoring GNU make jobserver.\n");
+    } else {
+      if (ParseAuth(jobserver)) {
+        const char* l_arg = strstr(value, " -l");
+        int load_limit = -1;
 
-          if (verbose) {
-            printer.PrintOnNewLine("ninja: using GNU make jobserver.\n");
-          }
-
-          // translate GNU make -lN to ninja -lN
-          if (l_arg &&
-              (sscanf(l_arg + 3, "%d ", &load_limit) == 1) &&
-              (load_limit > 0)) {
-            max_load_average = load_limit;
-          }
-
-          return true;
+        if (verbose) {
+          printer.PrintOnNewLine("ninja: using GNU make jobserver.\n");
         }
+
+        // translate GNU make -lN to ninja -lN
+        if (l_arg &&
+            (sscanf(l_arg + 3, "%d ", &load_limit) == 1) &&
+            (load_limit > 0)) {
+          max_load_average = load_limit;
+        }
+
+        return true;
       }
     }
   }
@@ -76,10 +77,10 @@ bool GNUmakeTokenPool::Acquire() {
     // token acquired
     available_++;
     return true;
-  } else {
-    // no token available
-    return false;
   }
+
+  // no token available
+  return false;
 }
 
 void GNUmakeTokenPool::Reserve() {

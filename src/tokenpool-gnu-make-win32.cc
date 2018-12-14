@@ -14,7 +14,8 @@
 
 #include "tokenpool-gnu-make.h"
 
-// always include first to make sure other headers do the correct thing...
+// Always include this first.
+// Otherwise the other system headers don't work correctly under Win32
 #include <windows.h>
 
 #include <ctype.h>
@@ -32,8 +33,8 @@ struct GNUmakeTokenPoolWin32 : public GNUmakeTokenPool {
   virtual void WaitForTokenAvailability(HANDLE ioport);
   virtual bool TokenIsAvailable(ULONG_PTR key);
 
-  virtual const char *GetEnv(const char *name);
-  virtual bool ParseAuth(const char *jobserver);
+  virtual const char* GetEnv(const char* name);
+  virtual bool ParseAuth(const char* jobserver);
   virtual bool AcquireToken();
   virtual bool ReturnToken();
 
@@ -98,19 +99,19 @@ GNUmakeTokenPoolWin32::~GNUmakeTokenPoolWin32() {
   }
 }
 
-const char *GNUmakeTokenPoolWin32::GetEnv(const char *name) {
+const char* GNUmakeTokenPoolWin32::GetEnv(const char* name) {
   // getenv() does not work correctly together with tokenpool_tests.cc
   static char buffer[MAX_PATH + 1];
-  if (GetEnvironmentVariable("MAKEFLAGS", buffer, sizeof(buffer)) == 0)
+  if (GetEnvironmentVariable(name, buffer, sizeof(buffer)) == 0)
     return NULL;
-  return(buffer);
+  return buffer;
 }
 
-bool GNUmakeTokenPoolWin32::ParseAuth(const char *jobserver) {
+bool GNUmakeTokenPoolWin32::ParseAuth(const char* jobserver) {
   // match "--jobserver-auth=gmake_semaphore_<INTEGER>..."
-  const char *start = strchr(jobserver, '=');
+  const char* start = strchr(jobserver, '=');
   if (start) {
-    const char *end = start;
+    const char* end = start;
     unsigned int len;
     char c, *auth;
 
@@ -119,14 +120,15 @@ bool GNUmakeTokenPoolWin32::ParseAuth(const char *jobserver) {
         break;
     len = end - start; // includes string terminator in count
 
-    if ((len > 1) && ((auth = (char *)malloc(len)) != NULL)) {
+    if ((len > 1) && ((auth = (char*)malloc(len)) != NULL)) {
       strncpy(auth, start + 1, len - 1);
       auth[len - 1] = '\0';
 
-      if ((semaphore_jobserver_ = OpenSemaphore(SEMAPHORE_ALL_ACCESS, /* Semaphore access setting */
-                                                FALSE,                /* Child processes DON'T inherit */
-                                                auth                  /* Semaphore name */
-                                                )) != NULL) {
+      if ((semaphore_jobserver_ =
+           OpenSemaphore(SEMAPHORE_ALL_ACCESS, /* Semaphore access setting */
+                         FALSE,                /* Child processes DON'T inherit */
+                         auth                  /* Semaphore name */
+                        )) != NULL) {
         free(auth);
         return true;
       }
@@ -171,7 +173,7 @@ DWORD GNUmakeTokenPoolWin32::SemaphoreThread() {
 }
 
 DWORD WINAPI GNUmakeTokenPoolWin32::SemaphoreThreadWrapper(LPVOID param) {
-  GNUmakeTokenPoolWin32 *This = (GNUmakeTokenPoolWin32 *) param;
+  GNUmakeTokenPoolWin32* This = (GNUmakeTokenPoolWin32*) param;
   return This->SemaphoreThread();
 }
 
@@ -216,7 +218,7 @@ void GNUmakeTokenPoolWin32::WaitForTokenAvailability(HANDLE ioport) {
 
 bool GNUmakeTokenPoolWin32::TokenIsAvailable(ULONG_PTR key) {
   // alert child thread to break wait on token semaphore
-  QueueUserAPC(&NoopAPCFunc, child_, (ULONG_PTR)NULL);
+  QueueUserAPC((PAPCFUNC)&NoopAPCFunc, child_, (ULONG_PTR)NULL);
 
   // return true when GetQueuedCompletionStatus() returned our key
   return key == (ULONG_PTR) this;
@@ -232,6 +234,6 @@ void GNUmakeTokenPoolWin32::WaitForObject(HANDLE object) {
     Win32Fatal("WaitForSingleObject");
 }
 
-struct TokenPool *TokenPool::Get() {
+TokenPool* TokenPool::Get() {
   return new GNUmakeTokenPoolWin32;
 }

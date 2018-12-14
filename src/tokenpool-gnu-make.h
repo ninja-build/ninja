@@ -17,7 +17,7 @@
 // interface to GNU make token pool
 struct GNUmakeTokenPool : public TokenPool {
   GNUmakeTokenPool();
-  virtual ~GNUmakeTokenPool();
+  ~GNUmakeTokenPool();
 
   // token pool implementation
   virtual bool Acquire();
@@ -27,8 +27,8 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual bool Setup(bool ignore, bool verbose, double& max_load_average);
 
   // platform specific implementation
-  virtual const char *GetEnv(const char *name) = 0;
-  virtual bool ParseAuth(const char *jobserver) = 0;
+  virtual const char* GetEnv(const char* name) = 0;
+  virtual bool ParseAuth(const char* jobserver) = 0;
   virtual bool AcquireToken() = 0;
   virtual bool ReturnToken() = 0;
 

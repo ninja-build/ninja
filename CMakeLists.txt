@@ -118,6 +118,7 @@ add_library(libninja OBJECT
 	src/state.cc
 	src/status.cc
 	src/string_piece_util.cc
+	src/tokenpool-gnu-make.cc
 	src/util.cc
 	src/version.cc
 )
@@ -129,13 +130,17 @@ if(WIN32)
 		src/msvc_helper_main-win32.cc
 		src/getopt.c
 		src/minidump-win32.cc
+		src/tokenpool-gnu-make-win32.cc
 	)
 	# Build getopt.c, which can be compiled as either C or C++, as C++
 	# so that build environments which lack a C compiler, but have a C++
 	# compiler may build ninja.
 	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 else()
-	target_sources(libninja PRIVATE src/subprocess-posix.cc)
+	target_sources(libninja PRIVATE
+		src/subprocess-posix.cc
+		src/tokenpool-gnu-make-posix.cc
+	)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
 		# Build getopt.c, which can be compiled as either C or C++, as C++
@@ -224,6 +229,7 @@ if(BUILD_TESTING)
     src/string_piece_util_test.cc
     src/subprocess_test.cc
     src/test.cc
+    src/tokenpool_test.cc
     src/util_test.cc
   )
   if(WIN32)

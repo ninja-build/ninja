@@ -38,5 +38,5 @@ struct TokenPool {
 #endif
 
   // returns NULL if token pool is not available
-  static struct TokenPool *Get();
+  static TokenPool* Get();
 };
