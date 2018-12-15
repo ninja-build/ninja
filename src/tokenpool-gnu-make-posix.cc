@@ -117,8 +117,31 @@ bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
 }
 
 bool GNUmakeTokenPoolPosix::CreatePool(int parallelism, std::string* auth) {
-  // @TODO
-  return false;
+  // create jobserver pipe
+  int fds[2];
+  if (pipe(fds) < 0)
+    return false;
+
+  // add N tokens to pipe
+  const char token = '+'; // see make/posixos.c
+  while (parallelism--) {
+    if (write(fds[1], &token, 1) < 1) {
+      close(fds[1]);
+      close(fds[0]);
+      return false;
+    }
+  }
+
+  // initialize file descriptors for this instance
+  rfd_ = fds[0];
+  wfd_ = fds[1];
+
+  // generate auth parameter for child processes
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%d,%d", rfd_, wfd_);
+  *auth = buffer;
+
+  return true;
 }
 
 bool GNUmakeTokenPoolPosix::AcquireToken() {

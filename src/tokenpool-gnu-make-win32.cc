@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <process.h>
 
 #include "util.h"
 
@@ -147,7 +148,19 @@ bool GNUmakeTokenPoolWin32::ParseAuth(const char* jobserver) {
 }
 
 bool GNUmakeTokenPoolWin32::CreatePool(int parallelism, std::string* auth) {
-  // @TODO
+  char buffer[100];
+  snprintf(buffer, sizeof(buffer), "gmake_semaphore_%d", _getpid());
+
+  if ((semaphore_jobserver_ =
+       CreateSemaphore(NULL,        /* Use default security descriptor */
+                       parallelism, /* Initial count */
+                       parallelism, /* Maximum count */
+                       buffer       /* Semaphore name */
+                      )) != NULL) {
+    *auth = buffer;
+    return true;
+  }
+
   return false;
 }
 
