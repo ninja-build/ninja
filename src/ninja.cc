@@ -230,6 +230,8 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
+"  -m, --tokenpool-master\n"
+"           enable token pool master for job load balancing with children\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
@@ -1421,6 +1423,7 @@ int ReadFlags(int* argc, char*** argv,
   enum { OPT_VERSION = 1, OPT_QUIET = 2 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
+    { "tokenpool-master", no_argument, NULL, 'm' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
@@ -1429,7 +1432,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:mnt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1472,6 +1475,9 @@ int ReadFlags(int* argc, char*** argv,
         config->max_load_average = value;
         break;
       }
+      case 'm':
+        config->tokenpool_master = true;
+        break;
       case 'n':
         config->dry_run = true;
         break;
