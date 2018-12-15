@@ -34,7 +34,11 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
   virtual int GetMonitorFd();
 
   virtual const char* GetEnv(const char* name) { return getenv(name); };
+  virtual bool SetEnv(const char* name, const char* value) {
+    return setenv(name, value, 1) == 0;
+  };
   virtual bool ParseAuth(const char* jobserver);
+  virtual bool CreatePool(int parallelism, std::string* auth);
   virtual bool AcquireToken();
   virtual bool ReturnToken();
 
@@ -109,6 +113,11 @@ bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
     return true;
   }
 
+  return false;
+}
+
+bool GNUmakeTokenPoolPosix::CreatePool(int parallelism, std::string* auth) {
+  // @TODO
   return false;
 }
 

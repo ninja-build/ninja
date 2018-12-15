@@ -34,7 +34,9 @@ struct GNUmakeTokenPoolWin32 : public GNUmakeTokenPool {
   virtual bool TokenIsAvailable(ULONG_PTR key);
 
   virtual const char* GetEnv(const char* name);
+  virtual bool SetEnv(const char* name, const char* value);
   virtual bool ParseAuth(const char* jobserver);
+  virtual bool CreatePool(int parallelism, std::string* auth);
   virtual bool AcquireToken();
   virtual bool ReturnToken();
 
@@ -107,6 +109,10 @@ const char* GNUmakeTokenPoolWin32::GetEnv(const char* name) {
   return buffer;
 }
 
+bool GNUmakeTokenPoolWin32::SetEnv(const char* name, const char* value) {
+  return SetEnvironmentVariable(name, value) != 0;
+}
+
 bool GNUmakeTokenPoolWin32::ParseAuth(const char* jobserver) {
   // match "--jobserver-auth=gmake_semaphore_<INTEGER>..."
   const char* start = strchr(jobserver, '=');
@@ -137,6 +143,11 @@ bool GNUmakeTokenPoolWin32::ParseAuth(const char* jobserver) {
     }
   }
 
+  return false;
+}
+
+bool GNUmakeTokenPoolWin32::CreatePool(int parallelism, std::string* auth) {
+  // @TODO
   return false;
 }
 
