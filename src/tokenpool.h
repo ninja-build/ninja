@@ -26,7 +26,8 @@ struct TokenPool {
   virtual void Clear() = 0;
 
   // returns false if token pool setup failed
-  virtual bool Setup(bool ignore, bool verbose, double& max_load_average) = 0;
+  virtual bool SetupClient(bool ignore, bool verbose,
+                           double& max_load_average) = 0;
 
 #ifdef _WIN32
   virtual void WaitForTokenAvailability(HANDLE ioport) = 0;

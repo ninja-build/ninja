@@ -28,9 +28,9 @@ GNUmakeTokenPool::GNUmakeTokenPool() : available_(1), used_(0) {
 GNUmakeTokenPool::~GNUmakeTokenPool() {
 }
 
-bool GNUmakeTokenPool::Setup(bool ignore,
-                             bool verbose,
-                             double& max_load_average) {
+bool GNUmakeTokenPool::SetupClient(bool ignore,
+                                   bool verbose,
+                                   double& max_load_average) {
   const char* value = GetEnv("MAKEFLAGS");
   if (!value)
     return false;

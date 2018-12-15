@@ -474,9 +474,9 @@ struct RealCommandRunner : public CommandRunner {
 RealCommandRunner::RealCommandRunner(const BuildConfig& config) : config_(config) {
   max_load_average_ = config.max_load_average;
   if ((tokens_ = TokenPool::Get()) != NULL) {
-    if (!tokens_->Setup(config_.parallelism_from_cmdline,
-                        config_.verbosity == BuildConfig::VERBOSE,
-                        max_load_average_)) {
+    if (!tokens_->SetupClient(config_.parallelism_from_cmdline,
+                              config_.verbosity == BuildConfig::VERBOSE,
+                              max_load_average_)) {
       delete tokens_;
       tokens_ = NULL;
     }

@@ -81,7 +81,7 @@ struct TokenPoolTest : public testing::Test {
       ENVIRONMENT_INIT(buf_);
     }
     if ((tokens_ = TokenPool::Get()) != NULL) {
-      if (!tokens_->Setup(ignore_jobserver, false, load_avg_)) {
+      if (!tokens_->SetupClient(ignore_jobserver, false, load_avg_)) {
         delete tokens_;
         tokens_ = NULL;
       }

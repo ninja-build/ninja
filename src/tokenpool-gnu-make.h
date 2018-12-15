@@ -24,7 +24,8 @@ struct GNUmakeTokenPool : public TokenPool {
   virtual void Reserve();
   virtual void Release();
   virtual void Clear();
-  virtual bool Setup(bool ignore, bool verbose, double& max_load_average);
+  virtual bool SetupClient(bool ignore, bool verbose,
+                           double& max_load_average);
 
   // platform specific implementation
   virtual const char* GetEnv(const char* name) = 0;
