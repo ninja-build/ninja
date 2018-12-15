@@ -69,6 +69,13 @@ bool GNUmakeTokenPool::SetupClient(bool ignore,
   return false;
 }
 
+bool GNUmakeTokenPool::SetupMaster(bool verbose,
+                                   int parallelism,
+                                   double max_load_average) {
+  // @TODO
+  return false;
+}
+
 bool GNUmakeTokenPool::Acquire() {
   if (available_ > 0)
     return true;
