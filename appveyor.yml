@@ -37,4 +37,6 @@ for:
 
         python misc/ninja_syntax_test.py
 
+        appveyor PushArtifact ninja.exe
+
 test: off
