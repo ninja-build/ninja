@@ -18,12 +18,15 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <ctype.h>
 #else
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 // should contain all valid characters
@@ -31,10 +34,19 @@
 #define AUTH_FORMAT(tmpl)   "foo " tmpl "=%s bar"
 #define ENVIRONMENT_CLEAR() SetEnvironmentVariable("MAKEFLAGS", NULL)
 #define ENVIRONMENT_INIT(v) SetEnvironmentVariable("MAKEFLAGS", v)
+
+static char _env_buffer[MAX_PATH + 1];
+#define ENVIRONMENT_GET()   (                          \
+    GetEnvironmentVariable("MAKEFLAGS",                \
+			   _env_buffer,		       \
+			   sizeof(_env_buffer)) == 0 ? \
+    NULL : _env_buffer)
 #else
 #define AUTH_FORMAT(tmpl)   "foo " tmpl "=%d,%d bar"
 #define ENVIRONMENT_CLEAR() unsetenv("MAKEFLAGS")
 #define ENVIRONMENT_INIT(v) setenv("MAKEFLAGS", v, true)
+
+#define ENVIRONMENT_GET()   getenv("MAKEFLAGS")
 #endif
 
 namespace {
@@ -90,6 +102,51 @@ struct TokenPoolTest : public testing::Test {
 
   void CreateDefaultPool() {
     CreatePool(AUTH_FORMAT("--jobserver-auth"));
+  }
+
+  void CreateMaster(int parallelism) {
+    if ((tokens_ = TokenPool::Get()) != NULL) {
+      if (!tokens_->SetupMaster(false, parallelism, load_avg_)) {
+        delete tokens_;
+        tokens_ = NULL;
+      }
+    }
+  }
+
+  void CheckTokens(const char *env, unsigned int tokens) {
+#ifdef _WIN32
+    ASSERT_EQ(env, strstr(env, "--jobserver-auth=gmake_semaphore_"));
+    char *name   = (char *) strchr(env, '=') + 1; // in _env_buffer
+    char c, *end = name;
+    while ((c = *end++) != '\0')
+        if (!(isalnum(c) || (c == '_')))
+          break;
+    end[-1] = '\0';
+
+    HANDLE semaphore =
+      OpenSemaphore(SEMAPHORE_ALL_ACCESS,
+		    FALSE,
+		    name);
+    ASSERT_NE(NULL, semaphore);
+
+    for (unsigned int i = 0; i < tokens; i++)
+      EXPECT_EQ(WAIT_OBJECT_0, WaitForSingleObject(semaphore, 0));
+    EXPECT_NE(WAIT_OBJECT_0, WaitForSingleObject(semaphore, 0));
+
+    CloseHandle(semaphore);
+#else
+    int rfd = -1, wfd = -1;
+    ASSERT_EQ(2u, sscanf(env, "%*[^=]=%d,%d", &rfd, &wfd));
+    EXPECT_NE(-1, rfd);
+    EXPECT_NE(-1, wfd);
+
+    int flags = fcntl(rfd, F_GETFL, 0);
+    ASSERT_NE(-1, flags);
+    ASSERT_NE(-1, fcntl(rfd, F_SETFL, flags | O_NONBLOCK));
+
+    EXPECT_EQ(tokens, read(rfd, buf_, sizeof(buf_)));
+    EXPECT_EQ(-1,     read(rfd, buf_, sizeof(buf_))); // EWOULDBLOCK
+#endif
   }
 
   virtual void TearDown() {
@@ -276,4 +333,40 @@ TEST_F(TokenPoolTest, Clear) {
 
   // implicit token
   EXPECT_TRUE(tokens_->Acquire());
+}
+
+TEST_F(TokenPoolTest, NoPoolForSerialBuild) {
+  CreateMaster(1);
+
+  EXPECT_EQ(NULL, tokens_);
+}
+
+TEST_F(TokenPoolTest, MasterNoLoadAvg) {
+  // kLoadAverageDefault <= 0.0f -> no load averaging
+  CreateMaster(2);
+
+  ASSERT_NE(NULL, tokens_);
+
+  const char *env = ENVIRONMENT_GET();
+  ASSERT_NE(NULL, env);
+
+  EXPECT_EQ(env,  strstr(env, "--jobserver-auth="));
+  EXPECT_EQ(NULL, strstr(env, " -l"));
+
+  CheckTokens(env, 2);
+}
+
+TEST_F(TokenPoolTest, MasterWithLoadAvg) {
+  load_avg_ = 3.1415f;
+  CreateMaster(3);
+
+  ASSERT_NE(NULL, tokens_);
+
+  const char *env = ENVIRONMENT_GET();
+  ASSERT_NE(NULL, env);
+
+  EXPECT_EQ(env,  strstr(env, "--jobserver-auth="));
+  EXPECT_NE(NULL, strstr(env, " -l3.1415"));
+
+  CheckTokens(env, 3);
 }
