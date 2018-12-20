@@ -109,17 +109,9 @@ build "all" before committing to verify the other source still works!
 
 ## Testing performance impact of changes
 
-If you have a Chrome build handy, it's a good test case.  Otherwise,
-[the github downoads page](https://github.com/ninja-build/ninja/releases)
-has a copy of the Chrome build files (and depfiles). You can untar
-that, then run
-
-    path/to/my/ninja chrome
-
-and compare that against a baseline Ninja.
-
-There's a script at `misc/measure.py` that repeatedly runs a command like
-the above (to address variance) and summarizes its runtime.  E.g.
+If you have a Chrome build handy, it's a good test case.  There's a
+script at `misc/measure.py` that repeatedly runs a command (to address
+variance) and summarizes its runtime.  E.g.
 
     path/to/misc/measure.py path/to/my/ninja chrome
 
