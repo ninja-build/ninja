@@ -44,5 +44,8 @@ for:
       auth_token:
         secure: wyu/fhbEU2AiTPWJNIkimoVCBquTpTeVHOUBGQbB3m0GRS2ch+plZ7gtQNgvanJ0
       artifact: ninja.exe
+      on:
+        branch: release
+        APPVEYOR_REPO_TAG: true
 
 test: off
