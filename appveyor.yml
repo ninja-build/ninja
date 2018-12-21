@@ -38,5 +38,12 @@ for:
         python misc/ninja_syntax_test.py
 
         appveyor PushArtifact ninja.exe
+    deploy:
+      description: release
+      provider: GitHub
+      auth_token:
+        secure: wyu/fhbEU2AiTPWJNIkimoVCBquTpTeVHOUBGQbB3m0GRS2ch+plZ7gtQNgvanJ0
+      artifact: ninja.exe
+      draft: true
 
 test: off
