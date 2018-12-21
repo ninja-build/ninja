@@ -44,6 +44,5 @@ for:
       auth_token:
         secure: wyu/fhbEU2AiTPWJNIkimoVCBquTpTeVHOUBGQbB3m0GRS2ch+plZ7gtQNgvanJ0
       artifact: ninja.exe
-      draft: true
 
 test: off
