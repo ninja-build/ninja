@@ -120,6 +120,16 @@ string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+
+/// Converts UTF-8 std::string to UTF-16 std::wstring
+bool UTF8ToWide(wstring* wide, const string& utf8);
+
+/// Converts UTF-16 std::wstring to UTF-8 std::string
+bool WideToUTF8(string* utf8, const wstring& wide);
+
+/// Converts path to canonical form suitable for Unicode WinAPI
+/// the resulting path is absolute, "\\"-prefixed, has no "/" nor ".."
+bool FullPathName(wstring* result, string path, string* err);
 #endif
 
 #endif  // NINJA_UTIL_H_

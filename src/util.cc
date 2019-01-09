@@ -38,6 +38,7 @@
 #include <sys/time.h>
 #endif
 
+#include <algorithm>
 #include <vector>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -313,12 +314,112 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
+#ifdef _WIN32
+bool UTF8ToWide(wstring* wide, const string& utf8) {
+  if (utf8.empty()) {
+    wide->clear();
+  } else {
+    int dw = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.c_str(), utf8.size(), NULL, 0);
+    if (dw == 0) {
+      return false;
+    }
+    wide->resize(dw);
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.c_str(), utf8.size(), &(*wide)[0], wide->size()) != dw) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool WideToUTF8(string* utf8, const wstring& wide) {
+  if (wide.empty()) {
+    utf8->clear();
+  } else {
+    int dw = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), wide.size(), NULL, 0, 0, 0);
+    if (dw == 0) {
+      return false;
+    }
+    utf8->resize(dw);
+    if (WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), wide.size(), &(*utf8)[0], utf8->size(), 0, 0) != dw) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool GetCurrentDirectoryWide(wstring* result) {
+  DWORD dw = GetCurrentDirectoryW(result->size(), &(*result)[0]);
+  if (dw == 0) {
+    return false;
+  }
+  if (dw > result->size()) {
+    result->resize(dw);
+    if (GetCurrentDirectoryW(dw, &(*result)[0]) != dw-1) {
+      return false;
+    }
+    result->resize(dw-1);
+  } else {
+    result->resize(dw);
+  }
+  return true;
+}
+
+// can it be memoized?
+static bool GetCurrentDirectoryUTF8(string* result) {
+  wstring wresult;
+  return GetCurrentDirectoryWide(&wresult) && WideToUTF8(result, wresult);
+}
+
+static bool IsPathAbsolute(const string& path) {
+  return path.length() >= 2 && ((path[0] == '\\' && path[1] == '\\') ||
+    (('a' <= (path[0]|0x20) && (path[0]|0x20) <= 'z' && path[1] == ':')));
+}
+
+bool FullPathName(wstring* fullpath, string path, string* err) {
+  if (!IsPathAbsolute(path)) {
+    string wd;
+    if (!GetCurrentDirectoryUTF8(&wd)) {
+      err->assign(GetLastErrorString());
+      return false;
+    }
+    path.assign(wd + "\\" + path);
+  }
+
+  uint64_t slash_bits;
+  if (!CanonicalizePath(&path, &slash_bits, err)) {
+    return false;
+  }
+  replace(path.begin(), path.end(), '/', '\\');
+
+  // upcase disk letter
+  if (path.length() >= 2 && 'a' <= path[0] && path[0] <= 'z' && path[1] == ':')
+    path[0] &= ~0x20;
+
+  if (!path.empty() && path[0] != L'\\')
+    path.assign("\\\\?\\" + path);
+
+  if (!UTF8ToWide(fullpath, path)) {
+    err->assign(GetLastErrorString());
+    return false;
+  }
+
+  return true;
+}
+#endif
+
 int ReadFile(const string& path, string* contents, string* err) {
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+
+  wstring fullpath;
+
+  if (!FullPathName(&fullpath, path, err)) {
+    return -ENOENT;
+  }
+
+  HANDLE f = ::CreateFileW(fullpath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());

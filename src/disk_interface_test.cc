@@ -188,6 +188,32 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(DiskInterfaceTest, WriteFile) {
+  for (int i = 1; i < 250; i++) {
+    char szTestContent[100];
+    sprintf(szTestContent, "test content\n%d\nok", i);
+    string fileName(i, 'x'), content, err;
+    EXPECT_TRUE(disk_.WriteFile(fileName, szTestContent));
+    ASSERT_EQ(DiskInterface::Okay,
+              disk_.ReadFile(fileName, &content, &err));
+    EXPECT_EQ(szTestContent, content);
+    EXPECT_EQ("", err);
+  }
+}
+
+TEST_F(DiskInterfaceTest, DosDeviceName) {
+  const char* names[] = { "aux.c", "nul.txt", "nul", "aux" };
+  for (int i = 0; i < sizeof(names)/sizeof(*names); i++) {
+    string fileName = names[i], content, err;
+    string testContent = "test content\nok\n" + fileName;
+    EXPECT_TRUE(disk_.WriteFile(fileName, testContent));
+    ASSERT_EQ(DiskInterface::Okay,
+              disk_.ReadFile(fileName, &content, &err));
+    EXPECT_EQ(testContent, content);
+    EXPECT_EQ("", err);
+  }
+}
+
 TEST_F(DiskInterfaceTest, MakeDirs) {
   string path = "path/with/double//slash/";
   EXPECT_TRUE(disk_.MakeDirs(path.c_str()));

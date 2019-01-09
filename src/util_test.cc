@@ -428,3 +428,55 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   EXPECT_EQ("012...789", elided);
   EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
 }
+
+#ifdef _WIN32
+TEST(UTF8, UTF8ToWide) {
+  wstring wide;
+  EXPECT_TRUE(UTF8ToWide(&wide, ""));
+  EXPECT_EQ(L"", wide);
+  EXPECT_TRUE(UTF8ToWide(&wide, "$"));
+  EXPECT_EQ(L"$", wide);
+  EXPECT_TRUE(UTF8ToWide(&wide, "\xCE\xBB")); // greek lambda
+  EXPECT_EQ(L"\u03BB", wide);
+  EXPECT_TRUE(UTF8ToWide(&wide, "\xE2\x82\xAC")); // euro sign
+  EXPECT_EQ(L"\u20AC", wide);
+  EXPECT_TRUE(UTF8ToWide(&wide, "\xF0\x90\x8D\x88")); // emoji
+  EXPECT_EQ(2, wide.length());
+  EXPECT_EQ(0xD800, wide[0]);
+  EXPECT_EQ(0xDF48, wide[1]);
+  EXPECT_TRUE(UTF8ToWide(&wide, string(1, '\x00'))); // preserve zero
+  EXPECT_EQ(wstring(1, L'\u0000'), wide);
+
+  EXPECT_FALSE(UTF8ToWide(&wide, "\xCE")); // incomplete UTF-8
+}
+
+TEST(UTF8, WideToUTF8) {
+  string utf8;
+  EXPECT_TRUE(WideToUTF8(&utf8, L""));
+  EXPECT_EQ("", utf8);
+  EXPECT_TRUE(WideToUTF8(&utf8, L"$"));
+  EXPECT_EQ("$", utf8);
+  EXPECT_TRUE(WideToUTF8(&utf8, L"\u03BB")); // greek lambda
+  EXPECT_EQ("\xCE\xBB", utf8);
+  EXPECT_TRUE(WideToUTF8(&utf8, L"\u20AC")); // euro sign
+  EXPECT_EQ("\xE2\x82\xAC", utf8);
+  EXPECT_TRUE(WideToUTF8(&utf8, wstring(1, 0xD800) + wstring(1, 0xDF48))); // emoji
+  EXPECT_EQ("\xF0\x90\x8D\x88", utf8);
+  EXPECT_TRUE(WideToUTF8(&utf8, wstring(1, L'\u0000'))); // preserve zero
+  EXPECT_EQ(string(1, '\x00'), utf8);
+}
+
+TEST(FullPathName, FullPathName) {
+  wstring fullpath;
+  string err;
+  EXPECT_TRUE(FullPathName(&fullpath, "C:/Windows/System32/cmd.exe", &err));
+  EXPECT_EQ(L"\\\\?\\C:\\Windows\\System32\\cmd.exe", fullpath);
+
+  EXPECT_TRUE(FullPathName(&fullpath, "c:\\Program Files/../Windows/./System32//w32tm.exe", &err));
+  EXPECT_EQ(L"\\\\?\\C:\\Windows\\System32\\w32tm.exe", fullpath);
+
+  // dos device name should not result in \\.\ namespace
+  EXPECT_TRUE(FullPathName(&fullpath, "C:/nul", &err));
+  EXPECT_EQ(L"\\\\?\\C:\\nul", fullpath);
+}
+#endif
