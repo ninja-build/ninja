@@ -49,6 +49,7 @@
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
+const char kFileColumnLabels[] = "# start_time end_time mtime command hash\n";
 const int kOldestSupportedVersion = 4;
 const int kCurrentVersion = 5;
 
@@ -144,7 +145,8 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
   fseek(log_file_, 0, SEEK_END);
 
   if (ftell(log_file_) == 0) {
-    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
+    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0 ||
+        fprintf(log_file_, kFileColumnLabels) < 0) {
       *err = strerror(errno);
       return false;
     }
