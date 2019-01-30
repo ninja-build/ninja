@@ -1,0 +1,72 @@
+trigger:
+- master
+
+jobs:
+  - job: Linux
+    pool:
+      vmImage: 'Ubuntu-16.04'
+
+    steps:
+    - script: |
+        ./configure.py --bootstrap
+        ./ninja all
+      displayName: Build
+
+    - script: |
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        ./misc/ninja_syntax_test.py
+        ./misc/output_test.py
+        mkdir package
+        mv ninja package
+      displayName: Test
+
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: ninja-linux
+        targetPath: package
+
+  - job: macOS
+    pool:
+      vmImage: 'macOS-10.13'
+
+    steps:
+    - script: |
+        ./configure.py --bootstrap
+        ./ninja all
+      displayName: Build
+
+    - script: |
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        ./misc/ninja_syntax_test.py
+        ./misc/output_test.py
+        mkdir package
+        mv ninja package
+      displayName: Test
+    
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: ninja-mac
+        targetPath: package
+
+  - job: Windows
+    pool:
+      vmImage: 'vs2017-win2016'
+
+    steps:
+    - script: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        python configure.py --bootstrap
+        ninja.bootstrap.exe all
+      displayName: Build
+
+    - script: |
+        ninja_test
+        python misc/ninja_syntax_test.py
+        mkdir package
+        move ninja.exe package
+      displayName: Test
+
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: ninja-win
+        targetPath: package
