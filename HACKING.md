@@ -13,14 +13,50 @@ run `ninja_test` when developing.
 Ninja is built using itself.  To bootstrap the first binary, run the
 configure script as `./configure.py --bootstrap`.  This first compiles
 all non-test source files together, then re-builds Ninja using itself.
-You should end up with a `ninja` binary (or `ninja.exe`) in the source root.
+You should end up with a `ninja` binary (or `ninja.exe`) in the project root.
 
 #### Windows
 
 On Windows, you'll need to install Python to run `configure.py`, and
 run everything under a Visual Studio Tools Command Prompt (or after
-running `vcvarsall` in a normal command prompt).  See below if you
-want to use mingw or some other compiler instead of Visual Studio.
+running `vcvarsall` in a normal command prompt).
+
+For other combinations such as gcc/clang you will need the compiler
+(gcc/cl) in your PATH and you will have to set the appropriate
+platform configuration script.
+
+See below if you want to use mingw or some other compiler instead of
+Visual Studio.
+
+##### Using Visual Studio
+Assuming that you now have Python installed, then the steps for building under
+Windows using Visual Studio are:
+
+Clone and checkout the latest release (or whatever branch you want). You
+can do this in either a command prompt or by opening a git bash prompt:
+
+```
+    $ git clone git://github.com/ninja-build/ninja.git && cd ninja
+    $ git checkout release
+```
+
+Then:
+
+1. Open a Windows command prompt in the folder where you checked out ninja.
+2. Select the Microsoft build environment by running
+`vcvarsall.bat` with the appropriate environment.
+3. Build ninja and test it.
+
+The steps for a Visual Studio 2015 64-bit build are outlined here:
+
+```
+    > "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+    > python configure.py --bootstrap
+    > ninja --help
+```
+Copy the ninja executable to another location, if desired, e.g. C:\local\Ninja.
+
+Finally add the path where ninja.exe is to the PATH variable.
 
 ### Adjusting build flags
 
@@ -73,17 +109,9 @@ build "all" before committing to verify the other source still works!
 
 ## Testing performance impact of changes
 
-If you have a Chrome build handy, it's a good test case.  Otherwise,
-[the github downoads page](https://github.com/ninja-build/ninja/releases)
-has a copy of the Chrome build files (and depfiles). You can untar
-that, then run
-
-    path/to/my/ninja chrome
-
-and compare that against a baseline Ninja.
-
-There's a script at `misc/measure.py` that repeatedly runs a command like
-the above (to address variance) and summarizes its runtime.  E.g.
+If you have a Chrome build handy, it's a good test case.  There's a
+script at `misc/measure.py` that repeatedly runs a command (to address
+variance) and summarizes its runtime.  E.g.
 
     path/to/misc/measure.py path/to/my/ninja chrome
 
@@ -95,7 +123,7 @@ and run that directly on some representative input files.
 Generally it's the [Google C++ coding style][], but in brief:
 
 * Function name are camelcase.
-* Member methods are camelcase, expect for trivial getters which are
+* Member methods are camelcase, except for trivial getters which are
   underscore separated.
 * Local variables are underscore separated.
 * Member variables are underscore separated and suffixed by an extra

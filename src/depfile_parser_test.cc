@@ -119,15 +119,16 @@ TEST_F(DepfileParserTest, SpecialChars) {
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
   string err;
   EXPECT_TRUE(Parse(
-"C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \n"
-" en@quot.header~ t+t-x!=1 \n"
-" openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\n"
-" Fu\303\244ball",
+"C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \\\n"
+" en@quot.header~ t+t-x!=1 \\\n"
+" openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\\\n"
+" Fu\303\244ball\\\n"
+" a\\[1\\]b@2%c",
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
             parser_.out_.AsString());
-  ASSERT_EQ(4u, parser_.ins_.size());
+  ASSERT_EQ(5u, parser_.ins_.size());
   EXPECT_EQ("en@quot.header~",
             parser_.ins_[0].AsString());
   EXPECT_EQ("t+t-x!=1",
@@ -136,6 +137,8 @@ TEST_F(DepfileParserTest, SpecialChars) {
             parser_.ins_[2].AsString());
   EXPECT_EQ("Fu\303\244ball",
             parser_.ins_[3].AsString());
+  EXPECT_EQ("a[1]b@2%c",
+            parser_.ins_[4].AsString());
 }
 
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
@@ -154,4 +157,134 @@ TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
   ASSERT_EQ("depfile has multiple output paths", err);
+}
+
+TEST_F(DepfileParserTest, MultipleEmptyRules) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "foo: \n"
+                    "foo:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(1u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMultipleRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "foo: y\n"
+                    "foo \\\n"
+                    "foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMultipleRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\r\n"
+                    "foo: y\r\n"
+                    "foo \\\r\n"
+                    "foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMixedRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\\\n"
+                    "     y\n"
+                    "foo \\\n"
+                    "foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, UnifyMixedRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\\\r\n"
+                    "     y\r\n"
+                    "foo \\\r\n"
+                    "foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, IndentedRulesLF) {
+  string err;
+  EXPECT_TRUE(Parse(" foo: x\n"
+                    " foo: y\n"
+                    " foo: z\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, IndentedRulesCRLF) {
+  string err;
+  EXPECT_TRUE(Parse(" foo: x\r\n"
+                    " foo: y\r\n"
+                    " foo: z\r\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, TolerateMP) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x y z\n"
+                    "x:\n"
+                    "y:\n"
+                    "z:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, MultipleRulesTolerateMP) {
+  string err;
+  EXPECT_TRUE(Parse("foo: x\n"
+                    "x:\n"
+                    "foo: y\n"
+                    "y:\n"
+                    "foo: z\n"
+                    "z:\n", &err));
+  ASSERT_EQ("foo", parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
+  EXPECT_EQ("y", parser_.ins_[1].AsString());
+  EXPECT_EQ("z", parser_.ins_[2].AsString());
+}
+
+TEST_F(DepfileParserTest, MultipleRulesRejectDifferentOutputs) {
+  // check that multiple different outputs are rejected by the parser
+  // when spread across multiple rules
+  DepfileParserOptions parser_opts;
+  parser_opts.depfile_distinct_target_lines_action_ =
+      kDepfileDistinctTargetLinesActionError;
+  DepfileParser parser(parser_opts);
+  string err;
+  string input =
+      "foo: x y\n"
+      "bar: y z\n";
+  EXPECT_FALSE(parser.Parse(&input, &err));
+  ASSERT_EQ("depfile has multiple output paths (on separate lines)"
+            " [-w depfilemulti=err]", err);
 }

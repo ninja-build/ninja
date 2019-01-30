@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Add the following to your .zshrc to tab-complete ninja targets
-#   . path/to/ninja/misc/zsh-completion
+#   fpath=(path/to/ninja/misc/zsh-completion $fpath)
 
 __get_targets() {
   dir="."

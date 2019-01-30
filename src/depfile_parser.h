@@ -21,8 +21,24 @@ using namespace std;
 
 #include "string_piece.h"
 
+enum DepfileDistinctTargetLinesAction {
+  kDepfileDistinctTargetLinesActionWarn,
+  kDepfileDistinctTargetLinesActionError,
+};
+
+struct DepfileParserOptions {
+  DepfileParserOptions()
+      : depfile_distinct_target_lines_action_(
+          kDepfileDistinctTargetLinesActionWarn) {}
+  DepfileDistinctTargetLinesAction
+    depfile_distinct_target_lines_action_;
+};
+
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
+  explicit DepfileParser(DepfileParserOptions options =
+                         DepfileParserOptions());
+
   /// Parse an input file.  Input must be NUL-terminated.
   /// Warning: may mutate the content in-place and parsed StringPieces are
   /// pointers within it.
@@ -30,6 +46,7 @@ struct DepfileParser {
 
   StringPiece out_;
   vector<StringPiece> ins_;
+  DepfileParserOptions options_;
 };
 
 #endif // NINJA_DEPFILE_PARSER_H_

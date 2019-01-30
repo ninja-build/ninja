@@ -57,7 +57,9 @@ struct State;
 ///      one's complement of the expected index of the record (to detect
 ///      concurrent writes of multiple ninja processes to the log).
 ///    dependency records are an array of 4-byte integers
-///      [output path id, output path mtime, input path id, input path id...]
+///      [output path id,
+///       output path mtime (lower 4 bytes), output path mtime (upper 4 bytes),
+///       input path id, input path id...]
 ///      (The mtime is compared against the on-disk output path mtime
 ///      to verify the stored data is up-to-date.)
 /// If two records reference the same output the latter one in the file
@@ -75,10 +77,10 @@ struct DepsLog {
 
   // Reading (startup-time) interface.
   struct Deps {
-    Deps(int mtime, int node_count)
+    Deps(int64_t mtime, int node_count)
         : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
     ~Deps() { delete [] nodes; }
-    int mtime;
+    TimeStamp mtime;
     int node_count;
     Node** nodes;
   };

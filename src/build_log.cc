@@ -35,6 +35,9 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#define strtoll _strtoi64
+#endif
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -76,11 +79,17 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   switch (len & 7)
   {
   case 7: h ^= uint64_t(data[6]) << 48;
+          NINJA_FALLTHROUGH;
   case 6: h ^= uint64_t(data[5]) << 40;
+          NINJA_FALLTHROUGH;
   case 5: h ^= uint64_t(data[4]) << 32;
+          NINJA_FALLTHROUGH;
   case 4: h ^= uint64_t(data[3]) << 24;
+          NINJA_FALLTHROUGH;
   case 3: h ^= uint64_t(data[2]) << 16;
+          NINJA_FALLTHROUGH;
   case 2: h ^= uint64_t(data[1]) << 8;
+          NINJA_FALLTHROUGH;
   case 1: h ^= uint64_t(data[0]);
           h *= m;
   };
@@ -167,6 +176,9 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
         return false;
+      if (fflush(log_file_) != 0) {
+          return false;
+      }
     }
   }
   return true;
@@ -290,7 +302,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -353,7 +365,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
+  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;
 }

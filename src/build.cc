@@ -154,9 +154,8 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    // TODO: There should be a flag to disable escape code stripping.
     string final_output;
-    if (!printer_.is_smart_terminal())
+    if (!printer_.supports_color())
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
@@ -318,18 +317,18 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
     return false;  // Don't need to do anything.
 
   // If an entry in want_ does not already exist for edge, create an entry which
-  // maps to false, indicating that we do not want to build this entry itself.
-  pair<map<Edge*, bool>::iterator, bool> want_ins =
-    want_.insert(make_pair(edge, false));
-  bool& want = want_ins.first->second;
+  // maps to kWantNothing, indicating that we do not want to build this entry itself.
+  pair<map<Edge*, Want>::iterator, bool> want_ins =
+    want_.insert(make_pair(edge, kWantNothing));
+  Want& want = want_ins.first->second;
 
   // If we do need to build edge and we haven't already marked it as wanted,
   // mark it now.
-  if (node->dirty() && !want) {
-    want = true;
+  if (node->dirty() && want == kWantNothing) {
+    want = kWantToStart;
     ++wanted_edges_;
     if (edge->AllInputsReady())
-      ScheduleWork(edge);
+      ScheduleWork(want_ins.first);
     if (!edge->is_phony())
       ++command_edges_;
   }
@@ -355,30 +354,32 @@ Edge* Plan::FindWork() {
   return edge;
 }
 
-void Plan::ScheduleWork(Edge* edge) {
-  set<Edge*>::iterator e = ready_.lower_bound(edge);
-  if (e != ready_.end() && !ready_.key_comp()(edge, *e)) {
+void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
+  if (want_e->second == kWantToFinish) {
     // This edge has already been scheduled.  We can get here again if an edge
     // and one of its dependencies share an order-only input, or if a node
     // duplicates an out edge (see https://github.com/ninja-build/ninja/pull/519).
     // Avoid scheduling the work again.
     return;
   }
+  assert(want_e->second == kWantToStart);
+  want_e->second = kWantToFinish;
 
+  Edge* edge = want_e->first;
   Pool* pool = edge->pool();
   if (pool->ShouldDelayEdge()) {
     pool->DelayEdge(edge);
     pool->RetrieveReadyEdges(&ready_);
   } else {
     pool->EdgeScheduled(*edge);
-    ready_.insert(e, edge);
+    ready_.insert(edge);
   }
 }
 
 void Plan::EdgeFinished(Edge* edge, EdgeResult result) {
-  map<Edge*, bool>::iterator e = want_.find(edge);
+  map<Edge*, Want>::iterator e = want_.find(edge);
   assert(e != want_.end());
-  bool directly_wanted = e->second;
+  bool directly_wanted = e->second != kWantNothing;
 
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
@@ -405,14 +406,14 @@ void Plan::NodeFinished(Node* node) {
   // See if we we want any edges from this node.
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
-    map<Edge*, bool>::iterator want_e = want_.find(*oe);
+    map<Edge*, Want>::iterator want_e = want_.find(*oe);
     if (want_e == want_.end())
       continue;
 
     // See if the edge is now ready.
     if ((*oe)->AllInputsReady()) {
-      if (want_e->second) {
-        ScheduleWork(*oe);
+      if (want_e->second != kWantNothing) {
+        ScheduleWork(want_e);
       } else {
         // We do not need to build this edge, but we might need to build one of
         // its dependents.
@@ -428,8 +429,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
     // Don't process edges that we don't actually want.
-    map<Edge*, bool>::iterator want_e = want_.find(*oe);
-    if (want_e == want_.end() || !want_e->second)
+    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+    if (want_e == want_.end() || want_e->second == kWantNothing)
       continue;
 
     // Don't attempt to clean an edge if it failed to load deps.
@@ -441,7 +442,12 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
     vector<Node*>::iterator
         begin = (*oe)->inputs_.begin(),
         end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
-    if (find_if(begin, end, mem_fun(&Node::dirty)) == end) {
+#if __cplusplus < 201703L
+#define MEM_FN mem_fun
+#else
+#define MEM_FN mem_fn  // mem_fun was removed in C++17.
+#endif
+    if (find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
       // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator i = begin; i != end; ++i) {
@@ -464,7 +470,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
             return false;
         }
 
-        want_e->second = false;
+        want_e->second = kWantNothing;
         --wanted_edges_;
         if (!(*oe)->is_phony())
           --command_edges_;
@@ -476,8 +482,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 
 void Plan::Dump() {
   printf("pending: %d\n", (int)want_.size());
-  for (map<Edge*, bool>::iterator e = want_.begin(); e != want_.end(); ++e) {
-    if (e->second)
+  for (map<Edge*, Want>::iterator e = want_.begin(); e != want_.end(); ++e) {
+    if (e->second != kWantNothing)
       printf("want ");
     e->first->Dump();
   }
@@ -551,7 +557,8 @@ Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface)
     : state_(state), config_(config), disk_interface_(disk_interface),
-      scan_(state, build_log, deps_log, disk_interface) {
+      scan_(state, build_log, deps_log, disk_interface,
+            &config_.depfile_parser_options) {
   status_ = new BuildStatus(config);
 }
 
@@ -900,7 +907,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     if (content.empty())
       return true;
 
-    DepfileParser deps;
+    DepfileParser deps(config_.depfile_parser_options);
     if (!deps.Parse(&content, err))
       return false;
 

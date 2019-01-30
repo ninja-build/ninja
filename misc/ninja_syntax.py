@@ -21,7 +21,7 @@ class Writer(object):
     def newline(self):
         self.output.write('\n')
 
-    def comment(self, text, has_path=False):
+    def comment(self, text):
         for line in textwrap.wrap(text, self.width - 2, break_long_words=False,
                                   break_on_hyphens=False):
             self.output.write('# ' + line + '\n')
@@ -60,7 +60,7 @@ class Writer(object):
             self.variable('deps', deps, indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
-              variables=None, implicit_outputs=None):
+              variables=None, implicit_outputs=None, pool=None):
         outputs = as_list(outputs)
         out_outputs = [escape_path(x) for x in outputs]
         all_inputs = [escape_path(x) for x in as_list(inputs)]
@@ -81,6 +81,8 @@ class Writer(object):
 
         self._line('build %s: %s' % (' '.join(out_outputs),
                                      ' '.join([rule] + all_inputs)))
+        if pool is not None:
+            self._line('  pool = %s' % pool)
 
         if variables:
             if isinstance(variables, dict):

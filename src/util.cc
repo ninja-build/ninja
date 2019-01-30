@@ -197,7 +197,7 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
       case '\\':
         bits |= bits_mask;
         *c = '/';
-        // Intentional fallthrough.
+        NINJA_FALLTHROUGH;
       case '/':
         bits_mask <<= 1;
     }
@@ -318,13 +318,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFile(path.c_str(),
-                          GENERIC_READ,
-                          FILE_SHARE_READ,
-                          NULL,
-                          OPEN_EXISTING,
-                          FILE_FLAG_SEQUENTIAL_SCAN,
-                          NULL);
+  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;
@@ -351,9 +346,19 @@ int ReadFile(const string& path, string* contents, string* err) {
     return -errno;
   }
 
+  struct stat st;
+  if (fstat(fileno(f), &st) < 0) {
+    err->assign(strerror(errno));
+    fclose(f);
+    return -errno;
+  }
+
+  // +1 is for the resize in ManifestParser::Load
+  contents->reserve(st.st_size + 1);
+
   char buf[64 << 10];
   size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+  while (!feof(f) && (len = fread(buf, 1, sizeof(buf), f)) > 0) {
     contents->append(buf, len);
   }
   if (ferror(f)) {
@@ -437,8 +442,12 @@ string GetLastErrorString() {
   return msg;
 }
 
-void Win32Fatal(const char* function) {
-  Fatal("%s: %s", function, GetLastErrorString().c_str());
+void Win32Fatal(const char* function, const char* hint) {
+  if (hint) {
+    Fatal("%s: %s (%s)", function, GetLastErrorString().c_str(), hint);
+  } else {
+    Fatal("%s: %s", function, GetLastErrorString().c_str());
+  }
 }
 #endif
 
@@ -578,7 +587,7 @@ double GetLoadAverage() {
 string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() + kMargin > width) {
+  if (result.size() > width) {
     size_t elide_size = (width - kMargin) / 2;
     result = result.substr(0, elide_size)
       + "..."

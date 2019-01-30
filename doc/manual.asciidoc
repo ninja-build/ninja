@@ -155,11 +155,10 @@ design is quite clever.
 Ninja's benefit comes from using it in conjunction with a smarter
 meta-build system.
 
-http://code.google.com/p/gyp/[gyp]:: The meta-build system used to
+https://gn.googlesource.com/gn/[gn]:: The meta-build system used to
 generate build files for Google Chrome and related projects (v8,
-node.js).  gyp can generate Ninja files for all platforms supported by
-Chrome. See the
-https://chromium.googlesource.com/chromium/src/+/master/docs/ninja_build.md[Chromium Ninja documentation for more details].
+node.js), as well as Google Fuschia.  gn can generate Ninja files for
+all platforms supported by Chrome.
 
 https://cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
@@ -594,7 +593,7 @@ Ninja supports this processing in two forms.
    to its stdout.  Ninja then filters these lines from the displayed
    output.  No `depfile` attribute is necessary, but the localized string
    in front of the the header file path. For instance
-   `msvc_deps_prefix = Note: including file: `
+   `msvc_deps_prefix = Note: including file:`
    for a English Visual Studio (the default). Should be globally defined.
 +
 ----
@@ -881,7 +880,8 @@ quoting rules are deterimined by the called program, which on Windows
 are usually provided by the C library.  If you need shell
 interpretation of the command (such as the use of `&&` to chain
 multiple commands), make the command execute the Windows shell by
-prefixing the command with `cmd /c`.
+prefixing the command with `cmd /c`. Ninja may error with "invalid parameter"
+which usually indicates that the command line length has been exceeded.
 
 [[ref_outputs]]
 Build outputs

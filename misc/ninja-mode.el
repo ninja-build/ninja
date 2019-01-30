@@ -56,7 +56,7 @@
                (save-excursion
                  (goto-char (line-end-position 0))
                  (or
-                  ;; If we're continuting the previous line, it's not a
+                  ;; If we're continuing the previous line, it's not a
                   ;; comment.
                   (not (eq ?$ (char-before)))
                   ;; Except if the previous line is a comment as well, as the
