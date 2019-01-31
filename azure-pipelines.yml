@@ -16,6 +16,7 @@ jobs:
         ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
         ./misc/ninja_syntax_test.py
         ./misc/output_test.py
+        strip ninja
         mkdir package
         mv ninja package
       displayName: Test
