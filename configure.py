@@ -62,12 +62,14 @@ class Platform(object):
             self._platform = 'aix'
         elif self._platform.startswith('dragonfly'):
             self._platform = 'dragonfly'
+        elif self._platform.startswith('hp-ux'):
+            self._platform = 'hpux'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
               'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
-              'dragonfly']
+              'dragonfly', 'hpux']
 
     def platform(self):
         return self._platform
@@ -96,6 +98,9 @@ class Platform(object):
 
     def is_aix(self):
         return self._platform == 'aix'
+
+    def is_hpux(self):
+        return self._platform == 'hpux'
 
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
@@ -256,7 +261,7 @@ configure_args = sys.argv[1:]
 if '--bootstrap' in configure_args:
     configure_args.remove('--bootstrap')
 n.variable('configure_args', ' '.join(configure_args))
-env_keys = set(['CXX', 'AR', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'])
+env_keys = set(['CC', 'CXX', 'AR', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
     config_str = ' '.join([k + '=' + pipes.quote(configure_env[k])
@@ -265,9 +270,11 @@ if configure_env:
 n.newline()
 
 CXX = configure_env.get('CXX', 'g++')
+CC = configure_env.get('CC', 'gcc')
 objext = '.o'
 if platform.is_msvc():
     CXX = 'cl'
+    CC = 'cl'
     objext = '.obj'
 
 def src(filename):
@@ -277,7 +284,7 @@ def built(filename):
 def doc(filename):
     return os.path.join('$root', 'doc', filename)
 def cc(name, **kwargs):
-    return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
+    return n.build(built(name + objext), 'cc', src(name + '.c'), **kwargs)
 def cxx(name, **kwargs):
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
 def binary(name):
@@ -295,6 +302,7 @@ if root == os.getcwd():
 n.variable('root', root)
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
+n.variable('cc', CC)
 if platform.is_msvc():
     n.variable('ar', 'link')
 else:
@@ -418,12 +426,22 @@ if platform.is_msvc():
         description='CXX $out',
         deps='msvc'  # /showIncludes is included in $cflags.
     )
+    n.rule('cc',
+        command='$cc $cflags -c $in /Fo$out /Fd' + built('$pdb'),
+        description='CC $out',
+        deps='msvc'  # /showIncludes is included in $cflags.
+    )
 else:
     n.rule('cxx',
         command='$cxx -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
         depfile='$out.d',
         deps='gcc',
         description='CXX $out')
+    n.rule('cc',
+        command='$cc -MMD -MT $out -MF $out.d $cflags -c $in -o $out',
+        depfile='$out.d',
+        deps='gcc',
+        description='CC $out')
 n.newline()
 
 if host.is_msvc():
@@ -523,8 +541,11 @@ if platform.is_windows():
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
-if platform.is_aix():
-    objs += cc('getopt')
+    if platform.is_aix():
+        objs += cc('getopt')
+    if platform.is_hpux():
+        objs += cc('posix_spawn')
+        objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:
