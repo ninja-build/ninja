@@ -385,7 +385,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
     return optopt;
 }
 
-#ifndef _AIX
+#if !defined(_AIX) && !defined(__hpux__)
 int
 getopt (int argc, char **argv, char *optstring)
 {
