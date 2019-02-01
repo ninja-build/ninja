@@ -23,7 +23,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
+#ifdef __hpux__
+#include "spawn.h"
+#else
 #include <spawn.h>
+#endif
 
 extern char** environ;
 
