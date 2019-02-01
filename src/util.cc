@@ -47,6 +47,9 @@
 #include <sys/loadavg.h>
 #elif defined(_AIX)
 #include <libperfstat.h>
+#elif defined(__hpux__)
+#include <sys/mpctl.h>
+#include <sys/pstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
 #endif
@@ -484,6 +487,8 @@ int GetProcessorCount() {
   SYSTEM_INFO info;
   GetNativeSystemInfo(&info);
   return info.dwNumberOfProcessors;
+#elif defined(__hpux__)
+  return mpctl(MPC_GETNUMCORES_SYS, 0, 0);
 #else
 #ifdef CPU_COUNT
   // The number of exposed processors might not represent the actual number of
@@ -573,6 +578,14 @@ double GetLoadAverage() {
 
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
+}
+#elif defined(__hpux__)
+double GetLoadAverage() {
+  struct pst_dynamic dyn_stats;
+  if (pstat_getdynamic(&dyn_stats, sizeof(dyn_stats), 1, 0) == -1) {
+    return -0.0f;
+  }
+  return dyn_stats.psd_avg_1_min;
 }
 #elif defined(__UCLIBC__)
 double GetLoadAverage() {
