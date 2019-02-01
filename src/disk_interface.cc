@@ -215,6 +215,8 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
 #elif defined(_AIX)
   return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
+#elif defined(__hpux__)
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_nmtime;
 #else
   return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
 #endif
