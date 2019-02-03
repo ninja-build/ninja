@@ -55,6 +55,10 @@ else()
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
+if(MSVC)
+	target_compile_definitions(libninja-re2c PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 # --- Check for 'browse' mode support
 function(check_platform_supports_browse_mode RESULT)
 	# Make sure the inline.sh script works on this platform.
@@ -151,6 +155,10 @@ endif()
 # PRId64 (and others) at compile time in C++ sources
 if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 	add_compile_definitions(__STDC_FORMAT_MACROS)
+endif()
+
+if(MSVC)
+	target_compile_definitions(libninja PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
 # Main executable is library plus main() function.
