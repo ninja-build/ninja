@@ -18,16 +18,28 @@ matrix:
     - os: linux
       dist: xenial
       compiler: clang
+    - os: linux
+      dist: bionic
+      compiler: gcc
+    - os: linux
+      dist: bionic
+      compiler: clang
     - os: osx
       osx_image: xcode9.4
     - os: osx
       osx_image: xcode10
     - os: osx
       osx_image: xcode10.1
+    - os: osx
+      osx_image: xcode10.2
+    - os: osx
+      osx_image: xcode10.3
+    - os: osx
+      osx_image: xcode11
 sudo: false
 language: cpp
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install re2c             ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install re2c ; fi
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install re2c python ; fi
 script:
   - ./misc/ci.py

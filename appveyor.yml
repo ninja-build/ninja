@@ -21,24 +21,27 @@ matrix:
       MSYSTEM: MSVC
 
 for:
-  -
-    matrix:
+  - matrix:
       only:
         - MSYSTEM: MINGW64
+    install:
+      ps: "C:\\msys64\\usr\\bin\\bash -lc \"pacman -S --quiet --noconfirm --needed re2c 2>&1\""
     build_script:
       ps: "C:\\msys64\\usr\\bin\\bash -lc @\"\n
-      pacman -S --quiet --noconfirm --needed re2c 2>&1\n
+      ./misc/ci.py 2>&1\n
       ./configure.py --bootstrap --platform mingw 2>&1\n
       ./ninja all\n
       ./ninja_test 2>&1\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
-  -
-    matrix:
+
+  - matrix:
       only:
         - MSYSTEM: MSVC
     build_script:
     - cmd: >-
         call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+
+        python misc/ci.py
 
         python configure.py --bootstrap
 
@@ -52,6 +55,7 @@ for:
       only:
         - image: Ubuntu1804
     build_script:
+      - ./misc/ci.py
       - ./configure.py --bootstrap
       - ./ninja all
       - ./ninja_test

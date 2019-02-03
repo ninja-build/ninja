@@ -3,11 +3,15 @@
 import os
 
 ignores = [
+	'ninja_deps',
 	'.git/',
 	'misc/afl-fuzz-tokens/',
-	'ninja_deps',
 	'src/depfile_parser.cc',
 	'src/lexer.cc',
+	'.git\\',
+	'misc\\afl-fuzz-tokens\\',
+	'src\\depfile_parser.cc',
+	'src\\lexer.cc',
 ]
 
 error_count = 0
