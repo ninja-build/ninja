@@ -138,10 +138,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
-    if (printer_.supports_color())
+    if (printer_.supports_color()) {
         printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
-    else
+    } else {
         printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
