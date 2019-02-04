@@ -252,14 +252,21 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
-      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
+      // Compute the effective mtime for the rule.
+      TimeStamp effective_mtime = entry->mtime;
+      if (generator && output->status_known()) {
+        // For generator rules, always use the on-disk mtime since it is likely
+        // to have been regenerated outside of ninja.
+        effective_mtime = output->mtime();
+      }
+      if (most_recent_input && effective_mtime < most_recent_input->mtime()) {
         // May also be dirty due to the mtime in the log being older than the
         // mtime of the most recent input.  This can occur even when the mtime
         // on disk is newer if a previous run wrote to the output file but
         // exited with an error or was interrupted.
         EXPLAIN("recorded mtime of %s older than most recent input %s (%" PRId64 " vs %" PRId64 ")",
                 output->path().c_str(), most_recent_input->path().c_str(),
-                entry->mtime, most_recent_input->mtime());
+                effective_mtime, most_recent_input->mtime());
         return true;
       }
     }
