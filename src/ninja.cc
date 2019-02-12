@@ -338,7 +338,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  GraphViz graph;
+  GraphViz graph(&state_, &disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
