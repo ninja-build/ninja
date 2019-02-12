@@ -28,11 +28,7 @@ struct Rule;
 struct DiskInterface;
 
 struct Cleaner {
-  /// Build a cleaner object with a real disk interface.
-  Cleaner(State* state, const BuildConfig& config);
-
   /// Build a cleaner object with the given @a disk_interface
-  /// (Useful for testing).
   Cleaner(State* state,
           const BuildConfig& config,
           DiskInterface* disk_interface);
