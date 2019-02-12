@@ -19,6 +19,7 @@
 #include <string>
 
 #include "build.h"
+#include "dyndep.h"
 
 using namespace std;
 
@@ -91,8 +92,12 @@ struct Cleaner {
   void DoCleanRule(const Rule* rule);
   void Reset();
 
+  /// Load dependencies from dyndep bindings.
+  void LoadDyndeps();
+
   State* state_;
   const BuildConfig& config_;
+  DyndepLoader dyndep_loader_;
   set<string> removed_;
   set<Node*> cleaned_;
   int cleaned_files_count_;

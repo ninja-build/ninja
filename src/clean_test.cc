@@ -285,6 +285,55 @@ TEST_F(CleanTest, CleanDepFileOnCleanRule) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 }
 
+TEST_F(CleanTest, CleanDyndep) {
+  // Verify that a dyndep file can be loaded to discover a new output
+  // to be cleaned.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in || dd\n"
+"  dyndep = dd\n"
+  ));
+  fs_.Create("in", "");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out | out.imp: dyndep\n"
+);
+  fs_.Create("out", "");
+  fs_.Create("out.imp", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(0, fs_.Stat("out.imp", &err));
+}
+
+TEST_F(CleanTest, CleanDyndepMissing) {
+  // Verify that a missing dyndep file is tolerated.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in || dd\n"
+"  dyndep = dd\n"
+  ));
+  fs_.Create("in", "");
+  fs_.Create("out", "");
+  fs_.Create("out.imp", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(1, cleaner.cleaned_files_count());
+  EXPECT_EQ(1u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(1, fs_.Stat("out.imp", &err));
+}
+
 TEST_F(CleanTest, CleanRspFile) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"
