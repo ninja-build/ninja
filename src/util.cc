@@ -485,6 +485,15 @@ int GetProcessorCount() {
   GetNativeSystemInfo(&info);
   return info.dwNumberOfProcessors;
 #else
+#ifdef CPU_COUNT
+  // The number of exposed processors might not represent the actual number of
+  // processors threads can run on. This happens when a CPU set limitation is
+  // active, see https://github.com/ninja-build/ninja/issues/1278
+  cpu_set_t set;
+  if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
+    return CPU_COUNT(&set);
+  }
+#endif
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
