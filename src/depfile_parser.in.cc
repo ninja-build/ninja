@@ -15,6 +15,8 @@
 #include "depfile_parser.h"
 #include "util.h"
 
+#include <algorithm>
+
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {
@@ -47,9 +49,6 @@ bool DepfileParser::Parse(string* content, string* err) {
   char* in = &(*content)[0];
   char* end = in + content->size();
   bool have_target = false;
-  bool have_secondary_target_on_this_rule = false;
-  bool have_newline_since_primary_target = false;
-  bool warned_distinct_target_lines = false;
   bool parsing_targets = true;
   while (in < end) {
     bool have_newline = false;
@@ -146,41 +145,23 @@ bool DepfileParser::Parse(string* content, string* err) {
     }
 
     if (len > 0) {
-      if (is_dependency) {
-        if (have_secondary_target_on_this_rule) {
-          if (!have_newline_since_primary_target) {
-            *err = "depfile has multiple output paths";
-            return false;
-          } else if (options_.depfile_distinct_target_lines_action_ ==
-                     kDepfileDistinctTargetLinesActionError) {
-            *err =
-                "depfile has multiple output paths (on separate lines)"
-                " [-w depfilemulti=err]";
-            return false;
-          } else {
-            if (!warned_distinct_target_lines) {
-              warned_distinct_target_lines = true;
-              Warning("depfile has multiple output paths (on separate lines); "
-                      "continuing anyway [-w depfilemulti=warn]");
-            }
-            continue;
-          }
+      StringPiece piece = StringPiece(filename, len);
+      // If we've seen this as an input before, skip it.
+      if (std::find(ins_.begin(), ins_.end(), piece) == ins_.end()) {
+        if (is_dependency) {
+          // New input.
+          ins_.push_back(piece);
+        } else {
+          // Check for a new output.
+          if (std::find(outs_.begin(), outs_.end(), piece) == outs_.end())
+            outs_.push_back(piece);
         }
-        ins_.push_back(StringPiece(filename, len));
-      } else if (!out_.str_) {
-        out_ = StringPiece(filename, len);
-      } else if (out_ != StringPiece(filename, len)) {
-        have_secondary_target_on_this_rule = true;
       }
     }
 
     if (have_newline) {
       // A newline ends a rule so the next filename will be a new target.
       parsing_targets = true;
-      have_secondary_target_on_this_rule = false;
-      if (have_target) {
-        have_newline_since_primary_target = true;
-      }
     }
   }
   if (!have_target) {

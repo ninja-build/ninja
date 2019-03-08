@@ -14,6 +14,7 @@
 
 #include "graph.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <stdio.h>
 
@@ -511,6 +512,17 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   return true;
 }
 
+struct matches {
+  matches(std::vector<StringPiece>::iterator i) : i_(i) {}
+
+  bool operator()(const Node* node) const {
+    StringPiece opath = StringPiece(node->path());
+    return *i_ == opath;
+  }
+
+  std::vector<StringPiece>::iterator i_;
+};
+
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                                     string* err) {
   METRIC_RECORD("depfile load");
@@ -541,9 +553,15 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
+  if (depfile.outs_.empty()) {
+    *err = path + ": no outputs declared";
+    return false;
+  }
+
   uint64_t unused;
-  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, &unused, err)) {
+  std::vector<StringPiece>::iterator primary_out = depfile.outs_.begin();
+  if (!CanonicalizePath(const_cast<char*>(primary_out->str_),
+                        &primary_out->len_, &unused, err)) {
     *err = path + ": " + *err;
     return false;
   }
@@ -552,10 +570,20 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
-  if (opath != depfile.out_) {
+  if (opath != *primary_out) {
     EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
-            first_output->path().c_str(), depfile.out_.AsString().c_str());
+            first_output->path().c_str(), primary_out->AsString().c_str());
     return false;
+  }
+
+  // Ensure that all mentioned outputs are outputs of the edge.
+  for (std::vector<StringPiece>::iterator o = depfile.outs_.begin();
+       o != depfile.outs_.end(); ++o) {
+    matches m(o);
+    if (std::find_if(edge->outputs_.begin(), edge->outputs_.end(), m) == edge->outputs_.end()) {
+      *err = path + ": depfile mentions '" + o->AsString() + "' as an output, but no such output was declared";
+      return false;
+    }
   }
 
   // Preallocate space in edge->inputs_ to be filled in below.

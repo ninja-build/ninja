@@ -1033,7 +1033,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   }
 
   if (!deps_type.empty() && !config_.dry_run) {
-    assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
+    assert(edge->outputs_.size() >= 1 && "should have been rejected by parser");
     for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
       TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
