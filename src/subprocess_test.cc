@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "subprocess.h"
+#include "build.h"
 
 #include "test.h"
 
@@ -33,6 +34,8 @@ const char* kSimpleCommand = "ls /";
 #endif
 
 struct SubprocessTest : public testing::Test {
+  SubprocessTest() : config_(), subprocs_(config_) {}
+  BuildConfig config_;
   SubprocessSet subprocs_;
 };
 

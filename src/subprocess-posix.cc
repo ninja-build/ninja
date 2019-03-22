@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "subprocess.h"
+#include "build.h"
 
 #include <sys/select.h>
 #include <assert.h>
@@ -29,8 +30,8 @@ extern char** environ;
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
-                                           use_console_(use_console) {
+Subprocess::Subprocess(const BuildConfig &config, bool use_console) :
+  fd_(-1), pid_(-1), config_(config), use_console_(use_console) {
 }
 
 Subprocess::~Subprocess() {
@@ -188,7 +189,7 @@ void SubprocessSet::HandlePendingInterruption() {
     interrupted_ = SIGHUP;
 }
 
-SubprocessSet::SubprocessSet() {
+SubprocessSet::SubprocessSet(const BuildConfig &config) : config_(config) {
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
@@ -222,7 +223,7 @@ SubprocessSet::~SubprocessSet() {
 }
 
 Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
-  Subprocess *subprocess = new Subprocess(use_console);
+  Subprocess *subprocess = new Subprocess(config_, use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;

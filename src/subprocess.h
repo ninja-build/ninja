@@ -36,6 +36,8 @@ using namespace std;
 
 #include "exit_status.h"
 
+struct BuildConfig;
+
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
@@ -52,7 +54,7 @@ struct Subprocess {
   const string& GetOutput() const;
 
  private:
-  Subprocess(bool use_console);
+  Subprocess(const BuildConfig &config, bool use_console);
   bool Start(struct SubprocessSet* set, const string& command);
   void OnPipeReady();
 
@@ -72,6 +74,7 @@ struct Subprocess {
   int fd_;
   pid_t pid_;
 #endif
+  const BuildConfig &config_;
   bool use_console_;
 
   friend struct SubprocessSet;
@@ -81,7 +84,7 @@ struct Subprocess {
 /// DoWork() waits for any state change in subprocesses; finished_
 /// is a queue of subprocesses as they finish.
 struct SubprocessSet {
-  SubprocessSet();
+  explicit SubprocessSet(const BuildConfig &config);
   ~SubprocessSet();
 
   Subprocess* Add(const string& command, bool use_console = false);
@@ -89,6 +92,7 @@ struct SubprocessSet {
   Subprocess* NextFinished();
   void Clear();
 
+  const BuildConfig &config_;
   vector<Subprocess*> running_;
   queue<Subprocess*> finished_;
 

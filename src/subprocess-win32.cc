@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "subprocess.h"
+#include "build.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -21,9 +22,9 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
-                                           is_reading_(false),
-                                           use_console_(use_console) {
+Subprocess::Subprocess(const BuildConfig &config, bool use_console) :
+  child_(NULL) , overlapped_(), is_reading_(false),
+  config_(config), use_console_(use_console) {
 }
 
 Subprocess::~Subprocess() {
@@ -203,7 +204,7 @@ const string& Subprocess::GetOutput() const {
 
 HANDLE SubprocessSet::ioport_;
 
-SubprocessSet::SubprocessSet() {
+SubprocessSet::SubprocessSet(const BuildConfig &config) : config_(config) {
   ioport_ = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if (!ioport_)
     Win32Fatal("CreateIoCompletionPort");
@@ -229,7 +230,7 @@ BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
 }
 
 Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
-  Subprocess *subprocess = new Subprocess(use_console);
+  Subprocess *subprocess = new Subprocess(config_, use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
