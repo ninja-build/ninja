@@ -403,7 +403,6 @@ int NinjaMain::ToolMSVC(const Options* options, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
   argv--;
-  optind = 0;
   return MSVCHelperMain(argc, argv);
 }
 #endif
@@ -579,7 +578,6 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
 
   PrintCommandMode mode = PCM_All;
 
-  optind = 1;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("hs"))) != -1) {
     switch (opt) {
@@ -622,7 +620,6 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   bool generator = false;
   bool clean_rules = false;
 
-  optind = 1;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("hgr"))) != -1) {
     switch (opt) {
@@ -708,7 +705,6 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
   EvaluateCommandMode eval_mode = ECM_NORMAL;
 
-  optind = 1;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
     switch(opt) {
@@ -1193,6 +1189,13 @@ int ReadFlags(int* argc, char*** argv,
   }
   *argv += optind;
   *argc -= optind;
+#if defined USE_BUNDLED_GETOPT || defined __GLIBC__
+  // Neither the bundled getopt nor glibc's do a full reset with
+  // optind = 1.
+  optind = 0;
+#else
+  optind = 1;
+#endif
 
   return -1;
 }
