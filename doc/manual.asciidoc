@@ -192,7 +192,6 @@ Environment variables
 
 Ninja supports one environment variable to control its behavior:
 `NINJA_STATUS`, the progress status printed before the rule being run.
-
 Several placeholders are available:
 
 `%s`:: The number of started edges.
@@ -210,6 +209,15 @@ specified by `-j` or its default)
 The default progress status is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+In addition, Ninja passes one environment variable to the commands it
+starts, `NINJAFLAGS`. `NINJAFLAGS` contains the `-k`, `-j`, `-l` and
+`-v` options that are in use for the build, except that `-j` is
+only present if the command is started in the <<ref_console_pool,
+"console" pool>>.  External programs can inspect the contents of the
+`NINJAFLAGS` variable, for example to control their own parallelism.
+Note that the exact set of options that it contains may vary in the
+future, so programs should ignore unknown options.
 
 Extra tools
 ~~~~~~~~~~~
@@ -663,6 +671,7 @@ build heavy_object2.obj: cc heavy_obj2.cc
 
 ----------------
 
+[[ref_console_pool]]
 The `console` pool
 ^^^^^^^^^^^^^^^^^^
 
