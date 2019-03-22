@@ -16,9 +16,11 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
+#include <sstream>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -75,6 +77,27 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 }
 
 }  // namespace
+
+string BuildConfig::GetConfigAsEnv(bool console) const {
+  ostringstream env;
+  if (verbosity == VERBOSE) {
+    env << " -v";
+  }
+  if (failures_allowed > 1) {
+    if (failures_allowed == INT_MAX) {
+      env << " -k0";
+    } else {
+      env << " -k" << failures_allowed;
+    }
+  }
+  if (max_load_average > 0.0) {
+    env << " -l" << max_load_average;
+  }
+  if (console && parallelism > 1) {
+    env << " -j" << parallelism;
+  }
+  return env.str();
+}
 
 BuildStatus::BuildStatus(const BuildConfig& config)
     : config_(config),

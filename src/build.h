@@ -153,6 +153,8 @@ struct BuildConfig {
   /// means that we do not have any limit.
   double max_load_average;
   DepfileParserOptions depfile_parser_options;
+
+  string GetConfigAsEnv(bool console) const;
 };
 
 /// Builder wraps the build process: starting commands, updating status.

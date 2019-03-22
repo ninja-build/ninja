@@ -22,6 +22,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
@@ -112,6 +113,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
   const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
+  std::string configstr = config_.GetConfigAsEnv(use_console_);
+  setenv("NINJAFLAGS", configstr.c_str(), true);
   err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
         const_cast<char**>(spawned_args), environ);
   if (err != 0)
