@@ -16,11 +16,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef _WIN32
+#ifdef USE_BUNDLED_GETOPT
 #include "getopt.h"
-#elif defined(_AIX)
-#include "getopt.h"
-#include <unistd.h>
 #else
 #include <getopt.h>
 #endif

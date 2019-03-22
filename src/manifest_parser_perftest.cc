@@ -22,11 +22,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef USE_BUNDLED_GETOPT
 #include "getopt.h"
-#include <direct.h>
 #else
 #include <getopt.h>
+#endif
+#ifdef _WIN32
+#include <direct.h>
+#else
 #include <unistd.h>
 #endif
 

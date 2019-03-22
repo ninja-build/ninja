@@ -97,6 +97,10 @@ class Platform(object):
     def is_aix(self):
         return self._platform == 'aix'
 
+    def uses_bundled_getopt(self):
+        # AIX supplies getopt but not getopt_long.
+        return self.is_windows() or self.is_aix()
+
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
 
@@ -381,6 +385,8 @@ else:
         cflags.append('-fno-omit-frame-pointer')
         libs.extend(['-Wl,--no-as-needed', '-lprofiler'])
 
+if platform.uses_bundled_getopt():
+    cflags.append('-DUSE_BUNDLED_GETOPT')
 if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 if platform.supports_ninja_browse():
@@ -517,10 +523,9 @@ if platform.is_windows():
         objs += cxx(name, variables=cxxvariables)
     if platform.is_msvc():
         objs += cxx('minidump-win32', variables=cxxvariables)
-    objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
-if platform.is_aix():
+if platform.uses_bundled_getopt():
     objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)

@@ -18,15 +18,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef USE_BUNDLED_GETOPT
 #include "getopt.h"
-#include <direct.h>
-#include <windows.h>
-#elif defined(_AIX)
-#include "getopt.h"
-#include <unistd.h>
 #else
 #include <getopt.h>
+#endif
+#ifdef _WIN32
+#include <direct.h>
+#include <windows.h>
+#else
 #include <unistd.h>
 #endif
 
