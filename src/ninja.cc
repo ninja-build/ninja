@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unordered_set>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -699,6 +700,38 @@ string EvaluateCommandWithRspfile(Edge* edge, EvaluateCommandMode mode) {
   return command;
 }
 
+bool GetAllDependentEdges(Node* node, std::vector<Edge*>* depend_edges,
+                          std::unordered_set<Node*>* visited_nodes=NULL,
+                          std::unordered_set<Edge*>* visited_edges=NULL) {
+  if (visited_nodes == NULL || visited_edges == NULL) {
+    std::unordered_set<Node*> visited_nodes_;
+    std::unordered_set<Edge*> visited_edges_;
+    return GetAllDependentEdges(node, depend_edges, &visited_nodes_, &visited_edges_);
+  }
+  if (node == NULL || depend_edges == NULL) {
+    Error("Internal error");
+    return false;
+  }
+  if (visited_nodes->count(node)) {
+    return true;
+  } else {
+    visited_nodes->insert(node);
+  }
+  Edge* edge = node->in_edge();
+  // Leaf node
+  if (!edge || visited_edges->count(edge)) {
+    return true;
+  } else {
+    visited_edges->insert(edge);
+    depend_edges->push_back(edge);
+  }
+  for (Node* input_node : edge->inputs_) {
+    if (!GetAllDependentEdges(input_node, depend_edges, visited_nodes, visited_edges))
+      return false;
+  }
+  return true;
+}
+
 int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
                                        char* argv[]) {
   // The compdb tool uses getopt, and expects argv[0] to contain the name of
@@ -710,25 +743,50 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
+  string err;
+  Node* user_given_target = NULL;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hxa"))) != -1) {
     switch(opt) {
       case 'x':
         eval_mode = ECM_EXPAND_RSPFILE;
         break;
 
+      case 'a':
+        if (argc < 3) {
+          Error("Expecting one target name");
+          return 1;
+        }
+        user_given_target = CollectTarget(argv[optind], &err);
+        if (!user_given_target) {
+          Error("%s: %s", argv[optind], err.c_str());
+          return 1;
+        }
+        break;
+
       case 'h':
       default:
         printf(
-            "usage: ninja -t compdb [options] [rules]\n"
+            "usage: ninja -t compdb [options] [target] [rules]\n"
             "\n"
             "options:\n"
             "  -x     expand @rspfile style response file invocations\n"
+            "  -a     generate compilation database for given target\n"
             );
         return 1;
     }
   }
   argv += optind;
   argc -= optind;
+
+  std::vector<Edge*> user_interested_edges;
+  std::vector<Edge*>* edges_to_process = NULL;
+  if (user_given_target) {
+    if (!GetAllDependentEdges(user_given_target, &user_interested_edges))
+      return 1;
+    edges_to_process = &user_interested_edges;
+  } else {
+    edges_to_process = &(state_.edges_);
+  }
 
   bool first = true;
   vector<char> cwd;
@@ -743,8 +801,8 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   }
 
   putchar('[');
-  for (vector<Edge*>::iterator e = state_.edges_.begin();
-       e != state_.edges_.end(); ++e) {
+  for (vector<Edge*>::iterator e = edges_to_process->begin();
+       e != edges_to_process->end(); ++e) {
     if ((*e)->inputs_.empty())
       continue;
     for (int i = 0; i != argc; ++i) {
