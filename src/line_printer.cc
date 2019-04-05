@@ -31,18 +31,22 @@
 #include "util.h"
 
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
-#ifndef _WIN32
   const char* term = getenv("TERM");
+#ifndef _WIN32
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
-  setvbuf(stdout, NULL, _IONBF, 0);
-  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  if(term && string(term) == "dumb"){
+    smart_terminal_ = false;
+  } else {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  }
 #endif
   supports_color_ = smart_terminal_;
   if (!supports_color_) {
