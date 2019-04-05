@@ -18,15 +18,34 @@
 #include "test.h"
 #include <stdlib.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 TEST(LinePrinterTest, DumbTermEnv) {
-  LinePrinter line_printer;
-  _putenv("TERM=");
-  line_printer = LinePrinter();
-  EXPECT_TRUE(line_printer.is_smart_terminal());
-  _putenv("TERM=notdumb");
-  line_printer = LinePrinter();
-  EXPECT_TRUE(line_printer.is_smart_terminal());
-  _putenv("TERM=dumb");
-  line_printer = LinePrinter();
-  EXPECT_FALSE(line_printer.is_smart_terminal());
+  bool actually_smart = false;
+#ifndef _WIN32
+  const char* term = getenv("TERM");
+  actually_smart = isatty(1) && term && string(term) != "dumb";
+#else
+  setvbuf(stdout, NULL, _IONBF, 0);
+  void* console = GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  actually_smart = GetConsoleScreenBufferInfo(console, &csbi);
+#endif
+
+  if(actually_smart){
+    LinePrinter line_printer;
+    _putenv("TERM=");
+    line_printer = LinePrinter();
+    EXPECT_TRUE(line_printer.is_smart_terminal());
+    _putenv("TERM=notdumb");
+    line_printer = LinePrinter();
+    EXPECT_TRUE(line_printer.is_smart_terminal());
+    _putenv("TERM=dumb");
+    line_printer = LinePrinter();
+    EXPECT_FALSE(line_printer.is_smart_terminal());
+  }
 }
