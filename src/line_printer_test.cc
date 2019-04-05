@@ -20,8 +20,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#define PUTENV(name) _putenv(name)
 #else
 #include <unistd.h>
+#define PUTENV(name) putenv(name)
 #endif
 
 TEST(LinePrinterTest, DumbTermEnv) {
@@ -38,13 +40,13 @@ TEST(LinePrinterTest, DumbTermEnv) {
 
   if(actually_smart){
     LinePrinter line_printer;
-    _putenv("TERM=");
+    PUTENV("TERM=");
     line_printer = LinePrinter();
     EXPECT_TRUE(line_printer.is_smart_terminal());
-    _putenv("TERM=notdumb");
+    PUTENV("TERM=notdumb");
     line_printer = LinePrinter();
     EXPECT_TRUE(line_printer.is_smart_terminal());
-    _putenv("TERM=dumb");
+    PUTENV("TERM=dumb");
     line_printer = LinePrinter();
     EXPECT_FALSE(line_printer.is_smart_terminal());
   }
