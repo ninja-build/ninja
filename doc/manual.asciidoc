@@ -164,7 +164,7 @@ can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
 of CMake support generating Ninja files on Windows and Mac OS X too.
 
 https://github.com/ninja-build/ninja/wiki/List-of-generators-producing-ninja-build-files[others]:: Ninja ought to fit perfectly into other meta-build software
-like http://industriousone.com/premake[premake].  If you do this work,
+like https://premake.github.io/[premake].  If you do this work,
 please let us know!
 
 Running Ninja
