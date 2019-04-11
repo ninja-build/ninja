@@ -197,9 +197,9 @@ TEST_F(SubprocessTest, Suspend) {
       subprocs_.Add(// Useful to check SIGTSTP is caught before SIGCONT.
                     "tstp_handler_called=false; "
                     // Resume Ninja once it has suspended us.
-                    "trap 'tst_handler_called=true; kill -CONT $PPID' TSTP; "
+                    "trap 'tstp_handler_called=true; kill -CONT $PPID' TSTP; "
                     // Exit normally when we are resumed by Ninja.
-                    "trap '$tst_handler_called && exit 0; exit 1' CONT; "
+                    "trap '$tstp_handler_called && exit 0; exit 1' CONT; "
                     // Suspend Ninja.
                     "kill -TSTP $PPID; "
                     // Give 10s max to Ninja to send SIGTSTP to its children.
