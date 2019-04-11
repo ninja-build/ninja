@@ -55,6 +55,7 @@ struct ManifestParser : public Parser {
     return Parse("input", input, err);
   }
 
+  // Check if the manifests have changed on disk since parsing.
   bool OutOfDate();
 
 private:

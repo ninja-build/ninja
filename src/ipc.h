@@ -39,4 +39,4 @@ void SendBuildResult(int exit_code);
 /// specified.
 bool IsBuildServer();
 
-#endif // NINJA_IPC_H
+#endif  // NINJA_IPC_H

@@ -45,14 +45,14 @@ using namespace std;
 // descriptors between processes. This allows the server process to connect to
 // the client process's terminal to receive input and print messages.
 
-static const int fds_to_transfer[] = {STDIN_FILENO, STDOUT_FILENO,
-                                      STDERR_FILENO};
+static const int fds_to_transfer[] = { STDIN_FILENO, STDOUT_FILENO,
+                                       STDERR_FILENO };
 static const int num_fds_to_transfer =
     sizeof(fds_to_transfer) / sizeof(fds_to_transfer[0]);
 static int server_socket = -1;
 static int server_connection = -1;
 
-const sockaddr_un &ServerAddress() {
+const sockaddr_un& ServerAddress() {
   static sockaddr_un address = {};
   address.sun_family = AF_UNIX;
   strcpy(address.sun_path, "./.ninja_ipc");
@@ -63,16 +63,16 @@ static const sockaddr_un server_address = ServerAddress();
 /// In the client process we want to catch signals so we can forward them to
 /// the builder process before exiting.
 static int server_pid;
-void ForwardSignalAndExit(int sig, siginfo_t *, void *) {
+void ForwardSignalAndExit(int sig, siginfo_t*, void*) {
   kill(server_pid, sig);
   exit(1);
 }
 
-extern char **environ;
+extern char** environ;
 /// Returns a string containing all of the state that can affect a build, such
 /// as ninja version and arguments. The server checks to make sure this
 /// matches the client before building.
-string GetStateString(int argc, char **argv) {
+string GetStateString(int argc, char** argv) {
   // Arguments
   string state;
   for (int i = 0; i < argc; ++i) {
@@ -83,7 +83,7 @@ string GetStateString(int argc, char **argv) {
   state += kNinjaVersion;
   state += '\0';
   // Environment variables
-  for (char **env_var = environ; *env_var != NULL; env_var++) {
+  for (char** env_var = environ; *env_var != NULL; env_var++) {
     state += *env_var;
     state += '\0';
   }
@@ -95,7 +95,7 @@ string GetStateString(int argc, char **argv) {
   struct stat file;
   if (readlink("/proc/self/exe", buffer.data(), buffer.size() - 1) != -1 &&
       stat(buffer.data(), &file) != -1)
-    state.append((char *)&file.st_mtim, sizeof(file.st_mtim));
+    state.append((char*)&file.st_mtim, sizeof(file.st_mtim));
 #endif  // linux
   return state;
 }
@@ -107,13 +107,13 @@ struct FileDescriptorMessage {
   struct msghdr msg;
   struct iovec io;
   int data;
-  int *fds;
+  int* fds;
   union {
     char cmsg_space[CMSG_SPACE(sizeof(int) * num_fds)];
     struct cmsghdr cmsg;
   };
 
-  FileDescriptorMessage() : msg(), io(), data(0), fds((int *)CMSG_DATA(&cmsg)) {
+  FileDescriptorMessage() : msg(), io(), data(0), fds((int*)CMSG_DATA(&cmsg)) {
     io.iov_base = &data;
     io.iov_len = sizeof(data);
     msg.msg_iov = &io;
@@ -128,10 +128,10 @@ struct FileDescriptorMessage {
 
 /// This function will only return if the server refuses to do a build because
 /// of a mismatch in arguments or other state.
-void SendBuildRequestAndExit(const string &state) {
+void SendBuildRequestAndExit(const string& state) {
   // Connect to server socket.
   int client_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
-  if (connect(client_socket, (struct sockaddr *)&server_address,
+  if (connect(client_socket, (struct sockaddr*)&server_address,
               sizeof(server_address)) == -1) {
     // Server not running.
     close(client_socket);
@@ -178,7 +178,7 @@ void SendBuildResult(int exit_code) {
   server_connection = -1;
 }
 
-void WaitForBuildRequest(int argc, char **argv) {
+void WaitForBuildRequest(int argc, char** argv) {
   static const string state = GetStateString(argc, argv);
   if (!IsBuildServer())
     Fatal("Tried to wait for build request when we are not a build server.");
@@ -212,7 +212,8 @@ void WaitForBuildRequest(int argc, char **argv) {
         recv(server_connection, buffer.data() + read, buffer.size() - read, 0));
   int compatible = state == string(buffer.data(), buffer.size());
   send(server_connection, &compatible, sizeof(compatible), 0);
-  if (!compatible) exit(1);
+  if (!compatible)
+    exit(1);
 
   // Send our PID to the client so it can forward us any signals that come in.
   int pid = getpid();
@@ -222,7 +223,7 @@ void WaitForBuildRequest(int argc, char **argv) {
 void ForkBuildServer() {
   server_socket = CHECK_ERRNO(socket(AF_UNIX, SOCK_STREAM, 0));
   unlink(server_address.sun_path);
-  CHECK_ERRNO(bind(server_socket, (struct sockaddr *)&server_address,
+  CHECK_ERRNO(bind(server_socket, (struct sockaddr*)&server_address,
                    sizeof(server_address)));
   CHECK_ERRNO(listen(server_socket, 0));
 
@@ -236,14 +237,18 @@ void ForkBuildServer() {
   }
 }
 
-void RequestBuildFromServer(int argc, char **argv) {
-  if (IsBuildServer()) return;
+void RequestBuildFromServer(int argc, char** argv) {
+  if (IsBuildServer())
+    return;
   const string state = GetStateString(argc, argv);
   SendBuildRequestAndExit(state);
   ForkBuildServer();
-  if (IsBuildServer()) return;
+  if (IsBuildServer())
+    return;
   SendBuildRequestAndExit(state);
   Fatal("Build request should not fail after forking server.");
 }
 
-bool IsBuildServer() { return server_socket >= 0; }
+bool IsBuildServer() {
+  return server_socket >= 0;
+}

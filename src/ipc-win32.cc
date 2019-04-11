@@ -42,7 +42,7 @@ string GetCwd() {
 // Returns a string containing all of the state that can affect a build, such as
 // ninja version and arguments. The server checks to make sure this matches the
 // client before building.
-string GetStateString(int argc, char **argv) {
+string GetStateString(int argc, char** argv) {
   string state;
   // If the current working directory is longer than 246 characters then it will
   // be truncated in the pipe name, so we need to check equality of the full
@@ -64,14 +64,16 @@ string GetStateString(int argc, char **argv) {
   // will confuse us into thinking a real env var has changed.
   LPTCH start = env;
   while (*start == '=') {
-    while (*start) ++start;
+    while (*start)
+      ++start;
     ++start;
   }
   if (*start) {
     LPTCH end = start;
     // Find the end of the environment variables, marked by two consecutive null
     // chars.
-    while (*end || *(end + 1)) ++end;
+    while (*end || *(end + 1))
+      ++end;
     state.append(start, sizeof(TCHAR) * (end - start));
   }
   FreeEnvironmentStrings(env);
@@ -92,7 +94,7 @@ string GetEventName() {
   return cwd;
 }
 
-void StartServer(int argc, char **argv) {
+void StartServer(int argc, char** argv) {
   // Assemble command line.
   string args;
   for (int i = 0; i < argc; i++) {
@@ -102,11 +104,11 @@ void StartServer(int argc, char **argv) {
     args += ' ';
   }
   // Start the process and wait for it to create the pipe before continuing.
-  STARTUPINFO si = {0};
-  PROCESS_INFORMATION pi = {0};
+  STARTUPINFO si = { 0 };
+  PROCESS_INFORMATION pi = { 0 };
   HANDLE pipe_created_event =
       CreateEvent(NULL, TRUE, FALSE, GetEventName().c_str());
-  if (!CreateProcess(NULL, (char *)args.c_str(), NULL, NULL, FALSE, 0, NULL,
+  if (!CreateProcess(NULL, (char*)args.c_str(), NULL, NULL, FALSE, 0, NULL,
                      NULL, &si, &pi)) {
     Win32Fatal("CreateProcess");
   }
@@ -117,7 +119,7 @@ void StartServer(int argc, char **argv) {
   CloseHandle(pi.hThread);
 }
 
-void SendBuildRequestAndExit(int argc, char **argv) {
+void SendBuildRequestAndExit(int argc, char** argv) {
   string name = GetPipeName();
   // If another client is already talking to the server, wait for it.
   if (!WaitNamedPipe(name.c_str(), NMPWAIT_WAIT_FOREVER)) {
@@ -127,13 +129,15 @@ void SendBuildRequestAndExit(int argc, char **argv) {
   // Connect to server pipe.
   HANDLE client_pipe = CreateFile(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0,
                                   NULL, OPEN_EXISTING, 0, NULL);
-  if (client_pipe == INVALID_HANDLE_VALUE) Win32Fatal("CreateFile");
+  if (client_pipe == INVALID_HANDLE_VALUE)
+    Win32Fatal("CreateFile");
   // Send our pid and state string to the server.
   vector<char> send_buffer(max_message_size);
   int pid = GetCurrentProcessId();
   memcpy(send_buffer.data(), &pid, sizeof(pid));
   string state = GetStateString(argc, argv);
-  if (state.size() > max_message_size - sizeof(pid)) Fatal("State too large.");
+  if (state.size() > max_message_size - sizeof(pid))
+    Fatal("State too large.");
   memcpy(send_buffer.data() + sizeof(pid), state.data(), state.size());
   DWORD bytes_written = 0;
   if (!WriteFile(client_pipe, send_buffer.data(), state.size() + sizeof(pid),
@@ -164,7 +168,8 @@ static bool is_build_server = false;
 static bool checked_for_build_server = false;
 
 bool IsBuildServer() {
-  if (checked_for_build_server) return is_build_server;
+  if (checked_for_build_server)
+    return is_build_server;
   checked_for_build_server = true;
 
   if (server_pipe == INVALID_HANDLE_VALUE) {
@@ -202,7 +207,7 @@ void SendBuildResult(int exit_code) {
   DisconnectNamedPipe(server_pipe);
 }
 
-void WaitForBuildRequest(int argc, char **argv) {
+void WaitForBuildRequest(int argc, char** argv) {
   if (!IsBuildServer())
     Fatal("WaitForBuildRequest called when we are not a build server.");
   // Disconnect from any console window.
@@ -221,7 +226,7 @@ void WaitForBuildRequest(int argc, char **argv) {
     Win32Fatal("ReadFile");
   }
   // Attach to the client's console.
-  int client_pid = *(int *)receive_buffer.data();
+  int client_pid = *(int*)receive_buffer.data();
   AttachConsole(client_pid);
   // Check that our state is compatible with the client's state.
   string state = GetStateString(argc, argv);
@@ -239,8 +244,9 @@ void WaitForBuildRequest(int argc, char **argv) {
   }
 }
 
-void RequestBuildFromServer(int argc, char **argv) {
-  if (IsBuildServer()) return;
+void RequestBuildFromServer(int argc, char** argv) {
+  if (IsBuildServer())
+    return;
   SendBuildRequestAndExit(argc, argv);
   // The server is exiting without attempting a build, probably because the
   // arguments changed. Try again, which will start a new server with the right

@@ -23,3 +23,5 @@ AllowShortLoopsOnASingleLine: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 Cpp11BracedListStyle: false
 IndentCaseLabels: false
+PointerBindsToType: true
+DerivePointerBinding: false

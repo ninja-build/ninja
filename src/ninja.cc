@@ -1215,7 +1215,7 @@ int ReadFlags(int* argc, char*** argv,
 
 NORETURN void real_main(int argc, char** argv) {
   int original_argc = argc;
-  char **original_argv = argv;
+  char** original_argv = argv;
 
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
@@ -1321,9 +1321,8 @@ NORETURN void real_main(int argc, char** argv) {
         cycle = 1;
         ninja.state_.Reset();
         continue;
-      } else {
-        exit(result);
       }
+      exit(result);
     }
   }
 
