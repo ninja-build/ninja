@@ -218,10 +218,16 @@ parser.add_option('--with-python', metavar='EXE',
 parser.add_option('--force-pselect', action='store_true',
                   help='ppoll() is used by default where available, '
                        'but some platforms may need to use pselect instead',)
+parser.add_option('--purge', action='store_true',
+                   help='purge generated stuff')
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
     sys.exit(1)
+
+if options.purge:
+    subprocess.call('rm -rf build build.ninja ninja', shell=True)
+    sys.exit(0)
 
 platform = Platform(options.platform)
 if options.host:
