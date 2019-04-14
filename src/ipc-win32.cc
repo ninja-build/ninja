@@ -103,12 +103,14 @@ void StartServer(int argc, char** argv) {
     args += escaped;
     args += ' ';
   }
+  args += '\0';
+  vector<char> args_buffer(args.begin(), args.end());
   // Start the process and wait for it to create the pipe before continuing.
   STARTUPINFO si = { 0 };
   PROCESS_INFORMATION pi = { 0 };
   HANDLE pipe_created_event =
       CreateEvent(NULL, TRUE, FALSE, GetEventName().c_str());
-  if (!CreateProcess(NULL, (char*)args.c_str(), NULL, NULL, FALSE, 0, NULL,
+  if (!CreateProcess(NULL, args_buffer.data(), NULL, NULL, FALSE, 0, NULL,
                      NULL, &si, &pi)) {
     Win32Fatal("CreateProcess");
   }
