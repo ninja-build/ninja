@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #ifdef _MSC_VER
+#define UNICODE
+
 
 #include <windows.h>
 #include <DbgHelp.h>
@@ -57,10 +59,18 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
     return;
   }
 
-  HANDLE hFile = CreateFileA(temp_file, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+#ifdef UNICODE
+  HANDLE hFile = CreateFile(Utf8ToWide(temp_file).c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
+#else
+  HANDLE hFile = CreateFile(temp_file, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+#endif
                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == NULL) {
-    Error("failed to create minidump: CreateFileA(%s): %s",
+#ifdef UNICODE
+	  Error("failed to create minidump: CreateFileW(%s): %s",
+#else
+	  Error("failed to create minidump: CreateFileA(%s): %s",
+#endif
           temp_file, GetLastErrorString().c_str());
     return;
   }

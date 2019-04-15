@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+#define UNICODE
+#endif
+
 #include "includes_normalize.h"
 
 #include <algorithm>
@@ -142,6 +146,7 @@ TEST(IncludesNormalize, LongInvalidPath) {
             NormalizeAndCheckNoError(kExactlyMaxPath));
 }
 
+
 TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
   string result, err;
   IncludesNormalize normalizer(".");
@@ -151,17 +156,39 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
+#ifdef UNICODE
+  const size_t w_max_path = _MAX_PATH;
+  wchar_t kwExactlyMaxPath[w_max_path + 1];
+  for (int i = 0; i < w_max_path; ++i) {
+    if (i < w_max_path - 1 && i % 10 == 4)
+      kwExactlyMaxPath[i] = L'\\';
+    else
+      kwExactlyMaxPath[i] = L'a';
+  }
+  kwExactlyMaxPath[w_max_path] = L'\0';
+  EXPECT_EQ(wcslen(kwExactlyMaxPath), w_max_path);
+  string s_kExactlyMaxPath = WideToUtf8(wstring(kwExactlyMaxPath));
+  const char* kExactlyMaxPath = s_kExactlyMaxPath.c_str();
+  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+#else
   char kExactlyMaxPath[_MAX_PATH + 1];
   for (int i = 0; i < _MAX_PATH; ++i) {
     if (i < _MAX_PATH - 1 && i % 10 == 4)
-      kExactlyMaxPath[i] = '\\';
+      _MAX_PATH[i] = '\\';
     else
-      kExactlyMaxPath[i] = 'a';
+      _MAX_PATH[i] = 'a';
   }
   kExactlyMaxPath[_MAX_PATH] = '\0';
   EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+#endif
 
   // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
+
+#ifdef UNICODE
+  // Using UNICODE version of GetFullPathName will allow for path longer than _MAX_PATH.
+  EXPECT_TRUE(err.find("path too long") != string::npos);
+#else
   EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+#endif
 }

@@ -115,6 +115,10 @@ bool Truncate(const string& path, size_t size, string* err);
 #endif
 
 #ifdef _WIN32
+/// UTF-8 converters
+std::wstring Utf8ToWide(const std::string& s);
+std::string WideToUtf8(const std::wstring& s);
+
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
 

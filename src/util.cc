@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
+
 #include "util.h"
 
 #ifdef __CYGWIN__
 #include <windows.h>
 #include <io.h>
 #elif defined( _WIN32)
+#define UNICODE
+#include <codecvt>
 #include <windows.h>
 #include <io.h>
 #include <share.h>
@@ -318,7 +323,11 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+#ifdef UNICODE
+  HANDLE f = ::CreateFile(Utf8ToWide(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+#else
+  HANDLE f = ::CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+#endif
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
@@ -423,21 +432,51 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
+wstring Utf8ToWide(const string& s)
+{
+  wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
+  return myconv.from_bytes(s);
+}
+
+
+string WideToUtf8(const wstring& s)
+{
+  wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
+  return myconv.to_bytes(s);
+}
+
+
 string GetLastErrorString() {
   DWORD err = GetLastError();
-
+#ifdef UNICODE
+  wchar_t* msg_buf;
+  FormatMessage(
+	  FORMAT_MESSAGE_ALLOCATE_BUFFER |
+	  FORMAT_MESSAGE_FROM_SYSTEM |
+	  FORMAT_MESSAGE_IGNORE_INSERTS,
+	  NULL,
+	  err,
+	  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+	  (wchar_t*)&msg_buf,
+	  0,
+	  NULL);
+  string msg = WideToUtf8(wstring(msg_buf));
+#else
   char* msg_buf;
-  FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        err,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (char*)&msg_buf,
-        0,
-        NULL);
+  FormatMessage(
+	  FORMAT_MESSAGE_ALLOCATE_BUFFER |
+	  FORMAT_MESSAGE_FROM_SYSTEM |
+	  FORMAT_MESSAGE_IGNORE_INSERTS,
+	  NULL,
+	  err,
+	  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+	  (char*)&msg_buf,
+	  0,
+	  NULL);
   string msg = msg_buf;
+#endif
+  
+  
   LocalFree(msg_buf);
   return msg;
 }

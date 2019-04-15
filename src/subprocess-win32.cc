@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#define UNICODE
+
 #include "subprocess.h"
+
 
 #include <assert.h>
 #include <stdio.h>
@@ -41,7 +44,11 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   snprintf(pipe_name, sizeof(pipe_name),
            "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
 
-  pipe_ = ::CreateNamedPipeA(pipe_name,
+#ifdef UNICODE
+  pipe_ = ::CreateNamedPipe(Utf8ToWide(pipe_name).c_str(),
+#else
+  pipe_ = ::CreateNamedPipe(pipe_name.c_str(),
+#endif
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                              PIPE_TYPE_BYTE,
                              PIPE_UNLIMITED_INSTANCES,
@@ -60,7 +67,11 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
 
   // Get the write end of the pipe as a handle inheritable across processes.
   HANDLE output_write_handle =
-      CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+#ifdef UNICODE
+	  CreateFile(Utf8ToWide(pipe_name).c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+#else
+	  CreateFile(pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+#endif
   HANDLE output_write_child;
   if (!DuplicateHandle(GetCurrentProcess(), output_write_handle,
                        GetCurrentProcess(), &output_write_child,
@@ -81,13 +92,17 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   security_attributes.bInheritHandle = TRUE;
   // Must be inheritable so subprocesses can dup to children.
   HANDLE nul =
-      CreateFileA("NUL", GENERIC_READ,
+#ifdef UNICODE
+	  CreateFile(L"NUL", GENERIC_READ,
+#else
+	  CreateFile("NUL", GENERIC_READ,
+#endif
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
-  STARTUPINFOA startup_info;
+  STARTUPINFO startup_info;
   memset(&startup_info, 0, sizeof(startup_info));
   startup_info.cb = sizeof(STARTUPINFO);
   if (!use_console_) {
@@ -105,9 +120,16 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   // Ninja handles ctrl-c, except for subprocesses in console pools.
   DWORD process_flags = use_console_ ? 0 : CREATE_NEW_PROCESS_GROUP;
 
+
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
-  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
+#ifdef UNICODE
+  std::wstring commands = Utf8ToWide(command).c_str();
+  LPWSTR command_line = const_cast <LPWSTR> (commands.c_str());
+  if (!CreateProcess(NULL, command_line, NULL, NULL,
+#else
+  if (!CreateProcess(NULL, command.c_str(), NULL, NULL,
+#endif
                       /* inherit handles */ TRUE, process_flags,
                       NULL, NULL,
                       &startup_info, &process_info)) {

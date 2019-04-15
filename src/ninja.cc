@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -19,6 +21,7 @@
 #include <string.h>
 
 #ifdef _WIN32
+#define UNICODE
 #include "getopt.h"
 #include <direct.h>
 #include <windows.h>
@@ -1225,7 +1228,12 @@ NORETURN void real_main(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (!options.tool)
       printf("ninja: Entering directory `%s'\n", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
+#ifdef UNICODE
+	wstring wDir = Utf8ToWide(options.working_dir);
+	if (_wchdir(wDir.c_str()) < 0) {
+#else
+	if (chdir(options.working_dir) < 0) {
+#endif
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
@@ -1294,7 +1302,7 @@ NORETURN void real_main(int argc, char** argv) {
 
 }  // anonymous namespace
 
-int main(int argc, char** argv) {
+int maine(int argc, char** argv) {
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
@@ -1313,3 +1321,45 @@ int main(int argc, char** argv) {
   real_main(argc, argv);
 #endif
 }
+
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) // For windows targets
+{
+	
+	char **argv;
+	argv = (char **)malloc((argc + 1) * sizeof(argv));
+
+	wstring w_argString;
+	string  argString;
+	string test;
+
+	// Perform the conversion
+	for (int i = 0; i < argc; i++)
+	{
+		// Convert the string
+		argString = WideToUtf8(wargv[i]);
+
+		// Prepare space in the vector
+		argv[i] = (char *)malloc(argString.length() + 1);
+		char *ptr = (char *)argv[i];
+
+		// Copy the final results.
+		strcpy(ptr, argString.c_str());
+	}
+
+	// Just to follow the c++ standard, we need to add this!
+	// Also, ninja will not work properly if we do not do so.
+	argv[argc] = (char *)malloc(sizeof(char *));
+	argv[argc] = NULL;
+	
+
+	return maine(argc, argv);
+}
+#else
+int main(int argc, char** argv) // For linux targets
+{
+	return maine(argc, argv);
+}
+#endif
+

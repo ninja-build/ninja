@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
 #include "line_printer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
+#define UNICODE
 #include <windows.h>
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
@@ -83,6 +86,11 @@ void LinePrinter::Print(string to_print, LineType type) {
     GetConsoleScreenBufferInfo(console_, &csbi);
 
     to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
+
+#ifdef UNICODE
+	wstring w_to_print = Utf8ToWide(to_print);
+#endif
+
     // We don't want to have the cursor spamming back and forth, so instead of
     // printf use WriteConsoleOutput which updates the contents of the buffer,
     // but doesn't move the cursor position.
@@ -94,11 +102,18 @@ void LinePrinter::Print(string to_print, LineType type) {
       csbi.dwCursorPosition.Y
     };
     vector<CHAR_INFO> char_data(csbi.dwSize.X);
+
     for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
-      char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
+#ifdef UNICODE
+      char_data[i].Char.UnicodeChar = i < w_to_print.size() ? w_to_print[i] : ' ';
+#else
+	  char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
+#endif
       char_data[i].Attributes = csbi.wAttributes;
     }
-    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
+	
+	WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
+    
 #else
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.

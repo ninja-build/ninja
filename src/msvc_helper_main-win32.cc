@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#define UNICODE
+
 #include "msvc_helper.h"
 
 #include <fcntl.h>
@@ -113,8 +115,15 @@ int MSVCHelperMain(int argc, char** argv) {
     PushPathIntoEnvironment(env);
   }
 
-  char* command = GetCommandLineA();
-  command = strstr(command, " -- ");
+#ifdef UNICODE
+  wchar_t* w_command = GetCommandLine();
+  std::string w_command_str = WideToUtf8(w_command);
+  char *command = (char *)malloc(w_command_str.length() + 1);
+  strcpy(command, w_command_str.c_str());
+#else
+  char* command = GetCommandLine();
+#endif
+  command = strstr(command," -- ");
   if (!command) {
     Fatal("expected command line to end with \" -- command args\"");
   }
@@ -125,6 +134,9 @@ int MSVCHelperMain(int argc, char** argv) {
     cl.SetEnvBlock((void*)env.data());
   string output;
   int exit_code = cl.Run(command, &output);
+#ifdef UNICODE
+  free(command);
+#endif
 
   if (output_filename) {
     CLParser parser;
