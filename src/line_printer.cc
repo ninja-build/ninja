@@ -39,7 +39,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
-  if(term && string(term) == "dumb"){
+  if (term && string(term) == "dumb") {
     smart_terminal_ = false;
   } else {
     setvbuf(stdout, NULL, _IONBF, 0);
