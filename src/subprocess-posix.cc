@@ -87,7 +87,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   if (!use_console_) {
     // Put the child in its own process group, so ctrl-c won't reach it.
-    // This may be useful if we want to kill subsets or running subcommands.
+    // This may be useful if we want to kill subsets of running subcommands.
     flags |= POSIX_SPAWN_SETPGROUP;
     // No need to posix_spawnattr_setpgroup(&attr, 0), it's the default.
 
