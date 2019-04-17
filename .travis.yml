@@ -8,6 +8,7 @@ matrix:
 sudo: false
 language: cpp
 script:
+  - ./misc/ci.py
   - ./configure.py --bootstrap
   - ./ninja all
   - ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots

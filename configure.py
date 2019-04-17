@@ -508,7 +508,7 @@ for name in ['build',
              'string_piece_util',
              'util',
              'version']:
-    objs += cxx(name, variables=cxxvariables) 
+    objs += cxx(name, variables=cxxvariables)
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',

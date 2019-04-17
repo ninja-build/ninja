@@ -325,7 +325,7 @@ TEST_F(CleanTest, CleanRsp) {
   Cleaner cleaner(&state_, config_, &fs_);
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-  EXPECT_EQ(2, cleaner.cleaned_files_count()); 
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("in2"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_rsp"));
