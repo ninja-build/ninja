@@ -73,7 +73,7 @@ private:
   bool ParseFileInclude(bool new_scope, string* err);
 
   /// If the next token is not \a expected, produce an error string
-  /// saying "expectd foo, got bar".
+  /// saying "expected foo, got bar".
   bool ExpectToken(Lexer::Token expected, string* err);
 
   State* state_;
