@@ -18,39 +18,16 @@
 #include <stdlib.h>
 #include <vector>
 
-#include "disk_interface.h"
 #include "graph.h"
-#include "metrics.h"
 #include "state.h"
 #include "util.h"
 #include "version.h"
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
-    : state_(state), file_reader_(file_reader),
+    : Parser(state, file_reader),
       options_(options), quiet_(false) {
   env_ = &state->bindings_;
-}
-
-bool ManifestParser::Load(const string& filename, string* err, Lexer* parent) {
-  METRIC_RECORD(".ninja parse");
-  string contents;
-  string read_err;
-  if (file_reader_->ReadFile(filename, &contents, &read_err) != FileReader::Okay) {
-    *err = "loading '" + filename + "': " + read_err;
-    if (parent)
-      parent->Error(string(*err), err);
-    return false;
-  }
-
-  // The lexer needs a nul byte at the end of its input, to know when it's done.
-  // It takes a StringPiece, and StringPiece's string constructor uses
-  // string::data().  data()'s return value isn't guaranteed to be
-  // null-terminated (although in practice - libc++, libstdc++, msvc's stl --
-  // it is, and C++11 demands that too), so add an explicit nul byte.
-  contents.resize(contents.size() + 1);
-
-  return Parse(filename, contents, err);
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
@@ -410,6 +387,23 @@ bool ManifestParser::ParseEdge(string* err) {
                         err);
   }
 
+  // Lookup, validate, and save any dyndep binding.  It will be used later
+  // to load generated dependency information dynamically, but it must
+  // be one of our manifest-specified inputs.
+  string dyndep = edge->GetUnescapedDyndep();
+  if (!dyndep.empty()) {
+    uint64_t slash_bits;
+    if (!CanonicalizePath(&dyndep, &slash_bits, err))
+      return false;
+    edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
+    edge->dyndep_->set_dyndep_pending(true);
+    vector<Node*>::iterator dgi =
+      std::find(edge->inputs_.begin(), edge->inputs_.end(), edge->dyndep_);
+    if (dgi == edge->inputs_.end()) {
+      return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
+    }
+  }
+
   return true;
 }
 
@@ -432,16 +426,5 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  return true;
-}
-
-bool ManifestParser::ExpectToken(Lexer::Token expected, string* err) {
-  Lexer::Token token = lexer_.ReadToken();
-  if (token != expected) {
-    string message = string("expected ") + Lexer::TokenName(expected);
-    message += string(", got ") + Lexer::TokenName(token);
-    message += Lexer::TokenErrorHint(expected);
-    return lexer_.Error(message, err);
-  }
   return true;
 }

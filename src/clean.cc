@@ -22,21 +22,12 @@
 #include "state.h"
 #include "util.h"
 
-Cleaner::Cleaner(State* state, const BuildConfig& config)
-  : state_(state),
-    config_(config),
-    removed_(),
-    cleaned_(),
-    cleaned_files_count_(0),
-    disk_interface_(new RealDiskInterface),
-    status_(0) {
-}
-
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
   : state_(state),
     config_(config),
+    dyndep_loader_(state, disk_interface),
     removed_(),
     cleaned_(),
     cleaned_files_count_(0),
@@ -113,6 +104,7 @@ void Cleaner::PrintFooter() {
 int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
+  LoadDyndeps();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
@@ -158,6 +150,7 @@ int Cleaner::CleanTarget(Node* target) {
 
   Reset();
   PrintHeader();
+  LoadDyndeps();
   DoCleanTarget(target);
   PrintFooter();
   return status_;
@@ -180,6 +173,7 @@ int Cleaner::CleanTarget(const char* target) {
 int Cleaner::CleanTargets(int target_count, char* targets[]) {
   Reset();
   PrintHeader();
+  LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
     string target_name = targets[i];
     uint64_t slash_bits;
@@ -223,6 +217,7 @@ int Cleaner::CleanRule(const Rule* rule) {
 
   Reset();
   PrintHeader();
+  LoadDyndeps();
   DoCleanRule(rule);
   PrintFooter();
   return status_;
@@ -247,6 +242,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
 
   Reset();
   PrintHeader();
+  LoadDyndeps();
   for (int i = 0; i < rule_count; ++i) {
     const char* rule_name = rules[i];
     const Rule* rule = state_->bindings_.LookupRule(rule_name);
@@ -268,4 +264,17 @@ void Cleaner::Reset() {
   cleaned_files_count_ = 0;
   removed_.clear();
   cleaned_.clear();
+}
+
+void Cleaner::LoadDyndeps() {
+  // Load dyndep files that exist, before they are cleaned.
+  for (vector<Edge*>::iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    if (Node* dyndep = (*e)->dyndep_) {
+      // Capture and ignore errors loading the dyndep file.
+      // We clean as much of the graph as we know.
+      std::string err;
+      dyndep_loader_.LoadDyndeps(dyndep, &err);
+    }
+  }
 }

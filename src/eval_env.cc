@@ -65,6 +65,7 @@ const EvalString* Rule::GetBinding(const string& key) const {
 bool Rule::IsReservedBinding(const string& var) {
   return var == "command" ||
       var == "depfile" ||
+      var == "dyndep" ||
       var == "description" ||
       var == "deps" ||
       var == "generator" ||

@@ -338,7 +338,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  GraphViz graph;
+  GraphViz graph(&state_, &disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
@@ -353,6 +353,8 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
+  DyndepLoader dyndep_loader(&state_, &disk_interface_);
+
   for (int i = 0; i < argc; ++i) {
     string err;
     Node* node = CollectTarget(argv[i], &err);
@@ -363,6 +365,11 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
 
     printf("%s:\n", node->path().c_str());
     if (Edge* edge = node->in_edge()) {
+      if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
+          Warning("%s\n", err.c_str());
+        }
+      }
       printf("  input: %s\n", edge->rule_->name().c_str());
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
         const char* label = "";
@@ -651,7 +658,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(&state_, config_);
+  Cleaner cleaner(&state_, config_, &disk_interface_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);

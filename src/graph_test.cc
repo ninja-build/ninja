@@ -479,3 +479,380 @@ TEST_F(GraphTest, Decanonicalize) {
   EXPECT_EQ(root_nodes[3]->PathDecanonicalized(), "out4\\foo");
 }
 #endif
+
+TEST_F(GraphTest, DyndepLoadTrivial) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r in || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(GetNode("dd")->dyndep_pending());
+
+  Edge* edge = GetNode("out")->in_edge();
+  ASSERT_EQ(1u, edge->outputs_.size());
+  EXPECT_EQ("out", edge->outputs_[0]->path());
+  ASSERT_EQ(2u, edge->inputs_.size());
+  EXPECT_EQ("in", edge->inputs_[0]->path());
+  EXPECT_EQ("dd", edge->inputs_[1]->path());
+  EXPECT_EQ(0u, edge->implicit_deps_);
+  EXPECT_EQ(1u, edge->order_only_deps_);
+  EXPECT_FALSE(edge->GetBindingBool("restat"));
+}
+
+TEST_F(GraphTest, DyndepLoadMissingFile) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r in || dd\n"
+"  dyndep = dd\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("loading 'dd': No such file or directory", err);
+}
+
+TEST_F(GraphTest, DyndepLoadMissingEntry) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r in || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("'out' not mentioned in its dyndep file 'dd'", err);
+}
+
+TEST_F(GraphTest, DyndepLoadExtraEntry) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r in || dd\n"
+"  dyndep = dd\n"
+"build out2: r in || dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep\n"
+"build out2: dyndep\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("dyndep file 'dd' mentions output 'out2' whose build statement "
+            "does not have a dyndep binding for the file", err);
+}
+
+TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules1) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out1 | out-twice.imp: r in1\n"
+"build out2: r in2 || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out2 | out-twice.imp: dyndep\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+}
+
+TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules2) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out1: r in1 || dd1\n"
+"  dyndep = dd1\n"
+"build out2: r in2 || dd2\n"
+"  dyndep = dd2\n"
+  );
+  fs_.Create("dd1",
+"ninja_dyndep_version = 1\n"
+"build out1 | out-twice.imp: dyndep\n"
+  );
+  fs_.Create("dd2",
+"ninja_dyndep_version = 1\n"
+"build out2 | out-twice.imp: dyndep\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd1")->dyndep_pending());
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd1"), &err));
+  EXPECT_EQ("", err);
+  ASSERT_TRUE(GetNode("dd2")->dyndep_pending());
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd2"), &err));
+  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+}
+
+TEST_F(GraphTest, DyndepLoadMultiple) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out1: r in1 || dd\n"
+"  dyndep = dd\n"
+"build out2: r in2 || dd\n"
+"  dyndep = dd\n"
+"build outNot: r in3 || dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out1 | out1imp: dyndep | in1imp\n"
+"build out2: dyndep | in2imp\n"
+"  restat = 1\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(GetNode("dd")->dyndep_pending());
+
+  Edge* edge1 = GetNode("out1")->in_edge();
+  ASSERT_EQ(2u, edge1->outputs_.size());
+  EXPECT_EQ("out1", edge1->outputs_[0]->path());
+  EXPECT_EQ("out1imp", edge1->outputs_[1]->path());
+  EXPECT_EQ(1u, edge1->implicit_outs_);
+  ASSERT_EQ(3u, edge1->inputs_.size());
+  EXPECT_EQ("in1", edge1->inputs_[0]->path());
+  EXPECT_EQ("in1imp", edge1->inputs_[1]->path());
+  EXPECT_EQ("dd", edge1->inputs_[2]->path());
+  EXPECT_EQ(1u, edge1->implicit_deps_);
+  EXPECT_EQ(1u, edge1->order_only_deps_);
+  EXPECT_FALSE(edge1->GetBindingBool("restat"));
+  EXPECT_EQ(edge1, GetNode("out1imp")->in_edge());
+  Node* in1imp = GetNode("in1imp");
+  ASSERT_EQ(1u, in1imp->out_edges().size());
+  EXPECT_EQ(edge1, in1imp->out_edges()[0]);
+
+  Edge* edge2 = GetNode("out2")->in_edge();
+  ASSERT_EQ(1u, edge2->outputs_.size());
+  EXPECT_EQ("out2", edge2->outputs_[0]->path());
+  EXPECT_EQ(0u, edge2->implicit_outs_);
+  ASSERT_EQ(3u, edge2->inputs_.size());
+  EXPECT_EQ("in2", edge2->inputs_[0]->path());
+  EXPECT_EQ("in2imp", edge2->inputs_[1]->path());
+  EXPECT_EQ("dd", edge2->inputs_[2]->path());
+  EXPECT_EQ(1u, edge2->implicit_deps_);
+  EXPECT_EQ(1u, edge2->order_only_deps_);
+  EXPECT_TRUE(edge2->GetBindingBool("restat"));
+  Node* in2imp = GetNode("in2imp");
+  ASSERT_EQ(1u, in2imp->out_edges().size());
+  EXPECT_EQ(edge2, in2imp->out_edges()[0]);
+}
+
+TEST_F(GraphTest, DyndepFileMissing) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("loading 'dd': No such file or directory", err);
+}
+
+TEST_F(GraphTest, DyndepFileError) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+  );
+
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("'out' not mentioned in its dyndep file 'dd'", err);
+}
+
+TEST_F(GraphTest, DyndepImplicitInputNewer) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep | in\n"
+  );
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("in")->dirty());
+  EXPECT_FALSE(GetNode("dd")->dirty());
+
+  // "out" is dirty due to dyndep-specified implicit input
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+TEST_F(GraphTest, DyndepFileReady) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build dd: r dd-in\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd-in", "");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep | in\n"
+  );
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("in")->dirty());
+  EXPECT_FALSE(GetNode("dd")->dirty());
+  EXPECT_TRUE(GetNode("dd")->in_edge()->outputs_ready());
+
+  // "out" is dirty due to dyndep-specified implicit input
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+TEST_F(GraphTest, DyndepFileNotClean) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build dd: r dd-in\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd", "this-should-not-be-loaded");
+  fs_.Tick();
+  fs_.Create("dd-in", "");
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("dd")->dirty());
+  EXPECT_FALSE(GetNode("dd")->in_edge()->outputs_ready());
+
+  // "out" is clean but not ready since "dd" is not ready
+  EXPECT_FALSE(GetNode("out")->dirty());
+  EXPECT_FALSE(GetNode("out")->in_edge()->outputs_ready());
+}
+
+TEST_F(GraphTest, DyndepFileNotReady) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build tmp: r\n"
+"build dd: r dd-in || tmp\n"
+"build out: r || dd\n"
+"  dyndep = dd\n"
+  );
+  fs_.Create("dd", "this-should-not-be-loaded");
+  fs_.Create("dd-in", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("dd")->dirty());
+  EXPECT_FALSE(GetNode("dd")->in_edge()->outputs_ready());
+  EXPECT_FALSE(GetNode("out")->dirty());
+  EXPECT_FALSE(GetNode("out")->in_edge()->outputs_ready());
+}
+
+TEST_F(GraphTest, DyndepFileSecondNotReady) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build dd1: r dd1-in\n"
+"build dd2-in: r || dd1\n"
+"  dyndep = dd1\n"
+"build dd2: r dd2-in\n"
+"build out: r || dd2\n"
+"  dyndep = dd2\n"
+  );
+  fs_.Create("dd1", "");
+  fs_.Create("dd2", "");
+  fs_.Create("dd2-in", "");
+  fs_.Tick();
+  fs_.Create("dd1-in", "");
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("dd1")->dirty());
+  EXPECT_FALSE(GetNode("dd1")->in_edge()->outputs_ready());
+  EXPECT_FALSE(GetNode("dd2")->dirty());
+  EXPECT_FALSE(GetNode("dd2")->in_edge()->outputs_ready());
+  EXPECT_FALSE(GetNode("out")->dirty());
+  EXPECT_FALSE(GetNode("out")->in_edge()->outputs_ready());
+}
+
+TEST_F(GraphTest, DyndepFileCircular) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out: r in || dd\n"
+"  depfile = out.d\n"
+"  dyndep = dd\n"
+"build in: r circ\n"
+  );
+  fs_.Create("out.d", "out: inimp\n");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out | circ: dyndep\n"
+  );
+  fs_.Create("out", "");
+
+  Edge* edge = GetNode("out")->in_edge();
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), &err));
+  EXPECT_EQ("dependency cycle: circ -> in -> circ", err);
+
+  // Verify that "out.d" was loaded exactly once despite
+  // circular reference discovered from dyndep file.
+  ASSERT_EQ(3u, edge->inputs_.size());
+  EXPECT_EQ("in", edge->inputs_[0]->path());
+  EXPECT_EQ("inimp", edge->inputs_[1]->path());
+  EXPECT_EQ("dd", edge->inputs_[2]->path());
+  EXPECT_EQ(1u, edge->implicit_deps_);
+  EXPECT_EQ(1u, edge->order_only_deps_);
+}
