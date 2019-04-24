@@ -1294,7 +1294,9 @@ NORETURN void real_main(int argc, char** argv) {
       if (options.persistent && cycle == 1) {
         WaitForBuildRequest(original_argc, original_argv);
         // If anything changed while we were waiting, we need to reparse.
+#ifdef _WIN32
         ninja.disk_interface_.ClearStatCache();
+#endif
         if (parser.OutOfDate())
           break;
       }
