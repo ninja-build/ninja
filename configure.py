@@ -515,6 +515,7 @@ for name in ['build',
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',
+                 'ipc-win32',
                  'msvc_helper-win32',
                  'msvc_helper_main-win32']:
         objs += cxx(name, variables=cxxvariables)
@@ -534,6 +535,7 @@ n.newline()
 
 if platform.is_msvc():
     libs.append('ninja.lib')
+    libs.append('User32.lib')
 else:
     libs.append('-lninja')
 

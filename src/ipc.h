@@ -15,22 +15,15 @@
 #ifndef NINJA_IPC_H_
 #define NINJA_IPC_H_
 
-#define EXIT_CODE_SERVER_SHUTDOWN 2
+/// If this process is a build server, waits until a client requests a build
+/// before returning. If this process is not a build server, this function
+/// starts a build server if necessary, sends a build request to the server,
+/// and then exits after the build is complete.
+void MakeOrWaitForBuildRequest(int argc, char **argv);
 
-// If there is a persistent server running in the current working directory,
-// sends an IPC request to start a build. If a build is started, waits for the
-// build to finish and then calls exit() with the return code from the server.
-// If a build cannot be started (perhaps there is no server, or the server's
-// arguments don't match) then this function returns. In this case the current
-// process should fork a new server and then perform a build.
-void RequestBuildFromServerInCwd(int argc, char **argv);
+void SendBuildResult(int exit_code);
 
-// Forks a new persistent server process that will wait for future build
-// requests in the current working directory. Each time a build is requested via
-// IPC, the build arguments are checked. If they are exactly equal, then a new
-// child process will be forked and this function will return in the child so
-// that the build can proceed. Otherwise, exit() is called, because the server
-// needs to be replaced.
-void ForkBuildServerInCwd(int argc, char **argv);
+/// Returns true if this process is a persistent build server, otherwise false.
+bool IsBuildServer();
 
 #endif // NINJA_IPC_H

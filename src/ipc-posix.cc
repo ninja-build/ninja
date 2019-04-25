@@ -35,6 +35,7 @@ using namespace std;
 // TODO: verify that .ninja files are unchanged
 // TODO: add command line arg to exit server
 // TODO: Windows support
+// TODO: Verify that env vars are identical
 
 static const int max_message_size = 1024 * 100;
 static const sockaddr_un server_addr = { AF_UNIX, "./.ninja-ipc-server" };
@@ -58,6 +59,7 @@ string GetStateString(int argc, char **argv) {
   }
   state += kNinjaVersion;
   state += '\0';
+  // TODO: add env vars
 #if defined(linux)
   // Append the mtime of the ninja binary file. This is convenient during
   // development because each new build will have a different mtime so you'll

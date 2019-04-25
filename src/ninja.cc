@@ -82,6 +82,8 @@ struct Options {
   /// Whether the ninja process should remain alive after building to speed up
   /// subsequent builds.
   bool persistent;
+
+  bool is_server;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1125,11 +1127,12 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_IS_SERVER };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
+    { "is_server", no_argument, NULL, OPT_IS_SERVER },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1196,6 +1199,12 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'p':
         options->persistent = true;
+        // It may be possible for things other than ninja to touch files in
+        // between builds, so don't cache file info.
+        g_experimental_statcache = false;
+        break;
+      case OPT_IS_SERVER:
+        options->is_server = true;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
@@ -1235,7 +1244,7 @@ NORETURN void real_main(int argc, char** argv) {
         kDepfileDistinctTargetLinesActionError;
   }
 
-  if (options.working_dir) {
+  if (options.working_dir && (!options.persistent || !IsBuildServer())) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
@@ -1248,9 +1257,6 @@ NORETURN void real_main(int argc, char** argv) {
     }
   }
 
-  if (options.persistent)
-    RequestBuildFromServerInCwd(original_argc, original_argv);
-
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
@@ -1258,6 +1264,7 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
+  ManifestParser *parser = nullptr;
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
@@ -1270,20 +1277,28 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
-    if (!parser.Load(options.input_file, &err)) {
-      Error("%s", err.c_str());
-      exit(1);
-    }
-
+    bool reparse = true;
     if (options.persistent) {
-      // TODO: record mtime of all .ninja manifests before forking and compare
-      // afterward to see if we need to reload them.
-      ForkBuildServerInCwd(original_argc, original_argv);
-
+      if (cycle == 1) {
+        MakeOrWaitForBuildRequest(original_argc, original_argv);
+        // If we waited a while, our stat cache may be stale, so throw it out.
+        ninja.disk_interface_.ClearStatCache();
+      }
+      // Only reparse if the manifest has changed.
+      reparse = !parser || parser->OutOfDate();
     }
-
+    if (reparse) {
+      delete parser;
+      parser = new ManifestParser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+      if (!parser->Load(options.input_file, &err)) {
+        Error("%s", err.c_str());
+        exit(1);
+      }
+    } else {
+      ninja.state_.Reset();
+    }
+    
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
@@ -1302,11 +1317,6 @@ NORETURN void real_main(int argc, char** argv) {
       // manifest forever. Better to return immediately.
       if (config.dry_run)
         exit(0);
-      // If the manifest changed, the parsed version we have is now outdated
-      // and we should exit persistent mode. The client will parse the manifest
-      // and fork a new server.
-      if (options.persistent)
-        exit(EXIT_CODE_SERVER_SHUTDOWN);
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
@@ -1317,7 +1327,13 @@ NORETURN void real_main(int argc, char** argv) {
     int result = ninja.RunBuild(argc, argv);
     if (g_metrics)
       ninja.DumpMetrics();
-    exit(result);
+    if (options.persistent && IsBuildServer()) {
+      SendBuildResult(result);
+      cycle = 0;
+      continue;
+    } else {
+      exit(result);
+    }
   }
 
   Error("manifest '%s' still dirty after %d tries\n",

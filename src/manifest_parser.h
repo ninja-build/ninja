@@ -15,10 +15,16 @@
 #ifndef NINJA_MANIFEST_PARSER_H_
 #define NINJA_MANIFEST_PARSER_H_
 
+#include <string>
+#include <vector>
+using namespace std;
+
+#include "timestamp.h"
 #include "parser.h"
 
 struct BindingEnv;
 struct EvalString;
+struct DiskInterface;
 
 enum DupeEdgeAction {
   kDupeEdgeActionWarn,
@@ -40,7 +46,7 @@ struct ManifestParserOptions {
 
 /// Parses .ninja files.
 struct ManifestParser : public Parser {
-  ManifestParser(State* state, FileReader* file_reader,
+  ManifestParser(State* state, DiskInterface* disk_interface,
                  ManifestParserOptions options = ManifestParserOptions());
 
   /// Parse a text string of input.  Used by tests.
@@ -48,6 +54,8 @@ struct ManifestParser : public Parser {
     quiet_ = true;
     return Parse("input", input, err);
   }
+
+  bool OutOfDate();
 
 private:
   /// Parse a file, given its contents as a string.
@@ -64,8 +72,11 @@ private:
   bool ParseFileInclude(bool new_scope, string* err);
 
   BindingEnv* env_;
+  DiskInterface* disk_interface_;
   ManifestParserOptions options_;
   bool quiet_;
+  vector<string> paths_;
+  vector<TimeStamp> mtimes_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_

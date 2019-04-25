@@ -287,3 +287,9 @@ void RealDiskInterface::AllowStatCache(bool allow) {
     cache_.clear();
 #endif
 }
+
+void RealDiskInterface::ClearStatCache() {
+#ifdef _WIN32
+  cache_.clear();
+#endif
+}
