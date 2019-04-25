@@ -84,8 +84,10 @@ struct RealDiskInterface : public DiskInterface {
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);
 
-  /// Removes any cached stat information. Only defined on Windows.
+#ifdef _WIN32
+  /// Removes any cached stat information.
   void ClearStatCache();
+#endif
 
  private:
 #ifdef _WIN32
