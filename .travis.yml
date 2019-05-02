@@ -4,6 +4,10 @@ matrix:
       compiler: gcc
     - os: linux
       compiler: clang
+    # remove this when we switched to use c++11.
+    - os: linux
+      compiler: clang
+      env: CFLAGS='-std=c++98'
     - os: osx
 sudo: false
 language: cpp
