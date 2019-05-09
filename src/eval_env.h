@@ -33,7 +33,12 @@ struct Env {
 /// A tokenized string that contains variable references.
 /// Can be evaluated relative to an Env.
 struct EvalString {
+  /// @return The evaluated string with variable expanded using value found in
+  ///         environment @a env.
   string Evaluate(Env* env) const;
+
+  /// @return The string with variables not expanded.
+  string Unparse() const;
 
   void Clear() { parsed_.clear(); }
   bool empty() const { return parsed_.empty(); }

@@ -126,6 +126,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
+  int ToolRules(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
   /// @return false on error.
@@ -561,6 +562,55 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
   }
 }
 
+int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
+  // Parse options.
+
+  // The rules tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "rules".
+  argc++;
+  argv--;
+
+  bool print_description = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hd"))) != -1) {
+    switch (opt) {
+    case 'd':
+      print_description = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t rules [options]\n"
+             "\n"
+             "options:\n"
+             "  -d     also print the description of the rule\n"
+             "  -h     print this message\n"
+             );
+    return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  // Print rules
+
+  typedef map<string, const Rule*> Rules;
+  const Rules& rules = state_.bindings_.GetRules();
+  for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
+    printf("%s", i->first.c_str());
+    if (print_description) {
+      const Rule* rule = i->second;
+      const EvalString* description = rule->GetBinding("description");
+      if (description != NULL) {
+        printf(": %s", description->Unparse().c_str());
+      }
+    }
+    printf("\n");
+  }
+  return 0;
+}
+
 enum PrintCommandMode { PCM_Single, PCM_All };
 void PrintCommands(Edge* edge, set<Edge*>* seen, PrintCommandMode mode) {
   if (!edge)
@@ -841,6 +891,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+    { "rules",  "list all rules",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }

@@ -131,3 +131,17 @@ string EvalString::Serialize() const {
   }
   return result;
 }
+
+string EvalString::Unparse() const {
+  string result;
+  for (TokenList::const_iterator i = parsed_.begin();
+       i != parsed_.end(); ++i) {
+    bool special = (i->second == SPECIAL);
+    if (special)
+      result.append("${");
+    result.append(i->first);
+    if (special)
+      result.append("}");
+  }
+  return result;
+}
