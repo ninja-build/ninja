@@ -7,15 +7,21 @@ else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
 endif()
 
-# the depfile parser and ninja lexers are generated using re2c.
-function(re2c IN OUT)
-	add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
-		COMMAND re2c -b -i --no-generation-date -o ${OUT} ${IN}
-	)
-endfunction()
-re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
-re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
-add_library(libninja-re2c OBJECT ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+find_program(RE2C re2c)
+if(RE2C)
+	# the depfile parser and ninja lexers are generated using re2c.
+	function(re2c IN OUT)
+		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
+			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
+		)
+	endfunction()
+	re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
+	re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+	add_library(libninja-re2c OBJECT ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+else()
+	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
+	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
+endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
 # Core source files all build into ninja library.
