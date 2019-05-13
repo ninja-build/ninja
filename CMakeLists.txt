@@ -54,7 +54,11 @@ if(WIN32)
 		src/includes_normalize-win32.cc
 		src/msvc_helper-win32.cc
 		src/msvc_helper_main-win32.cc
+		src/getopt.c
 	)
+	if(MSVC)
+		target_sources(libninja PRIVATE src/minidump-win32.cc)
+	endif()
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 endif()
@@ -88,3 +92,6 @@ if(WIN32)
 	target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
 endif()
 target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+
+enable_testing()
+add_test(NinjaTest ninja_test)
