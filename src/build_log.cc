@@ -406,7 +406,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     entries_.erase(dead_outputs[i]);
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if (unlink(path.c_str()) < 0 && errno != ENOENT) {
     *err = strerror(errno);
     return false;
   }
