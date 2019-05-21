@@ -28,6 +28,7 @@
 #include "exit_status.h"
 #include "line_printer.h"
 #include "metrics.h"
+#include "sorted_set.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -122,7 +123,7 @@ private:
   /// we want for the edge.
   map<Edge*, Want> want_;
 
-  set<Edge*> ready_;
+  SortedSet<Edge*, less<Edge*> > ready_;
 
   Builder* builder_;
 

@@ -23,6 +23,7 @@ using namespace std;
 
 #include "eval_env.h"
 #include "hash_map.h"
+#include "sorted_set.h"
 #include "util.h"
 
 struct Edge;
@@ -62,7 +63,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(set<Edge*>* ready_queue);
+  void RetrieveReadyEdges(SortedSet<Edge*, less<Edge*> >* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
