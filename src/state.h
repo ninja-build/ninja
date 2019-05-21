@@ -27,6 +27,7 @@ using namespace std;
 #include "util.h"
 
 struct Edge;
+struct EdgeComparator;
 struct Node;
 struct Rule;
 
@@ -63,7 +64,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(SortedSet<Edge*, less<Edge*> >* ready_queue);
+  void RetrieveReadyEdges(SortedSet<Edge*, EdgeComparator>* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;

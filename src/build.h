@@ -123,7 +123,7 @@ private:
   /// we want for the edge.
   map<Edge*, Want> want_;
 
-  SortedSet<Edge*, less<Edge*> > ready_;
+  SortedSet<Edge*, EdgeComparator> ready_;
 
   Builder* builder_;
 

@@ -217,8 +217,19 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
+
+  /// Used for sorting. May be actual mtime as well as just 0
+  TimeStamp most_recent_input_mtime;
 };
 
+struct EdgeComparator {
+  bool operator()(const Edge* lhs, const Edge* rhs) const {
+    // sort by recently modified files first, and then arbitrarily
+    return (lhs->most_recent_input_mtime != rhs->most_recent_input_mtime)
+      ? lhs->most_recent_input_mtime > rhs->most_recent_input_mtime
+      : lhs > rhs;
+  }
+};
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.

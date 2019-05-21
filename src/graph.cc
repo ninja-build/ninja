@@ -135,6 +135,7 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
       } else {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
           most_recent_input = *i;
+          edge->most_recent_input_mtime = (*i)->mtime();
         }
       }
     }
