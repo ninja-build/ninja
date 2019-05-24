@@ -117,8 +117,8 @@ BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
     start_time(start_time), end_time(end_time), mtime(restat_mtime)
 {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog(const string& path)
+  : BuildFile(path), log_file_(NULL), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -365,6 +365,9 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
+  if (entry.output == BuildFile)
+    return true;
+
   return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
           entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;

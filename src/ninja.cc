@@ -82,8 +82,10 @@ struct Options {
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
-  NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config) {}
+  NinjaMain(const char* ninja_command, const char* input_file,
+            const BuildConfig& config)
+    : ninja_command_(ninja_command), config_(config), build_log_(input_file) {
+  }
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -1292,14 +1294,14 @@ NORETURN void real_main(int argc, char** argv) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, options.input_file, config);
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, options.input_file, config);
 
     ManifestParserOptions parser_opts;
     if (options.dupe_edges_should_err) {

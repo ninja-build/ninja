@@ -40,7 +40,7 @@ struct BuildLogUser {
 /// 2) timing information, perhaps for generating reports
 /// 3) restat information
 struct BuildLog {
-  BuildLog();
+  BuildLog(const string& path);
   ~BuildLog();
 
   bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
@@ -85,6 +85,7 @@ struct BuildLog {
   const Entries& entries() const { return entries_; }
 
  private:
+  string BuildFile;
   Entries entries_;
   FILE* log_file_;
   bool needs_recompaction_;
