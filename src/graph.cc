@@ -584,7 +584,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
-  DepsLog::Deps* deps = deps_log_->GetDeps(output);
+  DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
     EXPLAIN("deps for '%s' are missing", output->path().c_str());
     return false;
