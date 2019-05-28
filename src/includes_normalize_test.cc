@@ -117,10 +117,10 @@ TEST(IncludesNormalize, LongInvalidPath) {
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
   char kExactlyMaxPath[_MAX_PATH + 1];
-  ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
+  ASSERT_STRNE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
 
   int cwd_len = strlen(kExactlyMaxPath);
-  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
+  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH);
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';
   kExactlyMaxPath[cwd_len + 2] = '\\';

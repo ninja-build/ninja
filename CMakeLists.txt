@@ -163,6 +163,17 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  find_package(GTest)
+  if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+      URL_HASH SHA1=9c89be7df9c5e8cb0bc20b3c4b39bf7e82686770
+    )
+    FetchContent_MakeAvailable(googletest)
+  endif()
+
   # Tests all build into ninja_test executable.
   add_executable(ninja_test
     src/build_log_test.cc
@@ -187,7 +198,7 @@ if(BUILD_TESTING)
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
   endif()
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c gtest)
 
   foreach(perftest
     build_log_perftest
