@@ -298,7 +298,13 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
 
   to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
 
-  printer_.Print(to_print,
+  string final_output;
+  if (!printer_.supports_color())
+    final_output = StripAnsiEscapeCodes(to_print);
+  else
+    final_output = to_print;
+
+  printer_.Print(final_output,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
 
