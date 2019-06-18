@@ -30,9 +30,15 @@ DepfileParser::DepfileParser(DepfileParserOptions options)
 // How do you end a line with a backslash?  The netbsd Make docs suggest
 // reading the result of a shell command echoing a backslash!
 //
-// Rather than implement all of above, we do a simpler thing here:
-// Backslashes escape a set of characters (see "escapes" defined below),
-// otherwise they are passed through verbatim.
+// Rather than implement all of above, we follow what GCC/Clang produces:
+// Backslashes escape a space or hash sign.
+// When a space is preceded by 2N+1 backslashes, it is represents N backslashes
+// followed by space.
+// When a space is preceded by 2N backslashes, it represents 2N backslashes at
+// the end of a filename.
+// A hash sign is escaped by a single backslash. All other backslashes remain
+// unchanged.
+//
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
 bool DepfileParser::Parse(string* content, string* err) {
@@ -72,7 +78,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
-        128, 128, 128,   0,   0,   0,   0, 128, 
+        128, 128, 128, 128,   0, 128,   0, 128, 
           0, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
         128, 128, 128, 128, 128, 128, 128, 128, 
@@ -111,7 +117,8 @@ bool DepfileParser::Parse(string* content, string* err) {
           if (yych <= '#') goto yy4;
           goto yy12;
         } else {
-          if (yych == '\\') goto yy13;
+          if (yych <= '?') goto yy4;
+          if (yych <= '\\') goto yy13;
           goto yy4;
         }
       }
@@ -143,6 +150,7 @@ yy9:
       if (yybm[0+yych] & 128) {
         goto yy9;
       }
+yy11:
       {
         // Got a span of plain text.
         int len = (int)(in - start);
@@ -158,24 +166,22 @@ yy12:
       goto yy5;
 yy13:
       yych = *(yymarker = ++in);
-      if (yych <= '"') {
-        if (yych <= '\f') {
+      if (yych <= 0x1F) {
+        if (yych <= '\n') {
           if (yych <= 0x00) goto yy5;
-          if (yych == '\n') goto yy18;
-          goto yy16;
+          if (yych <= '\t') goto yy16;
+          goto yy17;
         } else {
-          if (yych <= '\r') goto yy20;
-          if (yych == ' ') goto yy22;
+          if (yych == '\r') goto yy19;
           goto yy16;
         }
       } else {
-        if (yych <= 'Z') {
-          if (yych <= '#') goto yy22;
-          if (yych == '*') goto yy22;
-          goto yy16;
+        if (yych <= '#') {
+          if (yych <= ' ') goto yy21;
+          if (yych <= '"') goto yy16;
+          goto yy23;
         } else {
-          if (yych <= ']') goto yy22;
-          if (yych == '|') goto yy22;
+          if (yych == '\\') goto yy25;
           goto yy16;
         }
       }
@@ -188,29 +194,92 @@ yy14:
       }
 yy16:
       ++in;
-      {
-        // Let backslash before other characters through verbatim.
-        *out++ = '\\';
-        *out++ = yych;
-        continue;
-      }
-yy18:
+      goto yy11;
+yy17:
       ++in;
       {
         // A line continuation ends the current file name.
         break;
       }
-yy20:
+yy19:
       yych = *++in;
-      if (yych == '\n') goto yy18;
+      if (yych == '\n') goto yy17;
       in = yymarker;
       goto yy5;
-yy22:
+yy21:
       ++in;
       {
-        // De-escape backslashed character.
-        *out++ = yych;
+        // 2N+1 backslashes plus space -> N backslashes plus space.
+        int len = (int)(in - start);
+        int n = len / 2 - 1;
+        if (out < start)
+          memset(out, '\\', n);
+        out += n;
+        *out++ = ' ';
         continue;
+      }
+yy23:
+      ++in;
+      {
+        // De-escape hash sign, but preserve other leading backslashes.
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = '#';
+        continue;
+      }
+yy25:
+      yych = *++in;
+      if (yych <= 0x1F) {
+        if (yych <= '\n') {
+          if (yych <= 0x00) goto yy11;
+          if (yych <= '\t') goto yy16;
+          goto yy11;
+        } else {
+          if (yych == '\r') goto yy11;
+          goto yy16;
+        }
+      } else {
+        if (yych <= '#') {
+          if (yych <= ' ') goto yy26;
+          if (yych <= '"') goto yy16;
+          goto yy23;
+        } else {
+          if (yych == '\\') goto yy28;
+          goto yy16;
+        }
+      }
+yy26:
+      ++in;
+      {
+        // 2N backslashes plus space -> 2N backslashes, end of filename.
+        int len = (int)(in - start);
+        if (out < start)
+          memset(out, '\\', len - 1);
+        out += len - 1;
+        break;
+      }
+yy28:
+      yych = *++in;
+      if (yych <= 0x1F) {
+        if (yych <= '\n') {
+          if (yych <= 0x00) goto yy11;
+          if (yych <= '\t') goto yy16;
+          goto yy11;
+        } else {
+          if (yych == '\r') goto yy11;
+          goto yy16;
+        }
+      } else {
+        if (yych <= '#') {
+          if (yych <= ' ') goto yy21;
+          if (yych <= '"') goto yy16;
+          goto yy23;
+        } else {
+          if (yych == '\\') goto yy25;
+          goto yy16;
+        }
       }
     }
 

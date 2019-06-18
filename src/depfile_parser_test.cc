@@ -101,15 +101,36 @@ TEST_F(DepfileParserTest, Spaces) {
             parser_.ins_[2].AsString());
 }
 
+TEST_F(DepfileParserTest, MultipleBackslashes) {
+  // Successive 2N+1 backslashes followed by space (' ') are replaced by N >= 0
+  // backslashes and the space. A single backslash before hash sign is removed.
+  // Other backslashes remain untouched (including 2N backslashes followed by
+  // space).
+  string err;
+  EXPECT_TRUE(Parse(
+"a\\ b\\#c.h: \\\\\\\\\\  \\\\\\\\ \\\\share\\info\\\\#1",
+      &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ("a b#c.h",
+            parser_.out_.AsString());
+  ASSERT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("\\\\ ",
+            parser_.ins_[0].AsString());
+  EXPECT_EQ("\\\\\\\\",
+            parser_.ins_[1].AsString());
+  EXPECT_EQ("\\\\share\\info\\#1",
+            parser_.ins_[2].AsString());
+}
+
 TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
   string err;
   EXPECT_TRUE(Parse(
-"\\!\\@\\#$$\\%\\^\\&\\\\:",
+"\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\:",
       &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\",
+  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\[\\]\\\\",
             parser_.out_.AsString());
   ASSERT_EQ(0u, parser_.ins_.size());
 }
@@ -123,7 +144,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
 " en@quot.header~ t+t-x!=1 \\\n"
 " openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\\\n"
 " Fu\303\244ball\\\n"
-" a\\[1\\]b@2%c",
+" a[1]b@2%c",
       &err));
   ASSERT_EQ("", err);
   EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",

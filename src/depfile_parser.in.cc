@@ -29,9 +29,15 @@ DepfileParser::DepfileParser(DepfileParserOptions options)
 // How do you end a line with a backslash?  The netbsd Make docs suggest
 // reading the result of a shell command echoing a backslash!
 //
-// Rather than implement all of above, we do a simpler thing here:
-// Backslashes escape a set of characters (see "escapes" defined below),
-// otherwise they are passed through verbatim.
+// Rather than implement all of above, we follow what GCC/Clang produces:
+// Backslashes escape a space or hash sign.
+// When a space is preceded by 2N+1 backslashes, it is represents N backslashes
+// followed by space.
+// When a space is preceded by 2N backslashes, it represents 2N backslashes at
+// the end of a filename.
+// A hash sign is escaped by a single backslash. All other backslashes remain
+// unchanged.
+//
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
 bool DepfileParser::Parse(string* content, string* err) {
@@ -68,12 +74,33 @@ bool DepfileParser::Parse(string* content, string* err) {
       re2c:indent:string = "  ";
 
       nul = "\000";
-      escape = [ \\#*[|\]];
       newline = '\r'?'\n';
 
-      '\\' escape {
-        // De-escape backslashed character.
-        *out++ = yych;
+      '\\\\'* '\\ ' {
+        // 2N+1 backslashes plus space -> N backslashes plus space.
+        int len = (int)(in - start);
+        int n = len / 2 - 1;
+        if (out < start)
+          memset(out, '\\', n);
+        out += n;
+        *out++ = ' ';
+        continue;
+      }
+      '\\\\'+ ' ' {
+        // 2N backslashes plus space -> 2N backslashes, end of filename.
+        int len = (int)(in - start);
+        if (out < start)
+          memset(out, '\\', len - 1);
+        out += len - 1;
+        break;
+      }
+      '\\'+ '#' {
+        // De-escape hash sign, but preserve other leading backslashes.
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = '#';
         continue;
       }
       '$$' {
@@ -81,13 +108,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '$';
         continue;
       }
-      '\\' [^\000\r\n] {
-        // Let backslash before other characters through verbatim.
-        *out++ = '\\';
-        *out++ = yych;
-        continue;
-      }
-      [a-zA-Z0-9+,/_:.~()}{%@=!\x80-\xFF-]+ {
+      '\\'+ [^\000\r\n] | [a-zA-Z0-9+,/_:.~()}{%=@\x5B\x5D!\x80-\xFF-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
