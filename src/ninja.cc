@@ -30,6 +30,11 @@
 #include <unistd.h>
 #endif
 
+#if defined(linux)
+#include <sys/prctl.h>
+#include <signal.h>
+#endif
+
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
@@ -1369,6 +1374,11 @@ int main(int argc, char** argv) {
     return 2;
   }
 #else
+  #if defined(linux)
+    // Terminate on parent death
+    prctl(PR_SET_PDEATHSIG, SIGHUP);
+  #endif
+
   real_main(argc, argv);
 #endif
 }
