@@ -18,14 +18,12 @@ jobs:
         ./misc/ninja_syntax_test.py
         ./misc/output_test.py
         strip ninja
-        mkdir package
-        mv ninja package
       displayName: Test
 
     - task: PublishPipelineArtifact@0
       inputs:
         artifactName: ninja-linux
-        targetPath: package
+        targetPath: ninja
 
   - job: macOS
     pool:
@@ -41,14 +39,12 @@ jobs:
         ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
         ./misc/ninja_syntax_test.py
         ./misc/output_test.py
-        mkdir package
-        mv ninja package
       displayName: Test
-    
+
     - task: PublishPipelineArtifact@0
       inputs:
         artifactName: ninja-mac
-        targetPath: package
+        targetPath: ninja
 
   - job: Windows
     pool:
@@ -64,11 +60,9 @@ jobs:
     - script: |
         ninja_test
         python misc/ninja_syntax_test.py
-        mkdir package
-        move ninja.exe package
       displayName: Test
 
     - task: PublishPipelineArtifact@0
       inputs:
         artifactName: ninja-win
-        targetPath: package
+        targetPath: ninja.exe
