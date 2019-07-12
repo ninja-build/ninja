@@ -17,11 +17,11 @@
 
 #include <map>
 #include <string>
-using namespace std;
 
 #include "build.h"
 #include "line_printer.h"
 
+using namespace std;
 
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.

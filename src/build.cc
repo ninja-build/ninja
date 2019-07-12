@@ -95,7 +95,7 @@ bool Plan::AddTarget(Node* node, string* err) {
 }
 
 bool Plan::AddSubTarget(Node* node, Node* dependent, string* err,
-                        set<Edge*>* dyndep_walk) {
+                        EdgeSet* dyndep_walk) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
@@ -153,7 +153,7 @@ void Plan::EdgeWanted(Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  set<Edge*>::iterator e = ready_.begin();
+  EdgeSet::iterator e = ready_.begin();
   Edge* edge = *e;
   ready_.erase(e);
   return edge;
@@ -337,7 +337,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
   }
 
   // Walk dyndep-discovered portion of the graph to add it to the build plan.
-  std::set<Edge*> dyndep_walk;
+  EdgeSet dyndep_walk;
   for (std::vector<DyndepFile::const_iterator>::iterator
        oei = dyndep_roots.begin(); oei != dyndep_roots.end(); ++oei) {
     DyndepFile::const_iterator oe = *oei;
@@ -360,7 +360,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
   }
 
   // See if any encountered edges are now ready.
-  for (set<Edge*>::iterator wi = dyndep_walk.begin();
+  for (EdgeSet::iterator wi = dyndep_walk.begin();
        wi != dyndep_walk.end(); ++wi) {
     map<Edge*, Want>::iterator want_e = want_.find(*wi);
     if (want_e == want_.end())

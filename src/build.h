@@ -86,7 +86,7 @@ private:
   bool RefreshDyndepDependents(DependencyScan* scan, Node* node, string* err);
   void UnmarkDependents(Node* node, set<Node*>* dependents);
   bool AddSubTarget(Node* node, Node* dependent, string* err,
-                    set<Edge*>* dyndep_walk);
+                    EdgeSet* dyndep_walk);
 
   /// Update plan with knowledge that the given node is up to date.
   /// If the node is a dyndep binding on any of its dependents, this
@@ -121,7 +121,7 @@ private:
   /// we want for the edge.
   map<Edge*, Want> want_;
 
-  set<Edge*> ready_;
+  EdgeSet ready_;
 
   Builder* builder_;
 
