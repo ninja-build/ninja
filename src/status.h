@@ -37,11 +37,6 @@ struct Status {
   virtual void Info(const char* msg, ...) = 0;
   virtual void Warning(const char* msg, ...) = 0;
   virtual void Error(const char* msg, ...) = 0;
-
-  enum EdgeStatus {
-    kEdgeStarted,
-    kEdgeFinished,
-  };
 };
 
 /// Implementation of the Status interface that prints the status as
@@ -68,15 +63,15 @@ struct StatusPrinter : Status {
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
   /// @param status The status of the edge.
-  string FormatProgressStatus(const char* progress_status_format, int64_t time,
-                              EdgeStatus status) const;
+  string FormatProgressStatus(const char* progress_status_format,
+                              int64_t time) const;
 
  private:
-  void PrintStatus(Edge* edge, int64_t time, EdgeStatus status);
+  void PrintStatus(Edge* edge, int64_t time);
 
   const BuildConfig& config_;
 
-  int started_edges_, finished_edges_, total_edges_;
+  int started_edges_, finished_edges_, total_edges_, running_edges_;
   int64_t time_millis_;
 
   /// Prints progress output.
