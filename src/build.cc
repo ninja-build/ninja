@@ -36,6 +36,7 @@
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
+#include "metrics.h"
 #include "state.h"
 #include "status.h"
 #include "subprocess.h"
@@ -501,9 +502,11 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface, Status* status)
+                 DiskInterface* disk_interface, Status* status,
+                 int64_t start_time_millis)
     : state_(state), config_(config), plan_(this),
-      status_(status), disk_interface_(disk_interface),
+      status_(status), start_time_millis_(start_time_millis),
+      disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options) {
 }
@@ -671,7 +674,10 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
 
-  status_->BuildEdgeStarted(edge);
+  int64_t start_time_millis = GetTimeMillis() - start_time_millis_;
+  running_edges_.insert(make_pair(edge, start_time_millis));
+
+  status_->BuildEdgeStarted(edge, start_time_millis);
 
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
@@ -724,9 +730,15 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  int start_time, end_time;
-  status_->BuildEdgeFinished(edge, result->success(), result->output,
-                             &start_time, &end_time);
+  int64_t start_time_millis, end_time_millis;
+  RunningEdgeMap::iterator itr = running_edges_.find(edge);
+  start_time_millis = itr->second;
+  end_time_millis = GetTimeMillis() - start_time_millis_;
+  running_edges_.erase(itr);
+
+  status_->BuildEdgeFinished(edge, end_time_millis, result->success(),
+                             result->output);
+
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
@@ -795,8 +807,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
-                                          output_mtime)) {
+    if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
+                                          end_time_millis, output_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }

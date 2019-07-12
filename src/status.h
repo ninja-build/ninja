@@ -27,9 +27,9 @@ using namespace std;
 /// completion fraction, printing updates.
 struct Status {
   virtual void PlanHasTotalEdges(int total) = 0;
-  virtual void BuildEdgeStarted(Edge* edge) = 0;
-  virtual void BuildEdgeFinished(Edge* edge, bool success, const string& output,
-                         int* start_time, int* end_time) = 0;
+  virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis) = 0;
+  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
+                                 bool success, const string& output) = 0;
   virtual void BuildLoadDyndeps() = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
@@ -50,9 +50,9 @@ struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
 
   virtual void PlanHasTotalEdges(int total);
-  virtual void BuildEdgeStarted(Edge* edge);
-  virtual void BuildEdgeFinished(Edge* edge, bool success, const string& output,
-                         int* start_time, int* end_time);
+  virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis);
+  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
+                                 bool success, const string& output);
   virtual void BuildLoadDyndeps();
   virtual void BuildStarted();
   virtual void BuildFinished();
@@ -68,22 +68,16 @@ struct StatusPrinter : Status {
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
   /// @param status The status of the edge.
-  string FormatProgressStatus(const char* progress_status_format,
+  string FormatProgressStatus(const char* progress_status_format, int64_t time,
                               EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
+  void PrintStatus(Edge* edge, int64_t time, EdgeStatus status);
 
   const BuildConfig& config_;
 
-  /// Time the build started.
-  int64_t start_time_millis_;
-
   int started_edges_, finished_edges_, total_edges_;
-
-  /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
-  RunningEdgeMap running_edges_;
+  int64_t time_millis_;
 
   /// Prints progress output.
   LinePrinter printer_;
@@ -99,50 +93,30 @@ struct StatusPrinter : Status {
       snprintf(buf, S, format, rate);
   }
 
-  struct RateInfo {
-    RateInfo() : rate_(-1) {}
-
-    void Restart() { stopwatch_.Restart(); }
-    double Elapsed() const { return stopwatch_.Elapsed(); }
-    double rate() { return rate_; }
-
-    void UpdateRate(int edges) {
-      if (edges && stopwatch_.Elapsed())
-        rate_ = edges / stopwatch_.Elapsed();
-    }
-
-  private:
-    double rate_;
-    Stopwatch stopwatch_;
-  };
-
   struct SlidingRateInfo {
     SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
-    void Restart() { stopwatch_.Restart(); }
     double rate() { return rate_; }
 
-    void UpdateRate(int update_hint) {
+    void UpdateRate(int update_hint, int64_t time_millis_) {
       if (update_hint == last_update_)
         return;
       last_update_ = update_hint;
 
       if (times_.size() == N)
         times_.pop();
-      times_.push(stopwatch_.Elapsed());
+      times_.push(time_millis_);
       if (times_.back() != times_.front())
-        rate_ = times_.size() / (times_.back() - times_.front());
+        rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }
 
   private:
     double rate_;
-    Stopwatch stopwatch_;
     const size_t N;
     queue<double> times_;
     int last_update_;
   };
 
-  mutable RateInfo overall_rate_;
   mutable SlidingRateInfo current_rate_;
 };
 

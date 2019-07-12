@@ -27,10 +27,9 @@
 
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config),
-      start_time_millis_(GetTimeMillis()),
       started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
-      overall_rate_(), current_rate_(config.parallelism) {
+      time_millis_(0), progress_status_format_(NULL),
+      current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
@@ -45,32 +44,24 @@ void StatusPrinter::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void StatusPrinter::BuildEdgeStarted(Edge* edge) {
+void StatusPrinter::BuildEdgeStarted(Edge* edge, int64_t start_time_millis) {
   assert(running_edges_.find(edge) == running_edges_.end());
-  int start_time = (int)(GetTimeMillis() - start_time_millis_);
-  running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
+  time_millis_ = start_time_millis;
 
   if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, kEdgeStarted);
+    PrintStatus(edge, start_time_millis, kEdgeStarted);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge,
+                                    int64_t end_time_millis,
                                     bool success,
-                                    const string& output,
-                                    int* start_time,
-                                    int* end_time) {
-  int64_t now = GetTimeMillis();
-
+                                    const string& output) {
+  time_millis_ = end_time_millis;
   ++finished_edges_;
-
-  RunningEdgeMap::iterator i = running_edges_.find(edge);
-  *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
-  running_edges_.erase(i);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(false);
@@ -79,7 +70,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge,
     return;
 
   if (!edge->use_console())
-    PrintStatus(edge, kEdgeFinished);
+    PrintStatus(edge, end_time_millis, kEdgeFinished);
 
   // Print the command that is spewing before printing its output.
   if (!success) {
@@ -138,8 +129,6 @@ void StatusPrinter::BuildLoadDyndeps() {
 }
 
 void StatusPrinter::BuildStarted() {
-  overall_rate_.Restart();
-  current_rate_.Restart();
 }
 
 void StatusPrinter::BuildFinished() {
@@ -148,10 +137,9 @@ void StatusPrinter::BuildFinished() {
 }
 
 string StatusPrinter::FormatProgressStatus(
-    const char* progress_status_format, EdgeStatus status) const {
+    const char* progress_status_format, int64_t time, EdgeStatus status) const {
   string out;
   char buf[32];
-  int percent;
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
       ++s;
@@ -197,28 +185,27 @@ string StatusPrinter::FormatProgressStatus(
 
         // Overall finished edges per second.
       case 'o':
-        overall_rate_.UpdateRate(finished_edges_);
-        SnprintfRate(overall_rate_.rate(), buf, "%.1f");
+        SnprintfRate(finished_edges_ / (time_millis_ / 1e3), buf, "%.1f");
         out += buf;
         break;
 
         // Current rate, average over the last '-j' jobs.
       case 'c':
-        current_rate_.UpdateRate(finished_edges_);
+        current_rate_.UpdateRate(finished_edges_, time_millis_);
         SnprintfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
 
         // Percentage
-      case 'p':
-        percent = (100 * finished_edges_) / total_edges_;
+      case 'p': {
+        int percent = (100 * finished_edges_) / total_edges_;
         snprintf(buf, sizeof(buf), "%3i%%", percent);
         out += buf;
         break;
-
+      }
+ 
       case 'e': {
-        double elapsed = overall_rate_.Elapsed();
-        snprintf(buf, sizeof(buf), "%.3f", elapsed);
+        snprintf(buf, sizeof(buf), "%.3f", time_millis_ / 1e3);
         out += buf;
         break;
       }
@@ -235,7 +222,7 @@ string StatusPrinter::FormatProgressStatus(
   return out;
 }
 
-void StatusPrinter::PrintStatus(Edge* edge, EdgeStatus status) {
+void StatusPrinter::PrintStatus(Edge* edge, int64_t time, EdgeStatus status) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -245,7 +232,7 @@ void StatusPrinter::PrintStatus(Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_, time, status) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);

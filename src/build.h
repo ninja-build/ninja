@@ -26,7 +26,6 @@
 #include "depfile_parser.h"
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
-#include "metrics.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -179,7 +178,8 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface, Status* status);
+          DiskInterface* disk_interface, Status* status,
+          int64_t start_time_millis);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -226,6 +226,13 @@ struct Builder {
    bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
                     const string& deps_prefix, vector<Node*>* deps_nodes,
                     string* err);
+
+  /// Map of running edge to time the edge started running.
+  typedef map<Edge*, int> RunningEdgeMap;
+  RunningEdgeMap running_edges_;
+
+  /// Time the build started.
+  int64_t start_time_millis_;
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;

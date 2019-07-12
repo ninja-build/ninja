@@ -23,7 +23,8 @@ TEST(StatusTest, StatusFormatElapsed) {
   status.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
   EXPECT_EQ("[%/e0.000]",
-            status.FormatProgressStatus("[%%/e%e]", Status::EdgeStatus::kEdgeStarted));
+            status.FormatProgressStatus("[%%/e%e]", 0,
+                                        Status::EdgeStatus::kEdgeStarted));
 }
 
 TEST(StatusTest, StatusFormatReplacePlaceholder) {
@@ -31,5 +32,6 @@ TEST(StatusTest, StatusFormatReplacePlaceholder) {
   StatusPrinter status(config);
 
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
-            status.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", Status::EdgeStatus::kEdgeStarted));
+            status.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0,
+                                        Status::EdgeStatus::kEdgeStarted));
 }
