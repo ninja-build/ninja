@@ -21,6 +21,7 @@
 #include <stdint.h>
 #endif
 
+#include <stdarg.h>
 #include <string>
 #include <vector>
 using namespace std;
@@ -50,9 +51,15 @@ NORETURN void Fatal(const char* msg, ...);
 
 /// Log a warning message.
 void Warning(const char* msg, ...);
+void Warning(const char* msg, va_list ap);
 
 /// Log an error message.
 void Error(const char* msg, ...);
+void Error(const char* msg, va_list ap);
+
+/// Log an informational message.
+void Info(const char* msg, ...);
+void Info(const char* msg, va_list ap);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was

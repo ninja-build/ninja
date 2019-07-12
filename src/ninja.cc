@@ -42,6 +42,7 @@
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
+#include "status.h"
 #include "util.h"
 #include "version.h"
 
@@ -83,7 +84,8 @@ struct Options {
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config) {}
+      ninja_command_(ninja_command), config_(config),
+      start_time_millis_(GetTimeMillis()) {}
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -143,11 +145,11 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err);
+  bool RebuildManifest(const char* input_file, string* err, Status* status);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
-  int RunBuild(int argc, char** argv);
+  int RunBuild(int argc, char** argv, Status* status);
 
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
@@ -171,6 +173,8 @@ struct NinjaMain : public BuildLogUser {
       Error("%s", err.c_str());  // Log and ignore Stat() errors.
     return mtime == 0;
   }
+
+  int64_t start_time_millis_;
 };
 
 /// Subtools, accessible via "-t foo".
@@ -220,8 +224,12 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
-          kNinjaVersion, config.parallelism);
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n"
+#ifndef _WIN32
+"\n"
+"  --frontend COMMAND  execute COMMAND and pass serialized build output to it\n"
+#endif
+   , kNinjaVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -239,7 +247,7 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
+bool NinjaMain::RebuildManifest(const char* input_file, string* err, Status* status) {
   string path = input_file;
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
@@ -248,7 +256,8 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  status, start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -612,7 +621,7 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
 }
 
 enum PrintCommandMode { PCM_Single, PCM_All };
-void PrintCommands(Edge* edge, set<Edge*>* seen, PrintCommandMode mode) {
+void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -663,7 +672,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  set<Edge*> seen;
+  EdgeSet seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands((*in)->in_edge(), &seen, mode);
 
@@ -1101,21 +1110,22 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RunBuild(int argc, char** argv) {
+int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
-    Error("%s", err.c_str());
+    status->Error("%s", err.c_str());
     return 1;
   }
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+                  status, start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
-        Error("%s", err.c_str());
+        status->Error("%s", err.c_str());
         return 1;
       } else {
         // Added a target that is already up-to-date; not really
@@ -1128,12 +1138,12 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
-    printf("ninja: no work to do.\n");
+    status->Info("ninja: no work to do.\n");
     return 0;
   }
 
   if (!builder.Build(&err)) {
-    printf("ninja: build stopped: %s.\n", err.c_str());
+    status->Info("ninja: build stopped: %s.\n", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
       return 2;
     }
@@ -1172,8 +1182,14 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum {
+    OPT_VERSION = 1,
+    OPT_FRONTEND = 2,
+  };
   const option kLongOptions[] = {
+#ifndef _WIN32
+    { "frontend", required_argument, NULL, OPT_FRONTEND },
+#endif
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
@@ -1182,7 +1198,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:mnt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1241,6 +1257,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'C':
         options->working_dir = optarg;
         break;
+      case OPT_FRONTEND:
+        config->frontend = optarg;
+        break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
@@ -1283,9 +1302,10 @@ NORETURN void real_main(int argc, char** argv) {
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
     if (!options.tool)
-      printf("ninja: Entering directory `%s'\n", options.working_dir);
+      Info("Entering directory `%s'", options.working_dir);
     if (chdir(options.working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
+      Error("chdir to '%s' - %s", options.working_dir, strerror(errno));
+      exit(1);
     }
   }
 
@@ -1296,11 +1316,21 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
+  Status* status = NULL;
+
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
+    if (status == NULL) {
+#ifndef _WIN32
+      if (config.frontend != NULL)
+        status = new StatusSerializer(config);
+      else
+#endif
+        status = new StatusPrinter(config);
+    }
     ManifestParserOptions parser_opts;
     if (options.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
@@ -1311,7 +1341,7 @@ NORETURN void real_main(int argc, char** argv) {
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
-      Error("%s", err.c_str());
+      status->Error("%s", err.c_str());
       exit(1);
     }
 
@@ -1328,7 +1358,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err)) {
+    if (ninja.RebuildManifest(options.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -1336,17 +1366,18 @@ NORETURN void real_main(int argc, char** argv) {
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", options.input_file, err.c_str());
+      status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
     }
 
-    int result = ninja.RunBuild(argc, argv);
+    int result = ninja.RunBuild(argc, argv, status);
     if (g_metrics)
       ninja.DumpMetrics();
+    delete status;
     exit(result);
   }
 
-  Error("manifest '%s' still dirty after %d tries\n",
+  status->Error("manifest '%s' still dirty after %d tries\n",
       options.input_file, kCycleLimit);
   exit(1);
 }
