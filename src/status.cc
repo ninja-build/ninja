@@ -15,6 +15,7 @@
 #include "status.h"
 
 #include <cassert>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -248,5 +249,26 @@ void StatusPrinter::PrintStatus(Edge* edge, EdgeStatus status) {
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+}
+
+void StatusPrinter::Warning(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  ::Warning(msg, ap);
+  va_end(ap);
+}
+
+void StatusPrinter::Error(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  ::Error(msg, ap);
+  va_end(ap);
+}
+
+void StatusPrinter::Info(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  ::Info(msg, ap);
+  va_end(ap);
 }
 
