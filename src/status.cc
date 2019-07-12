@@ -15,7 +15,7 @@
 #include "status.h"
 
 #include <cassert>
-#include <stdarg.h>
+#include <errno.h>
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -58,8 +58,7 @@ void StatusPrinter::BuildEdgeStarted(Edge* edge, int64_t start_time_millis) {
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge,
                                     int64_t end_time_millis,
-                                    bool success,
-                                    const string& output) {
+                                    const CommandRunner::Result* result) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
 
@@ -76,9 +75,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge,
   // edges doesn't oscillate between config.parallelism_ and
   // config.parallelism_ - 1.
   --running_edges_;
-  
+
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (!result->success()) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
@@ -88,7 +87,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge,
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
-  if (!output.empty()) {
+  if (!result->output.empty()) {
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
     // isatty(stderr) to decide if they should print colored output.
@@ -102,9 +101,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     string final_output;
     if (!printer_.supports_color())
-      final_output = StripAnsiEscapeCodes(output);
+      final_output = StripAnsiEscapeCodes(result->output);
     else
-      final_output = output;
+      final_output = result->output;
 
 #ifdef _WIN32
     // Fix extra CR being added on Windows, writing out CR CR LF (#773)
@@ -206,7 +205,7 @@ string StatusPrinter::FormatProgressStatus(
         out += buf;
         break;
       }
- 
+
       case 'e': {
         snprintf(buf, sizeof(buf), "%.3f", time_millis_ / 1e3);
         out += buf;
@@ -262,3 +261,156 @@ void StatusPrinter::Info(const char* msg, ...) {
   va_end(ap);
 }
 
+#ifndef _WIN32
+
+#include <unistd.h>
+
+#include "frontend.pb.h"
+#include "proto.h"
+
+StatusSerializer::StatusSerializer(const BuildConfig& config) :
+    config_(config), subprocess_(NULL), total_edges_(0) {
+  int output_pipe[2];
+  if (pipe(output_pipe) < 0)
+    Fatal("pipe: %s", strerror(errno));
+  SetCloseOnExec(output_pipe[1]);
+
+  f_ = fdopen(output_pipe[1], "wb");
+  setvbuf(f_, NULL, _IONBF, 0);
+  filebuf_ = new ofilebuf(f_);
+  out_ = new std::ostream(filebuf_);
+
+  // Launch the frontend as a subprocess with write-end of the pipe as fd 3
+  subprocess_ = subprocess_set_.Add(config.frontend, /*use_console=*/true,
+                                    output_pipe[0]);
+  close(output_pipe[0]);
+}
+
+StatusSerializer::~StatusSerializer() {
+  delete out_;
+  delete filebuf_;
+  fclose(f_);
+  subprocess_->Finish();
+  subprocess_set_.Clear();
+}
+
+void StatusSerializer::Send() {
+  // Send the proto as a length-delimited message
+  WriteVarint32NoTag(out_, proto_.ByteSizeLong());
+  proto_.SerializeToOstream(out_);
+  proto_.Clear();
+  out_->flush();
+}
+
+void StatusSerializer::PlanHasTotalEdges(int total) {
+  if (total_edges_ != total) {
+    total_edges_ = total;
+    ninja::Status::TotalEdges *total_edges = proto_.mutable_total_edges();
+    total_edges->set_total_edges(total_edges_);
+    Send();
+  }
+}
+
+void StatusSerializer::BuildEdgeStarted(Edge* edge, int64_t start_time_millis) {
+  ninja::Status::EdgeStarted* edge_started = proto_.mutable_edge_started();
+
+  edge_started->set_id(edge->id_);
+  edge_started->set_start_time(start_time_millis);
+
+  edge_started->mutable_inputs()->reserve(edge->inputs_.size());
+  for (vector<Node*>::iterator it = edge->inputs_.begin();
+       it != edge->inputs_.end(); ++it) {
+    edge_started->add_inputs((*it)->path());
+  }
+
+  edge_started->mutable_outputs()->reserve(edge->inputs_.size());
+  for (vector<Node*>::iterator it = edge->outputs_.begin();
+       it != edge->outputs_.end(); ++it) {
+    edge_started->add_outputs((*it)->path());
+  }
+
+  edge_started->set_desc(edge->GetBinding("description"));
+
+  edge_started->set_command(edge->GetBinding("command"));
+
+  edge_started->set_console(edge->use_console());
+
+  Send();
+}
+
+void StatusSerializer::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
+                                         const CommandRunner::Result* result) {
+  ninja::Status::EdgeFinished* edge_finished = proto_.mutable_edge_finished();
+
+  edge_finished->set_id(edge->id_);
+  edge_finished->set_end_time(end_time_millis);
+  edge_finished->set_status(result->status);
+  edge_finished->set_output(result->output);
+
+  Send();
+}
+
+void StatusSerializer::BuildLoadDyndeps() {
+}
+
+void StatusSerializer::BuildStarted() {
+  ninja::Status::BuildStarted* build_started = proto_.mutable_build_started();
+
+  build_started->set_parallelism(config_.parallelism);
+  build_started->set_verbose((config_.verbosity == BuildConfig::VERBOSE));
+
+  Send();
+}
+
+void StatusSerializer::BuildFinished() {
+  proto_.mutable_build_finished();
+  Send();
+}
+
+void StatusSerializer::Message(ninja::Status::Message::Level level,
+                               const char* msg, va_list ap) {
+  va_list ap2;
+  va_copy(ap2, ap);
+
+  int len = vsnprintf(NULL, 0, msg, ap2);
+  if (len < 0) {
+    Fatal("vsnprintf failed");
+  }
+
+  va_end(ap2);
+
+  string buf;
+  buf.resize(len + 1);
+
+  len = vsnprintf(&buf[0], len + 1, msg, ap);
+  buf.resize(len);
+
+  ninja::Status::Message* message = proto_.mutable_message();
+
+  message->set_level(level);
+  message->set_message(buf);
+
+  Send();
+}
+
+void StatusSerializer::Info(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Message(ninja::Status::Message::INFO, msg, ap);
+  va_end(ap);
+}
+
+void StatusSerializer::Warning(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Message(ninja::Status::Message::WARNING, msg, ap);
+  va_end(ap);
+}
+
+void StatusSerializer::Error(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Message(ninja::Status::Message::ERROR, msg, ap);
+  va_end(ap);
+}
+#endif // !_WIN32

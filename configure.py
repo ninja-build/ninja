@@ -272,6 +272,8 @@ if platform.is_msvc():
 
 def src(filename):
     return os.path.join('$root', 'src', filename)
+def frontend(filename):
+    return os.path.join('$root', 'frontend', filename)
 def built(filename):
     return os.path.join('$builddir', filename)
 def doc(filename):
@@ -484,6 +486,43 @@ else:
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
+n.comment('the proto descriptor is generated using protoc.')
+def has_protoc():
+    try:
+        proc = subprocess.Popen(['protoc', '--version'], stdout=subprocess.PIPE)
+        return proc.communicate()[0].startswith("libprotoc")
+    except OSError:
+        return False
+
+def can_generate_proto_header():
+    try:
+        tool = os.path.join(sourcedir, 'misc', 'generate_proto_header.py')
+        proc = subprocess.Popen([tool, '--probe'], stdout=subprocess.PIPE)
+        return proc.communicate()[0].startswith("ok")
+    except OSError:
+        return False
+
+if has_protoc() and can_generate_proto_header():
+    # Use protoc to write out frontend.proto converted to a descriptor proto
+    n.rule('protoc',
+           command='protoc $in -o $out',
+           description='PROTOC $out')
+    n.build(frontend('frontend.pb'), 'protoc', src('frontend.proto'))
+
+    # Use generate_proto_header.py to read in the descriptor proto and write
+    # a header containing field numbers and types.
+    n.rule('generate_proto_header',
+           command='$tool $in $out',
+           description='GEN $out')
+    # Generate the .h file in the source directory so we can check them in.
+    tool = os.path.join(sourcedir, 'misc', 'generate_proto_header.py')
+    n.build(src('frontend.pb.h'), 'generate_proto_header', frontend('frontend.pb'),
+            implicit=[tool], variables=[('tool', tool)])
+else:
+    print("warning: A version of protoc or the python protobuf library was not found; "
+           "changes to src/frontend.proto will not affect your build.")
+n.newline()
+
 n.comment('Core source files all build into ninja library.')
 cxxvariables = []
 if platform.is_msvc():
@@ -513,7 +552,7 @@ for name in ['build',
              'string_piece_util',
              'util',
              'version']:
-    objs += cxx(name, variables=cxxvariables)
+    objs += cxx(name, order_only=src('frontend.pb.h'), variables=cxxvariables)
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',

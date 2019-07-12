@@ -16,20 +16,25 @@
 #define NINJA_STATUS_H_
 
 #include <map>
+#include <stdarg.h>
 #include <string>
 
 #include "build.h"
 #include "line_printer.h"
+#include "subprocess.h"
+
 
 using namespace std;
 
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.
 struct Status {
+  virtual ~Status() {};
+
   virtual void PlanHasTotalEdges(int total) = 0;
   virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis) = 0;
   virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                 bool success, const string& output) = 0;
+                                 const CommandRunner::Result* result) = 0;
   virtual void BuildLoadDyndeps() = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
@@ -47,7 +52,7 @@ struct StatusPrinter : Status {
   virtual void PlanHasTotalEdges(int total);
   virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis);
   virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                 bool success, const string& output);
+                                 const CommandRunner::Result* result);
   virtual void BuildLoadDyndeps();
   virtual void BuildStarted();
   virtual void BuildFinished();
@@ -114,5 +119,47 @@ struct StatusPrinter : Status {
 
   mutable SlidingRateInfo current_rate_;
 };
+
+#ifndef _WIN32
+
+#include "filebuf.h"
+#include "frontend.pb.h"
+
+/// Implementation of the Status interface that serializes the status as
+/// protocol buffer messages to a subprocess
+struct StatusSerializer : Status {
+  explicit StatusSerializer(const BuildConfig& config);
+  virtual ~StatusSerializer();
+
+  virtual void PlanHasTotalEdges(int total);
+  virtual void BuildEdgeStarted(Edge* edge, int64_t start_time);
+  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
+                                 const CommandRunner::Result* result);
+  virtual void BuildLoadDyndeps();
+  virtual void BuildStarted();
+  virtual void BuildFinished();
+
+  virtual void Info(const char* msg, ...);
+  virtual void Warning(const char* msg, ...);
+  virtual void Error(const char* msg, ...);
+
+  const BuildConfig& config_;
+
+  FILE* f_;
+  ofilebuf *filebuf_;
+  std::ostream *out_;
+
+  ninja::Status proto_;
+
+  SubprocessSet subprocess_set_;
+  Subprocess* subprocess_;
+
+  int total_edges_;
+private:
+  void Message(ninja::Status::Message::Level level, const char* msg, va_list ap);
+  void Send();
+};
+
+#endif // !_WIN32
 
 #endif  // NINJA_STATUS_H_
