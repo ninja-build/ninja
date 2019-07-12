@@ -42,6 +42,7 @@
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
+#include "status.h"
 #include "util.h"
 #include "version.h"
 
@@ -143,11 +144,11 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err);
+  bool RebuildManifest(const char* input_file, string* err, Status* status);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
-  int RunBuild(int argc, char** argv);
+  int RunBuild(int argc, char** argv, Status* status);
 
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
@@ -239,7 +240,7 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
+bool NinjaMain::RebuildManifest(const char* input_file, string* err, Status* status) {
   string path = input_file;
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
@@ -248,7 +249,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err) {
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_, status);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -1101,7 +1102,7 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RunBuild(int argc, char** argv) {
+int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
@@ -1111,7 +1112,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
+  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_, status);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
@@ -1276,6 +1277,8 @@ NORETURN void real_main(int argc, char** argv) {
         kDepfileDistinctTargetLinesActionError;
   }
 
+  Status* status = new StatusPrinter(config);
+
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -1328,7 +1331,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err)) {
+    if (ninja.RebuildManifest(options.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -1340,7 +1343,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    int result = ninja.RunBuild(argc, argv);
+    int result = ninja.RunBuild(argc, argv, status);
     if (g_metrics)
       ninja.DumpMetrics();
     exit(result);

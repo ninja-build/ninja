@@ -26,17 +26,16 @@
 #include "depfile_parser.h"
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
-#include "line_printer.h"
 #include "metrics.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
-struct BuildStatus;
 struct Builder;
 struct DiskInterface;
 struct Edge;
 struct Node;
 struct State;
+struct Status;
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
@@ -180,7 +179,7 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface);
+          DiskInterface* disk_interface, Status* status);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -221,7 +220,7 @@ struct Builder {
 #else
   unique_ptr<CommandRunner> command_runner_;  // auto_ptr was removed in C++17.
 #endif
-  BuildStatus* status_;
+  Status* status_;
 
  private:
    bool ExtractDeps(CommandRunner::Result* result, const string& deps_type,
@@ -236,103 +235,5 @@ struct Builder {
   void operator=(const Builder &other); // DO NOT IMPLEMENT
 };
 
-/// Tracks the status of a build: completion fraction, printing updates.
-struct BuildStatus {
-  explicit BuildStatus(const BuildConfig& config);
-  void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
-                         int* start_time, int* end_time);
-  void BuildLoadDyndeps();
-  void BuildStarted();
-  void BuildFinished();
-
-  enum EdgeStatus {
-    kEdgeStarted,
-    kEdgeFinished,
-  };
-
-  /// Format the progress status string by replacing the placeholders.
-  /// See the user manual for more information about the available
-  /// placeholders.
-  /// @param progress_status_format The format of the progress status.
-  /// @param status The status of the edge.
-  string FormatProgressStatus(const char* progress_status_format,
-                              EdgeStatus status) const;
-
- private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
-
-  const BuildConfig& config_;
-
-  /// Time the build started.
-  int64_t start_time_millis_;
-
-  int started_edges_, finished_edges_, total_edges_;
-
-  /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
-  RunningEdgeMap running_edges_;
-
-  /// Prints progress output.
-  LinePrinter printer_;
-
-  /// The custom progress status format to use.
-  const char* progress_status_format_;
-
-  template<size_t S>
-  void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
-    if (rate == -1)
-      snprintf(buf, S, "?");
-    else
-      snprintf(buf, S, format, rate);
-  }
-
-  struct RateInfo {
-    RateInfo() : rate_(-1) {}
-
-    void Restart() { stopwatch_.Restart(); }
-    double Elapsed() const { return stopwatch_.Elapsed(); }
-    double rate() { return rate_; }
-
-    void UpdateRate(int edges) {
-      if (edges && stopwatch_.Elapsed())
-        rate_ = edges / stopwatch_.Elapsed();
-    }
-
-  private:
-    double rate_;
-    Stopwatch stopwatch_;
-  };
-
-  struct SlidingRateInfo {
-    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
-
-    void Restart() { stopwatch_.Restart(); }
-    double rate() { return rate_; }
-
-    void UpdateRate(int update_hint) {
-      if (update_hint == last_update_)
-        return;
-      last_update_ = update_hint;
-
-      if (times_.size() == N)
-        times_.pop();
-      times_.push(stopwatch_.Elapsed());
-      if (times_.back() != times_.front())
-        rate_ = times_.size() / (times_.back() - times_.front());
-    }
-
-  private:
-    double rate_;
-    Stopwatch stopwatch_;
-    const size_t N;
-    queue<double> times_;
-    int last_update_;
-  };
-
-  mutable RateInfo overall_rate_;
-  mutable SlidingRateInfo current_rate_;
-};
 
 #endif  // NINJA_BUILD_H_
