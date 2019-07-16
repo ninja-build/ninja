@@ -163,6 +163,9 @@ struct VirtualFileSystem : public DiskInterface {
   FileMap files_;
   set<string> files_removed_;
   set<string> files_created_;
+  /// A mapping table to translate incoming path to another path. Think of it
+  /// as hardlinks.
+  map<string, string> hardlinks;
 
   /// A simple fake timestamp for file operations.
   int now_;

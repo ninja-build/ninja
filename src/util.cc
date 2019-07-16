@@ -19,6 +19,7 @@
 #include <io.h>
 #elif defined( _WIN32)
 #include <windows.h>
+#include <direct.h>
 #include <io.h>
 #include <share.h>
 #endif
@@ -110,6 +111,27 @@ static bool IsPathSeparator(char c) {
 #endif
 }
 
+static vector<string> working_dir_components;
+
+void SetWorkingDirForCanonicalizePath(const string& working_dir) {
+  working_dir_components.clear();
+  // Extract component by component
+  size_t compstart = 0;
+  while (compstart < working_dir.size()) {
+    size_t compend = compstart;
+    for (; compend < working_dir.size(); ++compend) {
+      if (IsPathSeparator(working_dir[compend]))
+        break;
+    }
+    working_dir_components.push_back(working_dir.substr(compstart, compend - compstart));
+    compstart = compend;
+    while (compstart < working_dir.size() &&
+           IsPathSeparator(working_dir[compstart])) {
+      ++compstart;
+    }
+  }
+}
+
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       string* err) {
   // WARNING: this function is performance-critical; please benchmark
@@ -123,6 +145,7 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
   const int kMaxPathComponents = 60;
   char* components[kMaxPathComponents];
   int component_count = 0;
+  size_t initial_parent_count = 0;
 
   char* start = path;
   char* dst = start;
@@ -162,6 +185,7 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
           *dst++ = *src++;
           *dst++ = *src++;
           *dst++ = *src++;
+          ++initial_parent_count;
         }
         continue;
       }
@@ -180,6 +204,19 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
     while (src != end && !IsPathSeparator(*src))
       *dst++ = *src++;
     *dst++ = *src++;  // Copy '/' or final \0 character as well.
+
+    // Strip "../path" from "../../../../path/to/working/dir/"
+    if (component_count == 1 && initial_parent_count > 0 &&
+        initial_parent_count <= working_dir_components.size()) {
+      const string& wdcomp = working_dir_components[
+        working_dir_components.size() - initial_parent_count];
+      if (dst == components[0] + wdcomp.size() + 1u &&
+          !wdcomp.compare(0, wdcomp.size(), components[0], wdcomp.size())) {
+        dst = components[0] - 3;  // Also remove "../"
+        component_count = 0;
+        --initial_parent_count;
+      }
+    }
   }
 
   if (dst == start) {
@@ -477,6 +514,19 @@ string StripAnsiEscapeCodes(const string& in) {
       ++i;
   }
   return stripped;
+}
+
+string getcwd_string() {
+  vector<char> cwd;
+
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
+  if (errno != 0 && errno != ERANGE) {
+    Fatal("cannot determine working directory: %s", strerror(errno));
+  }
+  return &cwd[0];
 }
 
 int GetProcessorCount() {

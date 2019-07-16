@@ -20,6 +20,7 @@
 #include "deps_log.h"
 #include "graph.h"
 #include "test.h"
+#include "util.h"
 
 struct CompareEdgesByOutput {
   static bool cmp(const Edge* a, const Edge* b) {
@@ -1017,6 +1018,46 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildTest, DepsReferencedThroughParentFolder) {
+  string foo_depfile_content = "foo.o: ../project/blah.h\n";
+
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n  command = cc $in\n  depfile = $out.d\n"
+"rule touch\n  command = touch $out\n"
+"build foo.o: cc foo.c || blah.h\n"
+"build blah.h: touch blah.stamp\n"));
+  SetWorkingDirForCanonicalizePath("/root/project");
+
+  fs_.hardlinks["../project/blah.h"] = "blah.h";
+  fs_.Create("foo.c", "");
+  fs_.Create("blah.stamp", "");
+  fs_.Create("foo.o.d", foo_depfile_content);
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+
+  // Nothing built yet, expect a rebuild.
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+
+  fs_.Tick();
+
+  // Recreate the depfile, as it should have been deleted by the build.
+  fs_.Create("foo.o.d", foo_depfile_content);
+
+  // Rebuild blah.h because blah.stamp dirty.
+  // Rebuild foo.o because ../project/blah.h = blah.h is being rebuilt.
+  fs_.Create("blah.stamp", "");
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildTest, RebuildOrderOnlyDeps) {
