@@ -323,19 +323,17 @@ bool Edge::AllInputsReady() const {
 struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
-  EdgeEnv(Edge* edge, EscapeKind escape)
+  EdgeEnv(const Edge* const edge, const EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
-  string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end,
-                      char sep);
+  std::string MakePathList(const Node* const* span, size_t size, char sep) const;
 
  private:
   vector<string> lookups_;
-  Edge* edge_;
+  const Edge* const edge_;
   EscapeKind escape_in_out_;
   bool recursive_;
 };
@@ -344,14 +342,11 @@ string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
-    return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count,
+    return MakePathList(&edge_->inputs_[0], explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
     int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
-    return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.begin() + explicit_outs_count,
-                        ' ');
+    return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
   }
 
   if (recursive_) {
@@ -376,11 +371,10 @@ string EdgeEnv::LookupVariable(const string& var) {
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
-string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end,
-                             char sep) {
+std::string EdgeEnv::MakePathList(const Node* const* const span,
+                                  const size_t size, const char sep) const {
   string result;
-  for (vector<Node*>::iterator i = begin; i != end; ++i) {
+  for (const Node* const* i = span; i != span + size; ++i) {
     if (!result.empty())
       result.push_back(sep);
     const string& path = (*i)->PathDecanonicalized();
@@ -397,7 +391,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
   return result;
 }
 
-string Edge::EvaluateCommand(bool incl_rsp_file) {
+std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   string command = GetBinding("command");
   if (incl_rsp_file) {
     string rspfile_content = GetBinding("rspfile_content");
@@ -407,7 +401,7 @@ string Edge::EvaluateCommand(bool incl_rsp_file) {
   return command;
 }
 
-string Edge::GetBinding(const string& key) {
+std::string Edge::GetBinding(const std::string& key) const {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);
 }
@@ -426,7 +420,7 @@ string Edge::GetUnescapedDyndep() {
   return env.LookupVariable("dyndep");
 }
 
-string Edge::GetUnescapedRspfile() {
+std::string Edge::GetUnescapedRspfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("rspfile");
 }

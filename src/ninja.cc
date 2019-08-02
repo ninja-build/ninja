@@ -732,7 +732,8 @@ enum EvaluateCommandMode {
   ECM_NORMAL,
   ECM_EXPAND_RSPFILE
 };
-string EvaluateCommandWithRspfile(Edge* edge, EvaluateCommandMode mode) {
+std::string EvaluateCommandWithRspfile(const Edge* edge,
+                                       const EvaluateCommandMode mode) {
   string command = edge->EvaluateCommand();
   if (mode == ECM_NORMAL)
     return command;

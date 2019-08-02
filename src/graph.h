@@ -155,10 +155,10 @@ struct Edge {
   /// Expand all variables in a command and return it as a string.
   /// If incl_rsp_file is enabled, the string will also contain the
   /// full contents of a response file (if applicable)
-  string EvaluateCommand(bool incl_rsp_file = false);
+  std::string EvaluateCommand(bool incl_rsp_file = false) const;
 
   /// Returns the shell-escaped value of |key|.
-  string GetBinding(const string& key);
+  std::string GetBinding(const string& key) const;
   bool GetBindingBool(const string& key);
 
   /// Like GetBinding("depfile"), but without shell escaping.
@@ -166,7 +166,7 @@ struct Edge {
   /// Like GetBinding("dyndep"), but without shell escaping.
   string GetUnescapedDyndep();
   /// Like GetBinding("rspfile"), but without shell escaping.
-  string GetUnescapedRspfile();
+  std::string GetUnescapedRspfile() const;
 
   void Dump(const char* prefix="") const;
 
