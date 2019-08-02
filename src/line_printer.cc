@@ -58,7 +58,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   if (supports_color_) {
     DWORD mode;
     if (GetConsoleMode(console_, &mode)) {
-      SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+      if (!SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        supports_color_ = false;
+      }
     }
   }
 #endif
