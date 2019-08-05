@@ -37,7 +37,7 @@
 extern "C" {
 	// GCC "helpfully" strips the definition of mkdtemp out on AIX.
  	// The function is still present, so if we define it ourselves
-	// it will work perfectly fine.
+	// it will work perfectly fine.       
 	extern char* mkdtemp(char* name_template);
 }
 #endif
