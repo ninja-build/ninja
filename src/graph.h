@@ -144,7 +144,7 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), 
+  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL),
            mark_(VisitNone), run_time_ms_(0), critical_time_(0),
            outputs_ready_(false), deps_loaded_(false), deps_missing_(false),
            implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}

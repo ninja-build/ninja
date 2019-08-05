@@ -833,19 +833,6 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
 
   // 2. Build priority list in decreasing order of critical times.
   sort(edges.begin(), edges.end(), EdgeCom);
-  if (true) {
-    printf("priority list: \n");
-    for (vector<Edge*>::iterator it = edges.begin(), end = edges.end();
-         it != end; ++it) {
-      Edge* edge = *it;
-      Node* input = edge->inputs_[0];
-      Node* output = edge->outputs_[0];
-
-      printf("%s %s crit %" PRIu64 " edge %d\n", input->path().c_str(),
-             output->path().c_str(), edge->critical_time(),
-             edge->run_time_ms_);
-    }
-  }
   priority_list_ = list<Edge*>(edges.begin(), edges.end());
 }
 
