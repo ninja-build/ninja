@@ -20,6 +20,7 @@
 
 int main(int argc, char* argv[]) {
   // Output of /showIncludes from #include <iostream>
+  // clang-format off
   string perf_testdata =
       "Note: including file: C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\iostream\r\n"
       "Note: including file:  C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\istream\r\n"
@@ -130,6 +131,7 @@ int main(int argc, char* argv[]) {
       "Note: including file:        C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\system_error\r\n"
       "Note: including file:         C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\cerrno\r\n"
       "Note: including file:        C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.10240.0\\ucrt\\share.h\r\n";
+  // clang-format on
 
   for (int limit = 1 << 10; limit < (1<<20); limit *= 2) {
     int64_t start = GetTimeMillis();

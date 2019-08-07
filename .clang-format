@@ -16,10 +16,141 @@
 # Still use your best judgement for formatting decisions: clang-format
 # sometimes makes strange choices.
 
-BasedOnStyle: Google
+# Based on the Clang-7.0 documentation
+
+Language: Cpp
+Standard: Cpp03
+DisableFormat: false
+
+AccessModifierOffset: -2
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+AlignOperands: true
+AlignTrailingComments: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
+
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+
+BinPackArguments: true
+BinPackParameters: true
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+#  AfterObjCDeclaration
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+#BreakAfterJavaFieldAnnotations
+
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+ColumnLimit: 80
+
+CommentPragmas: ''
+
+CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+
 Cpp11BracedListStyle: false
+
+DerivePointerAlignment: false
+
+FixNamespaceComments: false
+
+ForEachMacros: ['']
+
+IncludeBlocks: Preserve
+
+IncludeCategories:
+  - Regex:           '^<.*'
+    Priority:        1
+  - Regex:           '^".*'
+    Priority:        2
+
+IncludeIsMainRegex: "(_test)?$"
+
 IndentCaseLabels: false
+IndentPPDirectives: None
+IndentWidth: 2
+IndentWrappedFunctionNames: true
+
+#JavaScriptQuotes
+#JavaScriptWrapImports
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+MacroBlockBegin: ''
+MacroBlockEnd: ''
+
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: None
+
+#ObjCBinPackProtocolList
+#ObjCBlockIndentWidth
+#ObjCSpaceAfterProperty
+#ObjCSpaceBeforeProtocolList
+
+#PenaltyBreakAssignment
+#PenaltyBreakBeforeFirstCallParameter: 100
+#PenaltyBreakComment: 100
+#PenaltyBreakFirstLessLess: 0
+#PenaltyBreakString: 100
+#PenaltyBreakTemplateDeclaration
+#PenaltyExcessCharacter: 1
+#PenaltyReturnTypeOnItsOwnLine: 20
+
+PointerAlignment: Left
+
+#RawStringFormats:
+
+ReflowComments: false
+
+SortIncludes: false
+SortUsingDeclarations: false
+
+SpaceAfterCStyleCast: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+#SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+TabWidth: 2
+UseTab: Never
