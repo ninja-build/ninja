@@ -56,7 +56,8 @@ void Error(const char* msg, ...);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
 /// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits, std::string* err);
+bool CanonicalizePath(std::string* path, uint64_t* slash_bits,
+                      std::string* err);
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       std::string* err);
 

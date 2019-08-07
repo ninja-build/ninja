@@ -224,9 +224,9 @@ struct Builder {
   BuildStatus* status_;
 
  private:
-   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
-                    const std::string& deps_prefix, std::vector<Node*>* deps_nodes,
-                    std::string* err);
+  bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
+                   const std::string& deps_prefix,
+                   std::vector<Node*>* deps_nodes, std::string* err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;

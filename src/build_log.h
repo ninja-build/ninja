@@ -46,8 +46,8 @@ struct BuildLog {
 
   /// Prepares writing to the log file without actually opening it - that will
   /// happen when/if it's needed
-  bool OpenForWrite(const std::string& path, const BuildLogUser& user, std::string* err);
-
+  bool OpenForWrite(const std::string& path, const BuildLogUser& user,
+                    std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp mtime = 0);
   void Close();
@@ -83,7 +83,8 @@ struct BuildLog {
   bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const std::string& path, const BuildLogUser& user, std::string* err);
+  bool Recompact(const std::string& path, const BuildLogUser& user,
+                 std::string* err);
 
   /// Restat all outputs in the log
   bool Restat(StringPiece path, const DiskInterface& disk_interface,

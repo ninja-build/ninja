@@ -52,7 +52,8 @@ struct DiskInterface: public FileReader {
 
   /// Create a file, with the specified name and contents
   /// Returns true on success, false on failure
-  virtual bool WriteFile(const std::string& path, const std::string& contents) = 0;
+  virtual bool WriteFile(const std::string& path,
+                         const std::string& contents) = 0;
 
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
@@ -77,7 +78,8 @@ struct RealDiskInterface : public DiskInterface {
   virtual TimeStamp Stat(const std::string& path, std::string* err) const;
   virtual bool MakeDir(const std::string& path);
   virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err);
+  virtual Status ReadFile(const std::string& path, std::string* contents,
+                          std::string* err);
   virtual int RemoveFile(const std::string& path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.

@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-
 using namespace std;
 
 vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
