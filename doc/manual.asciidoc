@@ -568,8 +568,9 @@ Use it like in the following example:
 
 ----
 rule cc
-  depfile = $out.d
   command = gcc -MMD -MF $out.d [other gcc flags here]
+  depfile = $out.d
+  deps = gcc
 ----
 
 The `-MMD` flag to `gcc` tells it to output header dependencies, and
