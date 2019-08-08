@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
+#include <sstream>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -72,6 +73,18 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
    result->edge = finished_.front();
    finished_.pop();
    return true;
+}
+
+void EscapeSlashes(string& str) {
+#ifdef _WIN32
+  ostringstream ss;
+  for(size_t i = 0; i < str.size(); ++i) {
+    ss << str[i];
+    if (str[i] == '\\')
+      ss << '\\';
+  }
+  str = ss.str();
+#endif // _WIN32
 }
 
 }  // namespace
@@ -916,6 +929,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
+    EscapeSlashes(content);
     if (!disk_interface_->WriteFile(rspfile, content))
       return false;
   }
