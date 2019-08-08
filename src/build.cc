@@ -943,7 +943,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   string deps_type = edge->GetBinding("deps");
   const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (deps_type.empty()) {
-    if (!edge->GetBindingBool("depfile")) {
+    if (edge->GetBindingBool("depfile")) {
       *err = string("edge with depfile but no deps makes no sense");
       return false;
     }
