@@ -942,7 +942,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   vector<Node*> deps_nodes;
   string deps_type = edge->GetBinding("deps");
   const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
-  if (!deps_type.empty()) {
+  if (deps_type.empty()) {
+    if (!edge->GetBindingBool("depfile")) {
+      *err = string("edge with depfile but no deps makes no sense");
+      return false;
+    }
+  } else {
     string extract_err;
     if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
                      &extract_err) &&
