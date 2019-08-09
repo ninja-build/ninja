@@ -60,6 +60,8 @@ class Platform(object):
             self._platform = 'netbsd'
         elif self._platform.startswith('aix'):
             self._platform = 'aix'
+        elif self._platform.startswith('os400'):
+            self._platform = 'os400'
         elif self._platform.startswith('dragonfly'):
             self._platform = 'dragonfly'
 
@@ -97,8 +99,8 @@ class Platform(object):
     def is_aix(self):
         return self._platform == 'aix'
 
-    def is_aix_os400_variant(self):
-        return self._platform == 'aix' and os.uname().sysname.startswith('OS400')
+    def is_os400(self):
+        return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
 
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
@@ -539,7 +541,7 @@ if platform.is_msvc():
 else:
     libs.append('-lninja')
 
-if platform.is_aix() and not platform.is_aix_os400_variant():
+if platform.is_aix() and not platform.is_os400():
     libs.append('-lperfstat')
 
 all_targets = []
