@@ -99,7 +99,7 @@ class Platform(object):
     def is_aix(self):
         return self._platform == 'aix'
 
-    def is_os400(self):
+    def is_os400_pase(self):
         return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
 
     def uses_usr_local(self):
@@ -541,7 +541,7 @@ if platform.is_msvc():
 else:
     libs.append('-lninja')
 
-if platform.is_aix() and not platform.is_os400():
+if platform.is_aix() and not platform.is_os400_pase():
     libs.append('-lperfstat')
 
 all_targets = []
