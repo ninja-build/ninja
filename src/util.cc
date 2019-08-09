@@ -45,7 +45,7 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
-#elif defined(_AIX)
+#elif defined(_AIX) && !defined(__PASE__)
 #include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
@@ -561,6 +561,10 @@ double GetLoadAverage() {
   }
 
   return posix_compatible_load;
+}
+#elif defined (__PASE__)
+double GetLoadAverage() {
+    return -0.0f;
 }
 #elif defined(_AIX)
 double GetLoadAverage() {
