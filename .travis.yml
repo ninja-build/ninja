@@ -1,12 +1,34 @@
 matrix:
   include:
     - os: linux
+      dist: precise
       compiler: gcc
     - os: linux
+      dist: precise
+      compiler: clang
+    - os: linux
+      dist: trusty
+      compiler: gcc
+    - os: linux
+      dist: trusty
+      compiler: clang
+    - os: linux
+      dist: xenial
+      compiler: gcc
+    - os: linux
+      dist: xenial
       compiler: clang
     - os: osx
+      osx_image: xcode9.4
+    - os: osx
+      osx_image: xcode10
+    - os: osx
+      osx_image: xcode10.1
 sudo: false
 language: cpp
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install re2c             ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install re2c python ; fi
 script:
   - ./misc/ci.py
   - ./configure.py --bootstrap
