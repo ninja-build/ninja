@@ -33,7 +33,6 @@ for:
       ./ninja all\n
       ./ninja_test 2>&1\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
-
   -
     matrix:
       only:
