@@ -21,7 +21,8 @@ matrix:
       MSYSTEM: MSVC
 
 for:
-  - matrix:
+  -
+    matrix:
       only:
         - MSYSTEM: MINGW64
     build_script:
@@ -33,7 +34,8 @@ for:
       ./ninja_test 2>&1\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
 
-  - matrix:
+  -
+    matrix:
       only:
         - MSYSTEM: MSVC
     build_script:
