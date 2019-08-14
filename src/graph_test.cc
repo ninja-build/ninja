@@ -473,10 +473,10 @@ TEST_F(GraphTest, Decanonicalize) {
   EXPECT_EQ(root_nodes[1]->path(), "out/out2/out3/out4");
   EXPECT_EQ(root_nodes[2]->path(), "out3");
   EXPECT_EQ(root_nodes[3]->path(), "out4/foo");
-  EXPECT_EQ(root_nodes[0]->PathDecanonicalized(), "out\\out1");
-  EXPECT_EQ(root_nodes[1]->PathDecanonicalized(), "out\\out2/out3\\out4");
-  EXPECT_EQ(root_nodes[2]->PathDecanonicalized(), "out3");
-  EXPECT_EQ(root_nodes[3]->PathDecanonicalized(), "out4\\foo");
+  EXPECT_EQ(root_nodes[0]->PathDecanonicalized(&state_.bindings_), "out\\out1");
+  EXPECT_EQ(root_nodes[1]->PathDecanonicalized(&state_.bindings_), "out\\out2/out3\\out4");
+  EXPECT_EQ(root_nodes[2]->PathDecanonicalized(&state_.bindings_), "out3");
+  EXPECT_EQ(root_nodes[3]->PathDecanonicalized(&state_.bindings_), "out4\\foo");
 }
 #endif
 

@@ -298,8 +298,12 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
     }
     return node;
   } else {
+    // About to abort, so corrupt state_ to get a valid Node* out of it.
+    node = state_.GetNode(path, &state_.bindings_, slash_bits);
     *err =
-        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
+        "unknown target '" + node->PathDecanonicalized(&state_.bindings_) + "'";
+    state_.paths_.erase(node->path());
+
     if (path == "clean") {
       *err += ", did you mean 'ninja -t clean'?";
     } else if (path == "help") {

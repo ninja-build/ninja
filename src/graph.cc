@@ -29,7 +29,7 @@
 #include "util.h"
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  return (mtime_ = disk_interface->Stat(path(), err)) != -1;
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
@@ -382,7 +382,7 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
   for (const Node* const* i = span; i != span + size; ++i) {
     if (!result.empty())
       result.push_back(sep);
-    const string& path = (*i)->PathDecanonicalized();
+    const string& path = (*i)->PathDecanonicalized(edge_->env_);
     if (escape_in_out_ == kShellEscape) {
 #ifdef _WIN32
       GetWin32EscapedString(path, &result);
@@ -402,6 +402,18 @@ std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
     string rspfile_content = GetBinding("rspfile_content");
     if (!rspfile_content.empty())
       command += ";rspfile=" + rspfile_content;
+  }
+  if (!env_->AsString().empty()) {
+#if _WIN32
+    // "cmd /c cd "dir" is not what gets executed due to 8,191 character limit.
+    // The "cmd /c cd \"" gets parsed out again in subprocess-win32.cc. In
+    // between here and there, it isn't worth it to do a global type change
+    // where command strings become some kind of class that knows the dir and
+    // the command.
+    command = "cmd /c cd \"" + env_->AsString() + "\" && " + command;
+#else
+    command = "cd \"" + env_->AsString() + "\" && " + command;
+#endif
   }
   return command;
 }
@@ -467,13 +479,28 @@ bool Edge::maybe_phonycycle_diagnostic() const {
       implicit_deps_ == 0;
 }
 
-// static
-string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
-  string result = path;
+string Node::PathDecanonicalized(BindingEnv* in_env) const {
+  string result = path_;
+  if (!env_->equals(in_env)) {
+    string::size_type r = env_->AsString().find(in_env->AsString());
+    if (r == string::npos) {
+      // Env is completely different. Decanonicalized path is a no-op.
+    } else if (r != 0) {
+      // Warn that sibling is referencing this chdir.
+      fprintf(stderr,
+          "WARNING: Node::PathDecanonicalized('%s'): sibling chdir references "
+          "this node.env_=%s sibling_env=%s\n", result.c_str(),
+          env_->AsString().c_str(), in_env->AsString().c_str());
+    } else {
+      string rel_path = env_->AsString();
+      rel_path.erase(0, in_env->AsString().size());
+      result = rel_path + result;
+    }
+  }
 #ifdef _WIN32
   uint64_t mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
-    if (slash_bits & mask)
+    if (slash_bits() & mask)
       *c = '\\';
     c++;
     mask <<= 1;
@@ -504,9 +531,14 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   if (!deps_type.empty())
     return LoadDepsFromLog(edge, err);
 
+  // The depfile will not have current chdir and must be fixed up.
   string depfile = edge->GetUnescapedDepfile();
-  if (!depfile.empty())
+  // First detect whether depfile was absent.
+  if (!depfile.empty()) {
+    // Apply chdir fixup.
+    depfile = edge->env_->ApplyChdir(depfile);
     return LoadDepFile(edge, depfile, err);
+  }
 
   // No deps to load.
   return true;
@@ -598,7 +630,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                           err))
       return false;
 
-    Node* node = state_->GetNode(*i, slash_bits);
+    Node* node = state_->GetNode(*i, edge->env_, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
     CreatePhonyInEdge(node);

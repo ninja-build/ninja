@@ -25,7 +25,9 @@
 #ifdef _WIN32
 #include <sstream>
 #include <windows.h>
-#include <direct.h>  // _mkdir
+#include <direct.h>  // _mkdir, chdir, getcwd
+#else
+#include <unistd.h>
 #endif
 
 #include "metrics.h"
@@ -257,6 +259,39 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
   case 0:       return Okay;
   case -ENOENT: return NotFound;
   default:      return OtherError;
+  }
+}
+
+FileReader::Status RealDiskInterface::Chdir(const string& path, string* err) {
+  switch (chdir(path.c_str())) {
+    case 0:
+      return Okay;
+    case ENOENT:
+      err->assign(strerror(errno));
+      return NotFound;
+    default:
+      err->assign(strerror(errno));
+      return OtherError;
+  }
+}
+
+FileReader::Status RealDiskInterface::Getcwd(string* path, string* err) {
+  vector<char> cwd;
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+  } while (!::getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
+  switch (errno) {
+    case 0:
+      path->assign(&cwd[0]);
+      err->clear();
+      return FileReader::Okay;
+    case ENOENT:
+      err->assign(strerror(errno));
+      return FileReader::NotFound;
+    default:
+      err->assign(strerror(errno));
+      return FileReader::OtherError;
   }
 }
 

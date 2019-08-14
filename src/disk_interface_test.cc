@@ -229,6 +229,14 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return NotFound;
   }
+  virtual Status Chdir(const string& path, string* err) {
+    assert(false);
+    return NotFound;
+  }
+  virtual Status Getcwd(string* path, string* err) {
+    assert(false);
+    return NotFound;
+  }
   virtual int RemoveFile(const string& path) {
     assert(false);
     return 0;

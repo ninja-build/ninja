@@ -2398,7 +2398,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.GetNode("bar.h", &state.bindings_, 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -2462,7 +2462,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.GetNode("bar.h", &state_.bindings_, 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
 

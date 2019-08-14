@@ -101,7 +101,7 @@ void StateTestWithBuiltinRules::AddCatRule(State* state) {
 
 Node* StateTestWithBuiltinRules::GetNode(const string& path) {
   EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
-  return state_.GetNode(path, 0);
+  return state_.GetNode(path, &state_.bindings_, 0);
 }
 
 void AssertParse(State* state, const char* input,
@@ -151,13 +151,14 @@ void VerifyGraph(const State& state) {
 
 void VirtualFileSystem::Create(const string& path,
                                const string& contents) {
-  files_[path].mtime = now_;
-  files_[path].contents = contents;
-  files_created_.insert(path);
+  string fullpath = cwd_ + path;
+  files_[fullpath].mtime = now_;
+  files_[fullpath].contents = contents;
+  files_created_.insert(fullpath);
 }
 
 TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
-  FileMap::const_iterator i = files_.find(path);
+  FileMap::const_iterator i = files_.find(cwd_ + path);
   if (i != files_.end()) {
     *err = i->second.stat_error;
     return i->second.mtime;
@@ -171,21 +172,77 @@ bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
 }
 
 bool VirtualFileSystem::MakeDir(const string& path) {
-  directories_made_.push_back(path);
+  directories_made_.push_back(cwd_ + path);
   return true;  // success
 }
 
 FileReader::Status VirtualFileSystem::ReadFile(const string& path,
                                                string* contents,
                                                string* err) {
-  files_read_.push_back(path);
-  FileMap::iterator i = files_.find(path);
+  string fullpath = cwd_ + path;
+  files_read_.push_back(fullpath);
+  FileMap::iterator i = files_.find(fullpath);
   if (i != files_.end()) {
     *contents = i->second.contents;
     return Okay;
   }
   *err = strerror(ENOENT);
   return NotFound;
+}
+
+FileReader::Status VirtualFileSystem::Chdir(const string& path, string* err) {
+  // VirtualFileSystem::Chdir does not support ".." or "." relative paths.
+  // However, simple relative paths are ok. And absolute paths are ok.
+
+  if (path.empty()) {
+    err->assign("VirtualFileSystem::Chdir does not accept the empty string");
+    return OtherError;
+  } else if (path == "/") {
+    cwd_.clear();
+  } else if (path.at(0) == '/') {
+    // Treat path as absolute.
+    string trimmed;
+    trimmed.insert(trimmed.begin(), path.begin() + 1, path.end());
+    vector<string>::iterator i = directories_made_.begin();
+    for (; i != directories_made_.end(); i++) {
+      if (*i == trimmed) {
+        cwd_ = trimmed;
+        cwd_ += '/';
+        return Okay;
+      }
+    }
+    *err = strerror(ENOENT);
+    return NotFound;
+  } else {
+    // Treat path as relative.
+    string want = cwd_ + path;
+    vector<string>::iterator i = directories_made_.begin();
+    for (; i != directories_made_.end(); i++) {
+      if (*i == want) {
+        cwd_ = want;
+        cwd_ += '/';
+        return Okay;
+      }
+    }
+    *err = strerror(ENOENT);
+    return NotFound;
+  }
+  return Okay;
+}
+
+FileReader::Status VirtualFileSystem::Getcwd(string* path, string* err) {
+  // Empty cwd_ means the current dir is '/'
+  if (cwd_.empty()) {
+    path->assign("/");
+  } else {
+    path->assign(cwd_);
+    // Strip off '/' if present.
+    if (cwd_.size() > 0 && cwd_.at(cwd_.size() - 1) == '/') {
+      path->erase(path->end() - 1);
+    }
+  }
+  err->clear();
+  return Okay;
 }
 
 int VirtualFileSystem::RemoveFile(const string& path) {

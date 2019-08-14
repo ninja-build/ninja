@@ -253,7 +253,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       // have a correct slash_bits that GetNode will look up), or it is an
       // implicit dependency from a .d which does not affect the build command
       // (and so need not have its slashes maintained).
-      Node* node = state->GetNode(subpath, 0);
+      Node* node = state->GetNode(subpath, &state->bindings_, 0);
 
       // Check that the expected index matches the actual index. This can only
       // happen if two ninja processes write to the same deps log concurrently.
