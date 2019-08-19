@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include "public/build_config.h"
+
 #include "depfile_parser.h"
 #include "graph.h"  // XXX needed for DependencyScan; should rearrange.
 #include "exit_status.h"
@@ -151,26 +153,6 @@ struct CommandRunner {
 
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
-};
-
-/// Options (e.g. verbosity, parallelism) passed to a build.
-struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  failures_allowed(1), max_load_average(-0.0f) {}
-
-  enum Verbosity {
-    NORMAL,
-    QUIET,  // No output -- used when testing.
-    VERBOSE
-  };
-  Verbosity verbosity;
-  bool dry_run;
-  int parallelism;
-  int failures_allowed;
-  /// The maximum load average we must not exceed. A negative value
-  /// means that we do not have any limit.
-  double max_load_average;
-  DepfileParserOptions depfile_parser_options;
 };
 
 /// Builder wraps the build process: starting commands, updating status.

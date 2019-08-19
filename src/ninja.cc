@@ -30,6 +30,8 @@
 #include <unistd.h>
 #endif
 
+#include "public/build_config.h"
+
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
