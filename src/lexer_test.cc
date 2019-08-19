@@ -17,6 +17,7 @@
 #include "eval_env.h"
 #include "test.h"
 
+namespace ninja {
 TEST(Lexer, ReadVarValue) {
   Lexer lexer("plain text $var $VaR ${x}\n");
   EvalString eval;
@@ -94,3 +95,4 @@ TEST(Lexer, Tabs) {
   EXPECT_EQ(Lexer::ERROR, token);
   EXPECT_EQ("tabs are not allowed, use spaces", lexer.DescribeLastError());
 }
+}  // namespace ninja

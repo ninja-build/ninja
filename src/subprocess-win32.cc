@@ -21,6 +21,7 @@
 
 #include "util.h"
 
+namespace ninja {
 Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
                                            is_reading_(false),
                                            use_console_(use_console) {
@@ -295,3 +296,4 @@ void SubprocessSet::Clear() {
     delete *i;
   running_.clear();
 }
+}  // namespace ninja

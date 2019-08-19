@@ -24,6 +24,7 @@
 
 #include "debug_flags.h"
 
+namespace ninja {
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
@@ -248,20 +249,21 @@ void StatusPrinter::PrintStatus(Edge* edge, int64_t time_millis) {
 void StatusPrinter::Warning(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  ::Warning(msg, ap);
+  ninja::Warning(msg, ap);
   va_end(ap);
 }
 
 void StatusPrinter::Error(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  ::Error(msg, ap);
+  ninja::Error(msg, ap);
   va_end(ap);
 }
 
 void StatusPrinter::Info(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  ::Info(msg, ap);
+  ninja::Info(msg, ap);
   va_end(ap);
 }
+}  // namespace ninja

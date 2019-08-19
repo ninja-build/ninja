@@ -16,6 +16,7 @@
 #include "depfile_parser.h"
 #include "util.h"
 
+namespace ninja {
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {
@@ -337,3 +338,4 @@ yy28:
   }
   return true;
 }
+}  // namespace ninja

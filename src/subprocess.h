@@ -36,6 +36,7 @@ using namespace std;
 
 #include "exit_status.h"
 
+namespace ninja {
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
@@ -110,5 +111,6 @@ struct SubprocessSet {
   sigset_t old_mask_;
 #endif
 };
+}  // namespace ninja
 
 #endif // NINJA_SUBPROCESS_H_

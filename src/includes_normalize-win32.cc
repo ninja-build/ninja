@@ -24,6 +24,7 @@
 
 #include <windows.h>
 
+namespace ninja {
 namespace {
 
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
@@ -207,3 +208,4 @@ bool IncludesNormalize::Normalize(const string& input,
     return false;
   return true;
 }
+}  // namespace ninja

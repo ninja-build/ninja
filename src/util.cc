@@ -54,6 +54,7 @@
 #include "edit_distance.h"
 #include "metrics.h"
 
+namespace ninja {
 void Fatal(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
@@ -644,3 +645,4 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+}  // namespace ninja

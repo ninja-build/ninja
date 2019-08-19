@@ -19,6 +19,7 @@
 #include <vector>
 using namespace std;
 
+namespace ninja {
 vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
   vector<StringPiece> elems;
   elems.reserve(count(input.begin(), input.end(), sep) + 1);
@@ -76,3 +77,4 @@ bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
 
   return true;
 }
+}  // namespace ninja

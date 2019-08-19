@@ -16,10 +16,11 @@
 
 #include "test.h"
 
+namespace ninja {
 struct DepfileParserTest : public testing::Test {
   bool Parse(const char* input, string* err);
 
-  DepfileParser parser_;
+  ninja::DepfileParser parser_;
   string input_;
 };
 
@@ -309,3 +310,4 @@ TEST_F(DepfileParserTest, MultipleRulesRejectDifferentOutputs) {
   ASSERT_EQ("depfile has multiple output paths (on separate lines)"
             " [-w depfilemulti=err]", err);
 }
+}  // namespace ninja

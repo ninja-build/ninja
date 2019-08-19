@@ -24,6 +24,7 @@
 #include "state.h"
 #include "util.h"
 
+namespace ninja {
 bool DyndepLoader::LoadDyndeps(Node* node, std::string* err) const {
   DyndepFile ddf;
   return LoadDyndeps(node, &ddf, err);
@@ -122,3 +123,4 @@ bool DyndepLoader::LoadDyndepFile(Node* file, DyndepFile* ddf,
   DyndepParser parser(state_, disk_interface_, ddf);
   return parser.Load(file->path(), err);
 }
+}  // namespace ninja

@@ -23,6 +23,7 @@ using namespace std;
 
 #include "public/depfile_parser_options.h"
 
+namespace ninja {
 /// Parser for the dependency information emitted by gcc's -M flags.
 struct DepfileParser {
   explicit DepfileParser(DepfileParserOptions options =
@@ -37,5 +38,6 @@ struct DepfileParser {
   vector<StringPiece> ins_;
   DepfileParserOptions options_;
 };
+}  // namespace ninja
 
 #endif // NINJA_DEPFILE_PARSER_H_

@@ -18,6 +18,7 @@
 #include "eval_env.h"
 #include "parser.h"
 
+namespace ninja {
 struct DyndepFile;
 struct EvalString;
 
@@ -42,5 +43,6 @@ private:
   DyndepFile* dyndep_file_;
   BindingEnv env_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_DYNDEP_PARSER_H_

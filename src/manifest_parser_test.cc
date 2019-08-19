@@ -21,7 +21,8 @@
 #include "state.h"
 #include "test.h"
 
-struct ParserTest : public testing::Test {
+namespace ninja {
+struct ParserTest : public ninja::testing::Test {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, &fs_);
     string err;
@@ -1155,3 +1156,4 @@ TEST_F(ParserTest, DyndepRuleInput) {
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
 }
+}  // namespace ninja

@@ -16,6 +16,7 @@
 #include "state.h"
 #include "test.h"
 
+namespace ninja {
 namespace {
 
 TEST(State, Basic) {
@@ -44,3 +45,4 @@ TEST(State, Basic) {
 }
 
 }  // namespace
+}  // namespace ninja

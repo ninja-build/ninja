@@ -24,6 +24,7 @@
 #include <unistd.h>
 #endif
 
+namespace ninja {
 namespace {
 
 #ifdef _WIN32
@@ -32,7 +33,7 @@ const char* kSimpleCommand = "cmd /c dir \\";
 const char* kSimpleCommand = "ls /";
 #endif
 
-struct SubprocessTest : public testing::Test {
+struct SubprocessTest : public ninja::testing::Test {
   SubprocessSet subprocs_;
 };
 
@@ -259,3 +260,4 @@ TEST_F(SubprocessTest, ReadStdin) {
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
+}  // namespace ninja

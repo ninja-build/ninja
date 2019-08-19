@@ -33,6 +33,7 @@ using namespace std;
 #define NORETURN __attribute__((noreturn))
 #endif
 
+namespace ninja {
 /// Log a fatal message and exit.
 NORETURN void Fatal(const char* msg, ...);
 
@@ -129,5 +130,7 @@ string GetLastErrorString();
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
 #endif
+
+}  // namespace ninja
 
 #endif  // NINJA_UTIL_H_

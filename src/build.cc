@@ -42,6 +42,7 @@
 #include "subprocess.h"
 #include "util.h"
 
+namespace ninja {
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
@@ -912,3 +913,4 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
 
   return true;
 }
+}  // namespace ninja

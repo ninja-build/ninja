@@ -25,6 +25,7 @@ using namespace std;
 #include "timestamp.h"
 #include "util.h"
 
+namespace ninja {
 struct BuildLog;
 struct DepfileParserOptions;
 struct DiskInterface;
@@ -327,5 +328,6 @@ struct DependencyScan {
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_GRAPH_H_

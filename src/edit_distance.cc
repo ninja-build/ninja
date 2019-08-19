@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+namespace ninja {
 int EditDistance(const StringPiece& s1,
                  const StringPiece& s2,
                  bool allow_replacements,
@@ -67,3 +68,4 @@ int EditDistance(const StringPiece& s1,
 
   return row[n];
 }
+}  // namespace ninja

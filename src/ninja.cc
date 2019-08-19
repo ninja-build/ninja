@@ -56,6 +56,10 @@ int MSVCHelperMain(int argc, char** argv);
 void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
 #endif
 
+// Use namespace ninja for now until we can carve out all
+// of the logic that should be internal to the ninja library
+// from the logic that should demonstrate how to use the library.
+using namespace ninja;
 namespace {
 
 struct Tool;

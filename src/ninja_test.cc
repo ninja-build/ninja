@@ -28,6 +28,7 @@
 #include "test.h"
 #include "line_printer.h"
 
+namespace ninja {
 struct RegisteredTest {
   testing::Test* (*factory)();
   const char *name;
@@ -125,7 +126,12 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   }
   return condition;
 }
+}  // namespace ninja
 
+// Use namespace ninja for now until we can carve out all
+// of the logic that should be internal to the ninja library
+// from the logic that should demonstrate how to use the library.
+using namespace ninja;
 int main(int argc, char **argv) {
   int tests_started = 0;
 

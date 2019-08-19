@@ -17,6 +17,7 @@
 
 #include "test.h"
 
+namespace ninja {
 struct GraphTest : public StateTestWithBuiltinRules {
   GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL) {}
 
@@ -856,3 +857,4 @@ TEST_F(GraphTest, DyndepFileCircular) {
   EXPECT_EQ(1u, edge->implicit_deps_);
   EXPECT_EQ(1u, edge->order_only_deps_);
 }
+}  // namespace ninja

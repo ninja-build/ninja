@@ -22,6 +22,7 @@
 #include "state.h"
 #include "util.h"
 
+namespace ninja {
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
@@ -278,3 +279,4 @@ void Cleaner::LoadDyndeps() {
     }
   }
 }
+}  // namespace ninja

@@ -46,6 +46,7 @@
 // Once the number of redundant entries exceeds a threshold, we write
 // out a new file and replace the existing one with it.
 
+namespace ninja {
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
@@ -420,3 +421,4 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
   return true;
 }
+}  // namespace ninja

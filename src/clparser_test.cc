@@ -17,6 +17,7 @@
 #include "test.h"
 #include "util.h"
 
+namespace ninja {
 TEST(CLParserTest, ShowIncludes) {
   ASSERT_EQ("", CLParser::FilterShowIncludes("", ""));
 
@@ -115,3 +116,4 @@ TEST(CLParserTest, DuplicatedHeaderPathConverted) {
   ASSERT_EQ("", output);
   ASSERT_EQ(2u, parser.includes_.size());
 }
+}  // namespace ninja

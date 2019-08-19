@@ -21,6 +21,7 @@ using namespace std;
 
 #include "lexer.h"
 
+namespace ninja {
 struct FileReader;
 struct State;
 
@@ -46,5 +47,6 @@ private:
   virtual bool Parse(const string& filename, const string& input,
                      string* err) = 0;
 };
+}  // namespace ninja
 
 #endif  // NINJA_PARSER_H_

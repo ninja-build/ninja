@@ -21,6 +21,7 @@ using namespace std;
 
 #include <string.h>
 
+namespace ninja {
 /// StringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of std::strings
 /// we need to allocate.
@@ -67,5 +68,6 @@ struct StringPiece {
   const char* str_;
   size_t len_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_STRINGPIECE_H_

@@ -17,6 +17,7 @@
 #include "disk_interface.h"
 #include "metrics.h"
 
+namespace ninja {
 bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
@@ -49,3 +50,4 @@ bool Parser::ExpectToken(Lexer::Token expected, string* err) {
   }
   return true;
 }
+}  // namespace ninja

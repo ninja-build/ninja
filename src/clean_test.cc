@@ -17,6 +17,7 @@
 
 #include "test.h"
 
+namespace ninja {
 struct CleanTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
   BuildConfig config_;
@@ -454,3 +455,4 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
   EXPECT_EQ(0, fs_.Stat("out 2.rsp", &err));
 }
+}  // namespace ninja

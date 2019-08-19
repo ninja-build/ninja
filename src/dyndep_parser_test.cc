@@ -22,6 +22,7 @@
 #include "state.h"
 #include "test.h"
 
+namespace ninja {
 struct DyndepParserTest : public testing::Test {
   void AssertParse(const char* input) {
     DyndepParser parser(&state_, &fs_, &dyndep_file_);
@@ -31,7 +32,7 @@ struct DyndepParserTest : public testing::Test {
   }
 
   virtual void SetUp() {
-    ::AssertParse(&state_,
+    ninja::AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out\n"
 "build out otherout: touch\n");
@@ -481,7 +482,7 @@ TEST_F(DyndepParserTest, OtherOutput) {
 }
 
 TEST_F(DyndepParserTest, MultipleEdges) {
-    ::AssertParse(&state_,
+    ninja::AssertParse(&state_,
 "build out2: touch\n");
   ASSERT_EQ(2u, state_.edges_.size());
   ASSERT_EQ(1u, state_.edges_[1]->outputs_.size());
@@ -510,3 +511,4 @@ TEST_F(DyndepParserTest, MultipleEdges) {
     EXPECT_EQ(0u, i->second.implicit_inputs_.size());
   }
 }
+}  // namespace ninja

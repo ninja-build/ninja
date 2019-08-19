@@ -30,6 +30,7 @@
 
 #include "util.h"
 
+namespace ninja {
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
@@ -162,3 +163,4 @@ void LinePrinter::SetConsoleLocked(bool locked) {
     line_buffer_.clear();
   }
 }
+}  // namespace ninja

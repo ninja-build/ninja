@@ -15,6 +15,7 @@
 #include "depfile_parser.h"
 #include "util.h"
 
+namespace ninja {
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {
@@ -189,3 +190,4 @@ bool DepfileParser::Parse(string* content, string* err) {
   }
   return true;
 }
+}  // namespace ninja

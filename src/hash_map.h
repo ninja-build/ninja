@@ -58,11 +58,11 @@ unsigned int MurmurHash2(const void* key, size_t len) {
 
 namespace std {
 template<>
-struct hash<StringPiece> {
-  typedef StringPiece argument_type;
+struct hash<ninja::StringPiece> {
+  typedef ninja::StringPiece argument_type;
   typedef size_t result_type;
 
-  size_t operator()(StringPiece key) const {
+  size_t operator()(ninja::StringPiece key) const {
     return MurmurHash2(key.str_, key.len_);
   }
 };
@@ -74,11 +74,11 @@ struct hash<StringPiece> {
 using stdext::hash_map;
 using stdext::hash_compare;
 
-struct StringPieceCmp : public hash_compare<StringPiece> {
-  size_t operator()(const StringPiece& key) const {
+struct StringPieceCmp : public hash_compare<ninja::StringPiece> {
+  size_t operator()(const ninja::StringPiece& key) const {
     return MurmurHash2(key.str_, key.len_);
   }
-  bool operator()(const StringPiece& a, const StringPiece& b) const {
+  bool operator()(const ninja::StringPiece& a, const ninja::StringPiece& b) const {
     int cmp = memcmp(a.str_, b.str_, min(a.len_, b.len_));
     if (cmp < 0) {
       return true;
@@ -97,8 +97,8 @@ using __gnu_cxx::hash_map;
 
 namespace __gnu_cxx {
 template<>
-struct hash<StringPiece> {
-  size_t operator()(StringPiece key) const {
+struct hash<ninja::StringPiece> {
+  size_t operator()(ninja::StringPiece key) const {
     return MurmurHash2(key.str_, key.len_);
   }
 };
@@ -112,11 +112,11 @@ struct hash<StringPiece> {
 template<typename V>
 struct ExternalStringHashMap {
 #if (__cplusplus >= 201103L) || (_MSC_VER >= 1900)
-  typedef std::unordered_map<StringPiece, V> Type;
+  typedef std::unordered_map<ninja::StringPiece, V> Type;
 #elif defined(_MSC_VER)
-  typedef hash_map<StringPiece, V, StringPieceCmp> Type;
+  typedef hash_map<ninja::StringPiece, V, ninja::StringPieceCmp> Type;
 #else
-  typedef hash_map<StringPiece, V> Type;
+  typedef hash_map<ninja::StringPiece, V> Type;
 #endif
 };
 

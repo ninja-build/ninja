@@ -16,6 +16,7 @@
 
 #include "test.h"
 
+namespace ninja {
 TEST(StringPieceUtilTest, SplitStringPiece) {
   {
     string input("a:b:c");
@@ -127,3 +128,4 @@ TEST(StringPieceUtilTest, EqualsCaseInsensitiveASCII) {
   EXPECT_FALSE(EqualsCaseInsensitiveASCII("/", "\\"));
   EXPECT_FALSE(EqualsCaseInsensitiveASCII("1", "10"));
 }
+}  // namespace ninja

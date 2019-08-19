@@ -22,6 +22,7 @@
 
 #include "build/browse_py.h"
 
+namespace ninja {
 void RunBrowsePython(State* state, const char* ninja_command,
                      const char* input_file, int argc, char* argv[]) {
   // Fork off a Python process and have it run our code via its stdin.
@@ -76,3 +77,4 @@ void RunBrowsePython(State* state, const char* ninja_command,
     exit(0);
   }
 }
+}  // namespace ninja

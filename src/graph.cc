@@ -27,6 +27,7 @@
 #include "state.h"
 #include "util.h"
 
+namespace ninja {
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
@@ -626,3 +627,4 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
   // this node, it will simply set outputs_ready_ to the correct value.
   phony_edge->outputs_ready_ = true;
 }
+}  // namespace ninja

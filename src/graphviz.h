@@ -20,6 +20,7 @@
 #include "dyndep.h"
 #include "graph.h"
 
+namespace ninja {
 struct DiskInterface;
 struct Node;
 struct Edge;
@@ -37,5 +38,6 @@ struct GraphViz {
   std::set<Node*> visited_nodes_;
   EdgeSet visited_edges_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_GRAPHVIZ_H_

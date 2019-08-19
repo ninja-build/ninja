@@ -29,6 +29,8 @@
 #include "exit_status.h"
 #include "util.h"  // int64_t
 
+namespace ninja {
+
 struct BuildLog;
 struct Builder;
 struct DiskInterface;
@@ -222,5 +224,6 @@ struct Builder {
   Builder(const Builder &other);        // DO NOT IMPLEMENT
   void operator=(const Builder &other); // DO NOT IMPLEMENT
 };
+}  // namespace ninja
 
 #endif  // NINJA_BUILD_H_

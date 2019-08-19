@@ -21,6 +21,7 @@
 #include "build.h"
 #include "line_printer.h"
 
+namespace ninja {
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.
 struct Status {
@@ -113,5 +114,6 @@ struct StatusPrinter : Status {
 
   mutable SlidingRateInfo current_rate_;
 };
+}  // namespace ninja
 
 #endif // NINJA_STATUS_H_

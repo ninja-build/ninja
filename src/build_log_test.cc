@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+namespace ninja {
 namespace {
 
 const char kTestFilename[] = "BuildLogTest-tempfile";
@@ -306,3 +307,4 @@ TEST_F(BuildLogRecompactTest, Recompact) {
 }
 
 }  // anonymous namespace
+}  // namespace ninja

@@ -21,6 +21,7 @@ using namespace std;
 
 #include "timestamp.h"
 
+namespace ninja {
 /// Interface for reading files from disk.  See DiskInterface for details.
 /// This base offers the minimum interface needed just to read files.
 struct FileReader {
@@ -96,5 +97,6 @@ struct RealDiskInterface : public DiskInterface {
   mutable Cache cache_;
 #endif
 };
+}  // namespace ninja
 
 #endif  // NINJA_DISK_INTERFACE_H_

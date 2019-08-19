@@ -21,6 +21,7 @@
 #include "string_piece.h"
 using namespace std;
 
+namespace ninja {
 vector<StringPiece> SplitStringPiece(StringPiece input, char sep);
 
 string JoinStringPiece(const vector<StringPiece>& list, char sep);
@@ -30,5 +31,6 @@ inline char ToLowerASCII(char c) {
 }
 
 bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b);
+}  // namespace ninja
 
 #endif  // NINJA_STRINGPIECE_UTIL_H_

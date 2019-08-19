@@ -42,6 +42,7 @@ extern "C" {
 }
 #endif
 
+namespace ninja {
 namespace {
 
 #ifdef _WIN32
@@ -242,3 +243,4 @@ void ScopedTempDir::Cleanup() {
 
   temp_dir_name_.clear();
 }
+}  // namespace ninja

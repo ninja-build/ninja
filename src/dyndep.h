@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+namespace ninja {
 struct DiskInterface;
 struct Edge;
 struct Node;
@@ -60,5 +61,6 @@ struct DyndepLoader {
   State* state_;
   DiskInterface* disk_interface_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_DYNDEP_LOADER_H_

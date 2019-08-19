@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+namespace ninja {
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
@@ -147,3 +148,4 @@ int main() {
   return 0;
 }
 
+}  // namespace ninja

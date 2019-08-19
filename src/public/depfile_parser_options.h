@@ -15,6 +15,7 @@
 #ifndef NINJA_PUBLIC_DEPFILE_PARSER_OPTIONS_H_
 #define NINJA_PUBLIC_DEPFILE_PARSER_OPTIONS_H_
 
+namespace ninja {
 enum DepfileDistinctTargetLinesAction {
   kDepfileDistinctTargetLinesActionWarn,
   kDepfileDistinctTargetLinesActionError,
@@ -27,5 +28,6 @@ struct DepfileParserOptions {
   DepfileDistinctTargetLinesAction
     depfile_distinct_target_lines_action_;
 };
+}
 
 #endif // NINJA_PUBLIC_DEPFILE_PARSER_OPTIONS_H_

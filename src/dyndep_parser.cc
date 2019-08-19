@@ -22,6 +22,7 @@
 #include "util.h"
 #include "version.h"
 
+namespace ninja {
 DyndepParser::DyndepParser(State* state, FileReader* file_reader,
                            DyndepFile* dyndep_file)
     : Parser(state, file_reader)
@@ -221,3 +222,4 @@ bool DyndepParser::ParseEdge(string* err) {
 
   return true;
 }
+}  // namespace ninja

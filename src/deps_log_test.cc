@@ -23,6 +23,7 @@
 #include "util.h"
 #include "test.h"
 
+namespace ninja {
 namespace {
 
 const char kTestFilename[] = "DepsLogTest-tempfile";
@@ -477,3 +478,4 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
 }
 
 }  // anonymous namespace
+}  // namespace ninja

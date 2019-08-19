@@ -24,10 +24,12 @@
 #include <inttypes.h>
 #endif
 
+namespace ninja {
 // When considering file modification times we only care to compare
 // them against one another -- we never convert them to an absolute
 // real time.  On POSIX we use timespec (seconds&nanoseconds since epoch)
 // and on Windows we use a different value.  Both fit in an int64.
 typedef int64_t TimeStamp;
+}  // namespace ninja
 
 #endif  // NINJA_TIMESTAMP_H_

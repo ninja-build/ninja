@@ -19,6 +19,7 @@
 #include <string>
 using namespace std;
 
+namespace ninja {
 /// Prints lines of text, possibly overprinting previously printed lines
 /// if the terminal supports it.
 struct LinePrinter {
@@ -73,5 +74,6 @@ struct LinePrinter {
   /// Print the given data to the console, or buffer it if it is locked.
   void PrintOrBuffer(const char *data, size_t size);
 };
+}  // namespace ninja
 
 #endif  // NINJA_LINE_PRINTER_H_

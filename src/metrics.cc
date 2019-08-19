@@ -28,8 +28,9 @@
 
 #include "util.h"
 
-Metrics* g_metrics = NULL;
 
+namespace ninja {
+Metrics* g_metrics = NULL;
 namespace {
 
 #ifndef _WIN32
@@ -125,3 +126,4 @@ int64_t GetTimeMillis() {
   return TimerToMicros(HighResTimer()) / 1000;
 }
 
+}  // namespace ninja

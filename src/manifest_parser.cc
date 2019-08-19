@@ -23,6 +23,7 @@
 #include "util.h"
 #include "version.h"
 
+namespace ninja {
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
     : Parser(state, file_reader),
@@ -428,3 +429,4 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
   return true;
 }
+}  // namespace ninja

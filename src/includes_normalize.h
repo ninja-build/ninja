@@ -16,6 +16,7 @@
 #include <vector>
 using namespace std;
 
+namespace ninja {
 struct StringPiece;
 
 /// Utility functions for normalizing include paths on Windows.
@@ -37,3 +38,4 @@ struct IncludesNormalize {
   string relative_to_;
   vector<StringPiece> split_relative_to_;
 };
+}  // namespace ninja

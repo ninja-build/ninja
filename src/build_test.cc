@@ -22,6 +22,7 @@
 #include "status.h"
 #include "test.h"
 
+namespace ninja {
 struct CompareEdgesByOutput {
   static bool cmp(const Edge* a, const Edge* b) {
     return a->outputs_[0]->path() < b->outputs_[0]->path();
@@ -3076,3 +3077,4 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   EXPECT_EQ("touch tmp", command_runner_.commands_ran_[3]);
   EXPECT_EQ("touch out", command_runner_.commands_ran_[4]);
 }
+}  // namespace ninja

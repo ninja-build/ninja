@@ -18,6 +18,7 @@
 #include "util.h"
 #include "metrics.h"
 
+namespace ninja {
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
     "platform/leveldb/LevelDBWriteBatch.cpp";
@@ -55,3 +56,4 @@ int main() {
   printf("min %dms  max %dms  avg %.1fms\n",
          min, max, total / times.size());
 }
+}  // namespace ninja

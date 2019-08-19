@@ -20,6 +20,7 @@
 #include "state.h"
 #include "util.h"
 
+namespace ninja {
 // A tiny testing framework inspired by googletest, but much simpler and
 // faster to compile. It supports most things commonly used from googltest. The
 // most noticeable things missing: EXPECT_* and ASSERT_* don't support
@@ -44,62 +45,62 @@ class Test {
 };
 }
 
-void RegisterTest(testing::Test* (*)(), const char*);
+void RegisterTest(ninja::testing::Test* (*)(), const char*);
 
-extern testing::Test* g_current_test;
+extern ninja::testing::Test* g_current_test;
 #define TEST_F_(x, y, name)                                           \
   struct y : public x {                                               \
-    static testing::Test* Create() { return g_current_test = new y; } \
+    static ninja::testing::Test* Create() { return ninja::g_current_test = new y; } \
     virtual void Run();                                               \
   };                                                                  \
   struct Register##y {                                                \
-    Register##y() { RegisterTest(y::Create, name); }                  \
+    Register##y() { ninja::RegisterTest(y::Create, name); }                  \
   };                                                                  \
   Register##y g_register_##y;                                         \
   void y::Run()
 
 #define TEST_F(x, y) TEST_F_(x, x##y, #x "." #y)
-#define TEST(x, y) TEST_F_(testing::Test, x##y, #x "." #y)
+#define TEST(x, y) TEST_F_(ninja::testing::Test, x##y, #x "." #y)
 
 #define EXPECT_EQ(a, b) \
-  g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
+  ninja::g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
 #define EXPECT_NE(a, b) \
-  g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
+  ninja::g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
 #define EXPECT_GT(a, b) \
-  g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
+  ninja::g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
 #define EXPECT_LT(a, b) \
-  g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
+  ninja::g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
 #define EXPECT_GE(a, b) \
-  g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
+  ninja::g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
 #define EXPECT_LE(a, b) \
-  g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
+  ninja::g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
 #define EXPECT_TRUE(a) \
-  g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
+  ninja::g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
 #define EXPECT_FALSE(a) \
-  g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
+  ninja::g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
 
 #define ASSERT_EQ(a, b) \
-  if (!EXPECT_EQ(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_EQ(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_NE(a, b) \
-  if (!EXPECT_NE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_NE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_GT(a, b) \
-  if (!EXPECT_GT(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_GT(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_LT(a, b) \
-  if (!EXPECT_LT(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_LT(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_GE(a, b) \
-  if (!EXPECT_GE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_GE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_LE(a, b) \
-  if (!EXPECT_LE(a, b)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_LE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_TRUE(a)  \
-  if (!EXPECT_TRUE(a))  { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_TRUE(a))  { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_FALSE(a) \
-  if (!EXPECT_FALSE(a)) { g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_FALSE(a)) { ninja::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_NO_FATAL_FAILURE(a)                           \
   {                                                          \
-    int fail_count = g_current_test->AssertionFailures();    \
+    int fail_count = ninja::g_current_test->AssertionFailures();    \
     a;                                                       \
-    if (fail_count != g_current_test->AssertionFailures()) { \
-      g_current_test->AddAssertionFailure();                 \
+    if (fail_count != ninja::g_current_test->AssertionFailures()) { \
+      ninja::g_current_test->AddAssertionFailure();                 \
       return;                                                \
     }                                                        \
   }
@@ -110,7 +111,7 @@ struct Node;
 
 /// A base test fixture that includes a State object with a
 /// builtin "cat" rule.
-struct StateTestWithBuiltinRules : public testing::Test {
+struct StateTestWithBuiltinRules : public ninja::testing::Test {
   StateTestWithBuiltinRules();
 
   /// Add a "cat" rule to \a state.  Used by some tests; it's
@@ -180,5 +181,6 @@ struct ScopedTempDir {
   /// The subdirectory name for our dir, or empty if it hasn't been set up.
   string temp_dir_name_;
 };
+}  // namespace ninja
 
 #endif // NINJA_TEST_H_

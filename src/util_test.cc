@@ -16,11 +16,12 @@
 
 #include "test.h"
 
+namespace ninja {
 namespace {
 
 bool CanonicalizePath(string* path, string* err) {
   uint64_t unused;
-  return ::CanonicalizePath(path, &unused, err);
+  return ninja::CanonicalizePath(path, &unused, err);
 }
 
 }  // namespace
@@ -266,7 +267,7 @@ TEST(CanonicalizePath, CanonicalizeNotExceedingLen) {
   uint64_t slash_bits;
   string err;
   size_t size = 13;
-  EXPECT_TRUE(::CanonicalizePath(buf, &size, &slash_bits, &err));
+  EXPECT_TRUE(ninja::CanonicalizePath(buf, &size, &slash_bits, &err));
   EXPECT_EQ(0, strncmp("foo/bar/baz.h", buf, size));
   EXPECT_EQ(2, slash_bits);  // Not including the trailing one.
 }
@@ -428,3 +429,4 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   EXPECT_EQ("012...789", elided);
   EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
 }
+}  // namespace ninja

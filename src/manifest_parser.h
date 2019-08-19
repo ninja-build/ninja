@@ -17,6 +17,7 @@
 
 #include "parser.h"
 
+namespace ninja {
 struct BindingEnv;
 struct EvalString;
 
@@ -67,5 +68,6 @@ private:
   ManifestParserOptions options_;
   bool quiet_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_MANIFEST_PARSER_H_

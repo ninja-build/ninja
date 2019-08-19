@@ -16,6 +16,7 @@
 
 #include "test.h"
 
+namespace ninja {
 TEST(StatusTest, StatusFormatElapsed) {
   BuildConfig config;
   StatusPrinter status(config);
@@ -33,3 +34,4 @@ TEST(StatusTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));
 }
+}  // namespace ninja

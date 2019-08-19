@@ -19,6 +19,7 @@
 
 #include "util.h"
 
+namespace ninja {
 typedef BOOL (WINAPI *MiniDumpWriteDumpFunc) (
     IN HANDLE,
     IN DWORD,
@@ -83,5 +84,6 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
 
   Warning("minidump created: %s", temp_file);
 }
+}  // namespace ninja
 
 #endif  // _MSC_VER

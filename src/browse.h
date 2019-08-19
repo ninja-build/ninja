@@ -15,6 +15,7 @@
 #ifndef NINJA_BROWSE_H_
 #define NINJA_BROWSE_H_
 
+namespace ninja {
 struct State;
 
 /// Run in "browse" mode, which execs a Python webserver.
@@ -24,5 +25,6 @@ struct State;
 /// This function does not return if it runs successfully.
 void RunBrowsePython(State* state, const char* ninja_command,
                      const char* input_file, int argc, char* argv[]);
+}  // namespace ninja
 
 #endif  // NINJA_BROWSE_H_

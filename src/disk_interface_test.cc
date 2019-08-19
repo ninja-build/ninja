@@ -23,6 +23,7 @@
 #include "graph.h"
 #include "test.h"
 
+namespace ninja {
 namespace {
 
 struct DiskInterfaceTest : public testing::Test {
@@ -320,3 +321,4 @@ TEST_F(StatTest, Middle) {
 }
 
 }  // namespace
+}  // namespace ninja

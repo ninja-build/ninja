@@ -17,6 +17,7 @@
 
 #include "public/depfile_parser_options.h"
 
+namespace ninja {
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
   BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
@@ -36,5 +37,6 @@ struct BuildConfig {
   double max_load_average;
   DepfileParserOptions depfile_parser_options;
 };
+}
 
 #endif  // NINJA_PUBLIC_BUILD_CONFIG_H_

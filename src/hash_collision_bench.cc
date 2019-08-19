@@ -20,6 +20,7 @@ using namespace std;
 #include <stdlib.h>
 #include <time.h>
 
+namespace ninja {
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);
 }
@@ -61,3 +62,4 @@ int main() {
   }
   printf("\n\n%d collisions after %d runs\n", collision_count, N);
 }
+}  // namespace ninja

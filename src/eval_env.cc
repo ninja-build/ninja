@@ -16,6 +16,7 @@
 
 #include "eval_env.h"
 
+namespace ninja {
 string BindingEnv::LookupVariable(const string& var) {
   map<string, string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
@@ -145,3 +146,4 @@ string EvalString::Unparse() const {
   }
   return result;
 }
+}  // namespace ninja

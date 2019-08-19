@@ -18,6 +18,7 @@
 
 #include "util.h"
 
+namespace ninja {
 const char* kNinjaVersion = "1.9.0.git";
 
 void ParseVersion(const string& version, int* major, int* minor) {
@@ -51,3 +52,4 @@ void CheckNinjaVersion(const string& version) {
           kNinjaVersion, version.c_str());
   }
 }
+}  // namespace ninja

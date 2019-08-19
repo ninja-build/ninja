@@ -28,6 +28,7 @@
 #include "util.h"
 #endif
 
+namespace ninja {
 namespace {
 
 /// Return true if \a input ends with \a needle.
@@ -124,3 +125,4 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
 
   return true;
 }
+}  // namespace ninja

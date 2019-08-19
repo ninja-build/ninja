@@ -22,6 +22,7 @@ using namespace std;
 
 #include "string_piece.h"
 
+namespace ninja {
 struct Rule;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
@@ -106,5 +107,6 @@ private:
   map<string, const Rule*> rules_;
   BindingEnv* parent_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_EVAL_ENV_H_

@@ -19,6 +19,7 @@
 #include <string>
 using namespace std;
 
+namespace ninja {
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
 /// format when building with /showIncludes.  This class parses this
@@ -48,5 +49,6 @@ struct CLParser {
 
   set<string> includes_;
 };
+}  // namespace ninja
 
 #endif  // NINJA_CLPARSER_H_
