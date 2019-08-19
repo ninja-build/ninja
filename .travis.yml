@@ -31,7 +31,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install re2c python ; fi
 script:
   - ./misc/ci.py
-  - ./configure.py --bootstrap
+  - python3 configure.py --bootstrap
   - ./ninja all
   - ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
   - ./misc/ninja_syntax_test.py
