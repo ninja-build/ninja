@@ -63,6 +63,7 @@ c
 b
 [3/3] echo a\x1b[K
 a
+\x1b[32mninja: build success.\x1b[39m
 ''')
 
     def test_issue_1214(self):
@@ -76,19 +77,23 @@ build a: echo
         self.assertEqual(run(print_red),
 '''[1/1] echo a\x1b[K
 \x1b[31mred\x1b[0m
+\x1b[32mninja: build success.\x1b[39m
 ''')
         self.assertEqual(run(print_red, pipe=True),
 '''[1/1] echo a
 red
+ninja: build success.
 ''')
         # Even in verbose mode, colors should still only be stripped when piped.
         self.assertEqual(run(print_red, flags='-v'),
 '''[1/1] printf '\x1b[31mred\x1b[0m'
 \x1b[31mred\x1b[0m
+\x1b[32mninja: build success.\x1b[39m
 ''')
         self.assertEqual(run(print_red, flags='-v', pipe=True),
 '''[1/1] printf '\x1b[31mred\x1b[0m'
 red
+ninja: build success.
 ''')
 
         # CLICOLOR_FORCE=1 can be used to disable escape code stripping.
@@ -97,6 +102,7 @@ red
         self.assertEqual(run(print_red, pipe=True, env=env),
 '''[1/1] echo a
 \x1b[31mred\x1b[0m
+\x1b[32mninja: build success.\x1b[39m
 ''')
 
 if __name__ == '__main__':
