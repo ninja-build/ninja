@@ -437,7 +437,7 @@ if host.is_msvc():
            description='LIB $out')
 elif host.is_mingw():
     n.rule('ar',
-           command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
+           command='$ar crs $out $in',
            description='AR $out')
 else:
     n.rule('ar',

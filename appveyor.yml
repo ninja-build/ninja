@@ -28,7 +28,6 @@ for:
     build_script:
       ps: "C:\\msys64\\usr\\bin\\bash -lc @\"\n
       pacman -S --quiet --noconfirm --needed re2c 2>&1\n
-      sed -i 's|cmd /c `$ar cqs `$out.tmp `$in \\&\\& move /Y `$out.tmp `$out|`$ar crs `$out `$in|g' configure.py\n
       ./configure.py --bootstrap --platform mingw 2>&1\n
       ./ninja all\n
       ./ninja_test 2>&1\n
