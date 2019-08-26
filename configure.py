@@ -710,4 +710,8 @@ if options.bootstrap:
     if options.verbose:
         rebuild_args.append('-v')
 
-    subprocess.check_call(rebuild_args)
+    try:
+        subprocess.check_call(rebuild_args)
+    except subprocess.CalledProcessError as e:
+        print("Failed to call '{}': \nstatus {}\noutput {}".format(
+            rebuild_args, e.returncode, e.output))
