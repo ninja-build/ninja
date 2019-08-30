@@ -1,4 +1,4 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
+// Copyright 2019 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_VERSION_H_
-#define NINJA_VERSION_H_
-
-#include <string>
+#ifndef NINJA_PUBLIC_VERSION_H_
+#define NINJA_PUBLIC_VERSION_H_
 
 namespace ninja {
+/// The version number of the current Ninja release.  This will always
+/// be "git" on trunk.
+extern const char* kNinjaVersion;
 
-/// Parse the major/minor components of a version string.
-void ParseVersion(const std::string& version, int* major, int* minor);
-
-/// Check whether \a version is compatible with the current Ninja version,
-/// aborting if not.
-void CheckNinjaVersion(const std::string& required_version);
 }  // namespace ninja
 
-#endif  // NINJA_VERSION_H_
+#endif  // NINJA_PUBLIC_VERSION_H_

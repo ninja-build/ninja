@@ -31,6 +31,7 @@
 #endif
 
 #include "public/build_config.h"
+#include "public/version.h"
 
 #include "browse.h"
 #include "build.h"
@@ -46,7 +47,6 @@
 #include "state.h"
 #include "status.h"
 #include "util.h"
-#include "version.h"
 
 #ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.
