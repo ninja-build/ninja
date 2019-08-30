@@ -30,6 +30,8 @@
 #include <unistd.h>
 #endif
 
+#include <iostream>
+
 #include "public/build_config.h"
 #include "public/version.h"
 
@@ -62,6 +64,10 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep);
 using namespace ninja;
 namespace {
 
+const char kLogError[] = "ninja: error: ";
+const char kLogInfo[] = "ninja: ";
+const char kLogWarning[] = "ninja: warning: ";
+
 struct Tool;
 
 /// Command-line options.
@@ -86,6 +92,18 @@ struct Options {
   bool depfile_distinct_target_lines_should_err;
 };
 
+// Exit the program immediately with a nonzero status
+void ExitNow() {
+#ifdef _WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
+  exit(1);
+#endif
+}
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
@@ -175,8 +193,9 @@ struct NinjaMain : public BuildLogUser {
     // generators that want to use this information.
     string err;
     TimeStamp mtime = disk_interface_.Stat(s.AsString(), &err);
-    if (mtime == -1)
-      Error("%s", err.c_str());  // Log and ignore Stat() errors.
+    if (mtime == -1) {
+      std::cerr << kLogError << err << std::endl;  // Log and ignore Stat() errors.
+    }
     return mtime == 0;
   }
 
@@ -305,7 +324,8 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
       Edge* edge = node->out_edges()[0];
       if (edge->outputs_.empty()) {
         edge->Dump();
-        Fatal("edge has no outputs");
+        std::cerr << "edge has no outputs" << std::endl;
+        ExitNow();
       }
       node = edge->outputs_[0];
     }
@@ -347,7 +367,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-    Error("%s", err.c_str());
+    std::cerr << kLogError << err << std::endl;
     return 1;
   }
 
@@ -362,7 +382,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
 
 int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
   if (argc == 0) {
-    Error("expected a target to query");
+    std::cerr << kLogError << "expected a target to query" << std::endl;
     return 1;
   }
 
@@ -372,7 +392,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     string err;
     Node* node = CollectTarget(argv[i], &err);
     if (!node) {
-      Error("%s", err.c_str());
+      std::cerr << kLogError << err << std::endl;
       return 1;
     }
 
@@ -380,7 +400,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
-          Warning("%s\n", err.c_str());
+          std::cerr << kLogWarning << err << std::endl;
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
@@ -413,7 +433,9 @@ int NinjaMain::ToolBrowse(const Options* options, int argc, char* argv[]) {
 }
 #else
 int NinjaMain::ToolBrowse(const Options*, int, char**) {
-  Fatal("browse tool not supported on this platform");
+  std::cerr << "browse tool not supported on this platform" << std::endl;
+  ExitNow();
+  // Never reached
   return 1;
 }
 #endif
@@ -505,7 +527,7 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   } else {
     string err;
     if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-      Error("%s", err.c_str());
+      std::cerr << kLogError << err << std::endl;
       return 1;
     }
   }
@@ -521,8 +543,9 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
 
     string err;
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
-    if (mtime == -1)
-      Error("%s", err.c_str());  // Log and ignore Stat() errors;
+    if (mtime == -1) {
+      std::cerr << kLogError << err << std::endl;  // Log and ignore Stat() errors;
+    }
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
            (*it)->path().c_str(), deps->node_count, deps->mtime,
            (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
@@ -554,12 +577,12 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
     } else {
       const char* suggestion =
           SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);
+
+      std::cerr << kLogError << "unknown target tool mode '" << mode << "'";
       if (suggestion) {
-        Error("unknown target tool mode '%s', did you mean '%s'?",
-              mode.c_str(), suggestion);
-      } else {
-        Error("unknown target tool mode '%s'", mode.c_str());
+        std::cerr << ", did you mean '" << suggestion << "'?";
       }
+      std::cerr << std::endl;
       return 1;
     }
   }
@@ -569,7 +592,7 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
   if (err.empty()) {
     return ToolTargetsList(root_nodes, depth, 0);
   } else {
-    Error("%s", err.c_str());
+    std::cerr << kLogError << err << std::endl;
     return 1;
   }
 }
@@ -671,7 +694,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-    Error("%s", err.c_str());
+    std::cerr << kLogError << err << std::endl;
     return 1;
   }
 
@@ -716,7 +739,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   argc -= optind;
 
   if (clean_rules && argc == 0) {
-    Error("expected a rule to clean");
+    std::cerr << kLogError << "expected a rule to clean" << std::endl;
     return 1;
   }
 
@@ -821,7 +844,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
     errno = 0;
   } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
   if (errno != 0 && errno != ERANGE) {
-    Error("cannot determine working directory: %s", strerror(errno));
+    std::cerr << kLogError << "cannot determine working directory: " << strerror(errno) << std::endl;
     return 1;
   }
 
@@ -941,12 +964,12 @@ const Tool* ChooseTool(const string& tool_name) {
   for (const Tool* tool = &kTools[0]; tool->name; ++tool)
     words.push_back(tool->name);
   const char* suggestion = SpellcheckStringV(tool_name, words);
+  std::cerr << "unknown tool '" << tool_name << "'";
   if (suggestion) {
-    Fatal("unknown tool '%s', did you mean '%s'?",
-          tool_name.c_str(), suggestion);
-  } else {
-    Fatal("unknown tool '%s'", tool_name.c_str());
+    std::cerr << ", did you mean '" << suggestion << "'?";
   }
+  std::cerr << std::endl;
+  ExitNow();
   return NULL;  // Not reached.
 }
 
@@ -984,12 +1007,11 @@ bool DebugEnable(const string& name) {
         SpellcheckString(name.c_str(),
                          "stats", "explain", "keepdepfile", "keeprsp",
                          "nostatcache", NULL);
+    std::cerr << kLogError << "unknown debug setting '" << name << "'";
     if (suggestion) {
-      Error("unknown debug setting '%s', did you mean '%s'?",
-            name.c_str(), suggestion);
-    } else {
-      Error("unknown debug setting '%s'", name.c_str());
+      std::cerr << ", did you mean '" << suggestion << "'?";
     }
+    std::cerr << endl;
     return false;
   }
 }
@@ -1026,12 +1048,11 @@ bool WarningEnable(const string& name, Options* options) {
     const char* suggestion =
         SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn",
                          "phonycycle=err", "phonycycle=warn", NULL);
+    std::cerr << kLogError << "unknown warning flag '" << name << "'";
     if (suggestion) {
-      Error("unknown warning flag '%s', did you mean '%s'?",
-            name.c_str(), suggestion);
-    } else {
-      Error("unknown warning flag '%s'", name.c_str());
+      std::cerr << ", did you mean '" << suggestion << "'?";
     }
+    std::cerr << std::endl;
     return false;
   }
 }
@@ -1043,25 +1064,25 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
 
   string err;
   if (!build_log_.Load(log_path, &err)) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    std::cerr << kLogError << "loading build log " << log_path << ": " << err << std::endl;
     return false;
   }
   if (!err.empty()) {
     // Hack: Load() can return a warning via err by returning true.
-    Warning("%s", err.c_str());
+    std::cerr << kLogWarning << err << std::endl;
     err.clear();
   }
 
   if (recompact_only) {
     bool success = build_log_.Recompact(log_path, *this, &err);
     if (!success)
-      Error("failed recompaction: %s", err.c_str());
+      std::cerr << kLogError << "failed recompaction: " << err << std::endl;
     return success;
   }
 
   if (!config_.dry_run) {
     if (!build_log_.OpenForWrite(log_path, *this, &err)) {
-      Error("opening build log: %s", err.c_str());
+      std::cerr << kLogError << "opening build log: " << err << std::endl;
       return false;
     }
   }
@@ -1078,25 +1099,25 @@ bool NinjaMain::OpenDepsLog(bool recompact_only) {
 
   string err;
   if (!deps_log_.Load(path, &state_, &err)) {
-    Error("loading deps log %s: %s", path.c_str(), err.c_str());
+    std::cerr << kLogError << "loading deps log " << path << ": " << err << std::endl;
     return false;
   }
   if (!err.empty()) {
     // Hack: Load() can return a warning via err by returning true.
-    Warning("%s", err.c_str());
+    std::cerr << kLogWarning << err << std::endl;
     err.clear();
   }
 
   if (recompact_only) {
     bool success = deps_log_.Recompact(path, &err);
     if (!success)
-      Error("failed recompaction: %s", err.c_str());
+      std::cerr << kLogError << "failed recompaction: " << err << std::endl;
     return success;
   }
 
   if (!config_.dry_run) {
     if (!deps_log_.OpenForWrite(path, &err)) {
-      Error("opening deps log: %s", err.c_str());
+      std::cerr << kLogError << "opening deps log: " << err << std::endl;
       return false;
     }
   }
@@ -1118,8 +1139,7 @@ bool NinjaMain::EnsureBuildDirExists() {
   build_dir_ = state_.bindings_.LookupVariable("builddir");
   if (!build_dir_.empty() && !config_.dry_run) {
     if (!disk_interface_.MakeDirs(build_dir_ + "/.") && errno != EEXIST) {
-      Error("creating build directory %s: %s",
-            build_dir_.c_str(), strerror(errno));
+      std::cerr << kLogError << "creating build directory " << build_dir_ << ": " << strerror(errno) << std::endl;
       return false;
     }
   }
@@ -1178,13 +1198,14 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 /// generated 3 GB of output and caused ninja to crash.
 void TerminateHandler() {
   CreateWin32MiniDump(NULL);
-  Fatal("terminate handler called");
+  std::cerr << "terminate handler called" << std::endl;
+  ExitNow();
 }
 
 /// On Windows, we want to prevent error dialogs in case of exceptions.
 /// This function handles the exception, and writes a minidump.
 int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
-  Error("exception: 0x%X", code);  // e.g. EXCEPTION_ACCESS_VIOLATION
+  std::cerr << kLogError << "exception: " << code << std::endl;  // e.g. EXCEPTION_ACCESS_VIOLATION
   fflush(stderr);
   CreateWin32MiniDump(ep);
   return EXCEPTION_EXECUTE_HANDLER;
@@ -1221,8 +1242,10 @@ int ReadFlags(int* argc, char*** argv,
       case 'j': {
         char* end;
         int value = strtol(optarg, &end, 10);
-        if (*end != 0 || value < 0)
-          Fatal("invalid -j parameter");
+        if (*end != 0 || value < 0) {
+          std::cerr << "invalid -j parameter" << std::endl;
+          ExitNow();
+        }
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
@@ -1232,8 +1255,10 @@ int ReadFlags(int* argc, char*** argv,
       case 'k': {
         char* end;
         int value = strtol(optarg, &end, 10);
-        if (*end != 0)
-          Fatal("-k parameter not numeric; did you mean -k 0?");
+        if (*end != 0) {
+          std::cerr << "-k parameter not numeric; did you mean -k 0?" << std::endl;
+          ExitNow();
+        }
 
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
@@ -1244,8 +1269,10 @@ int ReadFlags(int* argc, char*** argv,
       case 'l': {
         char* end;
         double value = strtod(optarg, &end);
-        if (end == optarg)
-          Fatal("-l parameter not numeric: did you mean -l 0.0?");
+        if (end == optarg) {
+          std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
+          ExitNow();
+        }
         config->max_load_average = value;
         break;
       }
@@ -1309,9 +1336,9 @@ NORETURN void real_main(int argc, char** argv) {
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
     if (!options.tool)
-      Info("Entering directory `%s'", options.working_dir);
+      std::cerr << kLogInfo << "Entering directory `" << options.working_dir << "'" << std::endl;
     if (chdir(options.working_dir) < 0) {
-      Error("chdir to '%s' - %s", options.working_dir, strerror(errno));
+      std::cerr << kLogError << "chdir to '" << options.working_dir << "' - " << strerror(errno) << std::endl;
       exit(1);
     }
   }
