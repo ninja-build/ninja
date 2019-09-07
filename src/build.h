@@ -108,7 +108,7 @@ private:
     kWantToFinish
   };
 
-  void EdgeWanted(Edge* edge);
+  void EdgeWanted(const Edge* edge);
   bool EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err);
 
   /// Submits a ready edge as a candidate for execution.

@@ -373,7 +373,7 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, string* err,
   return true;
 }
 
-void Plan::EdgeWanted(Edge* edge) {
+void Plan::EdgeWanted(const Edge* edge) {
   ++wanted_edges_;
   if (!edge->is_phony())
     ++command_edges_;
