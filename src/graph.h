@@ -159,12 +159,12 @@ struct Edge {
 
   /// Returns the shell-escaped value of |key|.
   std::string GetBinding(const string& key) const;
-  bool GetBindingBool(const string& key);
+  bool GetBindingBool(const string& key) const;
 
   /// Like GetBinding("depfile"), but without shell escaping.
-  string GetUnescapedDepfile();
+  string GetUnescapedDepfile() const;
   /// Like GetBinding("dyndep"), but without shell escaping.
-  string GetUnescapedDyndep();
+  string GetUnescapedDyndep() const;
   /// Like GetBinding("rspfile"), but without shell escaping.
   std::string GetUnescapedRspfile() const;
 
