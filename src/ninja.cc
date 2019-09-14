@@ -316,22 +316,8 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   }
 
   Node* node = state_->LookupNode(path);
-  if (node) {
-    if (first_dependent) {
-      if (node->out_edges().empty()) {
-        *err = "'" + path + "' has no out edge";
-        return NULL;
-      }
-      Edge* edge = node->out_edges()[0];
-      if (edge->outputs_.empty()) {
-        edge->Dump();
-        std::cerr << "edge has no outputs" << std::endl;
-        ExitNow();
-      }
-      node = edge->outputs_[0];
-    }
-    return node;
-  } else {
+
+  if (!node) {
     *err =
         "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
     if (path == "clean") {
@@ -346,6 +332,23 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
     }
     return NULL;
   }
+
+  if (!first_dependent) {
+    return node;
+  }
+
+  if (node->out_edges().empty()) {
+    *err = "'" + path + "' has no out edge";
+    return NULL;
+  }
+
+  Edge* edge = node->out_edges()[0];
+  if (edge->outputs_.empty()) {
+    edge->Dump();
+    std::cerr << "edge has no outputs" << std::endl;
+    ExitNow();
+  }
+  return edge->outputs_[0];
 }
 
 bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
