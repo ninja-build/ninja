@@ -136,10 +136,6 @@ struct NinjaMain : public BuildLogUser {
   /// The type of functions that are the entry points to tools (subcommands).
   typedef int (NinjaMain::*ToolFunc)(const Options*, int, char**);
 
-  /// CollectTarget for all command-line arguments, filling in \a targets.
-  bool CollectTargetsFromArgs(int argc, char* argv[],
-                              vector<Node*>* targets, string* err);
-
   // The various subcommands, run via "-t XXX".
   int ToolGraph(const Options* options, int argc, char* argv[]);
   int ToolQuery(const Options* options, int argc, char* argv[]);
@@ -299,26 +295,10 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   return true;
 }
 
-bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
-                                       vector<Node*>* targets, string* err) {
-  if (argc == 0) {
-    *targets = state_->DefaultNodes(err);
-    return err->empty();
-  }
-
-  for (int i = 0; i < argc; ++i) {
-    Node* node = CollectTarget(state_, argv[i], err);
-    if (node == NULL)
-      return false;
-    targets->push_back(node);
-  }
-  return true;
-}
-
 int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+  if (!CollectTargetsFromArgs(state_, argc, argv, &nodes, &err)) {
     std::cerr << kLogError << err << std::endl;
     return 1;
   }
@@ -478,7 +458,7 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
     }
   } else {
     string err;
-    if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    if (!CollectTargetsFromArgs(state_, argc, argv, &nodes, &err)) {
       std::cerr << kLogError << err << std::endl;
       return 1;
     }
@@ -645,7 +625,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
 
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+  if (!CollectTargetsFromArgs(state_, argc, argv, &nodes, &err)) {
     std::cerr << kLogError << err << std::endl;
     return 1;
   }
@@ -1101,7 +1081,7 @@ bool NinjaMain::EnsureBuildDirExists() {
 int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
+  if (!CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
     status->Error("%s", err.c_str());
     return 1;
   }

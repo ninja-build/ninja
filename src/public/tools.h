@@ -15,6 +15,7 @@
 #define NINJA_PUBLIC_TOOLS_H_
 
 #include <string>
+#include <vector>
 
 namespace ninja {
 
@@ -30,6 +31,10 @@ Node* SpellcheckNode(State* state, const std::string& path);
 /// Get the Node for a given command-line path, handling features like
 /// spell correction.
 Node* CollectTarget(State* state, const char* cpath, std::string* err);
+
+/// CollectTarget for all command-line arguments, filling in \a targets.
+bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
+                            std::vector<Node*>* targets, std::string* err);
 
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_TOOLS_H_

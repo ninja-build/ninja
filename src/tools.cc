@@ -85,4 +85,20 @@ Node* CollectTarget(State* state, const char* cpath, std::string* err) {
   return edge->outputs_[0];
 }
 
+bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
+                            std::vector<Node*>* targets, std::string* err) {
+  if (argc == 0) {
+    *targets = state->DefaultNodes(err);
+    return err->empty();
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    Node* node = CollectTarget(state, argv[i], err);
+    if (node == NULL)
+      return false;
+    targets->push_back(node);
+  }
+  return true;
+}
+
 }  // namespace ninja
