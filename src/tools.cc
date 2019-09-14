@@ -36,4 +36,53 @@ Node* SpellcheckNode(State* state, const std::string& path) {
   return result;
 }
 
+Node* CollectTarget(State* state, const char* cpath, std::string* err) {
+  std::string path = cpath;
+  uint64_t slash_bits;
+  if (!CanonicalizePath(&path, &slash_bits, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!path.empty() && path[path.size() - 1] == '^') {
+    path.resize(path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(path);
+
+  if (!node) {
+    *err =
+        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = SpellcheckNode(state, path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+
+  if (!first_dependent) {
+    return node;
+  }
+
+  if (node->out_edges().empty()) {
+    *err = "'" + path + "' has no out edge";
+    return NULL;
+  }
+
+  Edge* edge = node->out_edges()[0];
+  if (edge->outputs_.empty()) {
+    edge->Dump();
+    *err = "edge has no outputs";
+    return NULL;
+  }
+  return edge->outputs_[0];
+}
+
 }  // namespace ninja

@@ -27,5 +27,9 @@ class State;
 // the node nearest what the user requested.
 Node* SpellcheckNode(State* state, const std::string& path);
 
+/// Get the Node for a given command-line path, handling features like
+/// spell correction.
+Node* CollectTarget(State* state, const char* cpath, std::string* err);
+
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_TOOLS_H_

@@ -136,10 +136,6 @@ struct NinjaMain : public BuildLogUser {
   /// The type of functions that are the entry points to tools (subcommands).
   typedef int (NinjaMain::*ToolFunc)(const Options*, int, char**);
 
-  /// Get the Node for a given command-line path, handling features like
-  /// spell correction.
-  Node* CollectTarget(const char* cpath, string* err);
-
   /// CollectTarget for all command-line arguments, filling in \a targets.
   bool CollectTargetsFromArgs(int argc, char* argv[],
                               vector<Node*>* targets, string* err);
@@ -303,55 +299,6 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   return true;
 }
 
-Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
-  string path = cpath;
-  uint64_t slash_bits;
-  if (!CanonicalizePath(&path, &slash_bits, err))
-    return NULL;
-
-  // Special syntax: "foo.cc^" means "the first output of foo.cc".
-  bool first_dependent = false;
-  if (!path.empty() && path[path.size() - 1] == '^') {
-    path.resize(path.size() - 1);
-    first_dependent = true;
-  }
-
-  Node* node = state_->LookupNode(path);
-
-  if (!node) {
-    *err =
-        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
-    if (path == "clean") {
-      *err += ", did you mean 'ninja -t clean'?";
-    } else if (path == "help") {
-      *err += ", did you mean 'ninja -h'?";
-    } else {
-      Node* suggestion = ninja::SpellcheckNode(state_, path);
-      if (suggestion) {
-        *err += ", did you mean '" + suggestion->path() + "'?";
-      }
-    }
-    return NULL;
-  }
-
-  if (!first_dependent) {
-    return node;
-  }
-
-  if (node->out_edges().empty()) {
-    *err = "'" + path + "' has no out edge";
-    return NULL;
-  }
-
-  Edge* edge = node->out_edges()[0];
-  if (edge->outputs_.empty()) {
-    edge->Dump();
-    std::cerr << "edge has no outputs" << std::endl;
-    ExitNow();
-  }
-  return edge->outputs_[0];
-}
-
 bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
                                        vector<Node*>* targets, string* err) {
   if (argc == 0) {
@@ -360,7 +307,7 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
   }
 
   for (int i = 0; i < argc; ++i) {
-    Node* node = CollectTarget(argv[i], err);
+    Node* node = CollectTarget(state_, argv[i], err);
     if (node == NULL)
       return false;
     targets->push_back(node);
@@ -395,7 +342,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
 
   for (int i = 0; i < argc; ++i) {
     string err;
-    Node* node = CollectTarget(argv[i], &err);
+    Node* node = CollectTarget(state_, argv[i], &err);
     if (!node) {
       std::cerr << kLogError << err << std::endl;
       return 1;
