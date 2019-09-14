@@ -33,6 +33,7 @@
 #include <iostream>
 
 #include "public/build_config.h"
+#include "public/tools.h"
 #include "public/version.h"
 
 #include "browse.h"
@@ -325,7 +326,7 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
     } else if (path == "help") {
       *err += ", did you mean 'ninja -h'?";
     } else {
-      Node* suggestion = state_->SpellcheckNode(path);
+      Node* suggestion = ninja::SpellcheckNode(state_, path);
       if (suggestion) {
         *err += ", did you mean '" + suggestion->path() + "'?";
       }

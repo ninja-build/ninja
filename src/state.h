@@ -105,7 +105,6 @@ struct State {
 
   Node* GetNode(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
-  Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
