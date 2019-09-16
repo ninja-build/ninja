@@ -14,8 +14,12 @@
 
 #include "public/tools.h"
 
+#include "build_log.h"
+#include "deps_log.h"
+#include "disk_interface.h"
 #include "edit_distance.h"
 #include "state.h"
+
 
 namespace ninja {
 
@@ -98,6 +102,76 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
       return false;
     targets->push_back(node);
   }
+  return true;
+}
+
+bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err) {
+  std::string build_dir = state->bindings_.LookupVariable("builddir");
+  if (!build_dir.empty() && !build_config.dry_run) {
+    if (!disk_interface->MakeDirs(build_dir + "/.") && errno != EEXIST) {
+      *err = "creating build directory " + build_dir + ": " + strerror(errno);
+      return false;
+    }
+  }
+  return true;
+}
+
+bool OpenBuildLog(State* state, const BuildConfig& build_config, const BuildLogUser& user, bool recompact_only, std::string* err) {
+  /// The build directory, used for storing the build log etc.
+  std::string build_dir = state->bindings_.LookupVariable("builddir");
+  string log_path = ".ninja_log";
+  if (!build_dir.empty())
+    log_path = build_dir + "/" + log_path;
+
+  if (!state->build_log_->Load(log_path, err)) {
+    *err = "loading build log " + log_path + ": " + *err;
+    return false;
+  }
+
+  if (recompact_only) {
+    bool success = state->build_log_->Recompact(log_path, user, err);
+    if (!success)
+      *err = "failed recompaction: " + *err;
+    return success;
+  }
+
+  if (!build_config.dry_run) {
+    if (!state->build_log_->OpenForWrite(log_path, user, err)) {
+      *err = "opening build log: " + *err;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/// Open the deps log: load it, then open for writing.
+/// @return false on error.
+bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err) {
+  std::string build_dir = state->bindings_.LookupVariable("builddir");
+  std::string path = ".ninja_deps";
+  if (!build_dir.empty())
+    path = build_dir + "/" + path;
+
+  if (!state->deps_log_->Load(path, state, err)) {
+    *err = "loading deps log " + path + ": " + *err;
+    return false;
+  }
+
+  if (recompact_only) {
+    bool success = state->deps_log_->Recompact(path, err);
+    if (!success)
+      *err = "failed recompaction: " + *err;
+    return success;
+  }
+
+  if (!build_config.dry_run) {
+    if (!state->deps_log_->OpenForWrite(path, err)) {
+      *err = "opening deps log: " + *err;
+      return false;
+    }
+  }
+
   return true;
 }
 

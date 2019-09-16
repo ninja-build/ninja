@@ -17,9 +17,13 @@
 #include <string>
 #include <vector>
 
+#include "build_log.h"
+#include "public/build_config.h"
+
 namespace ninja {
 
 class Node;
+class RealDiskInterface;
 class State;
 
 // Given a path to a node return the node that is
@@ -35,6 +39,18 @@ Node* CollectTarget(State* state, const char* cpath, std::string* err);
 /// CollectTarget for all command-line arguments, filling in \a targets.
 bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
                             std::vector<Node*>* targets, std::string* err);
+
+/// Ensure the build directory exists, creating it if necessary.
+/// @return false on error.
+bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err);
+
+/// Open the build log.
+/// @return false on error.
+bool OpenBuildLog(State* state, const BuildConfig& build_config, const BuildLogUser& user, bool recompact_only, std::string* err);
+
+/// Open the deps log: load it, then open for writing.
+/// @return false on error.
+bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
 
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_TOOLS_H_

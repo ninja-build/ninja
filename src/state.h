@@ -134,6 +134,10 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
+
+  BuildLog* build_log_;
+  DepsLog* deps_log_;
+
 };
 }  // namespace ninja
 

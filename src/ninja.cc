@@ -109,9 +109,13 @@ void ExitNow() {
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
+      disk_interface_(new RealDiskInterface),
       ninja_command_(ninja_command), config_(config),
       start_time_millis_(GetTimeMillis()),
       state_(new State()) {}
+
+  /// Functions for accesssing the disk.
+  RealDiskInterface* disk_interface_;
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -123,15 +127,6 @@ struct NinjaMain : public BuildLogUser {
 
   /// Loaded state (rules, nodes).
   State* state_;
-
-  /// Functions for accesssing the disk.
-  RealDiskInterface disk_interface_;
-
-  /// The build directory, used for storing the build log etc.
-  string build_dir_;
-
-  BuildLog build_log_;
-  DepsLog deps_log_;
 
   /// The type of functions that are the entry points to tools (subcommands).
   typedef int (NinjaMain::*ToolFunc)(const Options*, int, char**);
@@ -149,18 +144,6 @@ struct NinjaMain : public BuildLogUser {
   int ToolRecompact(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
   int ToolRules(const Options* options, int argc, char* argv[]);
-
-  /// Open the build log.
-  /// @return false on error.
-  bool OpenBuildLog(bool recompact_only = false);
-
-  /// Open the deps log: load it, then open for writing.
-  /// @return false on error.
-  bool OpenDepsLog(bool recompact_only = false);
-
-  /// Ensure the build directory exists, creating it if necessary.
-  /// @return false on error.
-  bool EnsureBuildDirExists();
 
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
@@ -188,7 +171,7 @@ struct NinjaMain : public BuildLogUser {
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
     string err;
-    TimeStamp mtime = disk_interface_.Stat(s.AsString(), &err);
+    TimeStamp mtime = disk_interface_->Stat(s.AsString(), &err);
     if (mtime == -1) {
       std::cerr << kLogError << err << std::endl;  // Log and ignore Stat() errors.
     }
@@ -272,7 +255,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   if (!node)
     return false;
 
-  Builder builder(state_, config_, &build_log_, &deps_log_, &disk_interface_,
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, disk_interface_,
                   status, start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
@@ -303,7 +286,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  GraphViz graph(state_, &disk_interface_);
+  GraphViz graph(state_, disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
@@ -318,7 +301,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  DyndepLoader dyndep_loader(state_, &disk_interface_);
+  DyndepLoader dyndep_loader(state_, disk_interface_);
 
   for (int i = 0; i < argc; ++i) {
     string err;
@@ -451,9 +434,9 @@ int ToolTargetsList(State* state) {
 int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   vector<Node*> nodes;
   if (argc == 0) {
-    for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
-         ni != deps_log_.nodes().end(); ++ni) {
-      if (deps_log_.IsDepsEntryLiveFor(*ni))
+    for (vector<Node*>::const_iterator ni = state_->deps_log_->nodes().begin();
+         ni != state_->deps_log_->nodes().end(); ++ni) {
+      if (state_->deps_log_->IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
     }
   } else {
@@ -467,7 +450,7 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   RealDiskInterface disk_interface;
   for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
        it != end; ++it) {
-    DepsLog::Deps* deps = deps_log_.GetDeps(*it);
+    DepsLog::Deps* deps = state_->deps_log_->GetDeps(*it);
     if (!deps) {
       printf("%s: deps not found\n", (*it)->path().c_str());
       continue;
@@ -675,7 +658,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(state_, config_, &disk_interface_);
+  Cleaner cleaner(state_, config_, disk_interface_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -809,12 +792,23 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 }
 
 int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
-  if (!EnsureBuildDirExists())
+  string err;
+  if (!EnsureBuildDirExists(state_, disk_interface_, config_, &err)) {
+    std::cerr << kLogError << err << std::endl;
     return 1;
+  }
 
-  if (!OpenBuildLog(/*recompact_only=*/true) ||
-      !OpenDepsLog(/*recompact_only=*/true))
+  if (!OpenBuildLog(state_, config_, *this, true, &err) ||
+      !OpenDepsLog(state_, config_, true, &err)) {
+    std::cerr << kLogError << err << std::endl;
     return 1;
+  }
+
+  // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
+  if(!err.empty()) {
+    std::cerr << kLogWarning << err << std::endl;
+    err.clear();
+  }
 
   return 0;
 }
@@ -989,74 +983,6 @@ bool WarningEnable(const string& name, Options* options) {
   }
 }
 
-bool NinjaMain::OpenBuildLog(bool recompact_only) {
-  string log_path = ".ninja_log";
-  if (!build_dir_.empty())
-    log_path = build_dir_ + "/" + log_path;
-
-  string err;
-  if (!build_log_.Load(log_path, &err)) {
-    std::cerr << kLogError << "loading build log " << log_path << ": " << err << std::endl;
-    return false;
-  }
-  if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
-    std::cerr << kLogWarning << err << std::endl;
-    err.clear();
-  }
-
-  if (recompact_only) {
-    bool success = build_log_.Recompact(log_path, *this, &err);
-    if (!success)
-      std::cerr << kLogError << "failed recompaction: " << err << std::endl;
-    return success;
-  }
-
-  if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
-      std::cerr << kLogError << "opening build log: " << err << std::endl;
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/// Open the deps log: load it, then open for writing.
-/// @return false on error.
-bool NinjaMain::OpenDepsLog(bool recompact_only) {
-  string path = ".ninja_deps";
-  if (!build_dir_.empty())
-    path = build_dir_ + "/" + path;
-
-  string err;
-  if (!deps_log_.Load(path, state_, &err)) {
-    std::cerr << kLogError << "loading deps log " << path << ": " << err << std::endl;
-    return false;
-  }
-  if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
-    std::cerr << kLogWarning << err << std::endl;
-    err.clear();
-  }
-
-  if (recompact_only) {
-    bool success = deps_log_.Recompact(path, &err);
-    if (!success)
-      std::cerr << kLogError << "failed recompaction: " << err << std::endl;
-    return success;
-  }
-
-  if (!config_.dry_run) {
-    if (!deps_log_.OpenForWrite(path, &err)) {
-      std::cerr << kLogError << "opening deps log: " << err << std::endl;
-      return false;
-    }
-  }
-
-  return true;
-}
-
 void NinjaMain::DumpMetrics() {
   g_metrics->Report();
 
@@ -1067,17 +993,6 @@ void NinjaMain::DumpMetrics() {
          count / (double) buckets, count, buckets);
 }
 
-bool NinjaMain::EnsureBuildDirExists() {
-  build_dir_ = state_->bindings_.LookupVariable("builddir");
-  if (!build_dir_.empty() && !config_.dry_run) {
-    if (!disk_interface_.MakeDirs(build_dir_ + "/.") && errno != EEXIST) {
-      std::cerr << kLogError << "creating build directory " << build_dir_ << ": " << strerror(errno) << std::endl;
-      return false;
-    }
-  }
-  return true;
-}
-
 int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
@@ -1086,9 +1001,9 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     return 1;
   }
 
-  disk_interface_.AllowStatCache(g_experimental_statcache);
+  disk_interface_->AllowStatCache(g_experimental_statcache);
 
-  Builder builder(state_, config_, &build_log_, &deps_log_, &disk_interface_,
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, disk_interface_,
                   status, start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -1103,7 +1018,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   }
 
   // Make sure restat rules do not see stale timestamps.
-  disk_interface_.AllowStatCache(false);
+  disk_interface_->AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
     status->Info("no work to do.");
@@ -1296,7 +1211,7 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(ninja.state_, &ninja.disk_interface_, parser_opts);
+    ManifestParser parser(ninja.state_, ninja.disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -1306,11 +1221,19 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
-    if (!ninja.EnsureBuildDirExists())
+    if (!EnsureBuildDirExists(ninja.state_, ninja.disk_interface_, ninja.config_, &err))
       exit(1);
 
-    if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
+    if (!OpenBuildLog(ninja.state_, ninja.config_, ninja, false, &err) || !OpenDepsLog(ninja.state_, ninja.config_, false, &err)) {
+      std::cerr << kLogError << err << std::endl;
       exit(1);
+    }
+
+    // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
+    if(!err.empty()) {
+      std::cerr << kLogWarning << err << std::endl;
+      err.clear();
+    }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
       exit((ninja.*options.tool->func)(&options, argc, argv));

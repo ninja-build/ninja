@@ -17,6 +17,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "build_log.h"
+#include "deps_log.h"
 #include "edit_distance.h"
 #include "graph.h"
 #include "metrics.h"
@@ -66,7 +68,9 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State() {
+State::State() :
+  build_log_(new BuildLog()),
+  deps_log_(new DepsLog()) {
   bindings_.AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
   AddPool(&kConsolePool);
