@@ -33,6 +33,7 @@
 #include <iostream>
 
 #include "public/build_config.h"
+#include "public/logger.h"
 #include "public/tools.h"
 #include "public/version.h"
 
@@ -107,15 +108,19 @@ void ExitNow() {
 }
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
-struct NinjaMain : public BuildLogUser {
+struct NinjaMain : public Logger {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      disk_interface_(new RealDiskInterface),
       ninja_command_(ninja_command), config_(config),
       start_time_millis_(GetTimeMillis()),
-      state_(new State()) {}
+      state_(new State(this)) {}
 
-  /// Functions for accesssing the disk.
-  RealDiskInterface* disk_interface_;
+  virtual void OnMessage(Logger::Level level, const std::string& message) {
+    const char* prefix = kLogError;
+    if(level == Logger::Level::WARNING) {
+      prefix = kLogWarning;
+    }
+    std::cerr << prefix << message << std::endl;
+  }
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -157,26 +162,6 @@ struct NinjaMain : public BuildLogUser {
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
 
-  virtual bool IsPathDead(StringPiece s) const {
-    Node* n = state_->LookupNode(s);
-    if (!n || !n->in_edge())
-      return false;
-    // Just checking n isn't enough: If an old output is both in the build log
-    // and in the deps log, it will have a Node object in state_.  (It will also
-    // have an in edge if one of its inputs is another output that's in the deps
-    // log, but having a deps edge product an output that's input to another deps
-    // edge is rare, and the first recompaction will delete all old outputs from
-    // the deps log, and then a second recompaction will clear the build log,
-    // which seems good enough for this corner case.)
-    // Do keep entries around for files which still exist on disk, for
-    // generators that want to use this information.
-    string err;
-    TimeStamp mtime = disk_interface_->Stat(s.AsString(), &err);
-    if (mtime == -1) {
-      std::cerr << kLogError << err << std::endl;  // Log and ignore Stat() errors.
-    }
-    return mtime == 0;
-  }
 };
 
 /// Subtools, accessible via "-t foo".
@@ -255,7 +240,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   if (!node)
     return false;
 
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, disk_interface_,
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
                   status, start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
@@ -286,7 +271,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  GraphViz graph(state_, disk_interface_);
+  GraphViz graph(state_, state_->disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
@@ -301,7 +286,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  DyndepLoader dyndep_loader(state_, disk_interface_);
+  DyndepLoader dyndep_loader(state_, state_->disk_interface_);
 
   for (int i = 0; i < argc; ++i) {
     string err;
@@ -658,7 +643,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(state_, config_, disk_interface_);
+  Cleaner cleaner(state_, config_, state_->disk_interface_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -793,12 +778,12 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
 int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   string err;
-  if (!EnsureBuildDirExists(state_, disk_interface_, config_, &err)) {
+  if (!EnsureBuildDirExists(state_, state_->disk_interface_, config_, &err)) {
     std::cerr << kLogError << err << std::endl;
     return 1;
   }
 
-  if (!OpenBuildLog(state_, config_, *this, true, &err) ||
+  if (!OpenBuildLog(state_, config_, true, &err) ||
       !OpenDepsLog(state_, config_, true, &err)) {
     std::cerr << kLogError << err << std::endl;
     return 1;
@@ -1001,9 +986,9 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     return 1;
   }
 
-  disk_interface_->AllowStatCache(g_experimental_statcache);
+  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
 
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, disk_interface_,
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
                   status, start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -1018,7 +1003,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   }
 
   // Make sure restat rules do not see stale timestamps.
-  disk_interface_->AllowStatCache(false);
+  state_->disk_interface_->AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
     status->Info("no work to do.");
@@ -1211,7 +1196,7 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(ninja.state_, ninja.disk_interface_, parser_opts);
+    ManifestParser parser(ninja.state_, ninja.state_->disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -1221,10 +1206,10 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
-    if (!EnsureBuildDirExists(ninja.state_, ninja.disk_interface_, ninja.config_, &err))
+    if (!EnsureBuildDirExists(ninja.state_, ninja.state_->disk_interface_, ninja.config_, &err))
       exit(1);
 
-    if (!OpenBuildLog(ninja.state_, ninja.config_, ninja, false, &err) || !OpenDepsLog(ninja.state_, ninja.config_, false, &err)) {
+    if (!OpenBuildLog(ninja.state_, ninja.config_, false, &err) || !OpenDepsLog(ninja.state_, ninja.config_, false, &err)) {
       std::cerr << kLogError << err << std::endl;
       exit(1);
     }

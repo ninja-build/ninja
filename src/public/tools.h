@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "build_log.h"
 #include "public/build_config.h"
 
 namespace ninja {
@@ -46,7 +45,7 @@ bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const
 
 /// Open the build log.
 /// @return false on error.
-bool OpenBuildLog(State* state, const BuildConfig& build_config, const BuildLogUser& user, bool recompact_only, std::string* err);
+bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
 
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.

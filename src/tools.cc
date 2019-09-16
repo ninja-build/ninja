@@ -116,7 +116,7 @@ bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const
   return true;
 }
 
-bool OpenBuildLog(State* state, const BuildConfig& build_config, const BuildLogUser& user, bool recompact_only, std::string* err) {
+bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err) {
   /// The build directory, used for storing the build log etc.
   std::string build_dir = state->bindings_.LookupVariable("builddir");
   string log_path = ".ninja_log";
@@ -129,14 +129,14 @@ bool OpenBuildLog(State* state, const BuildConfig& build_config, const BuildLogU
   }
 
   if (recompact_only) {
-    bool success = state->build_log_->Recompact(log_path, user, err);
+    bool success = state->build_log_->Recompact(log_path, *state, err);
     if (!success)
       *err = "failed recompaction: " + *err;
     return success;
   }
 
   if (!build_config.dry_run) {
-    if (!state->build_log_->OpenForWrite(log_path, user, err)) {
+    if (!state->build_log_->OpenForWrite(log_path, *state, err)) {
       *err = "opening build log: " + *err;
       return false;
     }

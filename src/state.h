@@ -21,6 +21,10 @@
 #include <vector>
 using namespace std;
 
+#include "public/logger.h"
+
+#include "build_log.h"
+#include "disk_interface.h"
 #include "eval_env.h"
 #include "graph.h"
 #include "hash_map.h"
@@ -91,12 +95,13 @@ struct Pool {
 };
 
 /// Global state (file status) for a single run.
-struct State {
+struct State  : public BuildLogUser {
   static Pool kDefaultPool;
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
   State();
+  State(Logger* logger);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -117,10 +122,18 @@ struct State {
   /// Dump the nodes and Pools (useful for debugging).
   void Dump();
 
+  bool IsPathDead(StringPiece s) const;
+
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
   vector<Node*> RootNodes(string* error) const;
   vector<Node*> DefaultNodes(string* error) const;
+
+  /// Send a log message to any attached logger.
+  void Log(Logger::Level, const std::string& message) const;
+
+  /// The logger that gets messages from this state.
+  Logger* logger_;
 
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
@@ -134,6 +147,9 @@ struct State {
 
   BindingEnv bindings_;
   vector<Node*> defaults_;
+
+  /// Functions for accesssing the disk.
+  RealDiskInterface* disk_interface_;
 
   BuildLog* build_log_;
   DepsLog* deps_log_;

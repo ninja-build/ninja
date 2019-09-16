@@ -19,6 +19,7 @@
 
 #include "build_log.h"
 #include "deps_log.h"
+#include "disk_interface.h"
 #include "edit_distance.h"
 #include "graph.h"
 #include "metrics.h"
@@ -68,9 +69,13 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State() :
-  build_log_(new BuildLog()),
-  deps_log_(new DepsLog()) {
+State::State() : State(NULL) {}
+
+State::State(Logger* logger) :
+    logger_(logger),
+    disk_interface_(new RealDiskInterface()),
+    build_log_(new BuildLog()),
+    deps_log_(new DepsLog()) {
   bindings_.AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
   AddPool(&kConsolePool);
@@ -140,6 +145,28 @@ bool State::AddDefault(StringPiece path, string* err) {
   return true;
 }
 
+bool State::IsPathDead(StringPiece s) const {
+  Node* n = LookupNode(s);
+  if (!n || !n->in_edge())
+    return false;
+  // Just checking n isn't enough: If an old output is both in the build log
+  // and in the deps log, it will have a Node object in state_.  (It will also
+  // have an in edge if one of its inputs is another output that's in the deps
+  // log, but having a deps edge product an output that's input to another deps
+  // edge is rare, and the first recompaction will delete all old outputs from
+  // the deps log, and then a second recompaction will clear the build log,
+  // which seems good enough for this corner case.)
+  // Do keep entries around for files which still exist on disk, for
+  // generators that want to use this information.
+  string err;
+  TimeStamp mtime = disk_interface_->Stat(s.AsString(), &err);
+  if (mtime == -1) {
+    // Log and ignore Stat() errors.
+    Log(Logger::ERROR, err);
+  }
+  return mtime == 0;
+}
+
 vector<Node*> State::RootNodes(string* err) const {
   vector<Node*> root_nodes;
   // Search for nodes with no output.
@@ -192,4 +219,11 @@ void State::Dump() {
     }
   }
 }
+
+void State::Log(Logger::Level level, const std::string& message) const {
+  if(logger_) {
+    logger_->OnMessage(Logger::ERROR, message);
+  }
+}
+
 }  // namespace ninja
