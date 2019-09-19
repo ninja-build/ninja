@@ -29,6 +29,18 @@ extern char** environ;
 
 #include "util.h"
 
+#define HANDLE_EAGAIN(x) ({ \
+  __typeof__(x) eintr_wrapper_result; \
+  do { \
+    eintr_wrapper_result = (x); \
+    if (eintr_wrapper_result == -1 && errno == EAGAIN) \
+      sleep(1); \
+    else \
+      break; \
+  } while (1); \
+  eintr_wrapper_result; \
+  })
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }
@@ -111,8 +123,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
   const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
-  err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
-        const_cast<char**>(spawned_args), environ);
+  err = HANDLE_EAGAIN(posix_spawn(&pid_, "/bin/sh", &action, &attr,
+        const_cast<char**>(spawned_args), environ));
   if (err != 0)
     Fatal("posix_spawn: %s", strerror(err));
 
