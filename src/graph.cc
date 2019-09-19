@@ -406,16 +406,16 @@ std::string Edge::GetBinding(const std::string& key) const {
   return env.LookupVariable(key);
 }
 
-bool Edge::GetBindingBool(const string& key) {
+bool Edge::GetBindingBool(const string& key) const {
   return !GetBinding(key).empty();
 }
 
-string Edge::GetUnescapedDepfile() {
+string Edge::GetUnescapedDepfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("depfile");
 }
 
-string Edge::GetUnescapedDyndep() {
+string Edge::GetUnescapedDyndep() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("dyndep");
 }

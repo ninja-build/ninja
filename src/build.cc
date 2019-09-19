@@ -47,7 +47,7 @@ struct DryRunCommandRunner : public CommandRunner {
   virtual ~DryRunCommandRunner() {}
 
   // Overridden from CommandRunner:
-  virtual bool CanRunMore();
+  virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
 
@@ -55,7 +55,7 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-bool DryRunCommandRunner::CanRunMore() {
+bool DryRunCommandRunner::CanRunMore() const {
   return true;
 }
 
@@ -373,7 +373,7 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, string* err,
   return true;
 }
 
-void Plan::EdgeWanted(Edge* edge) {
+void Plan::EdgeWanted(const Edge* edge) {
   ++wanted_edges_;
   if (!edge->is_phony())
     ++command_edges_;
@@ -668,7 +668,7 @@ void Plan::Dump() {
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
   virtual ~RealCommandRunner() {}
-  virtual bool CanRunMore();
+  virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
@@ -691,7 +691,7 @@ void RealCommandRunner::Abort() {
   subprocs_.Clear();
 }
 
-bool RealCommandRunner::CanRunMore() {
+bool RealCommandRunner::CanRunMore() const {
   size_t subproc_number =
       subprocs_.running_.size() + subprocs_.finished_.size();
   return (int)subproc_number < config_.parallelism

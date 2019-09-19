@@ -470,7 +470,7 @@ struct FakeCommandRunner : public CommandRunner {
       max_active_edges_(1), fs_(fs) {}
 
   // CommandRunner impl
-  virtual bool CanRunMore();
+  virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
@@ -569,7 +569,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   builder.command_runner_.release();
 }
 
-bool FakeCommandRunner::CanRunMore() {
+bool FakeCommandRunner::CanRunMore() const {
   return active_edges_.size() < max_active_edges_;
 }
 

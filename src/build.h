@@ -108,7 +108,7 @@ private:
     kWantToFinish
   };
 
-  void EdgeWanted(Edge* edge);
+  void EdgeWanted(const Edge* edge);
   bool EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err);
 
   /// Submits a ready edge as a candidate for execution.
@@ -138,7 +138,7 @@ private:
 /// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
-  virtual bool CanRunMore() = 0;
+  virtual bool CanRunMore() const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
