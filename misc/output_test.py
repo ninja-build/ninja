@@ -56,7 +56,7 @@ build b: echo
   delay = 2
 build c: echo
   delay = 1
-'''),
+''', '-j3'),
 '''[1/3] echo c\x1b[K
 c
 [2/3] echo b\x1b[K
