@@ -121,6 +121,7 @@ struct StateTestWithBuiltinRules : public ninja::testing::Test {
   /// Short way to get a Node by its path from state_.
   Node* GetNode(const string& path);
 
+  BuildConfig build_config_;
   State state_;
 };
 

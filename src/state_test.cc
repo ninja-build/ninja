@@ -20,7 +20,8 @@ namespace ninja {
 namespace {
 
 TEST(State, Basic) {
-  State state;
+  BuildConfig build_config;
+  State state("", build_config);
 
   EvalString command;
   command.AddText("cat ");

@@ -21,6 +21,7 @@
 #include <vector>
 using namespace std;
 
+#include "public/build_config.h"
 #include "public/logger.h"
 
 #include "build_log.h"
@@ -100,8 +101,8 @@ struct State  : public BuildLogUser {
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
-  State();
-  State(Logger* logger);
+  State(const char* ninja_command, const BuildConfig& config);
+  State(const char* ninja_command, const BuildConfig& config, Logger* logger);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -131,6 +132,12 @@ struct State  : public BuildLogUser {
 
   /// Send a log message to any attached logger.
   void Log(Logger::Level, const std::string& message) const;
+
+  /// Command line used to run Ninja.
+  const char* ninja_command_;
+
+  /// Build configuration set from flags (e.g. parallelism).
+  const BuildConfig& config_;
 
   /// The logger that gets messages from this state.
   Logger* logger_;

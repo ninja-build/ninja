@@ -24,6 +24,8 @@
 
 namespace ninja {
 struct DyndepParserTest : public testing::Test {
+  DyndepParserTest() : state_("", build_config_) {}
+
   void AssertParse(const char* input) {
     DyndepParser parser(&state_, &fs_, &dyndep_file_);
     string err;
@@ -38,6 +40,7 @@ struct DyndepParserTest : public testing::Test {
 "build out otherout: touch\n");
   }
 
+  BuildConfig build_config_;
   State state_;
   VirtualFileSystem fs_;
   DyndepFile dyndep_file_;

@@ -69,9 +69,11 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State() : State(NULL) {}
+State::State(const char* ninja_command, const BuildConfig& config) : State(ninja_command, config, NULL) {}
 
-State::State(Logger* logger) :
+State::State(const char* ninja_command, const BuildConfig& config, Logger* logger) :
+    ninja_command_(ninja_command),
+    config_(config),
     logger_(logger),
     disk_interface_(new RealDiskInterface()),
     build_log_(new BuildLog()),

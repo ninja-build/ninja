@@ -24,6 +24,57 @@ namespace ninja {
 class Node;
 class RealDiskInterface;
 class State;
+struct Tool;
+
+/// Command-line options.
+struct Options {
+  /// Build file to load.
+  const char* input_file;
+
+  /// Directory to change into before running.
+  const char* working_dir;
+
+  /// Tool to run rather than building.
+  const Tool* tool;
+
+  /// Whether duplicate rules for one target should warn or print an error.
+  bool dupe_edges_should_err;
+
+  /// Whether phony cycles should warn or print an error.
+  bool phony_cycle_should_err;
+
+  /// Whether a depfile with multiple targets on separate lines should
+  /// warn or print an error.
+  bool depfile_distinct_target_lines_should_err;
+};
+
+/// The type of functions that are the entry points to tools (subcommands).
+typedef int (*ToolFunc)(State* state_, const Options*, int, char**);
+
+/// Subtools, accessible via "-t foo".
+struct Tool {
+  /// Short name of the tool.
+  const char* name;
+
+  /// Description (shown in "-t list").
+  const char* desc;
+
+  /// When to run the tool.
+  enum {
+    /// Run after parsing the command-line flags and potentially changing
+    /// the current working directory (as early as possible).
+    RUN_AFTER_FLAGS,
+
+    /// Run after loading build.ninja.
+    RUN_AFTER_LOAD,
+
+    /// Run after loading the build/deps logs.
+    RUN_AFTER_LOGS,
+  } when;
+
+  /// Implementation of the tool.
+  ToolFunc func;
+};
 
 // Given a path to a node return the node that is
 // most likely a match for that path. This accounts

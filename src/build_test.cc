@@ -536,7 +536,8 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
 void BuildTest::RebuildTarget(const string& target, const char* manifest,
                               const char* log_path, const char* deps_path,
                               State* state) {
-  State local_state, *pstate = &local_state;
+  BuildConfig build_config;
+  State local_state("", build_config), *pstate = &local_state;
   if (state)
     pstate = state;
   ASSERT_NO_FATAL_FAILURE(AddCatRule(pstate));
@@ -1244,7 +1245,8 @@ TEST_F(BuildTest, PoolEdgesReadyButNotWanted) {
 
   fs_.RemoveFile("B.d.stamp");
 
-  State save_state;
+  BuildConfig build_config;
+  State save_state("", build_config);
   RebuildTarget("final.stamp", manifest, NULL, NULL, &save_state);
   EXPECT_GE(save_state.LookupPool("some_pool")->current_use(), 0);
 }
@@ -1887,7 +1889,8 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
       "  deps = gcc\n"
       "  depfile = in1.d\n";
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -1913,7 +1916,8 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
   }
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -1958,7 +1962,8 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     fs_.Create("in1", "");
     fs_.Create("in1.d", "out: ");
 
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -1988,7 +1993,8 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
   EXPECT_EQ(0, fs_.Stat("in1.d", &err));
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -2026,7 +2032,8 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   fs_.Tick();
   fs_.Create("in1", "");
 
-  State state;
+  BuildConfig build_config;
+  State state("", build_config);
   ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -2081,7 +2088,8 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
       "  deps = gcc\n"
       "  depfile = in1.d\n";
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -2103,7 +2111,8 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
   }
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
@@ -2141,7 +2150,8 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
   fs_.Create("foo.c", "");
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
@@ -2162,7 +2172,8 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
   }
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
@@ -2203,7 +2214,8 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
   fs_.Create("x/y/z/foo.c", "");
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
@@ -2226,7 +2238,8 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
   }
 
   {
-    State state;
+    BuildConfig build_config;
+    State state("", build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
