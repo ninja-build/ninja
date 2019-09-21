@@ -102,5 +102,23 @@ bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_
 /// @return false on error.
 bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
 
+namespace tool {
+int Browse(State* state, const Options* options, int argc, char* argv[]);
+int Clean(State* state, const Options* options, int argc, char* argv[]);
+int Commands(State* state, const Options* options, int argc, char* argv[]);
+int CompilationDatabase(State* state, const Options* options, int argc, char* argv[]);
+int Deps(State* state, const Options* options, int argc, char* argv[]);
+int Graph(State* state, const Options* options, int argc, char* argv[]);
+int Query(State* state, const Options* options, int argc, char* argv[]);
+int Recompact(State* state, const Options* options, int argc, char* argv[]);
+int Rules(State* state, const Options* options, int argc, char* argv[]);
+int Targets(State* state, const Options* options, int argc, char* argv[]);
+int Urtle(State* state, const Options* options, int argc, char** argv);
+#if defined(_MSC_VER)
+int MSVC(State* state, const Options* options, int argc, char* argv[]);
+#endif
+
+}  // namespace tools
+
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_TOOLS_H_
