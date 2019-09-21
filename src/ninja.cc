@@ -111,7 +111,6 @@ void ExitNow() {
 struct NinjaMain : public Logger {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
       ninja_command_(ninja_command), config_(config),
-      start_time_millis_(GetTimeMillis()),
       state_(new State(this)) {}
 
   virtual void OnMessage(Logger::Level level, const std::string& message) {
@@ -127,8 +126,6 @@ struct NinjaMain : public Logger {
 
   /// Build configuration set from flags (e.g. parallelism).
   const BuildConfig& config_;
-
-  int64_t start_time_millis_;
 
   /// Loaded state (rules, nodes).
   State* state_;
@@ -241,7 +238,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
     return false;
 
   Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, start_time_millis_);
+                  status, state_->start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -989,7 +986,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   state_->disk_interface_->AllowStatCache(g_experimental_statcache);
 
   Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, start_time_millis_);
+                  status, state_->start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {

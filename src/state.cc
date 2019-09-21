@@ -75,7 +75,9 @@ State::State(Logger* logger) :
     logger_(logger),
     disk_interface_(new RealDiskInterface()),
     build_log_(new BuildLog()),
-    deps_log_(new DepsLog()) {
+    deps_log_(new DepsLog()),
+    start_time_millis_(GetTimeMillis())
+ {
   bindings_.AddRule(&kPhonyRule);
   AddPool(&kDefaultPool);
   AddPool(&kConsolePool);

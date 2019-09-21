@@ -154,6 +154,8 @@ struct State  : public BuildLogUser {
   BuildLog* build_log_;
   DepsLog* deps_log_;
 
+  // Time when the last command was started.
+  int64_t start_time_millis_;
 };
 }  // namespace ninja
 
