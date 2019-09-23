@@ -36,6 +36,7 @@
 #include "edit_distance.h"
 #include "graphviz.h"
 #include "state.h"
+#include "status.h"
 
 
 namespace ninja {
@@ -342,6 +343,41 @@ int ToolTargetsSourceList(State* state) {
     }
   }
   return 0;
+}
+
+/// Rebuild the build manifest, if necessary.
+/// Returns true if the manifest was rebuilt.
+bool RebuildManifest(State* state, const char* input_file, string* err,
+                                Status* status) {
+  string path = input_file;
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  if (!CanonicalizePath(&path, &slash_bits, err))
+    return false;
+  Node* node = state->LookupNode(path);
+  if (!node)
+    return false;
+
+  Builder builder(state, state->config_, state->build_log_, state->deps_log_, state->disk_interface_,
+                  status, state->start_time_millis_);
+  if (!builder.AddTarget(node, err))
+    return false;
+
+  if (builder.AlreadyUpToDate())
+    return false;  // Not an error, but we didn't rebuild.
+
+  if (!builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  if (!node->dirty()) {
+    // Reset the state to prevent problems like
+    // https://github.com/ninja-build/ninja/issues/874
+    state->Reset();
+    return false;
+  }
+
+  return true;
 }
 
 

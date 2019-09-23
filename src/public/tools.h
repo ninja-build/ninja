@@ -24,6 +24,7 @@ namespace ninja {
 class Node;
 class RealDiskInterface;
 class State;
+class Status;
 struct Tool;
 
 /// Command-line options.
@@ -49,7 +50,7 @@ struct Options {
 };
 
 /// The type of functions that are the entry points to tools (subcommands).
-typedef int (*ToolFunc)(State* state_, const Options*, int, char**);
+typedef int (*ToolFunc)(State* state, const Options*, int, char**);
 
 /// Subtools, accessible via "-t foo".
 struct Tool {
@@ -101,6 +102,11 @@ bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
 bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
+
+/// Rebuild the manifest, if necessary.
+/// Fills in \a err on error.
+/// @return true if the manifest was rebuilt.
+bool RebuildManifest(State* state, const char* input_file, std::string* err, Status* status);
 
 namespace tool {
 int Browse(State* state, const Options* options, int argc, char* argv[]);

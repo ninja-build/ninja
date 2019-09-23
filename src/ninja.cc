@@ -96,11 +96,6 @@ struct NinjaMain : public Logger {
   /// Loaded state (rules, nodes).
   State* state_;
 
-  /// Rebuild the manifest, if necessary.
-  /// Fills in \a err on error.
-  /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err, Status* status);
-
   /// Build the targets listed on the command line.
   /// @return an exit code.
   int RunBuild(int argc, char** argv, Status* status);
@@ -147,41 +142,6 @@ int GuessParallelism() {
   default:
     return processors + 2;
   }
-}
-
-/// Rebuild the build manifest, if necessary.
-/// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err,
-                                Status* status) {
-  string path = input_file;
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, &slash_bits, err))
-    return false;
-  Node* node = state_->LookupNode(path);
-  if (!node)
-    return false;
-
-  Builder builder(state_, state_->config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, state_->start_time_millis_);
-  if (!builder.AddTarget(node, err))
-    return false;
-
-  if (builder.AlreadyUpToDate())
-    return false;  // Not an error, but we didn't rebuild.
-
-  if (!builder.Build(err))
-    return false;
-
-  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
-  // by a restat).
-  if (!node->dirty()) {
-    // Reset the state to prevent problems like
-    // https://github.com/ninja-build/ninja/issues/874
-    state_->Reset();
-    return false;
-  }
-
-  return true;
 }
 
 
@@ -585,7 +545,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit((options.tool->func)(ninja.state_, &options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err, status)) {
+    if (RebuildManifest(ninja.state_, options.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
