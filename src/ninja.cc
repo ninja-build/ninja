@@ -96,9 +96,6 @@ struct NinjaMain : public Logger {
   /// Loaded state (rules, nodes).
   State* state_;
 
-  /// Dump the output requested by '-d stats'.
-  void DumpMetrics();
-
 };
 
 /// Print usage information.
@@ -283,16 +280,6 @@ bool WarningEnable(const string& name, Options* options) {
     std::cerr << std::endl;
     return false;
   }
-}
-
-void NinjaMain::DumpMetrics() {
-  g_metrics->Report();
-
-  printf("\n");
-  int count = (int)state_->paths_.size();
-  int buckets = (int)state_->paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
 }
 
 #ifdef _MSC_VER
@@ -512,7 +499,7 @@ NORETURN void real_main(int argc, char** argv) {
 
     int result = RunBuild(ninja.state_, argc, argv, status);
     if (g_metrics)
-      ninja.DumpMetrics();
+      ninja.state_->DumpMetrics();
     exit(result);
   }
 

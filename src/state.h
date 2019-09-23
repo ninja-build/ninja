@@ -122,6 +122,8 @@ struct State  : public BuildLogUser {
 
   /// Dump the nodes and Pools (useful for debugging).
   void Dump();
+  /// Dump the metrics about the build requested by '-d stats'.
+  void DumpMetrics();
 
   bool IsPathDead(StringPiece s) const;
 

@@ -224,6 +224,17 @@ void State::Dump() {
   }
 }
 
+void State::DumpMetrics() {
+  g_metrics->Report();
+
+  printf("\n");
+  int count = (int)paths_.size();
+  int buckets = (int)paths_.bucket_count();
+  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+         count / (double) buckets, count, buckets);
+}
+
+
 void State::Log(Logger::Level level, const std::string& message) const {
   if(logger_) {
     logger_->OnMessage(Logger::ERROR, message);
