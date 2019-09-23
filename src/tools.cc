@@ -31,6 +31,7 @@
 #include "browse.h"
 #include "build_log.h"
 #include "clean.h"
+#include "debug_flags.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "edit_distance.h"
@@ -380,6 +381,49 @@ bool RebuildManifest(State* state, const char* input_file, string* err,
   return true;
 }
 
+
+int RunBuild(State* state, int argc, char** argv, Status* status) {
+  string err;
+  vector<Node*> targets;
+  if (!CollectTargetsFromArgs(state, argc, argv, &targets, &err)) {
+    status->Error("%s", err.c_str());
+    return 1;
+  }
+
+  state->disk_interface_->AllowStatCache(g_experimental_statcache);
+
+  Builder builder(state, state->config_, state->build_log_, state->deps_log_, state->disk_interface_,
+                  status, state->start_time_millis_);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
+      if (!err.empty()) {
+        status->Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  // Make sure restat rules do not see stale timestamps.
+  state->disk_interface_->AllowStatCache(false);
+
+  if (builder.AlreadyUpToDate()) {
+    status->Info("no work to do.");
+    return 0;
+  }
+
+  if (!builder.Build(&err)) {
+    status->Info("build stopped: %s.", err.c_str());
+    if (err.find("interrupted by user") != string::npos) {
+      return 2;
+    }
+    return 1;
+  }
+
+  return 0;
+}
 
 namespace tool {
 #if defined(NINJA_HAVE_BROWSE)

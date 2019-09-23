@@ -96,10 +96,6 @@ struct NinjaMain : public Logger {
   /// Loaded state (rules, nodes).
   State* state_;
 
-  /// Build the targets listed on the command line.
-  /// @return an exit code.
-  int RunBuild(int argc, char** argv, Status* status);
-
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
 
@@ -297,49 +293,6 @@ void NinjaMain::DumpMetrics() {
   int buckets = (int)state_->paths_.bucket_count();
   printf("path->node hash load %.2f (%d entries / %d buckets)\n",
          count / (double) buckets, count, buckets);
-}
-
-int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
-  string err;
-  vector<Node*> targets;
-  if (!CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
-    status->Error("%s", err.c_str());
-    return 1;
-  }
-
-  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
-
-  Builder builder(state_, state_->config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, state_->start_time_millis_);
-  for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        status->Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
-    }
-  }
-
-  // Make sure restat rules do not see stale timestamps.
-  state_->disk_interface_->AllowStatCache(false);
-
-  if (builder.AlreadyUpToDate()) {
-    status->Info("no work to do.");
-    return 0;
-  }
-
-  if (!builder.Build(&err)) {
-    status->Info("build stopped: %s.", err.c_str());
-    if (err.find("interrupted by user") != string::npos) {
-      return 2;
-    }
-    return 1;
-  }
-
-  return 0;
 }
 
 #ifdef _MSC_VER
@@ -557,7 +510,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    int result = ninja.RunBuild(argc, argv, status);
+    int result = RunBuild(ninja.state_, argc, argv, status);
     if (g_metrics)
       ninja.DumpMetrics();
     exit(result);

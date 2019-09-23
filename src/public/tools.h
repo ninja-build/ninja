@@ -108,6 +108,10 @@ bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_o
 /// @return true if the manifest was rebuilt.
 bool RebuildManifest(State* state, const char* input_file, std::string* err, Status* status);
 
+/// Build the targets listed on the command line.
+/// @return an exit code.
+int RunBuild(State* state, int argc, char** argv, Status* status);
+
 namespace tool {
 int Browse(State* state, const Options* options, int argc, char* argv[]);
 int Clean(State* state, const Options* options, int argc, char* argv[]);
