@@ -81,21 +81,12 @@ void ExitNow() {
 }
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
-struct NinjaMain : public Logger {
+struct NinjaMain {
   NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      state_(new State(ninja_command, config, this)) {}
-
-  virtual void OnMessage(Logger::Level level, const std::string& message) {
-    const char* prefix = kLogError;
-    if(level == Logger::Level::WARNING) {
-      prefix = kLogWarning;
-    }
-    std::cerr << prefix << message << std::endl;
-  }
+      state_(new State(ninja_command, config, new LoggerBasic())) {}
 
   /// Loaded state (rules, nodes).
   State* state_;
-
 };
 
 /// Print usage information.

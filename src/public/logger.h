@@ -14,7 +14,6 @@
 #ifndef NINJA_PUBLIC_LOGGER_H_
 #define NINJA_PUBLIC_LOGGER_H_
 
-#include <iostream>
 #include <string>
 
 namespace ninja {
@@ -29,17 +28,14 @@ public:
   virtual void OnMessage(Level level, const std::string& message) = 0;
 };
 
-class LoggerBasic : Logger {
+class LoggerBasic : public Logger {
 public:
-  virtual void OnMessage(Level level, const std::string& message) {
-    std::cerr << "level " << level << ": " << message << std::endl;
-  }
+  virtual void OnMessage(Level level, const std::string& message) override;
 };
 
-class LoggerNull : Logger {
-  virtual void OnMessage(Level level, const std::string& message) {
-  }
-
+class LoggerNull : public Logger {
+public:
+  virtual void OnMessage(Level level, const std::string& message) override;
 };
 
 }  // namespace ninja
