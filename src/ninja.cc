@@ -79,15 +79,6 @@ void ExitNow() {
   exit(1);
 #endif
 }
-/// The Ninja main() loads up a series of data structures; various tools need
-/// to poke into these, so store them as fields on an object.
-struct NinjaMain {
-  NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      state_(new State(ninja_command, config, new LoggerBasic())) {}
-
-  /// Loaded state (rules, nodes).
-  State* state_;
-};
 
 /// Print usage information.
 void Usage(const BuildConfig& config) {
@@ -395,7 +386,7 @@ int ReadFlags(int* argc, char*** argv,
 
 NORETURN void real_main(int argc, char** argv) {
   // Use exit() instead of return in this function to avoid potentially
-  // expensive cleanup when destructing NinjaMain.
+  // expensive cleanup when destructing Ninja's state.
   BuildConfig config;
   Options options = {};
   options.input_file = "build.ninja";
@@ -413,6 +404,7 @@ NORETURN void real_main(int argc, char** argv) {
         kDepfileDistinctTargetLinesActionError;
   }
 
+  State state(ninja_command, config, new LoggerBasic());
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -428,10 +420,9 @@ NORETURN void real_main(int argc, char** argv) {
   }
 
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
-    // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
+    // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
     // by other tools.
-    NinjaMain ninja(ninja_command, config);
-    exit((options.tool->func)(ninja.state_, &options, argc, argv));
+    exit((options.tool->func)(&state, &options, argc, argv));
   }
 
   Status* status = new StatusPrinter(config);
@@ -439,7 +430,6 @@ NORETURN void real_main(int argc, char** argv) {
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
-    NinjaMain ninja(ninja_command, config);
 
     ManifestParserOptions parser_opts;
     if (options.dupe_edges_should_err) {
@@ -448,7 +438,7 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(ninja.state_, ninja.state_->disk_interface_, parser_opts);
+    ManifestParser parser(&state, state.disk_interface_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -456,12 +446,12 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
-      exit((options.tool->func)(ninja.state_, &options, argc, argv));
+      exit((options.tool->func)(&state, &options, argc, argv));
 
-    if (!EnsureBuildDirExists(ninja.state_, ninja.state_->disk_interface_, ninja.state_->config_, &err))
+    if (!EnsureBuildDirExists(&state, state.disk_interface_, state.config_, &err))
       exit(1);
 
-    if (!OpenBuildLog(ninja.state_, ninja.state_->config_, false, &err) || !OpenDepsLog(ninja.state_, ninja.state_->config_, false, &err)) {
+    if (!OpenBuildLog(&state, state.config_, false, &err) || !OpenDepsLog(&state, state.config_, false, &err)) {
       std::cerr << kLogError << err << std::endl;
       exit(1);
     }
@@ -473,10 +463,10 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
-      exit((options.tool->func)(ninja.state_, &options, argc, argv));
+      exit((options.tool->func)(&state, &options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(ninja.state_, options.input_file, &err, status)) {
+    if (RebuildManifest(&state, options.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -488,9 +478,9 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    int result = RunBuild(ninja.state_, argc, argv, status);
+    int result = RunBuild(&state, argc, argv, status);
     if (g_metrics)
-      ninja.state_->DumpMetrics();
+      state.DumpMetrics();
     exit(result);
   }
 
