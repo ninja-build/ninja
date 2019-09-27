@@ -13,7 +13,10 @@
 // limitations under the License.
 #include "public/ui.h"
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -32,10 +35,121 @@
 #include <vector>
 
 #include "public/version.h"
+
+#include "debug_flags.h"
+#include "metrics.h"
 #include "util.h"
 
 namespace ninja {
 namespace ui {
+namespace {
+
+const char kLogError[] = "ninja: error: ";
+const char kLogInfo[] = "ninja: ";
+const char kLogWarning[] = "ninja: warning: ";
+
+/// Enable a debugging mode.  Returns false if Ninja should exit instead
+/// of continuing.
+bool DebugEnable(const string& name) {
+  if (name == "list") {
+    printf("debugging modes:\n"
+"  stats        print operation counts/timing info\n"
+"  explain      explain what caused a command to execute\n"
+"  keepdepfile  don't delete depfiles after they're read by ninja\n"
+"  keeprsp      don't delete @response files on success\n"
+#ifdef _WIN32
+"  nostatcache  don't batch stat() calls per directory and cache them\n"
+#endif
+"multiple modes can be enabled via -d FOO -d BAR\n");
+    return false;
+  } else if (name == "stats") {
+    g_metrics = new Metrics;
+    return true;
+  } else if (name == "explain") {
+    g_explaining = true;
+    return true;
+  } else if (name == "keepdepfile") {
+    g_keep_depfile = true;
+    return true;
+  } else if (name == "keeprsp") {
+    g_keep_rsp = true;
+    return true;
+  } else if (name == "nostatcache") {
+    g_experimental_statcache = false;
+    return true;
+  } else {
+    const char* suggestion =
+        SpellcheckString(name.c_str(),
+                         "stats", "explain", "keepdepfile", "keeprsp",
+                         "nostatcache", NULL);
+    std::cerr << kLogError << "unknown debug setting '" << name << "'";
+    if (suggestion) {
+      std::cerr << ", did you mean '" << suggestion << "'?";
+    }
+    std::cerr << endl;
+    return false;
+  }
+}
+
+/// Choose a default value for the -j (parallelism) flag.
+int GuessParallelism() {
+  switch (int processors = GetProcessorCount()) {
+  case 0:
+  case 1:
+    return 2;
+  case 2:
+    return 3;
+  default:
+    return processors + 2;
+  }
+}
+
+/// Set a warning flag.  Returns false if Ninja should exit instead  of
+/// continuing.
+bool WarningEnable(const string& name, Options* options) {
+  if (name == "list") {
+    printf("warning flags:\n"
+"  dupbuild={err,warn}  multiple build lines for one target\n"
+"  phonycycle={err,warn}  phony build statement references itself\n"
+"  depfilemulti={err,warn}  depfile has multiple output paths on separate lines\n"
+    );
+    return false;
+  } else if (name == "dupbuild=err") {
+    options->dupe_edges_should_err = true;
+    return true;
+  } else if (name == "dupbuild=warn") {
+    options->dupe_edges_should_err = false;
+    return true;
+  } else if (name == "phonycycle=err") {
+    options->phony_cycle_should_err = true;
+    return true;
+  } else if (name == "phonycycle=warn") {
+    options->phony_cycle_should_err = false;
+    return true;
+  } else if (name == "depfilemulti=err") {
+    options->depfile_distinct_target_lines_should_err = true;
+    return true;
+  } else if (name == "depfilemulti=warn") {
+    options->depfile_distinct_target_lines_should_err = false;
+    return true;
+  } else {
+    const char* suggestion =
+        SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn",
+                         "phonycycle=err", "phonycycle=warn", NULL);
+    std::cerr << ui::kLogError << "unknown warning flag '" << name << "'";
+    if (suggestion) {
+      std::cerr << ", did you mean '" << suggestion << "'?";
+    }
+    std::cerr << std::endl;
+    return false;
+  }
+}
+
+}  // namespace
+
+const char* Error() { return kLogError; }
+const char* Info() { return kLogInfo; }
+const char* Warning() { return kLogWarning; }
 
 const Tool* ChooseTool(const std::string& tool_name) {
   static const Tool kTools[] = {
@@ -105,6 +219,102 @@ void ExitNow() {
 #else
   exit(1);
 #endif
+}
+
+/// Parse argv for command-line options.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadFlags(int* argc, char*** argv,
+              Options* options, BuildConfig* config) {
+  config->parallelism = GuessParallelism();
+
+  enum { OPT_VERSION = 1 };
+  const option kLongOptions[] = {
+    { "help", no_argument, NULL, 'h' },
+    { "version", no_argument, NULL, OPT_VERSION },
+    { "verbose", no_argument, NULL, 'v' },
+    { NULL, 0, NULL, 0 }
+  };
+
+  int opt;
+  while (!options->tool &&
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+                            NULL)) != -1) {
+    switch (opt) {
+      case 'd':
+        if (!DebugEnable(optarg))
+          return 1;
+        break;
+      case 'f':
+        options->input_file = optarg;
+        break;
+      case 'j': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0 || value < 0) {
+          std::cerr << "invalid -j parameter" << std::endl;
+          ui::ExitNow();
+        }
+
+        // We want to run N jobs in parallel. For N = 0, INT_MAX
+        // is close enough to infinite for most sane builds.
+        config->parallelism = value > 0 ? value : INT_MAX;
+        break;
+      }
+      case 'k': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0) {
+          std::cerr << "-k parameter not numeric; did you mean -k 0?" << std::endl;
+          ui::ExitNow();
+        }
+
+        // We want to go until N jobs fail, which means we should allow
+        // N failures and then stop.  For N <= 0, INT_MAX is close enough
+        // to infinite for most sane builds.
+        config->failures_allowed = value > 0 ? value : INT_MAX;
+        break;
+      }
+      case 'l': {
+        char* end;
+        double value = strtod(optarg, &end);
+        if (end == optarg) {
+          std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
+          ui::ExitNow();
+        }
+        config->max_load_average = value;
+        break;
+      }
+      case 'n':
+        config->dry_run = true;
+        break;
+      case 't':
+        options->tool = ui::ChooseTool(optarg);
+        if (!options->tool)
+          return 0;
+        break;
+      case 'v':
+        config->verbosity = BuildConfig::VERBOSE;
+        break;
+      case 'w':
+        if (!WarningEnable(optarg, options))
+          return 1;
+        break;
+      case 'C':
+        options->working_dir = optarg;
+        break;
+      case OPT_VERSION:
+        printf("%s\n", kNinjaVersion);
+        return 0;
+      case 'h':
+      default:
+        ui::Usage(*config);
+        return 1;
+    }
+  }
+  *argv += optind;
+  *argc -= optind;
+
+  return -1;
 }
 
 void Usage(const BuildConfig& config) {

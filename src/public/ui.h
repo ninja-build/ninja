@@ -21,12 +21,21 @@
 namespace ninja {
 namespace ui {
 
+const char* Error();
+const char* Info();
+const char* Warning();
+
 /// Find the function to execute for \a tool_name and return it via \a func.
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const std::string& tool_name);
 
 // Exit the program immediately with a nonzero status
 void ExitNow();
+
+/// Parse argv for command-line options.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadFlags(int* argc, char*** argv,
+              Options* options, BuildConfig* config);
 
 /// Print usage information.
 void Usage(const BuildConfig& config);
