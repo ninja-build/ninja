@@ -18,6 +18,18 @@
 #include "public/build_config.h"
 #include "public/tools.h"
 
+#ifdef _WIN32
+#include "win32port.h"
+#else
+#include <stdint.h>
+#endif
+
+#ifdef _MSC_VER
+#define NORETURN __declspec(noreturn)
+#else
+#define NORETURN __attribute__((noreturn))
+#endif
+
 namespace ninja {
 namespace ui {
 
@@ -28,6 +40,12 @@ const char* Warning();
 /// Find the function to execute for \a tool_name and return it via \a func.
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const std::string& tool_name);
+
+/// Execute ninja as the main ninja binary would
+/// Does not return, prefering to exit() directly
+/// to avoid potentially expensive cleanup when  destructuring
+/// Ninja's state.
+NORETURN void Execute(int argc, char** argv);
 
 // Exit the program immediately with a nonzero status
 void ExitNow();
