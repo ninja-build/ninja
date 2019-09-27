@@ -68,19 +68,6 @@ const char kLogError[] = "ninja: error: ";
 const char kLogInfo[] = "ninja: ";
 const char kLogWarning[] = "ninja: warning: ";
 
-// Exit the program immediately with a nonzero status
-void ExitNow() {
-#ifdef _WIN32
-  // On Windows, some tools may inject extra threads.
-  // exit() may block on locks held by those threads, so forcibly exit.
-  fflush(stderr);
-  fflush(stdout);
-  ExitProcess(1);
-#else
-  exit(1);
-#endif
-}
-
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
   switch (int processors = GetProcessorCount()) {
@@ -94,66 +81,6 @@ int GuessParallelism() {
   }
 }
 
-
-/// Find the function to execute for \a tool_name and return it via \a func.
-/// Returns a Tool, or NULL if Ninja should exit.
-const Tool* ChooseTool(const string& tool_name) {
-  static const Tool kTools[] = {
-    { "browse", "browse dependency graph in a web browser",
-      Tool::RUN_AFTER_LOAD, &tool::Browse },
-#if defined(_MSC_VER)
-    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
-      Tool::RUN_AFTER_FLAGS, &tool::MSVC },
-#endif
-    { "clean", "clean built files",
-      Tool::RUN_AFTER_LOAD, &tool::Clean },
-    { "commands", "list all commands required to rebuild given targets",
-      Tool::RUN_AFTER_LOAD, &tool::Commands },
-    { "deps", "show dependencies stored in the deps log",
-      Tool::RUN_AFTER_LOGS, &tool::Deps },
-    { "graph", "output graphviz dot file for targets",
-      Tool::RUN_AFTER_LOAD, &tool::Graph },
-    { "query", "show inputs/outputs for a path",
-      Tool::RUN_AFTER_LOGS, &tool::Query },
-    { "targets",  "list targets by their rule or depth in the DAG",
-      Tool::RUN_AFTER_LOAD, &tool::Targets },
-    { "compdb",  "dump JSON compilation database to stdout",
-      Tool::RUN_AFTER_LOAD, &tool::CompilationDatabase },
-    { "recompact",  "recompacts ninja-internal data structures",
-      Tool::RUN_AFTER_LOAD, &tool::Recompact },
-    { "rules",  "list all rules",
-      Tool::RUN_AFTER_LOAD, &tool::Rules },
-    { "urtle", NULL,
-      Tool::RUN_AFTER_FLAGS, &tool::Urtle },
-    { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
-  };
-
-  if (tool_name == "list") {
-    printf("ninja subtools:\n");
-    for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-      if (tool->desc)
-        printf("%10s  %s\n", tool->name, tool->desc);
-    }
-    return NULL;
-  }
-
-  for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-    if (tool->name == tool_name)
-      return tool;
-  }
-
-  vector<const char*> words;
-  for (const Tool* tool = &kTools[0]; tool->name; ++tool)
-    words.push_back(tool->name);
-  const char* suggestion = SpellcheckStringV(tool_name, words);
-  std::cerr << "unknown tool '" << tool_name << "'";
-  if (suggestion) {
-    std::cerr << ", did you mean '" << suggestion << "'?";
-  }
-  std::cerr << std::endl;
-  ExitNow();
-  return NULL;  // Not reached.
-}
 
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
@@ -249,7 +176,7 @@ bool WarningEnable(const string& name, Options* options) {
 void TerminateHandler() {
   CreateWin32MiniDump(NULL);
   std::cerr << "terminate handler called" << std::endl;
-  ExitNow();
+  ui::ExitNow();
 }
 
 /// On Windows, we want to prevent error dialogs in case of exceptions.
@@ -294,7 +221,7 @@ int ReadFlags(int* argc, char*** argv,
         int value = strtol(optarg, &end, 10);
         if (*end != 0 || value < 0) {
           std::cerr << "invalid -j parameter" << std::endl;
-          ExitNow();
+          ui::ExitNow();
         }
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
@@ -307,7 +234,7 @@ int ReadFlags(int* argc, char*** argv,
         int value = strtol(optarg, &end, 10);
         if (*end != 0) {
           std::cerr << "-k parameter not numeric; did you mean -k 0?" << std::endl;
-          ExitNow();
+          ui::ExitNow();
         }
 
         // We want to go until N jobs fail, which means we should allow
@@ -321,7 +248,7 @@ int ReadFlags(int* argc, char*** argv,
         double value = strtod(optarg, &end);
         if (end == optarg) {
           std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
-          ExitNow();
+          ui::ExitNow();
         }
         config->max_load_average = value;
         break;
@@ -330,7 +257,7 @@ int ReadFlags(int* argc, char*** argv,
         config->dry_run = true;
         break;
       case 't':
-        options->tool = ChooseTool(optarg);
+        options->tool = ui::ChooseTool(optarg);
         if (!options->tool)
           return 0;
         break;

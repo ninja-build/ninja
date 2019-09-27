@@ -16,9 +16,17 @@
 #define NINJA_PUBLIC_UI_H_
 
 #include "public/build_config.h"
+#include "public/tools.h"
 
 namespace ninja {
 namespace ui {
+
+/// Find the function to execute for \a tool_name and return it via \a func.
+/// Returns a Tool, or NULL if Ninja should exit.
+const Tool* ChooseTool(const std::string& tool_name);
+
+// Exit the program immediately with a nonzero status
+void ExitNow();
 
 /// Print usage information.
 void Usage(const BuildConfig& config);

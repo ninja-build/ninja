@@ -14,11 +14,98 @@
 #include "public/ui.h"
 
 #include <stdio.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include "getopt.h"
+#include <direct.h>
+#include <windows.h>
+#elif defined(_AIX)
+#include "getopt.h"
+#include <unistd.h>
+#else
+#include <getopt.h>
+#include <unistd.h>
+#endif
+
+#include <iostream>
+#include <vector>
 
 #include "public/version.h"
+#include "util.h"
 
 namespace ninja {
 namespace ui {
+
+const Tool* ChooseTool(const std::string& tool_name) {
+  static const Tool kTools[] = {
+    { "browse", "browse dependency graph in a web browser",
+      Tool::RUN_AFTER_LOAD, &tool::Browse },
+#if defined(_MSC_VER)
+    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
+      Tool::RUN_AFTER_FLAGS, &tool::MSVC },
+#endif
+    { "clean", "clean built files",
+      Tool::RUN_AFTER_LOAD, &tool::Clean },
+    { "commands", "list all commands required to rebuild given targets",
+      Tool::RUN_AFTER_LOAD, &tool::Commands },
+    { "deps", "show dependencies stored in the deps log",
+      Tool::RUN_AFTER_LOGS, &tool::Deps },
+    { "graph", "output graphviz dot file for targets",
+      Tool::RUN_AFTER_LOAD, &tool::Graph },
+    { "query", "show inputs/outputs for a path",
+      Tool::RUN_AFTER_LOGS, &tool::Query },
+    { "targets",  "list targets by their rule or depth in the DAG",
+      Tool::RUN_AFTER_LOAD, &tool::Targets },
+    { "compdb",  "dump JSON compilation database to stdout",
+      Tool::RUN_AFTER_LOAD, &tool::CompilationDatabase },
+    { "recompact",  "recompacts ninja-internal data structures",
+      Tool::RUN_AFTER_LOAD, &tool::Recompact },
+    { "rules",  "list all rules",
+      Tool::RUN_AFTER_LOAD, &tool::Rules },
+    { "urtle", NULL,
+      Tool::RUN_AFTER_FLAGS, &tool::Urtle },
+    { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
+  };
+
+  if (tool_name == "list") {
+    printf("ninja subtools:\n");
+    for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+      if (tool->desc)
+        printf("%10s  %s\n", tool->name, tool->desc);
+    }
+    return NULL;
+  }
+
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
+    if (tool->name == tool_name)
+      return tool;
+  }
+
+  std::vector<const char*> words;
+  for (const Tool* tool = &kTools[0]; tool->name; ++tool)
+    words.push_back(tool->name);
+  const char* suggestion = SpellcheckStringV(tool_name, words);
+  std::cerr << "unknown tool '" << tool_name << "'";
+  if (suggestion) {
+    std::cerr << ", did you mean '" << suggestion << "'?";
+  }
+  std::cerr << std::endl;
+  ExitNow();
+  return NULL;  // Not reached.
+}
+
+void ExitNow() {
+#ifdef _WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
+  exit(1);
+#endif
+}
 
 void Usage(const BuildConfig& config) {
   fprintf(stderr,
