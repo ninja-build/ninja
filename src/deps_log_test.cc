@@ -40,7 +40,7 @@ struct DepsLogTest : public testing::Test {
 
 TEST_F(DepsLogTest, WriteRead) {
   BuildConfig build_config;
-  State state1("", build_config);
+  State state1(build_config);
   DepsLog log1;
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
@@ -67,7 +67,7 @@ TEST_F(DepsLogTest, WriteRead) {
 
   log1.Close();
 
-  State state2("", build_config);
+  State state2(build_config);
   DepsLog log2;
   EXPECT_TRUE(log2.Load(kTestFilename, &state2, &err));
   ASSERT_EQ("", err);
@@ -93,7 +93,7 @@ TEST_F(DepsLogTest, LotsOfDeps) {
   const int kNumDeps = 100000;  // More than 64k.
 
   BuildConfig build_config;
-  State state1("", build_config);
+  State state1(build_config);
   DepsLog log1;
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, &err));
@@ -114,7 +114,7 @@ TEST_F(DepsLogTest, LotsOfDeps) {
 
   log1.Close();
 
-  State state2("", build_config);
+  State state2(build_config);
   DepsLog log2;
   EXPECT_TRUE(log2.Load(kTestFilename, &state2, &err));
   ASSERT_EQ("", err);
@@ -129,7 +129,7 @@ TEST_F(DepsLogTest, DoubleEntry) {
   int file_size;
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -150,7 +150,7 @@ TEST_F(DepsLogTest, DoubleEntry) {
   // Now reload the file, and read the same deps.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -184,7 +184,7 @@ TEST_F(DepsLogTest, Recompact) {
   int file_size;
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
@@ -213,7 +213,7 @@ TEST_F(DepsLogTest, Recompact) {
   int file_size_2;
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
@@ -239,7 +239,7 @@ TEST_F(DepsLogTest, Recompact) {
   int file_size_3;
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, kManifest));
     DepsLog log;
     string err;
@@ -289,7 +289,7 @@ TEST_F(DepsLogTest, Recompact) {
   // entries should be removed.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     // Intentionally not parsing kManifest here.
     DepsLog log;
     string err;
@@ -352,7 +352,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
     string err;
     DepsLog log;
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     ASSERT_TRUE(log.Load(kTestFilename, &state, &err));
     EXPECT_EQ("bad deps log signature or version; starting over", err);
   }
@@ -363,7 +363,7 @@ TEST_F(DepsLogTest, Truncated) {
   // Create a file with some entries.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -396,7 +396,7 @@ TEST_F(DepsLogTest, Truncated) {
     ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
     if (!err.empty()) {
@@ -424,7 +424,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   // Create a file with some entries.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
@@ -454,7 +454,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   // Load the file again, add an entry.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
@@ -480,7 +480,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
   // entry doesn't break things.
   {
     BuildConfig build_config;
-    State state("", build_config);
+    State state(build_config);
     DepsLog log;
     string err;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));

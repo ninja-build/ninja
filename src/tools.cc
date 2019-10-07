@@ -42,13 +42,13 @@
 
 namespace ninja {
 
-Node* SpellcheckNode(State* state, const std::string& path) {
+Node* SpellcheckNode(Execution* execution, const std::string& path) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
   Node* result = NULL;
-  for (State::Paths::iterator i = state->paths_.begin(); i != state->paths_.end(); ++i) {
+  for (State::Paths::iterator i = execution->state_->paths_.begin(); i != execution->state_->paths_.end(); ++i) {
     int distance = EditDistance(
         i->first, path, kAllowReplacements, kMaxValidEditDistance);
     if (distance < min_distance && i->second) {
@@ -59,7 +59,7 @@ Node* SpellcheckNode(State* state, const std::string& path) {
   return result;
 }
 
-Node* CollectTarget(State* state, const char* cpath, std::string* err) {
+Node* CollectTarget(Execution* execution, const char* cpath, std::string* err) {
   std::string path = cpath;
   uint64_t slash_bits;
   if (!CanonicalizePath(&path, &slash_bits, err))
@@ -72,7 +72,7 @@ Node* CollectTarget(State* state, const char* cpath, std::string* err) {
     first_dependent = true;
   }
 
-  Node* node = state->LookupNode(path);
+  Node* node = execution->state_->LookupNode(path);
 
   if (!node) {
     *err =
@@ -82,7 +82,7 @@ Node* CollectTarget(State* state, const char* cpath, std::string* err) {
     } else if (path == "help") {
       *err += ", did you mean 'ninja -h'?";
     } else {
-      Node* suggestion = SpellcheckNode(state, path);
+      Node* suggestion = SpellcheckNode(execution, path);
       if (suggestion) {
         *err += ", did you mean '" + suggestion->path() + "'?";
       }
@@ -108,15 +108,15 @@ Node* CollectTarget(State* state, const char* cpath, std::string* err) {
   return edge->outputs_[0];
 }
 
-bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
+bool CollectTargetsFromArgs(Execution* execution, int argc, char* argv[],
                             std::vector<Node*>* targets, std::string* err) {
   if (argc == 0) {
-    *targets = state->DefaultNodes(err);
+    *targets = execution->state_->DefaultNodes(err);
     return err->empty();
   }
 
   for (int i = 0; i < argc; ++i) {
-    Node* node = CollectTarget(state, argv[i], err);
+    Node* node = CollectTarget(execution, argv[i], err);
     if (node == NULL)
       return false;
     targets->push_back(node);
@@ -124,8 +124,8 @@ bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
   return true;
 }
 
-bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err) {
-  std::string build_dir = state->bindings_.LookupVariable("builddir");
+bool EnsureBuildDirExists(Execution* execution, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err) {
+  std::string build_dir = execution->state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty() && !build_config.dry_run) {
     if (!disk_interface->MakeDirs(build_dir + "/.") && errno != EEXIST) {
       *err = "creating build directory " + build_dir + ": " + strerror(errno);
@@ -135,27 +135,27 @@ bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const
   return true;
 }
 
-bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err) {
+bool OpenBuildLog(Execution* execution, const BuildConfig& build_config, bool recompact_only, std::string* err) {
   /// The build directory, used for storing the build log etc.
-  std::string build_dir = state->bindings_.LookupVariable("builddir");
+  std::string build_dir = execution->state_->bindings_.LookupVariable("builddir");
   string log_path = ".ninja_log";
   if (!build_dir.empty())
     log_path = build_dir + "/" + log_path;
 
-  if (!state->build_log_->Load(log_path, err)) {
+  if (!execution->state_->build_log_->Load(log_path, err)) {
     *err = "loading build log " + log_path + ": " + *err;
     return false;
   }
 
   if (recompact_only) {
-    bool success = state->build_log_->Recompact(log_path, *state, err);
+    bool success = execution->state_->build_log_->Recompact(log_path, *execution->state_, err);
     if (!success)
       *err = "failed recompaction: " + *err;
     return success;
   }
 
   if (!build_config.dry_run) {
-    if (!state->build_log_->OpenForWrite(log_path, *state, err)) {
+    if (!execution->state_->build_log_->OpenForWrite(log_path, *execution->state_, err)) {
       *err = "opening build log: " + *err;
       return false;
     }
@@ -166,26 +166,26 @@ bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_
 
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
-bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err) {
-  std::string build_dir = state->bindings_.LookupVariable("builddir");
+bool OpenDepsLog(Execution* execution, const BuildConfig& build_config, bool recompact_only, std::string* err) {
+  std::string build_dir = execution->state_->bindings_.LookupVariable("builddir");
   std::string path = ".ninja_deps";
   if (!build_dir.empty())
     path = build_dir + "/" + path;
 
-  if (!state->deps_log_->Load(path, state, err)) {
+  if (!execution->state_->deps_log_->Load(path, execution->state_, err)) {
     *err = "loading deps log " + path + ": " + *err;
     return false;
   }
 
   if (recompact_only) {
-    bool success = state->deps_log_->Recompact(path, err);
+    bool success = execution->state_->deps_log_->Recompact(path, err);
     if (!success)
       *err = "failed recompaction: " + *err;
     return success;
   }
 
   if (!build_config.dry_run) {
-    if (!state->deps_log_->OpenForWrite(path, err)) {
+    if (!execution->state_->deps_log_->OpenForWrite(path, err)) {
       *err = "opening deps log: " + *err;
       return false;
     }
@@ -212,12 +212,12 @@ int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
   return 0;
 }
 
-int ToolTargetsList(State* state, const string& rule_name) {
+int ToolTargetsList(Execution* execution, const string& rule_name) {
   set<string> rules;
 
   // Gather the outputs.
-  for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end(); ++e) {
+  for (vector<Edge*>::iterator e = execution->state_->edges_.begin();
+       e != execution->state_->edges_.end(); ++e) {
     if ((*e)->rule_->name() == rule_name) {
       for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
@@ -235,9 +235,9 @@ int ToolTargetsList(State* state, const string& rule_name) {
   return 0;
 }
 
-int ToolTargetsList(State* state) {
-  for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end(); ++e) {
+int ToolTargetsList(Execution* execution) {
+  for (vector<Edge*>::iterator e = execution->state_->edges_.begin();
+       e != execution->state_->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       printf("%s: %s\n",
@@ -334,9 +334,9 @@ int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
   return 0;
 }
 
-int ToolTargetsSourceList(State* state) {
-  for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end(); ++e) {
+int ToolTargetsSourceList(Execution* execution) {
+  for (vector<Edge*>::iterator e = execution->state_->edges_.begin();
+       e != execution->state_->edges_.end(); ++e) {
     for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
          inps != (*e)->inputs_.end(); ++inps) {
       if (!(*inps)->in_edge())
@@ -348,18 +348,18 @@ int ToolTargetsSourceList(State* state) {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool RebuildManifest(State* state, const char* input_file, string* err,
+bool RebuildManifest(Execution* execution, const char* input_file, string* err,
                                 Status* status) {
   string path = input_file;
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
     return false;
-  Node* node = state->LookupNode(path);
+  Node* node = execution->state_->LookupNode(path);
   if (!node)
     return false;
 
-  Builder builder(state, state->config_, state->build_log_, state->deps_log_, state->disk_interface_,
-                  status, state->start_time_millis_);
+  Builder builder(execution->state_, execution->state_->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
+                  status, execution->state_->start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -374,7 +374,7 @@ bool RebuildManifest(State* state, const char* input_file, string* err,
   if (!node->dirty()) {
     // Reset the state to prevent problems like
     // https://github.com/ninja-build/ninja/issues/874
-    state->Reset();
+    execution->state_->Reset();
     return false;
   }
 
@@ -382,18 +382,18 @@ bool RebuildManifest(State* state, const char* input_file, string* err,
 }
 
 
-int RunBuild(State* state, int argc, char** argv, Status* status) {
+int RunBuild(Execution* execution, int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
-  if (!CollectTargetsFromArgs(state, argc, argv, &targets, &err)) {
+  if (!CollectTargetsFromArgs(execution, argc, argv, &targets, &err)) {
     status->Error("%s", err.c_str());
     return 1;
   }
 
-  state->disk_interface_->AllowStatCache(g_experimental_statcache);
+  execution->state_->disk_interface_->AllowStatCache(g_experimental_statcache);
 
-  Builder builder(state, state->config_, state->build_log_, state->deps_log_, state->disk_interface_,
-                  status, state->start_time_millis_);
+  Builder builder(execution->state_, execution->state_->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
+                  status, execution->state_->start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
@@ -407,7 +407,7 @@ int RunBuild(State* state, int argc, char** argv, Status* status) {
   }
 
   // Make sure restat rules do not see stale timestamps.
-  state->disk_interface_->AllowStatCache(false);
+  execution->state_->disk_interface_->AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
     status->Info("no work to do.");
@@ -427,21 +427,25 @@ int RunBuild(State* state, int argc, char** argv, Status* status) {
 
 namespace tool {
 #if defined(NINJA_HAVE_BROWSE)
-int Browse(State* state, const Options* options, int argc, char* argv[]) {
-  RunBrowsePython(state, state->ninja_command_, options->input_file, argc, argv);
+int Browse(Execution* execution, int argc, char* argv[]) {
+  if(execution->ninja_command_) {
+    RunBrowsePython(execution->state_, execution->ninja_command_, execution->options_.input_file, argc, argv);
+  } else {
+    execution->state_->Log(Logger::Level::ERROR, "You must specify ninja_command_ in your execution to browse.");
+  }
   // If we get here, the browse failed.
   return 1;
 }
 #else
-int Browse(State* state, const Options*, int, char**) {
-  std::cerr << "browse tool not supported on this platform" << std::endl;
+int Browse(Execution* execution, int, char**) {
+  execution->state_->Log(Logger::Level::ERROR, "browse tool not supported on this platform");
   ExitNow();
   // Never reached
   return 1;
 }
 #endif
 
-int Clean(State* state, const Options* options, int argc, char* argv[]) {
+int Clean(Execution* execution, int argc, char* argv[]) {
   // The clean tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "clean".
   argc++;
@@ -475,11 +479,11 @@ int Clean(State* state, const Options* options, int argc, char* argv[]) {
   argc -= optind;
 
   if (clean_rules && argc == 0) {
-    state->Log(Logger::Level::ERROR, "expected a rule to clean");
+    execution->state_->Log(Logger::Level::ERROR, "expected a rule to clean");
     return 1;
   }
 
-  Cleaner cleaner(state, state->config_, state->disk_interface_);
+  Cleaner cleaner(execution->state_, execution->state_->config_, execution->state_->disk_interface_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -490,7 +494,7 @@ int Clean(State* state, const Options* options, int argc, char* argv[]) {
   }
 }
 
-int Commands(State* state, const Options* options, int argc, char* argv[]) {
+int Commands(Execution* execution, int argc, char* argv[]) {
   // The clean tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "commands".
   ++argc;
@@ -520,8 +524,8 @@ int Commands(State* state, const Options* options, int argc, char* argv[]) {
 
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
-    state->Log(Logger::Level::ERROR, err);
+  if (!CollectTargetsFromArgs(execution, argc, argv, &nodes, &err)) {
+    execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 
@@ -532,7 +536,7 @@ int Commands(State* state, const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-int CompilationDatabase(State* state, const Options* options, int argc,
+int CompilationDatabase(Execution* execution, int argc,
                                        char* argv[]) {
   // The compdb tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "compdb".
@@ -573,13 +577,13 @@ int CompilationDatabase(State* state, const Options* options, int argc,
   if (errno != 0 && errno != ERANGE) {
     std::ostringstream message;
     message << "cannot determine working directory: " << strerror(errno);
-    state->Log(Logger::Level::ERROR, message.str());
+    execution->state_->Log(Logger::Level::ERROR, message.str());
     return 1;
   }
 
   putchar('[');
-  for (vector<Edge*>::iterator e = state->edges_.begin();
-       e != state->edges_.end(); ++e) {
+  for (vector<Edge*>::iterator e = execution->state_->edges_.begin();
+       e != execution->state_->edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
       continue;
     if (argc == 0) {
@@ -605,18 +609,18 @@ int CompilationDatabase(State* state, const Options* options, int argc,
   return 0;
 }
 
-int Deps(State* state, const Options* options, int argc, char** argv) {
+int Deps(Execution* execution, int argc, char** argv) {
   vector<Node*> nodes;
   if (argc == 0) {
-    for (vector<Node*>::const_iterator ni = state->deps_log_->nodes().begin();
-         ni != state->deps_log_->nodes().end(); ++ni) {
-      if (state->deps_log_->IsDepsEntryLiveFor(*ni))
+    for (vector<Node*>::const_iterator ni = execution->state_->deps_log_->nodes().begin();
+         ni != execution->state_->deps_log_->nodes().end(); ++ni) {
+      if (execution->state_->deps_log_->IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
     }
   } else {
     string err;
-    if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
-      state->Log(Logger::Level::ERROR, err);
+    if (!CollectTargetsFromArgs(execution, argc, argv, &nodes, &err)) {
+      execution->state_->Log(Logger::Level::ERROR, err);
       return 1;
     }
   }
@@ -624,7 +628,7 @@ int Deps(State* state, const Options* options, int argc, char** argv) {
   RealDiskInterface disk_interface;
   for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
        it != end; ++it) {
-    DepsLog::Deps* deps = state->deps_log_->GetDeps(*it);
+    DepsLog::Deps* deps = execution->state_->deps_log_->GetDeps(*it);
     if (!deps) {
       printf("%s: deps not found\n", (*it)->path().c_str());
       continue;
@@ -634,7 +638,7 @@ int Deps(State* state, const Options* options, int argc, char** argv) {
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
     if (mtime == -1) {
       // Log and ignore Stat() errors;
-      state->Log(Logger::Level::ERROR, err);
+      execution->state_->Log(Logger::Level::ERROR, err);
     }
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
            (*it)->path().c_str(), deps->node_count, deps->mtime,
@@ -647,15 +651,15 @@ int Deps(State* state, const Options* options, int argc, char** argv) {
   return 0;
 }
 
-int Graph(State* state, const Options* options, int argc, char* argv[]) {
+int Graph(Execution* execution, int argc, char* argv[]) {
   vector<Node*> nodes;
   string err;
-  if (!CollectTargetsFromArgs(state, argc, argv, &nodes, &err)) {
-    state->Log(Logger::Level::ERROR, err);
+  if (!CollectTargetsFromArgs(execution, argc, argv, &nodes, &err)) {
+    execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 
-  GraphViz graph(state, state->disk_interface_);
+  GraphViz graph(execution->state_, execution->state_->disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
@@ -664,19 +668,19 @@ int Graph(State* state, const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-int Query(State* state, const Options* options, int argc, char* argv[]) {
+int Query(Execution* execution, int argc, char* argv[]) {
   if (argc == 0) {
-    state->Log(Logger::Level::ERROR, "expected a target to query");
+    execution->state_->Log(Logger::Level::ERROR, "expected a target to query");
     return 1;
   }
 
-  DyndepLoader dyndep_loader(state, state->disk_interface_);
+  DyndepLoader dyndep_loader(execution->state_, execution->state_->disk_interface_);
 
   for (int i = 0; i < argc; ++i) {
     string err;
-    Node* node = CollectTarget(state, argv[i], &err);
+    Node* node = CollectTarget(execution, argv[i], &err);
     if (!node) {
-      state->Log(Logger::Level::ERROR, err);
+      execution->state_->Log(Logger::Level::ERROR, err);
       return 1;
     }
 
@@ -684,7 +688,7 @@ int Query(State* state, const Options* options, int argc, char* argv[]) {
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
-          state->Log(Logger::Level::WARNING, err);
+          execution->state_->Log(Logger::Level::WARNING, err);
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
@@ -709,29 +713,29 @@ int Query(State* state, const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-int Recompact(State* state, const Options* options, int argc, char* argv[]) {
+int Recompact(Execution* execution, int argc, char* argv[]) {
   string err;
-  if (!EnsureBuildDirExists(state, state->disk_interface_, state->config_, &err)) {
-    state->Log(Logger::Level::ERROR, err);
+  if (!EnsureBuildDirExists(execution, execution->state_->disk_interface_, execution->state_->config_, &err)) {
+    execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 
-  if (!OpenBuildLog(state, state->config_, true, &err) ||
-      !OpenDepsLog(state, state->config_, true, &err)) {
-    state->Log(Logger::Level::ERROR, err);
+  if (!OpenBuildLog(execution, execution->state_->config_, true, &err) ||
+      !OpenDepsLog(execution, execution->state_->config_, true, &err)) {
+    execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 
   // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
   if(!err.empty()) {
-    state->Log(Logger::Level::WARNING, err);
+    execution->state_->Log(Logger::Level::WARNING, err);
     err.clear();
   }
 
   return 0;
 }
 
-int Rules(State* state, const Options* options, int argc, char* argv[]) {
+int Rules(Execution* execution, int argc, char* argv[]) {
   // Parse options.
 
   // The rules tool uses getopt, and expects argv[0] to contain the name of
@@ -765,7 +769,7 @@ int Rules(State* state, const Options* options, int argc, char* argv[]) {
   // Print rules
 
   typedef map<string, const Rule*> Rules;
-  const Rules& rules = state->bindings_.GetRules();
+  const Rules& rules = execution->state_->bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
     printf("%s", i->first.c_str());
     if (print_description) {
@@ -780,7 +784,7 @@ int Rules(State* state, const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-int Targets(State* state, const Options* options, int argc, char* argv[]) {
+int Targets(Execution* execution, int argc, char* argv[]) {
   int depth = 1;
   if (argc >= 1) {
     string mode = argv[0];
@@ -789,14 +793,14 @@ int Targets(State* state, const Options* options, int argc, char* argv[]) {
       if (argc > 1)
         rule = argv[1];
       if (rule.empty())
-        return ToolTargetsSourceList(state);
+        return ToolTargetsSourceList(execution);
       else
-        return ToolTargetsList(state, rule);
+        return ToolTargetsList(execution, rule);
     } else if (mode == "depth") {
       if (argc > 1)
         depth = atoi(argv[1]);
     } else if (mode == "all") {
-      return ToolTargetsList(state);
+      return ToolTargetsList(execution);
     } else {
       const char* suggestion =
           SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);
@@ -806,22 +810,22 @@ int Targets(State* state, const Options* options, int argc, char* argv[]) {
       if (suggestion) {
         message << ", did you mean '" << suggestion << "'?";
       }
-      state->Log(Logger::Level::ERROR, message.str());
+      execution->state_->Log(Logger::Level::ERROR, message.str());
       return 1;
     }
   }
 
   string err;
-  vector<Node*> root_nodes = state->RootNodes(&err);
+  vector<Node*> root_nodes = execution->state_->RootNodes(&err);
   if (err.empty()) {
     return ToolTargetsList(root_nodes, depth, 0);
   } else {
-    state->Log(Logger::Level::ERROR, err);
+    execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 }
 
-int Urtle(State* state, const Options* options, int argc, char** argv) {
+int Urtle(Execution* execution, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
 " 13 ,3;2!2;\n8 ,;<11!;\n5 `'<10!(2`'2!\n11 ,6;, `\\. `\\9 .,c13$ec,.\n6 "
@@ -848,7 +852,7 @@ int Urtle(State* state, const Options* options, int argc, char** argv) {
 }
 
 #if defined(_MSC_VER)
-int MSVC(State* state, const Options* options, int argc, char* argv[]) {
+int MSVC(Execution* execution, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
   argv--;

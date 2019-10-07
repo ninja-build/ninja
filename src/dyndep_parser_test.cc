@@ -24,7 +24,7 @@
 
 namespace ninja {
 struct DyndepParserTest : public testing::Test {
-  DyndepParserTest() : state_("", build_config_) {}
+  DyndepParserTest() : state_(build_config_) {}
 
   void AssertParse(const char* input) {
     DyndepParser parser(&state_, &fs_, &dyndep_file_);

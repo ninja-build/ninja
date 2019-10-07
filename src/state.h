@@ -101,8 +101,8 @@ struct State  : public BuildLogUser {
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
-  State(const char* ninja_command, const BuildConfig& config);
-  State(const char* ninja_command, const BuildConfig& config, Logger* logger);
+  State(const BuildConfig& config);
+  State(const BuildConfig& config, Logger* logger);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -122,9 +122,6 @@ struct State  : public BuildLogUser {
 
   /// Dump the nodes and Pools (useful for debugging).
   void Dump();
-  /// Dump the metrics about the build requested by '-d stats'.
-  void DumpMetrics();
-
   bool IsPathDead(StringPiece s) const;
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
@@ -134,9 +131,6 @@ struct State  : public BuildLogUser {
 
   /// Send a log message to any attached logger.
   void Log(Logger::Level, const std::string& message) const;
-
-  /// Command line used to run Ninja.
-  const char* ninja_command_;
 
   /// Build configuration set from flags (e.g. parallelism).
   const BuildConfig& config_;

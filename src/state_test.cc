@@ -21,7 +21,7 @@ namespace {
 
 TEST(State, Basic) {
   BuildConfig build_config;
-  State state("", build_config);
+  State state(build_config);
 
   EvalString command;
   command.AddText("cat ");

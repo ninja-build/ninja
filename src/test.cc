@@ -90,7 +90,7 @@ string GetSystemTempDir() {
 
 }  // anonymous namespace
 
-StateTestWithBuiltinRules::StateTestWithBuiltinRules() : state_("", build_config_) {
+StateTestWithBuiltinRules::StateTestWithBuiltinRules() : state_(build_config_) {
   AddCatRule(&state_);
 }
 

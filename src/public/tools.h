@@ -18,39 +18,16 @@
 #include <vector>
 
 #include "public/build_config.h"
+#include "public/execution.h"
 
 namespace ninja {
 
 class Node;
 class RealDiskInterface;
-class State;
 class Status;
-struct Tool;
-
-/// Command-line options.
-struct Options {
-  /// Build file to load.
-  const char* input_file;
-
-  /// Directory to change into before running.
-  const char* working_dir;
-
-  /// Tool to run rather than building.
-  const Tool* tool;
-
-  /// Whether duplicate rules for one target should warn or print an error.
-  bool dupe_edges_should_err;
-
-  /// Whether phony cycles should warn or print an error.
-  bool phony_cycle_should_err;
-
-  /// Whether a depfile with multiple targets on separate lines should
-  /// warn or print an error.
-  bool depfile_distinct_target_lines_should_err;
-};
 
 /// The type of functions that are the entry points to tools (subcommands).
-typedef int (*ToolFunc)(State* state, const Options*, int, char**);
+typedef int (*ToolFunc)(Execution* execution, int, char**);
 
 /// Subtools, accessible via "-t foo".
 struct Tool {
@@ -81,51 +58,51 @@ struct Tool {
 // most likely a match for that path. This accounts
 // for users mispelling parts of the path and gives
 // the node nearest what the user requested.
-Node* SpellcheckNode(State* state, const std::string& path);
+Node* SpellcheckNode(Execution* execution, const std::string& path);
 
 /// Get the Node for a given command-line path, handling features like
 /// spell correction.
-Node* CollectTarget(State* state, const char* cpath, std::string* err);
+Node* CollectTarget(Execution* execution, const char* cpath, std::string* err);
 
 /// CollectTarget for all command-line arguments, filling in \a targets.
-bool CollectTargetsFromArgs(State* state, int argc, char* argv[],
+bool CollectTargetsFromArgs(Execution* execution, int argc, char* argv[],
                             std::vector<Node*>* targets, std::string* err);
 
 /// Ensure the build directory exists, creating it if necessary.
 /// @return false on error.
-bool EnsureBuildDirExists(State* state, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err);
+bool EnsureBuildDirExists(Execution* execution, RealDiskInterface* disk_interface, const BuildConfig& build_config, std::string* err);
 
 /// Open the build log.
 /// @return false on error.
-bool OpenBuildLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
+bool OpenBuildLog(Execution* execution, const BuildConfig& build_config, bool recompact_only, std::string* err);
 
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
-bool OpenDepsLog(State* state, const BuildConfig& build_config, bool recompact_only, std::string* err);
+bool OpenDepsLog(Execution* execution, const BuildConfig& build_config, bool recompact_only, std::string* err);
 
 /// Rebuild the manifest, if necessary.
 /// Fills in \a err on error.
 /// @return true if the manifest was rebuilt.
-bool RebuildManifest(State* state, const char* input_file, std::string* err, Status* status);
+bool RebuildManifest(Execution* execution, const char* input_file, std::string* err, Status* status);
 
 /// Build the targets listed on the command line.
 /// @return an exit code.
-int RunBuild(State* state, int argc, char** argv, Status* status);
+int RunBuild(Execution* execution, int argc, char** argv, Status* status);
 
 namespace tool {
-int Browse(State* state, const Options* options, int argc, char* argv[]);
-int Clean(State* state, const Options* options, int argc, char* argv[]);
-int Commands(State* state, const Options* options, int argc, char* argv[]);
-int CompilationDatabase(State* state, const Options* options, int argc, char* argv[]);
-int Deps(State* state, const Options* options, int argc, char* argv[]);
-int Graph(State* state, const Options* options, int argc, char* argv[]);
-int Query(State* state, const Options* options, int argc, char* argv[]);
-int Recompact(State* state, const Options* options, int argc, char* argv[]);
-int Rules(State* state, const Options* options, int argc, char* argv[]);
-int Targets(State* state, const Options* options, int argc, char* argv[]);
-int Urtle(State* state, const Options* options, int argc, char** argv);
+int Browse(Execution* execution, int argc, char* argv[]);
+int Clean(Execution* execution, int argc, char* argv[]);
+int Commands(Execution* execution, int argc, char* argv[]);
+int CompilationDatabase(Execution* execution, int argc, char* argv[]);
+int Deps(Execution* execution, int argc, char* argv[]);
+int Graph(Execution* execution, int argc, char* argv[]);
+int Query(Execution* execution, int argc, char* argv[]);
+int Recompact(Execution* execution, int argc, char* argv[]);
+int Rules(Execution* execution, int argc, char* argv[]);
+int Targets(Execution* execution, int argc, char* argv[]);
+int Urtle(Execution* execution, int argc, char** argv);
 #if defined(_MSC_VER)
-int MSVC(State* state, const Options* options, int argc, char* argv[]);
+int MSVC(Execution* execution, int argc, char* argv[]);
 #endif
 
 }  // namespace tools

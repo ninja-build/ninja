@@ -69,10 +69,9 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State(const char* ninja_command, const BuildConfig& config) : State(ninja_command, config, NULL) {}
+State::State(const BuildConfig& config) : State(config, NULL) {}
 
-State::State(const char* ninja_command, const BuildConfig& config, Logger* logger) :
-    ninja_command_(ninja_command),
+State::State(const BuildConfig& config, Logger* logger) :
     config_(config),
     logger_(logger),
     disk_interface_(new RealDiskInterface()),
@@ -223,17 +222,6 @@ void State::Dump() {
     }
   }
 }
-
-void State::DumpMetrics() {
-  g_metrics->Report();
-
-  printf("\n");
-  int count = (int)paths_.size();
-  int buckets = (int)paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
-}
-
 
 void State::Log(Logger::Level level, const std::string& message) const {
   if(logger_) {

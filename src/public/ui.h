@@ -16,6 +16,7 @@
 #define NINJA_PUBLIC_UI_H_
 
 #include "public/build_config.h"
+#include "public/execution.h"
 #include "public/tools.h"
 
 #ifdef _WIN32
@@ -52,8 +53,7 @@ void ExitNow();
 
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv,
-              Options* options, BuildConfig* config);
+int ReadFlags(int* argc, char*** argv, Execution* execution);
 
 /// Print usage information.
 void Usage(const BuildConfig& config);

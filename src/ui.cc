@@ -34,6 +34,7 @@
 #include <iostream>
 #include <vector>
 
+#include "public/execution.h"
 #include "public/logger.h"
 #include "public/version.h"
 
@@ -45,7 +46,6 @@
 #include "graph.h"
 #include "manifest_parser.h"
 #include "metrics.h"
-#include "state.h"
 #include "status.h"
 #include "util.h"
 
@@ -116,7 +116,7 @@ int GuessParallelism() {
 
 /// Set a warning flag.  Returns false if Ninja should exit instead  of
 /// continuing.
-bool WarningEnable(const string& name, Options* options) {
+bool WarningEnable(const string& name, Execution::Options* options) {
   if (name == "list") {
     printf("warning flags:\n"
 "  dupbuild={err,warn}  multiple build lines for one target\n"
@@ -220,71 +220,68 @@ const Tool* ChooseTool(const std::string& tool_name) {
 }
 
 NORETURN void Execute(int argc, char** argv) {
-  BuildConfig config;
-  Options options = {};
-  options.input_file = "build.ninja";
-  options.dupe_edges_should_err = true;
+  ninja::Execution execution;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
+  execution.ninja_command_ = ninja_command;
 
-  int exit_code = ui::ReadFlags(&argc, &argv, &options, &config);
+  int exit_code = ui::ReadFlags(&argc, &argv, &execution);
   if (exit_code >= 0)
     exit(exit_code);
 
-  if (options.depfile_distinct_target_lines_should_err) {
-    config.depfile_parser_options.depfile_distinct_target_lines_action_ =
+  if (execution.options_.depfile_distinct_target_lines_should_err) {
+    execution.config_.depfile_parser_options.depfile_distinct_target_lines_action_ =
         kDepfileDistinctTargetLinesActionError;
   }
 
-  State state(ninja_command, config, new LoggerBasic());
-  if (options.working_dir) {
+  if (execution.options_.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool)
-      std::cerr << ui::Info() << "Entering directory `" << options.working_dir << "'" << std::endl;
-    if (chdir(options.working_dir) < 0) {
-      std::cerr << ui::Error() << "chdir to '" << options.working_dir << "' - " << strerror(errno) << std::endl;
+    if (!execution.tool_)
+      std::cerr << ui::Info() << "Entering directory `" << execution.options_.working_dir << "'" << std::endl;
+    if (chdir(execution.options_.working_dir) < 0) {
+      std::cerr << ui::Error() << "chdir to '" << execution.options_.working_dir << "' - " << strerror(errno) << std::endl;
       exit(1);
     }
   }
 
-  if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
+  if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
     // by other tools.
-    exit((options.tool->func)(&state, &options, argc, argv));
+    exit((execution.tool_->func)(&execution, argc, argv));
   }
 
-  Status* status = new StatusPrinter(config);
+  Status* status = new StatusPrinter(execution.config_);
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
 
     ManifestParserOptions parser_opts;
-    if (options.dupe_edges_should_err) {
+    if (execution.options_.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
     }
-    if (options.phony_cycle_should_err) {
+    if (execution.options_.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&state, state.disk_interface_, parser_opts);
+    ManifestParser parser(execution.state_, execution.DiskInterface(), parser_opts);
     string err;
-    if (!parser.Load(options.input_file, &err)) {
+    if (!parser.Load(execution.options_.input_file, &err)) {
       status->Error("%s", err.c_str());
       exit(1);
     }
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
-      exit((options.tool->func)(&state, &options, argc, argv));
+    if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_LOAD)
+      exit((execution.tool_->func)(&execution, argc, argv));
 
-    if (!EnsureBuildDirExists(&state, state.disk_interface_, state.config_, &err))
+    if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config_, &err))
       exit(1);
 
-    if (!OpenBuildLog(&state, state.config_, false, &err) || !OpenDepsLog(&state, state.config_, false, &err)) {
+    if (!OpenBuildLog(&execution, execution.config_, false, &err) || !OpenDepsLog(&execution, execution.config_, false, &err)) {
       std::cerr << ui::Error() << err << std::endl;
       exit(1);
     }
@@ -295,30 +292,30 @@ NORETURN void Execute(int argc, char** argv) {
       err.clear();
     }
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
-      exit((options.tool->func)(&state, &options, argc, argv));
+    if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_LOGS)
+      exit((execution.tool_->func)(&execution, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(&state, options.input_file, &err, status)) {
+    if (RebuildManifest(&execution, execution.options_.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
-      if (config.dry_run)
+      if (execution.config_.dry_run)
         exit(0);
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
+      status->Error("rebuilding '%s': %s", execution.options_.input_file, err.c_str());
       exit(1);
     }
 
-    int result = RunBuild(&state, argc, argv, status);
+    int result = RunBuild(&execution, argc, argv, status);
     if (g_metrics)
-      state.DumpMetrics();
+      execution.DumpMetrics();
     exit(result);
   }
 
   status->Error("manifest '%s' still dirty after %d tries",
-      options.input_file, kCycleLimit);
+      execution.options_.input_file, kCycleLimit);
   exit(1);
 }
 void ExitNow() {
@@ -336,8 +333,8 @@ void ExitNow() {
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
-              Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
+              Execution* execution) {
+  execution->config_.parallelism = GuessParallelism();
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -348,7 +345,7 @@ int ReadFlags(int* argc, char*** argv,
   };
 
   int opt;
-  while (!options->tool &&
+  while (!execution->tool_ &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -357,7 +354,7 @@ int ReadFlags(int* argc, char*** argv,
           return 1;
         break;
       case 'f':
-        options->input_file = optarg;
+        execution->options_.input_file = optarg;
         break;
       case 'j': {
         char* end;
@@ -369,7 +366,7 @@ int ReadFlags(int* argc, char*** argv,
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
-        config->parallelism = value > 0 ? value : INT_MAX;
+        execution->config_.parallelism = value > 0 ? value : INT_MAX;
         break;
       }
       case 'k': {
@@ -383,7 +380,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        config->failures_allowed = value > 0 ? value : INT_MAX;
+        execution->config_.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'l': {
@@ -393,33 +390,33 @@ int ReadFlags(int* argc, char*** argv,
           std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
           ui::ExitNow();
         }
-        config->max_load_average = value;
+        execution->config_.max_load_average = value;
         break;
       }
       case 'n':
-        config->dry_run = true;
+        execution->config_.dry_run = true;
         break;
       case 't':
-        options->tool = ui::ChooseTool(optarg);
-        if (!options->tool)
+        execution->tool_ = ui::ChooseTool(optarg);
+        if (!execution->tool_)
           return 0;
         break;
       case 'v':
-        config->verbosity = BuildConfig::VERBOSE;
+        execution->config_.verbosity = BuildConfig::VERBOSE;
         break;
       case 'w':
-        if (!WarningEnable(optarg, options))
+        if (!WarningEnable(optarg, &execution->options_))
           return 1;
         break;
       case 'C':
-        options->working_dir = optarg;
+        execution->options_.working_dir = optarg;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
       case 'h':
       default:
-        ui::Usage(*config);
+        ui::Usage(execution->config_);
         return 1;
     }
   }
