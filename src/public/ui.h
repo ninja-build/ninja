@@ -20,7 +20,7 @@
 #include "public/tools.h"
 
 #ifdef _WIN32
-#include "win32port.h"
+#include "public/win32port.h"
 #else
 #include <stdint.h>
 #endif
