@@ -57,6 +57,7 @@ public:
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
+  /// Build configuration set from flags (e.g. parallelism).
   BuildConfig config_;
 
   // The command used to run ninja.

@@ -25,7 +25,7 @@ Execution::Execution() : Execution(Options()) {}
 
 Execution::Execution(Options options) :
   options_(options),
-  state_(new State(config_)) {}
+  state_(new State()) {}
 
 Execution::Options::Options() :
   input_file("build.ninja"),

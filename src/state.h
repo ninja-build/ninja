@@ -101,8 +101,8 @@ struct State  : public BuildLogUser {
   static Pool kConsolePool;
   static const Rule kPhonyRule;
 
-  State(const BuildConfig& config);
-  State(const BuildConfig& config, Logger* logger);
+  State();
+  State(Logger* logger);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -131,9 +131,6 @@ struct State  : public BuildLogUser {
 
   /// Send a log message to any attached logger.
   void Log(Logger::Level, const std::string& message) const;
-
-  /// Build configuration set from flags (e.g. parallelism).
-  const BuildConfig& config_;
 
   /// The logger that gets messages from this state.
   Logger* logger_;

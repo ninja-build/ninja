@@ -358,7 +358,7 @@ bool RebuildManifest(Execution* execution, const char* input_file, string* err,
   if (!node)
     return false;
 
-  Builder builder(execution->state_, execution->state_->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
+  Builder builder(execution->state_, execution->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
                   status, execution->state_->start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
@@ -392,7 +392,7 @@ int RunBuild(Execution* execution, int argc, char** argv, Status* status) {
 
   execution->state_->disk_interface_->AllowStatCache(g_experimental_statcache);
 
-  Builder builder(execution->state_, execution->state_->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
+  Builder builder(execution->state_, execution->config_, execution->state_->build_log_, execution->state_->deps_log_, execution->state_->disk_interface_,
                   status, execution->state_->start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -483,7 +483,7 @@ int Clean(Execution* execution, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(execution->state_, execution->state_->config_, execution->state_->disk_interface_);
+  Cleaner cleaner(execution->state_, execution->config_, execution->state_->disk_interface_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -715,13 +715,13 @@ int Query(Execution* execution, int argc, char* argv[]) {
 
 int Recompact(Execution* execution, int argc, char* argv[]) {
   string err;
-  if (!EnsureBuildDirExists(execution, execution->state_->disk_interface_, execution->state_->config_, &err)) {
+  if (!EnsureBuildDirExists(execution, execution->state_->disk_interface_, execution->config_, &err)) {
     execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
 
-  if (!OpenBuildLog(execution, execution->state_->config_, true, &err) ||
-      !OpenDepsLog(execution, execution->state_->config_, true, &err)) {
+  if (!OpenBuildLog(execution, execution->config_, true, &err) ||
+      !OpenDepsLog(execution, execution->config_, true, &err)) {
     execution->state_->Log(Logger::Level::ERROR, err);
     return 1;
   }

@@ -69,10 +69,9 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State(const BuildConfig& config) : State(config, NULL) {}
+State::State() : State(NULL) {}
 
-State::State(const BuildConfig& config, Logger* logger) :
-    config_(config),
+State::State(Logger* logger) :
     logger_(logger),
     disk_interface_(new RealDiskInterface()),
     build_log_(new BuildLog()),

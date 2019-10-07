@@ -23,7 +23,7 @@
 
 namespace ninja {
 struct ParserTest : public ninja::testing::Test {
-  ParserTest() : state_(build_config_) {}
+  ParserTest() {}
 
   void AssertParse(const char* input) {
     ManifestParser parser(&state_, &fs_);
@@ -33,7 +33,6 @@ struct ParserTest : public ninja::testing::Test {
     VerifyGraph(state_);
   }
 
-  BuildConfig build_config_;
   State state_;
   VirtualFileSystem fs_;
 };
@@ -424,8 +423,7 @@ TEST_F(ParserTest, ReservedWords) {
 
 TEST_F(ParserTest, Errors) {
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest(string("subn", 4), &err));
@@ -436,8 +434,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("foobar", &err));
@@ -448,8 +445,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x 3", &err));
@@ -460,8 +456,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = 3", &err));
@@ -472,8 +467,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = 3\ny 2", &err));
@@ -484,8 +478,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = $", &err));
@@ -496,8 +489,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = $\n $[\n", &err));
@@ -508,8 +500,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("x = a$\n b$\n $\n", &err));
@@ -518,8 +509,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build\n", &err));
@@ -530,8 +520,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build x: y z\n", &err));
@@ -542,8 +531,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("build x:: y z\n", &err));
@@ -554,8 +542,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n  command = cat ok\n"
@@ -568,8 +555,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n",
@@ -578,8 +564,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
@@ -593,8 +578,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
@@ -606,8 +590,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
@@ -622,8 +605,7 @@ TEST_F(ParserTest, Errors) {
 
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
@@ -638,8 +620,7 @@ TEST_F(ParserTest, Errors) {
 
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cat\n"
@@ -653,8 +634,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule %foo\n",
@@ -666,8 +646,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n"
@@ -681,8 +660,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
@@ -695,8 +673,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  && bar",
@@ -708,8 +685,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n"
@@ -722,8 +698,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default\n",
@@ -735,8 +710,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default nonexistent\n",
@@ -748,8 +722,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule r\n  command = r\n"
@@ -763,8 +736,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("default $a\n", &err));
@@ -775,8 +747,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("rule r\n"
@@ -788,8 +759,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     // the indented blank line must terminate the rule
@@ -802,8 +772,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool\n", &err));
@@ -813,8 +782,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n", &err));
@@ -822,8 +790,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
@@ -836,8 +803,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
@@ -849,8 +815,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     EXPECT_FALSE(parser.ParseTest("pool foo\n"
@@ -862,8 +827,7 @@ TEST_F(ParserTest, Errors) {
   }
 
   {
-    BuildConfig build_config;
-    State local_state(build_config);
+    State local_state;
     ManifestParser parser(&local_state, NULL);
     string err;
     // Pool names are dereferenced at edge parsing time.
@@ -876,8 +840,7 @@ TEST_F(ParserTest, Errors) {
 }
 
 TEST_F(ParserTest, MissingInput) {
-  BuildConfig build_config;
-  State local_state(build_config);
+  State local_state;
   ManifestParser parser(&local_state, &fs_);
   string err;
   EXPECT_FALSE(parser.Load("build.ninja", &err));
@@ -885,8 +848,7 @@ TEST_F(ParserTest, MissingInput) {
 }
 
 TEST_F(ParserTest, MultipleOutputs) {
-  BuildConfig build_config;
-  State local_state(build_config);
+  State local_state;
   ManifestParser parser(&local_state, NULL);
   string err;
   EXPECT_TRUE(parser.ParseTest("rule cc\n  command = foo\n  depfile = bar\n"
@@ -896,8 +858,7 @@ TEST_F(ParserTest, MultipleOutputs) {
 }
 
 TEST_F(ParserTest, MultipleOutputsWithDeps) {
-  BuildConfig build_config;
-  State local_state(build_config);
+  State local_state;
   ManifestParser parser(&local_state, NULL);
   string err;
   EXPECT_FALSE(parser.ParseTest("rule cc\n  command = foo\n  deps = gcc\n"
@@ -1113,8 +1074,7 @@ TEST_F(ParserTest, UTF8) {
 }
 
 TEST_F(ParserTest, CRLF) {
-  BuildConfig build_config;
-  State local_state(build_config);
+  State local_state;
   ManifestParser parser(&local_state, NULL);
   string err;
 
@@ -1139,8 +1099,7 @@ TEST_F(ParserTest, DyndepNotSpecified) {
 }
 
 TEST_F(ParserTest, DyndepNotInput) {
-  BuildConfig build_config;
-  State lstate(build_config);
+  State lstate;
   ManifestParser parser(&lstate, NULL);
   string err;
   EXPECT_FALSE(parser.ParseTest(
