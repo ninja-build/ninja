@@ -101,19 +101,6 @@ bool DebugEnable(const string& name) {
   }
 }
 
-/// Choose a default value for the -j (parallelism) flag.
-int GuessParallelism() {
-  switch (int processors = GetProcessorCount()) {
-  case 0:
-  case 1:
-    return 2;
-  case 2:
-    return 3;
-  default:
-    return processors + 2;
-  }
-}
-
 /// Set a warning flag.  Returns false if Ninja should exit instead  of
 /// continuing.
 bool WarningEnable(const string& name, Execution::Options* options) {
@@ -161,75 +148,25 @@ const char* Error() { return kLogError; }
 const char* Info() { return kLogInfo; }
 const char* Warning() { return kLogWarning; }
 
-const Tool* ChooseTool(const std::string& tool_name) {
-  static const Tool kTools[] = {
-    { "browse", "browse dependency graph in a web browser",
-      Tool::RUN_AFTER_LOAD, &tool::Browse },
-#if defined(_MSC_VER)
-    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
-      Tool::RUN_AFTER_FLAGS, &tool::MSVC },
-#endif
-    { "clean", "clean built files",
-      Tool::RUN_AFTER_LOAD, &tool::Clean },
-    { "commands", "list all commands required to rebuild given targets",
-      Tool::RUN_AFTER_LOAD, &tool::Commands },
-    { "deps", "show dependencies stored in the deps log",
-      Tool::RUN_AFTER_LOGS, &tool::Deps },
-    { "graph", "output graphviz dot file for targets",
-      Tool::RUN_AFTER_LOAD, &tool::Graph },
-    { "query", "show inputs/outputs for a path",
-      Tool::RUN_AFTER_LOGS, &tool::Query },
-    { "targets",  "list targets by their rule or depth in the DAG",
-      Tool::RUN_AFTER_LOAD, &tool::Targets },
-    { "compdb",  "dump JSON compilation database to stdout",
-      Tool::RUN_AFTER_LOAD, &tool::CompilationDatabase },
-    { "recompact",  "recompacts ninja-internal data structures",
-      Tool::RUN_AFTER_LOAD, &tool::Recompact },
-    { "rules",  "list all rules",
-      Tool::RUN_AFTER_LOAD, &tool::Rules },
-    { "urtle", NULL,
-      Tool::RUN_AFTER_FLAGS, &tool::Urtle },
-    { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
-  };
-
-  if (tool_name == "list") {
-    printf("ninja subtools:\n");
-    for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-      if (tool->desc)
-        printf("%10s  %s\n", tool->name, tool->desc);
-    }
-    return NULL;
-  }
-
-  for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
-    if (tool->name == tool_name)
-      return tool;
-  }
-
-  std::vector<const char*> words;
-  for (const Tool* tool = &kTools[0]; tool->name; ++tool)
-    words.push_back(tool->name);
-  const char* suggestion = SpellcheckStringV(tool_name, words);
-  std::cerr << "unknown tool '" << tool_name << "'";
-  if (suggestion) {
-    std::cerr << ", did you mean '" << suggestion << "'?";
-  }
-  std::cerr << std::endl;
-  ExitNow();
-  return NULL;  // Not reached.
-}
-
 NORETURN void Execute(int argc, char** argv) {
-  ninja::Execution execution;
-
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
-  const char* ninja_command = argv[0];
-  execution.ninja_command_ = ninja_command;
 
-  int exit_code = ui::ReadFlags(&argc, &argv, &execution);
+  ninja::Execution::Options options;
+  int exit_code = ui::ReadFlags(&argc, &argv, &options);
   if (exit_code >= 0)
     exit(exit_code);
 
+  ninja::Execution execution(options);
+
+  const char* ninja_command = argv[0];
+  execution.ninja_command_ = ninja_command;
+
+
+  execution.config_.parallelism = options.parallelism;
+  // We want to go until N jobs fail, which means we should allow
+  // N failures and then stop.  For N <= 0, INT_MAX is close enough
+  // to infinite for most sane builds.
+  execution.config_.failures_allowed = options.failures_allowed;
   if (execution.options_.depfile_distinct_target_lines_should_err) {
     execution.config_.depfile_parser_options.depfile_distinct_target_lines_action_ =
         kDepfileDistinctTargetLinesActionError;
@@ -241,7 +178,7 @@ NORETURN void Execute(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!execution.tool_)
+    if (!execution.options_.tool_)
       std::cerr << ui::Info() << "Entering directory `" << execution.options_.working_dir << "'" << std::endl;
     if (chdir(execution.options_.working_dir) < 0) {
       std::cerr << ui::Error() << "chdir to '" << execution.options_.working_dir << "' - " << strerror(errno) << std::endl;
@@ -249,10 +186,10 @@ NORETURN void Execute(int argc, char** argv) {
     }
   }
 
-  if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_FLAGS) {
+  if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
     // by other tools.
-    exit((execution.tool_->func)(&execution, argc, argv));
+    exit((execution.options_.tool_->func)(&execution, argc, argv));
   }
 
   Status* status = new StatusPrinter(execution.config_);
@@ -275,8 +212,8 @@ NORETURN void Execute(int argc, char** argv) {
       exit(1);
     }
 
-    if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_LOAD)
-      exit((execution.tool_->func)(&execution, argc, argv));
+    if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_LOAD)
+      exit((execution.options_.tool_->func)(&execution, argc, argv));
 
     if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config_, &err))
       exit(1);
@@ -292,8 +229,8 @@ NORETURN void Execute(int argc, char** argv) {
       err.clear();
     }
 
-    if (execution.tool_ && execution.tool_->when == Tool::RUN_AFTER_LOGS)
-      exit((execution.tool_->func)(&execution, argc, argv));
+    if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_LOGS)
+      exit((execution.options_.tool_->func)(&execution, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
     if (RebuildManifest(&execution, execution.options_.input_file, &err, status)) {
@@ -333,8 +270,7 @@ void ExitNow() {
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
-              Execution* execution) {
-  execution->config_.parallelism = GuessParallelism();
+              Execution::Options* options) {
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -345,7 +281,7 @@ int ReadFlags(int* argc, char*** argv,
   };
 
   int opt;
-  while (!execution->tool_ &&
+  while (!options->tool_ &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -354,7 +290,7 @@ int ReadFlags(int* argc, char*** argv,
           return 1;
         break;
       case 'f':
-        execution->options_.input_file = optarg;
+        options->input_file = optarg;
         break;
       case 'j': {
         char* end;
@@ -366,7 +302,7 @@ int ReadFlags(int* argc, char*** argv,
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
-        execution->config_.parallelism = value > 0 ? value : INT_MAX;
+        options->parallelism = value > 0 ? value : INT_MAX;
         break;
       }
       case 'k': {
@@ -380,7 +316,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        execution->config_.failures_allowed = value > 0 ? value : INT_MAX;
+        options->failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'l': {
@@ -390,33 +326,40 @@ int ReadFlags(int* argc, char*** argv,
           std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
           ui::ExitNow();
         }
-        execution->config_.max_load_average = value;
+        options->max_load_average = value;
         break;
       }
       case 'n':
-        execution->config_.dry_run = true;
+        options->dry_run = true;
         break;
       case 't':
-        execution->tool_ = ui::ChooseTool(optarg);
-        if (!execution->tool_)
-          return 0;
+        options->tool_ = tool::Choose(optarg);
+        if(options->tool_ == NULL) {
+          const char* suggestion = GetToolNameSuggestion(optarg);
+          std::cerr << "unknown tool '" << optarg << "'";
+          if (suggestion) {
+            std::cerr << ", did you mean '" << suggestion << "'?";
+          }
+          std::cerr << std::endl;
+          return 1;
+        }
         break;
       case 'v':
-        execution->config_.verbosity = BuildConfig::VERBOSE;
+        options->verbose = true;
         break;
       case 'w':
-        if (!WarningEnable(optarg, &execution->options_))
+        if (!WarningEnable(optarg, options))
           return 1;
         break;
       case 'C':
-        execution->options_.working_dir = optarg;
+        options->working_dir = optarg;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
       case 'h':
       default:
-        ui::Usage(execution->config_);
+        ui::Usage(options);
         return 1;
     }
   }
@@ -426,7 +369,14 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
-void Usage(const BuildConfig& config) {
+// Get a suggested tool name given a name that is supposed
+// to be like a tool.
+const char* GetToolNameSuggestion(const std::string& tool_name) {
+  std::vector<const char*> words = tool::AllNames();
+  return SpellcheckStringV(tool_name, words);
+}
+
+void Usage(const Execution::Options* options) {
   fprintf(stderr,
 "usage: ninja [options] [targets...]\n"
 "\n"
@@ -448,7 +398,7 @@ void Usage(const BuildConfig& config) {
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
 "  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
-          kNinjaVersion, config.parallelism);
+          kNinjaVersion, options->parallelism);
 }
 
 }  // namespace ui

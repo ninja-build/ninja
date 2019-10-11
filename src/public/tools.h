@@ -18,10 +18,10 @@
 #include <vector>
 
 #include "public/build_config.h"
-#include "public/execution.h"
 
 namespace ninja {
 
+class Execution;
 class Node;
 class RealDiskInterface;
 class Status;
@@ -90,12 +90,22 @@ bool RebuildManifest(Execution* execution, const char* input_file, std::string* 
 int RunBuild(Execution* execution, int argc, char** argv, Status* status);
 
 namespace tool {
+// Get the names of all valid tools
+std::vector<const char*> AllNames();
+
+// Get a tool reference by name
+const Tool* Choose(const std::string& name);
+
+// Get the default tool that ninja uses to build
+const Tool* Default();
+
 int Browse(Execution* execution, int argc, char* argv[]);
 int Clean(Execution* execution, int argc, char* argv[]);
 int Commands(Execution* execution, int argc, char* argv[]);
 int CompilationDatabase(Execution* execution, int argc, char* argv[]);
 int Deps(Execution* execution, int argc, char* argv[]);
 int Graph(Execution* execution, int argc, char* argv[]);
+int List(Execution* execution, int argc, char* argv[]);
 int Query(Execution* execution, int argc, char* argv[]);
 int Recompact(Execution* execution, int argc, char* argv[]);
 int Rules(Execution* execution, int argc, char* argv[]);

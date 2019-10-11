@@ -53,10 +53,14 @@ void ExitNow();
 
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv, Execution* execution);
+int ReadFlags(int* argc, char*** argv, Execution::Options* options);
+
+// Get a suggested tool name given a name that is supposed
+// to be like a tool.
+const char* GetToolNameSuggestion(const std::string& tool_name);
 
 /// Print usage information.
-void Usage(const BuildConfig& config);
+void Usage(const Execution::Options* options);
 
 }  // namespace ui
 }  // namespace ninja

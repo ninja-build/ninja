@@ -20,19 +20,42 @@
 #include "state.h"
 
 namespace ninja {
+namespace {
 
+/// Choose a default value for the parallelism flag.
+int GuessParallelism() {
+  switch (int processors = GetProcessorCount()) {
+  case 0:
+  case 1:
+    return 2;
+  case 2:
+    return 3;
+  default:
+    return processors + 2;
+  }
+}
+
+}  // namespace
 Execution::Execution() : Execution(Options()) {}
 
 Execution::Execution(Options options) :
   options_(options),
   state_(new State()) {}
 
-Execution::Options::Options() :
-  input_file("build.ninja"),
-  working_dir(NULL),
-  dupe_edges_should_err(true),
-  phony_cycle_should_err(false),
-  depfile_distinct_target_lines_should_err(false) {}
+Execution::Options::Options() : Options(NULL) {}
+Execution::Options::Options(const Tool* tool) :
+      depfile_distinct_target_lines_should_err(false),
+      dry_run(false),
+      dupe_edges_should_err(true),
+      failures_allowed(1),
+      input_file("build.ninja"),
+      max_load_average(-0.0f),
+      parallelism(GuessParallelism()),
+      phony_cycle_should_err(false),
+      tool_(tool),
+      verbose(false),
+      working_dir(NULL)
+      {}
 
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;

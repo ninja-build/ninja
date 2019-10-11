@@ -15,6 +15,7 @@
 #define NINJA_PUBLIC_EXECUTION_H_
 
 #include "public/build_config.h"
+#include "public/tools.h"
 
 namespace ninja {
 
@@ -27,25 +28,47 @@ struct Tool;
 /// that ninja perform some work.
 class Execution {
 public:
+
   /// Command-line options.
   struct Options {
     Options();
+    Options(const Tool* tool);
 
-    /// Build file to load.
-    const char* input_file;
-  
-    /// Directory to change into before running.
-    const char* working_dir;
-  
-    /// Whether duplicate rules for one target should warn or print an error.
-    bool dupe_edges_should_err;
-  
-    /// Whether phony cycles should warn or print an error.
-    bool phony_cycle_should_err;
-  
     /// Whether a depfile with multiple targets on separate lines should
     /// warn or print an error.
     bool depfile_distinct_target_lines_should_err;
+
+    /// Whether or not this is a dry-run. IE, it should just
+    /// show what would be performed without taking any action.
+    bool dry_run;
+
+    /// Whether duplicate rules for one target should warn or print an error.
+    bool dupe_edges_should_err;
+ 
+    /// The number of failures allowed before terminating the build.
+    int failures_allowed;
+
+    /// Build file to load.
+    const char* input_file;
+ 
+    /// The maximum load to allow.
+    float max_load_average;
+
+    /// The level of parallelism to use during the build
+    int parallelism;
+ 
+    /// Whether phony cycles should warn or print an error.
+    bool phony_cycle_should_err;
+  
+    /// The tool to use
+    const Tool* tool_;
+
+    /// True to include verbose logging. Default is false.
+    bool verbose;
+
+    /// Directory to change into before running.
+    const char* working_dir;
+  
   };
 
   Execution();
@@ -65,7 +88,6 @@ public:
 
   Options options_;
   State* state_;
-  const Tool* tool_;
 };
 
 }  // namespace ninja
