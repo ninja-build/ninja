@@ -11,7 +11,10 @@ const char kLogWarning[] = "ninja: warning: ";
 
 void LoggerBasic::OnMessage(Logger::Level level, const std::string& message) {
     const char* prefix = kLogError;
-    if(level == Logger::Level::WARNING) {
+    if(level == Logger::Level::INFO) {
+      prefix = kLogInfo;
+    }
+    else if(level == Logger::Level::WARNING) {
       prefix = kLogWarning;
     }
     std::cerr << prefix << message << std::endl;

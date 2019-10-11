@@ -22,7 +22,8 @@ class Logger {
 public:
   enum Level {
     ERROR = 0,
-    WARNING = 1
+    WARNING = 1,
+    INFO = 2
   };
 
   virtual void OnMessage(Level level, const std::string& message) = 0;
