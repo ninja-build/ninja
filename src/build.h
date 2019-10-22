@@ -240,7 +240,7 @@ struct Builder {
 struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
+  void BuildEdgeStarted(const Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
   void BuildLoadDyndeps();
@@ -261,7 +261,7 @@ struct BuildStatus {
                               EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
+  void PrintStatus(const Edge* edge, EdgeStatus status);
 
   const BuildConfig& config_;
 
