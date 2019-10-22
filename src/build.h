@@ -271,7 +271,7 @@ struct BuildStatus {
   int started_edges_, finished_edges_, total_edges_;
 
   /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
+  typedef map<const Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Prints progress output.
