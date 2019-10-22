@@ -46,7 +46,7 @@ struct Plan {
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
   /// fill in |err| with an error message if there's a problem.
-  bool AddTarget(Node* node, string* err);
+  bool AddTarget(const Node* node, string* err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns NULL if there's no work to do.
@@ -56,7 +56,7 @@ struct Plan {
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
   /// Dumps the current state of the plan.
-  void Dump();
+  void Dump() const;
 
   enum EdgeResult {
     kEdgeFailed,
@@ -81,12 +81,12 @@ struct Plan {
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
-  bool DyndepsLoaded(DependencyScan* scan, Node* node,
+  bool DyndepsLoaded(DependencyScan* scan, const Node* node,
                      const DyndepFile& ddf, string* err);
 private:
-  bool RefreshDyndepDependents(DependencyScan* scan, Node* node, string* err);
-  void UnmarkDependents(Node* node, set<Node*>* dependents);
-  bool AddSubTarget(Node* node, Node* dependent, string* err,
+  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, string* err);
+  void UnmarkDependents(const Node* node, set<Node*>* dependents);
+  bool AddSubTarget(const Node* node, const Node* dependent, string* err,
                     set<Edge*>* dyndep_walk);
 
   /// Update plan with knowledge that the given node is up to date.

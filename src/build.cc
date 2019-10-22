@@ -319,11 +319,11 @@ void Plan::Reset() {
   want_.clear();
 }
 
-bool Plan::AddTarget(Node* node, string* err) {
+bool Plan::AddTarget(const Node* node, string* err) {
   return AddSubTarget(node, NULL, err, NULL);
 }
 
-bool Plan::AddSubTarget(Node* node, Node* dependent, string* err,
+bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
                         set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
@@ -533,7 +533,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   return true;
 }
 
-bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
+bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
                          const DyndepFile& ddf, string* err) {
   // Recompute the dirty state of all our direct and indirect dependents now
   // that our dyndep information has been loaded.
@@ -601,7 +601,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
   return true;
 }
 
-bool Plan::RefreshDyndepDependents(DependencyScan* scan, Node* node,
+bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
                                    string* err) {
   // Collect the transitive closure of dependents and mark their edges
   // as not yet visited by RecomputeDirty.
@@ -635,7 +635,7 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, Node* node,
   return true;
 }
 
-void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
+void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
     Edge* edge = *oe;
@@ -655,9 +655,9 @@ void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
   }
 }
 
-void Plan::Dump() {
+void Plan::Dump() const {
   printf("pending: %d\n", (int)want_.size());
-  for (map<Edge*, Want>::iterator e = want_.begin(); e != want_.end(); ++e) {
+  for (map<Edge*, Want>::const_iterator e = want_.begin(); e != want_.end(); ++e) {
     if (e->second != kWantNothing)
       printf("want ");
     e->first->Dump();
