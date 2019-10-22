@@ -222,8 +222,8 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   return true;
 }
 
-bool DependencyScan::RecomputeOutputDirty(Edge* edge,
-                                          Node* most_recent_input,
+bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
+                                          const Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
