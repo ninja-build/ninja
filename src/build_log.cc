@@ -51,7 +51,7 @@ namespace {
 const char kFileSignature[] = "# ninja log v%d\n";
 const char kFileColumnLabels[] = "# start_time end_time mtime command hash\n";
 const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kCurrentVersion = 6;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
