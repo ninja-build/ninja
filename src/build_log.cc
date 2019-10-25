@@ -384,7 +384,8 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     return false;
   }
 
-  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
+  if (fprintf(f, kFileSignature, kCurrentVersion) < 0 ||
+      fprintf(f, kFileColumnLabels) < 0) {
     *err = strerror(errno);
     fclose(f);
     return false;
