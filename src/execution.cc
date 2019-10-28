@@ -14,10 +14,26 @@
 
 #include "public/execution.h"
 
+#ifdef _WIN32
+#include "getopt.h"
+#elif defined(_AIX)
+#include "getopt.h"
+#else
+#include <getopt.h>
+#endif
 #include <stdio.h>
 
+#include "public/ui.h"
+
+#include "browse.h"
+#include "clean.h"
+#include "debug_flags.h"
+#include "deps_log.h"
+#include "graphviz.h"
+#include "manifest_parser.h"
 #include "metrics.h"
 #include "state.h"
+#include "status.h"
 
 namespace ninja {
 namespace {
@@ -39,9 +55,9 @@ int GuessParallelism() {
 Execution::Execution() : Execution(NULL, Options()) {}
 
 Execution::Execution(const char* ninja_command, Options options) :
-  state_(new State()),
   ninja_command_(ninja_command),
-  options_(options) {
+  options_(options),
+  state_(new State()) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
   // N failures and then stop.  For N <= 0, INT_MAX is close enough
@@ -94,5 +110,372 @@ const BuildConfig& Execution::config() const {
 const Execution::Options& Execution::options() const {
   return options_;
 }
+
+void Execution::LogError(const std::string& message) {
+  state_->Log(Logger::Level::ERROR, message);
+}
+void Execution::LogWarning(const std::string& message) {
+  state_->Log(Logger::Level::WARNING, message);
+}
+
+/// Rebuild the build manifest, if necessary.
+/// Returns true if the manifest was rebuilt.
+bool Execution::RebuildManifest(const char* input_file, string* err,
+                                Status* status) {
+  string path = input_file;
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  if (!CanonicalizePath(&path, &slash_bits, err))
+    return false;
+  Node* node = state_->LookupNode(path);
+  if (!node)
+    return false;
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status, state_->start_time_millis_);
+  if (!builder.AddTarget(node, err))
+    return false;
+
+  if (builder.AlreadyUpToDate())
+    return false;  // Not an error, but we didn't rebuild.
+
+  if (!builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  if (!node->dirty()) {
+    // Reset the state to prevent problems like
+    // https://github.com/ninja-build/ninja/issues/874
+    state_->Reset();
+    return false;
+  }
+
+  return true;
+}
+
+int Execution::Browse(int argc, char* argv[]) {
+  if(ninja_command_) {
+    RunBrowsePython(state_, ninja_command_, options_.input_file, argc, argv);
+  } else {
+    state_->Log(Logger::Level::ERROR, "You must specify the 'ninja_command' parameter  in your execution to browse.");
+  }
+  // If we get here, the browse failed.
+  return 1;
+}
+
+int Execution::Clean(int argc, char* argv[]) {
+  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "clean".
+  argc++;
+  argv--;
+
+  bool generator = false;
+  bool clean_rules = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("hgr"))) != -1) {
+    switch (opt) {
+    case 'g':
+      generator = true;
+      break;
+    case 'r':
+      clean_rules = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t clean [options] [targets]\n"
+"\n"
+"options:\n"
+"  -g     also clean files marked as ninja generator output\n"
+"  -r     interpret targets as a list of rules to clean instead\n"
+             );
+    return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  if (clean_rules && argc == 0) {
+    LogError("expected a rule to clean");
+    return 1;
+  }
+
+  Cleaner cleaner(state_, config_, state_->disk_interface_);
+  if (argc >= 1) {
+    if (clean_rules)
+      return cleaner.CleanRules(argc, argv);
+    else
+      return cleaner.CleanTargets(argc, argv);
+  } else {
+    return cleaner.CleanAll(generator);
+  }
+}
+
+int Execution::Graph(int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!ui::CollectTargetsFromArgs(state_, argc, argv, &nodes, &err)) {
+    state_->Log(Logger::Level::ERROR, err);
+    return 1;
+  }
+
+  GraphViz graph(state_, state_->disk_interface_);
+  graph.Start();
+  for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
+    graph.AddTarget(*n);
+  graph.Finish();
+
+  return 0;
+}
+
+int Execution::Query(int argc, char* argv[]) {
+  if (argc == 0) {
+    state_->Log(Logger::Level::ERROR, "expected a target to query");
+    return 1;
+  }
+
+  DyndepLoader dyndep_loader(state_, state_->disk_interface_);
+
+  for (int i = 0; i < argc; ++i) {
+    string err;
+    Node* node = ui::CollectTarget(state_, argv[i], &err);
+    if (!node) {
+      state_->Log(Logger::Level::ERROR, err);
+      return 1;
+    }
+
+    printf("%s:\n", node->path().c_str());
+    if (Edge* edge = node->in_edge()) {
+      if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
+          state_->Log(Logger::Level::WARNING, err);
+        }
+      }
+      printf("  input: %s\n", edge->rule_->name().c_str());
+      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+        const char* label = "";
+        if (edge->is_implicit(in))
+          label = "| ";
+        else if (edge->is_order_only(in))
+          label = "|| ";
+        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+      }
+    }
+    printf("  outputs:\n");
+    for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+         edge != node->out_edges().end(); ++edge) {
+      for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+           out != (*edge)->outputs_.end(); ++out) {
+        printf("    %s\n", (*out)->path().c_str());
+      }
+    }
+  }
+  return 0;
+}
+int Execution::Recompact() {
+  string err;
+  if (!EnsureBuildDirExists(&err)) {
+    state_->Log(Logger::Level::ERROR, err);
+    return 1;
+  }
+
+  if (!OpenBuildLog(true, &err) ||
+      !OpenDepsLog(true, &err)) {
+    state_->Log(Logger::Level::ERROR, err);
+    return 1;
+  }
+
+  // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
+  if(!err.empty()) {
+    state_->Log(Logger::Level::WARNING, err);
+    err.clear();
+  }
+
+  return 0;
+}
+
+int Execution::Run(int argc, char* argv[]) {
+  Status* status = new StatusPrinter(config_);
+
+  // Limit number of rebuilds, to prevent infinite loops.
+  const int kCycleLimit = 100;
+  for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
+
+    ManifestParserOptions parser_opts;
+    if (options_.dupe_edges_should_err) {
+      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    }
+    if (options_.phony_cycle_should_err) {
+      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+    }
+    ManifestParser parser(state_, DiskInterface(), parser_opts);
+    string err;
+    if (!parser.Load(options_.input_file, &err)) {
+      status->Error("%s", err.c_str());
+      return 1;
+    }
+
+    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOAD)
+      return (options_.tool_->func)(this, argc, argv);
+
+    if (!EnsureBuildDirExists(&err))
+      return 1;
+
+    if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
+      LogError(err);
+      return 1;
+    }
+
+    // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
+    if(!err.empty()) {
+      LogWarning(err);
+      err.clear();
+    }
+
+    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOGS)
+      return (options_.tool_->func)(this, argc, argv);
+
+    // Attempt to rebuild the manifest before building anything else
+    if (RebuildManifest(options_.input_file, &err, status)) {
+      // In dry_run mode the regeneration will succeed without changing the
+      // manifest forever. Better to return immediately.
+      if (config_.dry_run)
+        return 0;
+      // Start the build over with the new manifest.
+      continue;
+    } else if (!err.empty()) {
+      status->Error("rebuilding '%s': %s", options_.input_file, err.c_str());
+      return 1;
+    }
+
+    int result = RunBuild(argc, argv, status);
+    if (g_metrics)
+      DumpMetrics();
+    return result;
+  }
+
+  status->Error("manifest '%s' still dirty after %d tries",
+      options_.input_file, kCycleLimit);
+  return 1;
+}
+
+const State* Execution::state() const {
+  return state_;
+}
+
+bool Execution::EnsureBuildDirExists(std::string* err) {
+  std::string build_dir = state_->bindings_.LookupVariable("builddir");
+  if (!build_dir.empty() && !config_.dry_run) {
+    if (!DiskInterface()->MakeDirs(build_dir + "/.") && errno != EEXIST) {
+      *err = "creating build directory " + build_dir + ": " + strerror(errno);
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
+  /// The build directory, used for storing the build log etc.
+  std::string build_dir = state_->bindings_.LookupVariable("builddir");
+  string log_path = ".ninja_log";
+  if (!build_dir.empty())
+    log_path = build_dir + "/" + log_path;
+
+  if (!state_->build_log_->Load(log_path, err)) {
+    *err = "loading build log " + log_path + ": " + *err;
+    return false;
+  }
+
+  if (recompact_only) {
+    bool success = state_->build_log_->Recompact(log_path, *state_, err);
+    if (!success)
+      *err = "failed recompaction: " + *err;
+    return success;
+  }
+
+  if (!config_.dry_run) {
+    if (!state_->build_log_->OpenForWrite(log_path, *state_, err)) {
+      *err = "opening build log: " + *err;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/// Open the deps log: load it, then open for writing.
+/// @return false on error.
+bool Execution::OpenDepsLog(bool recompact_only, std::string* err) {
+  std::string build_dir = state_->bindings_.LookupVariable("builddir");
+  std::string path = ".ninja_deps";
+  if (!build_dir.empty())
+    path = build_dir + "/" + path;
+
+  if (!state_->deps_log_->Load(path, state_, err)) {
+    *err = "loading deps log " + path + ": " + *err;
+    return false;
+  }
+
+  if (recompact_only) {
+    bool success = state_->deps_log_->Recompact(path, err);
+    if (!success)
+      *err = "failed recompaction: " + *err;
+    return success;
+  }
+
+  if (!config_.dry_run) {
+    if (!state_->deps_log_->OpenForWrite(path, err)) {
+      *err = "opening deps log: " + *err;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+int Execution::RunBuild(int argc, char** argv, Status* status) {
+  string err;
+  vector<Node*> targets;
+  if (!ui::CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
+    status->Error("%s", err.c_str());
+    return 1;
+  }
+
+  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status, state_->start_time_millis_);
+  for (size_t i = 0; i < targets.size(); ++i) {
+    if (!builder.AddTarget(targets[i], &err)) {
+      if (!err.empty()) {
+        status->Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  // Make sure restat rules do not see stale timestamps.
+  state_->disk_interface_->AllowStatCache(false);
+
+  if (builder.AlreadyUpToDate()) {
+    status->Info("no work to do.");
+    return 0;
+  }
+
+  if (!builder.Build(&err)) {
+    status->Info("build stopped: %s.", err.c_str());
+    if (err.find("interrupted by user") != string::npos) {
+      return 2;
+    }
+    return 1;
+  }
+
+  return 0;
+}
+
 
 }  // namespace ninja

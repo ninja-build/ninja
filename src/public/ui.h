@@ -31,16 +31,26 @@
 #define NORETURN __attribute__((noreturn))
 #endif
 
+#include <vector>
+
 namespace ninja {
+
+class Node;
+class State;
+
 namespace ui {
 
 const char* Error();
 const char* Info();
 const char* Warning();
 
-/// Find the function to execute for \a tool_name and return it via \a func.
-/// Returns a Tool, or NULL if Ninja should exit.
-const Tool* ChooseTool(const std::string& tool_name);
+/// Get the Node for a given command-line path, handling features like
+/// spell correction.
+Node* CollectTarget(const State* state, const char* cpath, std::string* err);
+
+/// CollectTarget for all command-line arguments, filling in \a targets.
+bool CollectTargetsFromArgs(const State* state, int argc, char* argv[],
+                            std::vector<Node*>* targets, std::string* err);
 
 /// Execute ninja as the main ninja binary would
 /// Does not return, prefering to exit() directly
@@ -58,6 +68,12 @@ int ReadFlags(int* argc, char*** argv, Execution::Options* options);
 // Get a suggested tool name given a name that is supposed
 // to be like a tool.
 const char* GetToolNameSuggestion(const std::string& tool_name);
+
+// Given a path to a node return the node that is
+// most likely a match for that path. This accounts
+// for users mispelling parts of the path and gives
+// the node nearest what the user requested.
+Node* SpellcheckNode(const State* state, const std::string& path);
 
 /// Print usage information.
 void Usage(const Execution::Options* options);

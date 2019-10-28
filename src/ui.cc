@@ -42,11 +42,11 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "debug_flags.h"
+#include "edit_distance.h"
 #include "disk_interface.h"
 #include "graph.h"
-#include "manifest_parser.h"
 #include "metrics.h"
-#include "status.h"
+#include "state.h"
 #include "util.h"
 
 
@@ -144,6 +144,71 @@ bool WarningEnable(const string& name, Execution::Options* options) {
 
 }  // namespace
 
+Node* CollectTarget(const State* state, const char* cpath, std::string* err) {
+  std::string path = cpath;
+  uint64_t slash_bits;
+  if (!CanonicalizePath(&path, &slash_bits, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!path.empty() && path[path.size() - 1] == '^') {
+    path.resize(path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(path);
+
+  if (!node) {
+    *err =
+        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = SpellcheckNode(state, path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+
+  if (!first_dependent) {
+    return node;
+  }
+
+  if (node->out_edges().empty()) {
+    *err = "'" + path + "' has no out edge";
+    return NULL;
+  }
+
+  Edge* edge = node->out_edges()[0];
+  if (edge->outputs_.empty()) {
+    edge->Dump();
+    *err = "edge has no outputs";
+    return NULL;
+  }
+  return edge->outputs_[0];
+}
+
+bool CollectTargetsFromArgs(const State* state, int argc, char* argv[],
+                            std::vector<Node*>* targets, std::string* err) {
+  if (argc == 0) {
+    *targets = state->DefaultNodes(err);
+    return err->empty();
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    Node* node = CollectTarget(state, argv[i], err);
+    if (node == NULL)
+      return false;
+    targets->push_back(node);
+  }
+  return true;
+}
+
 const char* Error() { return kLogError; }
 const char* Info() { return kLogInfo; }
 const char* Warning() { return kLogWarning; }
@@ -180,67 +245,8 @@ NORETURN void Execute(int argc, char** argv) {
     exit((execution.options().tool_->func)(&execution, argc, argv));
   }
 
-  Status* status = new StatusPrinter(execution.config());
-
-  // Limit number of rebuilds, to prevent infinite loops.
-  const int kCycleLimit = 100;
-  for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
-
-    ManifestParserOptions parser_opts;
-    if (execution.options().dupe_edges_should_err) {
-      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-    }
-    if (execution.options().phony_cycle_should_err) {
-      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
-    }
-    ManifestParser parser(execution.state_, execution.DiskInterface(), parser_opts);
-    string err;
-    if (!parser.Load(execution.options().input_file, &err)) {
-      status->Error("%s", err.c_str());
-      exit(1);
-    }
-
-    if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_LOAD)
-      exit((execution.options().tool_->func)(&execution, argc, argv));
-
-    if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config(), &err))
-      exit(1);
-
-    if (!OpenBuildLog(&execution, execution.config(), false, &err) || !OpenDepsLog(&execution, execution.config(), false, &err)) {
-      std::cerr << ui::Error() << err << std::endl;
-      exit(1);
-    }
-
-    // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
-    if(!err.empty()) {
-      std::cerr << ui::Warning() << err << std::endl;
-      err.clear();
-    }
-
-    if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_LOGS)
-      exit((execution.options().tool_->func)(&execution, argc, argv));
-
-    // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(&execution, execution.options().input_file, &err, status)) {
-      // In dry_run mode the regeneration will succeed without changing the
-      // manifest forever. Better to return immediately.
-      if (execution.config().dry_run)
-        exit(0);
-      // Start the build over with the new manifest.
-      continue;
-    } else if (!err.empty()) {
-      status->Error("rebuilding '%s': %s", execution.options().input_file, err.c_str());
-      exit(1);
-    }
-
-    int result = RunBuild(&execution, argc, argv, status);
-    if (g_metrics)
-      execution.DumpMetrics();
-    exit(result);
-  }
-
-  status->Error("manifest '%s' still dirty after %d tries",
-      execution.options().input_file, kCycleLimit);
+  exit(execution.Run(argc, argv));
+  // never reached
   exit(1);
 }
 void ExitNow() {
@@ -362,6 +368,23 @@ int ReadFlags(int* argc, char*** argv,
 const char* GetToolNameSuggestion(const std::string& tool_name) {
   std::vector<const char*> words = tool::AllNames();
   return SpellcheckStringV(tool_name, words);
+}
+
+Node* SpellcheckNode(const State* state, const std::string& path) {
+  const bool kAllowReplacements = true;
+  const int kMaxValidEditDistance = 3;
+
+  int min_distance = kMaxValidEditDistance + 1;
+  Node* result = NULL;
+  for (State::Paths::const_iterator i = state->paths_.begin(); i != state->paths_.end(); ++i) {
+    int distance = EditDistance(
+        i->first, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && i->second) {
+      min_distance = distance;
+      result = i->second;
+    }
+  }
+  return result;
 }
 
 void Usage(const Execution::Options* options) {

@@ -88,6 +88,8 @@ public:
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
+  bool EnsureBuildDirExists(std::string* err);
+
   /// Get read-only access to command used to start this
   /// ninja execution.
   const char* command() const;
@@ -98,9 +100,39 @@ public:
   /// Get read-only access to the underlying options
   const Options& options() const;
 
-  State* state_;
+  /// Get read-only access to the underlying state.
+  const State* state() const;
 
-private:
+  /// Rebuild the manifest, if necessary.
+  /// Fills in \a err on error.
+  /// @return true if the manifest was rebuilt.
+  bool RebuildManifest(const char* input_file, std::string* err, Status* status);
+  
+  /// Tools
+  int Browse(int argc, char* argv[]);
+  int Clean(int argc, char* argv[]);
+  int Graph(int argc, char* argv[]);
+  int Query(int argc, char* argv[]);
+  int Recompact();
+
+  /// Main entrypoint for the execution
+  int Run(int argc, char* argv[]);
+protected:
+  void LogError(const std::string& message);
+  void LogWarning(const std::string& message);
+
+  /// Open the build log.
+  /// @return false on error.
+  bool OpenBuildLog(bool recompact_only, std::string* err);
+  
+  /// Open the deps log: load it, then open for writing.
+  /// @return false on error.
+  bool OpenDepsLog(bool recompact_only, std::string* err);
+  
+  /// Build the targets listed on the command line.
+  /// @return an exit code.
+  int RunBuild(int argc, char** argv, Status* status);
+  
   // The command used to run ninja.
   const char* ninja_command_;
 
@@ -110,6 +142,9 @@ private:
   /// The options provided to this execution when it is built
   /// that control most of the execution's behavior.
   Options options_;
+
+  /// The current state of the build.
+  State* state_;
 };
 
 }  // namespace ninja
