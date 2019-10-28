@@ -156,10 +156,8 @@ NORETURN void Execute(int argc, char** argv) {
   if (exit_code >= 0)
     exit(exit_code);
 
-  ninja::Execution execution(options);
-
   const char* ninja_command = argv[0];
-  execution.ninja_command_ = ninja_command;
+  ninja::Execution execution(ninja_command, options);
 
 
   if (execution.options().working_dir) {

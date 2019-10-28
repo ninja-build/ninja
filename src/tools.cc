@@ -466,10 +466,10 @@ int RunBuild(Execution* execution, int argc, char** argv, Status* status) {
 namespace tool {
 #if defined(NINJA_HAVE_BROWSE)
 int Browse(Execution* execution, int argc, char* argv[]) {
-  if(execution->ninja_command_) {
-    RunBrowsePython(execution->state_, execution->ninja_command_, execution->options().input_file, argc, argv);
+  if(execution->command()) {
+    RunBrowsePython(execution->state_, execution->command(), execution->options().input_file, argc, argv);
   } else {
-    execution->state_->Log(Logger::Level::ERROR, "You must specify ninja_command_ in your execution to browse.");
+    execution->state_->Log(Logger::Level::ERROR, "You must specify the 'ninja_command' parameter  in your execution to browse.");
   }
   // If we get here, the browse failed.
   return 1;

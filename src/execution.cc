@@ -36,10 +36,11 @@ int GuessParallelism() {
 }
 
 }  // namespace
-Execution::Execution() : Execution(Options()) {}
+Execution::Execution() : Execution(NULL, Options()) {}
 
-Execution::Execution(Options options) :
+Execution::Execution(const char* ninja_command, Options options) :
   state_(new State()),
+  ninja_command_(ninja_command),
   options_(options) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
@@ -80,6 +81,10 @@ void Execution::DumpMetrics() {
   int buckets = (int)state_->paths_.bucket_count();
   printf("path->node hash load %.2f (%d entries / %d buckets)\n",
          count / (double) buckets, count, buckets);
+}
+
+const char* Execution::command() const {
+  return ninja_command_;
 }
 
 const BuildConfig& Execution::config() const {

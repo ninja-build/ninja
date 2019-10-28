@@ -71,8 +71,16 @@ public:
   
   };
 
+  /// Default constructor. This should be used primarily
+  /// by tests as the defaults it provides are quite poor.
   Execution();
-  Execution(Options options);
+
+  /// Construct a new ninja execution. The first parameter,
+  /// ninja_command should be a string that could be provided
+  /// to the operating system in order to run ninja itself.
+  /// This is used for some sub-commands of ninja that need to
+  /// start a new ninja subprocess.
+  Execution(const char* ninja_command, Options options);
 
   /// Get access to the underlying disk interface
   RealDiskInterface* DiskInterface();
@@ -80,18 +88,22 @@ public:
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
+  /// Get read-only access to command used to start this
+  /// ninja execution.
+  const char* command() const;
+
   /// Get read-only access to underlying build config
   const BuildConfig& config() const;
 
   /// Get read-only access to the underlying options
   const Options& options() const;
 
-  // The command used to run ninja.
-  const char* ninja_command_;
-
   State* state_;
 
 private:
+  // The command used to run ninja.
+  const char* ninja_command_;
+
   /// Build configuration set from flags (e.g. parallelism).
   BuildConfig config_;
 
