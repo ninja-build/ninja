@@ -70,9 +70,8 @@ TEST_F(BuildLogTest, WriteRead) {
 }
 
 TEST_F(BuildLogTest, FirstWriteAddsSignature) {
-  const char kExpectedContent[] = "# ninja log vX\n"
-                                  "# start_time end_time mtime command hash\n";
-  const size_t kVersionPos = 13;  // Points at 'X'.
+  const char kExpectedVersion[] = "# ninja log vX\n";
+  const size_t kVersionPos = strlen(kExpectedVersion) - 2;  // Points at 'X'.
 
   BuildLog log;
   string contents, err;
@@ -85,7 +84,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   ASSERT_EQ("", err);
   if (contents.size() >= kVersionPos)
     contents[kVersionPos] = 'X';
-  EXPECT_EQ(kExpectedContent, contents);
+  EXPECT_EQ(kExpectedVersion, contents);
 
   // Opening the file anew shouldn't add a second version string.
   EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
@@ -97,7 +96,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   ASSERT_EQ("", err);
   if (contents.size() >= kVersionPos)
     contents[kVersionPos] = 'X';
-  EXPECT_EQ(kExpectedContent, contents);
+  EXPECT_EQ(kExpectedVersion, contents);
 }
 
 TEST_F(BuildLogTest, DoubleEntry) {
