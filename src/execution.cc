@@ -40,7 +40,18 @@ Execution::Execution() : Execution(Options()) {}
 
 Execution::Execution(Options options) :
   options_(options),
-  state_(new State()) {}
+  state_(new State()) {
+  config_.parallelism = options_.parallelism;
+  // We want to go until N jobs fail, which means we should allow
+  // N failures and then stop.  For N <= 0, INT_MAX is close enough
+  // to infinite for most sane builds.
+  config_.failures_allowed = options_.failures_allowed;
+  if (options_.depfile_distinct_target_lines_should_err) {
+    config_.depfile_parser_options.depfile_distinct_target_lines_action_ =
+        kDepfileDistinctTargetLinesActionError;
+  }
+
+}
 
 Execution::Options::Options() : Options(NULL) {}
 Execution::Options::Options(const Tool* tool) :
@@ -69,6 +80,10 @@ void Execution::DumpMetrics() {
   int buckets = (int)state_->paths_.bucket_count();
   printf("path->node hash load %.2f (%d entries / %d buckets)\n",
          count / (double) buckets, count, buckets);
+}
+
+const BuildConfig& Execution::config() const {
+  return config_;
 }
 
 

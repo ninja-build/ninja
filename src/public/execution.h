@@ -80,14 +80,19 @@ public:
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
-  /// Build configuration set from flags (e.g. parallelism).
-  BuildConfig config_;
+  /// Get read-only access to underlying build config
+  const BuildConfig& config() const;
 
   // The command used to run ninja.
   const char* ninja_command_;
 
   Options options_;
   State* state_;
+
+private:
+  /// Build configuration set from flags (e.g. parallelism).
+  BuildConfig config_;
+
 };
 
 }  // namespace ninja

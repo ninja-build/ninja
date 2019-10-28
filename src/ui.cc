@@ -162,16 +162,6 @@ NORETURN void Execute(int argc, char** argv) {
   execution.ninja_command_ = ninja_command;
 
 
-  execution.config_.parallelism = options.parallelism;
-  // We want to go until N jobs fail, which means we should allow
-  // N failures and then stop.  For N <= 0, INT_MAX is close enough
-  // to infinite for most sane builds.
-  execution.config_.failures_allowed = options.failures_allowed;
-  if (execution.options_.depfile_distinct_target_lines_should_err) {
-    execution.config_.depfile_parser_options.depfile_distinct_target_lines_action_ =
-        kDepfileDistinctTargetLinesActionError;
-  }
-
   if (execution.options_.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -192,7 +182,7 @@ NORETURN void Execute(int argc, char** argv) {
     exit((execution.options_.tool_->func)(&execution, argc, argv));
   }
 
-  Status* status = new StatusPrinter(execution.config_);
+  Status* status = new StatusPrinter(execution.config());
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
@@ -215,10 +205,10 @@ NORETURN void Execute(int argc, char** argv) {
     if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_LOAD)
       exit((execution.options_.tool_->func)(&execution, argc, argv));
 
-    if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config_, &err))
+    if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config(), &err))
       exit(1);
 
-    if (!OpenBuildLog(&execution, execution.config_, false, &err) || !OpenDepsLog(&execution, execution.config_, false, &err)) {
+    if (!OpenBuildLog(&execution, execution.config(), false, &err) || !OpenDepsLog(&execution, execution.config(), false, &err)) {
       std::cerr << ui::Error() << err << std::endl;
       exit(1);
     }
@@ -236,7 +226,7 @@ NORETURN void Execute(int argc, char** argv) {
     if (RebuildManifest(&execution, execution.options_.input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
-      if (execution.config_.dry_run)
+      if (execution.config().dry_run)
         exit(0);
       // Start the build over with the new manifest.
       continue;
