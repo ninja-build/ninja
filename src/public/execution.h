@@ -83,16 +83,21 @@ public:
   /// Get read-only access to underlying build config
   const BuildConfig& config() const;
 
+  /// Get read-only access to the underlying options
+  const Options& options() const;
+
   // The command used to run ninja.
   const char* ninja_command_;
 
-  Options options_;
   State* state_;
 
 private:
   /// Build configuration set from flags (e.g. parallelism).
   BuildConfig config_;
 
+  /// The options provided to this execution when it is built
+  /// that control most of the execution's behavior.
+  Options options_;
 };
 
 }  // namespace ninja

@@ -162,24 +162,24 @@ NORETURN void Execute(int argc, char** argv) {
   execution.ninja_command_ = ninja_command;
 
 
-  if (execution.options_.working_dir) {
+  if (execution.options().working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!execution.options_.tool_)
-      std::cerr << ui::Info() << "Entering directory `" << execution.options_.working_dir << "'" << std::endl;
-    if (chdir(execution.options_.working_dir) < 0) {
-      std::cerr << ui::Error() << "chdir to '" << execution.options_.working_dir << "' - " << strerror(errno) << std::endl;
+    if (!execution.options().tool_)
+      std::cerr << ui::Info() << "Entering directory `" << execution.options().working_dir << "'" << std::endl;
+    if (chdir(execution.options().working_dir) < 0) {
+      std::cerr << ui::Error() << "chdir to '" << execution.options().working_dir << "' - " << strerror(errno) << std::endl;
       exit(1);
     }
   }
 
-  if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_FLAGS) {
+  if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
     // by other tools.
-    exit((execution.options_.tool_->func)(&execution, argc, argv));
+    exit((execution.options().tool_->func)(&execution, argc, argv));
   }
 
   Status* status = new StatusPrinter(execution.config());
@@ -189,21 +189,21 @@ NORETURN void Execute(int argc, char** argv) {
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
 
     ManifestParserOptions parser_opts;
-    if (execution.options_.dupe_edges_should_err) {
+    if (execution.options().dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
     }
-    if (execution.options_.phony_cycle_should_err) {
+    if (execution.options().phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
     ManifestParser parser(execution.state_, execution.DiskInterface(), parser_opts);
     string err;
-    if (!parser.Load(execution.options_.input_file, &err)) {
+    if (!parser.Load(execution.options().input_file, &err)) {
       status->Error("%s", err.c_str());
       exit(1);
     }
 
-    if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_LOAD)
-      exit((execution.options_.tool_->func)(&execution, argc, argv));
+    if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_LOAD)
+      exit((execution.options().tool_->func)(&execution, argc, argv));
 
     if (!EnsureBuildDirExists(&execution, execution.DiskInterface(), execution.config(), &err))
       exit(1);
@@ -219,11 +219,11 @@ NORETURN void Execute(int argc, char** argv) {
       err.clear();
     }
 
-    if (execution.options_.tool_ && execution.options_.tool_->when == Tool::RUN_AFTER_LOGS)
-      exit((execution.options_.tool_->func)(&execution, argc, argv));
+    if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_LOGS)
+      exit((execution.options().tool_->func)(&execution, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(&execution, execution.options_.input_file, &err, status)) {
+    if (RebuildManifest(&execution, execution.options().input_file, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (execution.config().dry_run)
@@ -231,7 +231,7 @@ NORETURN void Execute(int argc, char** argv) {
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      status->Error("rebuilding '%s': %s", execution.options_.input_file, err.c_str());
+      status->Error("rebuilding '%s': %s", execution.options().input_file, err.c_str());
       exit(1);
     }
 
@@ -242,7 +242,7 @@ NORETURN void Execute(int argc, char** argv) {
   }
 
   status->Error("manifest '%s' still dirty after %d tries",
-      execution.options_.input_file, kCycleLimit);
+      execution.options().input_file, kCycleLimit);
   exit(1);
 }
 void ExitNow() {

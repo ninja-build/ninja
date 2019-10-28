@@ -467,7 +467,7 @@ namespace tool {
 #if defined(NINJA_HAVE_BROWSE)
 int Browse(Execution* execution, int argc, char* argv[]) {
   if(execution->ninja_command_) {
-    RunBrowsePython(execution->state_, execution->ninja_command_, execution->options_.input_file, argc, argv);
+    RunBrowsePython(execution->state_, execution->ninja_command_, execution->options().input_file, argc, argv);
   } else {
     execution->state_->Log(Logger::Level::ERROR, "You must specify ninja_command_ in your execution to browse.");
   }

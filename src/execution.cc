@@ -39,8 +39,8 @@ int GuessParallelism() {
 Execution::Execution() : Execution(Options()) {}
 
 Execution::Execution(Options options) :
-  options_(options),
-  state_(new State()) {
+  state_(new State()),
+  options_(options) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
   // N failures and then stop.  For N <= 0, INT_MAX is close enough
@@ -86,5 +86,8 @@ const BuildConfig& Execution::config() const {
   return config_;
 }
 
+const Execution::Options& Execution::options() const {
+  return options_;
+}
 
 }  // namespace ninja
