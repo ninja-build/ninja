@@ -69,6 +69,10 @@ int ReadFlags(int* argc, char*** argv, Execution::Options* options);
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options);
 
+/// Parse targets from argv. Targets are used by several different tools.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadTargets(int* argc, char*** argv, Execution::Options* options);
+
 // Get a suggested tool name given a name that is supposed
 // to be like a tool.
 const char* GetToolNameSuggestion(const std::string& tool_name);

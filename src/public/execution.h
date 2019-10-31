@@ -42,9 +42,6 @@ public:
       /// built files excluding those created by generator rules.
       bool generator;
 
-      /// The list of targets to clean.
-      std::vector<std::string> targets;
-
       /// True to interpret "targets" as a list of rules instead
       /// of as a list of targets to clean.
       bool targets_are_rules;
@@ -82,6 +79,11 @@ public:
     /// Whether phony cycles should warn or print an error.
     bool phony_cycle_should_err;
   
+    /// The list of targets to apply the selected tool to. This
+    /// is not used by all tools, and so can reasonably default to
+    /// being an empty list.
+    std::vector<std::string> targets;
+
     /// The tool to use
     const Tool* tool_;
 
@@ -133,7 +135,7 @@ public:
   /// Tools
   int Browse(int argc, char* argv[]);
   int Clean();
-  int Graph(int argc, char* argv[]);
+  int Graph();
   int Query(int argc, char* argv[]);
   int Recompact();
 

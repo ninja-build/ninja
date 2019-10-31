@@ -407,7 +407,7 @@ int Deps(Execution* execution, int argc, char** argv) {
 }
 
 int Graph(Execution* execution, int argc, char* argv[]) {
-  return execution->Graph(argc, argv);
+  return execution->Graph();
 }
 
 int List(Execution* execution, int argc, char* argv[]) {

@@ -363,8 +363,12 @@ int ReadFlags(int* argc, char*** argv,
   // If we had a tool selection it should be the last
   // flag that we read. Now we can use it to parse any additional
   // flags that are specific to the tool.
-  if (optarg && (strcmp(optarg, "clean") == 0)) {
-    return ReadFlagsClean(argc, argv, options);
+  if (optarg) {
+    if (strcmp(optarg, "clean") == 0) {
+      return ReadFlagsClean(argc, argv, options);
+    } else if (strcmp(optarg, "graph") == 0) {
+      return ReadTargets(argc, argv, options);
+    }
   }
 
   return -1;
@@ -406,9 +410,13 @@ int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options) {
     return 1;
   }
 
+  return ReadTargets(argc, argv, options);
+}
+
+int ReadTargets(int* argc, char*** argv, Execution::Options* options) {
   if (*argc >= 1) {
     while(*argc) {
-      options->clean_options.targets.push_back(std::string(**argv));
+      options->targets.push_back(std::string(**argv));
       (*argc) -= 1;
       (*argv) += 1;
     }

@@ -51,7 +51,73 @@ int GuessParallelism() {
   }
 }
 
+Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
+  uint64_t slash_bits;
+  std::string canonical_path = path.c_str();
+  if (!CanonicalizePath(&canonical_path, &slash_bits, err))
+    return NULL;
+
+  // Special syntax: "foo.cc^" means "the first output of foo.cc".
+  bool first_dependent = false;
+  if (!canonical_path.empty() && canonical_path[canonical_path.size() - 1] == '^') {
+    canonical_path.resize(canonical_path.size() - 1);
+    first_dependent = true;
+  }
+
+  Node* node = state->LookupNode(canonical_path);
+
+  if (!node) {
+    *err =
+        "unknown target '" + path + "'";
+    if (path == "clean") {
+      *err += ", did you mean 'ninja -t clean'?";
+    } else if (path == "help") {
+      *err += ", did you mean 'ninja -h'?";
+    } else {
+      Node* suggestion = ui::SpellcheckNode(state, path);
+      if (suggestion) {
+        *err += ", did you mean '" + suggestion->path() + "'?";
+      }
+    }
+    return NULL;
+  }
+
+  if (!first_dependent) {
+    return node;
+  }
+
+  if (node->out_edges().empty()) {
+    *err = "'" + path + "' has no out edge";
+    return NULL;
+  }
+
+  Edge* edge = node->out_edges()[0];
+  if (edge->outputs_.empty()) {
+    edge->Dump();
+    *err = "edge has no outputs";
+    return NULL;
+  }
+  return edge->outputs_[0];
+}
+
+bool TargetNamesToNodes(const State* state, const std::vector<std::string>& names,
+                            std::vector<Node*>* targets, std::string* err) {
+  if (names.size() == 0) {
+    *targets = state->DefaultNodes(err);
+    return err->empty();
+  }
+
+  for (size_t i = 0; i < names.size(); ++i) {
+    Node* node = TargetNameToNode(state, names[i], err);
+    if (node == NULL)
+      return false;
+    targets->push_back(node);
+  }
+  return true;
+}
+
 }  // namespace
+
 Execution::Execution() : Execution(NULL, Options()) {}
 
 Execution::Execution(const char* ninja_command, Options options) :
@@ -170,18 +236,18 @@ int Execution::Browse(int argc, char* argv[]) {
 int Execution::Clean() {
   Cleaner cleaner(state_, config_, state_->disk_interface_);
   if (options_.clean_options.targets_are_rules) {
-    return cleaner.CleanRules(options_.clean_options.targets);
-  } else if(options_.clean_options.targets.size()) {
-    return cleaner.CleanTargets(options_.clean_options.targets);
+    return cleaner.CleanRules(options_.targets);
+  } else if(options_.targets.size()) {
+    return cleaner.CleanTargets(options_.targets);
   } else {
     return cleaner.CleanAll(options_.clean_options.generator);
   }
 }
 
-int Execution::Graph(int argc, char* argv[]) {
+int Execution::Graph() {
   vector<Node*> nodes;
   string err;
-  if (!ui::CollectTargetsFromArgs(state_, argc, argv, &nodes, &err)) {
+  if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
     state_->Log(Logger::Level::ERROR, err);
     return 1;
   }
