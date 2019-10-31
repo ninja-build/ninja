@@ -1,0 +1,55 @@
+name: Release Ninja Binaries
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            zip_name: ninja-linux
+          - os: macOS-latest
+            zip_name: ninja-mac
+          - os: windows-latest
+            zip_name: ninja-win
+
+    steps:
+    - uses: actions/checkout@v1
+      
+    # Install OS specific dependencies
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get install re2c
+    - name: Install macOS dependencies
+      if: matrix.os == 'macOS-latest'
+      run: brew install re2c p7zip cmake
+    - name: Install Windows dependencies
+      if: matrix.os == 'windows-latest'
+      run: choco install re2c
+        
+    - name: Build ninja
+      shell: bash
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --parallel --config Release --target ninja
+        
+    - name: Create artifact
+      shell: bash
+      env:
+        ZIP_NAME: ${{ matrix.zip_name }}
+      run: |
+        mkdir artifact
+        7z a artifact/${ZIP_NAME}.zip $(find ./build -name ninja -or -name ninja.exe)
+        
+    # Upload ninja binary archive as an artifact
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: ninja-binary-archives
+        path: artifact
+        
+        
