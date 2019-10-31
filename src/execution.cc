@@ -85,6 +85,10 @@ Execution::Options::Options(const Tool* tool) :
       working_dir(NULL)
       {}
 
+Execution::Options::Clean::Clean() :
+  generator(false),
+  targets_are_rules(false) {}
+
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;
 }
@@ -163,52 +167,14 @@ int Execution::Browse(int argc, char* argv[]) {
   return 1;
 }
 
-int Execution::Clean(int argc, char* argv[]) {
-  // The clean tool uses getopt, and expects argv[0] to contain the name of
-  // the tool, i.e. "clean".
-  argc++;
-  argv--;
-
-  bool generator = false;
-  bool clean_rules = false;
-
-  optind = 1;
-  int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hgr"))) != -1) {
-    switch (opt) {
-    case 'g':
-      generator = true;
-      break;
-    case 'r':
-      clean_rules = true;
-      break;
-    case 'h':
-    default:
-      printf("usage: ninja -t clean [options] [targets]\n"
-"\n"
-"options:\n"
-"  -g     also clean files marked as ninja generator output\n"
-"  -r     interpret targets as a list of rules to clean instead\n"
-             );
-    return 1;
-    }
-  }
-  argv += optind;
-  argc -= optind;
-
-  if (clean_rules && argc == 0) {
-    LogError("expected a rule to clean");
-    return 1;
-  }
-
+int Execution::Clean() {
   Cleaner cleaner(state_, config_, state_->disk_interface_);
-  if (argc >= 1) {
-    if (clean_rules)
-      return cleaner.CleanRules(argc, argv);
-    else
-      return cleaner.CleanTargets(argc, argv);
+  if (options_.clean_options.targets_are_rules) {
+    return cleaner.CleanRules(options_.clean_options.targets);
+  } else if(options_.clean_options.targets.size()) {
+    return cleaner.CleanTargets(options_.clean_options.targets);
   } else {
-    return cleaner.CleanAll(generator);
+    return cleaner.CleanAll(options_.clean_options.generator);
   }
 }
 

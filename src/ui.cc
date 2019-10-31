@@ -360,6 +360,59 @@ int ReadFlags(int* argc, char*** argv,
   *argv += optind;
   *argc -= optind;
 
+  // If we had a tool selection it should be the last
+  // flag that we read. Now we can use it to parse any additional
+  // flags that are specific to the tool.
+  if (optarg && (strcmp(optarg, "clean") == 0)) {
+    return ReadFlagsClean(argc, argv, options);
+  }
+
+  return -1;
+}
+
+int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options) {
+  // Step back argv to include 'clean' so that getopt will
+  // work correctly since it starts reading at position 1.
+  ++(*argc);
+  --(*argv);
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(*argc, *argv, const_cast<char*>("hgr"))) != -1) {
+    switch (opt) {
+    case 'g':
+      options->clean_options.generator = true;
+      break;
+    case 'r':
+      options->clean_options.targets_are_rules = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t clean [options] [targets]\n"
+"\n"
+"options:\n"
+"  -g     also clean files marked as ninja generator output\n"
+"  -r     interpret targets as a list of rules to clean instead\n"
+             );
+      return 1;
+    }
+  }
+
+  *argv += optind;
+  *argc -= optind;
+
+  if (options->clean_options.targets_are_rules && argc == 0) {
+    std::cerr << kLogError << "expected a rule to clean" << std::endl;
+    return 1;
+  }
+
+  if (*argc >= 1) {
+    while(*argc) {
+      options->clean_options.targets.push_back(std::string(**argv));
+      (*argc) -= 1;
+      (*argv) += 1;
+    }
+  }
   return -1;
 }
 

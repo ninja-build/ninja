@@ -171,11 +171,11 @@ int Cleaner::CleanTarget(const char* target) {
   return status_;
 }
 
-int Cleaner::CleanTargets(int target_count, char* targets[]) {
+int Cleaner::CleanTargets(const std::vector<std::string>& targets) {
   Reset();
   PrintHeader();
   LoadDyndeps();
-  for (int i = 0; i < target_count; ++i) {
+  for (size_t i = 0; i < targets.size(); ++i) {
     string target_name = targets[i];
     uint64_t slash_bits;
     string err;
@@ -238,21 +238,21 @@ int Cleaner::CleanRule(const char* rule) {
   return status_;
 }
 
-int Cleaner::CleanRules(int rule_count, char* rules[]) {
+int Cleaner::CleanRules(const std::vector<std::string>& rules) {
   assert(rules);
 
   Reset();
   PrintHeader();
   LoadDyndeps();
-  for (int i = 0; i < rule_count; ++i) {
-    const char* rule_name = rules[i];
+  for (size_t i = 0; i < rules.size(); ++i) {
+    std::string rule_name = rules[i];
     const Rule* rule = state_->bindings_.LookupRule(rule_name);
     if (rule) {
       if (IsVerbose())
-        printf("Rule %s\n", rule_name);
+        printf("Rule %s\n", rule_name.c_str());
       DoCleanRule(rule);
     } else {
-      Error("unknown rule '%s'", rule_name);
+      Error("unknown rule '%s'", rule_name.c_str());
       status_ = 1;
     }
   }

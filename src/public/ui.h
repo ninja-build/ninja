@@ -65,6 +65,10 @@ void ExitNow();
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv, Execution::Options* options);
 
+/// Parse argv for 'clean' tool.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options);
+
 // Get a suggested tool name given a name that is supposed
 // to be like a tool.
 const char* GetToolNameSuggestion(const std::string& tool_name);

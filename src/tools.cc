@@ -246,7 +246,7 @@ int Browse(Execution* execution, int, char**) {
 #endif
 
 int Clean(Execution* execution, int argc, char* argv[]) {
-  return execution->Clean(argc, argv);
+  return execution->Clean();
 }
 
 int Commands(Execution* execution, int argc, char* argv[]) {

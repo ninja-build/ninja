@@ -14,6 +14,9 @@
 #ifndef NINJA_PUBLIC_EXECUTION_H_
 #define NINJA_PUBLIC_EXECUTION_H_
 
+#include <string>
+#include <vector>
+
 #include "public/build_config.h"
 #include "public/tools.h"
 
@@ -31,8 +34,27 @@ public:
 
   /// Command-line options.
   struct Options {
+    /// Options for the 'clean' tool
+    struct Clean {
+      Clean();
+      /// True if we should clean all built files, including
+      /// those created by generator rules. False to clean all
+      /// built files excluding those created by generator rules.
+      bool generator;
+
+      /// The list of targets to clean.
+      std::vector<std::string> targets;
+
+      /// True to interpret "targets" as a list of rules instead
+      /// of as a list of targets to clean.
+      bool targets_are_rules;
+
+    };
     Options();
     Options(const Tool* tool);
+
+    /// Options to use when using the 'clean' tool.
+    Clean clean_options;
 
     /// Whether a depfile with multiple targets on separate lines should
     /// warn or print an error.
@@ -110,7 +132,7 @@ public:
   
   /// Tools
   int Browse(int argc, char* argv[]);
-  int Clean(int argc, char* argv[]);
+  int Clean();
   int Graph(int argc, char* argv[]);
   int Query(int argc, char* argv[]);
   int Recompact();

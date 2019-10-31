@@ -17,6 +17,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include "build.h"
 #include "dyndep.h"
@@ -43,7 +44,7 @@ struct Cleaner {
   int CleanTarget(const char* target);
   /// Clean the given target @a targets.
   /// @return non-zero if an error occurs.
-  int CleanTargets(int target_count, char* targets[]);
+  int CleanTargets(const std::vector<std::string>& targets);
 
   /// Clean all built files, except for files created by generator rules.
   /// @param generator If set, also clean files created by generator rules.
@@ -58,7 +59,7 @@ struct Cleaner {
   int CleanRule(const char* rule);
   /// Clean the file produced by the given @a rules.
   /// @return non-zero if an error occurs.
-  int CleanRules(int rule_count, char* rules[]);
+  int CleanRules(const std::vector<std::string>& rules);
 
   /// @return the number of file cleaned.
   int cleaned_files_count() const {
