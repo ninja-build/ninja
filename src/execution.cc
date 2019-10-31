@@ -248,7 +248,7 @@ int Execution::Graph() {
   vector<Node*> nodes;
   string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
-    state_->Log(Logger::Level::ERROR, err);
+    LogError(err);
     return 1;
   }
 
@@ -282,7 +282,7 @@ int Execution::Query() {
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
-          state_->Log(Logger::Level::WARNING, err);
+          LogWarning(err);
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
@@ -309,19 +309,19 @@ int Execution::Query() {
 int Execution::Recompact() {
   string err;
   if (!EnsureBuildDirExists(&err)) {
-    state_->Log(Logger::Level::ERROR, err);
+    LogError(err);
     return 1;
   }
 
   if (!OpenBuildLog(true, &err) ||
       !OpenDepsLog(true, &err)) {
-    state_->Log(Logger::Level::ERROR, err);
+    LogError(err);
     return 1;
   }
 
   // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
   if(!err.empty()) {
-    state_->Log(Logger::Level::WARNING, err);
+    LogWarning(err);
     err.clear();
   }
 
