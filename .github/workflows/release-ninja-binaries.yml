@@ -40,6 +40,10 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --parallel --config Release --target ninja
         
+    - name: Strip Linux binary
+      if: matrix.os == 'ubuntu-latest'
+      run: cd build && strip ninja
+        
     - name: Create ninja archive
       shell: bash
       env:
