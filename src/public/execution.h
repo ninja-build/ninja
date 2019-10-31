@@ -136,7 +136,7 @@ public:
   int Browse(int argc, char* argv[]);
   int Clean();
   int Graph();
-  int Query(int argc, char* argv[]);
+  int Query();
   int Recompact();
 
   /// Main entrypoint for the execution

@@ -368,6 +368,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadFlagsClean(argc, argv, options);
     } else if (strcmp(optarg, "graph") == 0) {
       return ReadTargets(argc, argv, options);
+    } else if (strcmp(optarg, "query") == 0) {
+      return ReadTargets(argc, argv, options);
     }
   }
 

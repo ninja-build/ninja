@@ -261,19 +261,20 @@ int Execution::Graph() {
   return 0;
 }
 
-int Execution::Query(int argc, char* argv[]) {
-  if (argc == 0) {
-    state_->Log(Logger::Level::ERROR, "expected a target to query");
+int Execution::Query() {
+  if (options_.targets.size() == 0) {
+    LogError("expected a target to query");
     return 1;
   }
 
   DyndepLoader dyndep_loader(state_, state_->disk_interface_);
 
-  for (int i = 0; i < argc; ++i) {
+  for (size_t i = 0; i < options_.targets.size(); ++i) {
     string err;
-    Node* node = ui::CollectTarget(state_, argv[i], &err);
+    std::string target_name = options_.targets[i];
+    Node* node = TargetNameToNode(state_, target_name, &err);
     if (!node) {
-      state_->Log(Logger::Level::ERROR, err);
+      LogError(err);
       return 1;
     }
 

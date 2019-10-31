@@ -423,7 +423,7 @@ int List(Execution* execution, int argc, char* argv[]) {
 }
 
 int Query(Execution* execution, int argc, char* argv[]) {
-  return execution->Query(argc, argv);
+  return execution->Query();
 }
 
 int Recompact(Execution* execution, int argc, char* argv[]) {
