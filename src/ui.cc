@@ -217,11 +217,11 @@ NORETURN void Execute(int argc, char** argv) {
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
   ninja::Execution::Options options;
+  const char* ninja_command = argv[0];
   int exit_code = ui::ReadFlags(&argc, &argv, &options);
   if (exit_code >= 0)
     exit(exit_code);
 
-  const char* ninja_command = argv[0];
   ninja::Execution execution(ninja_command, options);
 
 
