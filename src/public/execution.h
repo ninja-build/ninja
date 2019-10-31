@@ -14,10 +14,12 @@
 #ifndef NINJA_PUBLIC_EXECUTION_H_
 #define NINJA_PUBLIC_EXECUTION_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "public/build_config.h"
+#include "public/logger.h"
 #include "public/tools.h"
 
 namespace ninja {
@@ -105,6 +107,7 @@ public:
   /// This is used for some sub-commands of ninja that need to
   /// start a new ninja subprocess.
   Execution(const char* ninja_command, Options options);
+  Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
 
   /// Get access to the underlying disk interface
   RealDiskInterface* DiskInterface();
@@ -157,11 +160,11 @@ protected:
   /// @return an exit code.
   int RunBuild(int argc, char** argv, Status* status);
   
-  // The command used to run ninja.
-  const char* ninja_command_;
-
   /// Build configuration set from flags (e.g. parallelism).
   BuildConfig config_;
+
+  // The command used to run ninja.
+  const char* ninja_command_;
 
   /// The options provided to this execution when it is built
   /// that control most of the execution's behavior.

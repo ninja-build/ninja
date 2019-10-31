@@ -118,12 +118,13 @@ bool TargetNamesToNodes(const State* state, const std::vector<std::string>& name
 
 }  // namespace
 
-Execution::Execution() : Execution(NULL, Options()) {}
-
+Execution::Execution() : Execution(NULL, Options(), std::make_unique<LoggerBasic>()) {}
 Execution::Execution(const char* ninja_command, Options options) :
+  Execution(ninja_command, options, std::make_unique<LoggerBasic>()) {}
+Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger) :
   ninja_command_(ninja_command),
   options_(options),
-  state_(new State()) {
+  state_(new State(std::move(logger))) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
   // N failures and then stop.  For N <= 0, INT_MAX is close enough

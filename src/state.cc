@@ -69,10 +69,10 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State() : State(NULL) {}
+State::State() : State(std::make_unique<LoggerBasic>()) {}
 
-State::State(Logger* logger) :
-    logger_(logger),
+State::State(std::unique_ptr<Logger> logger) :
+    logger_(std::move(logger)),
     disk_interface_(new RealDiskInterface()),
     build_log_(new BuildLog()),
     deps_log_(new DepsLog()),

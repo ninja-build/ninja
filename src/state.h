@@ -16,6 +16,7 @@
 #define NINJA_STATE_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -102,7 +103,7 @@ struct State  : public BuildLogUser {
   static const Rule kPhonyRule;
 
   State();
-  State(Logger* logger);
+  State(std::unique_ptr<Logger> logger);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -133,7 +134,7 @@ struct State  : public BuildLogUser {
   void Log(Logger::Level, const std::string& message) const;
 
   /// The logger that gets messages from this state.
-  Logger* logger_;
+  std::unique_ptr<Logger> logger_;
 
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
