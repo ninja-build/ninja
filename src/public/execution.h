@@ -133,7 +133,7 @@ public:
   bool RebuildManifest(const char* input_file, std::string* err, Status* status);
   
   /// Tools
-  int Browse(int argc, char* argv[]);
+  int Browse();
   int Clean();
   int Graph();
   int Query();

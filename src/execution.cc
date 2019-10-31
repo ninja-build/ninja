@@ -223,11 +223,20 @@ bool Execution::RebuildManifest(const char* input_file, string* err,
   return true;
 }
 
-int Execution::Browse(int argc, char* argv[]) {
+int Execution::Browse() {
+  const char* initial_target = NULL;
+  if (options_.targets.size()) {
+    if (options_.targets.size() == 1) {
+      initial_target = options_.targets[0].c_str();
+    } else {
+      LogError("You can only specify a single target for 'browse'.");
+      return 2;
+    }
+  }
   if(ninja_command_) {
-    RunBrowsePython(state_, ninja_command_, options_.input_file, argc, argv);
+    RunBrowsePython(ninja_command_, options_.input_file, initial_target);
   } else {
-    state_->Log(Logger::Level::ERROR, "You must specify the 'ninja_command' parameter  in your execution to browse.");
+    LogError("You must specify the 'ninja_command' parameter  in your execution to browse.");
   }
   // If we get here, the browse failed.
   return 1;

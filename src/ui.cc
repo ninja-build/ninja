@@ -364,7 +364,9 @@ int ReadFlags(int* argc, char*** argv,
   // flag that we read. Now we can use it to parse any additional
   // flags that are specific to the tool.
   if (optarg) {
-    if (strcmp(optarg, "clean") == 0) {
+    if (strcmp(optarg, "browse") == 0) {
+      return ReadTargets(argc, argv, options);
+    } else if (strcmp(optarg, "clean") == 0) {
       return ReadFlagsClean(argc, argv, options);
     } else if (strcmp(optarg, "graph") == 0) {
       return ReadTargets(argc, argv, options);

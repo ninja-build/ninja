@@ -234,7 +234,7 @@ int ToolTargetsSourceList(Execution* execution) {
 namespace tool {
 #if defined(NINJA_HAVE_BROWSE)
 int Browse(Execution* execution, int argc, char* argv[]) {
-  return execution->Browse(argc, argv);
+  return execution->Browse();
 }
 #else
 int Browse(Execution* execution, int, char**) {
