@@ -1,6 +1,9 @@
 name: Release Ninja Binaries
 
-on: [push]
+on:
+  push:
+  release:
+    types: published
 
 jobs:
   build:
@@ -37,7 +40,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --parallel --config Release --target ninja
         
-    - name: Create artifact
+    - name: Create ninja archive
       shell: bash
       env:
         ZIP_NAME: ${{ matrix.zip_name }}
@@ -52,4 +55,13 @@ jobs:
         name: ninja-binary-archives
         path: artifact
         
-        
+    - name: Upload release asset
+      if: github.event.action == 'published'
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifact/${{ matrix.zip_name }}.zip
+        asset_name: ${{ matrix.zip_name }}.zip
+        asset_content_type: application/zip
