@@ -63,6 +63,11 @@ else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 endif()
 
+#Fixes GetActiveProcessorCount on MinGW
+if(MINGW)
+target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601)
+endif()
+
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
