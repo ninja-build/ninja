@@ -246,7 +246,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
 
 TEST_F(BuildLogTest, MultiTargetEdge) {
   AssertParse(&state_,
-"build out out.d: cat\n");
+"build out out.d: cat in\n");
 
   BuildLog log;
   log.RecordCommand(state_.edges_[0], 21, 22);
