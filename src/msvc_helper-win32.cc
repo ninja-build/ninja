@@ -44,7 +44,7 @@ int CLWrapper::Run(const string& command, string* output) {
 
   // Must be inheritable so subprocesses can dup to children.
   HANDLE nul =
-      CreateFileA("NUL", GENERIC_READ,
+      CreateFile(L"NUL", GENERIC_READ,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
@@ -58,14 +58,19 @@ int CLWrapper::Run(const string& command, string* output) {
     Win32Fatal("SetHandleInformation");
 
   PROCESS_INFORMATION process_info = {};
-  STARTUPINFOA startup_info = {};
+  STARTUPINFO startup_info = {};
   startup_info.cb = sizeof(STARTUPINFOA);
   startup_info.hStdInput = nul;
   startup_info.hStdError = ::GetStdHandle(STD_ERROR_HANDLE);
   startup_info.hStdOutput = stdout_write;
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
-  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
+#ifdef _WIN32
+  wstring commands = Utf8ToWide(command);
+  if (!CreateProcess(NULL, (wchar_t*)commands.c_str(), NULL, NULL,
+#else
+  if (!CreateProcess(NULL, (char*)command.c_str(), NULL, NULL,
+#endif
                       /* inherit handles */ TRUE, 0,
                       env_block_, NULL,
                       &startup_info, &process_info)) {

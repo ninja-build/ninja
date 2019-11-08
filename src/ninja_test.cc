@@ -126,7 +126,7 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   return condition;
 }
 
-int main(int argc, char **argv) {
+int maine(int argc, char **argv) {
   int tests_started = 0;
 
   const char* test_filter = "*";
@@ -158,3 +158,18 @@ int main(int argc, char **argv) {
   printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv)
+{
+  char **argv;
+  argv = (char **)malloc((argc + 1) * sizeof(argv));
+  convertCommandLine(argc,wargv,argv);
+  return maine(argc, argv);
+} 
+#else
+int main(int argc, char** argv) // For linux targets
+{
+  return maine(argc, argv);
+}
+#endif

@@ -24,6 +24,10 @@ else()
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
+if(WIN32)
+        add_definitions(-DUNICODE)
+endif()
+
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
 	src/build_log.cc

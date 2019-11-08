@@ -18,7 +18,7 @@
 #include "clparser.h"
 #include "metrics.h"
 
-int main(int argc, char* argv[]) {
+int maine(int argc, char* argv[]) {
   // Output of /showIncludes from #include <iostream>
   string perf_testdata =
       "Note: including file: C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\iostream\r\n"
@@ -155,3 +155,18 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) // For windows targets
+{	
+  char **argv;
+  argv = (char **)malloc((argc + 1) * sizeof(argv));
+  convertCommandLine(argc,wargv,argv);
+  return maine(argc, argv);
+}
+#else
+int main(int argc, char** argv) // For linux targets
+{
+  return maine(argc, argv);
+}
+#endif

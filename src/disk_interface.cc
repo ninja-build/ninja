@@ -71,7 +71,7 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesEx(Utf8ToWide(path).c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
@@ -100,19 +100,22 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
+
+  WIN32_FIND_DATA ffd;
+  std::wstring dirname = Utf8ToWide(dir + "\\*");
+  HANDLE find_handle = FindFirstFileEx(dirname.c_str(), level, &ffd,
+
                                         FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return true;
-    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
+    *err = "FindFirstFileEx(" + dir + "): " + GetLastErrorString();
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
+	string lowername = WideToUtf8(ffd.cFileName);
     if (lowername == "..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
@@ -121,7 +124,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFileA(find_handle, &ffd));
+  } while (FindNextFile(find_handle, &ffd));
   FindClose(find_handle);
   return true;
 }

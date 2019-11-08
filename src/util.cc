@@ -23,6 +23,10 @@
 #include <share.h>
 #endif
 
+#ifdef _WIN32
+#include <locale>
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -318,7 +322,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+  HANDLE f = ::CreateFile(Utf8ToWide(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
@@ -423,21 +427,83 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
+
+wstring Utf8ToWide(const string& u8_string)
+{
+  if (u8_string.empty())
+    return wstring();
+
+  size_t size_needed = MultiByteToWideChar(CP_UTF8, 0,
+    u8_string.data(), (int)u8_string.size(), NULL, 0);
+  if (size_needed == 0)
+    Fatal("Failed conversion to wide string");
+
+  vector<wchar_t> w_buffer(size_needed);
+  int w_size_needed = MultiByteToWideChar(CP_UTF8, 0,
+    u8_string.data(), (int)u8_string.size(), &w_buffer[0], w_buffer.size());
+  if (w_size_needed == 0)
+    Fatal("Failed conversion to wide string");
+
+  return std::wstring(&w_buffer[0], w_size_needed);
+}
+
+string WideToUtf8(const wstring& w_string)
+{
+  if (w_string.empty())
+    return std::string();
+
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, &w_string[0], (int)w_string.size(), NULL, 0, NULL, NULL);
+  if (size_needed == 0)
+    Fatal("Failed conversion to UTF-8 string");
+
+  std::string u8_string(size_needed, 0);
+  WideCharToMultiByte(CP_UTF8, 0, &w_string[0], (int)w_string.size(), &u8_string[0], size_needed, NULL, NULL);
+  if (size_needed == 0)
+    Fatal("Failed conversion to UTF-8 string");
+
+  return u8_string;
+}
+
+void convertCommandLine(int argc, wchar_t** wargv, char** argv)
+{
+
+  wstring w_argString;
+	string  argString;
+
+  for (int i = 0; i < argc; i++)
+	{
+		// Convert the string
+		argString = WideToUtf8(wargv[i]);
+
+		// Prepare space in the vector
+		argv[i] = (char *)malloc(argString.length() + 1);
+		char *ptr = (char *)argv[i];
+
+		// Copy the final results.
+		strcpy(ptr, argString.c_str());
+	}
+
+  	// Just to follow the c++ standard, we need to add this!
+	// Also, ninja will not work properly if we do not do so.
+	argv[argc] = (char *)malloc(sizeof(char *));
+	argv[argc] = NULL;
+}
+
 string GetLastErrorString() {
   DWORD err = GetLastError();
-
-  char* msg_buf;
-  FormatMessageA(
+  
+  wchar_t* msg_buf;
+  FormatMessage(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
         NULL,
         err,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (char*)&msg_buf,
+        (wchar_t*)&msg_buf,
         0,
         NULL);
-  string msg = msg_buf;
+  string msg = WideToUtf8(wstring(msg_buf));
   LocalFree(msg_buf);
   return msg;
 }

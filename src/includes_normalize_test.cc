@@ -151,17 +151,23 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
-  for (int i = 0; i < _MAX_PATH; ++i) {
-    if (i < _MAX_PATH - 1 && i % 10 == 4)
-      kExactlyMaxPath[i] = '\\';
+  const size_t w_max_path = _MAX_PATH;
+  wchar_t kwExactlyMaxPath[w_max_path + 1];
+  for (int i = 0; i < w_max_path; ++i) {
+    if (i < w_max_path - 1 && i % 10 == 4)
+      kwExactlyMaxPath[i] = L'\\';
     else
-      kExactlyMaxPath[i] = 'a';
+      kwExactlyMaxPath[i] = L'a';
   }
-  kExactlyMaxPath[_MAX_PATH] = '\0';
+  kwExactlyMaxPath[w_max_path] = L'\0';
+  EXPECT_EQ(wcslen(kwExactlyMaxPath), w_max_path);
+  string s_kExactlyMaxPath = WideToUtf8(wstring(kwExactlyMaxPath));
+  const char* kExactlyMaxPath = s_kExactlyMaxPath.c_str();
   EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+
 
   // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
-  EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+  // Using UNICODE version of GetFullPathName will allow for path longer than _MAX_PATH.
+  EXPECT_TRUE(err.find("path too long") != string::npos);
 }

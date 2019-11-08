@@ -98,7 +98,11 @@ bool WriteTestData(string* err) {
   return true;
 }
 
+#ifdef _WIN32
+int wmain() {
+#else
 int main() {
+#endif
   vector<int> times;
   string err;
 

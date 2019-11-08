@@ -28,10 +28,13 @@ namespace {
 
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
                              size_t buffer_length, string *err) {
-  DWORD result_size = GetFullPathNameA(file_name.AsString().c_str(),
-                                       buffer_length, buffer, NULL);
+  wchar_t w_buffer[_MAX_PATH];
+  wstring w_file_name = Utf8ToWide(file_name.AsString());
+  DWORD result_size = GetFullPathName(w_file_name.c_str(),
+                                       buffer_length, w_buffer, NULL);
+  strcpy(buffer, WideToUtf8(w_buffer).c_str());
   if (result_size == 0) {
-    *err = "GetFullPathNameA(" + file_name.AsString() + "): " +
+    *err = "GetFullPathName(" + file_name.AsString() + "): " +
         GetLastErrorString();
     return false;
   } else if (result_size > buffer_length) {

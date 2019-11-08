@@ -323,7 +323,7 @@ if platform.is_msvc():
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
-              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
+              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS', '/DUNICODE',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
     if platform.msvc_needs_fs():
@@ -357,6 +357,8 @@ else:
         pass
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0601']
+    if platform.is_windows():
+        cflags += ['-DUNICODE']
     ldflags = ['-L$builddir']
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
@@ -372,6 +374,8 @@ libs = []
 if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
+    ldflags.append('-g')
+    ldflags.append('-municode')
 elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_aix():

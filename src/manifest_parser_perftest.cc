@@ -98,8 +98,14 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+#ifdef _WIN32
+  wstring wDir = Utf8ToWide(kManifestDir);
+  if (_wchdir(wDir.c_str()) < 0)
+#else
   if (chdir(kManifestDir) < 0)
+#endif
     Fatal("chdir: %s", strerror(errno));
+    
 
   const int kNumRepetitions = 5;
   vector<int> times;
@@ -115,4 +121,21 @@ int main(int argc, char* argv[]) {
   int max = *max_element(times.begin(), times.end());
   float total = accumulate(times.begin(), times.end(), 0.0f);
   printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
+
+  return 0;
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) // For windows targets
+{
+  char **argv;
+  argv = (char **)malloc((argc + 1) * sizeof(argv));
+  convertCommandLine(argc,wargv,argv);
+  return maine(argc, argv);
+}
+#else
+int main(int argc, char** argv) // For linux targets
+{
+	return maine(argc, argv);
+}
+#endif
