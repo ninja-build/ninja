@@ -576,7 +576,7 @@ double GetLoadAverage() {
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
 }
-#elif defined(__UCLIBC__)
+#elif defined(__UCLIBC__) || (defined(__BIONIC__) && __ANDROID_API__ < 29)
 double GetLoadAverage() {
   struct sysinfo si;
   if (sysinfo(&si) != 0)
