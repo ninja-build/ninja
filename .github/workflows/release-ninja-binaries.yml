@@ -28,7 +28,7 @@ jobs:
       run: sudo apt-get install re2c
     - name: Install macOS dependencies
       if: matrix.os == 'macOS-latest'
-      run: ls /Developer/SDKs/ && xcodebuild -showsdks && brew install re2c p7zip cmake
+      run: ls / && ls /Applications && xcode-select --print-path && xcodebuild -showsdks && brew install re2c p7zip cmake
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
       run: ls C:/Program Files (x86)/Microsoft Visual Studio/ && choco install re2c
