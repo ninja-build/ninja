@@ -30,7 +30,7 @@ jobs:
       if: matrix.os == 'macOS-latest'
       run: |
         wget https://github.com/phracker/MacOSX-SDKs/releases/download/10.13/MacOSX10.13.sdk.tar.xz
-        tar -xf MacOSX10.13.sdk.xz -C /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+        tar -xf MacOSX10.13.sdk.tar.xz -C /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
         ls /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
         /usr/libexec/PlistBuddy -c "Print" /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Info.plist
         /usr/libexec/PlistBuddy -c "Set :MinimumSDKVersion string 10.13" /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Info.plist
