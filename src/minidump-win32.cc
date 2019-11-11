@@ -60,7 +60,7 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   HANDLE hFile = CreateFile(Utf8ToWide(temp_file).c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == NULL) {
-	  Error("failed to create minidump: CreateFileW(%s): %s",
+    Error("failed to create minidump: CreateFileW(%s): %s",
           temp_file, GetLastErrorString().c_str());
     return;
   }

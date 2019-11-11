@@ -85,7 +85,7 @@ void LinePrinter::Print(string to_print, LineType type) {
     GetConsoleScreenBufferInfo(console_, &csbi);
 
     to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
-	wstring w_to_print = Utf8ToWide(to_print);
+    wstring w_to_print = Utf8ToWide(to_print);
     // We don't want to have the cursor spamming back and forth, so instead of
     // printf use WriteConsoleOutput which updates the contents of the buffer,
     // but doesn't move the cursor position.

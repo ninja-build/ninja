@@ -468,30 +468,29 @@ void convertCommandLine(int argc, wchar_t** wargv, char** argv)
 {
 
   wstring w_argString;
-	string  argString;
+  string  argString;
 
   for (int i = 0; i < argc; i++)
-	{
-		// Convert the string
-		argString = WideToUtf8(wargv[i]);
+  {
+    // Convert the string
+    argString = WideToUtf8(wargv[i]);
+    // Prepare space in the vector
+    argv[i] = (char *)malloc(argString.length() + 1);
+    char *ptr = (char *)argv[i];
 
-		// Prepare space in the vector
-		argv[i] = (char *)malloc(argString.length() + 1);
-		char *ptr = (char *)argv[i];
+  // Copy the final results.
+  strcpy(ptr, argString.c_str());
+  }
 
-		// Copy the final results.
-		strcpy(ptr, argString.c_str());
-	}
-
-  	// Just to follow the c++ standard, we need to add this!
-	// Also, ninja will not work properly if we do not do so.
-	argv[argc] = (char *)malloc(sizeof(char *));
-	argv[argc] = NULL;
+  // Just to follow the c++ standard, we need to add this!
+  // Also, ninja will not work properly if we do not do so.
+  argv[argc] = (char *)malloc(sizeof(char *));
+  argv[argc] = NULL;
 }
 
 string GetLastErrorString() {
   DWORD err = GetLastError();
-  
+
   wchar_t* msg_buf;
   FormatMessage(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |

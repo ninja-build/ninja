@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -1373,7 +1371,7 @@ NORETURN void real_main(int argc, char** argv) {
 
 }  // anonymous namespace
 
-int maine(int argc, char** argv) {
+int mainUTF8(int argc, char** argv) {
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
@@ -1395,17 +1393,17 @@ int maine(int argc, char** argv) {
 
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) // For windows targets
+int wmain(int argc, wchar_t** wargv)
 {
   char **argv;
   argv = (char **)malloc((argc + 1) * sizeof(argv));
   convertCommandLine(argc, wargv, argv);
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #else
-int main(int argc, char** argv) // For linux targets
+int main(int argc, char** argv)
 {
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #endif
 

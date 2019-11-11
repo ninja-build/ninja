@@ -19,7 +19,7 @@
 #include "util.h"
 #include "metrics.h"
 
-int maine(int argc, char* argv[]) {
+int mainUTF8(int argc, char* argv[]) {
   if (argc < 2) {
     printf("usage: %s <file1> <file2...>\n", argv[0]);
     return 1;
@@ -77,16 +77,16 @@ int maine(int argc, char* argv[]) {
 }
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) // For windows targets
+int wmain(int argc, wchar_t** wargv)
 {
   char **argv;
   argv = (char **)malloc((argc + 1) * sizeof(argv));
   convertCommandLine(argc,wargv,argv);
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #else
-int main(int argc, char** argv) // For linux targets
+int main(int argc, char** argv)
 {
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #endif

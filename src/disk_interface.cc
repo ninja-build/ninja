@@ -115,7 +115,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     return false;
   }
   do {
-	string lowername = WideToUtf8(ffd.cFileName);
+    string lowername = WideToUtf8(ffd.cFileName);
     if (lowername == "..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.

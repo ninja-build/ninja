@@ -126,7 +126,7 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   return condition;
 }
 
-int maine(int argc, char **argv) {
+int mainUTF8(int argc, char **argv) {
   int tests_started = 0;
 
   const char* test_filter = "*";
@@ -165,11 +165,11 @@ int wmain(int argc, wchar_t** wargv)
   char **argv;
   argv = (char **)malloc((argc + 1) * sizeof(argv));
   convertCommandLine(argc,wargv,argv);
-  return maine(argc, argv);
-} 
+  return mainUTF8(argc, argv);
+}
 #else
-int main(int argc, char** argv) // For linux targets
+int main(int argc, char** argv)
 {
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #endif

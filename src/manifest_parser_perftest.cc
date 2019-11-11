@@ -71,7 +71,7 @@ int LoadManifests(bool measure_command_evaluation) {
   return optimization_guard;
 }
 
-int main(int argc, char* argv[]) {
+int mainUTF8(int argc, char* argv[]) {
   bool measure_command_evaluation = true;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("fh"))) != -1) {
@@ -105,7 +105,6 @@ int main(int argc, char* argv[]) {
   if (chdir(kManifestDir) < 0)
 #endif
     Fatal("chdir: %s", strerror(errno));
-    
 
   const int kNumRepetitions = 5;
   vector<int> times;
@@ -126,16 +125,16 @@ int main(int argc, char* argv[]) {
 }
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) // For windows targets
+int wmain(int argc, wchar_t** wargv)
 {
   char **argv;
   argv = (char **)malloc((argc + 1) * sizeof(argv));
   convertCommandLine(argc,wargv,argv);
-  return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #else
-int main(int argc, char** argv) // For linux targets
+int main(int argc, char** argv)
 {
-	return maine(argc, argv);
+  return mainUTF8(argc, argv);
 }
 #endif
