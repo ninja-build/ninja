@@ -79,9 +79,7 @@ int mainUTF8(int argc, char* argv[]) {
 #ifdef _WIN32
 int wmain(int argc, wchar_t** wargv)
 {
-  char **argv;
-  argv = (char **)malloc((argc + 1) * sizeof(argv));
-  convertCommandLine(argc,wargv,argv);
+  char **argv = convertCommandLine(argc,wargv);
   return mainUTF8(argc, argv);
 }
 #else

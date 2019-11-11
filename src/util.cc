@@ -464,28 +464,27 @@ string WideToUtf8(const wstring& w_string)
   return u8_string;
 }
 
-void convertCommandLine(int argc, wchar_t** wargv, char** argv)
+char** convertCommandLine(int argc, wchar_t** wargv)
 {
-
   wstring w_argString;
   string  argString;
+  char **argv = new char*[argc + 1];
 
   for (int i = 0; i < argc; i++)
   {
     // Convert the string
     argString = WideToUtf8(wargv[i]);
     // Prepare space in the vector
-    argv[i] = (char *)malloc(argString.length() + 1);
-    char *ptr = (char *)argv[i];
+    argv[i] = new char[argString.length() + 1];
 
-  // Copy the final results.
-  strcpy(ptr, argString.c_str());
+    // Copy the final results.
+    strcpy(argv[i], argString.c_str());
   }
 
   // Just to follow the c++ standard, we need to add this!
   // Also, ninja will not work properly if we do not do so.
-  argv[argc] = (char *)malloc(sizeof(char *));
   argv[argc] = NULL;
+  return argv;
 }
 
 string GetLastErrorString() {
