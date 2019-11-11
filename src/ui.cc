@@ -368,6 +368,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadTargets(argc, argv, options);
     } else if (strcmp(optarg, "clean") == 0) {
       return ReadFlagsClean(argc, argv, options);
+    } else if (strcmp(optarg, "commands") == 0) {
+      return ReadFlagsCommands(argc, argv, options);
     } else if (strcmp(optarg, "graph") == 0) {
       return ReadTargets(argc, argv, options);
     } else if (strcmp(optarg, "query") == 0) {
@@ -413,6 +415,35 @@ int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options) {
     std::cerr << kLogError << "expected a rule to clean" << std::endl;
     return 1;
   }
+
+  return ReadTargets(argc, argv, options);
+}
+
+int ReadFlagsCommands(int* argc, char*** argv, Execution::Options* options) {
+  // Step back argv to include 'clean' so that getopt will
+  // work correctly since it starts reading at position 1.
+  ++(*argc);
+  --(*argv);
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(*argc, *argv, const_cast<char*>("hs"))) != -1) {
+    switch (opt) {
+    case 's':
+      options->commands_options.mode = PCM_Single;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t commands [options] [targets]\n"
+"\n"
+"options:\n"
+"  -s     only print the final command to build [target], not the whole chain\n"
+             );
+    return 1;
+    }
+  }
+  *argv += optind;
+  *argc -= optind;
 
   return ReadTargets(argc, argv, options);
 }

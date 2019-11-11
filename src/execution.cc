@@ -51,6 +51,22 @@ int GuessParallelism() {
   }
 }
 
+void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  if (mode == PCM_All) {
+    for (vector<Node*>::iterator in = edge->inputs_.begin();
+         in != edge->inputs_.end(); ++in)
+      PrintCommands((*in)->in_edge(), seen, mode);
+  }
+
+  if (!edge->is_phony())
+    puts(edge->EvaluateCommand().c_str());
+}
+
 Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
   uint64_t slash_bits;
   std::string canonical_path = path.c_str();
@@ -156,6 +172,9 @@ Execution::Options::Clean::Clean() :
   generator(false),
   targets_are_rules(false) {}
 
+Execution::Options::Commands::Commands() :
+  mode(PCM_All) {}
+
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;
 }
@@ -252,6 +271,21 @@ int Execution::Clean() {
   } else {
     return cleaner.CleanAll(options_.clean_options.generator);
   }
+}
+
+int Execution::Commands() {
+  EdgeSet seen;
+  vector<Node*> nodes;
+  string err;
+  if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
+    LogError(err);
+    return 1;
+  }
+
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintCommands((*in)->in_edge(), &seen, options_.commands_options.mode);
+
+  return 0;
 }
 
 int Execution::Graph() {

@@ -28,6 +28,8 @@ class RealDiskInterface;
 class State;
 struct Tool;
 
+enum PrintCommandMode { PCM_Single, PCM_All };
+
 /// Create a request to perform a ninja execution.
 /// This should be the main entrypoint to requesting
 /// that ninja perform some work.
@@ -49,11 +51,19 @@ public:
       bool targets_are_rules;
 
     };
+    struct Commands {
+      Commands();
+      /// The mode to use when printing the commands.
+      PrintCommandMode mode;
+    };
     Options();
     Options(const Tool* tool);
 
     /// Options to use when using the 'clean' tool.
     Clean clean_options;
+
+    /// Options to use when using the 'commands' tool.
+    Commands commands_options;
 
     /// Whether a depfile with multiple targets on separate lines should
     /// warn or print an error.
@@ -138,6 +148,7 @@ public:
   /// Tools
   int Browse();
   int Clean();
+  int Commands();
   int Graph();
   int Query();
   int Recompact();

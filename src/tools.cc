@@ -184,23 +184,6 @@ void printCompdb(const char* const directory, const Edge* const edge,
   printf("\"\n  }");
 }
 
-enum PrintCommandMode { PCM_Single, PCM_All };
-void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
-  if (!edge)
-    return;
-  if (!seen->insert(edge).second)
-    return;
-
-  if (mode == PCM_All) {
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
-         in != edge->inputs_.end(); ++in)
-      PrintCommands((*in)->in_edge(), seen, mode);
-  }
-
-  if (!edge->is_phony())
-    puts(edge->EvaluateCommand().c_str());
-}
-
 int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
@@ -250,45 +233,7 @@ int Clean(Execution* execution, int argc, char* argv[]) {
 }
 
 int Commands(Execution* execution, int argc, char* argv[]) {
-  // The clean tool uses getopt, and expects argv[0] to contain the name of
-  // the tool, i.e. "commands".
-  ++argc;
-  --argv;
-
-  PrintCommandMode mode = PCM_All;
-
-  optind = 1;
-  int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hs"))) != -1) {
-    switch (opt) {
-    case 's':
-      mode = PCM_Single;
-      break;
-    case 'h':
-    default:
-      printf("usage: ninja -t commands [options] [targets]\n"
-"\n"
-"options:\n"
-"  -s     only print the final command to build [target], not the whole chain\n"
-             );
-    return 1;
-    }
-  }
-  argv += optind;
-  argc -= optind;
-
-  vector<Node*> nodes;
-  string err;
-  if (!ui::CollectTargetsFromArgs(execution->state(), argc, argv, &nodes, &err)) {
-    execution->state()->Log(Logger::Level::ERROR, err);
-    return 1;
-  }
-
-  EdgeSet seen;
-  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge(), &seen, mode);
-
-  return 0;
+  return execution->Commands();
 }
 
 int CompilationDatabase(Execution* execution, int argc,
