@@ -448,6 +448,37 @@ int ReadFlagsCommands(int* argc, char*** argv, Execution::Options* options) {
   return ReadTargets(argc, argv, options);
 }
 
+int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* options) {
+  // Step back argv to include 'clean' so that getopt will
+  // work correctly since it starts reading at position 1.
+  ++(*argc);
+  --(*argv);
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(*argc, *argv, const_cast<char*>("hx"))) != -1) {
+    switch(opt) {
+      case 'x':
+        options->compilationdatabase_options.eval_mode = ECM_EXPAND_RSPFILE;
+        break;
+
+      case 'h':
+      default:
+        printf(
+            "usage: ninja -t compdb [options] [rules]\n"
+            "\n"
+            "options:\n"
+            "  -x     expand @rspfile style response file invocations\n"
+            );
+        return 1;
+    }
+  }
+  *argv += optind;
+  *argc -= optind;
+
+  return ReadTargets(argc, argv, options);
+}
+
 int ReadTargets(int* argc, char*** argv, Execution::Options* options) {
   if (*argc >= 1) {
     while(*argc) {

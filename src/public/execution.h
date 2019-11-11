@@ -28,6 +28,10 @@ class RealDiskInterface;
 class State;
 struct Tool;
 
+enum EvaluateCommandMode {
+  ECM_NORMAL,
+  ECM_EXPAND_RSPFILE
+};
 enum PrintCommandMode { PCM_Single, PCM_All };
 
 /// Create a request to perform a ninja execution.
@@ -56,6 +60,11 @@ public:
       /// The mode to use when printing the commands.
       PrintCommandMode mode;
     };
+    struct CompilationDatabase {
+      CompilationDatabase();
+      /// The mode for evaluating commands
+      EvaluateCommandMode eval_mode;
+    };
     Options();
     Options(const Tool* tool);
 
@@ -64,6 +73,9 @@ public:
 
     /// Options to use when using the 'commands' tool.
     Commands commands_options;
+
+    /// Options to use when using the 'compdb' tool.
+    CompilationDatabase compilationdatabase_options;
 
     /// Whether a depfile with multiple targets on separate lines should
     /// warn or print an error.
@@ -149,6 +161,7 @@ public:
   int Browse();
   int Clean();
   int Commands();
+  int CompilationDatabase();
   int Graph();
   int Query();
   int Recompact();

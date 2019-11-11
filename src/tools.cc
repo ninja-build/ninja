@@ -133,57 +133,6 @@ int ToolTargetsList(Execution* execution) {
   return 0;
 }
 
-void EncodeJSONString(const char *str) {
-  while (*str) {
-    if (*str == '"' || *str == '\\')
-      putchar('\\');
-    putchar(*str);
-    str++;
-  }
-}
-
-enum EvaluateCommandMode {
-  ECM_NORMAL,
-  ECM_EXPAND_RSPFILE
-};
-std::string EvaluateCommandWithRspfile(const Edge* edge,
-                                       const EvaluateCommandMode mode) {
-  string command = edge->EvaluateCommand();
-  if (mode == ECM_NORMAL)
-    return command;
-
-  string rspfile = edge->GetUnescapedRspfile();
-  if (rspfile.empty())
-    return command;
-
-  size_t index = command.find(rspfile);
-  if (index == 0 || index == string::npos || command[index - 1] != '@')
-    return command;
-
-  string rspfile_content = edge->GetBinding("rspfile_content");
-  size_t newline_index = 0;
-  while ((newline_index = rspfile_content.find('\n', newline_index)) !=
-         string::npos) {
-    rspfile_content.replace(newline_index, 1, 1, ' ');
-    ++newline_index;
-  }
-  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
-  return command;
-}
-
-void printCompdb(const char* const directory, const Edge* const edge,
-                 const EvaluateCommandMode eval_mode) {
-  printf("\n  {\n    \"directory\": \"");
-  EncodeJSONString(directory);
-  printf("\",\n    \"command\": \"");
-  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
-  printf("\",\n    \"file\": \"");
-  EncodeJSONString(edge->inputs_[0]->path().c_str());
-  printf("\",\n    \"output\": \"");
-  EncodeJSONString(edge->outputs_[0]->path().c_str());
-  printf("\"\n  }");
-}
-
 int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
@@ -238,75 +187,7 @@ int Commands(Execution* execution, int argc, char* argv[]) {
 
 int CompilationDatabase(Execution* execution, int argc,
                                        char* argv[]) {
-  // The compdb tool uses getopt, and expects argv[0] to contain the name of
-  // the tool, i.e. "compdb".
-  argc++;
-  argv--;
-
-  EvaluateCommandMode eval_mode = ECM_NORMAL;
-
-  optind = 1;
-  int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
-    switch(opt) {
-      case 'x':
-        eval_mode = ECM_EXPAND_RSPFILE;
-        break;
-
-      case 'h':
-      default:
-        printf(
-            "usage: ninja -t compdb [options] [rules]\n"
-            "\n"
-            "options:\n"
-            "  -x     expand @rspfile style response file invocations\n"
-            );
-        return 1;
-    }
-  }
-  argv += optind;
-  argc -= optind;
-
-  bool first = true;
-  vector<char> cwd;
-
-  do {
-    cwd.resize(cwd.size() + 1024);
-    errno = 0;
-  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
-  if (errno != 0 && errno != ERANGE) {
-    std::ostringstream message;
-    message << "cannot determine working directory: " << strerror(errno);
-    execution->state()->Log(Logger::Level::ERROR, message.str());
-    return 1;
-  }
-
-  putchar('[');
-  for (vector<Edge*>::const_iterator e = execution->state()->edges_.begin();
-       e != execution->state()->edges_.end(); ++e) {
-    if ((*e)->inputs_.empty())
-      continue;
-    if (argc == 0) {
-      if (!first) {
-        putchar(',');
-      }
-      printCompdb(&cwd[0], *e, eval_mode);
-      first = false;
-    } else {
-      for (int i = 0; i != argc; ++i) {
-        if ((*e)->rule_->name() == argv[i]) {
-          if (!first) {
-            putchar(',');
-          }
-          printCompdb(&cwd[0], *e, eval_mode);
-          first = false;
-        }
-      }
-    }
-  }
-
-  puts("\n]");
-  return 0;
+  return execution->CompilationDatabase();
 }
 
 int Deps(Execution* execution, int argc, char** argv) {

@@ -16,11 +16,16 @@
 
 #ifdef _WIN32
 #include "getopt.h"
+#include <direct.h>
+#include <windows.h>
 #elif defined(_AIX)
 #include "getopt.h"
+#include <unistd.h>
 #else
 #include <getopt.h>
+#include <unistd.h>
 #endif
+#include <sstream>
 #include <stdio.h>
 
 #include "public/ui.h"
@@ -37,6 +42,40 @@
 
 namespace ninja {
 namespace {
+
+void EncodeJSONString(const char *str) {
+  while (*str) {
+    if (*str == '"' || *str == '\\')
+      putchar('\\');
+    putchar(*str);
+    str++;
+  }
+}
+
+std::string EvaluateCommandWithRspfile(const Edge* edge,
+                                       const EvaluateCommandMode mode) {
+  string command = edge->EvaluateCommand();
+  if (mode == ECM_NORMAL)
+    return command;
+
+  string rspfile = edge->GetUnescapedRspfile();
+  if (rspfile.empty())
+    return command;
+
+  size_t index = command.find(rspfile);
+  if (index == 0 || index == string::npos || command[index - 1] != '@')
+    return command;
+
+  string rspfile_content = edge->GetBinding("rspfile_content");
+  size_t newline_index = 0;
+  while ((newline_index = rspfile_content.find('\n', newline_index)) !=
+         string::npos) {
+    rspfile_content.replace(newline_index, 1, 1, ' ');
+    ++newline_index;
+  }
+  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  return command;
+}
 
 /// Choose a default value for the parallelism flag.
 int GuessParallelism() {
@@ -65,6 +104,19 @@ void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
 
   if (!edge->is_phony())
     puts(edge->EvaluateCommand().c_str());
+}
+
+void printCompdb(const char* const directory, const Edge* const edge,
+                 const EvaluateCommandMode eval_mode) {
+  printf("\n  {\n    \"directory\": \"");
+  EncodeJSONString(directory);
+  printf("\",\n    \"command\": \"");
+  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+  printf("\",\n    \"file\": \"");
+  EncodeJSONString(edge->inputs_[0]->path().c_str());
+  printf("\",\n    \"output\": \"");
+  EncodeJSONString(edge->outputs_[0]->path().c_str());
+  printf("\"\n  }");
 }
 
 Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
@@ -174,6 +226,9 @@ Execution::Options::Clean::Clean() :
 
 Execution::Options::Commands::Commands() :
   mode(PCM_All) {}
+
+Execution::Options::CompilationDatabase::CompilationDatabase() :
+  eval_mode(ECM_NORMAL) {}
 
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;
@@ -285,6 +340,49 @@ int Execution::Commands() {
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands((*in)->in_edge(), &seen, options_.commands_options.mode);
 
+  return 0;
+}
+
+int Execution::CompilationDatabase() {
+  bool first = true;
+  vector<char> cwd;
+
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
+  if (errno != 0 && errno != ERANGE) {
+    std::ostringstream message;
+    message << "cannot determine working directory: " << strerror(errno);
+    state_->Log(Logger::Level::ERROR, message.str());
+    return 1;
+  }
+
+  putchar('[');
+  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    if ((*e)->inputs_.empty())
+      continue;
+    if (options_.targets.size()) {
+      for (size_t i = 0; i != options_.targets.size(); ++i) {
+        if ((*e)->rule_->name() == options_.targets[i]) {
+          if (!first) {
+            putchar(',');
+          }
+          printCompdb(&cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+          first = false;
+        }
+      }
+    } else {
+      if (!first) {
+        putchar(',');
+      }
+      printCompdb(&cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+      first = false;
+    }
+  }
+
+  puts("\n]");
   return 0;
 }
 

@@ -71,7 +71,11 @@ int ReadFlagsClean(int* argc, char*** argv, Execution::Options* options);
 
 /// Parse argv for 'commands' tool.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlagsCommands(int* args, char*** argv, Execution::Options* options);
+int ReadFlagsCommands(int* argc, char*** argv, Execution::Options* options);
+
+/// Parse argv for 'compdb' tool.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* options);
 
 /// Parse targets from argv. Targets are used by several different tools.
 /// Returns an exit code, or -1 if Ninja should continue.
