@@ -427,51 +427,49 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
-
-wstring Utf8ToWide(const string& u8_string)
-{
+wstring Utf8ToWide(const string& u8_string) {
   if (u8_string.empty())
     return wstring();
 
-  size_t size_needed = MultiByteToWideChar(CP_UTF8, 0,
-    u8_string.data(), (int)u8_string.size(), NULL, 0);
+  size_t size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.data(),
+                                           (int)u8_string.size(), NULL, 0);
   if (size_needed == 0)
     Fatal("Failed conversion to wide string");
 
   vector<wchar_t> w_buffer(size_needed);
-  int w_size_needed = MultiByteToWideChar(CP_UTF8, 0,
-    u8_string.data(), (int)u8_string.size(), &w_buffer[0], w_buffer.size());
+  int w_size_needed =
+      MultiByteToWideChar(CP_UTF8, 0, u8_string.data(), (int)u8_string.size(),
+                          &w_buffer[0], w_buffer.size());
   if (w_size_needed == 0)
     Fatal("Failed conversion to wide string");
 
   return std::wstring(&w_buffer[0], w_size_needed);
 }
 
-string WideToUtf8(const wstring& w_string)
-{
+string WideToUtf8(const wstring& w_string) {
   if (w_string.empty())
     return std::string();
 
-  int size_needed = WideCharToMultiByte(CP_UTF8, 0, &w_string[0], (int)w_string.size(), NULL, 0, NULL, NULL);
+  int size_needed = WideCharToMultiByte(
+      CP_UTF8, 0, &w_string[0], (int)w_string.size(), NULL, 0, NULL, NULL);
   if (size_needed == 0)
     Fatal("Failed conversion to UTF-8 string");
 
   std::string u8_string(size_needed, 0);
-  WideCharToMultiByte(CP_UTF8, 0, &w_string[0], (int)w_string.size(), &u8_string[0], size_needed, NULL, NULL);
+  WideCharToMultiByte(CP_UTF8, 0, &w_string[0], (int)w_string.size(),
+                      &u8_string[0], size_needed, NULL, NULL);
   if (size_needed == 0)
     Fatal("Failed conversion to UTF-8 string");
 
   return u8_string;
 }
 
-char** convertCommandLine(int argc, wchar_t** wargv)
-{
+char** convertCommandLine(int argc, wchar_t** wargv) {
   wstring w_argString;
-  string  argString;
-  char **argv = new char*[argc + 1];
+  string argString;
+  char** argv = new char*[argc + 1];
 
-  for (int i = 0; i < argc; i++)
-  {
+  for (int i = 0; i < argc; i++) {
     // Convert the string
     argString = WideToUtf8(wargv[i]);
     // Prepare space in the vector
