@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 project(ninja)
 
 if(MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus -DUNICODE")
+elseif(MINGW)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color -municode")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
 endif()
@@ -23,10 +25,6 @@ else()
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
-
-if(WIN32)
-        add_definitions(-DUNICODE)
-endif()
 
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
