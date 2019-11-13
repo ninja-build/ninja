@@ -102,10 +102,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
 
   WIN32_FIND_DATA ffd;
-  std::wstring dirname = Utf8ToWide(dir + "\\*");
-  HANDLE find_handle = FindFirstFileEx(dirname.c_str(), level, &ffd,
-
-                                        FindExSearchNameMatch, NULL, 0);
+  HANDLE find_handle = FindFirstFileEx(Utf8ToWide(dir + "\\*").c_str(), level,
+                                       &ffd, FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
