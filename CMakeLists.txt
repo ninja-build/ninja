@@ -1,31 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(ninja)
 
-if(MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
-else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
-endif()
-
-find_program(RE2C re2c)
-if(RE2C)
-	# the depfile parser and ninja lexers are generated using re2c.
-	function(re2c IN OUT)
-		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
-			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
-		)
-	endfunction()
-	re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
-	re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
-	add_library(libninja-re2c OBJECT ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
-else()
-	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
-	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
-endif()
-target_include_directories(libninja-re2c PRIVATE src)
-
 # Core source files all build into ninja library.
-add_library(libninja OBJECT
+list(APPEND libninja_SOURCES
 	src/build_log.cc
 	src/build.cc
 	src/clean.cc
@@ -48,8 +25,26 @@ add_library(libninja OBJECT
 	src/util.cc
 	src/version.cc
 )
+
+find_program(RE2C re2c)
+if(RE2C)
+	# the depfile parser and ninja lexers are generated using re2c.
+	function(re2c IN OUT)
+		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
+			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
+		)
+	endfunction()
+	re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
+	re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+	list(APPEND libninja_SOURCES ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+else()
+	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
+	list(APPEND libninja_SOURCES src/depfile_parser.cc src/lexer.cc)
+endif()
+
+
 if(WIN32)
-	target_sources(libninja PRIVATE
+	list(APPEND libninja_SOURCES
 		src/subprocess-win32.cc
 		src/includes_normalize-win32.cc
 		src/msvc_helper-win32.cc
@@ -57,20 +52,24 @@ if(WIN32)
 		src/getopt.c
 	)
 	if(MSVC)
-		target_sources(libninja PRIVATE src/minidump-win32.cc)
+                list(APPEND libninja_SOURCES src/minidump-win32.cc)
 	endif()
 else()
-	target_sources(libninja PRIVATE src/subprocess-posix.cc)
+        list(APPEND libninja_SOURCES src/subprocess-posix.cc)
 endif()
 
+add_library(libninja OBJECT ${libninja_SOURCES})
+
+target_include_directories(libninja PRIVATE src)
+
+target_compile_options(libninja PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/W4 /GR- /Zc:__cplusplus,-Wno-deprecated -fdiagnostics-color>)
+
 #Fixes GetActiveProcessorCount on MinGW
-if(MINGW)
-target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601)
-endif()
+target_compile_definitions(libninja PRIVATE $<$<CXX_COMPILER_ID:MSVC>:_WIN32_WINNT=0x0601>)
 
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
-target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+target_link_libraries(ninja PRIVATE libninja)
 
 # Tests all build into ninja_test executable.
 add_executable(ninja_test
@@ -96,7 +95,7 @@ add_executable(ninja_test
 if(WIN32)
 	target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
 endif()
-target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+target_link_libraries(ninja_test PRIVATE libninja)
 
 enable_testing()
 add_test(NinjaTest ninja_test)
