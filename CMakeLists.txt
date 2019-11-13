@@ -3,9 +3,10 @@ project(ninja)
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus -DUNICODE")
-elseif(MINGW)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color -municode")
 else()
+	if(WIN32)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -municode")
+	endif()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
 endif()
 
