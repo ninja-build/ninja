@@ -17,6 +17,7 @@
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
+#include "util.h"
 #endif
 
 #include "disk_interface.h"
@@ -41,6 +42,15 @@ struct DiskInterfaceTest : public testing::Test {
       return false;
     return fclose(f) == 0;
   }
+
+#ifdef _WIN32
+  bool Touch(const wchar_t* path) {
+    FILE* f = _wfopen(path, L"w");
+    if (!f)
+      return false;
+    return fclose(f) == 0;
+  }
+#endif
 
   ScopedTempDir temp_dir_;
   RealDiskInterface disk_;
@@ -105,6 +115,20 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
 }
 
 #ifdef _WIN32
+TEST_F(DiskInterfaceTest, StatFileUnicode) {
+  std::string err;
+  std::wstring ascii_file(L"fIlE4");
+  std::wstring unicode_file(L"\u221E\u2210\u1010\u0041\u2215");
+
+  ASSERT_TRUE(Touch(ascii_file.c_str()));
+  ASSERT_TRUE(Touch(unicode_file.c_str()));
+
+  EXPECT_GT(disk_.Stat(WideToUtf8(ascii_file), &err), 1);
+  EXPECT_EQ("", err);
+  EXPECT_GT(disk_.Stat(WideToUtf8(unicode_file), &err), 1);
+  EXPECT_EQ("", err);
+}
+
 TEST_F(DiskInterfaceTest, StatCache) {
   string err;
 
@@ -187,6 +211,22 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   EXPECT_EQ(kTestContent, content);
   EXPECT_EQ("", err);
 }
+
+#ifdef _WIN32
+TEST_F(DiskInterfaceTest, ReadFileUnicode) {
+  std::string content,err;
+  const wchar_t* kTestFile = L"testfile\u2654\u2Fc3";
+  FILE* f = _wfopen(kTestFile, L"wb");
+  ASSERT_TRUE(f);
+  const wchar_t* kTestContent = L"test\u2654\u2Fc3 content\nok";
+  fprintf(f, "%s", WideToUtf8(kTestContent).c_str());
+  ASSERT_EQ(0, fclose(f));
+
+  ASSERT_EQ(DiskInterface::Okay, disk_.ReadFile(WideToUtf8(kTestFile), &content, &err));
+  EXPECT_EQ(kTestContent, Utf8ToWide(content));
+  EXPECT_EQ("", err);
+}
+#endif
 
 TEST_F(DiskInterfaceTest, MakeDirs) {
   string path = "path/with/double//slash/";

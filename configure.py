@@ -319,6 +319,8 @@ if platform.is_msvc():
               '/wd4355',
               # Disable warnings about ignored typedef in DbgHelp.h
               '/wd4091',
+              # Disable warnings about codepage in testsuite
+              '/wd4566',
               '/GR-',  # Disable RTTI.
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.

@@ -15,6 +15,7 @@
 #include "depfile_parser.h"
 
 #include "test.h"
+#include "util.h"
 
 struct DepfileParserTest : public testing::Test {
   bool Parse(const char* input, string* err);
@@ -37,6 +38,20 @@ TEST_F(DepfileParserTest, Basic) {
   EXPECT_EQ("build/ninja.o", parser_.out_.AsString());
   EXPECT_EQ(4u, parser_.ins_.size());
 }
+
+
+#ifdef _WIN32
+TEST_F(DepfileParserTest, BasicUnicode) {
+  std::string err;
+  std::wstring toParse(
+      L"build/ninja\u2654.o: ninja\u2655.cc ninja\u2653.h eval_env\u2652.h "
+      L"manifest_parser\u2651.h\n");
+  EXPECT_TRUE(Parse(WideToUtf8(toParse).c_str(), &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(L"build/ninja\u2654.o", Utf8ToWide(parser_.out_.AsString()));
+  EXPECT_EQ(4u, parser_.ins_.size());
+}
+#endif
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
   string err;

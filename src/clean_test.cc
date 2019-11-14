@@ -16,6 +16,7 @@
 #include "build.h"
 
 #include "test.h"
+#include "util.h"
 
 struct CleanTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
@@ -55,6 +56,44 @@ TEST_F(CleanTest, CleanAll) {
   EXPECT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
 }
+
+#ifdef _WIN32
+TEST_F(CleanTest, CleanAllUnicode) {
+  std::wstring toParse(
+      L"build in1\u2156: cat src1\n"
+      L"build out1: cat in1\u2156\n"
+      L"build in2: cat src2\n"
+      L"build out2\u2153: cat in2\n");
+
+  std::string in1_string = WideToUtf8(L"in1\u2156");
+  std::string out2_string = WideToUtf8(L"out2\u2153");
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, WideToUtf8(toParse).c_str()));
+  fs_.Create(in1_string, "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create(out2_string, "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(4u, fs_.files_removed_.size());
+
+  // Check they are removed.
+  string err;
+  EXPECT_EQ(0, fs_.Stat(in1_string, &err));
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_EQ(0, fs_.Stat("in2", &err));
+  EXPECT_EQ(0, fs_.Stat(out2_string, &err));
+  fs_.files_removed_.clear();
+
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
+}
+#endif
 
 TEST_F(CleanTest, CleanAllDryRun) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
