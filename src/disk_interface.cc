@@ -71,11 +71,11 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesEx(Utf8ToWide(path).c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExW(Utf8ToWide(path).c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
+    *err = "GetFileAttributesExW(" + path + "): " + GetLastErrorString();
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -101,8 +101,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
 
-  WIN32_FIND_DATA ffd;
-  HANDLE find_handle = FindFirstFileEx(Utf8ToWide(dir + "\\*").c_str(), level,
+  WIN32_FIND_DATAW ffd;
+  HANDLE find_handle = FindFirstFileExW(Utf8ToWide(dir + "\\*").c_str(), level,
                                        &ffd, FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
@@ -122,7 +122,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFile(find_handle, &ffd));
+  } while (FindNextFileW(find_handle, &ffd));
   FindClose(find_handle);
   return true;
 }

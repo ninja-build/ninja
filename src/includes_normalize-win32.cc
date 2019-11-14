@@ -31,9 +31,9 @@ bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
   wchar_t w_buffer[_MAX_PATH];
   wstring w_file_name = Utf8ToWide(file_name.AsString());
   DWORD result_size =
-      GetFullPathName(w_file_name.c_str(), buffer_length, w_buffer, NULL);
+      GetFullPathNameW(w_file_name.c_str(), buffer_length, w_buffer, NULL);
   if (result_size == 0) {
-    *err = "GetFullPathName(" + file_name.AsString() +
+    *err = "GetFullPathNameW(" + file_name.AsString() +
            "): " + GetLastErrorString();
     return false;
   } else if (result_size > buffer_length) {

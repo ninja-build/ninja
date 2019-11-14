@@ -75,9 +75,9 @@ char* mkdtemp(char* name_template) {
 
 string GetSystemTempDir() {
 #ifdef _WIN32
-  TCHAR buf[MAX_PATH];
+  WCHAR buf[MAX_PATH];
   // GetTempPath returns zero if no path is found
-  if(GetTempPath(MAX_PATH, buf) == 0)
+  if(GetTempPathW(MAX_PATH, buf) == 0)
     return "";
   string result = WideToUtf8(wstring(buf));
   return result;

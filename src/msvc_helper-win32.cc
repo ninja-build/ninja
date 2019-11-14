@@ -44,7 +44,7 @@ int CLWrapper::Run(const string& command, string* output) {
 
   // Must be inheritable so subprocesses can dup to children.
   HANDLE nul =
-      CreateFile(L"NUL", GENERIC_READ,
+      CreateFileW(L"NUL", GENERIC_READ,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
@@ -67,7 +67,7 @@ int CLWrapper::Run(const string& command, string* output) {
 
 #ifdef _WIN32
   wstring commands = Utf8ToWide(command);
-  if (!CreateProcess(NULL, (wchar_t*)commands.c_str(), NULL, NULL,
+  if (!CreateProcessW(NULL, (wchar_t*)commands.c_str(), NULL, NULL,
 #else
   if (!CreateProcess(NULL, (char*)command.c_str(), NULL, NULL,
 #endif
