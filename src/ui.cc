@@ -32,6 +32,7 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #include "public/execution.h"
@@ -376,6 +377,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadTargets(argc, argv, options);
     } else if (strcmp(optarg, "rules") == 0) {
       return ReadFlagsRules(argc, argv, options);
+    } else if (strcmp(optarg, "targets") == 0) {
+      return ReadFlagsTargets(argc, argv, options);
     }
   }
 
@@ -508,6 +511,36 @@ int ReadFlagsRules(int* argc, char*** argv, Execution::Options* options) {
   argv += optind;
   argc -= optind;
 
+  return -1;
+}
+
+int ReadFlagsTargets(int* argc, char*** argv, Execution::Options* options) {
+  if (*argc >= 1) {
+    std::string mode = (*argv)[0];
+    if (mode == "rule") {
+      options->targets_options.mode = TM_RULE;
+      if (*argc > 1)
+        options->targets_options.rule = (*argv)[1];
+      return -1;
+    } else if (mode == "depth") {
+      options->targets_options.mode = TM_DEPTH;
+      if (*argc > 1)
+        options->targets_options.depth = atoi((*argv)[1]);
+    } else if (mode == "all") {
+      options->targets_options.mode = TM_ALL;
+    } else {
+      const char* suggestion =
+          SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);
+
+      std::ostringstream message;
+      message << "unknown target tool mode '" << mode << "'";
+      if (suggestion) {
+        message << ", did you mean '" << suggestion << "'?";
+      }
+      std::cerr << ui::kLogError << message.str() << std::endl;
+      return 1;
+    }
+  }
   return -1;
 }
 

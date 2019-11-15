@@ -184,6 +184,23 @@ bool TargetNamesToNodes(const State* state, const std::vector<std::string>& name
   return true;
 }
 
+void PrintToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    for (int i = 0; i < indent; ++i)
+      printf("  ");
+    const char* target = (*n)->path().c_str();
+    if ((*n)->in_edge()) {
+      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
+      if (depth > 1 || depth <= 0)
+        PrintToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
+    } else {
+      printf("%s\n", target);
+    }
+  }
+}
+
 }  // namespace
 
 Execution::Execution() : Execution(NULL, Options(), std::make_unique<LoggerBasic>()) {}
@@ -232,6 +249,11 @@ Execution::Options::CompilationDatabase::CompilationDatabase() :
 
 Execution::Options::Rules::Rules() :
   print_description(false) {}
+
+Execution::Options::Targets::Targets() :
+  depth(1),
+  mode(TM_DEPTH),
+  rule("") {}
 
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;
@@ -533,6 +555,44 @@ int Execution::Rules() {
   return 0;
 }
 
+int Execution::Targets() {
+  std::string err;
+  vector<Node*> root_nodes = state_->RootNodes(&err);
+  if (options_.targets_options.mode == TM_ALL) {
+    ToolTargetsList();
+    return 0;
+  } else if (options_.targets_options.mode == TM_DEPTH) {
+    printf("Showing depth %d", options_.targets_options.depth);
+    std::string err;
+    vector<Node*> root_nodes = state_->RootNodes(&err);
+    if (err.empty()) {
+      PrintToolTargetsList(root_nodes, options_.targets_options.depth, 0);
+      return 0;
+    } else {
+      LogError(err);
+      return 1;
+    }
+  } else if (options_.targets_options.mode == TM_RULE) {
+    if (options_.targets_options.rule.empty()) {
+      for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+           e != state_->edges_.end(); ++e) {
+        for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
+             inps != (*e)->inputs_.end(); ++inps) {
+          if (!(*inps)->in_edge())
+            printf("%s\n", (*inps)->path().c_str());
+        }
+      }
+      return 0;
+    } else {
+      ToolTargetsList(options_.targets_options.rule);
+      return 0;
+    }
+  } else {
+    printf("This shouldn't be possible, a developer must have added a new option without fixing the conditional");
+    return 9;
+  }
+}
+
 int Execution::Run(int argc, char* argv[]) {
   Status* status = new StatusPrinter(config_);
 
@@ -548,7 +608,7 @@ int Execution::Run(int argc, char* argv[]) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
     ManifestParser parser(state_, DiskInterface(), parser_opts);
-    string err;
+    std::string err;
     if (!parser.Load(options_.input_file, &err)) {
       status->Error("%s", err.c_str());
       return 1;
@@ -715,5 +775,55 @@ int Execution::RunBuild(int argc, char** argv, Status* status) {
   return 0;
 }
 
+void Execution::ToolTargetsList(const std::string& rule_name) {
+  set<string> rules;
+
+  // Gather the outputs.
+  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    if ((*e)->rule_->name() == rule_name) {
+      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+           out_node != (*e)->outputs_.end(); ++out_node) {
+        rules.insert((*out_node)->path());
+      }
+    }
+  }
+
+  // Print them.
+  for (set<string>::const_iterator i = rules.begin();
+       i != rules.end(); ++i) {
+    printf("%s\n", (*i).c_str());
+  }
+}
+
+void Execution::ToolTargetsList() {
+  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end(); ++out_node) {
+      printf("%s: %s\n",
+             (*out_node)->path().c_str(),
+             (*e)->rule_->name().c_str());
+    }
+  }
+}
+
+int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
+  for (vector<Node*>::const_iterator n = nodes.begin();
+       n != nodes.end();
+       ++n) {
+    for (int i = 0; i < indent; ++i)
+      printf("  ");
+    const char* target = (*n)->path().c_str();
+    if ((*n)->in_edge()) {
+      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
+      if (depth > 1 || depth <= 0)
+        PrintToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
+    } else {
+      printf("%s\n", target);
+    }
+  }
+  return 0;
+}
 
 }  // namespace ninja

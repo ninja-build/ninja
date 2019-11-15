@@ -33,6 +33,11 @@ enum EvaluateCommandMode {
   ECM_EXPAND_RSPFILE
 };
 enum PrintCommandMode { PCM_Single, PCM_All };
+enum TargetsMode {
+  TM_ALL,
+  TM_DEPTH,
+  TM_RULE,
+};
 
 /// Create a request to perform a ninja execution.
 /// This should be the main entrypoint to requesting
@@ -69,6 +74,16 @@ public:
       Rules();
       /// Whether or not to print the rules description
       bool print_description;
+    };
+    struct Targets {
+      Targets();
+      /// The max depth to list targets
+      int depth;
+      /// The mode to use when listing targets
+      TargetsMode mode;
+      /// The name of the rule to use when listing targets
+      /// with the 'rule' mode.
+      std::string rule;
     };
     Options();
     Options(const Tool* tool);
@@ -116,6 +131,8 @@ public:
     /// being an empty list.
     std::vector<std::string> targets;
 
+    /// Options to use when using the 'targets' tool.
+    Targets targets_options;
     /// The tool to use
     const Tool* tool_;
 
@@ -175,6 +192,7 @@ public:
   int Query();
   int Recompact();
   int Rules();
+  int Targets();
 
   /// Main entrypoint for the execution
   int Run(int argc, char* argv[]);
@@ -193,7 +211,10 @@ protected:
   /// Build the targets listed on the command line.
   /// @return an exit code.
   int RunBuild(int argc, char** argv, Status* status);
-  
+
+  void ToolTargetsList();
+  void ToolTargetsList(const std::string& rule_name);
+
   /// Build configuration set from flags (e.g. parallelism).
   BuildConfig config_;
 

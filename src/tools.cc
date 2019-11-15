@@ -79,90 +79,6 @@ namespace {
 }
 constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
 
-int ToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
-  for (vector<Node*>::const_iterator n = nodes.begin();
-       n != nodes.end();
-       ++n) {
-    for (int i = 0; i < indent; ++i)
-      printf("  ");
-    const char* target = (*n)->path().c_str();
-    if ((*n)->in_edge()) {
-      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
-      if (depth > 1 || depth <= 0)
-        ToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
-    } else {
-      printf("%s\n", target);
-    }
-  }
-  return 0;
-}
-
-int ToolTargetsList(Execution* execution, const string& rule_name) {
-  set<string> rules;
-
-  // Gather the outputs.
-  for (vector<Edge*>::const_iterator e = execution->state()->edges_.begin();
-       e != execution->state()->edges_.end(); ++e) {
-    if ((*e)->rule_->name() == rule_name) {
-      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-           out_node != (*e)->outputs_.end(); ++out_node) {
-        rules.insert((*out_node)->path());
-      }
-    }
-  }
-
-  // Print them.
-  for (set<string>::const_iterator i = rules.begin();
-       i != rules.end(); ++i) {
-    printf("%s\n", (*i).c_str());
-  }
-
-  return 0;
-}
-
-int ToolTargetsList(Execution* execution) {
-  for (vector<Edge*>::const_iterator e = execution->state()->edges_.begin();
-       e != execution->state()->edges_.end(); ++e) {
-    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
-         out_node != (*e)->outputs_.end(); ++out_node) {
-      printf("%s: %s\n",
-             (*out_node)->path().c_str(),
-             (*e)->rule_->name().c_str());
-    }
-  }
-  return 0;
-}
-
-int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
-  for (vector<Node*>::const_iterator n = nodes.begin();
-       n != nodes.end();
-       ++n) {
-    for (int i = 0; i < indent; ++i)
-      printf("  ");
-    const char* target = (*n)->path().c_str();
-    if ((*n)->in_edge()) {
-      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
-      if (depth > 1 || depth <= 0)
-        ToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
-    } else {
-      printf("%s\n", target);
-    }
-  }
-  return 0;
-}
-
-int ToolTargetsSourceList(Execution* execution) {
-  for (vector<Edge*>::const_iterator e = execution->state()->edges_.begin();
-       e != execution->state()->edges_.end(); ++e) {
-    for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
-         inps != (*e)->inputs_.end(); ++inps) {
-      if (!(*inps)->in_edge())
-        printf("%s\n", (*inps)->path().c_str());
-    }
-  }
-  return 0;
-}
-
 namespace tool {
 #if defined(NINJA_HAVE_BROWSE)
 int Browse(Execution* execution, int argc, char* argv[]) {
@@ -223,44 +139,7 @@ int Rules(Execution* execution, int argc, char* argv[]) {
 }
 
 int Targets(Execution* execution, int argc, char* argv[]) {
-  int depth = 1;
-  if (argc >= 1) {
-    string mode = argv[0];
-    if (mode == "rule") {
-      string rule;
-      if (argc > 1)
-        rule = argv[1];
-      if (rule.empty())
-        return ToolTargetsSourceList(execution);
-      else
-        return ToolTargetsList(execution, rule);
-    } else if (mode == "depth") {
-      if (argc > 1)
-        depth = atoi(argv[1]);
-    } else if (mode == "all") {
-      return ToolTargetsList(execution);
-    } else {
-      const char* suggestion =
-          SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);
-
-      ostringstream message;
-      message << "unknown target tool mode '" << mode << "'";
-      if (suggestion) {
-        message << ", did you mean '" << suggestion << "'?";
-      }
-      execution->state()->Log(Logger::Level::ERROR, message.str());
-      return 1;
-    }
-  }
-
-  string err;
-  vector<Node*> root_nodes = execution->state()->RootNodes(&err);
-  if (err.empty()) {
-    return ToolTargetsList(root_nodes, depth, 0);
-  } else {
-    execution->state()->Log(Logger::Level::ERROR, err);
-    return 1;
-  }
+  return execution->Targets();
 }
 
 int Urtle(Execution* execution, int argc, char** argv) {
