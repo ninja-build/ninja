@@ -146,15 +146,9 @@ int Urtle(Execution* execution, int argc, char** argv) {
   return execution->Urtle();
 }
 
-#if defined(_MSC_VER)
 int MSVC(Execution* execution, int argc, char* argv[]) {
-  // Reset getopt: push one argument onto the front of argv, reset optind.
-  argc++;
-  argv--;
-  optind = 0;
-  return MSVCHelperMain(argc, argv);
+  return execution->MSVC();
 }
-#endif
 
 std::vector<const char*> AllNames() {
   std::vector<const char*> words;

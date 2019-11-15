@@ -373,6 +373,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadFlagsCommands(argc, argv, options);
     } else if (strcmp(optarg, "graph") == 0) {
       return ReadTargets(argc, argv, options);
+    } else if (strcmp(optarg, "msvc") == 0) {
+      return ReadFlagsMSVC(argc, argv, options);
     } else if (strcmp(optarg, "query") == 0) {
       return ReadTargets(argc, argv, options);
     } else if (strcmp(optarg, "rules") == 0) {
@@ -482,6 +484,44 @@ int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* op
   *argc -= optind;
 
   return ReadTargets(argc, argv, options);
+}
+
+int ReadFlagsMSVC(int* argc, char*** argv, Execution::Options* options) {
+  // Step back argv to include 'msvc' so that getopt will
+  // work correctly since it starts reading at position 1.
+  ++(*argc);
+  --(*argv);
+
+  const option kLongOptions[] = {
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+  };
+  int opt;
+  std::string deps_prefix;
+  while ((opt = getopt_long(*argc, *argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+      case 'e':
+        options->msvc_options.envfile = optarg;
+        break;
+      case 'o':
+        options->msvc_options.output_filename = optarg;
+        break;
+      case 'p':
+        options->msvc_options.deps_prefix = optarg;
+        break;
+      case 'h':
+      default:
+        printf(
+          "usage: ninja -t msvc [options] -- cl.exe /showIncludes /otherArgs\n"
+          "options:\n"
+          "  -e ENVFILE load environment block from ENVFILE as environment\n"
+          "  -o FILE    write output dependency information to FILE.d\n"
+          "  -p STRING  localized prefix of msvc's /showIncludes output\n"
+        );
+        return 0;
+    }
+  }
+  return -1;
 }
 
 int ReadFlagsRules(int* argc, char*** argv, Execution::Options* options) {

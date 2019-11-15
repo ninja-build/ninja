@@ -247,6 +247,11 @@ Execution::Options::Commands::Commands() :
 Execution::Options::CompilationDatabase::CompilationDatabase() :
   eval_mode(ECM_NORMAL) {}
 
+Execution::Options::MSVC::MSVC() :
+  deps_prefix(""),
+  envfile(""),
+  output_filename("") {}
+
 Execution::Options::Rules::Rules() :
   print_description(false) {}
 
@@ -468,6 +473,15 @@ int Execution::Graph() {
   graph.Finish();
 
   return 0;
+}
+
+int Execution::MSVC() {
+#if defined(_MSC_VER)
+  return MSVCHelperMain(options_.msvc_options.deps_prefix, options_.msvc_options.envfile, options_.msvc_options.output_filename);
+#else
+  printf("Not supported on this platform.");
+  return 1;
+#endif
 }
 
 int Execution::Query() {

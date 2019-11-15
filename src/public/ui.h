@@ -77,6 +77,10 @@ int ReadFlagsCommands(int* argc, char*** argv, Execution::Options* options);
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* options);
 
+/// Parse argv for 'msvc' tool.
+/// Returns an exit code, or -1 if Ninja should continue.
+int ReadFlagsMSVC(int* argc, char*** argv, Execution::Options* options);
+
 /// Parse argv for 'rules' tool.
 /// Returns an exit code or -1 if Ninja should continue.
 int ReadFlagsRules(int* argc, char*** argv, Execution::Options* options);

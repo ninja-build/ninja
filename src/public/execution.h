@@ -70,6 +70,13 @@ public:
       /// The mode for evaluating commands
       EvaluateCommandMode eval_mode;
     };
+    struct MSVC {
+      MSVC();
+
+      std::string deps_prefix;
+      std::string envfile;
+      std::string output_filename;
+    };
     struct Rules {
       Rules();
       /// Whether or not to print the rules description
@@ -116,6 +123,9 @@ public:
  
     /// The maximum load to allow.
     float max_load_average;
+
+    /// Options to use when using the 'msvc' tool.
+    MSVC msvc_options;
 
     /// The level of parallelism to use during the build
     int parallelism;
@@ -189,6 +199,7 @@ public:
   int CompilationDatabase();
   int Deps();
   int Graph();
+  int MSVC();
   int Query();
   int Recompact();
   int Rules();

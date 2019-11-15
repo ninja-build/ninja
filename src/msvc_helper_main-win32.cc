@@ -25,19 +25,8 @@
 #include "getopt.h"
 
 namespace ninja {
-namespace {
 
-void Usage() {
-  printf(
-"usage: ninja -t msvc [options] -- cl.exe /showIncludes /otherArgs\n"
-"options:\n"
-"  -e ENVFILE load environment block from ENVFILE as environment\n"
-"  -o FILE    write output dependency information to FILE.d\n"
-"  -p STRING  localized prefix of msvc's /showIncludes output\n"
-         );
-}
-
-void PushPathIntoEnvironment(const string& env_block) {
+void PushPathIntoEnvironment(const std::string& env_block) {
   const char* as_str = env_block.c_str();
   while (as_str[0]) {
     if (_strnicmp(as_str, "path=", 5) == 0) {
@@ -50,7 +39,7 @@ void PushPathIntoEnvironment(const string& env_block) {
 }
 
 void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
-  string depfile_path = string(object_path) + ".d";
+  std::string depfile_path = std::string(object_path) + ".d";
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
@@ -78,37 +67,10 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
 
 }  // anonymous namespace
 
-int MSVCHelperMain(int argc, char** argv) {
-  const char* output_filename = NULL;
-  const char* envfile = NULL;
-
-  const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { NULL, 0, NULL, 0 }
-  };
-  int opt;
-  string deps_prefix;
-  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
-    switch (opt) {
-      case 'e':
-        envfile = optarg;
-        break;
-      case 'o':
-        output_filename = optarg;
-        break;
-      case 'p':
-        deps_prefix = optarg;
-        break;
-      case 'h':
-      default:
-        Usage();
-        return 0;
-    }
-  }
-
-  string env;
+int MSVCHelperMain(const std::string& deps_prefix, const std::string& envfile, const std::string& output_filename) {
+  std::string env;
   if (envfile) {
-    string err;
+    std::string err;
     if (ReadFile(envfile, &env, &err) != 0)
       Fatal("couldn't open %s: %s", envfile, err.c_str());
     PushPathIntoEnvironment(env);
@@ -124,12 +86,12 @@ int MSVCHelperMain(int argc, char** argv) {
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
-  string output;
+  std::string output;
   int exit_code = cl.Run(command, &output);
 
   if (output_filename) {
     CLParser parser;
-    string err;
+    std::string err;
     if (!parser.Parse(output, deps_prefix, &output, &err))
       Fatal("%s\n", err.c_str());
     WriteDepFileOrDie(output_filename, parser);
