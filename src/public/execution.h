@@ -162,6 +162,7 @@ public:
   int Clean();
   int Commands();
   int CompilationDatabase();
+  int Deps();
   int Graph();
   int Query();
   int Recompact();

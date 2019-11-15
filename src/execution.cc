@@ -386,6 +386,48 @@ int Execution::CompilationDatabase() {
   return 0;
 }
 
+int Execution::Deps() {
+  vector<Node*> nodes;
+  string err;
+  if (options_.targets.size()) {
+    if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
+      LogError(err);
+      return 1;
+    }
+  } else {
+    for (vector<Node*>::const_iterator ni = state_->deps_log_->nodes().begin();
+         ni != state_->deps_log_->nodes().end(); ++ni) {
+      if (state_->deps_log_->IsDepsEntryLiveFor(*ni))
+        nodes.push_back(*ni);
+    }
+  }
+
+  RealDiskInterface disk_interface;
+  for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
+       it != end; ++it) {
+    DepsLog::Deps* deps = state_->deps_log_->GetDeps(*it);
+    if (!deps) {
+      printf("%s: deps not found\n", (*it)->path().c_str());
+      continue;
+    }
+
+    string err;
+    TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
+    if (mtime == -1) {
+      // Log and ignore Stat() errors;
+      state_->Log(Logger::Level::ERROR, err);
+    }
+    printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
+           (*it)->path().c_str(), deps->node_count, deps->mtime,
+           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+    for (int i = 0; i < deps->node_count; ++i)
+      printf("    %s\n", deps->nodes[i]->path().c_str());
+    printf("\n");
+  }
+
+  return 0;
+}
+
 int Execution::Graph() {
   vector<Node*> nodes;
   string err;
