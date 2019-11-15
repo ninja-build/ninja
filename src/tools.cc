@@ -219,52 +219,7 @@ int Recompact(Execution* execution, int argc, char* argv[]) {
 }
 
 int Rules(Execution* execution, int argc, char* argv[]) {
-  // Parse options.
-
-  // The rules tool uses getopt, and expects argv[0] to contain the name of
-  // the tool, i.e. "rules".
-  argc++;
-  argv--;
-
-  bool print_description = false;
-
-  optind = 1;
-  int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hd"))) != -1) {
-    switch (opt) {
-    case 'd':
-      print_description = true;
-      break;
-    case 'h':
-    default:
-      printf("usage: ninja -t rules [options]\n"
-             "\n"
-             "options:\n"
-             "  -d     also print the description of the rule\n"
-             "  -h     print this message\n"
-             );
-    return 1;
-    }
-  }
-  argv += optind;
-  argc -= optind;
-
-  // Print rules
-
-  typedef map<string, const Rule*> Rules;
-  const Rules& rules = execution->state()->bindings_.GetRules();
-  for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
-    printf("%s", i->first.c_str());
-    if (print_description) {
-      const Rule* rule = i->second;
-      const EvalString* description = rule->GetBinding("description");
-      if (description != NULL) {
-        printf(": %s", description->Unparse().c_str());
-      }
-    }
-    printf("\n");
-  }
-  return 0;
+  return execution->Rules();
 }
 
 int Targets(Execution* execution, int argc, char* argv[]) {

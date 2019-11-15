@@ -65,6 +65,11 @@ public:
       /// The mode for evaluating commands
       EvaluateCommandMode eval_mode;
     };
+    struct Rules {
+      Rules();
+      /// Whether or not to print the rules description
+      bool print_description;
+    };
     Options();
     Options(const Tool* tool);
 
@@ -103,6 +108,9 @@ public:
     /// Whether phony cycles should warn or print an error.
     bool phony_cycle_should_err;
   
+    /// Options to use when using the 'rules' tool.
+    Rules rules_options;
+
     /// The list of targets to apply the selected tool to. This
     /// is not used by all tools, and so can reasonably default to
     /// being an empty list.
@@ -166,6 +174,7 @@ public:
   int Graph();
   int Query();
   int Recompact();
+  int Rules();
 
   /// Main entrypoint for the execution
   int Run(int argc, char* argv[]);

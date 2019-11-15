@@ -374,6 +374,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadTargets(argc, argv, options);
     } else if (strcmp(optarg, "query") == 0) {
       return ReadTargets(argc, argv, options);
+    } else if (strcmp(optarg, "rules") == 0) {
+      return ReadFlagsRules(argc, argv, options);
     }
   }
 
@@ -477,6 +479,36 @@ int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* op
   *argc -= optind;
 
   return ReadTargets(argc, argv, options);
+}
+
+int ReadFlagsRules(int* argc, char*** argv, Execution::Options* options) {
+  // Step back argv to include 'rules' so that getopt will
+  // work correctly since it starts reading at position 1.
+  ++(*argc);
+  --(*argv);
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(*argc, *argv, const_cast<char*>("hd"))) != -1) {
+    switch (opt) {
+    case 'd':
+      options->rules_options.print_description = true;
+      break;
+    case 'h':
+    default:
+      printf("usage: ninja -t rules [options]\n"
+             "\n"
+             "options:\n"
+             "  -d     also print the description of the rule\n"
+             "  -h     print this message\n"
+             );
+    return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  return -1;
 }
 
 int ReadTargets(int* argc, char*** argv, Execution::Options* options) {

@@ -230,6 +230,9 @@ Execution::Options::Commands::Commands() :
 Execution::Options::CompilationDatabase::CompilationDatabase() :
   eval_mode(ECM_NORMAL) {}
 
+Execution::Options::Rules::Rules() :
+  print_description(false) {}
+
 RealDiskInterface* Execution::DiskInterface() {
   return state_->disk_interface_;
 }
@@ -509,6 +512,24 @@ int Execution::Recompact() {
     err.clear();
   }
 
+  return 0;
+}
+
+int Execution::Rules() {
+  typedef map<string, const Rule*> Rules;
+  const Rules& rules = state_->bindings_.GetRules();
+  for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
+    printf("%s", i->first.c_str());
+    if (options_.rules_options.print_description) {
+      printf("Description!");
+      const Rule* rule = i->second;
+      const EvalString* description = rule->GetBinding("description");
+      if (description != NULL) {
+        printf(": %s", description->Unparse().c_str());
+      }
+    }
+    printf("\n");
+  }
   return 0;
 }
 
