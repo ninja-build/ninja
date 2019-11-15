@@ -54,22 +54,22 @@ void EncodeJSONString(const char *str) {
 
 std::string EvaluateCommandWithRspfile(const Edge* edge,
                                        const EvaluateCommandMode mode) {
-  string command = edge->EvaluateCommand();
+  std::string command = edge->EvaluateCommand();
   if (mode == ECM_NORMAL)
     return command;
 
-  string rspfile = edge->GetUnescapedRspfile();
+  std::string rspfile = edge->GetUnescapedRspfile();
   if (rspfile.empty())
     return command;
 
   size_t index = command.find(rspfile);
-  if (index == 0 || index == string::npos || command[index - 1] != '@')
+  if (index == 0 || index == std::string::npos || command[index - 1] != '@')
     return command;
 
-  string rspfile_content = edge->GetBinding("rspfile_content");
+  std::string rspfile_content = edge->GetBinding("rspfile_content");
   size_t newline_index = 0;
   while ((newline_index = rspfile_content.find('\n', newline_index)) !=
-         string::npos) {
+         std::string::npos) {
     rspfile_content.replace(newline_index, 1, 1, ' ');
     ++newline_index;
   }
@@ -290,9 +290,9 @@ void Execution::LogWarning(const std::string& message) {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool Execution::RebuildManifest(const char* input_file, string* err,
+bool Execution::RebuildManifest(const char* input_file, std::string* err,
                                 Status* status) {
-  string path = input_file;
+  std::string path = input_file;
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
     return false;
@@ -356,7 +356,7 @@ int Execution::Clean() {
 int Execution::Commands() {
   EdgeSet seen;
   vector<Node*> nodes;
-  string err;
+  std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
     LogError(err);
     return 1;
@@ -413,7 +413,7 @@ int Execution::CompilationDatabase() {
 
 int Execution::Deps() {
   vector<Node*> nodes;
-  string err;
+  std::string err;
   if (options_.targets.size()) {
     if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
       LogError(err);
@@ -436,7 +436,7 @@ int Execution::Deps() {
       continue;
     }
 
-    string err;
+    std::string err;
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
     if (mtime == -1) {
       // Log and ignore Stat() errors;
@@ -455,7 +455,7 @@ int Execution::Deps() {
 
 int Execution::Graph() {
   vector<Node*> nodes;
-  string err;
+  std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
     LogError(err);
     return 1;
@@ -479,7 +479,7 @@ int Execution::Query() {
   DyndepLoader dyndep_loader(state_, state_->disk_interface_);
 
   for (size_t i = 0; i < options_.targets.size(); ++i) {
-    string err;
+    std::string err;
     std::string target_name = options_.targets[i];
     Node* node = TargetNameToNode(state_, target_name, &err);
     if (!node) {
@@ -516,7 +516,7 @@ int Execution::Query() {
   return 0;
 }
 int Execution::Recompact() {
-  string err;
+  std::string err;
   if (!EnsureBuildDirExists(&err)) {
     LogError(err);
     return 1;
@@ -676,7 +676,7 @@ bool Execution::EnsureBuildDirExists(std::string* err) {
 bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
   /// The build directory, used for storing the build log etc.
   std::string build_dir = state_->bindings_.LookupVariable("builddir");
-  string log_path = ".ninja_log";
+  std::string log_path = ".ninja_log";
   if (!build_dir.empty())
     log_path = build_dir + "/" + log_path;
 
@@ -733,7 +733,7 @@ bool Execution::OpenDepsLog(bool recompact_only, std::string* err) {
 }
 
 int Execution::RunBuild(int argc, char** argv, Status* status) {
-  string err;
+  std::string err;
   vector<Node*> targets;
   if (!ui::CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
     status->Error("%s", err.c_str());
@@ -766,7 +766,7 @@ int Execution::RunBuild(int argc, char** argv, Status* status) {
 
   if (!builder.Build(&err)) {
     status->Info("build stopped: %s.", err.c_str());
-    if (err.find("interrupted by user") != string::npos) {
+    if (err.find("interrupted by user") != std::string::npos) {
       return 2;
     }
     return 1;
