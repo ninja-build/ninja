@@ -193,6 +193,7 @@ public:
   int Recompact();
   int Rules();
   int Targets();
+  int Urtle();
 
   /// Main entrypoint for the execution
   int Run(int argc, char* argv[]);
