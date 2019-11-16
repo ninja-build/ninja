@@ -228,7 +228,7 @@ bool ManifestParser::ParseEdge(string* err) {
     for (;;) {
       EvalString out;
       if (!lexer_.ReadPath(&out, err))
-        return err;
+        return false;
       if (out.empty())
         break;
       outs.push_back(out);
@@ -266,7 +266,7 @@ bool ManifestParser::ParseEdge(string* err) {
     for (;;) {
       EvalString in;
       if (!lexer_.ReadPath(&in, err))
-        return err;
+        return false;
       if (in.empty())
         break;
       ins.push_back(in);
