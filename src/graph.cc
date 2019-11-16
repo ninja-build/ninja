@@ -383,7 +383,7 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
       result.push_back(sep);
     const string& path = (*i)->PathDecanonicalized();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
