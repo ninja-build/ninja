@@ -21,6 +21,7 @@
 #endif
 
 #include "build_log.h"
+#include "disk_interface.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -412,6 +413,53 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
   }
 
   if (rename(temp_path.c_str(), path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  return true;
+}
+
+bool BuildLog::Restat(const StringPiece path,
+                      const DiskInterface& disk_interface,
+                      std::string* const err) {
+  METRIC_RECORD(".ninja_log restat");
+
+  Close();
+  std::string temp_path = path.AsString() + ".restat";
+  FILE* f = fopen(temp_path.c_str(), "wb");
+  if (!f) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
+    *err = strerror(errno);
+    fclose(f);
+    return false;
+  }
+  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+    if (mtime == -1) {
+      fclose(f);
+      return false;
+    }
+    i->second->mtime = mtime;
+
+    if (!WriteEntry(f, *i->second)) {
+      *err = strerror(errno);
+      fclose(f);
+      return false;
+    }
+  }
+
+  fclose(f);
+  if (unlink(path.str_) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (rename(temp_path.c_str(), path.str_) < 0) {
     *err = strerror(errno);
     return false;
   }

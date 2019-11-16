@@ -23,6 +23,7 @@ using namespace std;
 #include "timestamp.h"
 #include "util.h"  // uint64_t
 
+struct DiskInterface;
 struct Edge;
 
 /// Can answer questions about the manifest for the BuildLog.
@@ -80,6 +81,10 @@ struct BuildLog {
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, const BuildLogUser& user, string* err);
+
+  /// Restat all outputs in the log
+  bool Restat(StringPiece path, const DiskInterface& disk_interface,
+              std::string* err);
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }

@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
+#include <cassert>
 
 namespace {
 
@@ -214,6 +215,47 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   ASSERT_EQ(789, e->end_time);
   ASSERT_EQ(789, e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
+}
+
+struct TestDiskInterface : public DiskInterface {
+  virtual TimeStamp Stat(const string& path, string* err) const {
+    return 4;
+  }
+  virtual bool WriteFile(const string& path, const string& contents) {
+    assert(false);
+    return true;
+  }
+  virtual bool MakeDir(const string& path) {
+    assert(false);
+    return false;
+  }
+  virtual Status ReadFile(const string& path, string* contents, string* err) {
+    assert(false);
+    return NotFound;
+  }
+  virtual int RemoveFile(const string& path) {
+    assert(false);
+    return 0;
+  }
+};
+
+TEST_F(BuildLogTest, Restat) {
+  FILE* f = fopen(kTestFilename, "wb");
+  fprintf(f, "# ninja log v4\n"
+             "1\t2\t3\tout\tcommand\n");
+  fclose(f);
+  std::string err;
+  BuildLog log;
+  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  BuildLog::LogEntry* e = log.LookupByOutput("out");
+  ASSERT_EQ(3, e->mtime);
+
+  TestDiskInterface testDiskInterface;
+  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, &err));
+  ASSERT_EQ("", err);
+  e = log.LookupByOutput("out");
+  ASSERT_EQ(4, e->mtime);
 }
 
 TEST_F(BuildLogTest, VeryLongInputLine) {
