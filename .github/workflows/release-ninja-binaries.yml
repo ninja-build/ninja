@@ -1,6 +1,7 @@
 name: Release Ninja Binaries
 
 on:
+  pull_request:
   push:
   release:
     types: published
