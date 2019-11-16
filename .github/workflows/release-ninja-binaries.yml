@@ -1,8 +1,7 @@
 name: Release Ninja Binaries
 
 on:
-  schedule:
-    - cron: '0 * * * *'
+  pull_request:
   push:
   release:
     types: published
@@ -51,7 +50,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-      
+
     # Install OS specific dependencies
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -69,19 +68,19 @@ jobs:
         brew install re2c p7zip cmake
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
-      run: ls "C:/Program Files (x86)/Microsoft Visual Studio/"
-        
+      run: choco install re2c
+
     - name: Build ninja
       shell: bash
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --parallel --config Release --target ninja
-        
+
     - name: Strip Linux binary
       if: matrix.os == 'ubuntu-latest'
       run: cd build && strip ninja
-        
+
     - name: Create ninja archive
       shell: bash
       env:
@@ -89,14 +88,14 @@ jobs:
       run: |
         mkdir artifact
         7z a artifact/${ZIP_NAME}.zip $(find ./build -name ninja -or -name ninja.exe)
-        
+
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
       uses: actions/upload-artifact@v1
       with:
         name: ninja-binary-archives
         path: artifact
-        
+
     - name: Upload release asset
       if: github.event.action == 'published'
       uses: actions/upload-release-asset@v1.0.1
