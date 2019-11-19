@@ -262,10 +262,6 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-const BuildConfig& Execution::config() const {
-  return config_;
-}
-
 const Execution::Options& Execution::options() const {
   return options_;
 }
