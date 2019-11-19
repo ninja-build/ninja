@@ -262,10 +262,6 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-const Execution::Options& Execution::options() const {
-  return options_;
-}
-
 const State* Execution::state() const {
   return state_;
 }
