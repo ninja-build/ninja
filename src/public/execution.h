@@ -20,13 +20,12 @@
 
 #include "public/build_config.h"
 #include "public/logger.h"
-#include "public/tools.h"
 
 namespace ninja {
 
 class RealDiskInterface;
 class State;
-struct Tool;
+struct Status;
 
 enum EvaluateCommandMode {
   ECM_NORMAL,
@@ -44,6 +43,27 @@ enum TargetsMode {
 /// that ninja perform some work.
 class Execution {
 public:
+  struct Tool {
+    const char* name;
+    /// When to run the tool.
+    enum {
+      /// Run after parsing the command-line flags and potentially changing
+      /// the current working directory (as early as possible).
+      RUN_AFTER_FLAGS,
+
+      /// Run after loading build.ninja.
+      RUN_AFTER_LOAD,
+
+      /// Run after loading the build/deps logs.
+      RUN_AFTER_LOGS,
+    } when;
+
+    /// The type of functions that are the entry points to tools (subcommands).
+    typedef int (Execution::*Implementation) (void);
+
+    /// Implementation of the tool.
+    Implementation implementation;
+  };
 
   /// Command-line options.
   struct Options {
@@ -93,7 +113,7 @@ public:
       std::string rule;
     };
     Options();
-    Options(const Tool* tool);
+    Options(const Execution::Tool* tool);
 
     /// Options to use when using the 'clean' tool.
     Clean clean_options;
@@ -144,7 +164,7 @@ public:
     /// Options to use when using the 'targets' tool.
     Targets targets_options;
     /// The tool to use
-    const Tool* tool_;
+    const Execution::Tool* tool_;
 
     /// True to include verbose logging. Default is false.
     bool verbose;
@@ -165,15 +185,10 @@ public:
   /// start a new ninja subprocess.
   Execution(const char* ninja_command, Options options);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
+  Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Get access to the underlying disk interface
-  RealDiskInterface* DiskInterface();
-
-  /// Dump the metrics about the build requested by '-d stats'.
-  void DumpMetrics();
-
-  bool EnsureBuildDirExists(std::string* err);
-
+  /// Get a tool by name.
+  static const Execution::Tool* ChooseTool(const std::string& name);
   /// Get read-only access to command used to start this
   /// ninja execution.
   const char* command() const;
@@ -187,11 +202,14 @@ public:
   /// Get read-only access to the underlying state.
   const State* state() const;
 
-  /// Rebuild the manifest, if necessary.
-  /// Fills in \a err on error.
-  /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, std::string* err, Status* status);
-  
+  /// Get access to the underlying disk interface
+  RealDiskInterface* DiskInterface();
+
+  /// Dump the metrics about the build requested by '-d stats'.
+  void DumpMetrics();
+
+  bool EnsureBuildDirExists(std::string* err);
+
   /// Tools
   int Browse();
   int Clean();
@@ -209,6 +227,7 @@ public:
   /// Main entrypoint for the execution
   int Run(int argc, char* argv[]);
 protected:
+  bool LoadParser(const std::string& input_file, std::string* err);
   void LogError(const std::string& message);
   void LogWarning(const std::string& message);
 
@@ -220,9 +239,14 @@ protected:
   /// @return false on error.
   bool OpenDepsLog(bool recompact_only, std::string* err);
   
+  /// Rebuild the manifest, if necessary.
+  /// Fills in \a err on error.
+  /// @return true if the manifest was rebuilt.
+  bool RebuildManifest(const char* input_file, std::string* err);
+  
   /// Build the targets listed on the command line.
   /// @return an exit code.
-  int RunBuild(int argc, char** argv, Status* status);
+  int RunBuild(int argc, char** argv);
 
   void ToolTargetsList();
   void ToolTargetsList(const std::string& rule_name);
@@ -239,6 +263,9 @@ protected:
 
   /// The current state of the build.
   State* state_;
+
+  /// The status printer to use when showing status.
+  Status* status_;
 };
 
 }  // namespace ninja

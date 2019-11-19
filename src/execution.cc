@@ -43,6 +43,27 @@
 namespace ninja {
 namespace {
 
+static const Execution::Tool kTools[] = {
+  {NULL, Execution::Tool::RUN_AFTER_FLAGS, NULL},
+  // TODO(eliribble) split out build tool.
+  // { "build", NULL, Tool::RUN_AFTER_FLAGS, NULL }
+  {"browse", Execution::Tool::RUN_AFTER_LOAD, &Execution::Browse},
+  {"clean", Execution::Tool::RUN_AFTER_LOAD, &Execution::Clean},
+  {"commands", Execution::Tool::RUN_AFTER_LOAD, &Execution::Commands},
+  {"compdb", Execution::Tool::RUN_AFTER_LOAD, &Execution::CompilationDatabase},
+  {"deps", Execution::Tool::RUN_AFTER_LOGS, &Execution::Deps},
+  {"graph", Execution::Tool::RUN_AFTER_LOAD, &Execution::Graph},
+  {"query", Execution::Tool::RUN_AFTER_LOGS, &Execution::Query},
+  {"recompact", Execution::Tool::RUN_AFTER_LOAD, &Execution::Recompact},
+  {"rules", Execution::Tool::RUN_AFTER_LOAD, &Execution::Rules},
+  {"targets", Execution::Tool::RUN_AFTER_LOAD, &Execution::Targets},
+  {"urtle", Execution::Tool::RUN_AFTER_FLAGS, &Execution::Urtle}
+#if defined(_MSC_VER)
+  ,{"msvc", Execution::Tool::RUN_AFTER_FLAGS, &Execution::MSVC}
+#endif
+};
+constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
+
 void EncodeJSONString(const char *str) {
   while (*str) {
     if (*str == '"' || *str == '\\')
@@ -203,13 +224,16 @@ void PrintToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
 
 }  // namespace
 
-Execution::Execution() : Execution(NULL, Options(), std::make_unique<LoggerBasic>()) {}
+Execution::Execution() : Execution(NULL, Options(), std::make_unique<LoggerBasic>(), new StatusPrinter(config_)) {}
 Execution::Execution(const char* ninja_command, Options options) :
-  Execution(ninja_command, options, std::make_unique<LoggerBasic>()) {}
+  Execution(ninja_command, options, std::make_unique<LoggerBasic>(), new StatusPrinter(config_)) {}
 Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger) :
+  Execution(ninja_command, options, std::move(logger), new StatusPrinter(config_)) {}
+Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status) :
   ninja_command_(ninja_command),
   options_(options),
-  state_(new State(std::move(logger))) {
+  state_(new State(std::move(logger))),
+  status_(status) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
   // N failures and then stop.  For N <= 0, INT_MAX is close enough
@@ -260,18 +284,14 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-RealDiskInterface* Execution::DiskInterface() {
-  return state_->disk_interface_;
-}
-
-void Execution::DumpMetrics() {
-  g_metrics->Report();
-
-  printf("\n");
-  int count = (int)state_->paths_.size();
-  int buckets = (int)state_->paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
+// static
+const Execution::Tool* Execution::ChooseTool(const std::string& name) {
+  for (size_t i = 0; i < kToolsLen; ++i) {
+    const Execution::Tool& tool = kTools[i];
+    if (tool.name && tool.name == name)
+      return &tool;
+  }
+  return NULL;
 }
 
 const char* Execution::command() const {
@@ -286,46 +306,45 @@ const Execution::Options& Execution::options() const {
   return options_;
 }
 
+const State* Execution::state() const {
+  return state_;
+}
+
+RealDiskInterface* Execution::DiskInterface() {
+  return state_->disk_interface_;
+}
+
+void Execution::DumpMetrics() {
+  g_metrics->Report();
+
+  printf("\n");
+  int count = (int)state_->paths_.size();
+  int buckets = (int)state_->paths_.bucket_count();
+  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+         count / (double) buckets, count, buckets);
+}
+
+bool Execution::LoadParser(const std::string& input_file, std::string* err) {
+    ManifestParserOptions parser_opts;
+    if (options_.dupe_edges_should_err) {
+      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    }
+    if (options_.phony_cycle_should_err) {
+      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+    }
+    ManifestParser parser(state_, DiskInterface(), parser_opts);
+    if (!parser.Load(options_.input_file, err)) {
+      status_->Error("%s", err->c_str());
+      return false;
+    }
+  return true;
+}
+
 void Execution::LogError(const std::string& message) {
   state_->Log(Logger::Level::ERROR, message);
 }
 void Execution::LogWarning(const std::string& message) {
   state_->Log(Logger::Level::WARNING, message);
-}
-
-/// Rebuild the build manifest, if necessary.
-/// Returns true if the manifest was rebuilt.
-bool Execution::RebuildManifest(const char* input_file, std::string* err,
-                                Status* status) {
-  std::string path = input_file;
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, &slash_bits, err))
-    return false;
-  Node* node = state_->LookupNode(path);
-  if (!node)
-    return false;
-
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, state_->start_time_millis_);
-  if (!builder.AddTarget(node, err))
-    return false;
-
-  if (builder.AlreadyUpToDate())
-    return false;  // Not an error, but we didn't rebuild.
-
-  if (!builder.Build(err))
-    return false;
-
-  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
-  // by a restat).
-  if (!node->dirty()) {
-    // Reset the state to prevent problems like
-    // https://github.com/ninja-build/ninja/issues/874
-    state_->Reset();
-    return false;
-  }
-
-  return true;
 }
 
 int Execution::Browse() {
@@ -634,28 +653,24 @@ int Execution::Urtle() {
 }
 
 int Execution::Run(int argc, char* argv[]) {
-  Status* status = new StatusPrinter(config_);
+  if(options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_FLAGS) {
+    // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
+    // by other tools.
+    return (this->*(options_.tool_->implementation))();
+  }
+
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
 
-    ManifestParserOptions parser_opts;
-    if (options_.dupe_edges_should_err) {
-      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-    }
-    if (options_.phony_cycle_should_err) {
-      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
-    }
-    ManifestParser parser(state_, DiskInterface(), parser_opts);
     std::string err;
-    if (!parser.Load(options_.input_file, &err)) {
-      status->Error("%s", err.c_str());
+    if (!LoadParser(options_.input_file, &err)) {
       return 1;
     }
-
-    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOAD)
-      return (options_.tool_->func)(this, argc, argv);
+    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOAD) {
+      return (this->*(options_.tool_->implementation))();
+    }
 
     if (!EnsureBuildDirExists(&err))
       return 1;
@@ -672,10 +687,12 @@ int Execution::Run(int argc, char* argv[]) {
     }
 
     if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOGS)
-      return (options_.tool_->func)(this, argc, argv);
+ {
+      return (this->*(options_.tool_->implementation))();
+    }
 
     // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(options_.input_file, &err, status)) {
+    if (RebuildManifest(options_.input_file, &err)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config_.dry_run)
@@ -683,23 +700,19 @@ int Execution::Run(int argc, char* argv[]) {
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      status->Error("rebuilding '%s': %s", options_.input_file, err.c_str());
+      status_->Error("rebuilding '%s': %s", options_.input_file, err.c_str());
       return 1;
     }
 
-    int result = RunBuild(argc, argv, status);
+    int result = RunBuild(argc, argv);
     if (g_metrics)
       DumpMetrics();
     return result;
   }
 
-  status->Error("manifest '%s' still dirty after %d tries",
+  status_->Error("manifest '%s' still dirty after %d tries",
       options_.input_file, kCycleLimit);
   return 1;
-}
-
-const State* Execution::state() const {
-  return state_;
 }
 
 bool Execution::EnsureBuildDirExists(std::string* err) {
@@ -772,22 +785,56 @@ bool Execution::OpenDepsLog(bool recompact_only, std::string* err) {
   return true;
 }
 
-int Execution::RunBuild(int argc, char** argv, Status* status) {
+/// Rebuild the build manifest, if necessary.
+/// Returns true if the manifest was rebuilt.
+bool Execution::RebuildManifest(const char* input_file, std::string* err) {
+  std::string path = input_file;
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  if (!CanonicalizePath(&path, &slash_bits, err))
+    return false;
+  Node* node = state_->LookupNode(path);
+  if (!node)
+    return false;
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status_, state_->start_time_millis_);
+  if (!builder.AddTarget(node, err))
+    return false;
+
+  if (builder.AlreadyUpToDate())
+    return false;  // Not an error, but we didn't rebuild.
+
+  if (!builder.Build(err))
+    return false;
+
+  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+  // by a restat).
+  if (!node->dirty()) {
+    // Reset the state to prevent problems like
+    // https://github.com/ninja-build/ninja/issues/874
+    state_->Reset();
+    return false;
+  }
+
+  return true;
+}
+
+int Execution::RunBuild(int argc, char** argv) {
   std::string err;
   vector<Node*> targets;
   if (!ui::CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
-    status->Error("%s", err.c_str());
+    status_->Error("%s", err.c_str());
     return 1;
   }
 
   state_->disk_interface_->AllowStatCache(g_experimental_statcache);
 
   Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status, state_->start_time_millis_);
+                  status_, state_->start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
-        status->Error("%s", err.c_str());
+        status_->Error("%s", err.c_str());
         return 1;
       } else {
         // Added a target that is already up-to-date; not really
@@ -800,12 +847,12 @@ int Execution::RunBuild(int argc, char** argv, Status* status) {
   state_->disk_interface_->AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
-    status->Info("no work to do.");
+    status_->Info("no work to do.");
     return 0;
   }
 
   if (!builder.Build(&err)) {
-    status->Info("build stopped: %s.", err.c_str());
+    status_->Info("build stopped: %s.", err.c_str());
     if (err.find("interrupted by user") != std::string::npos) {
       return 2;
     }

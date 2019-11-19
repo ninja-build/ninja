@@ -59,6 +59,42 @@ const char kLogError[] = "ninja: error: ";
 const char kLogInfo[] = "ninja: ";
 const char kLogWarning[] = "ninja: warning: ";
 
+static const Tool kTools[] = {
+  { NULL, NULL, NULL},
+  // TODO(eliribble) split out build tool.
+  // { "build", NULL, Tool::RUN_AFTER_FLAGS, NULL }
+  { "browse", "browse dependency graph in a web browser",
+    &Execution::Browse },
+  { "clean", "clean built files",
+    &Execution::Clean },
+  { "commands", "list all commands required to rebuild given targets",
+    &Execution::Commands },
+  { "compdb",  "dump JSON compilation database to stdout",
+    &Execution::CompilationDatabase },
+  { "deps", "show dependencies stored in the deps log",
+    &Execution::Deps },
+  { "graph", "output graphviz dot file for targets",
+    &Execution::Graph },
+  { "list", "show available tools",
+    NULL },
+  { "query", "show inputs/outputs for a path",
+    &Execution::Query },
+  { "recompact",  "recompacts ninja-internal data structures",
+    &Execution::Recompact },
+  { "rules",  "list all rules",
+    &Execution::Rules },
+  { "targets",  "list targets by their rule or depth in the DAG",
+    &Execution::Targets },
+  { "urtle", NULL,
+    &Execution::Urtle }
+#if defined(_MSC_VER)
+  ,{ "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
+    &Execution::MSVC }
+#endif
+};
+
+constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
+
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
 bool DebugEnable(const string& name) {
@@ -145,6 +181,30 @@ bool WarningEnable(const string& name, Execution::Options* options) {
 
 }  // namespace
 
+const char* Error() { return kLogError; }
+const char* Info() { return kLogInfo; }
+const char* Warning() { return kLogWarning; }
+
+std::vector<const char*> AllToolNames() {
+  std::vector<const char*> words;
+  for (size_t i = 0; i < kToolsLen; ++i) {
+    const Tool& tool = kTools[i];
+    if (tool.name != NULL) {
+      words.push_back(tool.name);
+    }
+  }
+  return words;
+}
+
+const Tool* ChooseTool(const std::string& tool_name) {
+  for (size_t i = 0; i < kToolsLen; ++i) {
+    const Tool& tool = kTools[i];
+    if (tool.name && tool.name == tool_name)
+      return &tool;
+  }
+  return NULL;
+}
+
 Node* CollectTarget(const State* state, const char* cpath, std::string* err) {
   std::string path = cpath;
   uint64_t slash_bits;
@@ -210,9 +270,9 @@ bool CollectTargetsFromArgs(const State* state, int argc, char* argv[],
   return true;
 }
 
-const char* Error() { return kLogError; }
-const char* Info() { return kLogInfo; }
-const char* Warning() { return kLogWarning; }
+const Tool* DefaultTool() {
+  return &kTools[0];
+}
 
 NORETURN void Execute(int argc, char** argv) {
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
@@ -240,12 +300,6 @@ NORETURN void Execute(int argc, char** argv) {
     }
   }
 
-  if (execution.options().tool_ && execution.options().tool_->when == Tool::RUN_AFTER_FLAGS) {
-    // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
-    // by other tools.
-    exit((execution.options().tool_->func)(&execution, argc, argv));
-  }
-
   exit(execution.Run(argc, argv));
   // never reached
   exit(1);
@@ -260,6 +314,16 @@ void ExitNow() {
 #else
   exit(1);
 #endif
+}
+
+void ListTools() {
+  for (size_t i = 1; i < kToolsLen; ++i) {
+    const Tool* tool = &kTools[i];
+    if (tool->desc) {
+      printf("%10s  %s\n", tool->name, tool->desc);
+      // printf("%s", buffer);
+    }
+  }
 }
 
 /// Parse argv for command-line options.
@@ -328,8 +392,14 @@ int ReadFlags(int* argc, char*** argv,
         options->dry_run = true;
         break;
       case 't':
-        options->tool_ = tool::Choose(optarg);
-        if(options->tool_ == NULL) {
+        options->tool_ = Execution::ChooseTool(optarg);
+        // 'list' tool is a special case that just shows
+        // all of the available tools and therefore does not
+        // need to be passed on to the Execution class.
+        if (strcmp(optarg, "list") == 0) {
+          ListTools();
+          return 0;
+        } else if(options->tool_ == NULL) {
           const char* suggestion = GetToolNameSuggestion(optarg);
           std::cerr << "unknown tool '" << optarg << "'";
           if (suggestion) {
@@ -598,7 +668,7 @@ int ReadTargets(int* argc, char*** argv, Execution::Options* options) {
 // Get a suggested tool name given a name that is supposed
 // to be like a tool.
 const char* GetToolNameSuggestion(const std::string& tool_name) {
-  std::vector<const char*> words = tool::AllNames();
+  std::vector<const char*> words = AllToolNames();
   return SpellcheckStringV(tool_name, words);
 }
 

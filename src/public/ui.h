@@ -17,7 +17,6 @@
 
 #include "public/build_config.h"
 #include "public/execution.h"
-#include "public/tools.h"
 
 #ifdef _WIN32
 #include "public/win32port.h"
@@ -44,6 +43,25 @@ const char* Error();
 const char* Info();
 const char* Warning();
 
+/// Subtools, accessible via "-t foo".
+struct Tool {
+  /// Short name of the tool.
+  const char* name;
+
+  /// Description (shown in "-t list").
+  const char* desc;
+
+  typedef int (Execution::*Implementation) (void);
+  /// The implementation of the tool
+  Implementation implementation;
+};
+
+// Get the names of all valid tools
+std::vector<const char*> AllToolNames();
+
+// Get a tool reference by name
+const Tool* ChooseTool(const std::string& name);
+
 /// Get the Node for a given command-line path, handling features like
 /// spell correction.
 Node* CollectTarget(const State* state, const char* cpath, std::string* err);
@@ -51,6 +69,9 @@ Node* CollectTarget(const State* state, const char* cpath, std::string* err);
 /// CollectTarget for all command-line arguments, filling in \a targets.
 bool CollectTargetsFromArgs(const State* state, int argc, char* argv[],
                             std::vector<Node*>* targets, std::string* err);
+
+// Get the default tool that ninja uses to build
+const Tool* DefaultTool();
 
 /// Execute ninja as the main ninja binary would
 /// Does not return, prefering to exit() directly
@@ -60,6 +81,9 @@ NORETURN void Execute(int argc, char** argv);
 
 // Exit the program immediately with a nonzero status
 void ExitNow();
+
+/// List the tools available to ninja
+void ListTools();
 
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.

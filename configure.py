@@ -519,7 +519,6 @@ for name in ['build',
              'state',
              'status',
              'string_piece_util',
-             'tools',
              'ui',
              'util',
              'version']:
