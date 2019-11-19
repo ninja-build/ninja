@@ -44,9 +44,7 @@ namespace ninja {
 namespace {
 
 static const Execution::Tool kTools[] = {
-  {NULL, Execution::Tool::RUN_AFTER_FLAGS, NULL},
-  // TODO(eliribble) split out build tool.
-  // { "build", NULL, Tool::RUN_AFTER_FLAGS, NULL }
+  {"build", Execution::Tool::RUN_AFTER_EVERYTHING, &Execution::Build},
   {"browse", Execution::Tool::RUN_AFTER_LOAD, &Execution::Browse},
   {"clean", Execution::Tool::RUN_AFTER_LOAD, &Execution::Clean},
   {"commands", Execution::Tool::RUN_AFTER_LOAD, &Execution::Commands},
@@ -366,6 +364,43 @@ int Execution::Browse() {
   return 1;
 }
 
+int Execution::Build() {
+  std::string err;
+  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status_, state_->start_time_millis_);
+  for (size_t i = 0; i < options_.targets.size(); ++i) {
+    if (!builder.AddTarget(options_.targets[i], &err)) {
+      if (!err.empty()) {
+        status_->Error("%s", err.c_str());
+        return 1;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  // Make sure restat rules do not see stale timestamps.
+  state_->disk_interface_->AllowStatCache(false);
+
+  if (builder.AlreadyUpToDate()) {
+    status_->Info("no work to do.");
+    return 0;
+  }
+
+  if (!builder.Build(&err)) {
+    status_->Info("build stopped: %s.", err.c_str());
+    if (err.find("interrupted by user") != std::string::npos) {
+      return 2;
+    }
+    return 1;
+  }
+
+  return 0;
+}
+
 int Execution::Clean() {
   Cleaner cleaner(state_, config_, state_->disk_interface_);
   if (options_.clean_options.targets_are_rules) {
@@ -652,7 +687,7 @@ int Execution::Urtle() {
   return 0;
 }
 
-int Execution::Run(int argc, char* argv[]) {
+int Execution::Run() {
   if(options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
     // by other tools.
@@ -704,10 +739,15 @@ int Execution::Run(int argc, char* argv[]) {
       return 1;
     }
 
-    int result = RunBuild(argc, argv);
-    if (g_metrics)
-      DumpMetrics();
-    return result;
+    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_EVERYTHING)
+ {
+      int result = (this->*(options_.tool_->implementation))();
+      if (g_metrics)
+        DumpMetrics();
+      return result;
+    }
+    // This should never be reached.
+    return 1;
   }
 
   status_->Error("manifest '%s' still dirty after %d tries",
@@ -817,49 +857,6 @@ bool Execution::RebuildManifest(const char* input_file, std::string* err) {
   }
 
   return true;
-}
-
-int Execution::RunBuild(int argc, char** argv) {
-  std::string err;
-  vector<Node*> targets;
-  if (!ui::CollectTargetsFromArgs(state_, argc, argv, &targets, &err)) {
-    status_->Error("%s", err.c_str());
-    return 1;
-  }
-
-  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
-
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status_, state_->start_time_millis_);
-  for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        status_->Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
-    }
-  }
-
-  // Make sure restat rules do not see stale timestamps.
-  state_->disk_interface_->AllowStatCache(false);
-
-  if (builder.AlreadyUpToDate()) {
-    status_->Info("no work to do.");
-    return 0;
-  }
-
-  if (!builder.Build(&err)) {
-    status_->Info("build stopped: %s.", err.c_str());
-    if (err.find("interrupted by user") != std::string::npos) {
-      return 2;
-    }
-    return 1;
-  }
-
-  return 0;
 }
 
 void Execution::ToolTargetsList(const std::string& rule_name) {

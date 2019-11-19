@@ -56,6 +56,9 @@ public:
 
       /// Run after loading the build/deps logs.
       RUN_AFTER_LOGS,
+
+      /// Run after everything.
+      RUN_AFTER_EVERYTHING,
     } when;
 
     /// The type of functions that are the entry points to tools (subcommands).
@@ -212,6 +215,7 @@ public:
 
   /// Tools
   int Browse();
+  int Build();
   int Clean();
   int Commands();
   int CompilationDatabase();
@@ -225,7 +229,7 @@ public:
   int Urtle();
 
   /// Main entrypoint for the execution
-  int Run(int argc, char* argv[]);
+  int Run();
 protected:
   bool LoadParser(const std::string& input_file, std::string* err);
   void LogError(const std::string& message);
@@ -244,10 +248,6 @@ protected:
   /// @return true if the manifest was rebuilt.
   bool RebuildManifest(const char* input_file, std::string* err);
   
-  /// Build the targets listed on the command line.
-  /// @return an exit code.
-  int RunBuild(int argc, char** argv);
-
   void ToolTargetsList();
   void ToolTargetsList(const std::string& rule_name);
 

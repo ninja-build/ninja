@@ -60,9 +60,7 @@ const char kLogInfo[] = "ninja: ";
 const char kLogWarning[] = "ninja: warning: ";
 
 static const Tool kTools[] = {
-  { NULL, NULL, NULL},
-  // TODO(eliribble) split out build tool.
-  // { "build", NULL, Tool::RUN_AFTER_FLAGS, NULL }
+  { "build", "build with ninja, the default tool.", &Execution::Build},
   { "browse", "browse dependency graph in a web browser",
     &Execution::Browse },
   { "clean", "clean built files",
@@ -300,7 +298,7 @@ NORETURN void Execute(int argc, char** argv) {
     }
   }
 
-  exit(execution.Run(argc, argv));
+  exit(execution.Run());
   // never reached
   exit(1);
 }
@@ -317,7 +315,7 @@ void ExitNow() {
 }
 
 void ListTools() {
-  for (size_t i = 1; i < kToolsLen; ++i) {
+  for (size_t i = 0; i < kToolsLen; ++i) {
     const Tool* tool = &kTools[i];
     if (tool->desc) {
       printf("%10s  %s\n", tool->name, tool->desc);
@@ -452,6 +450,12 @@ int ReadFlags(int* argc, char*** argv,
     } else if (strcmp(optarg, "targets") == 0) {
       return ReadFlagsTargets(argc, argv, options);
     }
+  }
+
+  // Set the default tool if we don't have another tool
+  if (!options->tool_) {
+    options->tool_ = Execution::ChooseTool("build");
+    return ReadTargets(argc, argv, options);
   }
 
   return -1;
