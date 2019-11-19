@@ -262,10 +262,6 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-const State* Execution::state() const {
-  return state_;
-}
-
 void Execution::DumpMetrics() {
   g_metrics->Report();
 

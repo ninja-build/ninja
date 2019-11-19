@@ -162,9 +162,6 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Get read-only access to the underlying state.
-  const State* state() const;
-
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
