@@ -275,30 +275,14 @@ const Tool* DefaultTool() {
 NORETURN void Execute(int argc, char** argv) {
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-  ninja::Execution::Options options;
+  ParsedFlags flags;
   const char* ninja_command = argv[0];
-  int exit_code = ui::ReadFlags(&argc, &argv, &options);
+  int exit_code = ui::ReadFlags(&argc, &argv, &flags);
   if (exit_code >= 0)
     exit(exit_code);
 
-  ninja::Execution execution(ninja_command, options);
-
-
-  if (execution.options().working_dir) {
-    // The formatting of this string, complete with funny quotes, is
-    // so Emacs can properly identify that the cwd has changed for
-    // subsequent commands.
-    // Don't print this if a tool is being used, so that tool output
-    // can be piped into a file without this string showing up.
-    if (!execution.options().tool_)
-      std::cerr << ui::Info() << "Entering directory `" << execution.options().working_dir << "'" << std::endl;
-    if (chdir(execution.options().working_dir) < 0) {
-      std::cerr << ui::Error() << "chdir to '" << execution.options().working_dir << "' - " << strerror(errno) << std::endl;
-      exit(1);
-    }
-  }
-
-  exit(execution.Run());
+  ninja::Execution execution(ninja_command, flags.options);
+  exit((execution.*(flags.tool->implementation))());
   // never reached
   exit(1);
 }
@@ -327,7 +311,7 @@ void ListTools() {
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
-              Execution::Options* options) {
+              ParsedFlags* flags) {
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -338,7 +322,7 @@ int ReadFlags(int* argc, char*** argv,
   };
 
   int opt;
-  while (!options->tool_ &&
+  while (!flags->tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -347,7 +331,7 @@ int ReadFlags(int* argc, char*** argv,
           return 1;
         break;
       case 'f':
-        options->input_file = optarg;
+        flags->options.input_file = optarg;
         break;
       case 'j': {
         char* end;
@@ -359,7 +343,7 @@ int ReadFlags(int* argc, char*** argv,
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
-        options->parallelism = value > 0 ? value : INT_MAX;
+        flags->options.parallelism = value > 0 ? value : INT_MAX;
         break;
       }
       case 'k': {
@@ -373,7 +357,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        options->failures_allowed = value > 0 ? value : INT_MAX;
+        flags->options.failures_allowed = value > 0 ? value : INT_MAX;
         break;
       }
       case 'l': {
@@ -383,21 +367,21 @@ int ReadFlags(int* argc, char*** argv,
           std::cerr << "-l parameter not numeric: did you mean -l 0.0?" << std::endl;
           ui::ExitNow();
         }
-        options->max_load_average = value;
+        flags->options.max_load_average = value;
         break;
       }
       case 'n':
-        options->dry_run = true;
+        flags->options.dry_run = true;
         break;
       case 't':
-        options->tool_ = Execution::ChooseTool(optarg);
+        flags->tool = ChooseTool(optarg);
         // 'list' tool is a special case that just shows
         // all of the available tools and therefore does not
         // need to be passed on to the Execution class.
         if (strcmp(optarg, "list") == 0) {
           ListTools();
           return 0;
-        } else if(options->tool_ == NULL) {
+        } else if(flags->tool == NULL) {
           const char* suggestion = GetToolNameSuggestion(optarg);
           std::cerr << "unknown tool '" << optarg << "'";
           if (suggestion) {
@@ -408,21 +392,21 @@ int ReadFlags(int* argc, char*** argv,
         }
         break;
       case 'v':
-        options->verbose = true;
+        flags->options.verbose = true;
         break;
       case 'w':
-        if (!WarningEnable(optarg, options))
+        if (!WarningEnable(optarg, &flags->options))
           return 1;
         break;
       case 'C':
-        options->working_dir = optarg;
+        flags->options.working_dir = optarg;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
       case 'h':
       default:
-        ui::Usage(options);
+        ui::Usage(&flags->options);
         return 1;
     }
   }
@@ -434,28 +418,28 @@ int ReadFlags(int* argc, char*** argv,
   // flags that are specific to the tool.
   if (optarg) {
     if (strcmp(optarg, "browse") == 0) {
-      return ReadTargets(argc, argv, options);
+      return ReadTargets(argc, argv, &flags->options);
     } else if (strcmp(optarg, "clean") == 0) {
-      return ReadFlagsClean(argc, argv, options);
+      return ReadFlagsClean(argc, argv, &flags->options);
     } else if (strcmp(optarg, "commands") == 0) {
-      return ReadFlagsCommands(argc, argv, options);
+      return ReadFlagsCommands(argc, argv, &flags->options);
     } else if (strcmp(optarg, "graph") == 0) {
-      return ReadTargets(argc, argv, options);
+      return ReadTargets(argc, argv, &flags->options);
     } else if (strcmp(optarg, "msvc") == 0) {
-      return ReadFlagsMSVC(argc, argv, options);
+      return ReadFlagsMSVC(argc, argv, &flags->options);
     } else if (strcmp(optarg, "query") == 0) {
-      return ReadTargets(argc, argv, options);
+      return ReadTargets(argc, argv, &flags->options);
     } else if (strcmp(optarg, "rules") == 0) {
-      return ReadFlagsRules(argc, argv, options);
+      return ReadFlagsRules(argc, argv, &flags->options);
     } else if (strcmp(optarg, "targets") == 0) {
-      return ReadFlagsTargets(argc, argv, options);
+      return ReadFlagsTargets(argc, argv, &flags->options);
     }
   }
 
   // Set the default tool if we don't have another tool
-  if (!options->tool_) {
-    options->tool_ = Execution::ChooseTool("build");
-    return ReadTargets(argc, argv, options);
+  if (!flags->tool) {
+    flags->tool = DefaultTool();
+    return ReadTargets(argc, argv, &flags->options);
   }
 
   return -1;

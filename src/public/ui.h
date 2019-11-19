@@ -56,6 +56,11 @@ struct Tool {
   Implementation implementation;
 };
 
+struct ParsedFlags {
+  const Tool* tool;
+  Execution::Options options;
+};
+
 // Get the names of all valid tools
 std::vector<const char*> AllToolNames();
 
@@ -87,7 +92,7 @@ void ListTools();
 
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv, Execution::Options* options);
+int ReadFlags(int* argc, char*** argv, ParsedFlags* flags);
 
 /// Parse argv for 'clean' tool.
 /// Returns an exit code, or -1 if Ninja should continue.

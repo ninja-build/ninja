@@ -43,31 +43,6 @@ enum TargetsMode {
 /// that ninja perform some work.
 class Execution {
 public:
-  struct Tool {
-    const char* name;
-    /// When to run the tool.
-    enum {
-      /// Run after parsing the command-line flags and potentially changing
-      /// the current working directory (as early as possible).
-      RUN_AFTER_FLAGS,
-
-      /// Run after loading build.ninja.
-      RUN_AFTER_LOAD,
-
-      /// Run after loading the build/deps logs.
-      RUN_AFTER_LOGS,
-
-      /// Run after everything.
-      RUN_AFTER_EVERYTHING,
-    } when;
-
-    /// The type of functions that are the entry points to tools (subcommands).
-    typedef int (Execution::*Implementation) (void);
-
-    /// Implementation of the tool.
-    Implementation implementation;
-  };
-
   /// Command-line options.
   struct Options {
     /// Options for the 'clean' tool
@@ -116,7 +91,6 @@ public:
       std::string rule;
     };
     Options();
-    Options(const Execution::Tool* tool);
 
     /// Options to use when using the 'clean' tool.
     Clean clean_options;
@@ -166,8 +140,6 @@ public:
 
     /// Options to use when using the 'targets' tool.
     Targets targets_options;
-    /// The tool to use
-    const Execution::Tool* tool_;
 
     /// True to include verbose logging. Default is false.
     bool verbose;
@@ -190,8 +162,6 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Get a tool by name.
-  static const Execution::Tool* ChooseTool(const std::string& name);
   /// Get read-only access to command used to start this
   /// ninja execution.
   const char* command() const;
@@ -228,10 +198,11 @@ public:
   int Targets();
   int Urtle();
 
-  /// Main entrypoint for the execution
-  int Run();
 protected:
-  bool LoadParser(const std::string& input_file, std::string* err);
+  bool ChangeToWorkingDirectory();
+  bool DoBuild();
+  bool LoadLogs();
+  bool LoadParser(const std::string& input_file);
   void LogError(const std::string& message);
   void LogWarning(const std::string& message);
 

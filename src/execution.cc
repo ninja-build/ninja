@@ -25,6 +25,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #endif
+#include <iostream>
 #include <sstream>
 #include <stdio.h>
 
@@ -42,25 +43,6 @@
 
 namespace ninja {
 namespace {
-
-static const Execution::Tool kTools[] = {
-  {"build", Execution::Tool::RUN_AFTER_EVERYTHING, &Execution::Build},
-  {"browse", Execution::Tool::RUN_AFTER_LOAD, &Execution::Browse},
-  {"clean", Execution::Tool::RUN_AFTER_LOAD, &Execution::Clean},
-  {"commands", Execution::Tool::RUN_AFTER_LOAD, &Execution::Commands},
-  {"compdb", Execution::Tool::RUN_AFTER_LOAD, &Execution::CompilationDatabase},
-  {"deps", Execution::Tool::RUN_AFTER_LOGS, &Execution::Deps},
-  {"graph", Execution::Tool::RUN_AFTER_LOAD, &Execution::Graph},
-  {"query", Execution::Tool::RUN_AFTER_LOGS, &Execution::Query},
-  {"recompact", Execution::Tool::RUN_AFTER_LOAD, &Execution::Recompact},
-  {"rules", Execution::Tool::RUN_AFTER_LOAD, &Execution::Rules},
-  {"targets", Execution::Tool::RUN_AFTER_LOAD, &Execution::Targets},
-  {"urtle", Execution::Tool::RUN_AFTER_FLAGS, &Execution::Urtle}
-#if defined(_MSC_VER)
-  ,{"msvc", Execution::Tool::RUN_AFTER_FLAGS, &Execution::MSVC}
-#endif
-};
-constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
 
 void EncodeJSONString(const char *str) {
   while (*str) {
@@ -244,8 +226,7 @@ Execution::Execution(const char* ninja_command, Options options, std::unique_ptr
 
 }
 
-Execution::Options::Options() : Options(NULL) {}
-Execution::Options::Options(const Tool* tool) :
+Execution::Options::Options() :
       depfile_distinct_target_lines_should_err(false),
       dry_run(false),
       dupe_edges_should_err(true),
@@ -254,7 +235,6 @@ Execution::Options::Options(const Tool* tool) :
       max_load_average(-0.0f),
       parallelism(GuessParallelism()),
       phony_cycle_should_err(false),
-      tool_(tool),
       verbose(false),
       working_dir(NULL)
       {}
@@ -281,16 +261,6 @@ Execution::Options::Targets::Targets() :
   depth(1),
   mode(TM_DEPTH),
   rule("") {}
-
-// static
-const Execution::Tool* Execution::ChooseTool(const std::string& name) {
-  for (size_t i = 0; i < kToolsLen; ++i) {
-    const Execution::Tool& tool = kTools[i];
-    if (tool.name && tool.name == name)
-      return &tool;
-  }
-  return NULL;
-}
 
 const char* Execution::command() const {
   return ninja_command_;
@@ -322,7 +292,22 @@ void Execution::DumpMetrics() {
          count / (double) buckets, count, buckets);
 }
 
-bool Execution::LoadParser(const std::string& input_file, std::string* err) {
+bool Execution::LoadLogs() {
+    if (!LoadParser(options_.input_file)) {
+      return false;
+    }
+    std::string err;
+    if (!EnsureBuildDirExists(&err))
+      return false;
+
+    if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
+      LogError(err);
+      return false;
+    }
+  return true;
+}
+
+bool Execution::LoadParser(const std::string& input_file) {
     ManifestParserOptions parser_opts;
     if (options_.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
@@ -331,8 +316,9 @@ bool Execution::LoadParser(const std::string& input_file, std::string* err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
     ManifestParser parser(state_, DiskInterface(), parser_opts);
-    if (!parser.Load(options_.input_file, err)) {
-      status_->Error("%s", err->c_str());
+    std::string err;
+    if (!parser.Load(options_.input_file, &err)) {
+      status_->Error("%s", err.c_str());
       return false;
     }
   return true;
@@ -346,6 +332,9 @@ void Execution::LogWarning(const std::string& message) {
 }
 
 int Execution::Browse() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   const char* initial_target = NULL;
   if (options_.targets.size()) {
     if (options_.targets.size() == 1) {
@@ -365,43 +354,51 @@ int Execution::Browse() {
 }
 
 int Execution::Build() {
+
+  if (options_.working_dir) {
+    // The formatting of this string, complete with funny quotes, is
+    // so Emacs can properly identify that the cwd has changed for
+    // subsequent commands.
+    // Don't print this if a tool is being used, so that tool output
+    // can be piped into a file without this string showing up.
+    std::cerr << ui::Info() << "Entering directory `" << options_.working_dir << "'" << std::endl;
+  }
   std::string err;
-  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
-
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status_, state_->start_time_millis_);
-  for (size_t i = 0; i < options_.targets.size(); ++i) {
-    if (!builder.AddTarget(options_.targets[i], &err)) {
-      if (!err.empty()) {
-        status_->Error("%s", err.c_str());
-        return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
+  // Limit number of rebuilds, to prevent infinite loops.
+  const int kCycleLimit = 100;
+  for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
+    if (!LoadLogs()) {
+      return 1;
     }
-  }
 
-  // Make sure restat rules do not see stale timestamps.
-  state_->disk_interface_->AllowStatCache(false);
-
-  if (builder.AlreadyUpToDate()) {
-    status_->Info("no work to do.");
-    return 0;
-  }
-
-  if (!builder.Build(&err)) {
-    status_->Info("build stopped: %s.", err.c_str());
-    if (err.find("interrupted by user") != std::string::npos) {
-      return 2;
+    // Attempt to rebuild the manifest before building anything else
+    if (RebuildManifest(options_.input_file, &err)) {
+      // In dry_run mode the regeneration will succeed without changing the
+      // manifest forever. Better to return immediately.
+      if (config_.dry_run)
+        return 0;
+      // Start the build over with the new manifest.
+      continue;
+    } else if (!err.empty()) {
+      status_->Error("rebuilding '%s': %s", options_.input_file, err.c_str());
+      return 1;
     }
-    return 1;
+
+    bool successful = DoBuild();
+    if (g_metrics)
+      DumpMetrics();
+    return successful ? 0 : 1;
   }
 
-  return 0;
+  status_->Error("manifest '%s' still dirty after %d tries",
+      options_.input_file, kCycleLimit);
+  return 1;
 }
 
 int Execution::Clean() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   Cleaner cleaner(state_, config_, state_->disk_interface_);
   if (options_.clean_options.targets_are_rules) {
     return cleaner.CleanRules(options_.targets);
@@ -413,6 +410,9 @@ int Execution::Clean() {
 }
 
 int Execution::Commands() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   EdgeSet seen;
   vector<Node*> nodes;
   std::string err;
@@ -428,6 +428,9 @@ int Execution::Commands() {
 }
 
 int Execution::CompilationDatabase() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   bool first = true;
   vector<char> cwd;
 
@@ -470,7 +473,57 @@ int Execution::CompilationDatabase() {
   return 0;
 }
 
+bool Execution::ChangeToWorkingDirectory() {
+  if (!options_.working_dir) 
+    return true;
+  if (chdir(options_.working_dir) < 0) {
+    std::cerr << ui::Error() << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool Execution::DoBuild() {
+  std::string err;
+  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status_, state_->start_time_millis_);
+  for (size_t i = 0; i < options_.targets.size(); ++i) {
+    if (!builder.AddTarget(options_.targets[i], &err)) {
+      if (!err.empty()) {
+        status_->Error("%s", err.c_str());
+        return false;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  // Make sure restat rules do not see stale timestamps.
+  state_->disk_interface_->AllowStatCache(false);
+
+  if (builder.AlreadyUpToDate()) {
+    status_->Info("no work to do.");
+    return true;
+  }
+
+  if (!builder.Build(&err)) {
+    status_->Info("build stopped: %s.", err.c_str());
+    if (err.find("interrupted by user") != std::string::npos) {
+      return false;
+    }
+    return false;
+  }
+
+  return true;
+}
+
 int Execution::Deps() {
+  if (!LoadLogs()) {
+    return 1;
+  }
   vector<Node*> nodes;
   std::string err;
   if (options_.targets.size()) {
@@ -513,6 +566,9 @@ int Execution::Deps() {
 }
 
 int Execution::Graph() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   vector<Node*> nodes;
   std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
@@ -539,6 +595,9 @@ int Execution::MSVC() {
 }
 
 int Execution::Query() {
+  if (!LoadLogs()) {
+    return 1;
+  }
   if (options_.targets.size() == 0) {
     LogError("expected a target to query");
     return 1;
@@ -584,6 +643,9 @@ int Execution::Query() {
   return 0;
 }
 int Execution::Recompact() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   std::string err;
   if (!EnsureBuildDirExists(&err)) {
     LogError(err);
@@ -606,6 +668,9 @@ int Execution::Recompact() {
 }
 
 int Execution::Rules() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   typedef map<string, const Rule*> Rules;
   const Rules& rules = state_->bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
@@ -624,6 +689,9 @@ int Execution::Rules() {
 }
 
 int Execution::Targets() {
+  if (!LoadParser(options_.input_file)) {
+    return 1;
+  }
   std::string err;
   vector<Node*> root_nodes = state_->RootNodes(&err);
   if (options_.targets_options.mode == TM_ALL) {
@@ -687,74 +755,6 @@ int Execution::Urtle() {
   return 0;
 }
 
-int Execution::Run() {
-  if(options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_FLAGS) {
-    // None of the RUN_AFTER_FLAGS actually use a ninja state, but it's needed
-    // by other tools.
-    return (this->*(options_.tool_->implementation))();
-  }
-
-
-  // Limit number of rebuilds, to prevent infinite loops.
-  const int kCycleLimit = 100;
-  for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
-
-    std::string err;
-    if (!LoadParser(options_.input_file, &err)) {
-      return 1;
-    }
-    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOAD) {
-      return (this->*(options_.tool_->implementation))();
-    }
-
-    if (!EnsureBuildDirExists(&err))
-      return 1;
-
-    if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
-      LogError(err);
-      return 1;
-    }
-
-    // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
-    if(!err.empty()) {
-      LogWarning(err);
-      err.clear();
-    }
-
-    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_LOGS)
- {
-      return (this->*(options_.tool_->implementation))();
-    }
-
-    // Attempt to rebuild the manifest before building anything else
-    if (RebuildManifest(options_.input_file, &err)) {
-      // In dry_run mode the regeneration will succeed without changing the
-      // manifest forever. Better to return immediately.
-      if (config_.dry_run)
-        return 0;
-      // Start the build over with the new manifest.
-      continue;
-    } else if (!err.empty()) {
-      status_->Error("rebuilding '%s': %s", options_.input_file, err.c_str());
-      return 1;
-    }
-
-    if (options_.tool_ && options_.tool_->when == Tool::RUN_AFTER_EVERYTHING)
- {
-      int result = (this->*(options_.tool_->implementation))();
-      if (g_metrics)
-        DumpMetrics();
-      return result;
-    }
-    // This should never be reached.
-    return 1;
-  }
-
-  status_->Error("manifest '%s' still dirty after %d tries",
-      options_.input_file, kCycleLimit);
-  return 1;
-}
-
 bool Execution::EnsureBuildDirExists(std::string* err) {
   std::string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty() && !config_.dry_run) {
@@ -792,6 +792,13 @@ bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
     }
   }
 
+  // Some of the functions used here can provide warnings through
+  // the err parameter. So clear it.
+  if(!err->empty()) {
+    LogWarning(*err);
+    err->clear();
+  }
+
   return true;
 }
 
@@ -820,6 +827,13 @@ bool Execution::OpenDepsLog(bool recompact_only, std::string* err) {
       *err = "opening deps log: " + *err;
       return false;
     }
+  }
+
+  // Some of the functions used here can provide warnings through
+  // the err parameter. So clear it.
+  if(!err->empty()) {
+    LogWarning(*err);
+    err->clear();
   }
 
   return true;
