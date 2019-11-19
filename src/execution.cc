@@ -262,56 +262,10 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-void Execution::DumpMetrics() {
-  g_metrics->Report();
-
-  printf("\n");
-  int count = (int)state_->paths_.size();
-  int buckets = (int)state_->paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
-}
-
-bool Execution::LoadLogs() {
-    if (!LoadParser(options_.input_file)) {
-      return false;
-    }
-    std::string err;
-    if (!EnsureBuildDirExists(&err))
-      return false;
-
-    if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
-      LogError(err);
-      return false;
-    }
-  return true;
-}
-
-bool Execution::LoadParser(const std::string& input_file) {
-    ManifestParserOptions parser_opts;
-    if (options_.dupe_edges_should_err) {
-      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-    }
-    if (options_.phony_cycle_should_err) {
-      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
-    }
-    ManifestParser parser(state_, state_->disk_interface_, parser_opts);
-    std::string err;
-    if (!parser.Load(options_.input_file, &err)) {
-      status_->Error("%s", err.c_str());
-      return false;
-    }
-  return true;
-}
-
-void Execution::LogError(const std::string& message) {
-  state_->Log(Logger::Level::ERROR, message);
-}
-void Execution::LogWarning(const std::string& message) {
-  state_->Log(Logger::Level::WARNING, message);
-}
-
 int Execution::Browse() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -334,6 +288,9 @@ int Execution::Browse() {
 }
 
 int Execution::Build() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
 
   if (options_.working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -376,6 +333,9 @@ int Execution::Build() {
 }
 
 int Execution::Clean() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -390,6 +350,9 @@ int Execution::Clean() {
 }
 
 int Execution::Commands() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -408,6 +371,9 @@ int Execution::Commands() {
 }
 
 int Execution::CompilationDatabase() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -453,54 +419,10 @@ int Execution::CompilationDatabase() {
   return 0;
 }
 
-bool Execution::ChangeToWorkingDirectory() {
-  if (!options_.working_dir) 
-    return true;
-  if (chdir(options_.working_dir) < 0) {
-    std::cerr << ui::Error() << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
-    return false;
-  }
-  return true;
-}
-
-bool Execution::DoBuild() {
-  std::string err;
-  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
-
-  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
-                  status_, state_->start_time_millis_);
-  for (size_t i = 0; i < options_.targets.size(); ++i) {
-    if (!builder.AddTarget(options_.targets[i], &err)) {
-      if (!err.empty()) {
-        status_->Error("%s", err.c_str());
-        return false;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
-      }
-    }
-  }
-
-  // Make sure restat rules do not see stale timestamps.
-  state_->disk_interface_->AllowStatCache(false);
-
-  if (builder.AlreadyUpToDate()) {
-    status_->Info("no work to do.");
-    return true;
-  }
-
-  if (!builder.Build(&err)) {
-    status_->Info("build stopped: %s.", err.c_str());
-    if (err.find("interrupted by user") != std::string::npos) {
-      return false;
-    }
-    return false;
-  }
-
-  return true;
-}
-
 int Execution::Deps() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadLogs()) {
     return 1;
   }
@@ -546,6 +468,9 @@ int Execution::Deps() {
 }
 
 int Execution::Graph() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -567,6 +492,9 @@ int Execution::Graph() {
 
 int Execution::MSVC() {
 #if defined(_MSC_VER)
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   return MSVCHelperMain(options_.msvc_options.deps_prefix, options_.msvc_options.envfile, options_.msvc_options.output_filename);
 #else
   printf("Not supported on this platform.");
@@ -575,6 +503,9 @@ int Execution::MSVC() {
 }
 
 int Execution::Query() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadLogs()) {
     return 1;
   }
@@ -623,6 +554,9 @@ int Execution::Query() {
   return 0;
 }
 int Execution::Recompact() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -648,6 +582,9 @@ int Execution::Recompact() {
 }
 
 int Execution::Rules() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -669,6 +606,9 @@ int Execution::Rules() {
 }
 
 int Execution::Targets() {
+  if (!ChangeToWorkingDirectory()) {
+    return 1;
+  }
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
@@ -735,6 +675,63 @@ int Execution::Urtle() {
   return 0;
 }
 
+bool Execution::ChangeToWorkingDirectory() {
+  if (!options_.working_dir) 
+    return true;
+  if (chdir(options_.working_dir) < 0) {
+    std::cerr << ui::Error() << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool Execution::DoBuild() {
+  std::string err;
+  state_->disk_interface_->AllowStatCache(g_experimental_statcache);
+
+  Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
+                  status_, state_->start_time_millis_);
+  for (size_t i = 0; i < options_.targets.size(); ++i) {
+    if (!builder.AddTarget(options_.targets[i], &err)) {
+      if (!err.empty()) {
+        status_->Error("%s", err.c_str());
+        return false;
+      } else {
+        // Added a target that is already up-to-date; not really
+        // an error.
+      }
+    }
+  }
+
+  // Make sure restat rules do not see stale timestamps.
+  state_->disk_interface_->AllowStatCache(false);
+
+  if (builder.AlreadyUpToDate()) {
+    status_->Info("no work to do.");
+    return true;
+  }
+
+  if (!builder.Build(&err)) {
+    status_->Info("build stopped: %s.", err.c_str());
+    if (err.find("interrupted by user") != std::string::npos) {
+      return false;
+    }
+    return false;
+  }
+
+  return true;
+}
+
+void Execution::DumpMetrics() {
+  g_metrics->Report();
+
+  printf("\n");
+  int count = (int)state_->paths_.size();
+  int buckets = (int)state_->paths_.bucket_count();
+  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+         count / (double) buckets, count, buckets);
+}
+
 bool Execution::EnsureBuildDirExists(std::string* err) {
   std::string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty() && !config_.dry_run) {
@@ -744,6 +741,45 @@ bool Execution::EnsureBuildDirExists(std::string* err) {
     }
   }
   return true;
+}
+
+bool Execution::LoadLogs() {
+    if (!LoadParser(options_.input_file)) {
+      return false;
+    }
+    std::string err;
+    if (!EnsureBuildDirExists(&err))
+      return false;
+
+    if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
+      LogError(err);
+      return false;
+    }
+  return true;
+}
+
+bool Execution::LoadParser(const std::string& input_file) {
+    ManifestParserOptions parser_opts;
+    if (options_.dupe_edges_should_err) {
+      parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    }
+    if (options_.phony_cycle_should_err) {
+      parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+    }
+    ManifestParser parser(state_, state_->disk_interface_, parser_opts);
+    std::string err;
+    if (!parser.Load(options_.input_file, &err)) {
+      status_->Error("%s", err.c_str());
+      return false;
+    }
+  return true;
+}
+
+void Execution::LogError(const std::string& message) {
+  state_->Log(Logger::Level::ERROR, message);
+}
+void Execution::LogWarning(const std::string& message) {
+  state_->Log(Logger::Level::WARNING, message);
 }
 
 bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
