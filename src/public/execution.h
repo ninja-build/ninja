@@ -162,10 +162,6 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Get read-only access to command used to start this
-  /// ninja execution.
-  const char* command() const;
-
   /// Get read-only access to underlying build config
   const BuildConfig& config() const;
 

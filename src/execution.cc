@@ -262,10 +262,6 @@ Execution::Options::Targets::Targets() :
   mode(TM_DEPTH),
   rule("") {}
 
-const char* Execution::command() const {
-  return ninja_command_;
-}
-
 const BuildConfig& Execution::config() const {
   return config_;
 }
