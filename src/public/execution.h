@@ -162,9 +162,6 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Dump the metrics about the build requested by '-d stats'.
-  void DumpMetrics();
-
   bool EnsureBuildDirExists(std::string* err);
 
   /// Tools
@@ -185,6 +182,10 @@ public:
 protected:
   bool ChangeToWorkingDirectory();
   bool DoBuild();
+
+  /// Dump the metrics about the build requested by '-d stats'.
+  void DumpMetrics();
+
   bool LoadLogs();
   bool LoadParser(const std::string& input_file);
   void LogError(const std::string& message);
