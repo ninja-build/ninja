@@ -162,8 +162,6 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  bool EnsureBuildDirExists(std::string* err);
-
   /// Tools
   int Browse();
   int Build();
@@ -180,11 +178,15 @@ public:
   int Urtle();
 
 protected:
+  /// Helper function for tools to allow them to change
+  /// to the current working directory.
   bool ChangeToWorkingDirectory();
   bool DoBuild();
 
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
+
+  bool EnsureBuildDirExists(std::string* err);
 
   bool LoadLogs();
   bool LoadParser(const std::string& input_file);
