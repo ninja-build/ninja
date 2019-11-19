@@ -165,9 +165,6 @@ public:
   /// Get read-only access to the underlying state.
   const State* state() const;
 
-  /// Get access to the underlying disk interface
-  RealDiskInterface* DiskInterface();
-
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 

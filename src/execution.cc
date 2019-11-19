@@ -266,10 +266,6 @@ const State* Execution::state() const {
   return state_;
 }
 
-RealDiskInterface* Execution::DiskInterface() {
-  return state_->disk_interface_;
-}
-
 void Execution::DumpMetrics() {
   g_metrics->Report();
 
@@ -303,7 +299,7 @@ bool Execution::LoadParser(const std::string& input_file) {
     if (options_.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(state_, DiskInterface(), parser_opts);
+    ManifestParser parser(state_, state_->disk_interface_, parser_opts);
     std::string err;
     if (!parser.Load(options_.input_file, &err)) {
       status_->Error("%s", err.c_str());
@@ -746,7 +742,7 @@ int Execution::Urtle() {
 bool Execution::EnsureBuildDirExists(std::string* err) {
   std::string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty() && !config_.dry_run) {
-    if (!DiskInterface()->MakeDirs(build_dir + "/.") && errno != EEXIST) {
+    if (!state_->disk_interface_->MakeDirs(build_dir + "/.") && errno != EEXIST) {
       *err = "creating build directory " + build_dir + ": " + strerror(errno);
       return false;
     }
