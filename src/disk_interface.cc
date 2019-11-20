@@ -113,12 +113,13 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     return false;
   }
   do {
-    string lowername = WideToUtf8(ffd.cFileName);
-    if (lowername == "..") {
+    std::wstring w_lowername = ffd.cFileName;
+    if (w_lowername == L"..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
+    string lowername = WideToUtf8(w_lowername);
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));

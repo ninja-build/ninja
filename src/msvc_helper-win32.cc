@@ -58,19 +58,15 @@ int CLWrapper::Run(const string& command, string* output) {
     Win32Fatal("SetHandleInformation");
 
   PROCESS_INFORMATION process_info = {};
-  STARTUPINFO startup_info = {};
-  startup_info.cb = sizeof(STARTUPINFOA);
+  STARTUPINFOW startup_info = {};
+  startup_info.cb = sizeof(STARTUPINFOW);
   startup_info.hStdInput = nul;
   startup_info.hStdError = ::GetStdHandle(STD_ERROR_HANDLE);
   startup_info.hStdOutput = stdout_write;
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
-#ifdef _WIN32
   wstring commands = Utf8ToWide(command);
-  if (!CreateProcessW(NULL, (wchar_t*)commands.c_str(), NULL, NULL,
-#else
-  if (!CreateProcess(NULL, (char*)command.c_str(), NULL, NULL,
-#endif
+  if (!CreateProcessW(NULL, (wchar_t*)&commands[0], NULL, NULL,
                       /* inherit handles */ TRUE, 0,
                       env_block_, NULL,
                       &startup_info, &process_info)) {

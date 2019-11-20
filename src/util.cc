@@ -21,10 +21,7 @@
 #include <windows.h>
 #include <io.h>
 #include <share.h>
-#endif
-
-#ifdef _WIN32
-#include <locale>
+#include <locale> // For UTF-8 conversion
 #endif
 
 #include <assert.h>
@@ -437,31 +434,31 @@ std::wstring Utf8ToWide(const std::string& u8_string) {
   if (size_needed == 0)
     Fatal("Failed conversion to wide string");
 
-  vector<wchar_t> w_buffer(size_needed);
+  std::wstring w_string(size_needed, 0);
   int w_size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.data(),
                                           static_cast<int>(u8_string.size()),
-                                          &w_buffer[0], w_buffer.size());
-  if (w_size_needed == 0)
+                                          &w_string[0], w_string.size());
+  if (w_size_needed == 0 || (w_size_needed > size_needed))
     Fatal("Failed conversion to wide string");
 
-  return std::wstring(&w_buffer[0], w_size_needed);
+  return w_string;
 }
 
 std::string WideToUtf8(const std::wstring& w_string) {
   if (w_string.empty())
     return std::string();
 
-  int size_needed = WideCharToMultiByte(CP_UTF8, 0, &w_string[0],
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.data(),
                                         static_cast<int>(w_string.size()), NULL,
                                         0, NULL, NULL);
   if (size_needed == 0)
     Fatal("Failed conversion to UTF-8 string");
 
-  std::string u8_string(size_needed, 0);
-  WideCharToMultiByte(CP_UTF8, 0, &w_string[0],
-                      static_cast<int>(w_string.size()), &u8_string[0],
-                      size_needed, NULL, NULL);
-  if (size_needed == 0)
+  std::string u8_string(size_needed, '\0');
+  int u8_size_needed = WideCharToMultiByte(
+      CP_UTF8, 0, &w_string[0], static_cast<int>(w_string.size()),
+      &u8_string[0], size_needed, NULL, NULL);
+  if (u8_size_needed == 0 || (u8_size_needed > size_needed))
     Fatal("Failed conversion to UTF-8 string");
 
   return u8_string;

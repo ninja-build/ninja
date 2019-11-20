@@ -1298,8 +1298,7 @@ NORETURN void real_main(int argc, char** argv) {
     if (!options.tool)
       printf("ninja: Entering directory `%s'\n", options.working_dir);
 #ifdef _WIN32
-    wstring wDir = Utf8ToWide(options.working_dir);
-    if (_wchdir(wDir.c_str()) < 0) {
+    if (_wchdir(Utf8ToWide(options.working_dir).c_str()) < 0) {
 #else
     if (chdir(options.working_dir) < 0) {
 #endif

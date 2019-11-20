@@ -40,8 +40,9 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
            "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
+  std::wstring w_pipe_name = Utf8ToWide(pipe_name);
 
-  pipe_ = ::CreateNamedPipeW(Utf8ToWide(pipe_name).c_str(),
+  pipe_ = ::CreateNamedPipeW(w_pipe_name.c_str(),
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                              PIPE_TYPE_BYTE,
                              PIPE_UNLIMITED_INSTANCES,
@@ -60,7 +61,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
 
   // Get the write end of the pipe as a handle inheritable across processes.
   HANDLE output_write_handle =
-      CreateFileW(Utf8ToWide(pipe_name).c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+      CreateFileW(w_pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
   HANDLE output_write_child;
   if (!DuplicateHandle(GetCurrentProcess(), output_write_handle,
                        GetCurrentProcess(), &output_write_child,

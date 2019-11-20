@@ -79,8 +79,7 @@ string GetSystemTempDir() {
   // GetTempPath returns zero if no path is found
   if(GetTempPathW(MAX_PATH, buf) == 0)
     return "";
-  string result = WideToUtf8(wstring(buf));
-  return result;
+  return WideToUtf8(wstring(buf));
 #else
   const char* tempdir = getenv("TMPDIR");
   if (tempdir)
