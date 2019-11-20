@@ -332,3 +332,12 @@ TEST_F(DepfileParserTest, MultipleRulesDifferentOutputs) {
   EXPECT_EQ("y", parser_.ins_[1].AsString());
   EXPECT_EQ("z", parser_.ins_[2].AsString());
 }
+
+TEST_F(DepfileParserTest, BuggyMP) {
+  std::string err;
+  EXPECT_FALSE(Parse("foo: x y z\n"
+                     "x: alsoin\n"
+                     "y:\n"
+                     "z:\n", &err));
+  ASSERT_EQ("inputs may not also have inputs", err);
+}

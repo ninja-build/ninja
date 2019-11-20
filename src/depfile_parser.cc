@@ -51,6 +51,7 @@ bool DepfileParser::Parse(string* content, string* err) {
   char* end = in + content->size();
   bool have_target = false;
   bool parsing_targets = true;
+  bool poisoned_input = false;
   while (in < end) {
     bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
@@ -295,8 +296,13 @@ yy28:
     if (len > 0) {
       StringPiece piece = StringPiece(filename, len);
       // If we've seen this as an input before, skip it.
-      if (std::find(ins_.begin(), ins_.end(), piece) == ins_.end()) {
+      std::vector<StringPiece>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
+      if (pos == ins_.end()) {
         if (is_dependency) {
+          if (poisoned_input) {
+            *err = "inputs may not also have inputs";
+            return false;
+          }
           // New input.
           ins_.push_back(piece);
         } else {
@@ -304,12 +310,16 @@ yy28:
           if (std::find(outs_.begin(), outs_.end(), piece) == outs_.end())
             outs_.push_back(piece);
         }
+      } else if (!is_dependency) {
+        // We've passed an input on the left side; reject new inputs.
+        poisoned_input = true;
       }
     }
 
     if (have_newline) {
       // A newline ends a rule so the next filename will be a new target.
       parsing_targets = true;
+      poisoned_input = false;
     }
   }
   if (!have_target) {
