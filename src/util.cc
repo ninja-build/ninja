@@ -489,20 +489,24 @@ int GetProcessorCount() {
     std::vector<char> buf(len);
     int cores = 0;
     if (GetLogicalProcessorInformationEx(RelationProcessorCore,
-          (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buf.data(), &len)) {
+          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data()), &len)) {
       for (DWORD i = 0; i < len; ) {
         PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info =
-            (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)(buf.data() + i);
+            reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+              buf.data() + i);
         if (info->Relationship == RelationProcessorCore &&
             info->Processor.GroupCount == 1) {
           for (KAFFINITY core_mask = info->Processor.GroupMask[0].Mask;
-               core_mask; core_mask >>= 1)
+               core_mask; core_mask >>= 1) {
             cores += (core_mask & 1);
+          }
         }
         i += info->Size;
       }
-      if (cores)
+      if (cores) {
         return cores;
+      }
     }
   }
   // fallback just in case
