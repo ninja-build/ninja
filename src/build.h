@@ -152,8 +152,8 @@ struct CommandRunner {
   /// Wait for a command to complete, or return false if interrupted.
   virtual bool WaitForCommand(Result* result) = 0;
 
-  virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
+  virtual void Wait() {}
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
@@ -241,7 +241,7 @@ struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+  void BuildEdgeFinished(Edge* edge, ExitStatus status, const string& output,
                          int* start_time, int* end_time);
   void BuildLoadDyndeps();
   void BuildStarted();
