@@ -190,8 +190,11 @@ you don't need to pass `-j`.)
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
-`NINJA_STATUS`, the progress status printed before the rule being run.
+Ninja supports three environment variables to control its behavior:
+- `NINJA_STATUS`, the progress status. This is printed when an edge starts when
+  at a console, or when the edge finishes when output is redirected.
+- `NINJA_STATUS_STARTED`, which is printed before an edge starts.
+- `NINJA_STATUS_FINISHED`, which is printed after an edge finishes.
 
 Several placeholders are available:
 
@@ -207,9 +210,13 @@ specified by `-j` or its default)
 `%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
 `%%`:: A plain `%` character.
 
-The default progress status is `"[%f/%t] "` (note the trailing space
-to separate from the build rule). Another example of possible progress status
-could be `"[%u/%r/%f] "`.
+The default progress status for `NINJA_STATUS` is `"[%f/%t] "` (note the
+trailing space to separate from the build rule). Another example of possible
+progress status could be `"[%u/%r/%f] "`.
+
+`NINJA_STATUS_STARTED` and `NINJA_STATUS_FINISHED` both default to unset,
+causing them not to be used. If either of them are set, then `NINJA_STATUS` will
+not be used.
 
 Extra tools
 ~~~~~~~~~~~

@@ -261,7 +261,7 @@ struct BuildStatus {
                               EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
+  void PrintStatus(Edge* edge, EdgeStatus status, const char* format);
 
   const BuildConfig& config_;
 
@@ -279,6 +279,12 @@ struct BuildStatus {
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
+
+  /// An optional custom progress status format to use when an edge is started.
+  const char* progress_status_format_started_;
+
+  /// An optional custom progress status format to use when an edge is finished.
+  const char* progress_status_format_finished_;
 
   template<size_t S>
   void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
