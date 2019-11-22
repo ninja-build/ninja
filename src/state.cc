@@ -84,8 +84,8 @@ void State::AddPool(Pool* pool) {
   pools_[pool->name()] = pool;
 }
 
-Pool* State::LookupPool(const string& pool_name) {
-  map<string, Pool*>::iterator i = pools_.find(pool_name);
+Pool* State::LookupPool(const string& pool_name) const {
+  map<string, Pool*>::const_iterator i = pools_.find(pool_name);
   if (i == pools_.end())
     return NULL;
   return i->second;
