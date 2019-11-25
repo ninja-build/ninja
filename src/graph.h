@@ -310,7 +310,7 @@ struct DependencyScan {
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(Edge* edge, Node* most_recent_input,
+  bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
                             const string& command, Node* output);
 
   BuildLog* build_log_;

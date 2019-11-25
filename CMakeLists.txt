@@ -68,7 +68,7 @@ endif()
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
-target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601)
+target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601 __USE_MINGW_ANSI_STDIO=1)
 endif()
 
 # Main executable is library plus main() function.

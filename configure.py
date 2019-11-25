@@ -358,7 +358,7 @@ else:
     except:
         pass
     if platform.is_mingw():
-        cflags += ['-D_WIN32_WINNT=0x0601']
+         cflags += ['-D_WIN32_WINNT=0x0601', '-D__USE_MINGW_ANSI_STDIO=1']
     if platform.is_windows():
         cflags += ['-DUNICODE']
     ldflags = ['-L$builddir']

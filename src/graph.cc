@@ -222,8 +222,8 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   return true;
 }
 
-bool DependencyScan::RecomputeOutputDirty(Edge* edge,
-                                          Node* most_recent_input,
+bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
+                                          const Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -383,7 +383,7 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
       result.push_back(sep);
     const string& path = (*i)->PathDecanonicalized();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
