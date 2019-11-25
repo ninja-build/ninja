@@ -18,7 +18,11 @@
 #include "clparser.h"
 #include "metrics.h"
 
-int mainUTF8(int argc, char* argv[]) {
+#ifdef _WIN32
+int wmain() {
+#else
+int main() {
+#endif
   // Output of /showIncludes from #include <iostream>
   string perf_testdata =
       "Note: including file: C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\iostream\r\n"
@@ -156,12 +160,3 @@ int mainUTF8(int argc, char* argv[]) {
   return 0;
 }
 
-#ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) {
-  return mainUTF8(argc, convertCommandLine(argc, wargv));
-}
-#else
-int main(int argc, char** argv) {
-  return mainUTF8(argc, argv);
-}
-#endif

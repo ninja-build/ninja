@@ -108,9 +108,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
-  std::wstring commands = Utf8ToWide(command).c_str();
-  LPWSTR command_line = const_cast <LPWSTR> (commands.c_str());
-  if (!CreateProcessW(NULL, command_line, NULL, NULL,
+  std::wstring commands = Utf8ToWide(command);
+  if (!CreateProcessW(NULL, &commands[0], NULL, NULL,
                       /* inherit handles */ TRUE, process_flags,
                       NULL, NULL,
                       &startup_info, &process_info)) {

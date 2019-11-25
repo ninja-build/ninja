@@ -101,7 +101,7 @@ void LinePrinter::Print(string to_print, LineType type) {
       char_data[i].Char.UnicodeChar = i < w_to_print.size() ? w_to_print[i] : L' ';
       char_data[i].Attributes = csbi.wAttributes;
     }
-    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
+    WriteConsoleOutputW(console_, &char_data[0], buf_size, zero_zero, &target);
 #else
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.

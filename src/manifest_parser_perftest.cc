@@ -71,7 +71,12 @@ int LoadManifests(bool measure_command_evaluation) {
   return optimization_guard;
 }
 
-int mainUTF8(int argc, char* argv[]) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) {
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
   bool measure_command_evaluation = true;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("fh"))) != -1) {
@@ -123,13 +128,3 @@ int mainUTF8(int argc, char* argv[]) {
 
   return 0;
 }
-
-#ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) {
-  return mainUTF8(argc, convertCommandLine(argc, wargv));
-}
-#else
-int main(int argc, char** argv) {
-  return mainUTF8(argc, argv);
-}
-#endif

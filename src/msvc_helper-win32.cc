@@ -66,7 +66,7 @@ int CLWrapper::Run(const string& command, string* output) {
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
   wstring commands = Utf8ToWide(command);
-  if (!CreateProcessW(NULL, (wchar_t*)&commands[0], NULL, NULL,
+  if (!CreateProcessW(NULL, &commands[0], NULL, NULL,
                       /* inherit handles */ TRUE, 0,
                       env_block_, NULL,
                       &startup_info, &process_info)) {

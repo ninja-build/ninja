@@ -1370,7 +1370,12 @@ NORETURN void real_main(int argc, char** argv) {
 
 }  // anonymous namespace
 
-int mainUTF8(int argc, char** argv) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) {
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).
@@ -1389,13 +1394,3 @@ int mainUTF8(int argc, char** argv) {
   real_main(argc, argv);
 #endif
 }
-
-#ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) {
-  return mainUTF8(argc, convertCommandLine(argc, wargv));
-}
-#else
-int main(int argc, char** argv) {
-  return mainUTF8(argc, argv);
-}
-#endif

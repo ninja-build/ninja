@@ -126,7 +126,12 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   return condition;
 }
 
-int mainUTF8(int argc, char **argv) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv){
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
   int tests_started = 0;
 
   const char* test_filter = "*";
@@ -158,13 +163,3 @@ int mainUTF8(int argc, char **argv) {
   printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#ifdef _WIN32
-int wmain(int argc, wchar_t** wargv) {
-  return mainUTF8(argc, convertCommandLine(argc, wargv));
-}
-#else
-int main(int argc, char** argv) {
-  return mainUTF8(argc, argv);
-}
-#endif
