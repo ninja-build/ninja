@@ -444,9 +444,9 @@ std::wstring Utf8ToWide(const std::string& u8_string) {
   return w_string;
 }
 
-std::string WideToUtf8(const std::wstring& w_string) {
+StringPiece WideToUtf8(const std::wstring& w_string) {
   if (w_string.empty())
-    return std::string();
+    return StringPiece();
 
   int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.data(),
                                         static_cast<int>(w_string.size()), NULL,
@@ -461,7 +461,7 @@ std::string WideToUtf8(const std::wstring& w_string) {
   if (u8_size_needed == 0 || (u8_size_needed > size_needed))
     Fatal("Failed conversion to UTF-8 string");
 
-  return u8_string;
+  return StringPiece(u8_string);
 }
 
 char** convertCommandLine(int argc, wchar_t** wargv) {
@@ -496,10 +496,10 @@ string GetLastErrorString() {
         NULL,
         err,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (wchar_t*)&msg_buf,
+        msg_buf,
         0,
         NULL);
-  string msg = WideToUtf8(wstring(msg_buf));
+  std::string msg = WideToUtf8(msg_buf);
   LocalFree(msg_buf);
   return msg;
 }
