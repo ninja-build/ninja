@@ -1,0 +1,2 @@
+Ninja is yet another build system. It takes as input the interdependencies of files (typically source code and output executables) and orchestrates building them, quickly.
+Ninja joins a sea of other build systems. Its distinguishing goal is to be fast. It is born from the Chromium browser project, which has over 30,000 source files and whose other build systems can take ten seconds to start building after changing one file. Ninja is under a second.
