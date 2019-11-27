@@ -17,6 +17,7 @@
 
 #ifdef _WIN32
 #include "win32port.h"
+#include "string_piece.h"
 #else
 #include <stdint.h>
 #endif
@@ -116,8 +117,9 @@ bool Truncate(const string& path, size_t size, string* err);
 
 #ifdef _WIN32
 /// UTF-8 converters
-std::wstring Utf8ToWide(const std::string& s);
-std::string WideToUtf8(const std::wstring& s);
+std::wstring Utf8ToWide(const StringPiece& s);
+std::string WideToUtf8(const WStringPiece& s);
+void WideToUtf8(const WStringPiece& s, char* buff, size_t buffer_length);
 char** convertCommandLine(int argc, wchar_t** wargv);
 
 /// Convert the value returned by GetLastError() into a string.

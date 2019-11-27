@@ -29,7 +29,7 @@ namespace {
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
                              size_t buffer_length, string *err) {
   wchar_t w_buffer[_MAX_PATH];
-  wstring w_file_name = Utf8ToWide(file_name.AsString());
+  wstring w_file_name = Utf8ToWide(file_name);
   DWORD result_size =
       GetFullPathNameW(w_file_name.c_str(), buffer_length, w_buffer, NULL);
   if (result_size == 0) {
@@ -41,13 +41,7 @@ bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
     return false;
   }
 
-  string s_buffer = WideToUtf8(w_buffer);
-  if (s_buffer.size() > (buffer_length - 1)) {
-    *err = "path too long";
-    return false;
-  }
-
-  buffer[s_buffer.copy(buffer, s_buffer.size())] = '\0';
+  WideToUtf8(w_buffer, buffer,buffer_length);
   return true;
 }
 

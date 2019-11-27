@@ -22,6 +22,7 @@
 #include <io.h>
 #include <share.h>
 #include <locale> // For UTF-8 conversion
+#include <cassert> // For checking string size
 #endif
 
 #include <assert.h>
@@ -424,18 +425,21 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
-std::wstring Utf8ToWide(const std::string& u8_string) {
-  if (u8_string.empty())
+std::wstring Utf8ToWide(const StringPiece& u8_string) {
+  if (u8_string.len_ == 0)
     return std::wstring();
 
+  // Make sure that the string size can be casted to an int.
+  assert(!(u8_string.size() > INT_MAX));
+
   size_t size_needed =
-      MultiByteToWideChar(CP_UTF8, 0, u8_string.data(),
+      MultiByteToWideChar(CP_UTF8, 0, u8_string.str_,
                           static_cast<int>(u8_string.size()), NULL, 0);
   if (size_needed == 0)
     Fatal("Failed conversion to wide string");
 
   std::wstring w_string(size_needed, 0);
-  int w_size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.data(),
+  int w_size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.str_,
                                           static_cast<int>(u8_string.size()),
                                           &w_string[0], w_string.size());
   if (w_size_needed == 0 || (w_size_needed > size_needed))
@@ -444,11 +448,14 @@ std::wstring Utf8ToWide(const std::string& u8_string) {
   return w_string;
 }
 
-StringPiece WideToUtf8(const std::wstring& w_string) {
-  if (w_string.empty())
-    return StringPiece();
+std::string WideToUtf8(const WStringPiece& w_string) {
+  if (w_string.len_ == 0)
+    return string();
 
-  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.data(),
+  // Make sure that the string size can be casted to an int.
+  assert(!(w_string.size() > INT_MAX));
+
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
                                         static_cast<int>(w_string.size()), NULL,
                                         0, NULL, NULL);
   if (size_needed == 0)
@@ -456,12 +463,38 @@ StringPiece WideToUtf8(const std::wstring& w_string) {
 
   std::string u8_string(size_needed, '\0');
   int u8_size_needed = WideCharToMultiByte(
-      CP_UTF8, 0, &w_string[0], static_cast<int>(w_string.size()),
+      CP_UTF8, 0, w_string.wstr_, static_cast<int>(w_string.size()),
       &u8_string[0], size_needed, NULL, NULL);
   if (u8_size_needed == 0 || (u8_size_needed > size_needed))
     Fatal("Failed conversion to UTF-8 string");
 
-  return StringPiece(u8_string);
+  return u8_string;
+}
+
+void WideToUtf8(const WStringPiece& w_string, char* buff,
+                size_t buffer_length) {
+  if (w_string.len_ == 0)
+    return;
+
+  // Make sure that the string size can be casted to an int.
+  assert(!(w_string.size() > INT_MAX));
+
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
+                                        static_cast<int>(w_string.size()), NULL,
+                                        0, NULL, NULL);
+  if (size_needed == 0)
+    Fatal("Failed conversion to UTF-8 string");
+
+  int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
+                                           static_cast<int>(w_string.size()),
+                                           buff, size_needed, NULL, NULL);
+
+  // WideCharToMultiByte returns zero if buff is not large enough, modified for the null termination.
+  if (u8_size_needed == 0 || (u8_size_needed > (buffer_length-1)))
+    Fatal("Failed conversion to UTF-8 string");
+
+  // The conversion does not include the nulltermination.
+  buff[u8_size_needed] = '\0';
 }
 
 char** convertCommandLine(int argc, wchar_t** wargv) {
@@ -496,10 +529,10 @@ string GetLastErrorString() {
         NULL,
         err,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        msg_buf,
+        (wchar_t*)&msg_buf,
         0,
         NULL);
-  std::string msg = WideToUtf8(msg_buf);
+  string msg = WideToUtf8(msg_buf);
   LocalFree(msg_buf);
   return msg;
 }

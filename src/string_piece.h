@@ -68,4 +68,51 @@ struct StringPiece {
   size_t len_;
 };
 
+#ifdef _WIN32
+// Same as StringPiece but handles wchar_t
+struct WStringPiece {
+	typedef const wchar_t* const_iterator;
+
+	WStringPiece() : wstr_(NULL), len_(0) {}
+
+	/// The constructors intentionally allow for implicit conversions.
+	WStringPiece(const wstring& str) : wstr_(str.data()), len_(str.size()) {}
+	WStringPiece(const wchar_t* str) : wstr_(str), len_(wcslen(str)) {}
+
+	WStringPiece(const wchar_t* str, size_t len) : wstr_(str), len_(len) {}
+
+	bool operator==(const WStringPiece& other) const {
+		return len_ == other.len_ && memcmp(wstr_, other.wstr_, len_) == 0;
+	}
+	bool operator!=(const WStringPiece& other) const {
+		return !(*this == other);
+	}
+
+	/// Convert the slice into a full-fledged std::string, copying the
+	/// data into a new string.
+	wstring AsString() const {
+		return len_ ? wstring(wstr_, len_) : wstring();
+	}
+
+	const_iterator begin() const {
+		return wstr_;
+	}
+
+	const_iterator end() const {
+		return wstr_ + len_;
+	}
+
+	wchar_t operator[](size_t pos) const {
+		return wstr_[pos];
+	}
+
+	size_t size() const {
+		return len_;
+	}
+
+	const wchar_t* wstr_;
+	size_t len_;
+};
+#endif
+
 #endif  // NINJA_STRINGPIECE_H_

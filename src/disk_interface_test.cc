@@ -46,8 +46,9 @@ struct DiskInterfaceTest : public testing::Test {
 #ifdef _WIN32
   bool Touch(const wchar_t* path) {
     FILE* f = _wfopen(path, L"w");
-    if (!f)
+    if (!f) {
       return false;
+    }
     return fclose(f) == 0;
   }
 #endif
