@@ -40,6 +40,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --parallel --config Release --target ninja
+        cmake --build . --parallel --config Release --target ninja_test
         ctest -vv
 
     - name: Strip Linux binary
