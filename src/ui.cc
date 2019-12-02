@@ -423,6 +423,8 @@ int ReadFlags(int* argc, char*** argv,
       return ReadFlagsClean(argc, argv, &flags->options);
     } else if (strcmp(optarg, "commands") == 0) {
       return ReadFlagsCommands(argc, argv, &flags->options);
+    } else if (strcmp(optarg, "compdb") == 0) {
+      return ReadFlagsCompilationDatabase(argc, argv, &flags->options);
     } else if (strcmp(optarg, "graph") == 0) {
       return ReadTargets(argc, argv, &flags->options);
     } else if (strcmp(optarg, "msvc") == 0) {
