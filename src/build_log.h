@@ -16,7 +16,6 @@
 #define NINJA_BUILD_LOG_H_
 
 #include <string>
-#include <stdio.h>
 using namespace std;
 
 #include "hash_map.h"
