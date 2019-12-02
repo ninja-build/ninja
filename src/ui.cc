@@ -95,7 +95,7 @@ constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
 
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
-bool DebugEnable(const string& name) {
+bool DebugEnable(ParsedFlags* flags, const string& name) {
   if (name == "list") {
     printf("debugging modes:\n"
 "  stats        print operation counts/timing info\n"
@@ -111,7 +111,7 @@ bool DebugEnable(const string& name) {
     g_metrics = new Metrics;
     return true;
   } else if (name == "explain") {
-    g_explaining = true;
+    flags->options.debug.explain = true;
     return true;
   } else if (name == "keepdepfile") {
     g_keep_depfile = true;
@@ -327,7 +327,7 @@ int ReadFlags(int* argc, char*** argv,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
-        if (!DebugEnable(optarg))
+        if (!DebugEnable(flags, optarg))
           return 1;
         break;
       case 'f':

@@ -70,6 +70,13 @@ public:
       /// The mode for evaluating commands
       EvaluateCommandMode eval_mode;
     };
+    struct Debug {
+      Debug();
+
+      /// When true show debug information about what caused a command
+      /// to execute.
+      bool explain;
+    };
     struct MSVC {
       MSVC();
 
@@ -112,6 +119,9 @@ public:
 
     /// Options to use when using the 'compdb' tool.
     CompilationDatabase compilationdatabase_options;
+
+    /// Debug flags.
+    Debug debug;
 
     /// Whether a depfile with multiple targets on separate lines should
     /// warn or print an error.

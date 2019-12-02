@@ -44,6 +44,7 @@ struct Status {
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
+  explicit StatusPrinter(const BuildConfig& config, bool is_explaining);
   virtual void PlanHasTotalEdges(int total);
   virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis);
   virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
@@ -70,6 +71,9 @@ struct StatusPrinter : Status {
   void PrintStatus(Edge* edge, int64_t time_millis);
 
   const BuildConfig& config_;
+
+  // True if we should print explanatory information.
+  bool is_explaining_;
 
   int started_edges_, finished_edges_, total_edges_, running_edges_;
   int64_t time_millis_;

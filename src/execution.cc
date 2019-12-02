@@ -210,7 +210,7 @@ Execution::Execution(const char* ninja_command, Options options, std::unique_ptr
 Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status) :
   ninja_command_(ninja_command),
   options_(options),
-  state_(new State(std::move(logger))),
+  state_(new State(std::move(logger), options.debug.explain)),
   status_(status) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
@@ -247,6 +247,7 @@ Execution::Options::Commands::Commands() :
 Execution::Options::CompilationDatabase::CompilationDatabase() :
   eval_mode(ECM_NORMAL) {}
 
+Execution::Options::Debug::Debug() : explain(false) {}
 Execution::Options::MSVC::MSVC() :
   deps_prefix(""),
   envfile(""),

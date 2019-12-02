@@ -104,6 +104,7 @@ struct State  : public BuildLogUser {
 
   State();
   State(std::unique_ptr<Logger> logger);
+  State(std::unique_ptr<Logger> logger, bool is_explaining);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -125,6 +126,8 @@ struct State  : public BuildLogUser {
   void Dump();
   bool IsPathDead(StringPiece s) const;
 
+  void Explain(const char* format, ...) const;
+
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
   vector<Node*> RootNodes(string* error) const;
@@ -132,6 +135,20 @@ struct State  : public BuildLogUser {
 
   /// Send a log message to any attached logger.
   void Log(Logger::Level, const std::string& message) const;
+
+  BindingEnv bindings_;
+  BuildLog* build_log_;
+  vector<Node*> defaults_;
+
+  DepsLog* deps_log_;
+  /// Functions for accesssing the disk.
+  RealDiskInterface* disk_interface_;
+
+  /// All the edges of the graph.
+  vector<Edge*> edges_;
+
+  /// True if we should show explanatory log messages.
+  bool is_explaining_;
 
   /// The logger that gets messages from this state.
   std::unique_ptr<Logger> logger_;
@@ -142,18 +159,6 @@ struct State  : public BuildLogUser {
 
   /// All the pools used in the graph.
   map<string, Pool*> pools_;
-
-  /// All the edges of the graph.
-  vector<Edge*> edges_;
-
-  BindingEnv bindings_;
-  vector<Node*> defaults_;
-
-  /// Functions for accesssing the disk.
-  RealDiskInterface* disk_interface_;
-
-  BuildLog* build_log_;
-  DepsLog* deps_log_;
 
   // Time when the last command was started.
   int64_t start_time_millis_;

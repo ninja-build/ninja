@@ -25,8 +25,10 @@
 #include "debug_flags.h"
 
 namespace ninja {
-StatusPrinter::StatusPrinter(const BuildConfig& config)
+StatusPrinter::StatusPrinter(const BuildConfig& config) : StatusPrinter(config, false) {}
+StatusPrinter::StatusPrinter(const BuildConfig& config, bool is_explaining)
     : config_(config),
+      is_explaining_(is_explaining),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
       time_millis_(0), progress_status_format_(NULL),
       current_rate_(config.parallelism) {
@@ -122,16 +124,15 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
 }
 
 void StatusPrinter::BuildLoadDyndeps() {
-  // The DependencyScan calls EXPLAIN() to print lines explaining why
-  // it considers a portion of the graph to be out of date.  Normally
+  // The DependencyScan prints lines explaining why
+  // it considers a portion of the graph to be out of date. Normally
   // this is done before the build starts, but our caller is about to
-  // load a dyndep file during the build.  Doing so may generate more
-  // exlanation lines (via fprintf directly to stderr), but in an
-  // interactive console the cursor is currently at the end of a status
-  // line.  Start a new line so that the first explanation does not
-  // append to the status line.  After the explanations are done a
-  // new build status line will appear.
-  if (g_explaining)
+  // load a dyndep file during the build. Doing so may generate more
+  // exlanation lines, but in an interactive console the cursor is currently
+  // at the end of a status line. Start a new line so that the first
+  // explanation does not append to the status line. After the explanations
+  // are done a new build status line will appear.
+  if (is_explaining_)
     printer_.PrintOnNewLine("");
 }
 

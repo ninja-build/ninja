@@ -282,7 +282,8 @@ struct DependencyScan {
       : build_log_(build_log),
         disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options),
-        dyndep_loader_(state, disk_interface) {}
+        dyndep_loader_(state, disk_interface),
+        state_(state) {}
 
   /// Update the |dirty_| state of the given node by inspecting its input edge.
   /// Examine inputs, outputs, and command lines to judge whether an edge
@@ -327,6 +328,7 @@ struct DependencyScan {
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
+  State* state_;
 };
 }  // namespace ninja
 

@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_EXPLAIN_H_
-#define NINJA_EXPLAIN_H_
-
-#include <stdio.h>
-
-#define EXPLAIN(fmt, ...) {                                             \
-  if (g_explaining)                                                     \
-    fprintf(stderr, "ninja explain: " fmt "\n", __VA_ARGS__);           \
-}
-
-extern bool g_explaining;
+#ifndef NINJA_DEBUG_FLAGS_H_
+#define NINJA_DEBUG_FLAGS_H_
 
 extern bool g_keep_depfile;
 
@@ -30,4 +21,4 @@ extern bool g_keep_rsp;
 
 extern bool g_experimental_statcache;
 
-#endif // NINJA_EXPLAIN_H_
+#endif // NINJA_DEBUG_FLAGS_H_
