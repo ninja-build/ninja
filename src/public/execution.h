@@ -61,7 +61,9 @@ public:
     };
     struct CompilationDatabase {
       enum EvaluateCommandMode {
+        /// Normal mode - does not expand @rspfile invocations.
         ECM_NORMAL,
+        /// Expand @rspfile style response file invocations.
         ECM_EXPAND_RSPFILE
       };
       CompilationDatabase();
@@ -81,19 +83,23 @@ public:
       bool print_description;
     };
     struct Targets {
+      /// The mode to use when listing the targets
       enum TargetsMode {
+        /// Show all targets
         TM_ALL,
+        /// List targets by depth in the DAG
         TM_DEPTH,
+        /// List targets by rule
         TM_RULE,
       };
 
       Targets();
-      /// The max depth to list targets
+      /// The max depth to list targets when using the TM_DEPTH mode.
       int depth;
       /// The mode to use when listing targets
       TargetsMode mode;
       /// The name of the rule to use when listing targets
-      /// with the 'rule' mode.
+      /// with the TM_RULE mode.
       std::string rule;
     };
     Options();
@@ -168,37 +174,76 @@ public:
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
   Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
 
-  /// Tools
+  /// Browse the dependency graph using a webbrowser. This will
+  /// launch a separate Python process to service requests.
+  /// @return 0 on success.
   int Browse();
+  /// Use ninja to build a project. This is the main reason to use ninja.
+  /// @return 0 on success.
   int Build();
+  /// Clean (delete) intermediate build output.
+  /// @return 0 on success.
   int Clean();
+  /// Show the commands required to build a given target.
+  /// @return 0 on success.
   int Commands();
+  /// Dump JSON compilation database to stdout.
+  /// @return 0 on success.
   int CompilationDatabase();
+  /// Show dependencies stored in the deps log.
+  /// @return 0 on success.
   int Deps();
+  /// Output a graphviz dot file for targets
+  /// @return 0 on success.
   int Graph();
+  /// Experimental. Build helper for MSVC cl.exe.
+  /// @return 0 on success.
   int MSVC();
+  /// Show inputs/outputs for a path.
+  /// @return 0 on success.
   int Query();
+  /// Recompacts ninja-internal data structures.
+  /// @return 0 on success.
   int Recompact();
+  /// List all rules.
+  /// @return 0 on success.
   int Rules();
+  /// List targets by their rule or depth in the DAG.
+  /// @return 0 on success.
   int Targets();
+  /// Easter egg.
+  /// @return 0 on success.
   int Urtle();
 
 protected:
   /// Helper function for tools to allow them to change
   /// to the current working directory.
+  /// @return true on success.
   bool ChangeToWorkingDirectory();
+  /// Perform the inner loop for the work of doing a build.
+  /// @return true on success.
   bool DoBuild();
 
   /// Dump the metrics about the build requested by '-d stats'.
   void DumpMetrics();
 
+  /// Create the build dir if it does not exist.
+  /// @return true on success.
   bool EnsureBuildDirExists(std::string* err);
 
+  /// Load the parser, build log and deps log. Also creates
+  /// the build dir if necessary.
+  /// @return true on success.
   bool LoadLogs();
+  /// Loads the manifest parser.
+  /// @return true on success.
   bool LoadParser(const std::string& input_file);
 
+  /// Log an error message.
   void LogError(const std::string& message);
+  /// Log an info message.
   void LogInfo(const std::string& message);
+  /// Log an warning message.
   void LogWarning(const std::string& message);
 
   /// Open the build log.
