@@ -432,9 +432,8 @@ std::wstring Utf8ToWide(const StringPiece& u8_string) {
   // Make sure that the string size can be casted to an int.
   assert(!(u8_string.size() > INT_MAX));
 
-  size_t size_needed =
-      MultiByteToWideChar(CP_UTF8, 0, u8_string.str_,
-                          static_cast<int>(u8_string.size()), NULL, 0);
+  size_t size_needed = MultiByteToWideChar(
+      CP_UTF8, 0, u8_string.str_, static_cast<int>(u8_string.size()), NULL, 0);
   if (size_needed == 0)
     Fatal("Failed conversion to wide string");
 
@@ -448,10 +447,7 @@ std::wstring Utf8ToWide(const StringPiece& u8_string) {
   return w_string;
 }
 
-std::string WideToUtf8(const WStringPiece& w_string) {
-  if (w_string.len_ == 0)
-    return string();
-
+int GetUtf8SizeNeeded(const WStringPiece& w_string) {
   // Make sure that the string size can be casted to an int.
   assert(!(w_string.size() > INT_MAX));
 
@@ -460,6 +456,18 @@ std::string WideToUtf8(const WStringPiece& w_string) {
                                         0, NULL, NULL);
   if (size_needed == 0)
     Fatal("Failed conversion to UTF-8 string");
+
+  return size_needed;
+}
+
+std::string WideToUtf8(const WStringPiece& w_string) {
+  if (w_string.len_ == 0)
+    return string();
+
+  // Make sure that the string size can be casted to an int.
+  assert(!(w_string.size() > INT_MAX));
+
+  int size_needed = GetUtf8SizeNeeded(w_string);
 
   std::string u8_string(size_needed, '\0');
   int u8_size_needed = WideCharToMultiByte(
@@ -471,51 +479,63 @@ std::string WideToUtf8(const WStringPiece& w_string) {
   return u8_string;
 }
 
-void WideToUtf8(const WStringPiece& w_string, char* buff,
-                size_t buffer_length) {
-  if (w_string.len_ == 0)
-    return;
-
-  // Make sure that the string size can be casted to an int.
-  assert(!(w_string.size() > INT_MAX));
-
-  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
-                                        static_cast<int>(w_string.size()), NULL,
-                                        0, NULL, NULL);
-  if (size_needed == 0)
-    Fatal("Failed conversion to UTF-8 string");
-
+void ConvertWideToUtf8(const WStringPiece& w_string, int size_needed,
+                       char* buff, size_t buffer_length) {
   int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
                                            static_cast<int>(w_string.size()),
                                            buff, size_needed, NULL, NULL);
 
-  // WideCharToMultiByte returns zero if buff is not large enough, modified for the null termination.
-  if (u8_size_needed == 0 || (u8_size_needed > (buffer_length-1)))
+  // WideCharToMultiByte returns zero if buff is not large enough,
+  // modified for the null termination.
+  if (u8_size_needed == 0 || (u8_size_needed > (buffer_length - 1)))
     Fatal("Failed conversion to UTF-8 string");
 
   // The conversion does not include the nulltermination.
   buff[u8_size_needed] = '\0';
 }
 
+void WideToUtf8(const WStringPiece& w_string, char* buff,
+                size_t buffer_length) {
+  if (w_string.len_ == 0)
+    return;
+
+  int size_needed = GetUtf8SizeNeeded(w_string);
+  ConvertWideToUtf8(w_string, size_needed, buff, buffer_length);
+}
+
 char** convertCommandLine(int argc, wchar_t** wargv) {
-  std::wstring w_argString;
-  std::string argString;
-  char** argv = new char*[argc + 1];
+  size_t total_size = 0;
+  std::vector<int> sizes;
 
   for (int i = 0; i < argc; i++) {
-    // Convert the string
-    argString = WideToUtf8(wargv[i]);
-    // Prepare space in the vector
-    argv[i] = new char[argString.length() + 1];
+    assert(!(wcslen(wargv[i]) > INT_MAX));
 
-    // Copy the final results.
-    strcpy(argv[i], argString.c_str());
+    // Calculate the size needed and account for the null terminating byte.
+    sizes.push_back(GetUtf8SizeNeeded(wargv[i]) + 1);
+
+    total_size += sizes[i];
+  }
+
+  size_t pointer_size = (argc + 1) * sizeof(char*);
+  char* commandBuffer = new char[pointer_size + total_size];
+  char** retvalue = reinterpret_cast<char**>(commandBuffer);
+  int index = 0;
+
+  for (int command_no = 0; command_no < argc; command_no++) {
+    char* buf = pointer_size + commandBuffer + index;
+
+    // Convert the commandline option.
+    ConvertWideToUtf8(wargv[command_no], sizes[command_no], buf,
+                      sizes[command_no]);
+
+    index = index + strlen(buf) + 1;  // Account for the null termination.
+    retvalue[command_no] = buf;
   }
 
   // Just to follow the c++ standard, we need to add this!
   // Also, ninja will not work properly if we do not do so.
-  argv[argc] = NULL;
-  return argv;
+  retvalue[argc] = NULL;
+  return retvalue;
 }
 
 string GetLastErrorString() {
