@@ -26,7 +26,6 @@
 #include <unistd.h>
 #endif
 #include <sstream>
-#include <stdio.h>
 
 #include "public/ui.h"
 
