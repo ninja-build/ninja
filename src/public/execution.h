@@ -190,7 +190,9 @@ protected:
 
   bool LoadLogs();
   bool LoadParser(const std::string& input_file);
+
   void LogError(const std::string& message);
+  void LogInfo(const std::string& message);
   void LogWarning(const std::string& message);
 
   /// Open the build log.

@@ -25,7 +25,6 @@
 #include <getopt.h>
 #include <unistd.h>
 #endif
-#include <iostream>
 #include <sstream>
 #include <stdio.h>
 
@@ -298,7 +297,9 @@ int Execution::Build() {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    std::cerr << ui::Info() << "Entering directory `" << options_.working_dir << "'" << std::endl;
+    std::ostringstream buffer;
+    buffer << "Entering directory `" << options_.working_dir << "'" << std::endl;
+    LogInfo(buffer.str());
   }
   std::string err;
   // Limit number of rebuilds, to prevent infinite loops.
@@ -679,7 +680,9 @@ bool Execution::ChangeToWorkingDirectory() {
   if (!options_.working_dir) 
     return true;
   if (chdir(options_.working_dir) < 0) {
-    std::cerr << ui::Error() << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
+    std::ostringstream buffer;
+    buffer << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
+    LogError(buffer.str());
     return false;
   }
   return true;
@@ -777,6 +780,9 @@ bool Execution::LoadParser(const std::string& input_file) {
 
 void Execution::LogError(const std::string& message) {
   state_->Log(Logger::Level::ERROR, message);
+}
+void Execution::LogInfo(const std::string& message) {
+  state_->Log(Logger::Level::INFO, message);
 }
 void Execution::LogWarning(const std::string& message) {
   state_->Log(Logger::Level::WARNING, message);
