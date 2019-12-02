@@ -48,7 +48,13 @@ public:
 
     };
     struct Commands {
-      enum PrintCommandMode { PCM_Single, PCM_All };
+      enum PrintCommandMode {
+        /// Only print the final command to build a target
+        /// not the entire chain.
+        PCM_Single,
+        /// Print the full chain of commands to build a target
+        PCM_All
+      };
       Commands();
       /// The mode to use when printing the commands.
       PrintCommandMode mode;
