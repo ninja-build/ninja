@@ -56,8 +56,10 @@ struct Tool {
   Implementation implementation;
 };
 
+/// Structure for returning the information parsed
+/// from the commandline arguments.
 struct ParsedFlags {
-  const Tool* tool;
+  const Tool* tool = NULL;
   Execution::Options options;
 };
 
