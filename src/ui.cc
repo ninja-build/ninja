@@ -495,7 +495,7 @@ int ReadFlagsCommands(int* argc, char*** argv, Execution::Options* options) {
   while ((opt = getopt(*argc, *argv, const_cast<char*>("hs"))) != -1) {
     switch (opt) {
     case 's':
-      options->commands_options.mode = PCM_Single;
+      options->commands_options.mode = Execution::Options::Commands::PrintCommandMode::PCM_Single;
       break;
     case 'h':
     default:
@@ -524,7 +524,7 @@ int ReadFlagsCompilationDatabase(int* argc, char*** argv, Execution::Options* op
   while ((opt = getopt(*argc, *argv, const_cast<char*>("hx"))) != -1) {
     switch(opt) {
       case 'x':
-        options->compilationdatabase_options.eval_mode = ECM_EXPAND_RSPFILE;
+        options->compilationdatabase_options.eval_mode = Execution::Options::CompilationDatabase::EvaluateCommandMode::ECM_EXPAND_RSPFILE;
         break;
 
       case 'h':
@@ -616,16 +616,16 @@ int ReadFlagsTargets(int* argc, char*** argv, Execution::Options* options) {
   if (*argc >= 1) {
     std::string mode = (*argv)[0];
     if (mode == "rule") {
-      options->targets_options.mode = TM_RULE;
+      options->targets_options.mode = Execution::Options::Targets::TargetsMode::TM_RULE;
       if (*argc > 1)
         options->targets_options.rule = (*argv)[1];
       return -1;
     } else if (mode == "depth") {
-      options->targets_options.mode = TM_DEPTH;
+      options->targets_options.mode = Execution::Options::Targets::TargetsMode::TM_DEPTH;
       if (*argc > 1)
         options->targets_options.depth = atoi((*argv)[1]);
     } else if (mode == "all") {
-      options->targets_options.mode = TM_ALL;
+      options->targets_options.mode = Execution::Options::Targets::TargetsMode::TM_ALL;
     } else {
       const char* suggestion =
           SpellcheckString(mode.c_str(), "rule", "depth", "all", NULL);

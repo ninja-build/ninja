@@ -54,9 +54,9 @@ void EncodeJSONString(const char *str) {
 }
 
 std::string EvaluateCommandWithRspfile(const Edge* edge,
-                                       const EvaluateCommandMode mode) {
+                                       const Execution::Options::CompilationDatabase::EvaluateCommandMode mode) {
   std::string command = edge->EvaluateCommand();
-  if (mode == ECM_NORMAL)
+  if (mode == Execution::Options::CompilationDatabase::EvaluateCommandMode::ECM_NORMAL)
     return command;
 
   std::string rspfile = edge->GetUnescapedRspfile();
@@ -91,13 +91,13 @@ int GuessParallelism() {
   }
 }
 
-void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
+void PrintCommands(Edge* edge, EdgeSet* seen, Execution::Options::Commands::PrintCommandMode mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
     return;
 
-  if (mode == PCM_All) {
+  if (mode == Execution::Options::Commands::PrintCommandMode::PCM_All) {
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in)
       PrintCommands((*in)->in_edge(), seen, mode);
@@ -108,7 +108,7 @@ void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
 }
 
 void printCompdb(const char* const directory, const Edge* const edge,
-                 const EvaluateCommandMode eval_mode) {
+                 const Execution::Options::CompilationDatabase::EvaluateCommandMode eval_mode) {
   printf("\n  {\n    \"directory\": \"");
   EncodeJSONString(directory);
   printf("\",\n    \"command\": \"");
@@ -244,7 +244,7 @@ Execution::Options::Clean::Clean() :
   targets_are_rules(false) {}
 
 Execution::Options::Commands::Commands() :
-  mode(PCM_All) {}
+  mode(Execution::Options::Commands::PrintCommandMode::PCM_All) {}
 
 Execution::Options::CompilationDatabase::CompilationDatabase() :
   eval_mode(ECM_NORMAL) {}
@@ -614,10 +614,10 @@ int Execution::Targets() {
   }
   std::string err;
   vector<Node*> root_nodes = state_->RootNodes(&err);
-  if (options_.targets_options.mode == TM_ALL) {
+  if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_ALL) {
     ToolTargetsList();
     return 0;
-  } else if (options_.targets_options.mode == TM_DEPTH) {
+  } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_DEPTH) {
     printf("Showing depth %d", options_.targets_options.depth);
     std::string err;
     vector<Node*> root_nodes = state_->RootNodes(&err);
@@ -628,7 +628,7 @@ int Execution::Targets() {
       LogError(err);
       return 1;
     }
-  } else if (options_.targets_options.mode == TM_RULE) {
+  } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_RULE) {
     if (options_.targets_options.rule.empty()) {
       for (vector<Edge*>::const_iterator e = state_->edges_.begin();
            e != state_->edges_.end(); ++e) {

@@ -27,17 +27,6 @@ class RealDiskInterface;
 class State;
 struct Status;
 
-enum EvaluateCommandMode {
-  ECM_NORMAL,
-  ECM_EXPAND_RSPFILE
-};
-enum PrintCommandMode { PCM_Single, PCM_All };
-enum TargetsMode {
-  TM_ALL,
-  TM_DEPTH,
-  TM_RULE,
-};
-
 /// Create a request to perform a ninja execution.
 /// This should be the main entrypoint to requesting
 /// that ninja perform some work.
@@ -59,11 +48,16 @@ public:
 
     };
     struct Commands {
+      enum PrintCommandMode { PCM_Single, PCM_All };
       Commands();
       /// The mode to use when printing the commands.
       PrintCommandMode mode;
     };
     struct CompilationDatabase {
+      enum EvaluateCommandMode {
+        ECM_NORMAL,
+        ECM_EXPAND_RSPFILE
+      };
       CompilationDatabase();
       /// The mode for evaluating commands
       EvaluateCommandMode eval_mode;
@@ -81,6 +75,12 @@ public:
       bool print_description;
     };
     struct Targets {
+      enum TargetsMode {
+        TM_ALL,
+        TM_DEPTH,
+        TM_RULE,
+      };
+
       Targets();
       /// The max depth to list targets
       int depth;
