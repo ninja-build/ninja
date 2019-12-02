@@ -388,7 +388,7 @@ int Execution::CompilationDatabase() {
   if (errno != 0 && errno != ERANGE) {
     std::ostringstream message;
     message << "cannot determine working directory: " << strerror(errno);
-    state_->Log(Logger::Level::ERROR, message.str());
+    LogError(message.str());
     return 1;
   }
 
@@ -455,7 +455,7 @@ int Execution::Deps() {
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
     if (mtime == -1) {
       // Log and ignore Stat() errors;
-      state_->Log(Logger::Level::ERROR, err);
+      LogError(err);
     }
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
            (*it)->path().c_str(), deps->node_count, deps->mtime,
