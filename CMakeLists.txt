@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.12)
 project(ninja)
 
+if(CMAKE_BUILD_TYPE MATCHES "Release")
+	cmake_policy(SET CMP0069 NEW)
+	include(CheckIPOSupported)
+	check_ipo_supported(RESULT lto_supported OUTPUT error)
+
+	if(lto_supported)
+		message(STATUS "IPO / LTO enabled")
+		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+	else()
+		message(STATUS "IPO / LTO not supported: <${error}>")
+	endif()
+endif()
+
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
 else()
