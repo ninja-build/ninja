@@ -36,3 +36,6 @@ TAGS
 # Visual Studio Code project files
 /.vscode/
 /.ccls-cache/
+
+# Qt Creator project files
+/CMakeLists.txt.user
