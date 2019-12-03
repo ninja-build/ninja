@@ -23,6 +23,7 @@
 #include <share.h>
 #include <locale> // For UTF-8 conversion
 #include <cassert> // For checking string size
+#include <limits>
 #endif
 
 #include <assert.h>
@@ -430,18 +431,18 @@ std::wstring Utf8ToWide(const StringPiece& u8_string) {
     return std::wstring();
 
   // Make sure that the string size can be casted to an int.
-  assert(!(u8_string.size() > INT_MAX));
+  assert(u8_string.size() <= (std::numeric_limits<int>::max)());
 
   size_t size_needed = MultiByteToWideChar(
       CP_UTF8, 0, u8_string.str_, static_cast<int>(u8_string.size()), NULL, 0);
   if (size_needed == 0)
-    Fatal("Failed conversion to wide string");
+    Fatal("Failed to get needed size of wide string");
 
   std::wstring w_string(size_needed, 0);
   int w_size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.str_,
                                           static_cast<int>(u8_string.size()),
                                           &w_string[0], w_string.size());
-  if (w_size_needed == 0 || (w_size_needed > size_needed))
+  if (w_size_needed != size_needed)
     Fatal("Failed conversion to wide string");
 
   return w_string;
@@ -449,13 +450,13 @@ std::wstring Utf8ToWide(const StringPiece& u8_string) {
 
 int GetUtf8SizeNeeded(const WStringPiece& w_string) {
   // Make sure that the string size can be casted to an int.
-  assert(!(w_string.size() > INT_MAX));
+  assert(w_string.size() <= (std::numeric_limits<int>::max)());
 
   int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
                                         static_cast<int>(w_string.size()), NULL,
                                         0, NULL, NULL);
   if (size_needed == 0)
-    Fatal("Failed conversion to UTF-8 string");
+    Fatal("Failed to get needed size of UTF-8 string");
 
   return size_needed;
 }
@@ -465,7 +466,7 @@ std::string WideToUtf8(const WStringPiece& w_string) {
     return string();
 
   // Make sure that the string size can be casted to an int.
-  assert(!(w_string.size() > INT_MAX));
+  assert(w_string.size() <= (std::numeric_limits<int>::max)());
 
   int size_needed = GetUtf8SizeNeeded(w_string);
 
@@ -473,7 +474,7 @@ std::string WideToUtf8(const WStringPiece& w_string) {
   int u8_size_needed = WideCharToMultiByte(
       CP_UTF8, 0, w_string.wstr_, static_cast<int>(w_string.size()),
       &u8_string[0], size_needed, NULL, NULL);
-  if (u8_size_needed == 0 || (u8_size_needed > size_needed))
+  if (u8_size_needed != size_needed)
     Fatal("Failed conversion to UTF-8 string");
 
   return u8_string;
@@ -481,13 +482,14 @@ std::string WideToUtf8(const WStringPiece& w_string) {
 
 void ConvertWideToUtf8(const WStringPiece& w_string, int size_needed,
                        char* buff, size_t buffer_length) {
+  if (size_needed > (buffer_length - 1)) // Also account for \0
+    Fatal("Buffer is to small for UTF-8 string");
+
   int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
                                            static_cast<int>(w_string.size()),
                                            buff, size_needed, NULL, NULL);
 
-  // WideCharToMultiByte returns zero if buff is not large enough,
-  // modified for the null termination.
-  if (u8_size_needed == 0 || (u8_size_needed > (buffer_length - 1)))
+  if (u8_size_needed != size_needed)
     Fatal("Failed conversion to UTF-8 string");
 
   // The conversion does not include the nulltermination.
@@ -505,15 +507,9 @@ void WideToUtf8(const WStringPiece& w_string, char* buff,
 
 char** convertCommandLine(int argc, wchar_t** wargv) {
   size_t total_size = 0;
-  std::vector<int> sizes;
 
   for (int i = 0; i < argc; i++) {
-    assert(!(wcslen(wargv[i]) > INT_MAX));
-
-    // Calculate the size needed and account for the null terminating byte.
-    sizes.push_back(GetUtf8SizeNeeded(wargv[i]) + 1);
-
-    total_size += sizes[i];
+    total_size += (GetUtf8SizeNeeded(wargv[i]) + 1);
   }
 
   size_t pointer_size = (argc + 1) * sizeof(char*);
@@ -525,8 +521,11 @@ char** convertCommandLine(int argc, wchar_t** wargv) {
     char* buf = pointer_size + commandBuffer + index;
 
     // Convert the commandline option.
-    ConvertWideToUtf8(wargv[command_no], sizes[command_no], buf,
-                      sizes[command_no]);
+    ConvertWideToUtf8(
+        wargv[command_no],
+        GetUtf8SizeNeeded(wargv[command_no]),  // Size of the argument
+        buf,                                   // Buffer to write to
+        total_size - index);  // The size of the remaining buffer.
 
     index = index + strlen(buf) + 1;  // Account for the null termination.
     retvalue[command_no] = buf;
