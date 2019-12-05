@@ -41,7 +41,7 @@ bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
     return false;
   }
 
-  WideToUtf8(w_buffer, buffer,buffer_length);
+  WideToUtf8(w_buffer, buffer, buffer_length);
   return true;
 }
 

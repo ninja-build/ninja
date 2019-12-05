@@ -40,7 +40,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
            "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
-  std::wstring w_pipe_name = Utf8ToWide(pipe_name);
+  const std::wstring w_pipe_name = Utf8ToWide(pipe_name);
 
   pipe_ = ::CreateNamedPipeW(w_pipe_name.c_str(),
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
