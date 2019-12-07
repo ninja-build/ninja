@@ -28,13 +28,13 @@ jobs:
 
     # Install OS specific dependencies
     - name: Install Linux dependencies
-      if: matrix.os == 'ubuntu-latest'
+      if: runner.os == 'Linux'
       run: sudo apt-get install re2c
     - name: Install macOS dependencies
-      if: matrix.os == 'macOS-latest'
+      if: runner.os == 'macOS'
       run: brew install re2c p7zip cmake
     - name: Install Windows dependencies
-      if: matrix.os == 'windows-latest'
+      if: runner.os == 'Windows'
       run: choco install re2c
 
     - name: Build ninja
@@ -46,7 +46,7 @@ jobs:
         ctest -vv
 
     - name: Strip Linux binary
-      if: matrix.os == 'ubuntu-latest'
+      if: runner.os == 'Linux'
       run: cd build && strip ninja
 
     - name: Create ninja archive
