@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(ninja)
 
+option(NINJA_STATIC_SYSTEM_LIBS "Static link the system runtime libraries" OFF)
+
 if(CMAKE_BUILD_TYPE MATCHES "Release")
 	cmake_policy(SET CMP0069 NEW)
 	include(CheckIPOSupported)
@@ -18,6 +20,39 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
+endif()
+
+# Add flags for static linking with system runtime libraries (e.g. MSVCRT, libstdc++)
+if(NINJA_STATIC_SYSTEM_LIBS)
+	# Macro to add static linking flags based on the compiler
+	macro(ninja_add_static_flags flags_var)
+		if(NOT MSVC)
+			# Defaults that should work with gcc and clang (with libstdc++), possibly other compilers
+			set(${flags_var} "${${flags_var}} -static-libstdc\\+\\+ -static-libgcc")
+		else()
+			# With MSVC the dynamic runtime flag /MD needs replacing
+			string(REGEX REPLACE "/MD" "/MT" ${flags_var} "${${flags_var}}")
+		endif()
+	endmacro()
+
+	if("${CMAKE_CONFIGURATION_TYPES}" STREQUAL "")
+		# Add flags for single configuration build systems (i.e. make, ninja)
+		if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+			ninja_add_static_flags("CMAKE_C_FLAGS")
+			ninja_add_static_flags("CMAKE_CXX_FLAGS")
+		else()
+			string(TOUPPER ${CMAKE_BUILD_TYPE} build_type)
+			ninja_add_static_flags("CMAKE_C_FLAGS_${build_type}")
+			ninja_add_static_flags("CMAKE_CXX_FLAGS_${build_type}")
+		endif()
+	else()
+		# Add flags for multi configuration build systems (i.e. msvc, xcode)
+		foreach(build_type ${CMAKE_CONFIGURATION_TYPES})
+			string(TOUPPER ${build_type} build_type)
+			ninja_add_static_flags("CMAKE_C_FLAGS_${build_type}")
+			ninja_add_static_flags("CMAKE_CXX_FLAGS_${build_type}")
+		endforeach()
+	endif()
 endif()
 
 find_program(RE2C re2c)
