@@ -15,10 +15,13 @@ jobs:
         include:
           - os: ubuntu-latest
             zip_name: ninja-linux
+            extra_cmake_flags: '-DNINJA_STATIC_SYSTEM_LIBS=ON'
           - os: macOS-latest
             zip_name: ninja-mac
+            extra_cmake_flags: ''
           - os: windows-latest
             zip_name: ninja-win
+            extra_cmake_flags: '-DNINJA_STATIC_SYSTEM_LIBS=ON'
 
     steps:
     - uses: actions/checkout@v1
@@ -38,7 +41,7 @@ jobs:
       shell: bash
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release ${{ matrix.extra_cmake_flags }} ..
         cmake --build . --parallel --config Release
         ctest -vv
 
