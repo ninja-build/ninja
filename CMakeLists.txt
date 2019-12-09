@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
-cmake_policy(VERSION 3.15)
+if(MSVC)
+	cmake_policy(VERSION 3.15)
+endif()
 project(ninja)
 
 if(CMAKE_BUILD_TYPE MATCHES "Release")
