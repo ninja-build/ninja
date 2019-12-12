@@ -454,7 +454,7 @@ int GetUtf8SizeNeeded(const WStringPiece w_string) {
   // Make sure that the string size can be casted to an int.
   assert(w_string.size() <= (std::numeric_limits<int>::max)());
 
-  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.str_,
                                         static_cast<int>(w_string.size()), NULL,
                                         0, NULL, NULL);
   if (size_needed == 0) {
@@ -476,20 +476,21 @@ std::string WideToUtf8(const WStringPiece w_string) {
 
   std::string u8_string(size_needed, '\0');
   int u8_size_needed = WideCharToMultiByte(
-      CP_UTF8, 0, w_string.wstr_, static_cast<int>(w_string.size()),
+      CP_UTF8, 0, w_string.str_, static_cast<int>(w_string.size()),
       &u8_string[0], size_needed, NULL, NULL);
   if (u8_size_needed != size_needed) {
     Win32Fatal("WideToUtf8", "Failed conversion to UTF-8 string");
   }
-
   return u8_string;
 }
 
 // Method calling this funcion must ensure that the buffer is large enough to
-// fit the converted string.
-int ConvertWideToUtf8(const WStringPiece& w_string, char* buff,
+// fit the converted string. The correct size is obtained using the
+// GetUtf8SizeNeeded method.
+// Note that GetUtf8SizeNeeded does not account for nulltermination.
+int ConvertWideToUtf8(const WStringPiece w_string, char* buff,
                       size_t buffer_length) {
-  int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.wstr_,
+  int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.str_,
                                            static_cast<int>(w_string.size()),
                                            buff, buffer_length, NULL, NULL);
 

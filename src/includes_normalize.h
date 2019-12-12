@@ -14,9 +14,9 @@
 
 #include <string>
 #include <vector>
-using namespace std;
+#include "string_piece.h"
 
-struct StringPiece;
+using namespace std;
 
 /// Utility functions for normalizing include paths on Windows.
 /// TODO: this likely duplicates functionality of CanonicalizePath; refactor.

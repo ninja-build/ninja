@@ -21,98 +21,57 @@ using namespace std;
 
 #include <string.h>
 
-/// StringPiece represents a slice of a string whose memory is managed
-/// externally.  It is useful for reducing the number of std::strings
+/// BasicStringPiece represents a slice of a string whose memory is managed
+/// externally.  It is useful for reducing the number of strings
 /// we need to allocate.
-struct StringPiece {
-  typedef const char* const_iterator;
+template <class StringType, class CharType>
+class BasicStringPiece {
+ public:
+  typedef const CharType* const_iterator;
 
-  StringPiece() : str_(NULL), len_(0) {}
+  BasicStringPiece() : str_(NULL), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
-  StringPiece(const string& str) : str_(str.data()), len_(str.size()) {}
-  StringPiece(const char* str) : str_(str), len_(strlen(str)) {}
+  BasicStringPiece(const StringType& str)
+      : str_(str.data()), len_(str.size()) {}
+  BasicStringPiece(const CharType* str);
 
-  StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
+  BasicStringPiece(const CharType* str, size_t len) : str_(str), len_(len) {}
 
-  bool operator==(const StringPiece& other) const {
+  bool operator==(const BasicStringPiece& other) const {
     return len_ == other.len_ && memcmp(str_, other.str_, len_) == 0;
   }
-  bool operator!=(const StringPiece& other) const {
+  bool operator!=(const BasicStringPiece& other) const {
     return !(*this == other);
   }
 
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
-  string AsString() const {
-    return len_ ? string(str_, len_) : string();
+  StringType AsString() const {
+    return len_ ? StringType(str_, len_) : StringType();
   }
 
-  const_iterator begin() const {
-    return str_;
-  }
+  const_iterator begin() const { return str_; }
 
-  const_iterator end() const {
-    return str_ + len_;
-  }
+  const_iterator end() const { return str_ + len_; }
 
-  char operator[](size_t pos) const {
-    return str_[pos];
-  }
+  char operator[](size_t pos) const { return str_[pos]; }
 
-  size_t size() const {
-    return len_;
-  }
+  size_t size() const { return len_; }
 
-  const char* str_;
+  const CharType* str_;
   size_t len_;
 };
 
+// Specialization for std::string and char
+typedef BasicStringPiece<std::string, char> StringPiece;
+template <>
+StringPiece::BasicStringPiece(const char* str);
+
 #ifdef _WIN32
-// Same as StringPiece but handles wchar_t
-struct WStringPiece {
-	typedef const wchar_t* const_iterator;
-
-	WStringPiece() : wstr_(NULL), len_(0) {}
-
-	/// The constructors intentionally allow for implicit conversions.
-	WStringPiece(const wstring& str) : wstr_(str.data()), len_(str.size()) {}
-	WStringPiece(const wchar_t* str) : wstr_(str), len_(wcslen(str)) {}
-
-	WStringPiece(const wchar_t* str, size_t len) : wstr_(str), len_(len) {}
-
-	bool operator==(const WStringPiece& other) const {
-		return len_ == other.len_ && memcmp(wstr_, other.wstr_, len_) == 0;
-	}
-	bool operator!=(const WStringPiece& other) const {
-		return !(*this == other);
-	}
-
-	/// Convert the slice into a full-fledged std::string, copying the
-	/// data into a new string.
-	wstring AsString() const {
-		return len_ ? wstring(wstr_, len_) : wstring();
-	}
-
-	const_iterator begin() const {
-		return wstr_;
-	}
-
-	const_iterator end() const {
-		return wstr_ + len_;
-	}
-
-	wchar_t operator[](size_t pos) const {
-		return wstr_[pos];
-	}
-
-	size_t size() const {
-		return len_;
-	}
-
-	const wchar_t* wstr_;
-	size_t len_;
-};
+typedef BasicStringPiece<std::wstring, wchar_t> WStringPiece;
+template <>
+WStringPiece::BasicStringPiece(const wchar_t* str);
 #endif
 
 #endif  // NINJA_STRINGPIECE_H_
