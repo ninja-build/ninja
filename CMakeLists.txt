@@ -47,6 +47,7 @@ add_library(libninja OBJECT
 	src/metrics.cc
 	src/parser.cc
 	src/state.cc
+	src/string_piece.cc
 	src/string_piece_util.cc
 	src/util.cc
 	src/version.cc
