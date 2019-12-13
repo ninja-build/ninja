@@ -117,9 +117,9 @@ bool Truncate(const string& path, size_t size, string* err);
 
 #ifdef _WIN32
 /// UTF-8 converters
-std::wstring Utf8ToWide(const StringPiece s);
-std::string WideToUtf8(const WStringPiece s);
-void WideToUtf8(const WStringPiece s, char* buff, size_t buffer_length);
+std::wstring Utf8ToWide(const StringPiece);
+std::string WideToUtf8(const WStringPiece);
+void WideToUtf8(const WStringPiece, char* buff, size_t buffer_length);
 char** convertCommandLine(int argc, wchar_t** wargv);
 
 /// Convert the value returned by GetLastError() into a string.
