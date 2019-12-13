@@ -431,7 +431,7 @@ std::wstring Utf8ToWide(const StringPiece u8_string) {
     return std::wstring();
 
   // Make sure that the string size can be casted to an int.
-  assert(u8_string.size() <= (std::numeric_limits<int>::max)());
+  assert(u8_string.size() <= std::numeric_limits<int>::max());
 
   size_t size_needed = MultiByteToWideChar(
       CP_UTF8, 0, u8_string.str_, static_cast<int>(u8_string.size()), NULL, 0);
@@ -452,7 +452,7 @@ std::wstring Utf8ToWide(const StringPiece u8_string) {
 
 int GetUtf8SizeNeeded(const WStringPiece w_string) {
   // Make sure that the string size can be casted to an int.
-  assert(w_string.size() <= (std::numeric_limits<int>::max)());
+  assert(w_string.size() <= std::numeric_limits<int>::max());
 
   int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.str_,
                                         static_cast<int>(w_string.size()), NULL,
@@ -470,7 +470,7 @@ std::string WideToUtf8(const WStringPiece w_string) {
     return string();
 
   // Make sure that the string size can be casted to an int.
-  assert(w_string.size() <= (std::numeric_limits<int>::max)());
+  assert(w_string.size() <= std::numeric_limits<int>::max());
 
   int size_needed = GetUtf8SizeNeeded(w_string);
 

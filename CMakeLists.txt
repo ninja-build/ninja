@@ -10,6 +10,10 @@ else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
 endif()
 
+if(WIN32)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
+endif()
+
 find_program(RE2C re2c)
 if(RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
