@@ -55,13 +55,13 @@ void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
   delayed_.erase(delayed_.begin(), it);
 }
 
-void Pool::Dump() const {
+void Pool::Dump(Logger* logger) const {
   printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
   for (DelayedEdges::const_iterator it = delayed_.begin();
        it != delayed_.end(); ++it)
   {
     printf("\t");
-    (*it)->Dump();
+    (*it)->Dump(logger);
   }
 }
 
@@ -230,7 +230,7 @@ void State::Dump() {
          it != pools_.end(); ++it)
     {
       if (!it->second->name().empty()) {
-        it->second->Dump();
+        it->second->Dump(logger_);
       }
     }
   }

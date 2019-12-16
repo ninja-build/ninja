@@ -161,7 +161,7 @@ Node* TargetNameToNode(const State* state, const std::string& path, std::string*
 
   Edge* edge = node->out_edges()[0];
   if (edge->outputs_.empty()) {
-    edge->Dump();
+    edge->Dump(state->logger_);
     *err = "edge has no outputs";
     return NULL;
   }

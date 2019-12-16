@@ -73,7 +73,7 @@ struct Pool {
   void RetrieveReadyEdges(EdgeSet* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
-  void Dump() const;
+  void Dump(Logger* logger) const;
 
  private:
   string name_;

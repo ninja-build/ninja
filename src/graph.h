@@ -20,6 +20,8 @@
 #include <vector>
 using namespace std;
 
+#include "public/logger.h"
+
 #include "dyndep.h"
 #include "eval_env.h"
 #include "timestamp.h"
@@ -103,7 +105,7 @@ struct Node {
   const vector<Edge*>& out_edges() const { return out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
 
-  void Dump(const char* prefix="") const;
+  void Dump(Logger* logger, const char* prefix="") const;
 
 private:
   string path_;
@@ -170,7 +172,7 @@ struct Edge {
   /// Like GetBinding("rspfile"), but without shell escaping.
   std::string GetUnescapedRspfile() const;
 
-  void Dump(const char* prefix="") const;
+  void Dump(Logger* logger, const char* prefix="") const;
 
   const Rule* rule_;
   Pool* pool_;

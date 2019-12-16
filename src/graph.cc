@@ -426,7 +426,7 @@ std::string Edge::GetUnescapedRspfile() const {
   return env.LookupVariable("rspfile");
 }
 
-void Edge::Dump(const char* prefix) const {
+void Edge::Dump(Logger* logger, const char* prefix) const {
   printf("%s[ ", prefix);
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end() && *i != NULL; ++i) {
@@ -478,20 +478,20 @@ string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   return result;
 }
 
-void Node::Dump(const char* prefix) const {
+void Node::Dump(Logger* logger, const char* prefix) const {
   printf("%s <%s 0x%p> mtime: %" PRId64 "%s, (:%s), ",
          prefix, path().c_str(), this,
          mtime(), mtime() ? "" : " (:missing)",
          dirty() ? " dirty" : " clean");
   if (in_edge()) {
-    in_edge()->Dump("in-edge: ");
+    in_edge()->Dump(logger, "in-edge: ");
   } else {
     printf("no in-edge\n");
   }
   printf(" out edges:\n");
   for (vector<Edge*>::const_iterator e = out_edges().begin();
        e != out_edges().end() && *e != NULL; ++e) {
-    (*e)->Dump(" +- ");
+    (*e)->Dump(logger, " +- ");
   }
 }
 
