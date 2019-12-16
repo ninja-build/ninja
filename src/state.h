@@ -103,8 +103,8 @@ struct State  : public BuildLogUser {
   static const Rule kPhonyRule;
 
   State();
-  State(std::unique_ptr<Logger> logger);
-  State(std::unique_ptr<Logger> logger, bool is_explaining);
+  State(Logger* logger);
+  State(Logger* logger, bool is_explaining);
 
   void AddPool(Pool* pool);
   Pool* LookupPool(const string& pool_name);
@@ -151,7 +151,7 @@ struct State  : public BuildLogUser {
   bool is_explaining_;
 
   /// The logger that gets messages from this state.
-  std::unique_ptr<Logger> logger_;
+  Logger* logger_;
 
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;

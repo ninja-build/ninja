@@ -181,8 +181,8 @@ public:
   /// This is used for some sub-commands of ninja that need to
   /// start a new ninja subprocess.
   Execution(const char* ninja_command, Options options);
-  Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger);
-  Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status);
+  Execution(const char* ninja_command, Options options, Logger* logger);
+  Execution(const char* ninja_command, Options options, Logger* logger, Status* status);
 
   /// Browse the dependency graph using a webbrowser. This will
   /// launch a separate Python process to service requests.
@@ -277,6 +277,9 @@ protected:
 
   // The command used to run ninja.
   const char* ninja_command_;
+
+  /// The logger used by this execution to capture messages.
+  Logger* logger_;
 
   /// The options provided to this execution when it is built
   /// that control most of the execution's behavior.

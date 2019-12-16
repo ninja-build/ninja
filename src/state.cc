@@ -69,16 +69,16 @@ Pool State::kDefaultPool("", 0);
 Pool State::kConsolePool("console", 1);
 const Rule State::kPhonyRule("phony");
 
-State::State() : State(std::make_unique<LoggerBasic>(), false) {}
+State::State() : State(new LoggerBasic(), false) {}
 
-State::State(std::unique_ptr<Logger> logger) : State(std::move(logger), false) {}
+State::State(Logger* logger) : State(logger, false) {}
 
-State::State(std::unique_ptr<Logger> logger, bool is_explaining) :
+State::State(Logger* logger, bool is_explaining) :
     build_log_(new BuildLog()),
     deps_log_(new DepsLog()),
     disk_interface_(new RealDiskInterface()),
     is_explaining_(is_explaining),
-    logger_(std::move(logger)),
+    logger_(logger),
     start_time_millis_(GetTimeMillis())
  {
   bindings_.AddRule(&kPhonyRule);

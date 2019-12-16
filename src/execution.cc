@@ -202,15 +202,16 @@ void PrintToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
 
 }  // namespace
 
-Execution::Execution() : Execution(NULL, Options(), std::make_unique<LoggerBasic>(), new StatusPrinter(config_)) {}
+Execution::Execution() : Execution(NULL, Options(), new LoggerBasic(), new StatusPrinter(config_)) {}
 Execution::Execution(const char* ninja_command, Options options) :
-  Execution(ninja_command, options, std::make_unique<LoggerBasic>(), new StatusPrinter(config_)) {}
-Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger) :
-  Execution(ninja_command, options, std::move(logger), new StatusPrinter(config_)) {}
-Execution::Execution(const char* ninja_command, Options options, std::unique_ptr<Logger> logger, Status* status) :
+  Execution(ninja_command, options, new LoggerBasic(), new StatusPrinter(config_)) {}
+Execution::Execution(const char* ninja_command, Options options, Logger* logger) :
+  Execution(ninja_command, options, logger, new StatusPrinter(config_)) {}
+Execution::Execution(const char* ninja_command, Options options, Logger* logger, Status* status) :
   ninja_command_(ninja_command),
+  logger_(logger),
   options_(options),
-  state_(new State(std::move(logger), options.debug.explain)),
+  state_(new State(logger, options.debug.explain)),
   status_(status) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
@@ -278,7 +279,7 @@ int Execution::Browse() {
     }
   }
   if(ninja_command_) {
-    RunBrowsePython(ninja_command_, options_.input_file, initial_target);
+    RunBrowsePython(logger_, ninja_command_, options_.input_file, initial_target);
   } else {
     LogError("You must specify the 'ninja_command' parameter  in your execution to browse.");
   }
