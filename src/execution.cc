@@ -407,7 +407,7 @@ int Execution::CompilationDatabase() {
           if (!first) {
             putchar(',');
           }
-          printCompdb(&cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+          printCompdb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
           first = false;
         }
       }
@@ -415,7 +415,7 @@ int Execution::CompilationDatabase() {
       if (!first) {
         putchar(',');
       }
-      printCompdb(&cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+      printCompdb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
       first = false;
     }
   }
@@ -451,7 +451,9 @@ int Execution::Deps() {
        it != end; ++it) {
     DepsLog::Deps* deps = state_->deps_log_->GetDeps(*it);
     if (!deps) {
-      printf("%s: deps not found\n", (*it)->path().c_str());
+      std::ostringstream buffer;
+      buffer << (*it)->path().c_str() << ": deps not found" << std::endl;
+      logger_->Info(buffer.str());
       continue;
     }
 
@@ -461,12 +463,18 @@ int Execution::Deps() {
       // Log and ignore Stat() errors;
       logger_->Error(err);
     }
-    printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
-           (*it)->path().c_str(), deps->node_count, deps->mtime,
-           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
-    for (int i = 0; i < deps->node_count; ++i)
-      printf("    %s\n", deps->nodes[i]->path().c_str());
-    printf("\n");
+    std::ostringstream buffer;
+    buffer << (*it)->path().c_str() <<
+      ": $deps " << deps->node_count <<
+      ", deps mtime " << deps->mtime <<
+      " (" << (!mtime || mtime > deps->mtime ? "STALE":"VALID") << ")" << std::endl;
+    logger_->Info(buffer.str());
+    for (int i = 0; i < deps->node_count; ++i) {
+      buffer.clear();
+      buffer << "    " << deps->nodes[i]->path().c_str() << std::endl;
+      logger_->Info(buffer.str());
+    }
+    logger_->Info("\n");
   }
 
   return 0;
@@ -502,7 +510,7 @@ int Execution::MSVC() {
   }
   return MSVCHelperMain(options_.msvc_options.deps_prefix, options_.msvc_options.envfile, options_.msvc_options.output_filename);
 #else
-  printf("Not supported on this platform.");
+  logger_->Error("Not supported on this platform.");
   return 1;
 #endif
 }
@@ -530,29 +538,36 @@ int Execution::Query() {
       return 1;
     }
 
-    printf("%s:\n", node->path().c_str());
+    std::ostringstream buffer;
+    buffer << node->path() << ":" << std::endl;
+    logger_->Info(buffer.str());
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
           logger_->Warning(err);
         }
       }
-      printf("  input: %s\n", edge->rule_->name().c_str());
+      buffer.clear();
+      buffer << "  input: " << edge->rule_->name().c_str() << std::endl;
+      logger_->Info(buffer.str());
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
         const char* label = "";
         if (edge->is_implicit(in))
           label = "| ";
         else if (edge->is_order_only(in))
           label = "|| ";
-        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+        buffer.clear();
+        buffer << "    " << label << edge->inputs_[in]->path().c_str() << std::endl;
+        logger_->Info(buffer.str());
       }
     }
-    printf("  outputs:\n");
+    logger_->Info("  outputs:\n");
     for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
          edge != node->out_edges().end(); ++edge) {
       for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
            out != (*edge)->outputs_.end(); ++out) {
-        printf("    %s\n", (*out)->path().c_str());
+        buffer.clear();
+        buffer << "    %s" << (*out)->path() << std::endl;
       }
     }
   }
@@ -596,16 +611,17 @@ int Execution::Rules() {
   typedef map<string, const Rule*> Rules;
   const Rules& rules = state_->bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
-    printf("%s", i->first.c_str());
+    logger_->Info(i->first);
     if (options_.rules_options.print_description) {
-      printf("Description!");
+      logger_->Info("Description!");
       const Rule* rule = i->second;
       const EvalString* description = rule->GetBinding("description");
       if (description != NULL) {
-        printf(": %s", description->Unparse().c_str());
+        logger_->Info(": ");
+        logger_->Info(description->Unparse());
       }
     }
-    printf("\n");
+    logger_->Info("\n");
   }
   return 0;
 }
@@ -623,11 +639,12 @@ int Execution::Targets() {
     ToolTargetsList();
     return 0;
   } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_DEPTH) {
-    printf("Showing depth %d", options_.targets_options.depth);
+    std::ostringstream buffer;
+    buffer << "Showing depth " << options_.targets_options.depth << std::endl;
     std::string err;
     vector<Node*> root_nodes = state_->RootNodes(&err);
     if (err.empty()) {
-      PrintToolTargetsList(root_nodes, options_.targets_options.depth, 0);
+      PrintToolTargetsList(logger_, root_nodes, options_.targets_options.depth, 0);
       return 0;
     } else {
       logger_->Error(err);
@@ -640,7 +657,7 @@ int Execution::Targets() {
         for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
              inps != (*e)->inputs_.end(); ++inps) {
           if (!(*inps)->in_edge())
-            printf("%s\n", (*inps)->path().c_str());
+            logger_->Info((*inps)->path() + "\n");
         }
       }
       return 0;
@@ -649,7 +666,8 @@ int Execution::Targets() {
       return 0;
     }
   } else {
-    printf("This shouldn't be possible, a developer must have added a new option without fixing the conditional");
+    logger_->Error("This shouldn't be possible, a developer must have added "
+      "a new option without fixing the conditional");
     return 9;
   }
 }
@@ -672,8 +690,11 @@ int Execution::Urtle() {
     if ('0' <= *p && *p <= '9') {
       count = count*10 + *p - '0';
     } else {
-      for (int i = 0; i < max(count, 1); ++i)
-        printf("%c", *p);
+      for (int i = 0; i < max(count, 1); ++i) {
+        std::ostringstream buffer;
+        buffer << *p;
+        logger_->Info(buffer.str());
+      }
       count = 0;
     }
   }
@@ -732,11 +753,13 @@ bool Execution::DoBuild() {
 void Execution::DumpMetrics() {
   g_metrics->Report();
 
-  printf("\n");
+  logger_->Info("\n");
   int count = (int)state_->paths_.size();
   int buckets = (int)state_->paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
+  std::ostringstream buffer;
+  buffer << "path->node hash load " << count / (double) buckets <<
+    " (" << count << " entries / " << buckets << " buckets)" << std::endl;
+  logger_->Info(buffer.str());
 }
 
 bool Execution::EnsureBuildDirExists(std::string* err) {
@@ -906,7 +929,7 @@ void Execution::ToolTargetsList(const std::string& rule_name) {
   // Print them.
   for (set<string>::const_iterator i = rules.begin();
        i != rules.end(); ++i) {
-    printf("%s\n", (*i).c_str());
+    logger_->Info((*i) + "\n");
   }
 }
 
@@ -915,26 +938,29 @@ void Execution::ToolTargetsList() {
        e != state_->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
-      printf("%s: %s\n",
-             (*out_node)->path().c_str(),
-             (*e)->rule_->name().c_str());
+      std::ostringstream buffer;
+      buffer << (*out_node)->path() << ": " << (*e)->rule_->name() << std::endl;
+      logger_->Info(buffer.str());
     }
   }
 }
 
-int TargetsList(const vector<Node*>& nodes, int depth, int indent) {
+int TargetsList(Logger* logger, const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
-    for (int i = 0; i < indent; ++i)
-      printf("  ");
-    const char* target = (*n)->path().c_str();
+    std::ostringstream buffer;
+    for (int i = 0; i < indent; ++i) {
+      buffer << "  ";
+    }
+    const std::string& target = (*n)->path();
     if ((*n)->in_edge()) {
-      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
+      buffer << target << ": " << (*n)->in_edge()->rule_->name() << std::endl;
+      logger->Info(buffer.str());
       if (depth > 1 || depth <= 0)
-        PrintToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
+        PrintToolTargetsList(logger, (*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
-      printf("%s\n", target);
+      logger->Info(target + "\n");
     }
   }
   return 0;
