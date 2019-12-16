@@ -15,7 +15,6 @@
 #include "browse.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -76,7 +75,9 @@ void RunBrowsePython(Logger* logger,
       command.push_back(NULL);
       execvp(command[0], (char**)&command[0]);
       if (errno == ENOENT) {
-        printf("ninja: %s is required for the browse tool\n", NINJA_PYTHON);
+        std::ostringstream buffer;
+        buffer << "ninja: " << NINJA_PYTHON << " is required for the browse tool" << std::endl;
+        logger->OnMessage(Logger::Level::ERROR, buffer.str());
       } else {
         LogError(logger, "ninja: execvp");
       }
