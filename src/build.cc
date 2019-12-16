@@ -16,7 +16,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <functional>
 
@@ -426,16 +425,6 @@ void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
       }
     }
   }
-}
-
-void Plan::Dump() {
-  printf("pending: %d\n", (int)want_.size());
-  for (map<Edge*, Want>::iterator e = want_.begin(); e != want_.end(); ++e) {
-    if (e->second != kWantNothing)
-      printf("want ");
-    e->first->Dump();
-  }
-  printf("ready: %d\n", (int)ready_.size());
 }
 
 struct RealCommandRunner : public CommandRunner {
