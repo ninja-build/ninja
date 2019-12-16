@@ -277,14 +277,14 @@ int Execution::Browse() {
     if (options_.targets.size() == 1) {
       initial_target = options_.targets[0].c_str();
     } else {
-      LogError("You can only specify a single target for 'browse'.");
+      logger_->Error("You can only specify a single target for 'browse'.");
       return 2;
     }
   }
   if(ninja_command_) {
     RunBrowsePython(logger_, ninja_command_, options_.input_file, initial_target);
   } else {
-    LogError("You must specify the 'ninja_command' parameter  in your execution to browse.");
+    logger_->Error("You must specify the 'ninja_command' parameter  in your execution to browse.");
   }
   // If we get here, the browse failed.
   return 1;
@@ -303,7 +303,7 @@ int Execution::Build() {
     // can be piped into a file without this string showing up.
     std::ostringstream buffer;
     buffer << "Entering directory `" << options_.working_dir << "'" << std::endl;
-    LogInfo(buffer.str());
+    logger_->Info(buffer.str());
   }
   std::string err;
   // Limit number of rebuilds, to prevent infinite loops.
@@ -365,7 +365,7 @@ int Execution::Commands() {
   vector<Node*> nodes;
   std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
-    LogError(err);
+    logger_->Error(err);
     return 1;
   }
 
@@ -392,7 +392,7 @@ int Execution::CompilationDatabase() {
   if (errno != 0 && errno != ERANGE) {
     std::ostringstream message;
     message << "cannot determine working directory: " << strerror(errno);
-    LogError(message.str());
+    logger_->Error(message.str());
     return 1;
   }
 
@@ -435,7 +435,7 @@ int Execution::Deps() {
   std::string err;
   if (options_.targets.size()) {
     if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
-      LogError(err);
+      logger_->Error(err);
       return 1;
     }
   } else {
@@ -459,7 +459,7 @@ int Execution::Deps() {
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
     if (mtime == -1) {
       // Log and ignore Stat() errors;
-      LogError(err);
+      logger_->Error(err);
     }
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
            (*it)->path().c_str(), deps->node_count, deps->mtime,
@@ -482,7 +482,7 @@ int Execution::Graph() {
   vector<Node*> nodes;
   std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
-    LogError(err);
+    logger_->Error(err);
     return 1;
   }
 
@@ -515,7 +515,7 @@ int Execution::Query() {
     return 1;
   }
   if (options_.targets.size() == 0) {
-    LogError("expected a target to query");
+    logger_->Error("expected a target to query");
     return 1;
   }
 
@@ -526,7 +526,7 @@ int Execution::Query() {
     std::string target_name = options_.targets[i];
     Node* node = TargetNameToNode(state_, target_name, &err);
     if (!node) {
-      LogError(err);
+      logger_->Error(err);
       return 1;
     }
 
@@ -534,7 +534,7 @@ int Execution::Query() {
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
-          LogWarning(err);
+          logger_->Warning(err);
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
@@ -567,19 +567,19 @@ int Execution::Recompact() {
   }
   std::string err;
   if (!EnsureBuildDirExists(&err)) {
-    LogError(err);
+    logger_->Error(err);
     return 1;
   }
 
   if (!OpenBuildLog(true, &err) ||
       !OpenDepsLog(true, &err)) {
-    LogError(err);
+    logger_->Error(err);
     return 1;
   }
 
   // Hack: OpenBuildLog()/OpenDepsLog() can return a warning via err
   if(!err.empty()) {
-    LogWarning(err);
+    logger_->Warning(err);
     err.clear();
   }
 
@@ -630,7 +630,7 @@ int Execution::Targets() {
       PrintToolTargetsList(root_nodes, options_.targets_options.depth, 0);
       return 0;
     } else {
-      LogError(err);
+      logger_->Error(err);
       return 1;
     }
   } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_RULE) {
@@ -686,7 +686,7 @@ bool Execution::ChangeToWorkingDirectory() {
   if (chdir(options_.working_dir) < 0) {
     std::ostringstream buffer;
     buffer << "chdir to '" << options_.working_dir << "' - " << strerror(errno) << std::endl;
-    LogError(buffer.str());
+    logger_->Error(buffer.str());
     return false;
   }
   return true;
@@ -759,7 +759,7 @@ bool Execution::LoadLogs() {
       return false;
 
     if (!OpenBuildLog(false, &err) || !OpenDepsLog(false, &err)) {
-      LogError(err);
+      logger_->Error(err);
       return false;
     }
   return true;
@@ -780,16 +780,6 @@ bool Execution::LoadParser(const std::string& input_file) {
       return false;
     }
   return true;
-}
-
-void Execution::LogError(const std::string& message) {
-  logger_->OnMessage(Logger::Level::ERROR, message);
-}
-void Execution::LogInfo(const std::string& message) {
-  logger_->OnMessage(Logger::Level::INFO, message);
-}
-void Execution::LogWarning(const std::string& message) {
-  logger_->OnMessage(Logger::Level::WARNING, message);
 }
 
 bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
@@ -821,7 +811,7 @@ bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {
   // Some of the functions used here can provide warnings through
   // the err parameter. So clear it.
   if(!err->empty()) {
-    LogWarning(*err);
+    logger_->Warning(*err);
     err->clear();
   }
 
@@ -858,7 +848,7 @@ bool Execution::OpenDepsLog(bool recompact_only, std::string* err) {
   // Some of the functions used here can provide warnings through
   // the err parameter. So clear it.
   if(!err->empty()) {
-    LogWarning(*err);
+    logger_->Warning(*err);
     err->clear();
   }
 

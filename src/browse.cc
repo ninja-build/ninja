@@ -33,7 +33,7 @@ namespace ninja {
 void LogError(Logger* logger, const char* prefix) {
   std::ostringstream buffer;
   buffer << prefix << ": " << strerror(errno) << std::endl;
-  logger->OnMessage(Logger::Level::ERROR, buffer.str());
+  logger->Error(buffer.str());
 }
 
 void RunBrowsePython(Logger* logger,
@@ -77,7 +77,7 @@ void RunBrowsePython(Logger* logger,
       if (errno == ENOENT) {
         std::ostringstream buffer;
         buffer << "ninja: " << NINJA_PYTHON << " is required for the browse tool" << std::endl;
-        logger->OnMessage(Logger::Level::ERROR, buffer.str());
+        logger->Error(buffer.str());
       } else {
         LogError(logger, "ninja: execvp");
       }

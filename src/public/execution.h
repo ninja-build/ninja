@@ -249,13 +249,6 @@ protected:
   /// @return true on success.
   bool LoadParser(const std::string& input_file);
 
-  /// Log an error message.
-  void LogError(const std::string& message);
-  /// Log an info message.
-  void LogInfo(const std::string& message);
-  /// Log an warning message.
-  void LogWarning(const std::string& message);
-
   /// Open the build log.
   /// @return false on error.
   bool OpenBuildLog(bool recompact_only, std::string* err);

@@ -167,7 +167,7 @@ bool State::IsPathDead(StringPiece s) const {
   TimeStamp mtime = disk_interface_->Stat(s.AsString(), &err);
   if (mtime == -1) {
     // Log and ignore Stat() errors.
-    logger_->OnMessage(Logger::ERROR, err);
+    logger_->Error(err);
   }
   return mtime == 0;
 }
