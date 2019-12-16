@@ -133,9 +133,6 @@ struct State  : public BuildLogUser {
   vector<Node*> RootNodes(string* error) const;
   vector<Node*> DefaultNodes(string* error) const;
 
-  /// Send a log message to any attached logger.
-  void Log(Logger::Level, const std::string& message) const;
-
   BindingEnv bindings_;
   BuildLog* build_log_;
   vector<Node*> defaults_;

@@ -780,13 +780,13 @@ bool Execution::LoadParser(const std::string& input_file) {
 }
 
 void Execution::LogError(const std::string& message) {
-  state_->Log(Logger::Level::ERROR, message);
+  logger_->OnMessage(Logger::Level::ERROR, message);
 }
 void Execution::LogInfo(const std::string& message) {
-  state_->Log(Logger::Level::INFO, message);
+  logger_->OnMessage(Logger::Level::INFO, message);
 }
 void Execution::LogWarning(const std::string& message) {
-  state_->Log(Logger::Level::WARNING, message);
+  logger_->OnMessage(Logger::Level::WARNING, message);
 }
 
 bool Execution::OpenBuildLog(bool recompact_only, std::string* err) {

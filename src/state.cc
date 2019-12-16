@@ -167,7 +167,7 @@ bool State::IsPathDead(StringPiece s) const {
   TimeStamp mtime = disk_interface_->Stat(s.AsString(), &err);
   if (mtime == -1) {
     // Log and ignore Stat() errors.
-    Log(Logger::ERROR, err);
+    logger_->OnMessage(Logger::ERROR, err);
   }
   return mtime == 0;
 }
@@ -233,12 +233,6 @@ void State::Dump() {
         it->second->Dump();
       }
     }
-  }
-}
-
-void State::Log(Logger::Level level, const std::string& message) const {
-  if(logger_) {
-    logger_->OnMessage(Logger::ERROR, message);
   }
 }
 
