@@ -76,7 +76,7 @@ void RunBrowsePython(Logger* logger,
       execvp(command[0], (char**)&command[0]);
       if (errno == ENOENT) {
         std::ostringstream buffer;
-        buffer << "ninja: " << NINJA_PYTHON << " is required for the browse tool" << std::endl;
+        buffer << NINJA_PYTHON << " is required for the browse tool";
         logger->Error(buffer.str());
       } else {
         LogError(logger, "ninja: execvp");
