@@ -37,7 +37,7 @@ TEST_F(CleanTest, CleanAll) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -69,7 +69,7 @@ TEST_F(CleanTest, CleanAllDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -100,7 +100,7 @@ TEST_F(CleanTest, CleanTarget) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -132,7 +132,7 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -165,7 +165,7 @@ TEST_F(CleanTest, CleanRule) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -199,7 +199,7 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -229,7 +229,7 @@ TEST_F(CleanTest, CleanRuleGenerator) {
   fs_.Create("out1", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(1, cleaner.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
@@ -250,7 +250,7 @@ TEST_F(CleanTest, CleanDepFile) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -265,7 +265,7 @@ TEST_F(CleanTest, CleanDepFileOnCleanTarget) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -280,7 +280,7 @@ TEST_F(CleanTest, CleanDepFileOnCleanRule) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanRule("cc"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -301,7 +301,7 @@ TEST_F(CleanTest, CleanDyndep) {
   fs_.Create("out", "");
   fs_.Create("out.imp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -323,7 +323,7 @@ TEST_F(CleanTest, CleanDyndepMissing) {
   fs_.Create("out", "");
   fs_.Create("out.imp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -346,7 +346,7 @@ TEST_F(CleanTest, CleanRspFile) {
   fs_.Create("out1", "");
   fs_.Create("cc1.rsp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -372,7 +372,7 @@ TEST_F(CleanTest, CleanRsp) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
@@ -397,7 +397,7 @@ TEST_F(CleanTest, CleanFailure) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build dir: cat src1\n"));
   fs_.MakeDir("dir");
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_NE(0, cleaner.CleanAll());
 }
 
@@ -413,7 +413,7 @@ TEST_F(CleanTest, CleanPhony) {
   fs_.Create("t2", "");
 
   // Check that CleanAll does not remove "phony".
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_LT(0, fs_.Stat("phony", &err));
@@ -444,7 +444,7 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   fs_.Create("out 1.d", "");
   fs_.Create("out 2.rsp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  Cleaner cleaner(&state_, new LoggerBasic(), config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(4, cleaner.cleaned_files_count());
   EXPECT_EQ(4u, fs_.files_removed_.size());

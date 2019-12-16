@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "public/logger.h"
 #include "build.h"
 #include "dyndep.h"
 
@@ -33,6 +34,7 @@ struct DiskInterface;
 struct Cleaner {
   /// Build a cleaner object with the given @a disk_interface
   Cleaner(State* state,
+          Logger* logger,
           const BuildConfig& config,
           DiskInterface* disk_interface);
 
@@ -97,13 +99,14 @@ struct Cleaner {
   /// Load dependencies from dyndep bindings.
   void LoadDyndeps();
 
-  State* state_;
-  const BuildConfig& config_;
-  DyndepLoader dyndep_loader_;
-  set<string> removed_;
   set<Node*> cleaned_;
   int cleaned_files_count_;
+  const BuildConfig& config_;
   DiskInterface* disk_interface_;
+  DyndepLoader dyndep_loader_;
+  Logger* logger_;
+  set<string> removed_;
+  State* state_;
   int status_;
 };
 }  // namespace ninja

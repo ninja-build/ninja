@@ -105,17 +105,18 @@ void PrintCommands(Edge* edge, EdgeSet* seen, Execution::Options::Commands::Prin
     puts(edge->EvaluateCommand().c_str());
 }
 
-void printCompdb(const char* const directory, const Edge* const edge,
+void printCompdb(Logger* logger,
+                 const char* const directory, const Edge* const edge,
                  const Execution::Options::CompilationDatabase::EvaluateCommandMode eval_mode) {
-  printf("\n  {\n    \"directory\": \"");
+  logger->Info("\n  {\n    \"directory\": \"");
   EncodeJSONString(directory);
-  printf("\",\n    \"command\": \"");
+  logger->Info("\",\n    \"command\": \"");
   EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
-  printf("\",\n    \"file\": \"");
+  logger->Info("\",\n    \"file\": \"");
   EncodeJSONString(edge->inputs_[0]->path().c_str());
-  printf("\",\n    \"output\": \"");
+  logger->Info("\",\n    \"output\": \"");
   EncodeJSONString(edge->outputs_[0]->path().c_str());
-  printf("\"\n  }");
+  logger->Info("\"\n  }");
 }
 
 Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
@@ -183,19 +184,21 @@ bool TargetNamesToNodes(const State* state, const std::vector<std::string>& name
   return true;
 }
 
-void PrintToolTargetsList(const vector<Node*>& nodes, int depth, int indent) {
+void PrintToolTargetsList(Logger* logger, const vector<Node*>& nodes, int depth, int indent) {
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
     for (int i = 0; i < indent; ++i)
-      printf("  ");
-    const char* target = (*n)->path().c_str();
+      logger->Info("  ");
+    const std::string& target = (*n)->path();
     if ((*n)->in_edge()) {
-      printf("%s: %s\n", target, (*n)->in_edge()->rule_->name().c_str());
+      std::ostringstream buffer;
+      buffer << target << ": " << (*n)->in_edge()->rule_->name().c_str() << std::endl;
+      logger->Info(buffer.str());
       if (depth > 1 || depth <= 0)
-        PrintToolTargetsList((*n)->in_edge()->inputs_, depth - 1, indent + 1);
+        PrintToolTargetsList(logger, (*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
-      printf("%s\n", target);
+      logger->Info(target + "\n");
     }
   }
 }
@@ -341,7 +344,7 @@ int Execution::Clean() {
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
-  Cleaner cleaner(state_, config_, state_->disk_interface_);
+  Cleaner cleaner(state_, logger_, config_, state_->disk_interface_);
   if (options_.clean_options.targets_are_rules) {
     return cleaner.CleanRules(options_.targets);
   } else if(options_.targets.size()) {

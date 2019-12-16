@@ -27,6 +27,16 @@ public:
   };
 
   virtual void OnMessage(Level level, const std::string& message) = 0;
+
+  inline void Error(const std::string& message) {
+    OnMessage(ERROR, message);
+  }
+  inline void Warning(const std::string& message) {
+    OnMessage(WARNING, message);
+  }
+  inline void Info(const std::string& message) {
+    OnMessage(INFO, message);
+  }
 };
 
 class LoggerBasic : public Logger {

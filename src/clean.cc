@@ -15,7 +15,8 @@
 #include "clean.h"
 
 #include <assert.h>
-#include <stdio.h>
+
+#include <sstream>
 
 #include "disk_interface.h"
 #include "graph.h"
@@ -24,15 +25,17 @@
 
 namespace ninja {
 Cleaner::Cleaner(State* state,
+                 Logger* logger,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state),
-    config_(config),
-    dyndep_loader_(state, disk_interface),
-    removed_(),
-    cleaned_(),
+  : cleaned_(),
     cleaned_files_count_(0),
+    config_(config),
     disk_interface_(disk_interface),
+    dyndep_loader_(state, disk_interface),
+    logger_(logger),
+    removed_(),
+    state_(state),
     status_(0) {
 }
 
@@ -50,8 +53,11 @@ bool Cleaner::FileExists(const string& path) {
 
 void Cleaner::Report(const string& path) {
   ++cleaned_files_count_;
-  if (IsVerbose())
-    printf("Remove %s\n", path.c_str());
+  if (IsVerbose()) {
+    std::ostringstream buffer;
+    buffer << "Remove " << path << std::endl;
+    logger_->Info(buffer.str());
+  }
 }
 
 void Cleaner::Remove(const string& path) {
@@ -88,18 +94,18 @@ void Cleaner::RemoveEdgeFiles(Edge* edge) {
 void Cleaner::PrintHeader() {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
-  printf("Cleaning...");
   if (IsVerbose())
-    printf("\n");
+    logger_->Info("Cleaning...\n");
   else
-    printf(" ");
-  fflush(stdout);
+    logger_->Info("Cleaning... ");
 }
 
 void Cleaner::PrintFooter() {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
-  printf("%d files.\n", cleaned_files_count_);
+  std::ostringstream buffer;
+  buffer << cleaned_files_count_ << " files" << std::endl;
+  logger_->Info(buffer.str());
 }
 
 int Cleaner::CleanAll(bool generator) {
@@ -185,8 +191,11 @@ int Cleaner::CleanTargets(const std::vector<std::string>& targets) {
     } else {
       Node* target = state_->LookupNode(target_name);
       if (target) {
-        if (IsVerbose())
-          printf("Target %s\n", target_name.c_str());
+        if (IsVerbose()) {
+          std::ostringstream buffer;
+          buffer << "Target " << target_name << std::endl;
+          logger_->Info(buffer.str());
+        }
         DoCleanTarget(target);
       } else {
         Error("unknown target '%s'", target_name.c_str());
@@ -248,8 +257,11 @@ int Cleaner::CleanRules(const std::vector<std::string>& rules) {
     std::string rule_name = rules[i];
     const Rule* rule = state_->bindings_.LookupRule(rule_name);
     if (rule) {
-      if (IsVerbose())
-        printf("Rule %s\n", rule_name.c_str());
+      if (IsVerbose()) {
+        std::ostringstream buffer;
+        buffer << "Rule " << rule_name << std::endl;
+        logger_->Info(buffer.str());
+      }
       DoCleanRule(rule);
     } else {
       Error("unknown rule '%s'", rule_name.c_str());
