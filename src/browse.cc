@@ -17,26 +17,41 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+
+#include <sstream>
 #include <vector>
 
 #include "build/browse_py.h"
 
 namespace ninja {
-void RunBrowsePython(const char* ninja_command,
+
+// Log the last error with the provided prefix. This is
+// designed to replace usage of perror(prefix) with a system
+// that sends the error to our logger class instead of directly
+// to stderr.
+void LogError(Logger* logger, const char* prefix) {
+  std::ostringstream buffer;
+  buffer << prefix << ": " << strerror(errno) << std::endl;
+  logger->OnMessage(Logger::Level::ERROR, buffer.str());
+}
+
+void RunBrowsePython(Logger* logger,
+                     const char* ninja_command,
                      const char* input_file,
                      const char* initial_target) {
   // Fork off a Python process and have it run our code via its stdin.
   // (Actually the Python process becomes the parent.)
   int pipefd[2];
   if (pipe(pipefd) < 0) {
-    perror("ninja: pipe");
+    LogError(logger, "ninja: pipe");
     return;
   }
 
   pid_t pid = fork();
   if (pid < 0) {
-    perror("ninja: fork");
+    LogError(logger, "ninja: fork");
     return;
   }
 
@@ -44,7 +59,7 @@ void RunBrowsePython(const char* ninja_command,
     close(pipefd[1]);
     do {
       if (dup2(pipefd[0], 0) < 0) {
-        perror("ninja: dup2");
+        LogError(logger, "ninja: dup2");
         break;
       }
 
@@ -63,7 +78,7 @@ void RunBrowsePython(const char* ninja_command,
       if (errno == ENOENT) {
         printf("ninja: %s is required for the browse tool\n", NINJA_PYTHON);
       } else {
-        perror("ninja: execvp");
+        LogError(logger, "ninja: execvp");
       }
     } while (false);
     _exit(1);
@@ -73,7 +88,7 @@ void RunBrowsePython(const char* ninja_command,
     // Write the script file into the stdin of the Python process.
     ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
     if (len < (ssize_t)sizeof(kBrowsePy))
-      perror("ninja: write");
+      LogError(logger, "ninja: write");
     close(pipefd[1]);
     exit(0);
   }

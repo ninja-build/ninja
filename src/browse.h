@@ -15,6 +15,8 @@
 #ifndef NINJA_BROWSE_H_
 #define NINJA_BROWSE_H_
 
+#include "public/logger.h"
+
 namespace ninja {
 struct State;
 
@@ -23,8 +25,10 @@ struct State;
 /// \a input_file is the path to the build.ninja file.
 /// \a initial_target is the target name to start the browser at, or NULL.
 /// This function does not return if it runs successfully.
-void RunBrowsePython(const char* ninja_command,
-                     const char* input_file, const char* initial_target);
+void RunBrowsePython(Logger* logger,
+                     const char* ninja_command,
+                     const char* input_file,
+                     const char* initial_target);
 }  // namespace ninja
 
 #endif  // NINJA_BROWSE_H_
