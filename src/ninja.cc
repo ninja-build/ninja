@@ -116,6 +116,7 @@ struct NinjaMain : public BuildLogUser {
 
   // The various subcommands, run via "-t XXX".
   int ToolGraph(const Options* options, int argc, char* argv[]);
+  int ToolInputs(const Options* options, int argc, char* argv[]);
   int ToolQuery(const Options* options, int argc, char* argv[]);
   int ToolDeps(const Options* options, int argc, char* argv[]);
   int ToolBrowse(const Options* options, int argc, char* argv[]);
@@ -345,6 +346,96 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     graph.AddTarget(*n);
   graph.Finish();
 
+  return 0;
+}
+
+void ToolInputsProcessNodeDeps(Node* node, DepsLog* deps_log) {
+  // Print all of this node's deps from the deps log. This often includes files
+  // that are not known by the node's input edge.
+  if (deps_log->IsDepsEntryLiveFor(node)) {
+    DepsLog::Deps* deps = deps_log->GetDeps(node);
+    if (deps != NULL) {
+      for (int i = 0; i < deps->node_count; ++i) {
+        Node* dep = deps->nodes[i];
+        if (!dep->UsedAsDep()) {
+          dep->MarkUsedAsDep();
+          printf("%s\n", dep->path().c_str());
+        }
+      }
+    }
+  }
+}
+
+void ToolInputsProcessEdge(Edge* edge, DepsLog* deps_log, bool leaf_only,
+                           bool include_deps) {
+  for (vector<Node*>::iterator i = edge->inputs_.begin();
+       i != edge->inputs_.end(); ++i) {
+    Node* input = *i;
+    if (input->InputsChecked()) continue;
+    input->MarkInputsChecked();
+
+    // Recursively process input edges, possibly printing this node here.
+    Edge* input_edge = input->in_edge();
+    if (input_edge == NULL || !leaf_only) {
+      printf("%s\n", input->path().c_str());
+    }
+    if (input_edge) {
+      ToolInputsProcessEdge(input_edge, deps_log, leaf_only, include_deps);
+    }
+
+    if (include_deps) {
+      ToolInputsProcessNodeDeps(input, deps_log);
+    }
+  }
+}
+
+int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
+  // The inputs tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "inputs".
+  ++argc;
+  --argv;
+
+  bool leaf_only = true;
+  bool include_deps = false;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, "idh")) != -1) {
+    switch (opt) {
+      case 'i':
+        leaf_only = false;
+        break;
+      case 'd':
+        include_deps = true;
+        break;
+      case 'h':
+      default:
+        printf(
+            "usage: ninja -t inputs [options] target [target...]\n\n"
+            "options:\n"
+            "  -i    Include intermediate inputs.\n"
+            "  -d    Include deps from the deps log file (.ninja_deps).\n");
+        return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  for (vector<Node*>::iterator i = nodes.begin(); i != nodes.end(); ++i) {
+    Node* node = *i;
+    if (Edge* edge = node->in_edge()) {
+      node->MarkInputsChecked();
+      ToolInputsProcessEdge(edge, &deps_log_, leaf_only, include_deps);
+      if (include_deps) ToolInputsProcessNodeDeps(node, &deps_log_);
+    }
+  }
   return 0;
 }
 
@@ -894,6 +985,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
+    { "inputs", "show all (recursive) inputs for a target",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolInputs },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",

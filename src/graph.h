@@ -43,7 +43,9 @@ struct Node {
         dirty_(false),
         dyndep_pending_(false),
         in_edge_(NULL),
-        id_(-1) {}
+        id_(-1),
+        inputs_checked_(false),
+        used_as_dep_(false) {}
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, string* err);
@@ -103,6 +105,12 @@ struct Node {
 
   void Dump(const char* prefix="") const;
 
+  /// Used in the inputs debug tool.
+  bool InputsChecked() const { return inputs_checked_; }
+  void MarkInputsChecked() { inputs_checked_ = true; }
+  bool UsedAsDep() const { return used_as_dep_; }
+  void MarkUsedAsDep() { used_as_dep_ = true; }
+
 private:
   string path_;
 
@@ -134,6 +142,13 @@ private:
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
+
+  /// Stores if this node's inputs have been already computed. Used in the
+  /// inputs debug tool.
+  bool inputs_checked_;
+  /// Stores if this node has already been used as a dep for some other node.
+  /// Used in the inputs deubg tool.
+  bool used_as_dep_;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
