@@ -24,7 +24,7 @@ using namespace std;
 /// BasicStringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of strings
 /// we need to allocate.
-template <class StringType, class CharType>
+template <class CharType>
 class BasicStringPiece {
  public:
   typedef const CharType* const_iterator;
@@ -32,9 +32,10 @@ class BasicStringPiece {
   BasicStringPiece() : str_(NULL), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
-  BasicStringPiece(const StringType& str)
+  BasicStringPiece(const std::basic_string<CharType>& str)
       : str_(str.data()), len_(str.size()) {}
-  BasicStringPiece(const CharType* str);
+  BasicStringPiece(const CharType* str)
+      : str_(str), len_(std::char_traits<CharType>::length(str)) {};
 
   BasicStringPiece(const CharType* str, size_t len) : str_(str), len_(len) {}
 
@@ -47,8 +48,8 @@ class BasicStringPiece {
 
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
-  StringType AsString() const {
-    return len_ ? StringType(str_, len_) : StringType();
+  std::basic_string<CharType> AsString() const {
+    return len_ ? std::basic_string<CharType>(str_, len_) : std::basic_string<CharType>();
   }
 
   const_iterator begin() const { return str_; }
@@ -64,14 +65,10 @@ class BasicStringPiece {
 };
 
 // Specialization for std::string and char
-typedef BasicStringPiece<std::string, char> StringPiece;
-template <>
-StringPiece::BasicStringPiece(const char* str);
+typedef BasicStringPiece<char> StringPiece;
 
 #ifdef _WIN32
-typedef BasicStringPiece<std::wstring, wchar_t> WStringPiece;
-template <>
-WStringPiece::BasicStringPiece(const wchar_t* str);
+typedef BasicStringPiece<wchar_t> WStringPiece;
 #endif
 
 #endif  // NINJA_STRINGPIECE_H_
