@@ -113,18 +113,18 @@ int MSVCHelperMain(int argc, char** argv) {
     PushPathIntoEnvironment(env);
   }
 
-  std::string utf8_command_line = WideToUtf8(GetCommandLineW());
-  std::size_t command_pos = utf8_command_line.find(" -- ");
-  if(command_pos == std::string::npos){
+  wchar_t* command = GetCommandLineW();
+  command = wcsstr(command, L" -- ");
+  if(!command){
     Fatal("expected command line to end with \" -- command args\"");
   }
-  std::string command = utf8_command_line.substr(command_pos + 4);
-
+  command +=4;
+  
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
   string output;
-  int exit_code = cl.Run(command, &output);
+  int exit_code = cl.Run(WideToUtf8(command).c_str(), &output);
 
   if (output_filename) {
     CLParser parser;
