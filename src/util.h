@@ -17,13 +17,13 @@
 
 #ifdef _WIN32
 #include "win32port.h"
-#include "string_piece.h"
 #else
 #include <stdint.h>
 #endif
 
 #include <string>
 #include <vector>
+#include "string_piece.h"
 using namespace std;
 
 #ifdef _MSC_VER
@@ -72,7 +72,7 @@ void GetWin32EscapedString(const string& input, string* result);
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+int ReadFile(const StringPiece path, string* contents, string* err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);

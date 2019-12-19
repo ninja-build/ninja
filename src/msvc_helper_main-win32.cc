@@ -119,7 +119,7 @@ int MSVCHelperMain(int argc, char** argv) {
     Fatal("expected command line to end with \" -- command args\"");
   }
   command +=4;
-  
+
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
