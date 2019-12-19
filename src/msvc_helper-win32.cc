@@ -37,7 +37,7 @@ string EscapeForDepfile(const string& path) {
   return Replace(path, " ", "\\ ");
 }
 
-int CLWrapper::Run(const string& command, string* output) {
+int CLWrapper::Run(const StringPiece command, string* output) {
   SECURITY_ATTRIBUTES security_attributes = {};
   security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
   security_attributes.bInheritHandle = TRUE;
