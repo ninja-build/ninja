@@ -426,25 +426,25 @@ std::string Edge::GetUnescapedRspfile() const {
   return env.LookupVariable("rspfile");
 }
 
-void Edge::Dump(Logger* logger, const char* prefix) const {
-  printf("%s[ ", prefix);
+void Edge::Dump(std::ostringstream& output, const char* prefix) const {
+  output << prefix << "[ ";
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end() && *i != NULL; ++i) {
-    printf("%s ", (*i)->path().c_str());
+    output << (*i)->path() << " ";
   }
-  printf("--%s-> ", rule_->name().c_str());
+  output << "--" << rule_->name() << "->";
   for (vector<Node*>::const_iterator i = outputs_.begin();
        i != outputs_.end() && *i != NULL; ++i) {
-    printf("%s ", (*i)->path().c_str());
+    output << (*i)->path() << " ";
   }
   if (pool_) {
     if (!pool_->name().empty()) {
-      printf("(in pool '%s')", pool_->name().c_str());
+      output << "(in pool " << pool_->name() << "')";
     }
   } else {
-    printf("(null pool?)");
+    output << "(null pool?)";
   }
-  printf("] 0x%p\n", this);
+  output << "] 0x" << this << std::endl;
 }
 
 bool Edge::is_phony() const {
@@ -478,20 +478,19 @@ string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   return result;
 }
 
-void Node::Dump(Logger* logger, const char* prefix) const {
-  printf("%s <%s 0x%p> mtime: %" PRId64 "%s, (:%s), ",
-         prefix, path().c_str(), this,
-         mtime(), mtime() ? "" : " (:missing)",
-         dirty() ? " dirty" : " clean");
+void Node::Dump(std::ostringstream& output, const char* prefix) const {
+  output << prefix << " <" << path() << " 0x" << this << "> mtime: " <<
+    mtime() << (mtime() ? "" : " (:missing)") << ", (:" <<
+    (dirty() ? " dirty" : " clean");
   if (in_edge()) {
-    in_edge()->Dump(logger, "in-edge: ");
+    in_edge()->Dump(output, "in-edge: ");
   } else {
-    printf("no in-edge\n");
+    output << "no in-edge\n";
   }
-  printf(" out edges:\n");
+  output << " out edges:\n";
   for (vector<Edge*>::const_iterator e = out_edges().begin();
        e != out_edges().end() && *e != NULL; ++e) {
-    (*e)->Dump(logger, " +- ");
+    (*e)->Dump(output, " +- ");
   }
 }
 

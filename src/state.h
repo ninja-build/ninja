@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -73,7 +74,7 @@ struct Pool {
   void RetrieveReadyEdges(EdgeSet* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
-  void Dump(Logger* logger) const;
+  void Dump(std::ostringstream& output) const;
 
  private:
   string name_;
@@ -123,7 +124,7 @@ struct State  : public BuildLogUser {
   void Reset();
 
   /// Dump the nodes and Pools (useful for debugging).
-  void Dump();
+  void Dump(std::ostringstream& output);
   bool IsPathDead(StringPiece s) const;
 
   void Explain(const char* format, ...) const;

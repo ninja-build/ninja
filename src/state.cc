@@ -55,13 +55,13 @@ void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
   delayed_.erase(delayed_.begin(), it);
 }
 
-void Pool::Dump(Logger* logger) const {
-  printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
+void Pool::Dump(std::ostringstream& output) const {
+  output << name_ << " (" << current_use_ << "/" << depth_ << ") ->\n";
   for (DelayedEdges::const_iterator it = delayed_.begin();
        it != delayed_.end(); ++it)
   {
-    printf("\t");
-    (*it)->Dump(logger);
+    output << "\t";
+    (*it)->Dump(output);
   }
 }
 
@@ -215,22 +215,20 @@ void State::Reset() {
   }
 }
 
-void State::Dump() {
+void State::Dump(std::ostringstream& output) {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     Node* node = i->second;
-    printf("%s %s [id:%d]\n",
-           node->path().c_str(),
-           node->status_known() ? (node->dirty() ? "dirty" : "clean")
-                                : "unknown",
-           node->id());
+    output << node->path() << " " << 
+      (node->status_known() ? (node->dirty() ? "dirty" : "clean") : "unknown") <<
+      " [id:" << node->id() << "]\n";
   }
   if (!pools_.empty()) {
-    printf("resource_pools:\n");
+    output << "resource_pools:\n";
     for (map<string, Pool*>::const_iterator it = pools_.begin();
          it != pools_.end(); ++it)
     {
       if (!it->second->name().empty()) {
-        it->second->Dump(logger_);
+        it->second->Dump(output);
       }
     }
   }
