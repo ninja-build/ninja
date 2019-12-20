@@ -151,7 +151,7 @@ TEST_F(BuildLogTest, Truncate) {
 
     BuildLog log3;
     err.clear();
-    ASSERT_TRUE(log3.Load(kTestFilename, &err) || !err.empty());
+    ASSERT_TRUE(log3.Load(kTestFilename, &err) == LOAD_SUCCESS || !err.empty());
   }
 }
 

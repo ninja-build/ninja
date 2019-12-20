@@ -20,6 +20,7 @@
 using namespace std;
 
 #include "hash_map.h"
+#include "load_status.h"
 #include "timestamp.h"
 #include "util.h"  // uint64_t
 
@@ -50,7 +51,7 @@ struct BuildLog {
   void Close();
 
   /// Load the on-disk log.
-  bool Load(const string& path, string* err);
+  LoadStatus Load(const string& path, string* err);
 
   struct LogEntry {
     string output;

@@ -242,14 +242,14 @@ struct LineReader {
   char* line_end_;
 };
 
-bool BuildLog::Load(const string& path, string* err) {
+LoadStatus BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
-      return true;
+      return LOAD_NOT_FOUND;
     *err = strerror(errno);
-    return false;
+    return LOAD_ERROR;
   }
 
   int log_version = 0;
@@ -270,7 +270,7 @@ bool BuildLog::Load(const string& path, string* err) {
         unlink(path.c_str());
         // Don't report this as a failure.  An empty build log will cause
         // us to rebuild the outputs anyway.
-        return true;
+        return LOAD_SUCCESS;
       }
     }
 
@@ -340,7 +340,7 @@ bool BuildLog::Load(const string& path, string* err) {
   fclose(file);
 
   if (!line_start) {
-    return true; // file was empty
+    return LOAD_SUCCESS; // file was empty
   }
 
   // Decide whether it's time to rebuild the log:
@@ -355,7 +355,7 @@ bool BuildLog::Load(const string& path, string* err) {
     needs_recompaction_ = true;
   }
 
-  return true;
+  return LOAD_SUCCESS;
 }
 
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
