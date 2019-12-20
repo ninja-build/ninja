@@ -91,7 +91,7 @@ int GuessParallelism() {
   }
 }
 
-void PrintCommands(Edge* edge, EdgeSet* seen, Execution::Options::Commands::PrintCommandMode mode) {
+void PrintCommands(Logger* logger, Edge* edge, EdgeSet* seen, Execution::Options::Commands::PrintCommandMode mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -100,17 +100,16 @@ void PrintCommands(Edge* edge, EdgeSet* seen, Execution::Options::Commands::Prin
   if (mode == Execution::Options::Commands::PrintCommandMode::PCM_All) {
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in)
-      PrintCommands((*in)->in_edge(), seen, mode);
+      PrintCommands(logger, (*in)->in_edge(), seen, mode);
   }
 
   if (!edge->is_phony())
-    puts(edge->EvaluateCommand().c_str());
+    logger->Info(edge->EvaluateCommand());
 }
 
-void printCompdb(Logger* logger,
+void serializeCompDb(ostringstream& buffer,
                  const char* const directory, const Edge* const edge,
                  const Execution::Options::CompilationDatabase::EvaluateCommandMode eval_mode) {
-  std::ostringstream buffer;
   buffer << "\n  {\n    \"directory\": \"" <<
     EncodeJSONString(directory) <<
     "\",\n    \"command\": \"" << 
@@ -120,7 +119,6 @@ void printCompdb(Logger* logger,
     "\",\n    \"output\": \"" <<
     EncodeJSONString(edge->outputs_[0]->path().c_str()) <<
     "\"\n  }";
-  logger->Info(buffer.str());
 }
 
 Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
@@ -376,7 +374,7 @@ int Execution::Commands() {
   }
 
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge(), &seen, options_.commands_options.mode);
+    PrintCommands(logger_, (*in)->in_edge(), &seen, options_.commands_options.mode);
 
   return 0;
 }
@@ -402,7 +400,8 @@ int Execution::CompilationDatabase() {
     return 1;
   }
 
-  putchar('[');
+  std::ostringstream buffer;
+  buffer << "[";
   for (vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
@@ -411,22 +410,22 @@ int Execution::CompilationDatabase() {
       for (size_t i = 0; i != options_.targets.size(); ++i) {
         if ((*e)->rule_->name() == options_.targets[i]) {
           if (!first) {
-            putchar(',');
+            buffer << ",";
           }
-          printCompdb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+          serializeCompDb(buffer, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
           first = false;
         }
       }
     } else {
       if (!first) {
-        putchar(',');
+        buffer << ",";
       }
-      printCompdb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+      serializeCompDb(buffer, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
       first = false;
     }
   }
 
-  puts("\n]");
+  buffer << "\n]";
   return 0;
 }
 
