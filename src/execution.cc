@@ -42,13 +42,15 @@
 namespace ninja {
 namespace {
 
-void EncodeJSONString(const char *str) {
+std::string EncodeJSONString(const char *str) {
+  std::ostringstream buffer;
   while (*str) {
     if (*str == '"' || *str == '\\')
-      putchar('\\');
-    putchar(*str);
+      buffer << '\\';
+    buffer << *str;
     str++;
   }
+  return buffer.str();
 }
 
 std::string EvaluateCommandWithRspfile(const Edge* edge,
@@ -108,15 +110,17 @@ void PrintCommands(Edge* edge, EdgeSet* seen, Execution::Options::Commands::Prin
 void printCompdb(Logger* logger,
                  const char* const directory, const Edge* const edge,
                  const Execution::Options::CompilationDatabase::EvaluateCommandMode eval_mode) {
-  logger->Info("\n  {\n    \"directory\": \"");
-  EncodeJSONString(directory);
-  logger->Info("\",\n    \"command\": \"");
-  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
-  logger->Info("\",\n    \"file\": \"");
-  EncodeJSONString(edge->inputs_[0]->path().c_str());
-  logger->Info("\",\n    \"output\": \"");
-  EncodeJSONString(edge->outputs_[0]->path().c_str());
-  logger->Info("\"\n  }");
+  std::ostringstream buffer;
+  buffer << "\n  {\n    \"directory\": \"" <<
+    EncodeJSONString(directory) <<
+    "\",\n    \"command\": \"" << 
+    EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str()) <<
+    "\",\n    \"file\": \"" <<
+    EncodeJSONString(edge->inputs_[0]->path().c_str()) <<
+    "\",\n    \"output\": \"" <<
+    EncodeJSONString(edge->outputs_[0]->path().c_str()) <<
+    "\"\n  }";
+  logger->Info(buffer.str());
 }
 
 Node* TargetNameToNode(const State* state, const std::string& path, std::string* err) {
