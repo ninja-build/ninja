@@ -803,12 +803,14 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
   bool first = true;
   vector<char> cwd;
+  char* success = NULL;
 
   do {
     cwd.resize(cwd.size() + 1024);
     errno = 0;
-  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
-  if (errno != 0 && errno != ERANGE) {
+    success = getcwd(&cwd[0], cwd.size());
+  } while (!success && errno == ERANGE);
+  if (!success) {
     Error("cannot determine working directory: %s", strerror(errno));
     return 1;
   }
