@@ -283,6 +283,9 @@ target, show just the target's dependencies. _Available since Ninja 1.4._
 
 `recompact`:: recompact the `.ninja_deps` file. _Available since Ninja 1.4._
 
+`restat`:: updates all recorded file modification timestamps in the `.ninja_log`
+file. _Available since Ninja 1.10._
+
 `rules`:: output the list of all rules (eventually with their description
 if they have one).  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+ or +ninja -t compdb+.
