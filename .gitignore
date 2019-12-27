@@ -31,6 +31,7 @@
 # Ninja output
 .ninja_deps
 .ninja_log
+.ninja_ipc
 
 # Visual Studio Code project files
 /.vscode/
