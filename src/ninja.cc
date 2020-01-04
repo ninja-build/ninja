@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -125,15 +126,16 @@ struct NinjaMain : public BuildLogUser {
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
+  int ToolRestat(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
   int ToolRules(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
-  /// @return false on error.
+  /// @return LOAD_ERROR on error.
   bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
-  /// @return false on error.
+  /// @return LOAD_ERROR on error.
   bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
@@ -847,11 +849,51 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  if (!OpenBuildLog(/*recompact_only=*/true) ||
-      !OpenDepsLog(/*recompact_only=*/true))
+  if (OpenBuildLog(/*recompact_only=*/true) == LOAD_ERROR ||
+      OpenDepsLog(/*recompact_only=*/true) == LOAD_ERROR)
     return 1;
 
   return 0;
+}
+
+int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
+  if (!EnsureBuildDirExists())
+    return 1;
+
+  string log_path = ".ninja_log";
+  if (!build_dir_.empty())
+    log_path = build_dir_ + "/" + log_path;
+
+  string err;
+  const LoadStatus status = build_log_.Load(log_path, &err);
+  if (status == LOAD_ERROR) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return EXIT_FAILURE;
+  }
+  if (status == LOAD_NOT_FOUND) {
+    // Nothing to restat, ignore this
+    return EXIT_SUCCESS;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
+
+  bool success = build_log_.Restat(log_path, disk_interface_, &err);
+  if (!success) {
+    Error("failed recompaction: %s", err.c_str());
+    return EXIT_FAILURE;
+  }
+
+  if (!config_.dry_run) {
+    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
+      Error("opening build log: %s", err.c_str());
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
 }
 
 int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
@@ -906,6 +948,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+    { "restat",  "restats all outputs in the build log",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRestat },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
     { "urtle", NULL,
@@ -1032,17 +1076,21 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
     log_path = build_dir_ + "/" + log_path;
 
   string err;
-  if (!build_log_.Load(log_path, &err)) {
+  const LoadStatus status = build_log_.Load(log_path, &err);
+  if (status == LOAD_ERROR) {
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
     return false;
   }
   if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
     Warning("%s", err.c_str());
     err.clear();
   }
 
   if (recompact_only) {
+    if (status == LOAD_NOT_FOUND) {
+      return true;
+    }
     bool success = build_log_.Recompact(log_path, *this, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
@@ -1067,17 +1115,21 @@ bool NinjaMain::OpenDepsLog(bool recompact_only) {
     path = build_dir_ + "/" + path;
 
   string err;
-  if (!deps_log_.Load(path, &state_, &err)) {
+  const LoadStatus status = deps_log_.Load(path, &state_, &err);
+  if (status == LOAD_ERROR) {
     Error("loading deps log %s: %s", path.c_str(), err.c_str());
     return false;
   }
   if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
     Warning("%s", err.c_str());
     err.clear();
   }
 
   if (recompact_only) {
+    if (status == LOAD_NOT_FOUND) {
+      return true;
+    }
     bool success = deps_log_.Recompact(path, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());

@@ -102,5 +102,10 @@ red
 \x1b[31mred\x1b[0m
 ''')
 
+    def test_pr_1685(self):
+        # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
+        self.assertEqual(run('', flags='-t recompact'), '')
+        self.assertEqual(run('', flags='-t restat'), '')
+
 if __name__ == '__main__':
     unittest.main()

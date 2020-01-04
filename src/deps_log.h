@@ -21,6 +21,7 @@ using namespace std;
 
 #include <stdio.h>
 
+#include "load_status.h"
 #include "timestamp.h"
 
 struct Node;
@@ -84,7 +85,7 @@ struct DepsLog {
     int node_count;
     Node** nodes;
   };
-  bool Load(const string& path, State* state, string* err);
+  LoadStatus Load(const string& path, State* state, string* err);
   Deps* GetDeps(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.
