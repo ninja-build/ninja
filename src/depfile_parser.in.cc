@@ -15,6 +15,8 @@
 #include "depfile_parser.h"
 #include "util.h"
 
+#include <algorithm>
+
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {
@@ -47,10 +49,8 @@ bool DepfileParser::Parse(string* content, string* err) {
   char* in = &(*content)[0];
   char* end = in + content->size();
   bool have_target = false;
-  bool have_secondary_target_on_this_rule = false;
-  bool have_newline_since_primary_target = false;
-  bool warned_distinct_target_lines = false;
   bool parsing_targets = true;
+  bool poisoned_input = false;
   while (in < end) {
     bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
@@ -146,41 +146,32 @@ bool DepfileParser::Parse(string* content, string* err) {
     }
 
     if (len > 0) {
-      if (is_dependency) {
-        if (have_secondary_target_on_this_rule) {
-          if (!have_newline_since_primary_target) {
-            *err = "depfile has multiple output paths";
+      StringPiece piece = StringPiece(filename, len);
+      // If we've seen this as an input before, skip it.
+      std::vector<StringPiece>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
+      if (pos == ins_.end()) {
+        if (is_dependency) {
+          if (poisoned_input) {
+            *err = "inputs may not also have inputs";
             return false;
-          } else if (options_.depfile_distinct_target_lines_action_ ==
-                     kDepfileDistinctTargetLinesActionError) {
-            *err =
-                "depfile has multiple output paths (on separate lines)"
-                " [-w depfilemulti=err]";
-            return false;
-          } else {
-            if (!warned_distinct_target_lines) {
-              warned_distinct_target_lines = true;
-              Warning("depfile has multiple output paths (on separate lines); "
-                      "continuing anyway [-w depfilemulti=warn]");
-            }
-            continue;
           }
+          // New input.
+          ins_.push_back(piece);
+        } else {
+          // Check for a new output.
+          if (std::find(outs_.begin(), outs_.end(), piece) == outs_.end())
+            outs_.push_back(piece);
         }
-        ins_.push_back(StringPiece(filename, len));
-      } else if (!out_.str_) {
-        out_ = StringPiece(filename, len);
-      } else if (out_ != StringPiece(filename, len)) {
-        have_secondary_target_on_this_rule = true;
+      } else if (!is_dependency) {
+        // We've passed an input on the left side; reject new inputs.
+        poisoned_input = true;
       }
     }
 
     if (have_newline) {
       // A newline ends a rule so the next filename will be a new target.
       parsing_targets = true;
-      have_secondary_target_on_this_rule = false;
-      if (have_target) {
-        have_newline_since_primary_target = true;
-      }
+      poisoned_input = false;
     }
   }
   if (!have_target) {
