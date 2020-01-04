@@ -228,7 +228,7 @@ bool ManifestParser::ParseEdge(string* err) {
     for (;;) {
       EvalString out;
       if (!lexer_.ReadPath(&out, err))
-        return err;
+        return false;
       if (out.empty())
         break;
       outs.push_back(out);
@@ -266,7 +266,7 @@ bool ManifestParser::ParseEdge(string* err) {
     for (;;) {
       EvalString in;
       if (!lexer_.ReadPath(&in, err))
-        return err;
+        return false;
       if (in.empty())
         break;
       ins.push_back(in);
@@ -377,14 +377,6 @@ bool ManifestParser::ParseEdge(string* err) {
                 out->path().c_str());
       }
     }
-  }
-
-  // Multiple outputs aren't (yet?) supported with depslog.
-  string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty() && edge->outputs_.size() > 1) {
-    return lexer_.Error("multiple outputs aren't (yet?) supported by depslog; "
-                        "bring this up on the mailing list if it affects you",
-                        err);
   }
 
   // Lookup, validate, and save any dyndep binding.  It will be used later

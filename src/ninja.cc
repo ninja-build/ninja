@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -73,10 +74,6 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
-
-  /// Whether a depfile with multiple targets on separate lines should
-  /// warn or print an error.
-  bool depfile_distinct_target_lines_should_err;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -126,15 +123,16 @@ struct NinjaMain : public BuildLogUser {
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
+  int ToolRestat(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
   int ToolRules(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
-  /// @return false on error.
+  /// @return LOAD_ERROR on error.
   bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
-  /// @return false on error.
+  /// @return LOAD_ERROR on error.
   bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
@@ -154,6 +152,9 @@ struct NinjaMain : public BuildLogUser {
   void DumpMetrics();
 
   virtual bool IsPathDead(StringPiece s) const {
+    Node* n = state_.LookupNode(s);
+    if (n && n->in_edge())
+      return false;
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
     // have an in edge if one of its inputs is another output that's in the deps
@@ -735,7 +736,8 @@ enum EvaluateCommandMode {
   ECM_NORMAL,
   ECM_EXPAND_RSPFILE
 };
-string EvaluateCommandWithRspfile(Edge* edge, EvaluateCommandMode mode) {
+std::string EvaluateCommandWithRspfile(const Edge* edge,
+                                       const EvaluateCommandMode mode) {
   string command = edge->EvaluateCommand();
   if (mode == ECM_NORMAL)
     return command;
@@ -757,6 +759,19 @@ string EvaluateCommandWithRspfile(Edge* edge, EvaluateCommandMode mode) {
   }
   command.replace(index - 1, rspfile.length() + 1, rspfile_content);
   return command;
+}
+
+void printCompdb(const char* const directory, const Edge* const edge,
+                 const EvaluateCommandMode eval_mode) {
+  printf("\n  {\n    \"directory\": \"");
+  EncodeJSONString(directory);
+  printf("\",\n    \"command\": \"");
+  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+  printf("\",\n    \"file\": \"");
+  EncodeJSONString(edge->inputs_[0]->path().c_str());
+  printf("\",\n    \"output\": \"");
+  EncodeJSONString(edge->outputs_[0]->path().c_str());
+  printf("\"\n  }");
 }
 
 int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
@@ -792,12 +807,14 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
   bool first = true;
   vector<char> cwd;
+  char* success = NULL;
 
   do {
     cwd.resize(cwd.size() + 1024);
     errno = 0;
-  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
-  if (errno != 0 && errno != ERANGE) {
+    success = getcwd(&cwd[0], cwd.size());
+  } while (!success && errno == ERANGE);
+  if (!success) {
     Error("cannot determine working directory: %s", strerror(errno));
     return 1;
   }
@@ -807,22 +824,21 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
        e != state_.edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
       continue;
-    for (int i = 0; i != argc; ++i) {
-      if ((*e)->rule_->name() == argv[i]) {
-        if (!first)
-          putchar(',');
-
-        printf("\n  {\n    \"directory\": \"");
-        EncodeJSONString(&cwd[0]);
-        printf("\",\n    \"command\": \"");
-        EncodeJSONString(EvaluateCommandWithRspfile(*e, eval_mode).c_str());
-        printf("\",\n    \"file\": \"");
-        EncodeJSONString((*e)->inputs_[0]->path().c_str());
-        printf("\",\n    \"output\": \"");
-        EncodeJSONString((*e)->outputs_[0]->path().c_str());
-        printf("\"\n  }");
-
-        first = false;
+    if (argc == 0) {
+      if (!first) {
+        putchar(',');
+      }
+      printCompdb(&cwd[0], *e, eval_mode);
+      first = false;
+    } else {
+      for (int i = 0; i != argc; ++i) {
+        if ((*e)->rule_->name() == argv[i]) {
+          if (!first) {
+            putchar(',');
+          }
+          printCompdb(&cwd[0], *e, eval_mode);
+          first = false;
+        }
       }
     }
   }
@@ -835,11 +851,51 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  if (!OpenBuildLog(/*recompact_only=*/true) ||
-      !OpenDepsLog(/*recompact_only=*/true))
+  if (OpenBuildLog(/*recompact_only=*/true) == LOAD_ERROR ||
+      OpenDepsLog(/*recompact_only=*/true) == LOAD_ERROR)
     return 1;
 
   return 0;
+}
+
+int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
+  if (!EnsureBuildDirExists())
+    return 1;
+
+  string log_path = ".ninja_log";
+  if (!build_dir_.empty())
+    log_path = build_dir_ + "/" + log_path;
+
+  string err;
+  const LoadStatus status = build_log_.Load(log_path, &err);
+  if (status == LOAD_ERROR) {
+    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+    return EXIT_FAILURE;
+  }
+  if (status == LOAD_NOT_FOUND) {
+    // Nothing to restat, ignore this
+    return EXIT_SUCCESS;
+  }
+  if (!err.empty()) {
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
+    Warning("%s", err.c_str());
+    err.clear();
+  }
+
+  bool success = build_log_.Restat(log_path, disk_interface_, &err);
+  if (!success) {
+    Error("failed recompaction: %s", err.c_str());
+    return EXIT_FAILURE;
+  }
+
+  if (!config_.dry_run) {
+    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
+      Error("opening build log: %s", err.c_str());
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
 }
 
 int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
@@ -894,6 +950,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+    { "restat",  "restats all outputs in the build log",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRestat },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
     { "cleandead",  "clean built files that are no longer produced by the manifest",
@@ -981,7 +1039,6 @@ bool WarningEnable(const string& name, Options* options) {
     printf("warning flags:\n"
 "  dupbuild={err,warn}  multiple build lines for one target\n"
 "  phonycycle={err,warn}  phony build statement references itself\n"
-"  depfilemulti={err,warn}  depfile has multiple output paths on separate lines\n"
     );
     return false;
   } else if (name == "dupbuild=err") {
@@ -996,11 +1053,9 @@ bool WarningEnable(const string& name, Options* options) {
   } else if (name == "phonycycle=warn") {
     options->phony_cycle_should_err = false;
     return true;
-  } else if (name == "depfilemulti=err") {
-    options->depfile_distinct_target_lines_should_err = true;
-    return true;
-  } else if (name == "depfilemulti=warn") {
-    options->depfile_distinct_target_lines_should_err = false;
+  } else if (name == "depfilemulti=err" ||
+             name == "depfilemulti=warn") {
+    Warning("deprecated warning 'depfilemulti'");
     return true;
   } else {
     const char* suggestion =
@@ -1022,17 +1077,21 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
     log_path = build_dir_ + "/" + log_path;
 
   string err;
-  if (!build_log_.Load(log_path, &err)) {
+  const LoadStatus status = build_log_.Load(log_path, &err);
+  if (status == LOAD_ERROR) {
     Error("loading build log %s: %s", log_path.c_str(), err.c_str());
     return false;
   }
   if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
     Warning("%s", err.c_str());
     err.clear();
   }
 
   if (recompact_only) {
+    if (status == LOAD_NOT_FOUND) {
+      return true;
+    }
     bool success = build_log_.Recompact(log_path, *this, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
@@ -1057,17 +1116,21 @@ bool NinjaMain::OpenDepsLog(bool recompact_only) {
     path = build_dir_ + "/" + path;
 
   string err;
-  if (!deps_log_.Load(path, &state_, &err)) {
+  const LoadStatus status = deps_log_.Load(path, &state_, &err);
+  if (status == LOAD_ERROR) {
     Error("loading deps log %s: %s", path.c_str(), err.c_str());
     return false;
   }
   if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning true.
+    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
     Warning("%s", err.c_str());
     err.clear();
   }
 
   if (recompact_only) {
+    if (status == LOAD_NOT_FOUND) {
+      return true;
+    }
     bool success = deps_log_.Recompact(path, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
@@ -1275,11 +1338,6 @@ NORETURN void real_main(int argc, char** argv) {
   int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
     exit(exit_code);
-
-  if (options.depfile_distinct_target_lines_should_err) {
-    config.depfile_parser_options.depfile_distinct_target_lines_action_ =
-        kDepfileDistinctTargetLinesActionError;
-  }
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is

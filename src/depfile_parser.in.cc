@@ -15,6 +15,8 @@
 #include "depfile_parser.h"
 #include "util.h"
 
+#include <algorithm>
+
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {
@@ -29,9 +31,15 @@ DepfileParser::DepfileParser(DepfileParserOptions options)
 // How do you end a line with a backslash?  The netbsd Make docs suggest
 // reading the result of a shell command echoing a backslash!
 //
-// Rather than implement all of above, we do a simpler thing here:
-// Backslashes escape a set of characters (see "escapes" defined below),
-// otherwise they are passed through verbatim.
+// Rather than implement all of above, we follow what GCC/Clang produces:
+// Backslashes escape a space or hash sign.
+// When a space is preceded by 2N+1 backslashes, it is represents N backslashes
+// followed by space.
+// When a space is preceded by 2N backslashes, it represents 2N backslashes at
+// the end of a filename.
+// A hash sign is escaped by a single backslash. All other backslashes remain
+// unchanged.
+//
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
 bool DepfileParser::Parse(string* content, string* err) {
@@ -41,10 +49,8 @@ bool DepfileParser::Parse(string* content, string* err) {
   char* in = &(*content)[0];
   char* end = in + content->size();
   bool have_target = false;
-  bool have_secondary_target_on_this_rule = false;
-  bool have_newline_since_primary_target = false;
-  bool warned_distinct_target_lines = false;
   bool parsing_targets = true;
+  bool poisoned_input = false;
   while (in < end) {
     bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
@@ -68,12 +74,33 @@ bool DepfileParser::Parse(string* content, string* err) {
       re2c:indent:string = "  ";
 
       nul = "\000";
-      escape = [ \\#*[|\]];
       newline = '\r'?'\n';
 
-      '\\' escape {
-        // De-escape backslashed character.
-        *out++ = yych;
+      '\\\\'* '\\ ' {
+        // 2N+1 backslashes plus space -> N backslashes plus space.
+        int len = (int)(in - start);
+        int n = len / 2 - 1;
+        if (out < start)
+          memset(out, '\\', n);
+        out += n;
+        *out++ = ' ';
+        continue;
+      }
+      '\\\\'+ ' ' {
+        // 2N backslashes plus space -> 2N backslashes, end of filename.
+        int len = (int)(in - start);
+        if (out < start)
+          memset(out, '\\', len - 1);
+        out += len - 1;
+        break;
+      }
+      '\\'+ '#' {
+        // De-escape hash sign, but preserve other leading backslashes.
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = '#';
         continue;
       }
       '$$' {
@@ -81,13 +108,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '$';
         continue;
       }
-      '\\' [^\000\r\n] {
-        // Let backslash before other characters through verbatim.
-        *out++ = '\\';
-        *out++ = yych;
-        continue;
-      }
-      [a-zA-Z0-9+,/_:.~()}{%@=!\x80-\xFF-]+ {
+      '\\'+ [^\000\r\n] | [a-zA-Z0-9+,/_:.~()}{%=@\x5B\x5D!\x80-\xFF-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.
@@ -125,41 +146,32 @@ bool DepfileParser::Parse(string* content, string* err) {
     }
 
     if (len > 0) {
-      if (is_dependency) {
-        if (have_secondary_target_on_this_rule) {
-          if (!have_newline_since_primary_target) {
-            *err = "depfile has multiple output paths";
+      StringPiece piece = StringPiece(filename, len);
+      // If we've seen this as an input before, skip it.
+      std::vector<StringPiece>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
+      if (pos == ins_.end()) {
+        if (is_dependency) {
+          if (poisoned_input) {
+            *err = "inputs may not also have inputs";
             return false;
-          } else if (options_.depfile_distinct_target_lines_action_ ==
-                     kDepfileDistinctTargetLinesActionError) {
-            *err =
-                "depfile has multiple output paths (on separate lines)"
-                " [-w depfilemulti=err]";
-            return false;
-          } else {
-            if (!warned_distinct_target_lines) {
-              warned_distinct_target_lines = true;
-              Warning("depfile has multiple output paths (on separate lines); "
-                      "continuing anyway [-w depfilemulti=warn]");
-            }
-            continue;
           }
+          // New input.
+          ins_.push_back(piece);
+        } else {
+          // Check for a new output.
+          if (std::find(outs_.begin(), outs_.end(), piece) == outs_.end())
+            outs_.push_back(piece);
         }
-        ins_.push_back(StringPiece(filename, len));
-      } else if (!out_.str_) {
-        out_ = StringPiece(filename, len);
-      } else if (out_ != StringPiece(filename, len)) {
-        have_secondary_target_on_this_rule = true;
+      } else if (!is_dependency) {
+        // We've passed an input on the left side; reject new inputs.
+        poisoned_input = true;
       }
     }
 
     if (have_newline) {
       // A newline ends a rule so the next filename will be a new target.
       parsing_targets = true;
-      have_secondary_target_on_this_rule = false;
-      if (have_target) {
-        have_newline_since_primary_target = true;
-      }
+      poisoned_input = false;
     }
   }
   if (!have_target) {
