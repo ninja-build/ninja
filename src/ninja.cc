@@ -120,6 +120,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
+  int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
   int ToolRestat(const Options* options, int argc, char* argv[]);
@@ -717,6 +718,11 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   }
 }
 
+int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
+  Cleaner cleaner(&state_, config_, &disk_interface_);
+  return cleaner.CleanDead(build_log_.entries());
+}
+
 void EncodeJSONString(const char *str) {
   while (*str) {
     if (*str == '"' || *str == '\\')
@@ -948,6 +954,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRestat },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
+    { "cleandead",  "clean built files that are no longer produced by the manifest",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolCleanDead },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
