@@ -505,7 +505,7 @@ int Execution::MSVC() {
   }
   return MSVCHelperMain(options_.msvc_options.deps_prefix, options_.msvc_options.envfile, options_.msvc_options.output_filename);
 #else
-  logger_->Error("Not supported on this platform.");
+  logger_->Error("MSVC not supported on this platform.");
   return 1;
 #endif
 }
