@@ -396,27 +396,24 @@ int Execution::CompilationDatabase() {
     return 1;
   }
 
+  if (!options_.targets.size()) {
+    logger_->Error("You must specify at least one target.");
+    return 1;
+  }
+
   logger_->cout() << "[";
   for (vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
       continue;
-    if (options_.targets.size()) {
-      for (size_t i = 0; i != options_.targets.size(); ++i) {
-        if ((*e)->rule_->name() == options_.targets[i]) {
-          if (!first) {
-            logger_->cout() << ",";
-          }
-          printCompDb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
-          first = false;
+    for (size_t i = 0; i != options_.targets.size(); ++i) {
+      if ((*e)->rule_->name() == options_.targets[i]) {
+        if (!first) {
+          logger_->cout() << ",";
         }
+        printCompDb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+        first = false;
       }
-    } else {
-      if (!first) {
-        logger_->cout() << ",";
-      }
-      printCompDb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
-      first = false;
     }
   }
 
