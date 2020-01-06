@@ -14,7 +14,9 @@
 #ifndef NINJA_PUBLIC_LOGGER_H_
 #define NINJA_PUBLIC_LOGGER_H_
 
+#include <ostream>
 #include <string>
+#include <utility>
 
 namespace ninja {
 
@@ -26,7 +28,7 @@ public:
     INFO = 2
   };
 
-  virtual void OnMessage(Level level, const std::string& message) = 0;
+  virtual void OnMessage(Level level, const std::string& message);
 
   inline void Error(const std::string& message) {
     OnMessage(ERROR, message);
@@ -37,17 +39,35 @@ public:
   inline void Info(const std::string& message) {
     OnMessage(INFO, message);
   }
+
+  virtual std::ostream& cout() = 0;
+  virtual std::ostream& cerr() = 0;
 };
 
 class LoggerBasic : public Logger {
 public:
-  virtual void OnMessage(Level level, const std::string& message) override;
+  virtual std::ostream& cerr() override;
+  virtual std::ostream& cout() override;
+};
+
+class NullBuffer : public std::streambuf
+{
+public:
+  int overflow(int c) { return c; }
 };
 
 class LoggerNull : public Logger {
 public:
-  virtual void OnMessage(Level level, const std::string& message) override;
+  LoggerNull();
+  ~LoggerNull();
+
+  virtual std::ostream& cerr() override;
+  virtual std::ostream& cout() override;
+private:
+  NullBuffer* null_buffer;
+  std::ostream null_stream;
 };
+
 
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_LOGGER_H_
