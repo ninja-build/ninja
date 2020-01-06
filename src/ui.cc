@@ -245,9 +245,7 @@ Node* CollectTarget(const State* state, const char* cpath, std::string* err) {
 
   Edge* edge = node->out_edges()[0];
   if (edge->outputs_.empty()) {
-    std::ostringstream buffer;
-    edge->Dump(buffer);
-    state->logger_->Info(buffer.str());
+    edge->Dump(state->logger_);
     *err = "edge has no outputs";
     return NULL;
   }

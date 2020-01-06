@@ -104,13 +104,13 @@ void PrintCommands(Logger* logger, Edge* edge, EdgeSet* seen, Execution::Options
   }
 
   if (!edge->is_phony())
-    logger->Info(edge->EvaluateCommand());
+    logger->cout() << edge->EvaluateCommand();
 }
 
-void serializeCompDb(ostringstream& buffer,
+void printCompDb(Logger* logger,
                  const char* const directory, const Edge* const edge,
                  const Execution::Options::CompilationDatabase::EvaluateCommandMode eval_mode) {
-  buffer << "\n  {\n    \"directory\": \"" <<
+  logger->cout() << "\n  {\n    \"directory\": \"" <<
     EncodeJSONString(directory) <<
     "\",\n    \"command\": \"" << 
     EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str()) <<
@@ -163,9 +163,7 @@ Node* TargetNameToNode(const State* state, const std::string& path, std::string*
 
   Edge* edge = node->out_edges()[0];
   if (edge->outputs_.empty()) {
-    std::ostringstream buffer;
-    edge->Dump(buffer);
-    state->logger_->Info(buffer.str());
+    edge->Dump(state->logger_);
     *err = "edge has no outputs";
     return NULL;
   }
@@ -193,16 +191,14 @@ void PrintToolTargetsList(Logger* logger, const vector<Node*>& nodes, int depth,
        n != nodes.end();
        ++n) {
     for (int i = 0; i < indent; ++i)
-      logger->Info("  ");
+      logger->cout() << "  ";
     const std::string& target = (*n)->path();
     if ((*n)->in_edge()) {
-      std::ostringstream buffer;
-      buffer << target << ": " << (*n)->in_edge()->rule_->name().c_str() << std::endl;
-      logger->Info(buffer.str());
+      logger->cout() << target << ": " << (*n)->in_edge()->rule_->name() << std::endl;
       if (depth > 1 || depth <= 0)
         PrintToolTargetsList(logger, (*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
-      logger->Info(target + "\n");
+      logger->cout() << target << std::endl;
     }
   }
 }
@@ -400,8 +396,7 @@ int Execution::CompilationDatabase() {
     return 1;
   }
 
-  std::ostringstream buffer;
-  buffer << "[";
+  logger_->cout() << "[";
   for (vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
@@ -410,22 +405,22 @@ int Execution::CompilationDatabase() {
       for (size_t i = 0; i != options_.targets.size(); ++i) {
         if ((*e)->rule_->name() == options_.targets[i]) {
           if (!first) {
-            buffer << ",";
+            logger_->cout() << ",";
           }
-          serializeCompDb(buffer, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+          printCompDb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
           first = false;
         }
       }
     } else {
       if (!first) {
-        buffer << ",";
+        logger_->cout() << ",";
       }
-      serializeCompDb(buffer, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
+      printCompDb(logger_, &cwd[0], *e, options_.compilationdatabase_options.eval_mode);
       first = false;
     }
   }
 
-  buffer << "\n]";
+  logger_->cout() << "\n]";
   return 0;
 }
 
@@ -456,9 +451,7 @@ int Execution::Deps() {
        it != end; ++it) {
     DepsLog::Deps* deps = state_->deps_log_->GetDeps(*it);
     if (!deps) {
-      std::ostringstream buffer;
-      buffer << (*it)->path().c_str() << ": deps not found" << std::endl;
-      logger_->Info(buffer.str());
+      logger_->cout() << (*it)->path().c_str() << ": deps not found" << std::endl;
       continue;
     }
 
@@ -468,18 +461,15 @@ int Execution::Deps() {
       // Log and ignore Stat() errors;
       logger_->Error(err);
     }
-    std::ostringstream buffer;
-    buffer << (*it)->path().c_str() <<
+    logger_->cout() << (*it)->path() <<
       ": $deps " << deps->node_count <<
       ", deps mtime " << deps->mtime <<
-      " (" << (!mtime || mtime > deps->mtime ? "STALE":"VALID") << ")" << std::endl;
-    logger_->Info(buffer.str());
+      " (" << (!mtime || mtime > deps->mtime ? "STALE":"VALID") << 
+      ")" << std::endl;
     for (int i = 0; i < deps->node_count; ++i) {
-      buffer.clear();
-      buffer << "    " << deps->nodes[i]->path().c_str() << std::endl;
-      logger_->Info(buffer.str());
+      logger_->cout() << "    " << deps->nodes[i]->path() << std::endl;
     }
-    logger_->Info("\n");
+    logger_->cout() << std::endl;
   }
 
   return 0;
@@ -543,36 +533,29 @@ int Execution::Query() {
       return 1;
     }
 
-    std::ostringstream buffer;
-    buffer << node->path() << ":" << std::endl;
-    logger_->Info(buffer.str());
+    logger_->cout() << node->path() << ":" << std::endl;
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
           logger_->Warning(err);
         }
       }
-      buffer.clear();
-      buffer << "  input: " << edge->rule_->name().c_str() << std::endl;
-      logger_->Info(buffer.str());
+      logger_->cout() << "  input: " << edge->rule_->name() << std::endl;
       for (int in = 0; in < (int)edge->inputs_.size(); in++) {
         const char* label = "";
         if (edge->is_implicit(in))
           label = "| ";
         else if (edge->is_order_only(in))
           label = "|| ";
-        buffer.clear();
-        buffer << "    " << label << edge->inputs_[in]->path().c_str() << std::endl;
-        logger_->Info(buffer.str());
+        logger_->cout() << "    " << label << edge->inputs_[in]->path() << std::endl;
       }
     }
-    logger_->Info("  outputs:\n");
+    logger_->cout() << "  outputs:" << std::endl;
     for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
          edge != node->out_edges().end(); ++edge) {
       for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
            out != (*edge)->outputs_.end(); ++out) {
-        buffer.clear();
-        buffer << "    %s" << (*out)->path() << std::endl;
+        logger_->cout() << "    " << (*out)->path() << std::endl;
       }
     }
   }
@@ -616,17 +599,16 @@ int Execution::Rules() {
   typedef map<string, const Rule*> Rules;
   const Rules& rules = state_->bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
-    logger_->Info(i->first);
+    logger_->cout() << i->first;
     if (options_.rules_options.print_description) {
-      logger_->Info("Description!");
+      logger_->cout() << "Description!";
       const Rule* rule = i->second;
       const EvalString* description = rule->GetBinding("description");
       if (description != NULL) {
-        logger_->Info(": ");
-        logger_->Info(description->Unparse());
+        logger_->cout() << ": " << description->Unparse();
       }
     }
-    logger_->Info("\n");
+    logger_->cout() << std::endl;
   }
   return 0;
 }
@@ -644,8 +626,7 @@ int Execution::Targets() {
     ToolTargetsList();
     return 0;
   } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_DEPTH) {
-    std::ostringstream buffer;
-    buffer << "Showing depth " << options_.targets_options.depth << std::endl;
+    logger_->cout() << "Showing depth " << options_.targets_options.depth << std::endl;
     std::string err;
     vector<Node*> root_nodes = state_->RootNodes(&err);
     if (err.empty()) {
@@ -662,7 +643,7 @@ int Execution::Targets() {
         for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
              inps != (*e)->inputs_.end(); ++inps) {
           if (!(*inps)->in_edge())
-            logger_->Info((*inps)->path() + "\n");
+            logger_->cout() << (*inps)->path() << std::endl;
         }
       }
       return 0;
@@ -696,9 +677,7 @@ int Execution::Urtle() {
       count = count*10 + *p - '0';
     } else {
       for (int i = 0; i < max(count, 1); ++i) {
-        std::ostringstream buffer;
-        buffer << *p;
-        logger_->Info(buffer.str());
+        logger_->cout() << *p;
       }
       count = 0;
     }
@@ -758,13 +737,11 @@ bool Execution::DoBuild() {
 void Execution::DumpMetrics() {
   g_metrics->Report();
 
-  logger_->Info("\n");
+  logger_->cout() << std::endl;
   int count = (int)state_->paths_.size();
   int buckets = (int)state_->paths_.bucket_count();
-  std::ostringstream buffer;
-  buffer << "path->node hash load " << count / (double) buckets <<
+  logger_->cout() << "path->node hash load " << count / (double) buckets <<
     " (" << count << " entries / " << buckets << " buckets)" << std::endl;
-  logger_->Info(buffer.str());
 }
 
 bool Execution::EnsureBuildDirExists(std::string* err) {
@@ -934,7 +911,7 @@ void Execution::ToolTargetsList(const std::string& rule_name) {
   // Print them.
   for (set<string>::const_iterator i = rules.begin();
        i != rules.end(); ++i) {
-    logger_->Info((*i) + "\n");
+    logger_->cout() << (*i) << std::endl;
   }
 }
 
@@ -943,9 +920,7 @@ void Execution::ToolTargetsList() {
        e != state_->edges_.end(); ++e) {
     for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
-      std::ostringstream buffer;
-      buffer << (*out_node)->path() << ": " << (*e)->rule_->name() << std::endl;
-      logger_->Info(buffer.str());
+      logger_->cout() << (*out_node)->path() << ": " << (*e)->rule_->name() << std::endl;
     }
   }
 }
@@ -954,18 +929,16 @@ int TargetsList(Logger* logger, const vector<Node*>& nodes, int depth, int inden
   for (vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
-    std::ostringstream buffer;
     for (int i = 0; i < indent; ++i) {
-      buffer << "  ";
+      logger->cout() << "  ";
     }
     const std::string& target = (*n)->path();
     if ((*n)->in_edge()) {
-      buffer << target << ": " << (*n)->in_edge()->rule_->name() << std::endl;
-      logger->Info(buffer.str());
+      logger->cout() << target << ": " << (*n)->in_edge()->rule_->name() << std::endl;
       if (depth > 1 || depth <= 0)
         PrintToolTargetsList(logger, (*n)->in_edge()->inputs_, depth - 1, indent + 1);
     } else {
-      logger->Info(target + "\n");
+      logger->cout() << target << std::endl;
     }
   }
   return 0;

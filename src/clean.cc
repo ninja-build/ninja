@@ -104,7 +104,7 @@ void Cleaner::PrintFooter() {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
   std::ostringstream buffer;
-  buffer << cleaned_files_count_ << " files" << std::endl;
+  buffer << "Cleaned " << cleaned_files_count_ << " files" << std::endl;
   logger_->Info(buffer.str());
 }
 

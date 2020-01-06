@@ -55,13 +55,13 @@ void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
   delayed_.erase(delayed_.begin(), it);
 }
 
-void Pool::Dump(std::ostringstream& output) const {
-  output << name_ << " (" << current_use_ << "/" << depth_ << ") ->\n";
+void Pool::Dump(Logger* logger) const {
+  logger->cout() << name_ << " (" << current_use_ << "/" << depth_ << ") ->" << std::endl;
   for (DelayedEdges::const_iterator it = delayed_.begin();
        it != delayed_.end(); ++it)
   {
-    output << "\t";
-    (*it)->Dump(output);
+    logger->cout() << "\t";
+    (*it)->Dump(logger);
   }
 }
 
@@ -179,8 +179,11 @@ void State::Explain(const char* format, ...) const {
 
   va_list ap;
   va_start(ap, format);
-  vfprintf(stdout, format, ap);
+  char buffer[2048];
+  vsnprintf(buffer, 2048, format, ap);
   va_end(ap);
+
+  logger_->cerr() << buffer << std::endl;
 }
 
 vector<Node*> State::RootNodes(string* err) const {
@@ -215,20 +218,21 @@ void State::Reset() {
   }
 }
 
-void State::Dump(std::ostringstream& output) {
+void State::Dump(Logger* logger) {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     Node* node = i->second;
-    output << node->path() << " " << 
+    logger->cout() << 
+      node->path() << " " << 
       (node->status_known() ? (node->dirty() ? "dirty" : "clean") : "unknown") <<
-      " [id:" << node->id() << "]\n";
+      " [id:" << node->id() << "]" << std::endl;
   }
   if (!pools_.empty()) {
-    output << "resource_pools:\n";
+    logger->cout() << "resource_pools:" << std::endl;
     for (map<string, Pool*>::const_iterator it = pools_.begin();
          it != pools_.end(); ++it)
     {
       if (!it->second->name().empty()) {
-        it->second->Dump(output);
+        it->second->Dump(logger);
       }
     }
   }
