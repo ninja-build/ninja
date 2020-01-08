@@ -118,7 +118,8 @@ int MSVCHelperMain(int argc, char** argv) {
   if(!command){
     Fatal("expected command line to end with \" -- command args\"");
   }
-  command +=4;
+
+  command += 4;
 
   CLWrapper cl;
   if (!env.empty())
