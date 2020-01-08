@@ -103,7 +103,7 @@ bool StatAllFilesInDir(const StringPiece dir, map<string, TimeStamp>* stamps,
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
 
   std::string dir_string;
-  dir_string.reserve(dir.len_ + 3); // Make room for \* and null termination
+  dir_string.reserve(dir.len_ + 2); // Make room for the \*
   dir_string.append(dir.begin(),dir.end());
   dir_string.append("\\*");
 
