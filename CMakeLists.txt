@@ -111,5 +111,17 @@ if(WIN32)
 endif()
 target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
+foreach(perftest
+  build_log_perftest
+  canon_perftest
+  clparser_perftest
+  depfile_parser_perftest
+  hash_collision_bench
+  manifest_parser_perftest
+)
+  add_executable(${perftest} src/${perftest}.cc)
+  target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+endforeach()
+
 enable_testing()
 add_test(NinjaTest ninja_test)
