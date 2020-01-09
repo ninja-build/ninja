@@ -1,0 +1,55 @@
+name: Linux
+
+on:
+  pull_request:
+  push:
+  release:
+    types: published
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+    container:
+      image: centos:7
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.2/cmake-3.16.2-Linux-x86_64.sh
+        chmod +x cmake-3.16.2-Linux-x86_64.sh
+        ./cmake-3.16.2-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-10.el7.x86_64.rpm
+        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-10.el7.x86_64.rpm
+        rpm -U --quiet p7zip-16.02-10.el7.x86_64.rpm
+        rpm -U --quiet p7zip-plugins-16.02-10.el7.x86_64.rpm
+        yum install -y make gcc-c++
+    - name: Build ninja
+      shell: bash
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --parallel --config Release
+        ctest -vv
+        strip ninja
+    - name: Create ninja archive
+      run: |
+        mkdir artifact
+        7z a artifact/ninja-linux.zip ./build/ninja
+
+    # Upload ninja binary archive as an artifact
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: ninja-binary-archives
+        path: artifact
+
+    - name: Upload release asset
+      if: github.event.action == 'published'
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifact/ninja-linux.zip
+        asset_name: ninja-linux.zip
+        asset_content_type: application/zip
