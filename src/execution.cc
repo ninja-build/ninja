@@ -700,14 +700,30 @@ bool Execution::DoBuild() {
 
   Builder builder(state_, config_, state_->build_log_, state_->deps_log_, state_->disk_interface_,
                   status_, state_->start_time_millis_);
-  for (size_t i = 0; i < options_.targets.size(); ++i) {
-    if (!builder.AddTarget(options_.targets[i], &err)) {
-      if (!err.empty()) {
-        status_->Error("%s", err.c_str());
-        return false;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
+  if (options_.targets.size()) {
+    for (size_t i = 0; i < options_.targets.size(); ++i) {
+      if (!builder.AddTarget(options_.targets[i], &err)) {
+        if (!err.empty()) {
+          status_->Error("%s", err.c_str());
+          return false;
+        } else {
+          // Added a target that is already up-to-date; not really
+          // an error.
+        }
+      }
+    }
+  } else {
+    std::vector<Node*> default_nodes = state_->DefaultNodes(&err);
+    if (!err.empty()) {
+      status_->Error("%s", err.c_str());
+      return false;
+    }
+    for (Node* node : default_nodes) {
+      if (!builder.AddTarget(node, &err)) {
+        if (!err.empty()) {
+          status_->Error("%s", err.c_str());
+          return false;
+        }
       }
     }
   }
