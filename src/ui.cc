@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "public/ui.h"
+#include "ninja/ui.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -35,9 +35,9 @@
 #include <sstream>
 #include <vector>
 
-#include "public/execution.h"
-#include "public/logger.h"
-#include "public/version.h"
+#include "ninja/execution.h"
+#include "ninja/logger.h"
+#include "ninja/version.h"
 
 #include "build.h"
 #include "build_log.h"

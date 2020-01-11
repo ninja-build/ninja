@@ -394,7 +394,7 @@ if platform.supports_ninja_browse():
 # Search for generated headers relative to build dir.
 cflags.append('-I.')
 # Search for public headers relative to src.
-cflags.append('-Isrc')
+cflags.append('-Isrc/public')
 
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by

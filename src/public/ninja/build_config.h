@@ -15,7 +15,7 @@
 #ifndef NINJA_PUBLIC_BUILD_CONFIG_H_
 #define NINJA_PUBLIC_BUILD_CONFIG_H_
 
-#include "public/depfile_parser_options.h"
+#include "ninja/depfile_parser_options.h"
 
 namespace ninja {
 /// Options (e.g. verbosity, parallelism) passed to a build.

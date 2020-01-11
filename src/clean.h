@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "public/logger.h"
+#include "ninja/logger.h"
 #include "build.h"
 #include "dyndep.h"
 

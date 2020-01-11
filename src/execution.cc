@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "public/execution.h"
+#include "ninja/execution.h"
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -27,7 +27,7 @@
 #endif
 #include <sstream>
 
-#include "public/ui.h"
+#include "ninja/ui.h"
 
 #include "browse.h"
 #include "clean.h"

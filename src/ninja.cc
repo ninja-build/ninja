@@ -23,7 +23,7 @@
 #include <unistd.h>
 #endif
 
-#include "public/ui.h"
+#include "ninja/ui.h"
 
 #ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.

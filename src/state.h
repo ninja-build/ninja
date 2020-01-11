@@ -22,8 +22,8 @@
 #include <vector>
 using namespace std;
 
-#include "public/build_config.h"
-#include "public/logger.h"
+#include "ninja/build_config.h"
+#include "ninja/logger.h"
 
 #include "build_log.h"
 #include "disk_interface.h"

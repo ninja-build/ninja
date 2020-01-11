@@ -15,11 +15,11 @@
 #ifndef NINJA_PUBLIC_UI_H_
 #define NINJA_PUBLIC_UI_H_
 
-#include "public/build_config.h"
-#include "public/execution.h"
+#include "ninja/build_config.h"
+#include "ninja/execution.h"
 
 #ifdef _WIN32
-#include "public/win32port.h"
+#include "ninja/win32port.h"
 #else
 #include <stdint.h>
 #endif

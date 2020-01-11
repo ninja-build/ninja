@@ -20,7 +20,7 @@
 #include <vector>
 using namespace std;
 
-#include "public/logger.h"
+#include "ninja/logger.h"
 
 #include "dyndep.h"
 #include "eval_env.h"

@@ -15,7 +15,7 @@
 #ifndef NINJA_BROWSE_H_
 #define NINJA_BROWSE_H_
 
-#include "public/logger.h"
+#include "ninja/logger.h"
 
 namespace ninja {
 struct State;

@@ -21,7 +21,7 @@ using namespace std;
 
 #include "string_piece.h"
 
-#include "public/depfile_parser_options.h"
+#include "ninja/depfile_parser_options.h"
 
 namespace ninja {
 /// Parser for the dependency information emitted by gcc's -M flags.

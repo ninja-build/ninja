@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "public/build_config.h"
-#include "public/logger.h"
+#include "ninja/build_config.h"
+#include "ninja/logger.h"
 
 namespace ninja {
 

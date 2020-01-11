@@ -1,4 +1,4 @@
-#include "public/logger.h"
+#include "ninja/logger.h"
 
 #include <iostream>
 
