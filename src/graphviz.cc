@@ -14,7 +14,6 @@
 
 #include "graphviz.h"
 
-#include <stdio.h>
 #include <algorithm>
 
 #include "dyndep.h"
@@ -27,7 +26,7 @@ void GraphViz::AddTarget(Node* node) {
 
   string pathstr = node->path();
   replace(pathstr.begin(), pathstr.end(), '\\', '/');
-  printf("\"%p\" [label=\"%s\"]\n", node, pathstr.c_str());
+  logger_->cout() << "\"" << node << "\" [label=\"" << pathstr << "\"]" << std::endl;
   visited_nodes_.insert(node);
 
   Edge* edge = node->in_edge();
@@ -53,21 +52,19 @@ void GraphViz::AddTarget(Node* node) {
     // Can draw simply.
     // Note extra space before label text -- this is cosmetic and feels
     // like a graphviz bug.
-    printf("\"%p\" -> \"%p\" [label=\" %s\"]\n",
-           edge->inputs_[0], edge->outputs_[0], edge->rule_->name().c_str());
+    logger_->cout() << "\"" << edge->inputs_[0] << "\" -> \"" << edge->outputs_[0] << "\" [label=\" " << edge->rule_->name() << "\"]" << std::endl;
   } else {
-    printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
-           edge, edge->rule_->name().c_str());
+    logger_->cout() << "\"" << edge << "\" [label=\"" << edge->rule_->name() << "\", shape=ellipse]" << std::endl;
     for (vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
-      printf("\"%p\" -> \"%p\"\n", edge, *out);
+      logger_->cout() << "\"" << edge << "\" -> \"" << *out << "\"" << std::endl;
     }
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
       const char* order_only = "";
       if (edge->is_order_only(in - edge->inputs_.begin()))
         order_only = " style=dotted";
-      printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", (*in), edge, order_only);
+      logger_->cout() << "\"" << (*in) << "\" -> \"" << edge << "\" [arrowhead=none" << order_only << "]" << std::endl;
     }
   }
 
@@ -78,13 +75,13 @@ void GraphViz::AddTarget(Node* node) {
 }
 
 void GraphViz::Start() {
-  printf("digraph ninja {\n");
-  printf("rankdir=\"LR\"\n");
-  printf("node [fontsize=10, shape=box, height=0.25]\n");
-  printf("edge [fontsize=10]\n");
+  logger_->cout() << "digraph ninja {" << std::endl;
+  logger_->cout() << "rankdir=\"LR\"" << std::endl;
+  logger_->cout() << "node [fontsize=10, shape=box, height=0.25]" << std::endl;
+  logger_->cout() << "edge [fontsize=10]" << std::endl;
 }
 
 void GraphViz::Finish() {
-  printf("}\n");
+  logger_->cout() << "}" << std::endl;
 }
 }  // namespace ninja

@@ -486,7 +486,7 @@ int Execution::Graph() {
     return 1;
   }
 
-  GraphViz graph(state_, state_->disk_interface_);
+  GraphViz graph(state_, state_->disk_interface_, logger_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
