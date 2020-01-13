@@ -77,6 +77,7 @@ protected:
 class LoggerBasic : public Logger {
 public:
   explicit LoggerBasic();
+
   virtual bool DoesSupportColor() const { return does_support_color_; }
   virtual bool IsSmartTerminal() const { return is_smart_terminal_; }
   virtual void PrintStatusLine(StatusLineType type, const std::string& to_print) override;

@@ -17,6 +17,7 @@
 
 #include "ninja/build_config.h"
 #include "ninja/execution.h"
+#include "ninja/logger.h"
 
 #ifdef _WIN32
 #include "ninja/win32port.h"
@@ -85,6 +86,7 @@ const Tool* DefaultTool();
 /// to avoid potentially expensive cleanup when  destructuring
 /// Ninja's state.
 NORETURN void Execute(int argc, char** argv);
+NORETURN void Execute(int argc, char** argv, Logger* logger);
 
 // Exit the program immediately with a nonzero status
 void ExitNow();

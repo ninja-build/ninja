@@ -273,15 +273,17 @@ const Tool* DefaultTool() {
 }
 
 NORETURN void Execute(int argc, char** argv) {
-  setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  Execute(argc, argv, new LoggerBasic());
+}
 
+NORETURN void Execute(int argc, char** argv, Logger* logger) {
   ParsedFlags flags;
   const char* ninja_command = argv[0];
   int exit_code = ui::ReadFlags(&argc, &argv, &flags);
   if (exit_code >= 0)
     exit(exit_code);
 
-  ninja::Execution execution(ninja_command, flags.options);
+  ninja::Execution execution(ninja_command, flags.options, logger);
   exit((execution.*(flags.tool->implementation))());
   // never reached
   exit(1);

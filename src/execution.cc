@@ -206,16 +206,16 @@ void PrintToolTargetsList(Logger* logger, const vector<Node*>& nodes, int depth,
 }  // namespace
 
 Execution::Execution() : Execution(NULL, Options(), new LoggerBasic()) {}
+
 Execution::Execution(const char* ninja_command, Options options) :
   Execution(ninja_command, options, new LoggerBasic()) {}
+
 Execution::Execution(const char* ninja_command, Options options, Logger* logger) :
-  Execution(ninja_command, options, logger, new StatusPrinter(config_, logger)) {}
-Execution::Execution(const char* ninja_command, Options options, Logger* logger, Status* status) :
-  ninja_command_(ninja_command),
+  config_(),
   logger_(logger),
+  ninja_command_(ninja_command),
   options_(options),
-  state_(new State(logger, options.debug.explain)),
-  status_(status) {
+  state_(new State(logger, options.debug.explain)) {
   config_.parallelism = options_.parallelism;
   // We want to go until N jobs fail, which means we should allow
   // N failures and then stop.  For N <= 0, INT_MAX is close enough
@@ -225,7 +225,19 @@ Execution::Execution(const char* ninja_command, Options options, Logger* logger,
     config_.depfile_parser_options.depfile_distinct_target_lines_action_ =
         kDepfileDistinctTargetLinesActionError;
   }
+  status_ = new StatusPrinter(config_, logger);
+}
 
+Execution::Execution(const char* ninja_command, Options options, Logger* logger, const BuildConfig& config) :
+  Execution(ninja_command, options, logger, config, NULL) {}
+
+Execution::Execution(const char* ninja_command, Options options, Logger* logger, const BuildConfig& config, Status* status) :
+  config_(config),
+  logger_(logger),
+  ninja_command_(ninja_command),
+  options_(options),
+  state_(new State(logger, options.debug.explain)),
+  status_(status) {
 }
 
 Execution::Options::Options() :
