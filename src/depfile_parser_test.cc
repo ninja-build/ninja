@@ -49,7 +49,7 @@ TEST_F(DepfileParserTest, BasicUnicode) {
       L"manifest_parser\u2651.h\n");
   EXPECT_TRUE(Parse(WideToUtf8(toParse).c_str(), &err));
   ASSERT_EQ("", err);
-  EXPECT_EQ(L"build/ninja\u2654.o", Utf8ToWide(parser_.out_.AsString()));
+  EXPECT_EQ(L"build/ninja\u2654.o", Utf8ToWide(parser_.outs_[0].AsString()));
   EXPECT_EQ(4u, parser_.ins_.size());
 }
 #endif
