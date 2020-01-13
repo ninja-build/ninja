@@ -3,7 +3,6 @@
 *.exe
 *.pdb
 *.ilk
-TAGS
 /build*/
 /build.ninja
 /ninja
@@ -18,8 +17,8 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
-/gtest-1.6.0
 *.patch
+.DS_Store
 
 # Eclipse project files
 .project
@@ -36,3 +35,6 @@ TAGS
 # Visual Studio Code project files
 /.vscode/
 /.ccls-cache/
+
+# Qt Creator project files
+/CMakeLists.txt.user
