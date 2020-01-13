@@ -19,7 +19,8 @@
 namespace ninja {
 TEST(StatusTest, StatusFormatElapsed) {
   BuildConfig config;
-  StatusPrinter status(config);
+  LoggerBasic logger;
+  StatusPrinter status(config, &logger);
 
   status.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
@@ -29,7 +30,8 @@ TEST(StatusTest, StatusFormatElapsed) {
 
 TEST(StatusTest, StatusFormatReplacePlaceholder) {
   BuildConfig config;
-  StatusPrinter status(config);
+  LoggerBasic logger;
+  StatusPrinter status(config, &logger);
 
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));

@@ -25,8 +25,8 @@
 #include <getopt.h>
 #endif
 
+#include "ninja/logger.h"
 #include "test.h"
-#include "line_printer.h"
 
 namespace ninja {
 struct RegisteredTest {
@@ -41,7 +41,7 @@ struct RegisteredTest {
 static RegisteredTest tests[10000];
 testing::Test* g_current_test;
 static int ntests;
-static LinePrinter printer;
+static LoggerBasic logger;
 
 void RegisterTest(testing::Test* (*factory)(), const char* name) {
   tests[ntests].factory = factory;
@@ -120,7 +120,7 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 bool testing::Test::Check(bool condition, const char* file, int line,
                           const char* error) {
   if (!condition) {
-    printer.PrintOnNewLine(
+    logger.PrintStatusOnNewLine(
         StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
     failed_ = true;
   }
@@ -150,9 +150,10 @@ int main(int argc, char **argv) {
 
     ++tests_started;
     testing::Test* test = tests[i].factory();
-    printer.Print(
-        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name),
-        LinePrinter::ELIDE);
+    logger.PrintStatusLine(
+        Logger::StatusLineType::ELIDE,
+        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name)
+    );
     test->SetUp();
     test->Run();
     test->TearDown();
@@ -161,6 +162,6 @@ int main(int argc, char **argv) {
     delete test;
   }
 
-  printer.PrintOnNewLine(passed ? "passed\n" : "failed\n");
+  logger.PrintStatusOnNewLine(passed ? "passed\n" : "failed\n");
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

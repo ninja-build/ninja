@@ -25,17 +25,13 @@
 #include "debug_flags.h"
 
 namespace ninja {
-StatusPrinter::StatusPrinter(const BuildConfig& config) : StatusPrinter(config, false) {}
-StatusPrinter::StatusPrinter(const BuildConfig& config, bool is_explaining)
+StatusPrinter::StatusPrinter(const BuildConfig& config, Logger* logger) : StatusPrinter(config, logger, false) {}
+StatusPrinter::StatusPrinter(const BuildConfig& config, Logger* logger, bool is_explaining)
     : config_(config),
       is_explaining_(is_explaining),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
-      time_millis_(0), progress_status_format_(NULL),
+      time_millis_(0), logger_(logger), progress_status_format_(NULL),
       current_rate_(config.parallelism) {
-
-  // Don't do anything fancy in verbose mode.
-  if (config_.verbosity != BuildConfig::NORMAL)
-    printer_.set_smart_terminal(false);
 
   progress_status_format_ = getenv("NINJA_STATUS");
   if (!progress_status_format_)
@@ -51,11 +47,12 @@ void StatusPrinter::BuildEdgeStarted(Edge* edge, int64_t start_time_millis) {
   ++running_edges_;
   time_millis_ = start_time_millis;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
+  if ((edge->use_console() || logger_->IsSmartTerminal()) && 
+      (config_.verbosity == BuildConfig::NORMAL))
     PrintStatus(edge, start_time_millis);
 
   if (edge->use_console())
-    printer_.SetConsoleLocked(true);
+    logger_->SetConsoleLocked(true);
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
@@ -64,7 +61,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
   ++finished_edges_;
 
   if (edge->use_console())
-    printer_.SetConsoleLocked(false);
+    logger_->SetConsoleLocked(false);
 
   if (config_.verbosity == BuildConfig::QUIET)
     return;
@@ -84,10 +81,10 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
-    if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+    if (logger_->DoesSupportColor()) {
+        logger_->PrintStatusOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+        logger_->PrintStatusOnNewLine("FAILED: " + outputs + "\n");
     }
   }
 
@@ -105,7 +102,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
     // thousands of parallel compile commands.)
     // TODO: There should be a flag to disable escape code stripping.
     std::string final_output;
-    if (!printer_.supports_color())
+    if (!logger_->DoesSupportColor())
       final_output = StripAnsiEscapeCodes(output);
     else
       final_output = output;
@@ -115,7 +112,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
     _setmode(_fileno(stdout), _O_BINARY);  // Begin Windows extra CR fix
 #endif
 
-    printer_.PrintOnNewLine(final_output);
+    logger_->PrintStatusOnNewLine(final_output);
 
 #ifdef _WIN32
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
@@ -133,7 +130,7 @@ void StatusPrinter::BuildLoadDyndeps() {
   // explanation does not append to the status line. After the explanations
   // are done a new build status line will appear.
   if (is_explaining_)
-    printer_.PrintOnNewLine("");
+    logger_->PrintStatusOnNewLine("");
 }
 
 void StatusPrinter::BuildStarted() {
@@ -143,8 +140,8 @@ void StatusPrinter::BuildStarted() {
 }
 
 void StatusPrinter::BuildFinished() {
-  printer_.SetConsoleLocked(false);
-  printer_.PrintOnNewLine("");
+  logger_->SetConsoleLocked(false);
+  logger_->PrintStatusOnNewLine("");
 }
 
 std::string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
@@ -243,8 +240,10 @@ void StatusPrinter::PrintStatus(Edge* edge, int64_t time_millis) {
   to_print = FormatProgressStatus(progress_status_format_, time_millis)
       + to_print;
 
-  printer_.Print(to_print,
-                 force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+  logger_->PrintStatusLine(
+    force_full_command ? Logger::StatusLineType::FULL : Logger::StatusLineType::ELIDE,
+to_print);
+                 
 }
 
 void StatusPrinter::Warning(const char* msg, ...) {

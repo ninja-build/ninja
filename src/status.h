@@ -18,8 +18,8 @@
 #include <map>
 #include <string>
 
+#include "ninja/logger.h"
 #include "build.h"
-#include "line_printer.h"
 
 namespace ninja {
 /// Abstract interface to object that tracks the status of a build:
@@ -43,8 +43,8 @@ struct Status {
 /// Implementation of the Status interface that prints the status as
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
-  explicit StatusPrinter(const BuildConfig& config);
-  explicit StatusPrinter(const BuildConfig& config, bool is_explaining);
+  explicit StatusPrinter(const BuildConfig& config, Logger* logger);
+  explicit StatusPrinter(const BuildConfig& config, Logger* logger, bool is_explaining);
   virtual void PlanHasTotalEdges(int total);
   virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis);
   virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
@@ -79,7 +79,7 @@ struct StatusPrinter : Status {
   int64_t time_millis_;
 
   /// Prints progress output.
-  LinePrinter printer_;
+  Logger* logger_;
 
   /// The custom progress status format to use.
   const char* progress_status_format_;

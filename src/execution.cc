@@ -205,11 +205,11 @@ void PrintToolTargetsList(Logger* logger, const vector<Node*>& nodes, int depth,
 
 }  // namespace
 
-Execution::Execution() : Execution(NULL, Options(), new LoggerBasic(), new StatusPrinter(config_)) {}
+Execution::Execution() : Execution(NULL, Options(), new LoggerBasic()) {}
 Execution::Execution(const char* ninja_command, Options options) :
-  Execution(ninja_command, options, new LoggerBasic(), new StatusPrinter(config_)) {}
+  Execution(ninja_command, options, new LoggerBasic()) {}
 Execution::Execution(const char* ninja_command, Options options, Logger* logger) :
-  Execution(ninja_command, options, logger, new StatusPrinter(config_)) {}
+  Execution(ninja_command, options, logger, new StatusPrinter(config_, logger)) {}
 Execution::Execution(const char* ninja_command, Options options, Logger* logger, Status* status) :
   ninja_command_(ninja_command),
   logger_(logger),

@@ -16,6 +16,8 @@
 
 #include <assert.h>
 
+#include "ninja/logger.h"
+
 #include "build_log.h"
 #include "deps_log.h"
 #include "graph.h"
@@ -487,7 +489,7 @@ struct FakeCommandRunner : public CommandRunner {
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
                 builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0),
-                status_(config_) {
+                status_(config_, &logger_) {
   }
 
   virtual void SetUp() {
@@ -529,6 +531,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   FakeCommandRunner command_runner_;
   VirtualFileSystem fs_;
   Builder builder_;
+  LoggerBasic logger_;
 
   StatusPrinter status_;
 };
