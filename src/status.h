@@ -109,11 +109,11 @@ struct StatusPrinter : Status {
         rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }
 
-  private:
-    double rate_;
-    const size_t N;
-    queue<double> times_;
-    int last_update_;
+    private:
+      double rate_;
+      const size_t N;
+      queue<double> times_;
+      int last_update_;
   };
 
   mutable SlidingRateInfo current_rate_;
