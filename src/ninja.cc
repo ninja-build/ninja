@@ -859,6 +859,24 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
 }
 
 int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
+  // The restat tool uses getopt, and expects argv[0] to contain the name of the
+  // tool, i.e. "restat"
+  argc++;
+  argv--;
+
+  optind = 1;
+  int opt;
+  while ((opt = getopt(argc, argv, const_cast<char*>("h"))) != -1) {
+    switch (opt) {
+    case 'h':
+    default:
+      printf("usage: ninja -t restat [outputs]\n");
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   if (!EnsureBuildDirExists())
     return 1;
 
@@ -882,7 +900,7 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
     err.clear();
   }
 
-  bool success = build_log_.Restat(log_path, disk_interface_, &err);
+  bool success = build_log_.Restat(log_path, disk_interface_, argc, argv, &err);
   if (!success) {
     Error("failed recompaction: %s", err.c_str());
     return EXIT_FAILURE;

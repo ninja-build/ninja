@@ -85,7 +85,7 @@ struct BuildLog {
 
   /// Restat all outputs in the log
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
-              std::string* err);
+              int output_count, char** outputs, std::string* err);
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }

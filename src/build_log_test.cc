@@ -252,7 +252,14 @@ TEST_F(BuildLogTest, Restat) {
   ASSERT_EQ(3, e->mtime);
 
   TestDiskInterface testDiskInterface;
-  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, &err));
+  char out2[] = { 'o', 'u', 't', '2' };
+  char* filter2[] = { out2 };
+  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 1, filter2, &err));
+  ASSERT_EQ("", err);
+  e = log.LookupByOutput("out");
+  ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
+
+  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, NULL, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(4, e->mtime);
