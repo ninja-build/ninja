@@ -969,7 +969,7 @@ const Tool* ChooseTool(const string& tool_name) {
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "restat",  "restats all outputs in the build log",
-      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRestat },
+      Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolRestat },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
     { "cleandead",  "clean built files that are no longer produced by the manifest",
