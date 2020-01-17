@@ -18,12 +18,15 @@ if 'NINJA_STATUS' in default_env:
 if 'CLICOLOR_FORCE' in default_env:
     del default_env['CLICOLOR_FORCE']
 default_env['TERM'] = ''
+NINJA_PATH = os.path.abspath('./ninja')
 
 def run(build_ninja, flags='', pipe=False, env=default_env):
-    with tempfile.NamedTemporaryFile('w') as f:
-        f.write(build_ninja)
-        f.flush()
-        ninja_cmd = './ninja {} -f {}'.format(flags, f.name)
+    with tempfile.TemporaryDirectory() as d:
+        os.chdir(d)
+        with open('build.ninja', 'w') as f:
+            f.write(build_ninja)
+            f.flush()
+        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
         try:
             if pipe:
                 output = subprocess.check_output([ninja_cmd], shell=True, env=env)
@@ -98,6 +101,11 @@ red
 '''[1/1] echo a
 \x1b[31mred\x1b[0m
 ''')
+
+    def test_pr_1685(self):
+        # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
+        self.assertEqual(run('', flags='-t recompact'), '')
+        self.assertEqual(run('', flags='-t restat'), '')
 
 if __name__ == '__main__':
     unittest.main()

@@ -488,6 +488,11 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
                 status_(config_) {
   }
 
+  BuildTest(DepsLog* log) : config_(MakeConfig()), command_runner_(&fs_),
+                            builder_(&state_, config_, NULL, log, &fs_),
+                            status_(config_) {
+  }
+
   virtual void SetUp() {
     StateTestWithBuiltinRules::SetUp();
 
@@ -582,6 +587,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "cat_rsp" ||
       edge->rule().name() == "cat_rsp_out" ||
       edge->rule().name() == "cc" ||
+      edge->rule().name() == "cp_multi_msvc" ||
+      edge->rule().name() == "cp_multi_gcc" ||
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
@@ -641,6 +648,14 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
       result->status = ExitFailure;
     active_edges_.erase(edge_iter);
     return true;
+  }
+
+  if (edge->rule().name() == "cp_multi_msvc") {
+    const std::string prefix = edge->GetBinding("msvc_deps_prefix");
+    for (std::vector<Node*>::iterator in = edge->inputs_.begin();
+         in != edge->inputs_.end(); ++in) {
+      result->output += prefix + (*in)->path() + '\n';
+    }
   }
 
   if (edge->rule().name() == "fail" ||
@@ -1853,6 +1868,214 @@ TEST_F(BuildTest, FailedDepsParse) {
 
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("subcommand failed", err);
+}
+
+struct BuildWithQueryDepsLogTest : public BuildTest {
+  BuildWithQueryDepsLogTest() : BuildTest(&log_) {
+  }
+
+  ~BuildWithQueryDepsLogTest() {
+    log_.Close();
+  }
+
+  virtual void SetUp() {
+    BuildTest::SetUp();
+
+    temp_dir_.CreateAndEnter("BuildWithQueryDepsLogTest");
+
+    std::string err;
+    ASSERT_TRUE(log_.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+  }
+
+  ScopedTempDir temp_dir_;
+
+  DepsLog log_;
+};
+
+/// Test a MSVC-style deps log with multiple outputs.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileMSVC) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_msvc\n"
+"    command = echo 'using $in' && for file in $out; do cp $in $$file; done\n"
+"    deps = msvc\n"
+"    msvc_deps_prefix = using \n"
+"build out1 out2: cp_multi_msvc in1\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'using in1' && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(1, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(1, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+}
+
+/// Test a GCC-style deps log with multiple outputs.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOneLine) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_gcc\n"
+"    command = echo '$out: $in' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = gcc\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_gcc in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in.d", "out1 out2: in1 in2");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'out1 out2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test a GCC-style deps log with multiple outputs using a line per input.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCMultiLineInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_gcc\n"
+"    command = echo '$out: in1\\n$out: in2' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = gcc\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_gcc in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in.d", "out1 out2: in1\nout1 out2: in2");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'out1 out2: in1\\nout1 out2: in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test a GCC-style deps log with multiple outputs using a line per output.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCMultiLineOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_gcc\n"
+"    command = echo 'out1: $in\\nout2: $in' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = gcc\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_gcc in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in.d", "out1: in1 in2\nout2: in1 in2");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'out1: in1 in2\\nout2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test a GCC-style deps log with multiple outputs mentioning only the main output.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlyMainOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_gcc\n"
+"    command = echo 'out1: $in' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = gcc\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_gcc in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in.d", "out1: in1 in2");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'out1: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test a GCC-style deps log with multiple outputs mentioning only the secondary output.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
+  // Note: This ends up short-circuiting the node creation due to the primary
+  // output not being present, but it should still work.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_gcc\n"
+"    command = echo 'out2: $in' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = gcc\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_gcc in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  fs_.Create("in.d", "out2: in1 in2");
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("echo 'out2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
 }
 
 /// Tests of builds involving deps logs necessarily must span

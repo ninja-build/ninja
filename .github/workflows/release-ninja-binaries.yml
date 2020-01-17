@@ -11,11 +11,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        os: [macOS-latest, windows-latest]
         include:
-          - os: ubuntu-latest
-            zip_name: ninja-linux
-            extra_cmake_flags: ''
           - os: macOS-latest
             zip_name: ninja-mac
             extra_cmake_flags: ''
@@ -27,9 +24,6 @@ jobs:
     - uses: actions/checkout@v1
 
     # Install OS specific dependencies
-    - name: Install Linux dependencies
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get install re2c
     - name: Install macOS dependencies
       if: matrix.os == 'macOS-latest'
       run: brew install re2c p7zip cmake
@@ -44,10 +38,6 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ${{ matrix.extra_cmake_flags }} ..
         cmake --build . --parallel --config Release
         ctest -vv
-
-    - name: Strip Linux binary
-      if: matrix.os == 'ubuntu-latest'
-      run: cd build && strip ninja
 
     - name: Create ninja archive
       shell: bash
