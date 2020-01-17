@@ -18,7 +18,7 @@ jobs:
             extra_cmake_flags: ''
           - os: windows-latest
             zip_name: ninja-win
-            extra_cmake_flags: '-DMSVC_RUNTIME_LIBRARY=MultiThreaded'
+            extra_cmake_flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'
 
     steps:
     - uses: actions/checkout@v1
