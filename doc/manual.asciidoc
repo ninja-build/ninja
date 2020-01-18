@@ -271,6 +271,9 @@ Files created but not referenced in the graph are not removed. This
 tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
 
+`cleandead`:: remove files produced by previous builds that are no longer in the
+manifest. _Available since Ninja 1.10._
+
 `compdb`:: given a list of rules, each of which is expected to be a
 C family language compiler rule whose first input is the name of the
 source file, prints on standard output a compilation database in the
