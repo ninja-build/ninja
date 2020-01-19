@@ -1,2 +1,5 @@
 tasks:
-  - init: cmake -Bbuild-cmake -H. && cmake --build build-cmake
+  - init: >
+      cmake -Bbuild-cmake -H. &&
+      cmake --build build-cmake &&
+      ./build-cmake/ninja_test
