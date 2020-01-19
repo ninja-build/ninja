@@ -575,10 +575,10 @@ Use it like in the following example:
 ----
 rule cc
   depfile = $out.d
-  command = gcc -MMD -MF $out.d [other gcc flags here]
+  command = gcc -MD -MF $out.d [other gcc flags here]
 ----
 
-The `-MMD` flag to `gcc` tells it to output header dependencies, and
+The `-MD` flag to `gcc` tells it to output header dependencies, and
 the `-MF` flag tells it where to write them.
 
 deps
