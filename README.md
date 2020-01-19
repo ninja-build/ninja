@@ -1,4 +1,5 @@
 # Ninja
+[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/ninja-build/ninja) 
 
 Ninja is a small build system with a focus on speed.
 https://ninja-build.org/
