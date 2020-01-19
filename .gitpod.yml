@@ -1,0 +1,2 @@
+tasks:
+  - init: cmake -Bbuild-cmake -H. && cmake --build build-cmake
