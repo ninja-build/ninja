@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
+cmake_policy(SET CMP0091 NEW)
 project(ninja)
 
 if(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -15,6 +16,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 endif()
 
 if(MSVC)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus -DUNICODE")
 else()
 	if(WIN32)

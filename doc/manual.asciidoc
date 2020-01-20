@@ -271,6 +271,9 @@ Files created but not referenced in the graph are not removed. This
 tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
 
+`cleandead`:: remove files produced by previous builds that are no longer in the
+manifest. _Available since Ninja 1.10._
+
 `compdb`:: given a list of rules, each of which is expected to be a
 C family language compiler rule whose first input is the name of the
 source file, prints on standard output a compilation database in the
@@ -572,10 +575,10 @@ Use it like in the following example:
 ----
 rule cc
   depfile = $out.d
-  command = gcc -MMD -MF $out.d [other gcc flags here]
+  command = gcc -MD -MF $out.d [other gcc flags here]
 ----
 
-The `-MMD` flag to `gcc` tells it to output header dependencies, and
+The `-MD` flag to `gcc` tells it to output header dependencies, and
 the `-MF` flag tells it where to write them.
 
 deps

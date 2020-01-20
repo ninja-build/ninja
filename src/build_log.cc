@@ -422,6 +422,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
 bool BuildLog::Restat(const StringPiece path,
                       const DiskInterface& disk_interface,
+                      const int output_count, char** outputs,
                       std::string* const err) {
   METRIC_RECORD(".ninja_log restat");
 
@@ -439,12 +440,21 @@ bool BuildLog::Restat(const StringPiece path,
     return false;
   }
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
-    if (mtime == -1) {
-      fclose(f);
-      return false;
+    bool skip = output_count > 0;
+    for (int j = 0; j < output_count; ++j) {
+      if (i->second->output == outputs[j]) {
+        skip = false;
+        break;
+      }
     }
-    i->second->mtime = mtime;
+    if (!skip) {
+      const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+      if (mtime == -1) {
+        fclose(f);
+        return false;
+      }
+      i->second->mtime = mtime;
+    }
 
     if (!WriteEntry(f, *i->second)) {
       *err = strerror(errno);

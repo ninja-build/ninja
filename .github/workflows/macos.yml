@@ -1,4 +1,4 @@
-name: Release Ninja Binaries
+name: macOS
 
 on:
   pull_request:
@@ -8,26 +8,13 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macOS-latest, windows-latest]
-        include:
-          - os: macOS-latest
-            zip_name: ninja-mac
-          - os: windows-latest
-            zip_name: ninja-win
+    runs-on: macOS-latest
 
     steps:
     - uses: actions/checkout@v1
 
-    # Install OS specific dependencies
-    - name: Install macOS dependencies
-      if: matrix.os == 'macOS-latest'
+    - name: Install dependencies
       run: brew install re2c p7zip cmake
-    - name: Install Windows dependencies
-      if: matrix.os == 'windows-latest'
-      run: choco install re2c
 
     - name: Build ninja
       shell: bash
@@ -39,11 +26,9 @@ jobs:
 
     - name: Create ninja archive
       shell: bash
-      env:
-        ZIP_NAME: ${{ matrix.zip_name }}
       run: |
         mkdir artifact
-        7z a artifact/${ZIP_NAME}.zip $(find ./build -name ninja -or -name ninja.exe)
+        7z a artifact/ninja-mac.zip ./build/ninja
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
@@ -59,6 +44,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifact/${{ matrix.zip_name }}.zip
-        asset_name: ${{ matrix.zip_name }}.zip
+        asset_path: ./artifact/ninja-mac.zip
+        asset_name: ninja-mac.zip
         asset_content_type: application/zip
