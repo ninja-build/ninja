@@ -967,7 +967,7 @@ const Tool* ChooseTool(const string& tool_name) {
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
-      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
+      Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolRecompact },
     { "restat",  "restats all outputs in the build log",
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolRestat },
     { "rules",  "list all rules",
