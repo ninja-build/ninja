@@ -63,6 +63,10 @@ struct DiskInterface: public FileReader {
   ///          -1 if an error occurs.
   virtual int RemoveFile(const string& path) = 0;
 
+  /// Reset the disk interface to its original state, as if
+  /// created anew.
+  virtual void Reset() = 0;
+
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
   bool MakeDirs(const string& path);
@@ -81,6 +85,7 @@ struct RealDiskInterface : public DiskInterface {
   virtual bool WriteFile(const string& path, const string& contents);
   virtual Status ReadFile(const string& path, string* contents, string* err);
   virtual int RemoveFile(const string& path);
+  virtual void Reset();
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);

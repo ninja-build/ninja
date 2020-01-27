@@ -238,4 +238,18 @@ void State::Dump(Logger* logger) {
   }
 }
 
+void State::Reset() {
+  // Intentionally leave start_time_millis_ unchanged.
+  ClearPathsAndEdges();
+  build_log_->Reset();
+  deps_log_->Reset();
+  disk_interface_->Reset();
+
+  bindings_.Reset();
+  bindings_.AddRule(&kPhonyRule);
+
+  pools_.clear();
+  AddPool(&kDefaultPool);
+  AddPool(&kConsolePool);
+}
 }  // namespace ninja

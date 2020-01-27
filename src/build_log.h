@@ -82,6 +82,9 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, const BuildLogUser& user, string* err);
 
+  /// Reset the instance as if it was created new.
+  void Reset();
+
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }
 

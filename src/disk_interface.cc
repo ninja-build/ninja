@@ -275,6 +275,13 @@ int RealDiskInterface::RemoveFile(const string& path) {
   }
 }
 
+void RealDiskInterface::Reset() {
+#ifdef _WIN32
+  use_cache_ = false;
+  cache_.clear();
+#endif
+}
+
 void RealDiskInterface::AllowStatCache(bool allow) {
 #ifdef _WIN32
   use_cache_ = allow;

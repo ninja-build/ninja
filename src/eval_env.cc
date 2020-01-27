@@ -17,6 +17,10 @@
 #include "eval_env.h"
 
 namespace ninja {
+namespace {
+  const char* kPhonyRuleName = "phony";
+}  // namespace
+
 string BindingEnv::LookupVariable(const string& var) {
   map<string, string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
@@ -95,6 +99,16 @@ string BindingEnv::LookupWithFallback(const string& var,
     return parent_->LookupVariable(var);
 
   return "";
+}
+
+void BindingEnv::Reset() {
+  bindings_.clear();
+  for (auto itr : rules_) {
+    if (itr.second->name() != kPhonyRuleName) {
+      delete itr.second;
+    }
+  }
+  rules_.clear();
 }
 
 string EvalString::Evaluate(Env* env) const {

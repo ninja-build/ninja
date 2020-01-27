@@ -91,6 +91,9 @@ struct DepsLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, string* err);
 
+  /// Reset the deps log as if created new.
+  void Reset();
+
   /// Returns if the deps entry for a node is still reachable from the manifest.
   ///
   /// The deps log can contain deps entries for files that were built in the

@@ -367,6 +367,20 @@ bool DepsLog::Recompact(const string& path, string* err) {
   return true;
 }
 
+void DepsLog::Reset() {
+  Close();
+  needs_recompaction_ = false;
+  file_ = NULL;
+  for (auto itr : nodes_) {
+    delete itr;
+  }
+  nodes_.clear();
+  for (auto itr : deps_) {
+    delete itr;
+  }
+  deps_.clear();
+}
+
 bool DepsLog::IsDepsEntryLiveFor(Node* node) {
   // Skip entries that don't have in-edges or whose edges don't have a
   // "deps" attribute. They were in the deps log from previous builds, but

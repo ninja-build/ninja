@@ -133,6 +133,9 @@ struct State  : public BuildLogUser {
   vector<Node*> RootNodes(string* error) const;
   vector<Node*> DefaultNodes(string* error) const;
 
+  /// Reset state. This resets everything, as if creating the state anew.
+  void Reset();
+
   BindingEnv bindings_;
   BuildLog* build_log_;
   vector<Node*> defaults_;

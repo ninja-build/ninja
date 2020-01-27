@@ -421,4 +421,16 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
   return true;
 }
+
+void BuildLog::Reset() {
+  Close();
+  log_file_ = NULL;
+  needs_recompaction_ = false;
+  for (auto itr : entries_) {
+    if (itr.second) {
+      delete itr.second;
+    }
+  }
+  entries_.clear();
+}
 }  // namespace ninja

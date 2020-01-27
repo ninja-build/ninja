@@ -321,6 +321,7 @@ int Execution::Build() {
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
+    state_->Reset();
     if (!LoadLogs()) {
       return 1;
     }

@@ -102,6 +102,8 @@ struct BindingEnv : public Env {
   string LookupWithFallback(const string& var, const EvalString* eval,
                             Env* env);
 
+  // Reset everything as if creating the binding env anew.
+  void Reset();
 private:
   map<string, string> bindings_;
   map<string, const Rule*> rules_;
