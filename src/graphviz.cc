@@ -24,7 +24,7 @@ void GraphViz::AddTarget(Node* node) {
   if (visited_nodes_.find(node) != visited_nodes_.end())
     return;
 
-  string pathstr = node->path();
+  std::string pathstr = node->path();
   replace(pathstr.begin(), pathstr.end(), '\\', '/');
   logger_->cout() << "\"" << node << "\" [label=\"" << pathstr << "\"]" << std::endl;
   visited_nodes_.insert(node);
@@ -55,11 +55,11 @@ void GraphViz::AddTarget(Node* node) {
     logger_->cout() << "\"" << edge->inputs_[0] << "\" -> \"" << edge->outputs_[0] << "\" [label=\" " << edge->rule_->name() << "\"]" << std::endl;
   } else {
     logger_->cout() << "\"" << edge << "\" [label=\"" << edge->rule_->name() << "\", shape=ellipse]" << std::endl;
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
+    for (std::vector<Node*>::iterator out = edge->outputs_.begin();
          out != edge->outputs_.end(); ++out) {
       logger_->cout() << "\"" << edge << "\" -> \"" << *out << "\"" << std::endl;
     }
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
+    for (std::vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
       const char* order_only = "";
       if (edge->is_order_only(in - edge->inputs_.begin()))
@@ -68,7 +68,7 @@ void GraphViz::AddTarget(Node* node) {
     }
   }
 
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
+  for (std::vector<Node*>::iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in) {
     AddTarget(*in);
   }

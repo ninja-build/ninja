@@ -112,7 +112,7 @@ struct StatusPrinter : Status {
     private:
       double rate_;
       const size_t N;
-      queue<double> times_;
+      std::queue<double> times_;
       int last_update_;
   };
 

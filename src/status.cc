@@ -77,7 +77,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
   // Print the command that is spewing before printing its output.
   if (!success) {
     std::string outputs;
-    for (vector<Node*>::const_iterator o = edge->outputs_.begin();
+    for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
