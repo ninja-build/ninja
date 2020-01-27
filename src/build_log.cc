@@ -160,7 +160,7 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
   std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
+  for (std::vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
     const std::string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
@@ -391,7 +391,7 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     return false;
   }
 
-  vector<StringPiece> dead_outputs;
+  std::vector<StringPiece> dead_outputs;
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
     if (user.IsPathDead(i->first)) {
       dead_outputs.push_back(i->first);

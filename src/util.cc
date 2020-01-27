@@ -411,13 +411,13 @@ void SetCloseOnExec(int fd) {
 
 
 const char* SpellcheckStringV(const std::string& text,
-                              const vector<const char*>& words) {
+                              const std::vector<const char*>& words) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
   const char* result = NULL;
-  for (vector<const char*>::const_iterator i = words.begin();
+  for (std::vector<const char*>::const_iterator i = words.begin();
        i != words.end(); ++i) {
     int distance = EditDistance(*i, text, kAllowReplacements,
                                 kMaxValidEditDistance);
@@ -434,7 +434,7 @@ const char* SpellcheckString(const char* text, ...) {
   // va_start() with a reference parameter is undefined behavior.
   va_list ap;
   va_start(ap, text);
-  vector<const char*> words;
+  std::vector<const char*> words;
   const char* word;
   while ((word = va_arg(ap, const char*)))
     words.push_back(word);
