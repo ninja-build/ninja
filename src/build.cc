@@ -54,7 +54,7 @@ struct DryRunCommandRunner : public CommandRunner {
   virtual bool WaitForCommand(Result* result);
 
  private:
-  queue<Edge*> finished_;
+  std::queue<Edge*> finished_;
 };
 
 bool DryRunCommandRunner::CanRunMore() {
@@ -96,7 +96,7 @@ bool Plan::AddTarget(Node* node, std::string* err) {
 }
 
 bool Plan::AddSubTarget(Node* node, Node* dependent, std::string* err,
-                        set<Edge*>* dyndep_walk) {
+                        std::set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
@@ -115,7 +115,7 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, std::string* err,
   // If an entry in want_ does not already exist for edge, create an entry which
   // maps to kWantNothing, indicating that we do not want to build this entry itself.
   std::pair<std::map<Edge*, Want>::iterator, bool> want_ins =
-    want_.insert(make_pair(edge, kWantNothing));
+    want_.insert(std::make_pair(edge, kWantNothing));
   Want& want = want_ins.first->second;
 
   if (dyndep_walk && want == kWantToFinish)
@@ -268,9 +268,9 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, std::string* err) {
         begin = (*oe)->inputs_.begin(),
         end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
 #if __cplusplus < 201703L
-#define MEM_FN mem_fun
+#define MEM_FN std::mem_fun
 #else
-#define MEM_FN mem_fn  // mem_fun was removed in C++17.
+#define MEM_FN std::mem_fn  // mem_fun was removed in C++17.
 #endif
     if (find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
       // Recompute most_recent_input.
@@ -342,7 +342,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
   for (std::vector<DyndepFile::const_iterator>::iterator
        oei = dyndep_roots.begin(); oei != dyndep_roots.end(); ++oei) {
     DyndepFile::const_iterator oe = *oei;
-    for (vector<Node*>::const_iterator i = oe->second.implicit_inputs_.begin();
+    for (std::vector<Node*>::const_iterator i = oe->second.implicit_inputs_.begin();
          i != oe->second.implicit_inputs_.end(); ++i) {
       if (!AddSubTarget(*i, oe->first->outputs_[0], err, &dyndep_walk) &&
           !err->empty())
@@ -352,7 +352,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
 
   // Add out edges from this node that are in the plan (just as
   // Plan::NodeFinished would have without taking the dyndep code path).
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
+  for (std::vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
     std::map<Edge*, Want>::iterator want_e = want_.find(*oe);
     if (want_e == want_.end())
@@ -361,7 +361,7 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
   }
 
   // See if any encountered edges are now ready.
-  for (set<Edge*>::iterator wi = dyndep_walk.begin();
+  for (std::set<Edge*>::iterator wi = dyndep_walk.begin();
        wi != dyndep_walk.end(); ++wi) {
     std::map<Edge*, Want>::iterator want_e = want_.find(*wi);
     if (want_e == want_.end())
@@ -377,12 +377,12 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, Node* node,
                                    std::string* err) {
   // Collect the transitive closure of dependents and mark their edges
   // as not yet visited by RecomputeDirty.
-  set<Node*> dependents;
+  std::set<Node*> dependents;
   UnmarkDependents(node, &dependents);
 
   // Update the dirty state of all dependents and check if their edges
   // have become wanted.
-  for (set<Node*>::iterator i = dependents.begin();
+  for (std::set<Node*>::iterator i = dependents.begin();
        i != dependents.end(); ++i) {
     Node* n = *i;
 
@@ -407,8 +407,8 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, Node* node,
   return true;
 }
 
-void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
+void Plan::UnmarkDependents(Node* node, std::set<Node*>* dependents) {
+  for (std::vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
     Edge* edge = *oe;
 
@@ -418,7 +418,7 @@ void Plan::UnmarkDependents(Node* node, set<Node*>* dependents) {
 
     if (edge->mark_ != Edge::VisitNone) {
       edge->mark_ = Edge::VisitNone;
-      for (vector<Node*>::iterator o = edge->outputs_.begin();
+      for (std::vector<Node*>::iterator o = edge->outputs_.begin();
            o != edge->outputs_.end(); ++o) {
         if (dependents->insert(*o).second)
           UnmarkDependents(*o, dependents);
@@ -433,7 +433,7 @@ struct RealCommandRunner : public CommandRunner {
   virtual bool CanRunMore();
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
-  virtual vector<Edge*> GetActiveEdges();
+  virtual std::vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
   const BuildConfig& config_;
@@ -441,8 +441,8 @@ struct RealCommandRunner : public CommandRunner {
   std::map<Subprocess*, Edge*> subproc_to_edge_;
 };
 
-vector<Edge*> RealCommandRunner::GetActiveEdges() {
-  vector<Edge*> edges;
+std::vector<Edge*> RealCommandRunner::GetActiveEdges() {
+  std::vector<Edge*> edges;
   for (std::map<Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
        e != subproc_to_edge_.end(); ++e)
     edges.push_back(e->second);
@@ -466,7 +466,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   Subprocess* subproc = subprocs_.Add(command, edge->use_console());
   if (!subproc)
     return false;
-  subproc_to_edge_.insert(make_pair(subproc, edge));
+  subproc_to_edge_.insert(std::make_pair(subproc, edge));
 
   return true;
 }
@@ -506,13 +506,13 @@ Builder::~Builder() {
 
 void Builder::Cleanup() {
   if (command_runner_.get()) {
-    vector<Edge*> active_edges = command_runner_->GetActiveEdges();
+    std::vector<Edge*> active_edges = command_runner_->GetActiveEdges();
     command_runner_->Abort();
 
-    for (vector<Edge*>::iterator e = active_edges.begin();
+    for (std::vector<Edge*>::iterator e = active_edges.begin();
          e != active_edges.end(); ++e) {
       std::string depfile = (*e)->GetUnescapedDepfile();
-      for (vector<Node*>::iterator o = (*e)->outputs_.begin();
+      for (std::vector<Node*>::iterator o = (*e)->outputs_.begin();
            o != (*e)->outputs_.end(); ++o) {
         // Only delete this output if it was actually modified.  This is
         // important for things like the generator where we don't want to
@@ -664,13 +664,13 @@ bool Builder::StartEdge(Edge* edge, std::string* err) {
     return true;
 
   int64_t start_time_millis = GetTimeMillis() - start_time_millis_;
-  running_edges_.insert(make_pair(edge, start_time_millis));
+  running_edges_.insert(std::make_pair(edge, start_time_millis));
 
   status_->BuildEdgeStarted(edge, start_time_millis);
 
   // Create directories necessary for outputs.
   // XXX: this will block; do we care?
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
+  for (std::vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
@@ -704,7 +704,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   // to filter /showIncludes output, even on compile failure) and
   // extraction itself can fail, which makes the command fail from a
   // build perspective.
-  vector<Node*> deps_nodes;
+  std::vector<Node*> deps_nodes;
   std::string deps_type = edge->GetBinding("deps");
   const std::string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
@@ -739,7 +739,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   if (!config_.dry_run) {
     bool node_cleaned = false;
 
-    for (vector<Node*>::iterator o = edge->outputs_.begin();
+    for (std::vector<Node*>::iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
       TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
       if (new_mtime == -1)
@@ -760,7 +760,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
       TimeStamp restat_mtime = 0;
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
-      for (vector<Node*>::iterator i = edge->inputs_.begin();
+      for (std::vector<Node*>::iterator i = edge->inputs_.begin();
            i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
         TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
         if (input_mtime == -1)
@@ -819,7 +819,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
 bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const std::string& deps_type,
                           const std::string& deps_prefix,
-                          vector<Node*>* deps_nodes,
+                          std::vector<Node*>* deps_nodes,
                           std::string* err) {
   if (deps_type == "msvc") {
     CLParser parser;
@@ -863,7 +863,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 
     // XXX check depfile matches expected output.
     deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
+    for (std::vector<StringPiece>::iterator i = deps.ins_.begin();
          i != deps.ins_.end(); ++i) {
       uint64_t slash_bits;
       if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
