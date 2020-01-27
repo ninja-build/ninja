@@ -14,7 +14,6 @@
 
 #include <string>
 #include <vector>
-using namespace std;
 
 namespace ninja {
 struct StringPiece;
@@ -23,19 +22,19 @@ struct StringPiece;
 /// TODO: this likely duplicates functionality of CanonicalizePath; refactor.
 struct IncludesNormalize {
   /// Normalize path relative to |relative_to|.
-  IncludesNormalize(const string& relative_to);
+  IncludesNormalize(const std::string& relative_to);
 
   // Internal utilities made available for testing, maybe useful otherwise.
-  static string AbsPath(StringPiece s, string* err);
-  static string Relativize(StringPiece path,
-                           const vector<StringPiece>& start_list, string* err);
+  static std::string AbsPath(StringPiece s, std::string* err);
+  static std::string Relativize(StringPiece path,
+                           const std::vector<StringPiece>& start_list, std::string* err);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path |input| relative to |this->relative_to_| and store to |result|.
-  bool Normalize(const string& input, string* result, string* err) const;
+  bool Normalize(const std::string& input, std::string* result, std::string* err) const;
 
  private:
-  string relative_to_;
-  vector<StringPiece> split_relative_to_;
+  std::string relative_to_;
+  std::vector<StringPiece> split_relative_to_;
 };
 }  // namespace ninja
