@@ -21,7 +21,7 @@
 #include "util.h"
 
 namespace ninja {
-bool Lexer::Error(const string& message, string* err) {
+bool Lexer::Error(const std::string& message, std::string* err) {
   // Compute line/column.
   int line = 1;
   const char* line_start = input_.str_;
@@ -49,11 +49,11 @@ bool Lexer::Error(const string& message, string* err) {
         break;
       }
     }
-    *err += string(line_start, len);
+    *err += std::string(line_start, len);
     if (truncated)
       *err += "...";
     *err += "\n";
-    *err += string(col, ' ');
+    *err += std::string(col, ' ');
     *err += "^ near here";
   }
 
@@ -101,7 +101,7 @@ const char* Lexer::TokenErrorHint(Token expected) {
   }
 }
 
-string Lexer::DescribeLastError() {
+std::string Lexer::DescribeLastError() {
   if (last_token_) {
     switch (last_token_[0]) {
     case '\t':
@@ -549,7 +549,7 @@ yy87:
   }
 }
 
-bool Lexer::ReadIdent(string* out) {
+bool Lexer::ReadIdent(std::string* out) {
   const char* p = ofs_;
   const char* start;
   for (;;) {
@@ -619,7 +619,7 @@ yy93:
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadEvalString(EvalString* eval, bool path, std::string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;

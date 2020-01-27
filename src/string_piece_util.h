@@ -19,12 +19,11 @@
 #include <vector>
 
 #include "string_piece.h"
-using namespace std;
 
 namespace ninja {
-vector<StringPiece> SplitStringPiece(StringPiece input, char sep);
+std::vector<StringPiece> SplitStringPiece(StringPiece input, char sep);
 
-string JoinStringPiece(const vector<StringPiece>& list, char sep);
+std::string JoinStringPiece(const std::vector<StringPiece>& list, char sep);
 
 inline char ToLowerASCII(char c) {
   return (c >= 'A' && c <= 'Z') ? (c + ('a' - 'A')) : c;

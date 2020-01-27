@@ -17,8 +17,6 @@
 
 #include <string>
 
-using namespace std;
-
 #include <string.h>
 
 namespace ninja {
@@ -31,7 +29,7 @@ struct StringPiece {
   StringPiece() : str_(NULL), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
-  StringPiece(const string& str) : str_(str.data()), len_(str.size()) {}
+  StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}
   StringPiece(const char* str) : str_(str), len_(strlen(str)) {}
 
   StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
@@ -45,8 +43,8 @@ struct StringPiece {
 
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
-  string AsString() const {
-    return len_ ? string(str_, len_) : string();
+  std::string AsString() const {
+    return len_ ? std::string(str_, len_) : std::string();
   }
 
   const_iterator begin() const {
