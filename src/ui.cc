@@ -95,7 +95,7 @@ constexpr size_t kToolsLen = sizeof(kTools) / sizeof(kTools[0]);
 
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
-bool DebugEnable(ParsedFlags* flags, const string& name) {
+bool DebugEnable(ParsedFlags* flags, const std::string& name) {
   if (name == "list") {
     printf("debugging modes:\n"
 "  stats        print operation counts/timing info\n"
@@ -131,14 +131,14 @@ bool DebugEnable(ParsedFlags* flags, const string& name) {
     if (suggestion) {
       std::cerr << ", did you mean '" << suggestion << "'?";
     }
-    std::cerr << endl;
+    std::cerr << std::endl;
     return false;
   }
 }
 
 /// Set a warning flag.  Returns false if Ninja should exit instead  of
 /// continuing.
-bool WarningEnable(const string& name, Execution::Options* options) {
+bool WarningEnable(const std::string& name, Execution::Options* options) {
   if (name == "list") {
     printf("warning flags:\n"
 "  dupbuild={err,warn}  multiple build lines for one target\n"

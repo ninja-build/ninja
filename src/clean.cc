@@ -77,7 +77,7 @@ void Cleaner::Remove(const std::string& path) {
 }
 
 bool Cleaner::IsAlreadyRemoved(const std::string& path) {
-  set<std::string>::iterator i = removed_.find(path);
+  std::set<std::string>::iterator i = removed_.find(path);
   return (i != removed_.end());
 }
 
@@ -112,7 +112,7 @@ int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   LoadDyndeps();
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
     if ((*e)->is_phony())
@@ -120,7 +120,7 @@ int Cleaner::CleanAll(bool generator) {
     // Do not remove generator's files unless generator specified.
     if (!generator && (*e)->GetBindingBool("generator"))
       continue;
-    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+    for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
     }
@@ -138,7 +138,7 @@ void Cleaner::DoCleanTarget(Node* target) {
       Remove(target->path());
       RemoveEdgeFiles(e);
     }
-    for (vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
+    for (std::vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
          ++n) {
       Node* next = *n;
       // call DoCleanTarget recursively if this node has not been visited
@@ -210,10 +210,10 @@ int Cleaner::CleanTargets(const std::vector<std::string>& targets) {
 void Cleaner::DoCleanRule(const Rule* rule) {
   assert(rule);
 
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->rule().name() == rule->name()) {
-      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+      for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
         RemoveEdgeFiles(*e);
@@ -281,7 +281,7 @@ void Cleaner::Reset() {
 
 void Cleaner::LoadDyndeps() {
   // Load dyndep files that exist, before they are cleaned.
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if (Node* dyndep = (*e)->dyndep_) {
       // Capture and ignore errors loading the dyndep file.

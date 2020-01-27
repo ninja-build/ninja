@@ -139,7 +139,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
   }
 
   // Parse implicit outputs, if any.
-  vector<EvalString> outs;
+  std::vector<EvalString> outs;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
       EvalString out;
@@ -168,7 +168,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
   }
 
   // Parse implicit inputs, if any.
-  vector<EvalString> ins;
+  std::vector<EvalString> ins;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
       EvalString in;
@@ -199,7 +199,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
   }
 
   dyndeps->implicit_inputs_.reserve(ins.size());
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
+  for (std::vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     std::string path = i->Evaluate(&env_);
     std::string path_err;
     uint64_t slash_bits;
@@ -210,7 +210,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
   }
 
   dyndeps->implicit_outputs_.reserve(outs.size());
-  for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
+  for (std::vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     std::string path = i->Evaluate(&env_);
     std::string path_err;
     uint64_t slash_bits;

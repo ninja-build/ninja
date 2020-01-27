@@ -20,7 +20,6 @@
 #include <set>
 #include <string>
 #include <vector>
-using namespace std;
 
 #include "ninja/build_config.h"
 #include "ninja/logger.h"
@@ -46,13 +45,13 @@ struct Rule;
 /// the total scheduled weight diminishes enough (i.e. when a scheduled edge
 /// completes).
 struct Pool {
-  Pool(const string& name, int depth)
+  Pool(const std::string& name, int depth)
     : name_(name), current_use_(0), depth_(depth), delayed_() {}
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
   int current_use() const { return current_use_; }
 
   /// true if the Pool might delay this edge
@@ -76,7 +75,7 @@ struct Pool {
   void Dump(Logger* logger) const;
 
  private:
-  string name_;
+  std::string name_;
 
   /// |current_use_| is the total of the weights of the edges which are
   /// currently scheduled in the Plan (i.e. the edges in Plan::ready_).
@@ -92,7 +91,7 @@ struct Pool {
     }
   };
 
-  typedef set<Edge*, WeightedEdgeCmp> DelayedEdges;
+  typedef std::set<Edge*, WeightedEdgeCmp> DelayedEdges;
   DelayedEdges delayed_;
 };
 
@@ -107,7 +106,7 @@ struct State  : public BuildLogUser {
   State(Logger* logger, bool is_explaining);
 
   void AddPool(Pool* pool);
-  Pool* LookupPool(const string& pool_name);
+  Pool* LookupPool(const std::string& pool_name);
 
   Edge* AddEdge(const Rule* rule);
 
@@ -116,7 +115,7 @@ struct State  : public BuildLogUser {
 
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
-  bool AddDefault(StringPiece path, string* error);
+  bool AddDefault(StringPiece path, std::string* error);
 
   /// Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
@@ -130,22 +129,22 @@ struct State  : public BuildLogUser {
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
-  vector<Node*> RootNodes(string* error) const;
-  vector<Node*> DefaultNodes(string* error) const;
+  std::vector<Node*> RootNodes(std::string* error) const;
+  std::vector<Node*> DefaultNodes(std::string* error) const;
 
   /// Reset state. This resets everything, as if creating the state anew.
   void Reset();
 
   BindingEnv bindings_;
   BuildLog* build_log_;
-  vector<Node*> defaults_;
+  std::vector<Node*> defaults_;
 
   DepsLog* deps_log_;
   /// Functions for accesssing the disk.
   RealDiskInterface* disk_interface_;
 
   /// All the edges of the graph.
-  vector<Edge*> edges_;
+  std::vector<Edge*> edges_;
 
   /// True if we should show explanatory log messages.
   bool is_explaining_;
@@ -158,7 +157,7 @@ struct State  : public BuildLogUser {
   Paths paths_;
 
   /// All the pools used in the graph.
-  map<string, Pool*> pools_;
+  std::map<std::string, Pool*> pools_;
 
   // Time when the last command was started.
   int64_t start_time_millis_;

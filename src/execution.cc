@@ -98,7 +98,7 @@ void PrintCommands(Logger* logger, Edge* edge, EdgeSet* seen, Execution::Options
     return;
 
   if (mode == Execution::Options::Commands::PrintCommandMode::PCM_All) {
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
+    for (std::vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in)
       PrintCommands(logger, (*in)->in_edge(), seen, mode);
   }
@@ -186,8 +186,8 @@ bool TargetNamesToNodes(const State* state, const std::vector<std::string>& name
   return true;
 }
 
-void PrintToolTargetsList(Logger* logger, const vector<Node*>& nodes, int depth, int indent) {
-  for (vector<Node*>::const_iterator n = nodes.begin();
+void PrintToolTargetsList(Logger* logger, const std::vector<Node*>& nodes, int depth, int indent) {
+  for (std::vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
     for (int i = 0; i < indent; ++i)
@@ -375,14 +375,14 @@ int Execution::Commands() {
     return 1;
   }
   EdgeSet seen;
-  vector<Node*> nodes;
+  std::vector<Node*> nodes;
   std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
     logger_->Error(err);
     return 1;
   }
 
-  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+  for (std::vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands(logger_, (*in)->in_edge(), &seen, options_.commands_options.mode);
 
   return 0;
@@ -396,7 +396,7 @@ int Execution::CompilationDatabase() {
     return 1;
   }
   bool first = true;
-  vector<char> cwd;
+  std::vector<char> cwd;
 
   do {
     cwd.resize(cwd.size() + 1024);
@@ -415,7 +415,7 @@ int Execution::CompilationDatabase() {
   }
 
   logger_->cout() << "[";
-  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->inputs_.empty())
       continue;
@@ -441,7 +441,7 @@ int Execution::Deps() {
   if (!LoadLogs()) {
     return 1;
   }
-  vector<Node*> nodes;
+  std::vector<Node*> nodes;
   std::string err;
   if (options_.targets.size()) {
     if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
@@ -449,7 +449,7 @@ int Execution::Deps() {
       return 1;
     }
   } else {
-    for (vector<Node*>::const_iterator ni = state_->deps_log_->nodes().begin();
+    for (std::vector<Node*>::const_iterator ni = state_->deps_log_->nodes().begin();
          ni != state_->deps_log_->nodes().end(); ++ni) {
       if (state_->deps_log_->IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
@@ -457,7 +457,7 @@ int Execution::Deps() {
   }
 
   RealDiskInterface disk_interface;
-  for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
+  for (std::vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
        it != end; ++it) {
     DepsLog::Deps* deps = state_->deps_log_->GetDeps(*it);
     if (!deps) {
@@ -492,7 +492,7 @@ int Execution::Graph() {
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
-  vector<Node*> nodes;
+  std::vector<Node*> nodes;
   std::string err;
   if (!TargetNamesToNodes(state_, options_.targets, &nodes, &err)) {
     logger_->Error(err);
@@ -501,7 +501,7 @@ int Execution::Graph() {
 
   GraphViz graph(state_, state_->disk_interface_, logger_);
   graph.Start();
-  for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
+  for (std::vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
   graph.Finish();
 
@@ -561,9 +561,9 @@ int Execution::Query() {
       }
     }
     logger_->cout() << "  outputs:" << std::endl;
-    for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
+    for (std::vector<Edge*>::const_iterator edge = node->out_edges().begin();
          edge != node->out_edges().end(); ++edge) {
-      for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+      for (std::vector<Node*>::iterator out = (*edge)->outputs_.begin();
            out != (*edge)->outputs_.end(); ++out) {
         logger_->cout() << "    " << (*out)->path() << std::endl;
       }
@@ -606,7 +606,7 @@ int Execution::Rules() {
   if (!LoadParser(options_.input_file)) {
     return 1;
   }
-  typedef map<string, const Rule*> Rules;
+  typedef std::map<std::string, const Rule*> Rules;
   const Rules& rules = state_->bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
     logger_->cout() << i->first;
@@ -631,14 +631,14 @@ int Execution::Targets() {
     return 1;
   }
   std::string err;
-  vector<Node*> root_nodes = state_->RootNodes(&err);
+  std::vector<Node*> root_nodes = state_->RootNodes(&err);
   if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_ALL) {
     ToolTargetsList();
     return 0;
   } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_DEPTH) {
     logger_->cout() << "Showing depth " << options_.targets_options.depth << std::endl;
     std::string err;
-    vector<Node*> root_nodes = state_->RootNodes(&err);
+    std::vector<Node*> root_nodes = state_->RootNodes(&err);
     if (err.empty()) {
       PrintToolTargetsList(logger_, root_nodes, options_.targets_options.depth, 0);
       return 0;
@@ -648,9 +648,9 @@ int Execution::Targets() {
     }
   } else if (options_.targets_options.mode == Options::Targets::TargetsMode::TM_RULE) {
     if (options_.targets_options.rule.empty()) {
-      for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+      for (std::vector<Edge*>::const_iterator e = state_->edges_.begin();
            e != state_->edges_.end(); ++e) {
-        for (vector<Node*>::iterator inps = (*e)->inputs_.begin();
+        for (std::vector<Node*>::iterator inps = (*e)->inputs_.begin();
              inps != (*e)->inputs_.end(); ++inps) {
           if (!(*inps)->in_edge())
             logger_->cout() << (*inps)->path() << std::endl;
@@ -686,7 +686,7 @@ int Execution::Urtle() {
     if ('0' <= *p && *p <= '9') {
       count = count*10 + *p - '0';
     } else {
-      for (int i = 0; i < max(count, 1); ++i) {
+      for (int i = 0; i < std::max(count, 1); ++i) {
         logger_->cout() << *p;
       }
       count = 0;
@@ -921,13 +921,13 @@ bool Execution::RebuildManifest(const char* input_file, std::string* err) {
 }
 
 void Execution::ToolTargetsList(const std::string& rule_name) {
-  set<string> rules;
+  std::set<std::string> rules;
 
   // Gather the outputs.
-  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->rule_->name() == rule_name) {
-      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+      for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         rules.insert((*out_node)->path());
       }
@@ -935,24 +935,24 @@ void Execution::ToolTargetsList(const std::string& rule_name) {
   }
 
   // Print them.
-  for (set<string>::const_iterator i = rules.begin();
+  for (std::set<std::string>::const_iterator i = rules.begin();
        i != rules.end(); ++i) {
     logger_->cout() << (*i) << std::endl;
   }
 }
 
 void Execution::ToolTargetsList() {
-  for (vector<Edge*>::const_iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::const_iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
-    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+    for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       logger_->cout() << (*out_node)->path() << ": " << (*e)->rule_->name() << std::endl;
     }
   }
 }
 
-int TargetsList(Logger* logger, const vector<Node*>& nodes, int depth, int indent) {
-  for (vector<Node*>::const_iterator n = nodes.begin();
+int TargetsList(Logger* logger, const std::vector<Node*>& nodes, int depth, int indent) {
+  for (std::vector<Node*>::const_iterator n = nodes.begin();
        n != nodes.end();
        ++n) {
     for (int i = 0; i < indent; ++i) {

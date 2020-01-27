@@ -208,7 +208,7 @@ bool ManifestParser::ParseDefault(std::string* err) {
 }
 
 bool ManifestParser::ParseEdge(std::string* err) {
-  vector<EvalString> ins, outs;
+  std::vector<EvalString> ins, outs;
 
   {
     EvalString out;
@@ -350,7 +350,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
   edge->implicit_outs_ = implicit_outs;
 
   edge->inputs_.reserve(ins.size());
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
+  for (std::vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     std::string path = i->Evaluate(env);
     std::string path_err;
     uint64_t slash_bits;
@@ -368,7 +368,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
     // build graph but that has since been fixed.  Filter them out to
     // support users of those old CMake versions.
     Node* out = edge->outputs_[0];
-    vector<Node*>::iterator new_end =
+    std::vector<Node*>::iterator new_end =
         remove(edge->inputs_.begin(), edge->inputs_.end(), out);
     if (new_end != edge->inputs_.end()) {
       edge->inputs_.erase(new_end, edge->inputs_.end());
@@ -398,7 +398,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
       return false;
     edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
     edge->dyndep_->set_dyndep_pending(true);
-    vector<Node*>::iterator dgi =
+    std::vector<Node*>::iterator dgi =
       std::find(edge->inputs_.begin(), edge->inputs_.end(), edge->dyndep_);
     if (dgi == edge->inputs_.end()) {
       return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
