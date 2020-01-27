@@ -15,7 +15,6 @@
 #include "build_log.h"
 
 #include <algorithm>
-using namespace std;
 
 #include <stdlib.h>
 #include <time.h>
@@ -31,22 +30,23 @@ void RandomCommand(char** s) {
   for (int i = 0; i < len; ++i)
     (*s)[i] = (char)random(32, 127);
 }
+}  // namespace ninja
 
 int main() {
   const int N = 20 * 1000 * 1000;
 
   // Leak these, else 10% of the runtime is spent destroying strings.
   char** commands = new char*[N];
-  pair<uint64_t, int>* hashes = new pair<uint64_t, int>[N];
+  std::pair<uint64_t, int>* hashes = new std::pair<uint64_t, int>[N];
 
   srand((int)time(NULL));
 
   for (int i = 0; i < N; ++i) {
-    RandomCommand(&commands[i]);
-    hashes[i] = make_pair(BuildLog::LogEntry::HashCommand(commands[i]), i);
+    ninja::RandomCommand(&commands[i]);
+    hashes[i] = std::make_pair(ninja::BuildLog::LogEntry::HashCommand(commands[i]), i);
   }
 
-  sort(hashes, hashes + N);
+  std::sort(hashes, hashes + N);
 
   int collision_count = 0;
   for (int i = 1; i < N; ++i) {
@@ -61,5 +61,5 @@ int main() {
     }
   }
   printf("\n\n%d collisions after %d runs\n", collision_count, N);
+  return 0;
 }
-}  // namespace ninja
