@@ -39,19 +39,19 @@ Cleaner::Cleaner(State* state,
     status_(0) {
 }
 
-int Cleaner::RemoveFile(const string& path) {
+int Cleaner::RemoveFile(const std::string& path) {
   return disk_interface_->RemoveFile(path);
 }
 
-bool Cleaner::FileExists(const string& path) {
-  string err;
+bool Cleaner::FileExists(const std::string& path) {
+  std::string err;
   TimeStamp mtime = disk_interface_->Stat(path, &err);
   if (mtime == -1)
     Error("%s", err.c_str());
   return mtime > 0;  // Treat Stat() errors as "file does not exist".
 }
 
-void Cleaner::Report(const string& path) {
+void Cleaner::Report(const std::string& path) {
   ++cleaned_files_count_;
   if (IsVerbose()) {
     std::ostringstream buffer;
@@ -60,7 +60,7 @@ void Cleaner::Report(const string& path) {
   }
 }
 
-void Cleaner::Remove(const string& path) {
+void Cleaner::Remove(const std::string& path) {
   if (!IsAlreadyRemoved(path)) {
     removed_.insert(path);
     if (config_.dry_run) {
@@ -76,17 +76,17 @@ void Cleaner::Remove(const string& path) {
   }
 }
 
-bool Cleaner::IsAlreadyRemoved(const string& path) {
-  set<string>::iterator i = removed_.find(path);
+bool Cleaner::IsAlreadyRemoved(const std::string& path) {
+  set<std::string>::iterator i = removed_.find(path);
   return (i != removed_.end());
 }
 
 void Cleaner::RemoveEdgeFiles(Edge* edge) {
-  string depfile = edge->GetUnescapedDepfile();
+  std::string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
     Remove(depfile);
 
-  string rspfile = edge->GetUnescapedRspfile();
+  std::string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
 }
@@ -182,9 +182,9 @@ int Cleaner::CleanTargets(const std::vector<std::string>& targets) {
   PrintHeader();
   LoadDyndeps();
   for (size_t i = 0; i < targets.size(); ++i) {
-    string target_name = targets[i];
+    std::string target_name = targets[i];
     uint64_t slash_bits;
-    string err;
+    std::string err;
     if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
       Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
       status_ = 1;

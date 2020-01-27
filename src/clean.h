@@ -23,8 +23,6 @@
 #include "build.h"
 #include "dyndep.h"
 
-using namespace std;
-
 namespace ninja {
 struct State;
 struct Node;
@@ -77,15 +75,15 @@ struct Cleaner {
  private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
-  int RemoveFile(const string& path);
+  int RemoveFile(const std::string& path);
   /// @returns whether the file @a path exists.
-  bool FileExists(const string& path);
-  void Report(const string& path);
+  bool FileExists(const std::string& path);
+  void Report(const std::string& path);
 
   /// Remove the given @a path file only if it has not been already removed.
-  void Remove(const string& path);
+  void Remove(const std::string& path);
   /// @return whether the given @a path has already been removed.
-  bool IsAlreadyRemoved(const string& path);
+  bool IsAlreadyRemoved(const std::string& path);
   /// Remove the depfile and rspfile for an Edge.
   void RemoveEdgeFiles(Edge* edge);
 
@@ -99,13 +97,13 @@ struct Cleaner {
   /// Load dependencies from dyndep bindings.
   void LoadDyndeps();
 
-  set<Node*> cleaned_;
+  std::set<Node*> cleaned_;
   int cleaned_files_count_;
   const BuildConfig& config_;
   DiskInterface* disk_interface_;
   DyndepLoader dyndep_loader_;
   Logger* logger_;
-  set<string> removed_;
+  std::set<std::string> removed_;
   State* state_;
   int status_;
 };
