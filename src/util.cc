@@ -45,7 +45,7 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
-#elif defined(_AIX)
+#elif defined(_AIX) && !defined(__PASE__)
 #include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
@@ -481,10 +481,17 @@ string StripAnsiEscapeCodes(const string& in) {
 
 int GetProcessorCount() {
 #ifdef _WIN32
-  SYSTEM_INFO info;
-  GetNativeSystemInfo(&info);
-  return info.dwNumberOfProcessors;
+  return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
+#ifdef CPU_COUNT
+  // The number of exposed processors might not represent the actual number of
+  // processors threads can run on. This happens when a CPU set limitation is
+  // active, see https://github.com/ninja-build/ninja/issues/1278
+  cpu_set_t set;
+  if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
+    return CPU_COUNT(&set);
+  }
+#endif
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
@@ -555,6 +562,10 @@ double GetLoadAverage() {
 
   return posix_compatible_load;
 }
+#elif defined(__PASE__)
+double GetLoadAverage() {
+  return -0.0f;
+}
 #elif defined(_AIX)
 double GetLoadAverage() {
   perfstat_cpu_total_t cpu_stats;
@@ -565,7 +576,7 @@ double GetLoadAverage() {
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
 }
-#elif defined(__UCLIBC__)
+#elif defined(__UCLIBC__) || (defined(__BIONIC__) && __ANDROID_API__ < 29)
 double GetLoadAverage() {
   struct sysinfo si;
   if (sysinfo(&si) != 0)
@@ -585,6 +596,12 @@ double GetLoadAverage() {
 #endif // _WIN32
 
 string ElideMiddle(const string& str, size_t width) {
+  switch (width) {
+      case 0: return "";
+      case 1: return ".";
+      case 2: return "..";
+      case 3: return "...";
+  }
   const int kMargin = 3;  // Space for "...".
   string result = str;
   if (result.size() > width) {

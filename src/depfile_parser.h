@@ -21,17 +21,8 @@ using namespace std;
 
 #include "string_piece.h"
 
-enum DepfileDistinctTargetLinesAction {
-  kDepfileDistinctTargetLinesActionWarn,
-  kDepfileDistinctTargetLinesActionError,
-};
-
 struct DepfileParserOptions {
-  DepfileParserOptions()
-      : depfile_distinct_target_lines_action_(
-          kDepfileDistinctTargetLinesActionWarn) {}
-  DepfileDistinctTargetLinesAction
-    depfile_distinct_target_lines_action_;
+  DepfileParserOptions() {}
 };
 
 /// Parser for the dependency information emitted by gcc's -M flags.
@@ -44,7 +35,7 @@ struct DepfileParser {
   /// pointers within it.
   bool Parse(string* content, string* err);
 
-  StringPiece out_;
+  std::vector<StringPiece> outs_;
   vector<StringPiece> ins_;
   DepfileParserOptions options_;
 };

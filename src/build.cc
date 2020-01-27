@@ -47,7 +47,7 @@ struct DryRunCommandRunner : public CommandRunner {
   virtual ~DryRunCommandRunner() {}
 
   // Overridden from CommandRunner:
-  virtual bool CanRunMore();
+  virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
 
@@ -55,7 +55,7 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-bool DryRunCommandRunner::CanRunMore() {
+bool DryRunCommandRunner::CanRunMore() const {
   return true;
 }
 
@@ -96,7 +96,8 @@ void BuildStatus::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void BuildStatus::BuildEdgeStarted(Edge* edge) {
+void BuildStatus::BuildEdgeStarted(const Edge* edge) {
+  assert(running_edges_.find(edge) == running_edges_.end());
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
@@ -138,7 +139,11 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
-    printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    if (printer_.supports_color()) {
+        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+    } else {
+        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+    }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
@@ -171,6 +176,20 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
+}
+
+void BuildStatus::BuildLoadDyndeps() {
+  // The DependencyScan calls EXPLAIN() to print lines explaining why
+  // it considers a portion of the graph to be out of date.  Normally
+  // this is done before the build starts, but our caller is about to
+  // load a dyndep file during the build.  Doing so may generate more
+  // exlanation lines (via fprintf directly to stderr), but in an
+  // interactive console the cursor is currently at the end of a status
+  // line.  Start a new line so that the first explanation does not
+  // append to the status line.  After the explanations are done a
+  // new build status line will appear.
+  if (g_explaining)
+    printer_.PrintOnNewLine("");
 }
 
 void BuildStatus::BuildStarted() {
@@ -271,7 +290,7 @@ string BuildStatus::FormatProgressStatus(
   return out;
 }
 
-void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
+void BuildStatus::PrintStatus(const Edge* edge, EdgeStatus status) {
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
@@ -287,7 +306,11 @@ void BuildStatus::PrintStatus(Edge* edge, EdgeStatus status) {
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
 
-Plan::Plan() : command_edges_(0), wanted_edges_(0) {}
+Plan::Plan(Builder* builder)
+  : builder_(builder)
+  , command_edges_(0)
+  , wanted_edges_(0)
+{}
 
 void Plan::Reset() {
   command_edges_ = 0;
@@ -296,11 +319,12 @@ void Plan::Reset() {
   want_.clear();
 }
 
-bool Plan::AddTarget(Node* node, string* err) {
-  return AddSubTarget(node, NULL, err);
+bool Plan::AddTarget(const Node* node, string* err) {
+  return AddSubTarget(node, NULL, err, NULL);
 }
 
-bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
+bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
+                        set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
     if (node->dirty()) {
@@ -322,27 +346,37 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, string* err) {
     want_.insert(make_pair(edge, kWantNothing));
   Want& want = want_ins.first->second;
 
+  if (dyndep_walk && want == kWantToFinish)
+    return false;  // Don't need to do anything with already-scheduled edge.
+
   // If we do need to build edge and we haven't already marked it as wanted,
   // mark it now.
   if (node->dirty() && want == kWantNothing) {
     want = kWantToStart;
-    ++wanted_edges_;
-    if (edge->AllInputsReady())
+    EdgeWanted(edge);
+    if (!dyndep_walk && edge->AllInputsReady())
       ScheduleWork(want_ins.first);
-    if (!edge->is_phony())
-      ++command_edges_;
   }
+
+  if (dyndep_walk)
+    dyndep_walk->insert(edge);
 
   if (!want_ins.second)
     return true;  // We've already processed the inputs.
 
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!AddSubTarget(*i, node, err) && !err->empty())
+    if (!AddSubTarget(*i, node, err, dyndep_walk) && !err->empty())
       return false;
   }
 
   return true;
+}
+
+void Plan::EdgeWanted(const Edge* edge) {
+  ++wanted_edges_;
+  if (!edge->is_phony())
+    ++command_edges_;
 }
 
 Edge* Plan::FindWork() {
@@ -376,7 +410,7 @@ void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
   }
 }
 
-void Plan::EdgeFinished(Edge* edge, EdgeResult result) {
+bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   map<Edge*, Want>::iterator e = want_.find(edge);
   assert(e != want_.end());
   bool directly_wanted = e->second != kWantNothing;
@@ -388,7 +422,7 @@ void Plan::EdgeFinished(Edge* edge, EdgeResult result) {
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)
-    return;
+    return true;
 
   if (directly_wanted)
     --wanted_edges_;
@@ -398,11 +432,21 @@ void Plan::EdgeFinished(Edge* edge, EdgeResult result) {
   // Check off any nodes we were waiting for with this edge.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    NodeFinished(*o);
+    if (!NodeFinished(*o, err))
+      return false;
   }
+  return true;
 }
 
-void Plan::NodeFinished(Node* node) {
+bool Plan::NodeFinished(Node* node, string* err) {
+  // If this node provides dyndep info, load it now.
+  if (node->dyndep_pending()) {
+    assert(builder_ && "dyndep requires Plan to have a Builder");
+    // Load the now-clean dyndep file.  This will also update the
+    // build plan and schedule any new work that is ready.
+    return builder_->LoadDyndeps(node, err);
+  }
+
   // See if we we want any edges from this node.
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
        oe != node->out_edges().end(); ++oe) {
@@ -411,16 +455,25 @@ void Plan::NodeFinished(Node* node) {
       continue;
 
     // See if the edge is now ready.
-    if ((*oe)->AllInputsReady()) {
-      if (want_e->second != kWantNothing) {
-        ScheduleWork(want_e);
-      } else {
-        // We do not need to build this edge, but we might need to build one of
-        // its dependents.
-        EdgeFinished(*oe, kEdgeSucceeded);
-      }
+    if (!EdgeMaybeReady(want_e, err))
+      return false;
+  }
+  return true;
+}
+
+bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
+  Edge* edge = want_e->first;
+  if (edge->AllInputsReady()) {
+    if (want_e->second != kWantNothing) {
+      ScheduleWork(want_e);
+    } else {
+      // We do not need to build this edge, but we might need to build one of
+      // its dependents.
+      if (!EdgeFinished(edge, kEdgeSucceeded, err))
+        return false;
     }
   }
+  return true;
 }
 
 bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
@@ -480,9 +533,131 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   return true;
 }
 
-void Plan::Dump() {
+bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
+                         const DyndepFile& ddf, string* err) {
+  // Recompute the dirty state of all our direct and indirect dependents now
+  // that our dyndep information has been loaded.
+  if (!RefreshDyndepDependents(scan, node, err))
+    return false;
+
+  // We loaded dyndep information for those out_edges of the dyndep node that
+  // specify the node in a dyndep binding, but they may not be in the plan.
+  // Starting with those already in the plan, walk newly-reachable portion
+  // of the graph through the dyndep-discovered dependencies.
+
+  // Find edges in the the build plan for which we have new dyndep info.
+  std::vector<DyndepFile::const_iterator> dyndep_roots;
+  for (DyndepFile::const_iterator oe = ddf.begin(); oe != ddf.end(); ++oe) {
+    Edge* edge = oe->first;
+
+    // If the edge outputs are ready we do not need to consider it here.
+    if (edge->outputs_ready())
+      continue;
+
+    map<Edge*, Want>::iterator want_e = want_.find(edge);
+
+    // If the edge has not been encountered before then nothing already in the
+    // plan depends on it so we do not need to consider the edge yet either.
+    if (want_e == want_.end())
+      continue;
+
+    // This edge is already in the plan so queue it for the walk.
+    dyndep_roots.push_back(oe);
+  }
+
+  // Walk dyndep-discovered portion of the graph to add it to the build plan.
+  std::set<Edge*> dyndep_walk;
+  for (std::vector<DyndepFile::const_iterator>::iterator
+       oei = dyndep_roots.begin(); oei != dyndep_roots.end(); ++oei) {
+    DyndepFile::const_iterator oe = *oei;
+    for (vector<Node*>::const_iterator i = oe->second.implicit_inputs_.begin();
+         i != oe->second.implicit_inputs_.end(); ++i) {
+      if (!AddSubTarget(*i, oe->first->outputs_[0], err, &dyndep_walk) &&
+          !err->empty())
+        return false;
+    }
+  }
+
+  // Add out edges from this node that are in the plan (just as
+  // Plan::NodeFinished would have without taking the dyndep code path).
+  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
+       oe != node->out_edges().end(); ++oe) {
+    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+    if (want_e == want_.end())
+      continue;
+    dyndep_walk.insert(want_e->first);
+  }
+
+  // See if any encountered edges are now ready.
+  for (set<Edge*>::iterator wi = dyndep_walk.begin();
+       wi != dyndep_walk.end(); ++wi) {
+    map<Edge*, Want>::iterator want_e = want_.find(*wi);
+    if (want_e == want_.end())
+      continue;
+    if (!EdgeMaybeReady(want_e, err))
+      return false;
+  }
+
+  return true;
+}
+
+bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
+                                   string* err) {
+  // Collect the transitive closure of dependents and mark their edges
+  // as not yet visited by RecomputeDirty.
+  set<Node*> dependents;
+  UnmarkDependents(node, &dependents);
+
+  // Update the dirty state of all dependents and check if their edges
+  // have become wanted.
+  for (set<Node*>::iterator i = dependents.begin();
+       i != dependents.end(); ++i) {
+    Node* n = *i;
+
+    // Check if this dependent node is now dirty.  Also checks for new cycles.
+    if (!scan->RecomputeDirty(n, err))
+      return false;
+    if (!n->dirty())
+      continue;
+
+    // This edge was encountered before.  However, we may not have wanted to
+    // build it if the outputs were not known to be dirty.  With dyndep
+    // information an output is now known to be dirty, so we want the edge.
+    Edge* edge = n->in_edge();
+    assert(edge && !edge->outputs_ready());
+    map<Edge*, Want>::iterator want_e = want_.find(edge);
+    assert(want_e != want_.end());
+    if (want_e->second == kWantNothing) {
+      want_e->second = kWantToStart;
+      EdgeWanted(edge);
+    }
+  }
+  return true;
+}
+
+void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
+  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
+       oe != node->out_edges().end(); ++oe) {
+    Edge* edge = *oe;
+
+    map<Edge*, Want>::iterator want_e = want_.find(edge);
+    if (want_e == want_.end())
+      continue;
+
+    if (edge->mark_ != Edge::VisitNone) {
+      edge->mark_ = Edge::VisitNone;
+      for (vector<Node*>::iterator o = edge->outputs_.begin();
+           o != edge->outputs_.end(); ++o) {
+        if (dependents->insert(*o).second)
+          UnmarkDependents(*o, dependents);
+      }
+    }
+  }
+}
+
+void Plan::Dump() const {
   printf("pending: %d\n", (int)want_.size());
-  for (map<Edge*, Want>::iterator e = want_.begin(); e != want_.end(); ++e) {
+  for (map<Edge*, Want>::const_iterator e = want_.begin(); e != want_.end(); ++e) {
     if (e->second != kWantNothing)
       printf("want ");
     e->first->Dump();
@@ -493,7 +668,7 @@ void Plan::Dump() {
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
   virtual ~RealCommandRunner() {}
-  virtual bool CanRunMore();
+  virtual bool CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
@@ -501,12 +676,12 @@ struct RealCommandRunner : public CommandRunner {
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
-  map<Subprocess*, Edge*> subproc_to_edge_;
+  map<const Subprocess*, Edge*> subproc_to_edge_;
 };
 
 vector<Edge*> RealCommandRunner::GetActiveEdges() {
   vector<Edge*> edges;
-  for (map<Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
+  for (map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
        e != subproc_to_edge_.end(); ++e)
     edges.push_back(e->second);
   return edges;
@@ -516,7 +691,7 @@ void RealCommandRunner::Abort() {
   subprocs_.Clear();
 }
 
-bool RealCommandRunner::CanRunMore() {
+bool RealCommandRunner::CanRunMore() const {
   size_t subproc_number =
       subprocs_.running_.size() + subprocs_.finished_.size();
   return (int)subproc_number < config_.parallelism
@@ -545,7 +720,7 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   result->status = subproc->Finish();
   result->output = subproc->GetOutput();
 
-  map<Subprocess*, Edge*>::iterator e = subproc_to_edge_.find(subproc);
+  map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.find(subproc);
   result->edge = e->second;
   subproc_to_edge_.erase(e);
 
@@ -556,7 +731,8 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 Builder::Builder(State* state, const BuildConfig& config,
                  BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface)
-    : state_(state), config_(config), disk_interface_(disk_interface),
+    : state_(state), config_(config),
+      plan_(this), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options) {
   status_ = new BuildStatus(config);
@@ -660,7 +836,11 @@ bool Builder::Build(string* err) {
         }
 
         if (edge->is_phony()) {
-          plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
+          if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
+            Cleanup();
+            status_->BuildFinished();
+            return false;
+          }
         } else {
           ++pending_commands;
         }
@@ -780,8 +960,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
-    plan_.EdgeFinished(edge, Plan::kEdgeFailed);
-    return true;
+    return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
   }
 
   // Restat the edge outputs
@@ -837,7 +1016,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  plan_.EdgeFinished(edge, Plan::kEdgeSucceeded);
+  if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err))
+    return false;
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();
@@ -853,14 +1033,16 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   }
 
   if (!deps_type.empty() && !config_.dry_run) {
-    assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
-    Node* out = edge->outputs_[0];
-    TimeStamp deps_mtime = disk_interface_->Stat(out->path(), err);
-    if (deps_mtime == -1)
-      return false;
-    if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
-      *err = string("Error writing to deps log: ") + strerror(errno);
-      return false;
+    assert(edge->outputs_.size() >= 1 && "should have been rejected by parser");
+    for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
+         o != edge->outputs_.end(); ++o) {
+      TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
+      if (deps_mtime == -1)
+        return false;
+      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
+        *err = std::string("Error writing to deps log: ") + strerror(errno);
+        return false;
+      }
     }
   }
   return true;
@@ -931,6 +1113,24 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   } else {
     Fatal("unknown deps type '%s'", deps_type.c_str());
   }
+
+  return true;
+}
+
+bool Builder::LoadDyndeps(Node* node, string* err) {
+  status_->BuildLoadDyndeps();
+
+  // Load the dyndep information provided by this node.
+  DyndepFile ddf;
+  if (!scan_.LoadDyndeps(node, &ddf, err))
+    return false;
+
+  // Update the build plan to account for dyndep modifications to the graph.
+  if (!plan_.DyndepsLoaded(&scan_, node, ddf, err))
+    return false;
+
+  // New command edges may have been added to the plan.
+  status_->PlanHasTotalEdges(plan_.command_edge_count());
 
   return true;
 }

@@ -32,6 +32,7 @@
 
 struct BuildLog;
 struct BuildStatus;
+struct Builder;
 struct DiskInterface;
 struct Edge;
 struct Node;
@@ -40,12 +41,12 @@ struct State;
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
 struct Plan {
-  Plan();
+  Plan(Builder* builder = NULL);
 
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
   /// fill in |err| with an error message if there's a problem.
-  bool AddTarget(Node* node, string* err);
+  bool AddTarget(const Node* node, string* err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns NULL if there's no work to do.
@@ -55,7 +56,7 @@ struct Plan {
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
   /// Dumps the current state of the plan.
-  void Dump();
+  void Dump() const;
 
   enum EdgeResult {
     kEdgeFailed,
@@ -63,7 +64,10 @@ struct Plan {
   };
 
   /// Mark an edge as done building (whether it succeeded or failed).
-  void EdgeFinished(Edge* edge, EdgeResult result);
+  /// If any of the edge's outputs are dyndep bindings of their dependents,
+  /// this loads dynamic dependencies from the nodes' paths.
+  /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
+  bool EdgeFinished(Edge* edge, EdgeResult result, string* err);
 
   /// Clean the given node during the build.
   /// Return false on error.
@@ -75,9 +79,21 @@ struct Plan {
   /// Reset state.  Clears want and ready sets.
   void Reset();
 
+  /// Update the build plan to account for modifications made to the graph
+  /// by information loaded from a dyndep file.
+  bool DyndepsLoaded(DependencyScan* scan, const Node* node,
+                     const DyndepFile& ddf, string* err);
 private:
-  bool AddSubTarget(Node* node, Node* dependent, string* err);
-  void NodeFinished(Node* node);
+  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, string* err);
+  void UnmarkDependents(const Node* node, set<Node*>* dependents);
+  bool AddSubTarget(const Node* node, const Node* dependent, string* err,
+                    set<Edge*>* dyndep_walk);
+
+  /// Update plan with knowledge that the given node is up to date.
+  /// If the node is a dyndep binding on any of its dependents, this
+  /// loads dynamic dependencies from the node's path.
+  /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
+  bool NodeFinished(Node* node, string* err);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -92,6 +108,9 @@ private:
     kWantToFinish
   };
 
+  void EdgeWanted(const Edge* edge);
+  bool EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err);
+
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
@@ -105,6 +124,8 @@ private:
 
   set<Edge*> ready_;
 
+  Builder* builder_;
+
   /// Total number of edges that have commands (not phony).
   int command_edges_;
 
@@ -117,7 +138,7 @@ private:
 /// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
-  virtual bool CanRunMore() = 0;
+  virtual bool CanRunMore() const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
@@ -189,6 +210,9 @@ struct Builder {
     scan_.set_build_log(log);
   }
 
+  /// Load the dyndep information provided by the given node.
+  bool LoadDyndeps(Node* node, string* err);
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
@@ -216,9 +240,10 @@ struct Builder {
 struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
-  void BuildEdgeStarted(Edge* edge);
+  void BuildEdgeStarted(const Edge* edge);
   void BuildEdgeFinished(Edge* edge, bool success, const string& output,
                          int* start_time, int* end_time);
+  void BuildLoadDyndeps();
   void BuildStarted();
   void BuildFinished();
 
@@ -236,7 +261,7 @@ struct BuildStatus {
                               EdgeStatus status) const;
 
  private:
-  void PrintStatus(Edge* edge, EdgeStatus status);
+  void PrintStatus(const Edge* edge, EdgeStatus status);
 
   const BuildConfig& config_;
 
@@ -246,7 +271,7 @@ struct BuildStatus {
   int started_edges_, finished_edges_, total_edges_;
 
   /// Map of running edge to time the edge started running.
-  typedef map<Edge*, int> RunningEdgeMap;
+  typedef map<const Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Prints progress output.

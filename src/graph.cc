@@ -14,6 +14,7 @@
 
 #include "graph.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <stdio.h>
 
@@ -68,6 +69,31 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.
+    // If there is a pending dyndep file, visit it now:
+    // * If the dyndep file is ready then load it now to get any
+    //   additional inputs and outputs for this and other edges.
+    //   Once the dyndep file is loaded it will no longer be pending
+    //   if any other edges encounter it, but they will already have
+    //   been updated.
+    // * If the dyndep file is not ready then since is known to be an
+    //   input to this edge, the edge will not be considered ready below.
+    //   Later during the build the dyndep file will become ready and be
+    //   loaded to update this edge before it can possibly be scheduled.
+    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+      if (!RecomputeDirty(edge->dyndep_, stack, err))
+        return false;
+
+      if (!edge->dyndep_->in_edge() ||
+          edge->dyndep_->in_edge()->outputs_ready()) {
+        // The dyndep file is ready, so load it now.
+        if (!LoadDyndeps(edge->dyndep_, err))
+          return false;
+      }
+    }
+  }
+
   // Load output mtimes so we can compare them to the most recent input below.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
@@ -75,12 +101,16 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
       return false;
   }
 
-  if (!dep_loader_.LoadDeps(edge, err)) {
-    if (!err->empty())
-      return false;
-    // Failed to load dependency info: rebuild to regenerate it.
-    // LoadDeps() did EXPLAIN() already, no need to do it here.
-    dirty = edge->deps_missing_ = true;
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.  Load discovered deps.
+    edge->deps_loaded_ = true;
+    if (!dep_loader_.LoadDeps(edge, err)) {
+      if (!err->empty())
+        return false;
+      // Failed to load dependency info: rebuild to regenerate it.
+      // LoadDeps() did EXPLAIN() already, no need to do it here.
+      dirty = edge->deps_missing_ = true;
+    }
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
@@ -193,8 +223,8 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
   return true;
 }
 
-bool DependencyScan::RecomputeOutputDirty(Edge* edge,
-                                          Node* most_recent_input,
+bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
+                                          const Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -272,6 +302,15 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
   return false;
 }
 
+bool DependencyScan::LoadDyndeps(Node* node, string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, err);
+}
+
+bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
+                                 string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, ddf, err);
+}
+
 bool Edge::AllInputsReady() const {
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end(); ++i) {
@@ -285,19 +324,17 @@ bool Edge::AllInputsReady() const {
 struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
-  EdgeEnv(Edge* edge, EscapeKind escape)
+  EdgeEnv(const Edge* const edge, const EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
-  string MakePathList(vector<Node*>::iterator begin,
-                      vector<Node*>::iterator end,
-                      char sep);
+  std::string MakePathList(const Node* const* span, size_t size, char sep) const;
 
  private:
   vector<string> lookups_;
-  Edge* edge_;
+  const Edge* const edge_;
   EscapeKind escape_in_out_;
   bool recursive_;
 };
@@ -306,14 +343,15 @@ string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
-    return MakePathList(edge_->inputs_.begin(),
-                        edge_->inputs_.begin() + explicit_deps_count,
+#if __cplusplus >= 201103L
+    return MakePathList(edge_->inputs_.data(), explicit_deps_count,
+#else
+    return MakePathList(&edge_->inputs_[0], explicit_deps_count,
+#endif
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
     int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
-    return MakePathList(edge_->outputs_.begin(),
-                        edge_->outputs_.begin() + explicit_outs_count,
-                        ' ');
+    return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
   }
 
   if (recursive_) {
@@ -338,16 +376,15 @@ string EdgeEnv::LookupVariable(const string& var) {
   return edge_->env_->LookupWithFallback(var, eval, this);
 }
 
-string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
-                             vector<Node*>::iterator end,
-                             char sep) {
+std::string EdgeEnv::MakePathList(const Node* const* const span,
+                                  const size_t size, const char sep) const {
   string result;
-  for (vector<Node*>::iterator i = begin; i != end; ++i) {
+  for (const Node* const* i = span; i != span + size; ++i) {
     if (!result.empty())
       result.push_back(sep);
     const string& path = (*i)->PathDecanonicalized();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
@@ -359,7 +396,7 @@ string EdgeEnv::MakePathList(vector<Node*>::iterator begin,
   return result;
 }
 
-string Edge::EvaluateCommand(bool incl_rsp_file) {
+std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   string command = GetBinding("command");
   if (incl_rsp_file) {
     string rspfile_content = GetBinding("rspfile_content");
@@ -369,21 +406,26 @@ string Edge::EvaluateCommand(bool incl_rsp_file) {
   return command;
 }
 
-string Edge::GetBinding(const string& key) {
+std::string Edge::GetBinding(const std::string& key) const {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);
 }
 
-bool Edge::GetBindingBool(const string& key) {
+bool Edge::GetBindingBool(const string& key) const {
   return !GetBinding(key).empty();
 }
 
-string Edge::GetUnescapedDepfile() {
+string Edge::GetUnescapedDepfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("depfile");
 }
 
-string Edge::GetUnescapedRspfile() {
+string Edge::GetUnescapedDyndep() const {
+  EdgeEnv env(this, EdgeEnv::kDoNotEscape);
+  return env.LookupVariable("dyndep");
+}
+
+std::string Edge::GetUnescapedRspfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("rspfile");
 }
@@ -470,6 +512,17 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   return true;
 }
 
+struct matches {
+  matches(std::vector<StringPiece>::iterator i) : i_(i) {}
+
+  bool operator()(const Node* node) const {
+    StringPiece opath = StringPiece(node->path());
+    return *i_ == opath;
+  }
+
+  std::vector<StringPiece>::iterator i_;
+};
+
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                                     string* err) {
   METRIC_RECORD("depfile load");
@@ -500,9 +553,15 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
 
+  if (depfile.outs_.empty()) {
+    *err = path + ": no outputs declared";
+    return false;
+  }
+
   uint64_t unused;
-  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, &unused, err)) {
+  std::vector<StringPiece>::iterator primary_out = depfile.outs_.begin();
+  if (!CanonicalizePath(const_cast<char*>(primary_out->str_),
+                        &primary_out->len_, &unused, err)) {
     *err = path + ": " + *err;
     return false;
   }
@@ -511,10 +570,20 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
-  if (opath != depfile.out_) {
+  if (opath != *primary_out) {
     EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
-            first_output->path().c_str(), depfile.out_.AsString().c_str());
+            first_output->path().c_str(), primary_out->AsString().c_str());
     return false;
+  }
+
+  // Ensure that all mentioned outputs are outputs of the edge.
+  for (std::vector<StringPiece>::iterator o = depfile.outs_.begin();
+       o != depfile.outs_.end(); ++o) {
+    matches m(o);
+    if (std::find_if(edge->outputs_.begin(), edge->outputs_.end(), m) == edge->outputs_.end()) {
+      *err = path + ": depfile mentions '" + o->AsString() + "' as an output, but no such output was declared";
+      return false;
+    }
   }
 
   // Preallocate space in edge->inputs_ to be filled in below.
@@ -541,7 +610,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
-  DepsLog::Deps* deps = deps_log_->GetDeps(output);
+  DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
     EXPLAIN("deps for '%s' are missing", output->path().c_str());
     return false;

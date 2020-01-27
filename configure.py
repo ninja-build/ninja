@@ -60,6 +60,8 @@ class Platform(object):
             self._platform = 'netbsd'
         elif self._platform.startswith('aix'):
             self._platform = 'aix'
+        elif self._platform.startswith('os400'):
+            self._platform = 'os400'
         elif self._platform.startswith('dragonfly'):
             self._platform = 'dragonfly'
 
@@ -96,6 +98,9 @@ class Platform(object):
 
     def is_aix(self):
         return self._platform == 'aix'
+
+    def is_os400_pase(self):
+        return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
 
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
@@ -351,7 +356,7 @@ else:
     except:
         pass
     if platform.is_mingw():
-        cflags += ['-D_WIN32_WINNT=0x0501']
+        cflags += ['-D_WIN32_WINNT=0x0601', '-D__USE_MINGW_ANSI_STDIO=1']
     ldflags = ['-L$builddir']
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
@@ -432,7 +437,7 @@ if host.is_msvc():
            description='LIB $out')
 elif host.is_mingw():
     n.rule('ar',
-           command='cmd /c $ar cqs $out.tmp $in && move /Y $out.tmp $out',
+           command='$ar crs $out $in',
            description='AR $out')
 else:
     n.rule('ar',
@@ -496,6 +501,8 @@ for name in ['build',
              'depfile_parser',
              'deps_log',
              'disk_interface',
+             'dyndep',
+             'dyndep_parser',
              'edit_distance',
              'eval_env',
              'graph',
@@ -504,11 +511,12 @@ for name in ['build',
              'line_printer',
              'manifest_parser',
              'metrics',
+             'parser',
              'state',
              'string_piece_util',
              'util',
              'version']:
-    objs += cxx(name, variables=cxxvariables) 
+    objs += cxx(name, variables=cxxvariables)
 if platform.is_windows():
     for name in ['subprocess-win32',
                  'includes_normalize-win32',
@@ -533,7 +541,7 @@ if platform.is_msvc():
 else:
     libs.append('-lninja')
 
-if platform.is_aix():
+if platform.is_aix() and not platform.is_os400_pase():
     libs.append('-lperfstat')
 
 all_targets = []
@@ -563,6 +571,7 @@ for name in ['build_log_test',
              'clparser_test',
              'depfile_parser_test',
              'deps_log_test',
+             'dyndep_parser_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',

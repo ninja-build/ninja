@@ -48,7 +48,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
     if (!Recompact(path, err))
       return false;
   }
-  
+
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
     *err = strerror(errno);
@@ -167,15 +167,15 @@ void DepsLog::Close() {
   file_ = NULL;
 }
 
-bool DepsLog::Load(const string& path, State* state, string* err) {
+LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
-      return true;
+      return LOAD_NOT_FOUND;
     *err = strerror(errno);
-    return false;
+    return LOAD_ERROR;
   }
 
   bool valid_header = true;
@@ -196,7 +196,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     unlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
-    return true;
+    return LOAD_SUCCESS;
   }
 
   long offset;
@@ -284,12 +284,12 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     fclose(f);
 
     if (!Truncate(path, offset, err))
-      return false;
+      return LOAD_ERROR;
 
     // The truncate succeeded; we'll just report the load error as a
     // warning because the build can proceed.
     *err += "; recovering";
-    return true;
+    return LOAD_SUCCESS;
   }
 
   fclose(f);
@@ -302,7 +302,7 @@ bool DepsLog::Load(const string& path, State* state, string* err) {
     needs_recompaction_ = true;
   }
 
-  return true;
+  return LOAD_SUCCESS;
 }
 
 DepsLog::Deps* DepsLog::GetDeps(Node* node) {
@@ -331,7 +331,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   // will refer to the ordering in new_log, not in the current log.
   for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
-  
+
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];

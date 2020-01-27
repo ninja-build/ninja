@@ -1,7 +1,7 @@
 Notes to myself on all the steps to make for a Ninja release.
 
 Push new release branch:
-1. Run afl-fuzz for a day or so (see HACKING.md) and run ninja_test
+1. Run afl-fuzz for a day or so and run ninja_test
 2. Consider sending a heads-up to the ninja-build mailing list first
 3. Make sure branches 'master' and 'release' are synced up locally
 4. Update src/version.cc with new version (with ".git"), then
