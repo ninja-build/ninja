@@ -912,7 +912,7 @@ bool Execution::RebuildManifest(const char* input_file, std::string* err) {
   if (!node->dirty()) {
     // Reset the state to prevent problems like
     // https://github.com/ninja-build/ninja/issues/874
-    state_->Reset();
+    state_->ClearPathsAndEdges();
     return false;
   }
 

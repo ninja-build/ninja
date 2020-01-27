@@ -208,7 +208,7 @@ vector<Node*> State::DefaultNodes(string* err) const {
   return defaults_.empty() ? RootNodes(err) : defaults_;
 }
 
-void State::Reset() {
+void State::ClearPathsAndEdges() {
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
     i->second->ResetState();
   for (vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {

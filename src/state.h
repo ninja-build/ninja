@@ -118,9 +118,9 @@ struct State  : public BuildLogUser {
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, string* error);
 
-  /// Reset state.  Keeps all nodes and edges, but restores them to the
+  /// Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
-  void Reset();
+  void ClearPathsAndEdges();
 
   /// Dump the nodes and Pools (useful for debugging).
   void Dump(Logger* logger);

@@ -746,7 +746,7 @@ TEST_F(BuildTest, TwoStep) {
   // Modifying in2 requires rebuilding one intermediate file
   // and the final file.
   fs_.Create("in2", "");
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -827,7 +827,7 @@ TEST_F(BuildTest, Chain) {
 
   err.clear();
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -837,7 +837,7 @@ TEST_F(BuildTest, Chain) {
   fs_.Create("c3", "");
   err.clear();
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
@@ -995,7 +995,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   fs_.Create("blah.h", "");
   fs_.Create("bar.h", "");
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -1009,7 +1009,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // order only dep dirty, no rebuild.
   fs_.Create("otherfile", "");
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -1017,7 +1017,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   // implicit dep missing, expect rebuild.
   fs_.RemoveFile("bar.h");
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -1043,7 +1043,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 
   // all clean, no rebuild.
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -1051,7 +1051,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   // order-only dep missing, build it only.
   fs_.RemoveFile("oo.h");
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -1063,7 +1063,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   // order-only dep dirty, build it only.
   fs_.Create("oo.h.in", "");
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
@@ -1278,7 +1278,7 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
 
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.Build(&err));
@@ -1302,7 +1302,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   builder_.Cleanup();
   builder_.plan_.Reset();
 
@@ -1316,7 +1316,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   builder_.Cleanup();
   builder_.plan_.Reset();
 
@@ -1348,7 +1348,7 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
 
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
 
   fs_.Tick();
 
@@ -1392,7 +1392,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   EXPECT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ(3u, builder_.plan_.command_edge_count());
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
 
   fs_.Tick();
 
@@ -1407,7 +1407,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   // If we run again, it should be a no-op, because the build log has recorded
   // that we've already built out2 with an input timestamp of 2 (from out1).
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
@@ -1419,7 +1419,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   // The build log entry should not, however, prevent us from rebuilding out2
   // if out1 changes.
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1452,7 +1452,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
 
   fs_.Tick();
   fs_.Create("in", "");
@@ -1499,7 +1499,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
   // "true" rule should not lead to the "touch" edge writing out2 and out3 being
   // cleard.
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out4", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1549,7 +1549,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
 
   // Trigger the build again - only out1 gets built
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1713,7 +1713,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
 
   // 2. Build again (no change)
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
   ASSERT_TRUE(builder_.AlreadyUpToDate());
@@ -1728,7 +1728,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   log_entry->command_hash++;  // Change the command hash to something else.
   // Now expect the target to be rebuilt
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -1802,7 +1802,7 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
   // out2 should still be out of date though, because its input is dirty.
   err.clear();
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
@@ -2846,7 +2846,7 @@ TEST_F(BuildWithLogTest, DyndepBuildDiscoverRestat) {
   EXPECT_EQ("cat out1 > out2", command_runner_.commands_ran_[2]);
 
   command_runner_.commands_ran_.clear();
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   fs_.Tick();
   fs_.Create("in", "");
 

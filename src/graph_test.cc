@@ -264,7 +264,7 @@ TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_EQ("", err);
   EXPECT_FALSE(GetNode("out.o")->dirty());
 
-  state_.Reset();
+  state_.ClearPathsAndEdges();
   fs_.RemoveFile("out.o.d");
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
   ASSERT_EQ("", err);
