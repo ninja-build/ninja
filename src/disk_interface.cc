@@ -103,6 +103,16 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   WIN32_FIND_DATAA ffd;
   HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
                                         FindExSearchNameMatch, NULL, 0);
+  
+   //get path for editing 
+  string __dir = (dir + "\\*");
+	
+	//correct this form  /libpath:c:/sdk/openssl-1.0.2d-vs2015 to c:/sdk/openssl-1.0.2d-vs2015
+  size_t pos = __dir.find_first_of(":");
+  if(pos>0){
+	__dir = __dir.substr(pos+1,__dir.length());
+  }
+  
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
