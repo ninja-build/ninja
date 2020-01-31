@@ -28,9 +28,8 @@
 #include "ninja/logger.h"
 #include "test.h"
 
-namespace ninja {
 struct RegisteredTest {
-  testing::Test* (*factory)();
+  ninja::testing::Test* (*factory)();
   const char *name;
   bool should_run;
 };
@@ -39,17 +38,17 @@ struct RegisteredTest {
 // the vector constructor isn't guaranteed to run before all of the
 // RegisterTest() calls.
 static RegisteredTest tests[10000];
-testing::Test* g_current_test;
+ninja::testing::Test* ninja::g_current_test;
+static ninja::LoggerBasic logger;
 static int ntests;
-static LoggerBasic logger;
 
-void RegisterTest(testing::Test* (*factory)(), const char* name) {
+void ninja::RegisterTest(ninja::testing::Test* (*factory)(), const char* name) {
   tests[ntests].factory = factory;
   tests[ntests++].name = name;
 }
 
 namespace {
-string StringPrintf(const char* format, ...) {
+std::string StringPrintf(const char* format, ...) {
   const int N = 1024;
   char buf[N];
 
@@ -117,7 +116,7 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 
 }  // namespace
 
-bool testing::Test::Check(bool condition, const char* file, int line,
+bool ninja::testing::Test::Check(bool condition, const char* file, int line,
                           const char* error) {
   if (!condition) {
     logger.PrintStatusOnNewLine(
@@ -126,12 +125,7 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   }
   return condition;
 }
-}  // namespace ninja
 
-// Use namespace ninja for now until we can carve out all
-// of the logic that should be internal to the ninja library
-// from the logic that should demonstrate how to use the library.
-using namespace ninja;
 int main(int argc, char **argv) {
   int tests_started = 0;
 
@@ -149,9 +143,9 @@ int main(int argc, char **argv) {
     if (!tests[i].should_run) continue;
 
     ++tests_started;
-    testing::Test* test = tests[i].factory();
+    ninja::testing::Test* test = tests[i].factory();
     logger.PrintStatusLine(
-        Logger::StatusLineType::ELIDE,
+        ninja::Logger::StatusLineType::ELIDE,
         StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name)
     );
     test->SetUp();

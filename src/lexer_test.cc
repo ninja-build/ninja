@@ -21,7 +21,7 @@ namespace ninja {
 TEST(Lexer, ReadVarValue) {
   Lexer lexer("plain text $var $VaR ${x}\n");
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[plain text ][$var][ ][$VaR][ ][$x]",
@@ -31,7 +31,7 @@ TEST(Lexer, ReadVarValue) {
 TEST(Lexer, ReadEvalStringEscapes) {
   Lexer lexer("$ $$ab c$: $\ncde\n");
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[ $ab c: cde]",
@@ -40,7 +40,7 @@ TEST(Lexer, ReadEvalStringEscapes) {
 
 TEST(Lexer, ReadIdent) {
   Lexer lexer("foo baR baz_123 foo-bar");
-  string ident;
+  std::string ident;
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo", ident);
   EXPECT_TRUE(lexer.ReadIdent(&ident));
@@ -55,12 +55,12 @@ TEST(Lexer, ReadIdentCurlies) {
   // Verify that ReadIdent includes dots in the name,
   // but in an expansion $bar.dots stops at the dot.
   Lexer lexer("foo.dots $bar.dots ${bar.dots}\n");
-  string ident;
+  std::string ident;
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo.dots", ident);
 
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[$bar][.dots ][$bar.dots]",
@@ -70,7 +70,7 @@ TEST(Lexer, ReadIdentCurlies) {
 TEST(Lexer, Error) {
   Lexer lexer("foo$\nbad $");
   EvalString eval;
-  string err;
+  std::string err;
   ASSERT_FALSE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
             "bad $\n"

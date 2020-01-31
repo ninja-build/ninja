@@ -48,7 +48,7 @@ TEST_F(BuildLogTest, WriteRead) {
 "build mid: cat in\n");
 
   BuildLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
@@ -76,7 +76,7 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   const size_t kVersionPos = 13;  // Points at 'X'.
 
   BuildLog log;
-  string contents, err;
+  std::string contents, err;
 
   EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
@@ -108,7 +108,7 @@ TEST_F(BuildLogTest, DoubleEntry) {
   fprintf(f, "3\t4\t5\tout\tcommand def\n");
   fclose(f);
 
-  string err;
+  std::string err;
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -125,7 +125,7 @@ TEST_F(BuildLogTest, Truncate) {
 
   {
     BuildLog log1;
-    string err;
+    std::string err;
     EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
     ASSERT_EQ("", err);
     log1.RecordCommand(state_.edges_[0], 15, 18);
@@ -141,7 +141,7 @@ TEST_F(BuildLogTest, Truncate) {
   // crash when parsing.
   for (off_t size = statbuf.st_size; size > 0; --size) {
     BuildLog log2;
-    string err;
+    std::string err;
     EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
     ASSERT_EQ("", err);
     log2.RecordCommand(state_.edges_[0], 15, 18);
@@ -162,10 +162,10 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
   fprintf(f, "123 456 0 out command\n");
   fclose(f);
 
-  string err;
+  std::string err;
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
-  ASSERT_NE(err.find("version"), string::npos);
+  ASSERT_NE(err.find("version"), std::string::npos);
 }
 
 TEST_F(BuildLogTest, SpacesInOutputV4) {
@@ -174,7 +174,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   fprintf(f, "123\t456\t456\tout with space\tcommand\n");
   fclose(f);
 
-  string err;
+  std::string err;
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -198,7 +198,7 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   fprintf(f, "456\t789\t789\tout2\tcommand2\n");
   fclose(f);
 
-  string err;
+  std::string err;
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -230,7 +230,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   fprintf(f, "456\t789\t789\tout2\tcommand2\n");
   fclose(f);
 
-  string err;
+  std::string err;
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
@@ -276,7 +276,7 @@ TEST_F(BuildLogRecompactTest, Recompact) {
 "build out2: cat in\n");
 
   BuildLog log1;
-  string err;
+  std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
   // Record the same edge several times, to trigger recompaction
