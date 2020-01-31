@@ -28,38 +28,7 @@
 #include "ninja/logger.h"
 #include "test.h"
 
-struct RegisteredTest {
-  ninja::testing::Test* (*factory)();
-  const char *name;
-  bool should_run;
-};
-// This can't be a vector because tests call RegisterTest from static
-// initializers and the order static initializers run it isn't specified. So
-// the vector constructor isn't guaranteed to run before all of the
-// RegisterTest() calls.
-static RegisteredTest tests[10000];
-ninja::testing::Test* ninja::g_current_test;
-static ninja::LoggerBasic logger;
-static int ntests;
-
-void ninja::RegisterTest(ninja::testing::Test* (*factory)(), const char* name) {
-  tests[ntests].factory = factory;
-  tests[ntests++].name = name;
-}
-
 namespace {
-std::string StringPrintf(const char* format, ...) {
-  const int N = 1024;
-  char buf[N];
-
-  va_list ap;
-  va_start(ap, format);
-  vsnprintf(buf, N, format, ap);
-  va_end(ap);
-
-  return buf;
-}
-
 void Usage() {
   fprintf(stderr,
 "usage: ninja_tests [options]\n"
@@ -116,16 +85,6 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 
 }  // namespace
 
-bool ninja::testing::Test::Check(bool condition, const char* file, int line,
-                          const char* error) {
-  if (!condition) {
-    logger.PrintStatusOnNewLine(
-        StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
-    failed_ = true;
-  }
-  return condition;
-}
-
 int main(int argc, char **argv) {
   int tests_started = 0;
 
@@ -134,19 +93,25 @@ int main(int argc, char **argv) {
     return 1;
 
   int nactivetests = 0;
-  for (int i = 0; i < ntests; i++)
-    if ((tests[i].should_run = TestMatchesFilter(tests[i].name, test_filter)))
+  int ntests = ninja::testing::GetRegisteredTestCount();
+  ninja::testing::RegisteredTest* registered_test = NULL;
+  for (int i = 0; i < ntests; i++) {
+    registered_test = ninja::testing::GetRegisteredTest(i);
+    if ((registered_test->should_run = TestMatchesFilter(registered_test->name, test_filter)))
       ++nactivetests;
+  }
 
   bool passed = true;
+  ninja::LoggerBasic logger;
   for (int i = 0; i < ntests; i++) {
-    if (!tests[i].should_run) continue;
+    registered_test = ninja::testing::GetRegisteredTest(i);
+    if (!registered_test->should_run) continue;
 
     ++tests_started;
-    ninja::testing::Test* test = tests[i].factory();
+    ninja::testing::Test* test = registered_test->factory();
     logger.PrintStatusLine(
         ninja::Logger::StatusLineType::ELIDE,
-        StringPrintf("[%d/%d] %s", tests_started, nactivetests, tests[i].name)
+        ninja::StringPrintf("[%d/%d] %s", tests_started, nactivetests, registered_test->name)
     );
     test->SetUp();
     test->Run();

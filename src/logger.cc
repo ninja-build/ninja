@@ -203,4 +203,16 @@ std::ostream& LoggerNull::cout() {
   return null_stream;
 }
 
+std::string StringPrintf(const char* format, ...) {
+  const int N = 1024;
+  char buf[N];
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(buf, N, format, ap);
+  va_end(ap);
+
+  return buf;
+}
+
 }  // namespace ninja

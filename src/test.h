@@ -43,18 +43,32 @@ class Test {
   void AddAssertionFailure() { assertion_failures_++; }
   bool Check(bool condition, const char* file, int line, const char* error);
 };
-}
 
-void RegisterTest(ninja::testing::Test* (*)(), const char*);
+/// Represents the information for a single registered test class.
+struct RegisteredTest {
+  /// The factory function that will generate an instance of the class.
+  Test* (*factory)();
+  /// The test's name supplied to TEST_F
+  const char *name;
+  /// Whether or not the test should be run
+  bool should_run;
+};
 
-extern ninja::testing::Test* g_current_test;
+int GetRegisteredTestCount();
+RegisteredTest* GetRegisteredTest(int i);
+void RegisterTest(Test* (*)(), const char*);
+
+extern Test* g_current_test;
+}  // namespace testing
+
 #define TEST_F_(x, y, name)                                           \
   struct y : public x {                                               \
-    static ninja::testing::Test* Create() { return ninja::g_current_test = new y; } \
+    static ninja::testing::Test* Create() {                           \
+       return ninja::testing::g_current_test = new y; }               \
     virtual void Run();                                               \
   };                                                                  \
   struct Register##y {                                                \
-    Register##y() { ninja::RegisterTest(y::Create, name); }                  \
+    Register##y() { ninja::testing::RegisterTest(y::Create, name); }  \
   };                                                                  \
   Register##y g_register_##y;                                         \
   void y::Run()
@@ -63,44 +77,46 @@ extern ninja::testing::Test* g_current_test;
 #define TEST(x, y) TEST_F_(ninja::testing::Test, x##y, #x "." #y)
 
 #define EXPECT_EQ(a, b) \
-  ninja::g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
+  ninja::testing::g_current_test->Check(a == b, __FILE__, __LINE__, #a " == " #b)
 #define EXPECT_NE(a, b) \
-  ninja::g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
+  ninja::testing::g_current_test->Check(a != b, __FILE__, __LINE__, #a " != " #b)
 #define EXPECT_GT(a, b) \
-  ninja::g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
+  ninja::testing::g_current_test->Check(a > b, __FILE__, __LINE__, #a " > " #b)
 #define EXPECT_LT(a, b) \
-  ninja::g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
+  ninja::testing::g_current_test->Check(a < b, __FILE__, __LINE__, #a " < " #b)
 #define EXPECT_GE(a, b) \
-  ninja::g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
+  ninja::testing::g_current_test->Check(a >= b, __FILE__, __LINE__, #a " >= " #b)
 #define EXPECT_LE(a, b) \
-  ninja::g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
+  ninja::testing::g_current_test->Check(a <= b, __FILE__, __LINE__, #a " <= " #b)
 #define EXPECT_TRUE(a) \
-  ninja::g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
+  ninja::testing::g_current_test->Check(static_cast<bool>(a), __FILE__, __LINE__, #a)
 #define EXPECT_FALSE(a) \
-  ninja::g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
+  ninja::testing::g_current_test->Check(!static_cast<bool>(a), __FILE__, __LINE__, #a)
 
 #define ASSERT_EQ(a, b) \
-  if (!EXPECT_EQ(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_EQ(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_NE(a, b) \
-  if (!EXPECT_NE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_NE(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_GT(a, b) \
-  if (!EXPECT_GT(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_GT(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_LT(a, b) \
-  if (!EXPECT_LT(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_LT(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_GE(a, b) \
-  if (!EXPECT_GE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_GE(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_LE(a, b) \
-  if (!EXPECT_LE(a, b)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_LE(a, b)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_TRUE(a)  \
-  if (!EXPECT_TRUE(a))  { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_TRUE(a))  { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_FALSE(a) \
-  if (!EXPECT_FALSE(a)) { ninja::g_current_test->AddAssertionFailure(); return; }
+  if (!EXPECT_FALSE(a)) { ninja::testing::g_current_test->AddAssertionFailure(); return; }
 #define ASSERT_NO_FATAL_FAILURE(a)                           \
   {                                                          \
-    int fail_count = ninja::g_current_test->AssertionFailures();    \
+    int fail_count =                                         \
+      ninja::testing::g_current_test->AssertionFailures();   \
     a;                                                       \
-    if (fail_count != ninja::g_current_test->AssertionFailures()) { \
-      ninja::g_current_test->AddAssertionFailure();                 \
+    if (fail_count !=                                        \
+      ninja::testing::g_current_test->AssertionFailures()) { \
+      ninja::testing::g_current_test->AddAssertionFailure(); \
       return;                                                \
     }                                                        \
   }

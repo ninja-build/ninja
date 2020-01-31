@@ -90,6 +90,49 @@ std::string GetSystemTempDir() {
 
 }  // anonymous namespace
 
+namespace testing {
+
+// This can't be a vector because tests call RegisterTest from static
+// initializers and the order static initializers run it isn't specified. So
+// the vector constructor isn't guaranteed to run before all of the
+// RegisterTest() calls.
+static const int MAX_TEST_COUNT = 10000;
+static RegisteredTest tests[MAX_TEST_COUNT];
+static LoggerBasic logger;
+static int ntests;
+
+Test* g_current_test;
+
+int GetRegisteredTestCount() {
+  return ntests;
+}
+RegisteredTest* GetRegisteredTest(int i) {
+  if (i < 0) {
+    return NULL;
+  }
+  if (i > MAX_TEST_COUNT) {
+    return NULL;
+  }
+  return &tests[i];
+}
+
+void RegisterTest(Test* (*factory)(), const char* name) {
+  tests[ntests].factory = factory;
+  tests[ntests++].name = name;
+}
+
+bool Test::Check(bool condition, const char* file, int line,
+                          const char* error) {
+  if (!condition) {
+    logger.PrintStatusOnNewLine(
+        StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
+    failed_ = true;
+  }
+  return condition;
+}
+
+}  // namespace testing
+
 StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
   AddCatRule(&state_);
 }

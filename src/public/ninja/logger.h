@@ -136,6 +136,7 @@ private:
   std::ostream null_stream;
 };
 
+std::string StringPrintf(const char* format, ...);
 
 }  // namespace ninja
 #endif  // NINJA_PUBLIC_LOGGER_H_
