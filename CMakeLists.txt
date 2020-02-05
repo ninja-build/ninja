@@ -84,8 +84,7 @@ target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601 __USE_MINGW_ANSI
 endif()
 
 # Main executable is library plus main() function.
-add_executable(ninja src/ninja.cc)
-target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+add_executable(ninja src/ninja.cc $<TARGET_OBJECTS:libninja> $<TARGET_OBJECTS:libninja-re2c>)
 
 # Tests all build into ninja_test executable.
 add_executable(ninja_test
@@ -107,11 +106,12 @@ add_executable(ninja_test
 	src/subprocess_test.cc
 	src/test.cc
 	src/util_test.cc
+	$<TARGET_OBJECTS:libninja>
+	$<TARGET_OBJECTS:libninja-re2c>
 )
 if(WIN32)
 	target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
 endif()
-target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
 foreach(perftest
   build_log_perftest
@@ -121,8 +121,7 @@ foreach(perftest
   hash_collision_bench
   manifest_parser_perftest
 )
-  add_executable(${perftest} src/${perftest}.cc)
-  target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+  add_executable(${perftest} src/${perftest}.cc $<TARGET_OBJECTS:libninja> $<TARGET_OBJECTS:libninja-re2c>)
 endforeach()
 
 enable_testing()
