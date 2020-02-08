@@ -133,7 +133,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 // DiskInterface ---------------------------------------------------------------
 
 bool DiskInterface::MakeDirs(const string& path) {
-  const string& dir = DirName(path);
+  const std::string& dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   string err;
