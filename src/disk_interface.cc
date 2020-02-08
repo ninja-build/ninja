@@ -15,6 +15,7 @@
 #include "disk_interface.h"
 
 #include <algorithm>
+#include <string>
 
 #include <errno.h>
 #include <stdio.h>
@@ -132,11 +133,11 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 // DiskInterface ---------------------------------------------------------------
 
 bool DiskInterface::MakeDirs(const string& path) {
-  string dir = DirName(path);
+  const string& dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   string err;
-  TimeStamp mtime = Stat(dir, &err);
+  const TimeStamp mtime = Stat(dir, &err);
   if (mtime < 0) {
     Error("%s", err.c_str());
     return false;
@@ -145,7 +146,7 @@ bool DiskInterface::MakeDirs(const string& path) {
     return true;  // Exists already; we're done.
 
   // Directory doesn't exist.  Try creating its parent first.
-  bool success = MakeDirs(dir);
+  const bool success = MakeDirs(dir);
   if (!success)
     return false;
   return MakeDir(dir);
