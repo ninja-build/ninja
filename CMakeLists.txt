@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
-cmake_policy(SET CMP0091 NEW)
 project(ninja)
 
 if(CMAKE_BUILD_TYPE MATCHES "Release")
-	cmake_policy(SET CMP0069 NEW)
 	include(CheckIPOSupported)
 	check_ipo_supported(RESULT lto_supported OUTPUT error)
 
