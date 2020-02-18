@@ -13,10 +13,12 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 	endif()
 endif()
 
+set(_gnulike GNU Clang)
+
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(APPEND CMAKE_CXX_FLAGS " /W4 /GR- /Zc:__cplusplus")
-else()
+elseif(CMAKE_CXX_COMPILER_ID IN_LIST _gnulike)
 	string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated -fdiagnostics-color")
 endif()
 
