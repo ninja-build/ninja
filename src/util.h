@@ -35,7 +35,7 @@ using namespace std;
 NORETURN void Fatal(const char* msg, ...);
 
 // Have a generic fall-through for different versions of C/C++.
-#if defined(__cplusplus) && __cplusplus >= 201703L
+#if defined(__cplusplus) && __cplusplus >= 201703L || defined(__INTEL_COMPILER)
 #define NINJA_FALLTHROUGH [[fallthrough]]
 #elif defined(__cplusplus) && __cplusplus >= 201103L && defined(__clang__)
 #define NINJA_FALLTHROUGH [[clang::fallthrough]]

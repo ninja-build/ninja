@@ -22,6 +22,10 @@ elseif(CMAKE_CXX_COMPILER_ID IN_LIST _gnulike)
 	string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated -fdiagnostics-color")
 endif()
 
+if(NOT MSVC)  # MSVC is too strict right now for Ninja code with C++17
+	set(CMAKE_CXX_STANDARD 17)
+endif()
+
 find_program(RE2C re2c)
 if(RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
