@@ -22,7 +22,9 @@ matrix:
       osx_image: xcode10
     - os: osx
       osx_image: xcode10.1
-sudo: false
+    - os: linux
+      arch: ppc64le
+
 language: cpp
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install re2c             ; fi
