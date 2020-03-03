@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
-cmake_policy(SET CMP0091 NEW)
 project(ninja)
 
 if(CMAKE_BUILD_TYPE MATCHES "Release")
-	cmake_policy(SET CMP0069 NEW)
 	include(CheckIPOSupported)
 	check_ipo_supported(RESULT lto_supported OUTPUT error)
 
@@ -17,9 +15,9 @@ endif()
 
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
+	string(APPEND CMAKE_CXX_FLAGS " /W4 /GR- /Zc:__cplusplus")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
+	string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated -fdiagnostics-color")
 endif()
 
 find_program(RE2C re2c)
