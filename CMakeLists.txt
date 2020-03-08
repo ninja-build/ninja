@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(ninja)
 
+# --- optional link-time optimization
 if(CMAKE_BUILD_TYPE MATCHES "Release")
 	include(CheckIPOSupported)
 	check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -13,13 +14,23 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 	endif()
 endif()
 
+# --- compiler flags
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(APPEND CMAKE_CXX_FLAGS " /W4 /GR- /Zc:__cplusplus")
 else()
-	string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated -fdiagnostics-color")
+	include(CheckCXXCompilerFlag)
+	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
+	if(flag_no_deprecated)
+		string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated")
+	endif()
+	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
+	if(flag_color_diag)
+		string(APPEND CMAKE_CXX_FLAGS " -fdiagnostics-color")
+	endif()
 endif()
 
+# --- optional re2c
 find_program(RE2C re2c)
 if(RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
