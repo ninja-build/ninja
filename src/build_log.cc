@@ -116,9 +116,9 @@ BuildLog::LogEntry::LogEntry(const string& output)
   : output(output) {}
 
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp restat_mtime)
+  int start_time, int end_time, TimeStamp mtime)
   : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(restat_mtime)
+    start_time(start_time), end_time(end_time), mtime(mtime)
 {}
 
 BuildLog::BuildLog()
@@ -303,7 +303,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp restat_mtime = 0;
+    TimeStamp mtime = 0;
 
     start_time = atoi(start);
     start = end + 1;
@@ -319,7 +319,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = strtoll(start, NULL, 10);
+    mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -343,7 +343,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
 
     entry->start_time = start_time;
     entry->end_time = end_time;
-    entry->mtime = restat_mtime;
+    entry->mtime = mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
       entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
