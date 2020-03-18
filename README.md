@@ -31,7 +31,7 @@ via CMake. For more details see
 ```
 
 This will generate the `ninja` binary and a `build.ninja` file you can now use
-to built Ninja with itself.
+to build Ninja with itself.
 
 ### CMake
 
