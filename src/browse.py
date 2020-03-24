@@ -24,15 +24,20 @@ from __future__ import print_function
 
 try:
     import http.server as httpserver
+    import socketserver
 except ImportError:
     import BaseHTTPServer as httpserver
+    import SocketServer as socketserver
 import argparse
-import cgi
 import os
 import socket
 import subprocess
 import sys
 import webbrowser
+if sys.version_info >= (3, 2):
+    from html import escape
+else:
+    from cgi import escape
 try:
     from urllib.request import unquote
 except ImportError:
@@ -60,7 +65,7 @@ def match_strip(line, prefix):
     return (True, line[len(prefix):])
 
 def html_escape(text):
-    return cgi.escape(text, quote=True)
+    return escape(text, quote=True)
 
 def parse(text):
     lines = iter(text.split('\n'))
@@ -205,10 +210,14 @@ parser.add_argument('-f', default='build.ninja',
 parser.add_argument('initial_target', default='all', nargs='?',
     help='Initial target to show (default %(default)s)')
 
+class HTTPServer(socketserver.ThreadingMixIn, httpserver.HTTPServer):
+    # terminate server immediately when Python exits.
+    daemon_threads = True
+
 args = parser.parse_args()
 port = args.port
 hostname = args.hostname
-httpd = httpserver.HTTPServer((hostname,port), RequestHandler)
+httpd = HTTPServer((hostname,port), RequestHandler)
 try:
     if hostname == "":
         hostname = socket.gethostname()

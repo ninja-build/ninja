@@ -14,6 +14,7 @@
 
 #include "browse.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -57,7 +58,11 @@ void RunBrowsePython(State* state, const char* ninja_command,
       }
       command.push_back(NULL);
       execvp(command[0], (char**)&command[0]);
-      perror("ninja: execvp");
+      if (errno == ENOENT) {
+        printf("ninja: %s is required for the browse tool\n", NINJA_PYTHON);
+      } else {
+        perror("ninja: execvp");
+      }
     } while (false);
     _exit(1);
   } else {  // Child.

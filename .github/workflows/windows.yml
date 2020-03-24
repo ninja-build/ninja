@@ -1,0 +1,51 @@
+name: Windows
+
+on:
+  pull_request:
+  push:
+  release:
+    types: published
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: choco install re2c
+
+    - name: Build ninja
+      shell: bash
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        cmake --build build --parallel --config Release
+
+    - name: Test ninja
+      run: ctest -vv
+      working-directory: build
+
+    - name: Create ninja archive
+      shell: bash
+      run: |
+        mkdir artifact
+        7z a artifact/ninja-win.zip ./build/Release/ninja.exe
+
+    # Upload ninja binary archive as an artifact
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: ninja-binary-archives
+        path: artifact
+
+    - name: Upload release asset
+      if: github.event.action == 'published'
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifact/ninja-win.zip
+        asset_name: ninja-win.zip
+        asset_content_type: application/zip

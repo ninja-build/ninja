@@ -87,6 +87,8 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
   string err;
   ASSERT_TRUE(disk_.MakeDir("subdir"));
   ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
+  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_EQ("", err);
   EXPECT_GT(disk_.Stat(".", &err), 1);
   EXPECT_EQ("", err);
   EXPECT_GT(disk_.Stat("subdir", &err), 1);
@@ -105,7 +107,6 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
 #ifdef _WIN32
 TEST_F(DiskInterfaceTest, StatCache) {
   string err;
-  disk_.AllowStatCache(true);
 
   ASSERT_TRUE(Touch("file1"));
   ASSERT_TRUE(Touch("fiLE2"));
@@ -114,6 +115,10 @@ TEST_F(DiskInterfaceTest, StatCache) {
   ASSERT_TRUE(Touch("subdir\\subfile1"));
   ASSERT_TRUE(Touch("subdir\\SUBFILE2"));
   ASSERT_TRUE(Touch("subdir\\SUBFILE3"));
+
+  disk_.AllowStatCache(false);
+  TimeStamp parent_stat_uncached = disk_.Stat("..", &err);
+  disk_.AllowStatCache(true);
 
   EXPECT_GT(disk_.Stat("FIle1", &err), 1);
   EXPECT_EQ("", err);
@@ -125,6 +130,8 @@ TEST_F(DiskInterfaceTest, StatCache) {
   EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", &err), 1);
   EXPECT_EQ("", err);
 
+  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_EQ("", err);
   EXPECT_GT(disk_.Stat(".", &err), 1);
   EXPECT_EQ("", err);
   EXPECT_GT(disk_.Stat("subdir", &err), 1);
@@ -132,11 +139,15 @@ TEST_F(DiskInterfaceTest, StatCache) {
   EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
   EXPECT_EQ("", err);
 
+#ifndef _MSC_VER // TODO: Investigate why. Also see https://github.com/ninja-build/ninja/pull/1423
   EXPECT_EQ(disk_.Stat("subdir", &err),
             disk_.Stat("subdir/.", &err));
   EXPECT_EQ("", err);
   EXPECT_EQ(disk_.Stat("subdir", &err),
             disk_.Stat("subdir/subsubdir/..", &err));
+#endif
+  EXPECT_EQ("", err);
+  EXPECT_EQ(disk_.Stat("..", &err), parent_stat_uncached);
   EXPECT_EQ("", err);
   EXPECT_EQ(disk_.Stat("subdir/subsubdir", &err),
             disk_.Stat("subdir/subsubdir/.", &err));
@@ -202,7 +213,7 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
-  StatTest() : scan_(&state_, NULL, NULL, this) {}
+  StatTest() : scan_(&state_, NULL, NULL, this, NULL) {}
 
   // DiskInterface implementation.
   virtual TimeStamp Stat(const string& path, string* err) const;
@@ -245,7 +256,7 @@ TEST_F(StatTest, Simple) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out->in_edge(), NULL);
+  scan_.RecomputeDirty(out, NULL);
   ASSERT_EQ(2u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
@@ -261,7 +272,7 @@ TEST_F(StatTest, TwoStep) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out->in_edge(), NULL);
+  scan_.RecomputeDirty(out, NULL);
   ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty());
@@ -281,7 +292,7 @@ TEST_F(StatTest, Tree) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out->in_edge(), NULL);
+  scan_.RecomputeDirty(out, NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty());
@@ -302,7 +313,7 @@ TEST_F(StatTest, Middle) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out->in_edge(), NULL);
+  scan_.RecomputeDirty(out, NULL);
   ASSERT_FALSE(GetNode("in")->dirty());
   ASSERT_TRUE(GetNode("mid")->dirty());
   ASSERT_TRUE(GetNode("out")->dirty());

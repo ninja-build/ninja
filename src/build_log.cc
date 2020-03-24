@@ -21,6 +21,7 @@
 #endif
 
 #include "build_log.h"
+#include "disk_interface.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -35,6 +36,9 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#define strtoll _strtoi64
+#endif
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -76,11 +80,17 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   switch (len & 7)
   {
   case 7: h ^= uint64_t(data[6]) << 48;
+          NINJA_FALLTHROUGH;
   case 6: h ^= uint64_t(data[5]) << 40;
+          NINJA_FALLTHROUGH;
   case 5: h ^= uint64_t(data[4]) << 32;
+          NINJA_FALLTHROUGH;
   case 4: h ^= uint64_t(data[3]) << 24;
+          NINJA_FALLTHROUGH;
   case 3: h ^= uint64_t(data[2]) << 16;
+          NINJA_FALLTHROUGH;
   case 2: h ^= uint64_t(data[1]) << 8;
+          NINJA_FALLTHROUGH;
   case 1: h ^= uint64_t(data[0]);
           h *= m;
   };
@@ -105,7 +115,7 @@ BuildLog::LogEntry::LogEntry(const string& output)
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
   int start_time, int end_time, TimeStamp restat_mtime)
   : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), restat_mtime(restat_mtime)
+    start_time(start_time), end_time(end_time), mtime(restat_mtime)
 {}
 
 BuildLog::BuildLog()
@@ -145,7 +155,7 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 }
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             TimeStamp restat_mtime) {
+                             TimeStamp mtime) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
   for (vector<Node*>::iterator out = edge->outputs_.begin();
@@ -162,11 +172,14 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
-    log_entry->restat_mtime = restat_mtime;
+    log_entry->mtime = mtime;
 
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
         return false;
+      if (fflush(log_file_) != 0) {
+          return false;
+      }
     }
   }
   return true;
@@ -229,14 +242,14 @@ struct LineReader {
   char* line_end_;
 };
 
-bool BuildLog::Load(const string& path, string* err) {
+LoadStatus BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
-      return true;
+      return LOAD_NOT_FOUND;
     *err = strerror(errno);
-    return false;
+    return LOAD_ERROR;
   }
 
   int log_version = 0;
@@ -257,7 +270,7 @@ bool BuildLog::Load(const string& path, string* err) {
         unlink(path.c_str());
         // Don't report this as a failure.  An empty build log will cause
         // us to rebuild the outputs anyway.
-        return true;
+        return LOAD_SUCCESS;
       }
     }
 
@@ -290,7 +303,7 @@ bool BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = atol(start);
+    restat_mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -314,7 +327,7 @@ bool BuildLog::Load(const string& path, string* err) {
 
     entry->start_time = start_time;
     entry->end_time = end_time;
-    entry->restat_mtime = restat_mtime;
+    entry->mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
       entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
@@ -327,7 +340,7 @@ bool BuildLog::Load(const string& path, string* err) {
   fclose(file);
 
   if (!line_start) {
-    return true; // file was empty
+    return LOAD_SUCCESS; // file was empty
   }
 
   // Decide whether it's time to rebuild the log:
@@ -342,7 +355,7 @@ bool BuildLog::Load(const string& path, string* err) {
     needs_recompaction_ = true;
   }
 
-  return true;
+  return LOAD_SUCCESS;
 }
 
 BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
@@ -353,8 +366,8 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%d\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.restat_mtime,
+  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
+          entry.start_time, entry.end_time, entry.mtime,
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
@@ -400,6 +413,63 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
   }
 
   if (rename(temp_path.c_str(), path.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  return true;
+}
+
+bool BuildLog::Restat(const StringPiece path,
+                      const DiskInterface& disk_interface,
+                      const int output_count, char** outputs,
+                      std::string* const err) {
+  METRIC_RECORD(".ninja_log restat");
+
+  Close();
+  std::string temp_path = path.AsString() + ".restat";
+  FILE* f = fopen(temp_path.c_str(), "wb");
+  if (!f) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
+    *err = strerror(errno);
+    fclose(f);
+    return false;
+  }
+  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+    bool skip = output_count > 0;
+    for (int j = 0; j < output_count; ++j) {
+      if (i->second->output == outputs[j]) {
+        skip = false;
+        break;
+      }
+    }
+    if (!skip) {
+      const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+      if (mtime == -1) {
+        fclose(f);
+        return false;
+      }
+      i->second->mtime = mtime;
+    }
+
+    if (!WriteEntry(f, *i->second)) {
+      *err = strerror(errno);
+      fclose(f);
+      return false;
+    }
+  }
+
+  fclose(f);
+  if (unlink(path.str_) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (rename(temp_path.c_str(), path.str_) < 0) {
     *err = strerror(errno);
     return false;
   }

@@ -19,6 +19,8 @@
 #include <string>
 
 #include "build.h"
+#include "dyndep.h"
+#include "build_log.h"
 
 using namespace std;
 
@@ -28,11 +30,7 @@ struct Rule;
 struct DiskInterface;
 
 struct Cleaner {
-  /// Build a cleaner object with a real disk interface.
-  Cleaner(State* state, const BuildConfig& config);
-
   /// Build a cleaner object with the given @a disk_interface
-  /// (Useful for testing).
   Cleaner(State* state,
           const BuildConfig& config,
           DiskInterface* disk_interface);
@@ -61,6 +59,10 @@ struct Cleaner {
   /// Clean the file produced by the given @a rules.
   /// @return non-zero if an error occurs.
   int CleanRules(int rule_count, char* rules[]);
+  /// Clean the files produced by previous builds that are no longer in the
+  /// manifest.
+  /// @return non-zero if an error occurs.
+  int CleanDead(const BuildLog::Entries& entries);
 
   /// @return the number of file cleaned.
   int cleaned_files_count() const {
@@ -95,8 +97,12 @@ struct Cleaner {
   void DoCleanRule(const Rule* rule);
   void Reset();
 
+  /// Load dependencies from dyndep bindings.
+  void LoadDyndeps();
+
   State* state_;
   const BuildConfig& config_;
+  DyndepLoader dyndep_loader_;
   set<string> removed_;
   set<Node*> cleaned_;
   int cleaned_files_count_;

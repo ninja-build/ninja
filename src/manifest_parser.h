@@ -15,29 +15,33 @@
 #ifndef NINJA_MANIFEST_PARSER_H_
 #define NINJA_MANIFEST_PARSER_H_
 
-#include <string>
-
-using namespace std;
-
-#include "lexer.h"
+#include "parser.h"
 
 struct BindingEnv;
 struct EvalString;
-struct FileReader;
-struct State;
 
 enum DupeEdgeAction {
   kDupeEdgeActionWarn,
   kDupeEdgeActionError,
 };
 
-/// Parses .ninja files.
-struct ManifestParser {
-  ManifestParser(State* state, FileReader* file_reader,
-                 DupeEdgeAction dupe_edge_action);
+enum PhonyCycleAction {
+  kPhonyCycleActionWarn,
+  kPhonyCycleActionError,
+};
 
-  /// Load and parse a file.
-  bool Load(const string& filename, string* err, Lexer* parent = NULL);
+struct ManifestParserOptions {
+  ManifestParserOptions()
+      : dupe_edge_action_(kDupeEdgeActionWarn),
+        phony_cycle_action_(kPhonyCycleActionWarn) {}
+  DupeEdgeAction dupe_edge_action_;
+  PhonyCycleAction phony_cycle_action_;
+};
+
+/// Parses .ninja files.
+struct ManifestParser : public Parser {
+  ManifestParser(State* state, FileReader* file_reader,
+                 ManifestParserOptions options = ManifestParserOptions());
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const string& input, string* err) {
@@ -59,15 +63,8 @@ private:
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(bool new_scope, string* err);
 
-  /// If the next token is not \a expected, produce an error string
-  /// saying "expectd foo, got bar".
-  bool ExpectToken(Lexer::Token expected, string* err);
-
-  State* state_;
   BindingEnv* env_;
-  FileReader* file_reader_;
-  Lexer lexer_;
-  DupeEdgeAction dupe_edge_action_;
+  ManifestParserOptions options_;
   bool quiet_;
 };
 

@@ -15,7 +15,16 @@
 #include "clean.h"
 #include "build.h"
 
+#include "util.h"
 #include "test.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+namespace {
+
+const char kTestFilename[] = "CleanTest-tempfile";
 
 struct CleanTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
@@ -285,6 +294,55 @@ TEST_F(CleanTest, CleanDepFileOnCleanRule) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 }
 
+TEST_F(CleanTest, CleanDyndep) {
+  // Verify that a dyndep file can be loaded to discover a new output
+  // to be cleaned.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in || dd\n"
+"  dyndep = dd\n"
+  ));
+  fs_.Create("in", "");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out | out.imp: dyndep\n"
+);
+  fs_.Create("out", "");
+  fs_.Create("out.imp", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(0, fs_.Stat("out.imp", &err));
+}
+
+TEST_F(CleanTest, CleanDyndepMissing) {
+  // Verify that a missing dyndep file is tolerated.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in || dd\n"
+"  dyndep = dd\n"
+  ));
+  fs_.Create("in", "");
+  fs_.Create("out", "");
+  fs_.Create("out.imp", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(1, cleaner.cleaned_files_count());
+  EXPECT_EQ(1u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(1, fs_.Stat("out.imp", &err));
+}
+
 TEST_F(CleanTest, CleanRspFile) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"
@@ -325,7 +383,7 @@ TEST_F(CleanTest, CleanRsp) {
   Cleaner cleaner(&state_, config_, &fs_);
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
-  EXPECT_EQ(2, cleaner.cleaned_files_count()); 
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("in2"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_rsp"));
@@ -405,3 +463,76 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
   EXPECT_EQ(0, fs_.Stat("out 2.rsp", &err));
 }
+
+struct CleanDeadTest : public CleanTest, public BuildLogUser{
+  virtual void SetUp() {
+    // In case a crashing test left a stale file behind.
+    unlink(kTestFilename);
+    CleanTest::SetUp();
+  }
+  virtual void TearDown() {
+    unlink(kTestFilename);
+  }
+  virtual bool IsPathDead(StringPiece) const { return false; }
+};
+
+TEST_F(CleanDeadTest, CleanDead) {
+  State state;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+"rule cat\n"
+"  command = cat $in > $out\n"
+"build out1: cat in\n"
+"build out2: cat in\n"
+));
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out2: cat in\n"
+));
+  fs_.Create("in", "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+
+  BuildLog log1;
+  string err;
+  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
+  ASSERT_EQ("", err);
+  log1.RecordCommand(state.edges_[0], 15, 18);
+  log1.RecordCommand(state.edges_[1], 20, 25);
+  log1.Close();
+
+  BuildLog log2;
+  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(2u, log2.entries().size());
+  ASSERT_TRUE(log2.LookupByOutput("out1"));
+  ASSERT_TRUE(log2.LookupByOutput("out2"));
+
+  // First use the manifest that describe how to build out1.
+  Cleaner cleaner1(&state, config_, &fs_);
+  EXPECT_EQ(0, cleaner1.CleanDead(log2.entries()));
+  EXPECT_EQ(0, cleaner1.cleaned_files_count());
+  EXPECT_EQ(0u, fs_.files_removed_.size());
+  EXPECT_NE(0, fs_.Stat("in", &err));
+  EXPECT_NE(0, fs_.Stat("out1", &err));
+  EXPECT_NE(0, fs_.Stat("out2", &err));
+
+  // Then use the manifest that does not build out1 anymore.
+  Cleaner cleaner2(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
+  EXPECT_EQ(1, cleaner2.cleaned_files_count());
+  EXPECT_EQ(1u, fs_.files_removed_.size());
+  EXPECT_EQ("out1", *(fs_.files_removed_.begin()));
+  EXPECT_NE(0, fs_.Stat("in", &err));
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_NE(0, fs_.Stat("out2", &err));
+
+  // Nothing to do now.
+  EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
+  EXPECT_EQ(0, cleaner2.cleaned_files_count());
+  EXPECT_EQ(1u, fs_.files_removed_.size());
+  EXPECT_EQ("out1", *(fs_.files_removed_.begin()));
+  EXPECT_NE(0, fs_.Stat("in", &err));
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_NE(0, fs_.Stat("out2", &err));
+  log2.Close();
+}
+}  // anonymous namespace

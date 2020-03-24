@@ -14,6 +14,7 @@
 
 #include "subprocess.h"
 
+#include <sys/select.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -54,21 +55,25 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   SetCloseOnExec(fd_);
 
   posix_spawn_file_actions_t action;
-  if (posix_spawn_file_actions_init(&action) != 0)
-    Fatal("posix_spawn_file_actions_init: %s", strerror(errno));
+  int err = posix_spawn_file_actions_init(&action);
+  if (err != 0)
+    Fatal("posix_spawn_file_actions_init: %s", strerror(err));
 
-  if (posix_spawn_file_actions_addclose(&action, output_pipe[0]) != 0)
-    Fatal("posix_spawn_file_actions_addclose: %s", strerror(errno));
+  err = posix_spawn_file_actions_addclose(&action, output_pipe[0]);
+  if (err != 0)
+    Fatal("posix_spawn_file_actions_addclose: %s", strerror(err));
 
   posix_spawnattr_t attr;
-  if (posix_spawnattr_init(&attr) != 0)
-    Fatal("posix_spawnattr_init: %s", strerror(errno));
+  err = posix_spawnattr_init(&attr);
+  if (err != 0)
+    Fatal("posix_spawnattr_init: %s", strerror(err));
 
   short flags = 0;
 
   flags |= POSIX_SPAWN_SETSIGMASK;
-  if (posix_spawnattr_setsigmask(&attr, &set->old_mask_) != 0)
-    Fatal("posix_spawnattr_setsigmask: %s", strerror(errno));
+  err = posix_spawnattr_setsigmask(&attr, &set->old_mask_);
+  if (err != 0)
+    Fatal("posix_spawnattr_setsigmask: %s", strerror(err));
   // Signals which are set to be caught in the calling process image are set to
   // default action in the new process image, so no explicit
   // POSIX_SPAWN_SETSIGDEF parameter is needed.
@@ -79,17 +84,21 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     // No need to posix_spawnattr_setpgroup(&attr, 0), it's the default.
 
     // Open /dev/null over stdin.
-    if (posix_spawn_file_actions_addopen(&action, 0, "/dev/null", O_RDONLY,
-                                         0) != 0) {
-      Fatal("posix_spawn_file_actions_addopen: %s", strerror(errno));
+    err = posix_spawn_file_actions_addopen(&action, 0, "/dev/null", O_RDONLY,
+          0);
+    if (err != 0) {
+      Fatal("posix_spawn_file_actions_addopen: %s", strerror(err));
     }
 
-    if (posix_spawn_file_actions_adddup2(&action, output_pipe[1], 1) != 0)
-      Fatal("posix_spawn_file_actions_adddup2: %s", strerror(errno));
-    if (posix_spawn_file_actions_adddup2(&action, output_pipe[1], 2) != 0)
-      Fatal("posix_spawn_file_actions_adddup2: %s", strerror(errno));
-    if (posix_spawn_file_actions_addclose(&action, output_pipe[1]) != 0)
-      Fatal("posix_spawn_file_actions_addclose: %s", strerror(errno));
+    err = posix_spawn_file_actions_adddup2(&action, output_pipe[1], 1);
+    if (err != 0)
+      Fatal("posix_spawn_file_actions_adddup2: %s", strerror(err));
+    err = posix_spawn_file_actions_adddup2(&action, output_pipe[1], 2);
+    if (err != 0)
+      Fatal("posix_spawn_file_actions_adddup2: %s", strerror(err));
+    err = posix_spawn_file_actions_addclose(&action, output_pipe[1]);
+    if (err != 0)
+      Fatal("posix_spawn_file_actions_addclose: %s", strerror(err));
     // In the console case, output_pipe is still inherited by the child and
     // closed when the subprocess finishes, which then notifies ninja.
   }
@@ -97,18 +106,22 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   flags |= POSIX_SPAWN_USEVFORK;
 #endif
 
-  if (posix_spawnattr_setflags(&attr, flags) != 0)
-    Fatal("posix_spawnattr_setflags: %s", strerror(errno));
+  err = posix_spawnattr_setflags(&attr, flags);
+  if (err != 0)
+    Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
   const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
-  if (posix_spawn(&pid_, "/bin/sh", &action, &attr,
-                  const_cast<char**>(spawned_args), environ) != 0)
-    Fatal("posix_spawn: %s", strerror(errno));
+  err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
+        const_cast<char**>(spawned_args), environ);
+  if (err != 0)
+    Fatal("posix_spawn: %s", strerror(err));
 
-  if (posix_spawnattr_destroy(&attr) != 0)
-    Fatal("posix_spawnattr_destroy: %s", strerror(errno));
-  if (posix_spawn_file_actions_destroy(&action) != 0)
-    Fatal("posix_spawn_file_actions_destroy: %s", strerror(errno));
+  err = posix_spawnattr_destroy(&attr);
+  if (err != 0)
+    Fatal("posix_spawnattr_destroy: %s", strerror(err));
+  err = posix_spawn_file_actions_destroy(&action);
+  if (err != 0)
+    Fatal("posix_spawn_file_actions_destroy: %s", strerror(err));
 
   close(output_pipe[1]);
   return true;

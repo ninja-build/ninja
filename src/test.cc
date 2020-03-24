@@ -33,6 +33,15 @@
 #include "manifest_parser.h"
 #include "util.h"
 
+#ifdef _AIX
+extern "C" {
+        // GCC "helpfully" strips the definition of mkdtemp out on AIX.
+        // The function is still present, so if we define it ourselves
+        // it will work perfectly fine.
+        extern char* mkdtemp(char* name_template);
+}
+#endif
+
 namespace {
 
 #ifdef _WIN32
@@ -95,8 +104,9 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
   return state_.GetNode(path, 0);
 }
 
-void AssertParse(State* state, const char* input) {
-  ManifestParser parser(state, NULL, kDupeEdgeActionWarn);
+void AssertParse(State* state, const char* input,
+                 ManifestParserOptions opts) {
+  ManifestParser parser(state, NULL, opts);
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);

@@ -3,8 +3,7 @@
 *.exe
 *.pdb
 *.ilk
-TAGS
-/build
+/build*/
 /build.ninja
 /ninja
 /ninja.bootstrap
@@ -18,8 +17,8 @@ TAGS
 /graph.png
 /doc/manual.html
 /doc/doxygen
-/gtest-1.6.0
 *.patch
+.DS_Store
 
 # Eclipse project files
 .project
@@ -32,3 +31,10 @@ TAGS
 # Ninja output
 .ninja_deps
 .ninja_log
+
+# Visual Studio Code project files
+/.vscode/
+/.ccls-cache/
+
+# Qt Creator project files
+/CMakeLists.txt.user

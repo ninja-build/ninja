@@ -1,0 +1,61 @@
+version: 1.0.{build}
+image:
+  - Visual Studio 2017
+  - Ubuntu1804
+
+environment:
+  CLICOLOR_FORCE: 1
+  CHERE_INVOKING: 1 # Tell Bash to inherit the current working directory
+  matrix:
+    - MSYSTEM: MINGW64
+    - MSYSTEM: MSVC
+    - MSYSTEM: LINUX
+
+matrix:
+  exclude:
+    - image: Visual Studio 2017
+      MSYSTEM: LINUX
+    - image: Ubuntu1804
+      MSYSTEM: MINGW64
+    - image: Ubuntu1804
+      MSYSTEM: MSVC
+
+for:
+  -
+    matrix:
+      only:
+        - MSYSTEM: MINGW64
+    build_script:
+      ps: "C:\\msys64\\usr\\bin\\bash -lc @\"\n
+      pacman -S --quiet --noconfirm --needed re2c 2>&1\n
+      ./configure.py --bootstrap --platform mingw 2>&1\n
+      ./ninja all\n
+      ./ninja_test 2>&1\n
+      ./misc/ninja_syntax_test.py 2>&1\n\"@"
+  -
+    matrix:
+      only:
+        - MSYSTEM: MSVC
+    build_script:
+    - cmd: >-
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+
+        python configure.py --bootstrap
+
+        ninja.bootstrap.exe all
+
+        ninja_test
+
+        python misc/ninja_syntax_test.py
+
+  - matrix:
+      only:
+        - image: Ubuntu1804
+    build_script:
+      - ./configure.py --bootstrap
+      - ./ninja all
+      - ./ninja_test
+      - misc/ninja_syntax_test.py
+      - misc/output_test.py
+
+test: off

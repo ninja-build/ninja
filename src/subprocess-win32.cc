@@ -59,8 +59,8 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   }
 
   // Get the write end of the pipe as a handle inheritable across processes.
-  HANDLE output_write_handle = CreateFile(pipe_name, GENERIC_WRITE, 0,
-                                          NULL, OPEN_EXISTING, 0, NULL);
+  HANDLE output_write_handle =
+      CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
   HANDLE output_write_child;
   if (!DuplicateHandle(GetCurrentProcess(), output_write_handle,
                        GetCurrentProcess(), &output_write_child,
@@ -80,9 +80,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
   security_attributes.bInheritHandle = TRUE;
   // Must be inheritable so subprocesses can dup to children.
-  HANDLE nul = CreateFile("NUL", GENERIC_READ,
-          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-          &security_attributes, OPEN_EXISTING, 0, NULL);
+  HANDLE nul =
+      CreateFileA("NUL", GENERIC_READ,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
@@ -123,6 +124,10 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       buf_ = "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
+    } else if (error == ERROR_INVALID_PARAMETER) {
+      // This generally means that the command line was too long. Give extra
+      // context for this case.
+      Win32Fatal("CreateProcess", "is the command line too long?");
     } else {
       Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal
     }

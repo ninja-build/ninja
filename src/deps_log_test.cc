@@ -143,7 +143,7 @@ TEST_F(DepsLogTest, DoubleEntry) {
     ASSERT_GT(file_size, 0);
   }
 
-  // Now reload the file, and readd the same deps.
+  // Now reload the file, and read the same deps.
   {
     State state;
     DepsLog log;
@@ -203,7 +203,7 @@ TEST_F(DepsLogTest, Recompact) {
     ASSERT_GT(file_size, 0);
   }
 
-  // Now reload the file, and add slighly different deps.
+  // Now reload the file, and add slightly different deps.
   int file_size_2;
   {
     State state;

@@ -45,7 +45,7 @@
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
-#elif defined(_AIX)
+#elif defined(_AIX) && !defined(__PASE__)
 #include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
@@ -102,18 +102,13 @@ bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
   return true;
 }
 
+static bool IsPathSeparator(char c) {
 #ifdef _WIN32
-static uint64_t ShiftOverBit(int offset, uint64_t bits) {
-  // e.g. for |offset| == 2:
-  // | ... 9 8 7 6 5 4 3 2 1 0 |
-  // \_________________/   \_/
-  //        above         below
-  // So we drop the bit at offset and move above "down" into its place.
-  uint64_t above = bits & ~((1 << (offset + 1)) - 1);
-  uint64_t below = bits & ((1 << offset) - 1);
-  return (above >> 1) | below;
-}
+  return c == '/' || c == '\\';
+#else
+  return c == '/';
 #endif
+}
 
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       string* err) {
@@ -134,37 +129,13 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
   const char* src = start;
   const char* end = start + *len;
 
+  if (IsPathSeparator(*src)) {
 #ifdef _WIN32
-  uint64_t bits = 0;
-  uint64_t bits_mask = 1;
-  int bits_offset = 0;
-  // Convert \ to /, setting a bit in |bits| for each \ encountered.
-  for (char* c = path; c < end; ++c) {
-    switch (*c) {
-      case '\\':
-        bits |= bits_mask;
-        *c = '/';
-        // Intentional fallthrough.
-      case '/':
-        bits_mask <<= 1;
-        bits_offset++;
-    }
-  }
-  if (bits_offset > 64) {
-    *err = "too many path components";
-    return false;
-  }
-  bits_offset = 0;
-#endif
 
-  if (*src == '/') {
-#ifdef _WIN32
-    bits_offset++;
     // network path starts with //
-    if (*len > 1 && *(src + 1) == '/') {
+    if (*len > 1 && IsPathSeparator(*(src + 1))) {
       src += 2;
       dst += 2;
-      bits_offset++;
     } else {
       ++src;
       ++dst;
@@ -177,24 +148,16 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
 
   while (src < end) {
     if (*src == '.') {
-      if (src + 1 == end || src[1] == '/') {
+      if (src + 1 == end || IsPathSeparator(src[1])) {
         // '.' component; eliminate.
         src += 2;
-#ifdef _WIN32
-        bits = ShiftOverBit(bits_offset, bits);
-#endif
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || src[2] == '/')) {
+      } else if (src[1] == '.' && (src + 2 == end || IsPathSeparator(src[2]))) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];
           src += 3;
           --component_count;
-#ifdef _WIN32
-          bits = ShiftOverBit(bits_offset, bits);
-          bits_offset--;
-          bits = ShiftOverBit(bits_offset, bits);
-#endif
         } else {
           *dst++ = *src++;
           *dst++ = *src++;
@@ -204,11 +167,8 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
       }
     }
 
-    if (*src == '/') {
+    if (IsPathSeparator(*src)) {
       src++;
-#ifdef _WIN32
-      bits = ShiftOverBit(bits_offset, bits);
-#endif
       continue;
     }
 
@@ -217,11 +177,8 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
     components[component_count] = dst;
     ++component_count;
 
-    while (*src != '/' && src != end)
+    while (src != end && !IsPathSeparator(*src))
       *dst++ = *src++;
-#ifdef _WIN32
-    bits_offset++;
-#endif
     *dst++ = *src++;  // Copy '/' or final \0 character as well.
   }
 
@@ -232,6 +189,20 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
 
   *len = dst - start - 1;
 #ifdef _WIN32
+  uint64_t bits = 0;
+  uint64_t bits_mask = 1;
+
+  for (char* c = start; c < start + *len; ++c) {
+    switch (*c) {
+      case '\\':
+        bits |= bits_mask;
+        *c = '/';
+        NINJA_FALLTHROUGH;
+      case '/':
+        bits_mask <<= 1;
+    }
+  }
+
   *slash_bits = bits;
 #else
   *slash_bits = 0;
@@ -347,13 +318,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFile(path.c_str(),
-                          GENERIC_READ,
-                          FILE_SHARE_READ,
-                          NULL,
-                          OPEN_EXISTING,
-                          FILE_FLAG_SEQUENTIAL_SCAN,
-                          NULL);
+  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;
@@ -380,9 +346,19 @@ int ReadFile(const string& path, string* contents, string* err) {
     return -errno;
   }
 
+  struct stat st;
+  if (fstat(fileno(f), &st) < 0) {
+    err->assign(strerror(errno));
+    fclose(f);
+    return -errno;
+  }
+
+  // +1 is for the resize in ManifestParser::Load
+  contents->reserve(st.st_size + 1);
+
   char buf[64 << 10];
   size_t len;
-  while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
+  while (!feof(f) && (len = fread(buf, 1, sizeof(buf), f)) > 0) {
     contents->append(buf, len);
   }
   if (ferror(f)) {
@@ -466,8 +442,12 @@ string GetLastErrorString() {
   return msg;
 }
 
-void Win32Fatal(const char* function) {
-  Fatal("%s: %s", function, GetLastErrorString().c_str());
+void Win32Fatal(const char* function, const char* hint) {
+  if (hint) {
+    Fatal("%s: %s (%s)", function, GetLastErrorString().c_str(), hint);
+  } else {
+    Fatal("%s: %s", function, GetLastErrorString().c_str());
+  }
 }
 #endif
 
@@ -501,10 +481,17 @@ string StripAnsiEscapeCodes(const string& in) {
 
 int GetProcessorCount() {
 #ifdef _WIN32
-  SYSTEM_INFO info;
-  GetNativeSystemInfo(&info);
-  return info.dwNumberOfProcessors;
+  return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
+#ifdef CPU_COUNT
+  // The number of exposed processors might not represent the actual number of
+  // processors threads can run on. This happens when a CPU set limitation is
+  // active, see https://github.com/ninja-build/ninja/issues/1278
+  cpu_set_t set;
+  if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
+    return CPU_COUNT(&set);
+  }
+#endif
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
@@ -575,6 +562,10 @@ double GetLoadAverage() {
 
   return posix_compatible_load;
 }
+#elif defined(__PASE__)
+double GetLoadAverage() {
+  return -0.0f;
+}
 #elif defined(_AIX)
 double GetLoadAverage() {
   perfstat_cpu_total_t cpu_stats;
@@ -585,7 +576,7 @@ double GetLoadAverage() {
   // Calculation taken from comment in libperfstats.h
   return double(cpu_stats.loadavg[0]) / double(1 << SBITS);
 }
-#elif defined(__UCLIBC__)
+#elif defined(__UCLIBC__) || (defined(__BIONIC__) && __ANDROID_API__ < 29)
 double GetLoadAverage() {
   struct sysinfo si;
   if (sysinfo(&si) != 0)
@@ -605,9 +596,15 @@ double GetLoadAverage() {
 #endif // _WIN32
 
 string ElideMiddle(const string& str, size_t width) {
+  switch (width) {
+      case 0: return "";
+      case 1: return ".";
+      case 2: return "..";
+      case 3: return "...";
+  }
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() + kMargin > width) {
+  if (result.size() > width) {
     size_t elide_size = (width - kMargin) / 2;
     result = result.substr(0, elide_size)
       + "..."

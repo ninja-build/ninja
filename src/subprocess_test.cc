@@ -182,7 +182,7 @@ TEST_F(SubprocessTest, SetWithMulti) {
     "cmd /c echo hi",
     "cmd /c time /t",
 #else
-    "whoami",
+    "id -u",
     "pwd",
 #endif
   };

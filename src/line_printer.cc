@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
+#endif
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -28,18 +31,38 @@
 #include "util.h"
 
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
-#ifndef _WIN32
   const char* term = getenv("TERM");
+#ifndef _WIN32
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
-  setvbuf(stdout, NULL, _IONBF, 0);
-  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  if (term && string(term) == "dumb") {
+    smart_terminal_ = false;
+  } else {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+  }
+#endif
+  supports_color_ = smart_terminal_;
+  if (!supports_color_) {
+    const char* clicolor_force = getenv("CLICOLOR_FORCE");
+    supports_color_ = clicolor_force && string(clicolor_force) != "0";
+  }
+#ifdef _WIN32
+  // Try enabling ANSI escape sequence support on Windows 10 terminals.
+  if (supports_color_) {
+    DWORD mode;
+    if (GetConsoleMode(console_, &mode)) {
+      if (!SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        supports_color_ = false;
+      }
+    }
+  }
 #endif
 }
 
@@ -82,7 +105,7 @@ void LinePrinter::Print(string to_print, LineType type) {
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.
     winsize size;
-    if ((ioctl(0, TIOCGWINSZ, &size) == 0) && size.ws_col) {
+    if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0) && size.ws_col) {
       to_print = ElideMiddle(to_print, size.ws_col);
     }
     printf("%s", to_print.c_str());

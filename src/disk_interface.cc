@@ -28,20 +28,22 @@
 #include <direct.h>  // _mkdir
 #endif
 
+#include "metrics.h"
 #include "util.h"
 
 namespace {
 
 string DirName(const string& path) {
 #ifdef _WIN32
-  const char kPathSeparators[] = "\\/";
+  static const char kPathSeparators[] = "\\/";
 #else
-  const char kPathSeparators[] = "/";
+  static const char kPathSeparators[] = "/";
 #endif
+  static const char* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
+
   string::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == string::npos)
     return string();  // Nothing to do.
-  const char* const kEnd = kPathSeparators + strlen(kPathSeparators);
   while (slash_pos > 0 &&
          std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
     --slash_pos;
@@ -60,17 +62,16 @@ int MakeDir(const string& path) {
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in an integer.
+  // resulting value to fit in a 64-bit integer.
   uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
     ((uint64_t)filetime.dwLowDateTime);
-  mtime /= 1000000000LL / 100; // 100ns -> s.
-  mtime -= 12622770400LL;  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime;
+  // 1600 epoch -> 2000 epoch (subtract 400 years).
+  return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
@@ -112,6 +113,11 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   }
   do {
     string lowername = ffd.cFileName;
+    if (lowername == "..") {
+      // Seems to just copy the timestamp for ".." from ".", which is wrong.
+      // This is the case at least on NTFS under Windows 7.
+      continue;
+    }
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
@@ -148,6 +154,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 // RealDiskInterface -----------------------------------------------------------
 
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+  METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
@@ -163,6 +170,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 
   string dir = DirName(path);
   string base(path.substr(dir.size() ? dir.size() + 1 : 0));
+  if (base == "..") {
+    // StatAllFilesInDir does not report any information for base = "..".
+    base = ".";
+    dir = path;
+  }
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
@@ -185,7 +197,21 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     *err = "stat(" + path + "): " + strerror(errno);
     return -1;
   }
-  return st.st_mtime;
+  // Some users (Flatpak) set mtime to 0, this should be harmless
+  // and avoids conflicting with our return value of 0 meaning
+  // that it doesn't exist.
+  if (st.st_mtime == 0)
+    return 1;
+#if defined(_AIX)
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
+#elif defined(__APPLE__)
+  return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
+          st.st_mtimespec.tv_nsec);
+#elif defined(st_mtime) // A macro, so we're likely on modern POSIX.
+  return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+#else
+  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
+#endif
 #endif
 }
 

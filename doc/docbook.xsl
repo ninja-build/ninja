@@ -21,6 +21,9 @@
   <!-- Don't put the "Chapter 1." prefix on the "chapters". -->
   <xsl:param name="chapter.autolabel">0</xsl:param>
 
+  <!-- Make builds reproducible by generating the same IDs from the same inputs -->
+  <xsl:param name="generate.consistent.ids">1</xsl:param>
+
   <!-- Use <ul> for the table of contents.  By default DocBook uses a
        <dl>, which makes no semantic sense.  I imagine they just did
        it because it looks nice? -->

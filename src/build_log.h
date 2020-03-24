@@ -20,9 +20,11 @@
 using namespace std;
 
 #include "hash_map.h"
+#include "load_status.h"
 #include "timestamp.h"
 #include "util.h"  // uint64_t
 
+struct DiskInterface;
 struct Edge;
 
 /// Can answer questions about the manifest for the BuildLog.
@@ -45,18 +47,18 @@ struct BuildLog {
 
   bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp restat_mtime = 0);
+                     TimeStamp mtime = 0);
   void Close();
 
   /// Load the on-disk log.
-  bool Load(const string& path, string* err);
+  LoadStatus Load(const string& path, string* err);
 
   struct LogEntry {
     string output;
     uint64_t command_hash;
     int start_time;
     int end_time;
-    TimeStamp restat_mtime;
+    TimeStamp mtime;
 
     static uint64_t HashCommand(StringPiece command);
 
@@ -64,7 +66,7 @@ struct BuildLog {
     bool operator==(const LogEntry& o) {
       return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
-          restat_mtime == o.restat_mtime;
+          mtime == o.mtime;
     }
 
     explicit LogEntry(const string& output);
@@ -80,6 +82,10 @@ struct BuildLog {
 
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const string& path, const BuildLogUser& user, string* err);
+
+  /// Restat all outputs in the log
+  bool Restat(StringPiece path, const DiskInterface& disk_interface,
+              int output_count, char** outputs, std::string* err);
 
   typedef ExternalStringHashMap<LogEntry*>::Type Entries;
   const Entries& entries() const { return entries_; }
