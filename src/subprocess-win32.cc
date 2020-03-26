@@ -124,12 +124,20 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       buf_ = "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
-    } else if (error == ERROR_INVALID_PARAMETER) {
-      // This generally means that the command line was too long. Give extra
-      // context for this case.
-      Win32Fatal("CreateProcess", "is the command line too long?");
     } else {
-      Win32Fatal("CreateProcess");    // pass all other errors to Win32Fatal
+      fprintf(stderr, "\nCreateProcess failed. Command attempted:\n\"%s\"\n",
+              command.c_str());
+      const char* hint = NULL;
+      // ERROR_INVALID_PARAMETER means the command line was formatted
+      // incorrectly. This can be caused by a command line being too long or
+      // leading whitespace in the command. Give extra context for this case.
+      if (error == ERROR_INVALID_PARAMETER) {
+        if (command.length() > 0 && (command[0] == ' ' || command[0] == '\t'))
+          hint = "command contains leading whitespace";
+        else
+          hint = "is the command line too long?";
+      }
+      Win32Fatal("CreateProcess", hint);
     }
   }
 
