@@ -18,6 +18,8 @@ jobs:
 
     - name: Build ninja
       shell: bash
+      env:
+        MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
         cmake -DCMAKE_BUILD_TYPE=Release -B build
         cmake --build build --parallel --config Release
