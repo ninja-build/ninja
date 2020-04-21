@@ -27,6 +27,7 @@ import pipes
 import string
 import subprocess
 import sys
+import shutil
 
 sourcedir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(sourcedir, 'misc'))
@@ -53,7 +54,12 @@ class Platform(object):
         elif self._platform.startswith('mingw'):
             self._platform = 'mingw'
         elif self._platform.startswith('win'):
-            self._platform = 'msvc'
+            if shutil.which('cl'):
+                self._platform = 'msvc'
+            elif shutil.which('g++'):
+                self._platform = 'mingw'
+            else:
+                raise FileNotFoundError('Could not find MinGW or MSVC compilers.')
         elif self._platform.startswith('bitrig'):
             self._platform = 'bitrig'
         elif self._platform.startswith('netbsd'):
