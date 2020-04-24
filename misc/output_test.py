@@ -107,5 +107,8 @@ red
         self.assertEqual(run('', flags='-t recompact'), '')
         self.assertEqual(run('', flags='-t restat'), '')
 
+    def test_status(self):
+        self.assertEqual(run(''), 'ninja: no work to do.\n')
+
 if __name__ == '__main__':
     unittest.main()
