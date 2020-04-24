@@ -57,3 +57,36 @@ jobs:
         asset_path: ./artifact/ninja-linux.zip
         asset_name: ninja-linux.zip
         asset_content_type: application/zip
+
+  test:
+    runs-on: [ubuntu-18.04]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pytest ninja-build clang-tidy-9
+        pip install cmake==3.17.*
+    - name: Configure (GCC)
+      run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -GNinja
+    - name: Build (GCC)
+      run: ninja
+      working-directory: build-gcc
+    - name: Unit tests (GCC)
+      run: ./build-gcc/ninja_test
+    - name: Python tests (GCC)
+      run: pytest-3 --color=yes ..
+      working-directory: build-gcc
+    - name: Configure (Clang)
+      run: CC=clang-9 CXX=clang++-9 cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+    - name: Build (Clang)
+      run: ninja
+      working-directory: build-clang
+    - name: Unit tests (Clang)
+      run: ./build-clang/ninja_test
+    - name: Python tests (Clang)
+      run: pytest-3 --color=yes ..
+      working-directory: build-clang
+    - name: clang-tidy
+      run: /usr/lib/llvm-9/share/clang/run-clang-tidy.py -header-filter=src
+      working-directory: build-clang

@@ -1,0 +1,9 @@
+---
+Checks: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-non-const-parameter,
+'
+WarningsAsErrors: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-non-const-parameter,
+'
