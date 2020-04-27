@@ -46,6 +46,7 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
         final_output += line.replace('\r', '')
     return final_output
 
+@unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
     def test_issue_1418(self):
         self.assertEqual(run(
