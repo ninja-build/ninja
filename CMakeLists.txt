@@ -7,10 +7,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 	check_ipo_supported(RESULT lto_supported OUTPUT error)
 
 	if(lto_supported)
-		message(STATUS "IPO / LTO enabled")
 		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-	else()
-		message(STATUS "IPO / LTO not supported: <${error}>")
 	endif()
 endif()
 
@@ -138,3 +135,10 @@ enable_testing()
 add_test(NinjaTest ninja_test)
 
 install(TARGETS ninja DESTINATION bin)
+
+include(FeatureSummary)
+
+add_feature_info(LTO lto_supported "Link time / interprocess optimization  ${error}")
+add_feature_info(re2c RE2C "lexer generator")
+
+feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)
