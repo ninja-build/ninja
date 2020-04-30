@@ -31,6 +31,10 @@ else()
 	endif()
 endif()
 
+if(MINGW)
+	string(APPEND CMAKE_CXX_FLAGS " -static")
+endif()
+
 # --- optional re2c
 find_program(RE2C re2c)
 if(RE2C)
