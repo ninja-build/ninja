@@ -166,22 +166,23 @@ yy12:
       goto yy5;
 yy13:
       yych = *(yymarker = ++in);
-      if (yych <= 0x1F) {
+      if (yych <= ' ') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy5;
           if (yych <= '\t') goto yy16;
           goto yy17;
         } else {
           if (yych == '\r') goto yy19;
-          goto yy16;
+          if (yych <= 0x1F) goto yy16;
+          goto yy21;
         }
       } else {
-        if (yych <= '#') {
-          if (yych <= ' ') goto yy21;
-          if (yych <= '"') goto yy16;
-          goto yy23;
+        if (yych <= '9') {
+          if (yych == '#') goto yy23;
+          goto yy16;
         } else {
-          if (yych == '\\') goto yy25;
+          if (yych <= ':') goto yy25;
+          if (yych == '\\') goto yy27;
           goto yy16;
         }
       }
@@ -230,27 +231,37 @@ yy23:
         continue;
       }
 yy25:
+      ++in;
+      {
+        // De-escape colon sign, but preserve other leading backslashes.
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = ':';
+        continue;
+      }
+yy27:
       yych = *++in;
-      if (yych <= 0x1F) {
+      if (yych <= ' ') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy11;
           if (yych <= '\t') goto yy16;
           goto yy11;
         } else {
           if (yych == '\r') goto yy11;
-          goto yy16;
+          if (yych <= 0x1F) goto yy16;
         }
       } else {
-        if (yych <= '#') {
-          if (yych <= ' ') goto yy26;
-          if (yych <= '"') goto yy16;
-          goto yy23;
+        if (yych <= '9') {
+          if (yych == '#') goto yy23;
+          goto yy16;
         } else {
-          if (yych == '\\') goto yy28;
+          if (yych <= ':') goto yy25;
+          if (yych == '\\') goto yy30;
           goto yy16;
         }
       }
-yy26:
       ++in;
       {
         // 2N backslashes plus space -> 2N backslashes, end of filename.
@@ -260,24 +271,25 @@ yy26:
         out += len - 1;
         break;
       }
-yy28:
+yy30:
       yych = *++in;
-      if (yych <= 0x1F) {
+      if (yych <= ' ') {
         if (yych <= '\n') {
           if (yych <= 0x00) goto yy11;
           if (yych <= '\t') goto yy16;
           goto yy11;
         } else {
           if (yych == '\r') goto yy11;
-          goto yy16;
+          if (yych <= 0x1F) goto yy16;
+          goto yy21;
         }
       } else {
-        if (yych <= '#') {
-          if (yych <= ' ') goto yy21;
-          if (yych <= '"') goto yy16;
-          goto yy23;
+        if (yych <= '9') {
+          if (yych == '#') goto yy23;
+          goto yy16;
         } else {
-          if (yych == '\\') goto yy25;
+          if (yych <= ':') goto yy25;
+          if (yych == '\\') goto yy27;
           goto yy16;
         }
       }
