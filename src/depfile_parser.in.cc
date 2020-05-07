@@ -103,6 +103,15 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '#';
         continue;
       }
+      '\\'+ ':' {
+        // De-escape colon sign, but preserve other leading backslashes.
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = ':';
+        continue;
+      }
       '$$' {
         // De-escape dollar character.
         *out++ = '$';

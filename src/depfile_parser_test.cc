@@ -132,13 +132,10 @@ TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
   string err;
-  EXPECT_TRUE(Parse(
-"\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\:",
-      &err));
+  EXPECT_TRUE(Parse("\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\::", &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
-  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\[\\]\\\\",
-            parser_.outs_[0].AsString());
+  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\[\\]\\:", parser_.outs_[0].AsString());
   ASSERT_EQ(0u, parser_.ins_.size());
 }
 
