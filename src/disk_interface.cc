@@ -53,7 +53,7 @@ string DirName(const string& path) {
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  return _wmkdir(Utf8ToWide(path).c_str());
 #else
   return mkdir(path.c_str(), 0777);
 #endif
@@ -223,7 +223,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
+#ifdef _WIN32
+  FILE* fp = _wfopen(Utf8ToWide(path).c_str(), L"w");
+#else
   FILE* fp = fopen(path.c_str(), "w");
+#endif
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
@@ -268,7 +272,11 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {
+#ifdef _WIN32
+  if (_wremove(Utf8ToWide(path).c_str()) < 0) {
+#else
   if (remove(path.c_str()) < 0) {
+#endif
     switch (errno) {
       case ENOENT:
         return 1;
