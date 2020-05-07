@@ -655,7 +655,7 @@ n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
-                   ['README', 'COPYING'],
+                   ['README.md', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)

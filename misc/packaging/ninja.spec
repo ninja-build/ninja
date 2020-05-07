@@ -32,7 +32,7 @@ cp -p ninja %{buildroot}%{_bindir}/
 
 %files
 %defattr(-, root, root)
-%doc COPYING README doc/manual.html
+%doc COPYING README.md doc/manual.html
 %{_bindir}/*
 
 %clean
