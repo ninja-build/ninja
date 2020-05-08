@@ -110,8 +110,7 @@ bool Subprocess::Start(SubprocessSet* set, const StringPiece command) {
   // lines greater than 8,191 chars.
   std::wstring commands = Utf8ToWide(command);
   if (!CreateProcessW(NULL, &commands[0], NULL, NULL,
-                      /* inherit handles */ TRUE, process_flags,
-                      NULL, NULL,
+                      /* inherit handles */ TRUE, process_flags, NULL, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
     if (error == ERROR_FILE_NOT_FOUND) {
@@ -123,18 +122,20 @@ bool Subprocess::Start(SubprocessSet* set, const StringPiece command) {
       CloseHandle(nul);
       pipe_ = NULL;
       // child_ is already NULL;
-      buf_ = "CreateProcess failed: The system cannot find the file "
+      buf_ =
+          "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
     } else {
-      fprintf(stderr, "\nCreateProcess failed. Command attempted:\n\"%s\"\n",
-              command.c_str());
+      fwprintf(stderr, L"\nCreateProcess failed. Command attempted:\n\"%s\"\n",
+               commands.c_str());
       const char* hint = NULL;
       // ERROR_INVALID_PARAMETER means the command line was formatted
       // incorrectly. This can be caused by a command line being too long or
       // leading whitespace in the command. Give extra context for this case.
       if (error == ERROR_INVALID_PARAMETER) {
-        if (command.length() > 0 && (command[0] == ' ' || command[0] == '\t'))
+        if (commands.length() > 0 &&
+            (commands[0] == L' ' || commands[0] == L'\t'))
           hint = "command contains leading whitespace";
         else
           hint = "is the command line too long?";
