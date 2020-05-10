@@ -132,12 +132,29 @@ TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
   string err;
-  EXPECT_TRUE(Parse("\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\::", &err));
+  EXPECT_TRUE(Parse(
+"\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\ :",
+      &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
-  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\[\\]\\:",
+  EXPECT_EQ("\\!\\@#$\\%\\^\\&\\[\\]\\\\",
             parser_.outs_[0].AsString());
   ASSERT_EQ(0u, parser_.ins_.size());
+}
+
+TEST_F(DepfileParserTest, EscapedColons)
+{
+  string err;
+  // Tests for correct parsing of depfiles produced on Windows by both Clang, GCC pre 10 and GCC 10
+  EXPECT_TRUE(Parse(
+"c\\:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o: \\\n"
+" c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h \n"
+      ,&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, parser_.outs_.size());
+  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o",parser_.outs_[0].AsString());
+  ASSERT_EQ(1u, parser_.ins_.size());
+  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h",parser_.ins_[0].AsString());
 }
 
 TEST_F(DepfileParserTest, SpecialChars) {
