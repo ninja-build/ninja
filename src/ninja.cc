@@ -1252,7 +1252,7 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 #endif  // _MSC_VER
 
-/// Parse argv for command-line options.
+/// Parse argv for command-line options and NINJAFLAGS environment variable.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
@@ -1267,6 +1267,54 @@ int ReadFlags(int* argc, char*** argv,
   };
 
   int opt;
+
+  // Check NINJAFLAGS environment variable before cmdargs
+  // Accept flags: j:l:
+  char *ninjaflags;
+  if ((ninjaflags = getenv("NINJAFLAGS"))) {
+    for (char *arg = strtok(ninjaflags, " "); arg; arg = strtok(NULL, " ")) {
+      if (strlen(arg) < 2)
+        Fatal("invalid flag in NINJAFLAGS");
+      switch (arg[1]) {
+        case 'j': {
+          if (strlen(arg) == 2) {
+            if (!(arg = strtok(NULL, " ")))
+              Fatal("-j flag in NINJAFLAGS lacks value");
+          }
+          else {
+            arg=arg+2;
+          }
+          char *end;
+          int value = strtol(arg, &end, 10);
+          if (*end != 0 || value < 0)
+            Fatal("invalid -j parameter in NINJAFLAGS");
+
+          // We want to run N jobs in parallel. For N = 0, INT_MAX
+          // is close enough to infinite for most sane builds.
+          config->parallelism = value > 0 ? value : INT_MAX;
+          break;
+        }
+        case 'l': {
+          if (strlen(arg) == 2) {
+            if (!(arg = strtok(NULL, " ")))
+              Fatal("-l flag in NINJAFLAGS lacks value");
+          }
+          else {
+            arg=arg+2;
+          }
+          char* end;
+          double value = strtod(arg, &end);
+          if (end == arg)
+            Fatal("-l parameter in NINJAFLAGS not numeric: did you mean -l 0.0?");
+          config->max_load_average = value;
+          break;
+        }
+        default:
+          Fatal("invalid NINJAFLAGS");
+      }
+    }
+  }
+
   while (!options->tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
