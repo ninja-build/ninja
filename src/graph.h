@@ -33,6 +33,10 @@ struct Node;
 struct Pool;
 struct State;
 
+#ifdef HAVE_LIBURING
+class BulkStat;
+#endif
+
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
@@ -42,8 +46,19 @@ struct Node {
         mtime_(-1),
         dirty_(false),
         dyndep_pending_(false),
+#ifdef HAVE_LIBURING
+        stat_attempted_(false),
+#endif
         in_edge_(NULL),
         id_(-1) {}
+
+#ifdef HAVE_LIBURING
+  static void BulkStatCallback(TimeStamp t, const char* error, void* data);
+
+  /// Queue a stat() call.  Returns false if that has already been
+  /// done (or if the time stamp is already available).
+  bool BulkStatIfNecessary(BulkStat &bulk_stat);
+#endif
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, string* err);
@@ -124,6 +139,13 @@ private:
   /// Store whether dyndep information is expected from this node but
   /// has not yet been loaded.
   bool dyndep_pending_;
+
+#ifdef HAVE_LIBURING
+  /// Was a stat call queued to class BulkStat?  This keeps
+  /// BulkStatIfNecessary() and RecursiveBulkStat() from walking the
+  /// same tree again.
+  bool stat_attempted_;
+#endif
 
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.

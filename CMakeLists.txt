@@ -48,6 +48,17 @@ else()
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
+# --- optional liburing for io_uring support
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(LIBURING liburing)
+    if(LIBURING_FOUND)
+      add_compile_definitions(HAVE_LIBURING)
+    endif()
+  endif()
+endif()
+
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
 	src/build_log.cc
@@ -72,6 +83,11 @@ add_library(libninja OBJECT
 	src/util.cc
 	src/version.cc
 )
+if(LIBURING_FOUND)
+  target_sources(libninja PRIVATE src/uring.cc)
+  target_include_directories(libninja SYSTEM PUBLIC ${LIBURING_INCLUDE_DIRS})
+  target_link_libraries(libninja ${LIBURING_LIBRARIES})
+endif()
 if(WIN32)
 	target_sources(libninja PRIVATE
 		src/subprocess-win32.cc

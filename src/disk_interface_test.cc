@@ -216,6 +216,7 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, NULL, NULL, this, NULL) {}
 
   // DiskInterface implementation.
+  virtual bool IsReal() const { return false; }
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool WriteFile(const string& path, const string& contents) {
     assert(false);

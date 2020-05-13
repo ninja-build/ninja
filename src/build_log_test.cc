@@ -218,6 +218,7 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
 }
 
 struct TestDiskInterface : public DiskInterface {
+  virtual bool IsReal() const { return false; }
   virtual TimeStamp Stat(const string& path, string* err) const {
     return 4;
   }

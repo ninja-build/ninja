@@ -21,6 +21,10 @@ using namespace std;
 
 #include "timestamp.h"
 
+#ifdef HAVE_LIBURING
+#include "uring.h"
+#endif
+
 /// Interface for reading files from disk.  See DiskInterface for details.
 /// This base offers the minimum interface needed just to read files.
 struct FileReader {
@@ -44,6 +48,8 @@ struct FileReader {
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
 struct DiskInterface: public FileReader {
+  virtual bool IsReal() const = 0;
+
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
   virtual TimeStamp Stat(const string& path, string* err) const = 0;
@@ -75,6 +81,7 @@ struct RealDiskInterface : public DiskInterface {
 #endif
                       {}
   virtual ~RealDiskInterface() {}
+  virtual bool IsReal() const { return true; }
   virtual TimeStamp Stat(const string& path, string* err) const;
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
@@ -83,6 +90,12 @@ struct RealDiskInterface : public DiskInterface {
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);
+
+#ifdef HAVE_LIBURING
+  BulkStat &GetBulkStat() {
+    return bulk_stat_;
+  }
+#endif
 
  private:
 #ifdef _WIN32
@@ -94,6 +107,10 @@ struct RealDiskInterface : public DiskInterface {
   // works out, come up with a better data structure.
   typedef map<string, DirCache> Cache;
   mutable Cache cache_;
+#endif
+
+#ifdef HAVE_LIBURING
+  BulkStat bulk_stat_;
 #endif
 };
 

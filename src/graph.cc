@@ -28,11 +28,65 @@
 #include "state.h"
 #include "util.h"
 
+#ifdef HAVE_LIBURING
+#include "uring.h"
+#endif
+
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
 
+#ifdef HAVE_LIBURING
+
+void Node::BulkStatCallback(TimeStamp t, const char*, void* data) {
+  reinterpret_cast<Node*>(data)->mtime_ = t;
+}
+
+inline bool Node::BulkStatIfNecessary(BulkStat &bulk_stat) {
+  if (stat_attempted_)
+    return false;
+
+  bulk_stat.Queue(path_.c_str(), this);
+  stat_attempted_ = true;
+  return true;
+}
+
+static void RecursiveBulkStatInner(BulkStat &bulk_stat, Node *node) {
+  if (!node->BulkStatIfNecessary(bulk_stat))
+    return;
+
+  Edge* edge = node->in_edge();
+  if (!edge)
+    return;
+
+  for (vector<Node*>::iterator i = edge->inputs_.begin();
+       i != edge->inputs_.end(); ++i)
+    RecursiveBulkStatInner(bulk_stat, *i);
+
+  for (vector<Node*>::iterator i = edge->outputs_.begin();
+       i != edge->outputs_.end(); ++i)
+    RecursiveBulkStatInner(bulk_stat, *i);
+}
+
+static void RecursiveBulkStat(BulkStat &bulk_stat, Node *node) {
+  if (bulk_stat.IsAvailable()) {
+    bulk_stat.SetCallback(Node::BulkStatCallback);
+    RecursiveBulkStatInner(bulk_stat, node);
+    bulk_stat.Wait();
+  }
+}
+
+#endif
+
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
+#ifdef HAVE_LIBURING
+  if (disk_interface_->IsReal()) {
+    RealDiskInterface &real_disk_interface = *(RealDiskInterface *)disk_interface_;
+    BulkStat &bulk_stat = real_disk_interface.GetBulkStat();
+    RecursiveBulkStat(bulk_stat, node);
+  }
+#endif
+
   vector<Node*> stack;
   return RecomputeDirty(node, &stack, err);
 }
