@@ -32,7 +32,7 @@ jobs:
         strip build/ninja
 
     - name: Test ninja
-      run: ctest -vv
+      run: ./ninja_test
       working-directory: build
 
     - name: Create ninja archive
