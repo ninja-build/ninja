@@ -233,12 +233,22 @@ yy23:
 yy25:
       yych = *++in;
       if (yych <= '\n') {
-        if (yych <= 0x00) goto yy11;
-        if (yych <= '\t') goto yy27;
-        goto yy11;
+        if (yych <= 0x01) {
+          if (yych <= 0x00) goto yy11;
+          goto yy27;
+        } else {
+          if (yych <= 0x02) goto yy11;
+          if (yych <= '\t') goto yy27;
+          goto yy11;
+        }
       } else {
-        if (yych == '\r') goto yy11;
-        goto yy27;
+        if (yych <= '\r') {
+          if (yych <= '\f') goto yy27;
+          goto yy11;
+        } else {
+          if (yych == '0') goto yy11;
+          goto yy27;
+        }
       }
 yy26:
       yych = *++in;

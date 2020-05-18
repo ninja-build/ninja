@@ -103,7 +103,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '#';
         continue;
       }
-      '\\'+ ':' / [^\000\x0a\r\n] {
+      '\\'+ ':' / [^\000\x020\r\n] {
         // De-escape colon sign, but preserve other leading backslashes.
         // Regular expression uses lookahead to make sure that no whitespace
         // nor EOF follows. In that case it'd be the : at the end of a target
