@@ -133,7 +133,7 @@ TEST_F(DepfileParserTest, Escapes) {
   // it through.
   string err;
   EXPECT_TRUE(Parse(
-"\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\ :",
+"\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\:",
       &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
