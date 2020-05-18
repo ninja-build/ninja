@@ -49,34 +49,9 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
       return false;
   }
 
-  file_ = fopen(path.c_str(), "ab");
-  if (!file_) {
-    *err = strerror(errno);
-    return false;
-  }
-  // Set the buffer size to this and flush the file buffer after every record
-  // to make sure records aren't written partially.
-  setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1);
-  SetCloseOnExec(fileno(file_));
-
-  // Opening a file in append mode doesn't set the file pointer to the file's
-  // end on Windows. Do that explicitly.
-  fseek(file_, 0, SEEK_END);
-
-  if (ftell(file_) == 0) {
-    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, file_) < 1) {
-      *err = strerror(errno);
-      return false;
-    }
-    if (fwrite(&kCurrentVersion, 4, 1, file_) < 1) {
-      *err = strerror(errno);
-      return false;
-    }
-  }
-  if (fflush(file_) != 0) {
-    *err = strerror(errno);
-    return false;
-  }
+  assert(!file_);
+  file_path_ = path;  // we don't actually open the file right now, but will do
+                      // so on the first write attempt
   return true;
 }
 
@@ -132,6 +107,10 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     errno = ERANGE;
     return false;
   }
+
+  if (!OpenForWriteIfNeeded()) {
+    return false;
+  }
   size |= 0x80000000;  // Deps record: set high bit.
   if (fwrite(&size, 4, 1, file_) < 1)
     return false;
@@ -162,6 +141,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
 }
 
 void DepsLog::Close() {
+  OpenForWriteIfNeeded();  // create the file even if nothing has been recorded
   if (file_)
     fclose(file_);
   file_ = NULL;
@@ -396,6 +376,10 @@ bool DepsLog::RecordId(Node* node) {
     errno = ERANGE;
     return false;
   }
+
+  if (!OpenForWriteIfNeeded()) {
+    return false;
+  }
   if (fwrite(&size, 4, 1, file_) < 1)
     return false;
   if (fwrite(node->path().data(), path_size, 1, file_) < 1) {
@@ -414,5 +398,37 @@ bool DepsLog::RecordId(Node* node) {
   node->set_id(id);
   nodes_.push_back(node);
 
+  return true;
+}
+
+bool DepsLog::OpenForWriteIfNeeded() {
+  if (file_path_.empty()) {
+    return true;
+  }
+  file_ = fopen(file_path_.c_str(), "ab");
+  if (!file_) {
+    return false;
+  }
+  // Set the buffer size to this and flush the file buffer after every record
+  // to make sure records aren't written partially.
+  setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1);
+  SetCloseOnExec(fileno(file_));
+
+  // Opening a file in append mode doesn't set the file pointer to the file's
+  // end on Windows. Do that explicitly.
+  fseek(file_, 0, SEEK_END);
+
+  if (ftell(file_) == 0) {
+    if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, file_) < 1) {
+      return false;
+    }
+    if (fwrite(&kCurrentVersion, 4, 1, file_) < 1) {
+      return false;
+    }
+  }
+  if (fflush(file_) != 0) {
+    return false;
+  }
+  file_path_.clear();
   return true;
 }

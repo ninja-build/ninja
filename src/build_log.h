@@ -45,7 +45,10 @@ struct BuildLog {
   BuildLog();
   ~BuildLog();
 
+  /// Prepares writing to the log file without actually opening it - that will
+  /// happen when/if it's needed
   bool OpenForWrite(const string& path, const BuildLogUser& user, string* err);
+
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp mtime = 0);
   void Close();
@@ -91,8 +94,13 @@ struct BuildLog {
   const Entries& entries() const { return entries_; }
 
  private:
+  /// Should be called before using log_file_. When false is returned, errno
+  /// will be set.
+  bool OpenForWriteIfNeeded();
+
   Entries entries_;
   FILE* log_file_;
+  std::string log_file_path_;
   bool needs_recompaction_;
 };
 
