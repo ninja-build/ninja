@@ -144,7 +144,7 @@ TEST_F(DepfileParserTest, Escapes) {
 
 TEST_F(DepfileParserTest, EscapedColons)
 {
-  string err;
+  std::string err;
   // Tests for correct parsing of depfiles produced on Windows by both Clang, GCC pre 10 and GCC 10
   EXPECT_TRUE(Parse(
 "c\\:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o: \\\n"
