@@ -157,6 +157,23 @@ TEST_F(DepfileParserTest, EscapedColons)
   EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h",parser_.ins_[0].AsString());
 }
 
+TEST_F(DepfileParserTest,EscapedTargetColon)
+{
+  string err;
+  EXPECT_TRUE(Parse(
+"foo1\\: x\n"
+"foo1\\:\n"
+"foo1\\:\r\n"
+"foo1\\:\t\n"
+"foo1\\:"
+      ,&err));
+  ASSERT_EQ("",err);
+  ASSERT_EQ(1u,parser_.outs_.size());
+  EXPECT_EQ("foo1\\",parser_.outs_[0].AsString());
+  ASSERT_EQ(1u,parser_.ins_.size());
+  EXPECT_EQ("x",parser_.ins_[0].AsString());
+}
+
 TEST_F(DepfileParserTest, SpecialChars) {
   // See filenames like istreambuf.iterator_op!= in
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/

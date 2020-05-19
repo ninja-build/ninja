@@ -182,7 +182,7 @@ yy13:
           goto yy16;
         } else {
           if (yych <= ':') goto yy25;
-          if (yych == '\\') goto yy26;
+          if (yych == '\\') goto yy27;
           goto yy16;
         }
       }
@@ -232,49 +232,15 @@ yy23:
       }
 yy25:
       yych = *++in;
-      if (yych <= '\n') {
-        if (yych <= 0x01) {
-          if (yych <= 0x00) goto yy11;
-          goto yy27;
-        } else {
-          if (yych <= 0x02) goto yy11;
-          if (yych <= '\t') goto yy27;
-          goto yy11;
-        }
+      if (yych <= '\f') {
+        if (yych <= 0x00) goto yy28;
+        if (yych <= 0x08) goto yy26;
+        if (yych <= '\n') goto yy28;
       } else {
-        if (yych <= '\r') {
-          if (yych <= '\f') goto yy27;
-          goto yy11;
-        } else {
-          if (yych == '0') goto yy11;
-          goto yy27;
-        }
+        if (yych <= '\r') goto yy28;
+        if (yych == ' ') goto yy28;
       }
 yy26:
-      yych = *++in;
-      if (yych <= ' ') {
-        if (yych <= '\n') {
-          if (yych <= 0x00) goto yy11;
-          if (yych <= '\t') goto yy16;
-          goto yy11;
-        } else {
-          if (yych == '\r') goto yy11;
-          if (yych <= 0x1F) goto yy16;
-          goto yy29;
-        }
-      } else {
-        if (yych <= '9') {
-          if (yych == '#') goto yy23;
-          goto yy16;
-        } else {
-          if (yych <= ':') goto yy25;
-          if (yych == '\\') goto yy31;
-          goto yy16;
-        }
-      }
-yy27:
-      ++in;
-      in -= 1;
       {
         // De-escape colon sign, but preserve other leading backslashes.
         // Regular expression uses lookahead to make sure that no whitespace
@@ -286,7 +252,43 @@ yy27:
         *out++ = ':';
         continue;
       }
-yy29:
+yy27:
+      yych = *++in;
+      if (yych <= ' ') {
+        if (yych <= '\n') {
+          if (yych <= 0x00) goto yy11;
+          if (yych <= '\t') goto yy16;
+          goto yy11;
+        } else {
+          if (yych == '\r') goto yy11;
+          if (yych <= 0x1F) goto yy16;
+          goto yy30;
+        }
+      } else {
+        if (yych <= '9') {
+          if (yych == '#') goto yy23;
+          goto yy16;
+        } else {
+          if (yych <= ':') goto yy25;
+          if (yych == '\\') goto yy32;
+          goto yy16;
+        }
+      }
+yy28:
+      ++in;
+      {
+        // Backslash followed by : and whitespace.
+        // It is therefore normal text and not an escaped colon
+        int len = (int)(in - start - 1);
+        // Need to shift it over if we're overwriting backslashes.
+        if (out < start)
+          memmove(out, start, len);
+        out += len;
+        if (*(in - 1) == '\n')
+          have_newline = true;
+        break;
+      }
+yy30:
       ++in;
       {
         // 2N backslashes plus space -> 2N backslashes, end of filename.
@@ -296,7 +298,7 @@ yy29:
         out += len - 1;
         break;
       }
-yy31:
+yy32:
       yych = *++in;
       if (yych <= ' ') {
         if (yych <= '\n') {
@@ -314,7 +316,7 @@ yy31:
           goto yy16;
         } else {
           if (yych <= ':') goto yy25;
-          if (yych == '\\') goto yy26;
+          if (yych == '\\') goto yy27;
           goto yy16;
         }
       }
