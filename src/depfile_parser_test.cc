@@ -148,8 +148,8 @@ TEST_F(DepfileParserTest, EscapedColons)
   // Tests for correct parsing of depfiles produced on Windows by both Clang, GCC pre 10 and GCC 10
   EXPECT_TRUE(Parse(
 "c\\:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o: \\\n"
-" c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h \n"
-      ,&err));
+" c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h \n",
+      &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
   EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o",parser_.outs_[0].AsString());
@@ -157,16 +157,16 @@ TEST_F(DepfileParserTest, EscapedColons)
   EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h",parser_.ins_[0].AsString());
 }
 
-TEST_F(DepfileParserTest,EscapedTargetColon)
+TEST_F(DepfileParserTest, EscapedTargetColon)
 {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "foo1\\: x\n"
 "foo1\\:\n"
 "foo1\\:\r\n"
 "foo1\\:\t\n"
-"foo1\\:"
-      ,&err));
+"foo1\\:",
+      &err));
   ASSERT_EQ("",err);
   ASSERT_EQ(1u,parser_.outs_.size());
   EXPECT_EQ("foo1\\",parser_.outs_[0].AsString());
