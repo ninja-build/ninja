@@ -145,16 +145,19 @@ TEST_F(DepfileParserTest, Escapes) {
 TEST_F(DepfileParserTest, EscapedColons)
 {
   std::string err;
-  // Tests for correct parsing of depfiles produced on Windows by both Clang, GCC pre 10 and GCC 10
+  // Tests for correct parsing of depfiles produced on Windows
+  // by both Clang, GCC pre 10 and GCC 10
   EXPECT_TRUE(Parse(
 "c\\:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o: \\\n"
 " c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h \n",
       &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
-  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o",parser_.outs_[0].AsString());
+  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.o",
+            parser_.outs_[0].AsString());
   ASSERT_EQ(1u, parser_.ins_.size());
-  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h",parser_.ins_[0].AsString());
+  EXPECT_EQ("c:\\gcc\\x86_64-w64-mingw32\\include\\stddef.h",
+            parser_.ins_[0].AsString());
 }
 
 TEST_F(DepfileParserTest, EscapedTargetColon)
@@ -167,11 +170,11 @@ TEST_F(DepfileParserTest, EscapedTargetColon)
 "foo1\\:\t\n"
 "foo1\\:",
       &err));
-  ASSERT_EQ("",err);
-  ASSERT_EQ(1u,parser_.outs_.size());
-  EXPECT_EQ("foo1\\",parser_.outs_[0].AsString());
-  ASSERT_EQ(1u,parser_.ins_.size());
-  EXPECT_EQ("x",parser_.ins_[0].AsString());
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, parser_.outs_.size());
+  EXPECT_EQ("foo1\\", parser_.outs_[0].AsString());
+  ASSERT_EQ(1u, parser_.ins_.size());
+  EXPECT_EQ("x", parser_.ins_[0].AsString());
 }
 
 TEST_F(DepfileParserTest, SpecialChars) {
