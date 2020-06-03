@@ -28,8 +28,6 @@ Cleaner::Cleaner(State* state,
   : state_(state),
     config_(config),
     dyndep_loader_(state, disk_interface),
-    removed_(),
-    cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
     status_(0) {
