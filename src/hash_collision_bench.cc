@@ -17,8 +17,8 @@
 #include <algorithm>
 using namespace std;
 
-#include <stdlib.h>
-#include <time.h>
+#include <cstdlib>
+#include <ctime>
 
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);

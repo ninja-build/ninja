@@ -14,8 +14,8 @@
 
 #include "dyndep.h"
 
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 
 #include "debug_flags.h"
 #include "disk_interface.h"

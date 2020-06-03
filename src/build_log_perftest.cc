@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "build_log.h"
 #include "graph.h"
 #include "manifest_parser.h"
+#include "metrics.h"
 #include "state.h"
 #include "util.h"
-#include "metrics.h"
 
 #ifndef _WIN32
 #include <unistd.h>

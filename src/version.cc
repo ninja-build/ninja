@@ -14,7 +14,7 @@
 
 #include "version.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "util.h"
 

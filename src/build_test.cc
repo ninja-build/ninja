@@ -14,7 +14,7 @@
 
 #include "build.h"
 
-#include <assert.h>
+#include <cassert>
 
 #include "build_log.h"
 #include "deps_log.h"

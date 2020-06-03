@@ -14,9 +14,9 @@
 
 #include "metrics.h"
 
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 
 #ifndef _WIN32
 #include <sys/time.h>

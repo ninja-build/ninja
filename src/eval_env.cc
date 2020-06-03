@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <assert.h>
-
 #include "eval_env.h"
+
+#include <cassert>
 
 string BindingEnv::LookupVariable(const string& var) {
   map<string, string>::iterator i = bindings_.find(var);

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "depfile_parser.h"
-#include "util.h"
 #include "metrics.h"
+#include "util.h"
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {

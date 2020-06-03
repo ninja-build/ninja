@@ -15,8 +15,8 @@
 #include "graph.h"
 
 #include <algorithm>
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 
 #include "build_log.h"
 #include "debug_flags.h"

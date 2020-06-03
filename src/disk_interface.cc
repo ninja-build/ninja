@@ -14,13 +14,13 @@
 
 #include "disk_interface.h"
 
-#include <algorithm>
-
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include <algorithm>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 
 #ifdef _WIN32
 #include <sstream>

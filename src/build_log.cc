@@ -21,11 +21,12 @@
 #endif
 
 #include "build_log.h"
-#include "disk_interface.h"
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+
+#include "disk_interface.h"
 
 #ifndef _WIN32
 #include <inttypes.h>

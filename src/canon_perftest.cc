@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
-#include "util.h"
 #include "metrics.h"
+#include "util.h"
 
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"

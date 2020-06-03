@@ -14,8 +14,8 @@
 
 #include "graphviz.h"
 
-#include <stdio.h>
 #include <algorithm>
+#include <cstdio>
 
 #include "dyndep.h"
 #include "graph.h"

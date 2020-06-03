@@ -14,8 +14,8 @@
 
 #include "clean.h"
 
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 
 #include "disk_interface.h"
 #include "graph.h"
