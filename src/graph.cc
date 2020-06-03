@@ -514,7 +514,7 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
 }
 
 struct matches {
-  matches(std::vector<StringPiece>::iterator i) : i_(i) {}
+  explicit matches(std::vector<StringPiece>::iterator i) : i_(i) {}
 
   bool operator()(const Node* node) const {
     StringPiece opath = StringPiece(node->path());
