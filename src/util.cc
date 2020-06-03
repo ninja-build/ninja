@@ -152,7 +152,9 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
         // '.' component; eliminate.
         src += 2;
         continue;
-      } else if (src[1] == '.' && (src + 2 == end || IsPathSeparator(src[2]))) {
+      }
+
+      if (src[1] == '.' && (src + 2 == end || IsPathSeparator(src[2]))) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
           dst = components[component_count - 1];

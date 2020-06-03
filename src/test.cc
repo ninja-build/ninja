@@ -188,9 +188,8 @@ int VirtualFileSystem::RemoveFile(const string& path) {
     files_.erase(i);
     files_removed_.insert(path);
     return 0;
-  } else {
-    return 1;
   }
+  return 1;
 }
 
 void ScopedTempDir::CreateAndEnter(const string& name) {
