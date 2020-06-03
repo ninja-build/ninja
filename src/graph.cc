@@ -638,7 +638,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
 vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
                                                             int count) {
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       (size_t)count, 0);
+                       static_cast<size_t>(count), 0);
   edge->implicit_deps_ += count;
   return edge->inputs_.end() - edge->order_only_deps_ - count;
 }

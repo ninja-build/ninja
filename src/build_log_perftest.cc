@@ -123,7 +123,7 @@ int main() {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
-    int delta = (int)(GetTimeMillis() - start);
+    int delta = static_cast<int>(GetTimeMillis() - start);
     printf("%dms\n", delta);
     times.push_back(delta);
   }

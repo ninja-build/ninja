@@ -28,7 +28,7 @@ void RandomCommand(char** s) {
   int len = random(5, 100);
   *s = new char[len];
   for (int i = 0; i < len; ++i)
-    (*s)[i] = (char)random(32, 127);
+    (*s)[i] = static_cast<char>(random(32, 127));
 }
 
 int main() {
@@ -38,7 +38,7 @@ int main() {
   char** commands = new char*[N];
   pair<uint64_t, int>* hashes = new pair<uint64_t, int>[N];
 
-  srand((int)time(NULL));
+  srand(static_cast<int>(time(NULL)));
 
   for (int i = 0; i < N; ++i) {
     RandomCommand(&commands[i]);

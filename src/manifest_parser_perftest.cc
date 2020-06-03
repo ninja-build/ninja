@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < kNumRepetitions; ++i) {
     int64_t start = GetTimeMillis();
     int optimization_guard = LoadManifests(measure_command_evaluation);
-    int delta = (int)(GetTimeMillis() - start);
+    int delta = static_cast<int>(GetTimeMillis() - start);
     printf("%dms (hash: %x)\n", delta, optimization_guard);
     times.push_back(delta);
   }

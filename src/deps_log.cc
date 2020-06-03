@@ -83,7 +83,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
   return RecordDeps(node, mtime, nodes.size(),
-                    nodes.empty() ? NULL : (Node**)&nodes.front());
+                    nodes.empty() ? NULL : const_cast<Node**>(&nodes.front()));
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
@@ -225,8 +225,9 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
       TimeStamp mtime;
-      mtime = (TimeStamp)(((uint64_t)(unsigned int)deps_data[2] << 32) |
-                          (uint64_t)(unsigned int)deps_data[1]);
+      mtime = static_cast<TimeStamp>(
+          static_cast<uint64_t>(static_cast<unsigned int>(deps_data[2])) << 32 |
+          static_cast<uint64_t>(static_cast<unsigned int>(deps_data[1])));
       deps_data += 3;
       int deps_count = (size / 4) - 3;
 
@@ -308,7 +309,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
 DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   // Abort if the node has no id (never referenced in the deps) or if
   // there's no deps recorded for the node.
-  if (node->id() < 0 || node->id() >= (int)deps_.size())
+  if (node->id() < 0 || node->id() >= static_cast<int>(deps_.size()))
     return NULL;
   return deps_[node->id()];
 }
@@ -333,7 +334,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
     (*i)->set_id(-1);
 
   // Write out all deps again.
-  for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
+  for (int old_id = 0; old_id < static_cast<int>(deps_.size()); ++old_id) {
     Deps* deps = deps_[old_id];
     if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
 
@@ -377,7 +378,7 @@ bool DepsLog::IsDepsEntryLiveFor(Node* node) {
 }
 
 bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
-  if (out_id >= (int)deps_.size())
+  if (out_id >= static_cast<int>(deps_.size()))
     deps_.resize(out_id + 1);
 
   bool delete_old = deps_[out_id] != NULL;
@@ -405,7 +406,7 @@ bool DepsLog::RecordId(Node* node) {
   if (padding && fwrite("\0\0", padding, 1, file_) < 1)
     return false;
   int id = nodes_.size();
-  unsigned checksum = ~(unsigned)id;
+  unsigned checksum = ~static_cast<unsigned>(id);
   if (fwrite(&checksum, 4, 1, file_) < 1)
     return false;
   if (fflush(file_) != 0)

@@ -45,8 +45,8 @@ string CLParser::FilterShowIncludes(const string& line,
   const char* in = line.c_str();
   const char* end = in + line.size();
   const string& prefix = deps_prefix.empty() ? kDepsPrefixEnglish : deps_prefix;
-  if (end - in > (int)prefix.size() &&
-      memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
+  if (end - in > static_cast<int>(prefix.size()) &&
+      memcmp(in, prefix.c_str(), static_cast<int>(prefix.size())) == 0) {
     in += prefix.size();
     while (*in == ' ')
       ++in;

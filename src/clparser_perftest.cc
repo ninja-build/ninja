@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
     int64_t end = GetTimeMillis();
 
     if (end - start > 2000) {
-      int delta_ms = (int)(end - start);
+      int delta_ms = static_cast<int>(end - start);
       printf("Parse %d times in %dms avg %.1fus\n",
              limit, delta_ms, float(delta_ms * 1000) / limit);
       break;

@@ -48,8 +48,8 @@ int main(int argc, char* argv[]) {
       int64_t end = GetTimeMillis();
 
       if (end - start > 100) {
-        int delta = (int)(end - start);
-        float time = delta*1000 / (float)limit;
+        int delta = static_cast<int>(end - start);
+        float time = delta * 1000 / static_cast<float>(limit);
         printf("%s: %.1fus\n", filename, time);
         times.push_back(time);
         break;

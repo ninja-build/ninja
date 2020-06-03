@@ -37,7 +37,7 @@ int main() {
     for (int i = 0; i < kNumRepetitions; ++i) {
       CanonicalizePath(buf, &len, &slash_bits, &err);
     }
-    int delta = (int)(GetTimeMillis() - start);
+    int delta = static_cast<int>(GetTimeMillis() - start);
     times.push_back(delta);
   }
 

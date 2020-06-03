@@ -369,7 +369,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
-      for (int in = 0; in < (int)edge->inputs_.size(); in++) {
+      for (int in = 0; in < static_cast<int>(edge->inputs_.size()); in++) {
         const char* label = "";
         if (edge->is_implicit(in))
           label = "| ";
@@ -1182,10 +1182,10 @@ void NinjaMain::DumpMetrics() {
   g_metrics->Report();
 
   printf("\n");
-  int count = (int)state_.paths_.size();
-  int buckets = (int)state_.paths_.bucket_count();
+  int count = static_cast<int>(state_.paths_.size());
+  int buckets = static_cast<int>(state_.paths_.bucket_count());
   printf("path->node hash load %.2f (%d entries / %d buckets)\n",
-         count / (double) buckets, count, buckets);
+         count / static_cast<double>(buckets), count, buckets);
 }
 
 bool NinjaMain::EnsureBuildDirExists() {

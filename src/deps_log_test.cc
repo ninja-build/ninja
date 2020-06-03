@@ -71,7 +71,7 @@ TEST_F(DepsLogTest, WriteRead) {
   ASSERT_EQ("", err);
 
   ASSERT_EQ(log1.nodes().size(), log2.nodes().size());
-  for (int i = 0; i < (int)log1.nodes().size(); ++i) {
+  for (int i = 0; i < static_cast<int>(log1.nodes().size()); ++i) {
     Node* node1 = log1.nodes()[i];
     Node* node2 = log2.nodes()[i];
     ASSERT_EQ(i, node1->id());
@@ -139,7 +139,7 @@ TEST_F(DepsLogTest, DoubleEntry) {
 
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    file_size = (int)st.st_size;
+    file_size = static_cast<int>(st.st_size);
     ASSERT_GT(file_size, 0);
   }
 
@@ -161,7 +161,7 @@ TEST_F(DepsLogTest, DoubleEntry) {
 
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    int file_size_2 = (int)st.st_size;
+    int file_size_2 = static_cast<int>(st.st_size);
     ASSERT_EQ(file_size, file_size_2);
   }
 }
@@ -199,7 +199,7 @@ TEST_F(DepsLogTest, Recompact) {
 
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    file_size = (int)st.st_size;
+    file_size = static_cast<int>(st.st_size);
     ASSERT_GT(file_size, 0);
   }
 
@@ -222,7 +222,7 @@ TEST_F(DepsLogTest, Recompact) {
 
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    file_size_2 = (int)st.st_size;
+    file_size_2 = static_cast<int>(st.st_size);
     // The file should grow to record the new deps.
     ASSERT_GT(file_size_2, file_size);
   }
@@ -273,7 +273,7 @@ TEST_F(DepsLogTest, Recompact) {
     // The file should have shrunk a bit for the smaller deps.
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    file_size_3 = (int)st.st_size;
+    file_size_3 = static_cast<int>(st.st_size);
     ASSERT_LT(file_size_3, file_size_2);
   }
 
@@ -317,7 +317,7 @@ TEST_F(DepsLogTest, Recompact) {
     // The file should have shrunk more.
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
-    int file_size_4 = (int)st.st_size;
+    int file_size_4 = static_cast<int>(st.st_size);
     ASSERT_LT(file_size_4, file_size_3);
   }
 }
@@ -380,7 +380,7 @@ TEST_F(DepsLogTest, Truncated) {
   // smaller sizes.
   int node_count = 5;
   int deps_count = 2;
-  for (int size = (int)st.st_size; size > 0; --size) {
+  for (int size = static_cast<int>(st.st_size); size > 0; --size) {
     string err;
     ASSERT_TRUE(Truncate(kTestFilename, size, &err));
 

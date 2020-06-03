@@ -95,7 +95,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 
 void BuildStatus::BuildEdgeStarted(const Edge* edge) {
   assert(running_edges_.find(edge) == running_edges_.end());
-  int start_time = (int)(GetTimeMillis() - start_time_millis_);
+  int start_time = static_cast<int>(GetTimeMillis() - start_time_millis_);
   running_edges_.insert(make_pair(edge, start_time));
   ++started_edges_;
 
@@ -117,7 +117,7 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
 
   RunningEdgeMap::iterator i = running_edges_.find(edge);
   *start_time = i->second;
-  *end_time = (int)(now - start_time_millis_);
+  *end_time = static_cast<int>(now - start_time_millis_);
   running_edges_.erase(i);
 
   if (edge->use_console())
@@ -653,13 +653,13 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 }
 
 void Plan::Dump() const {
-  printf("pending: %d\n", (int)want_.size());
+  printf("pending: %d\n", static_cast<int>(want_.size()));
   for (map<Edge*, Want>::const_iterator e = want_.begin(); e != want_.end(); ++e) {
     if (e->second != kWantNothing)
       printf("want ");
     e->first->Dump();
   }
-  printf("ready: %d\n", (int)ready_.size());
+  printf("ready: %d\n", static_cast<int>(ready_.size()));
 }
 
 struct RealCommandRunner : public CommandRunner {
@@ -691,9 +691,9 @@ void RealCommandRunner::Abort() {
 bool RealCommandRunner::CanRunMore() const {
   size_t subproc_number =
       subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
-    && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
-        || GetLoadAverage() < config_.max_load_average);
+  return static_cast<int>(subproc_number) < config_.parallelism &&
+         ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f) ||
+          GetLoadAverage() < config_.max_load_average);
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
