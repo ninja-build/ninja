@@ -31,7 +31,7 @@ TEST(StringPieceUtilTest, SplitStringPiece) {
   }
 
   {
-    string empty("");
+    string empty;
     vector<StringPiece> list = SplitStringPiece(empty, ':');
 
     EXPECT_EQ(list.size(), 1);
@@ -82,7 +82,7 @@ TEST(StringPieceUtilTest, JoinStringPiece) {
   }
 
   {
-    string empty("");
+    string empty;
     vector<StringPiece> list = SplitStringPiece(empty, ':');
 
     EXPECT_EQ("", JoinStringPiece(list, ':'));
