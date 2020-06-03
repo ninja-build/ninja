@@ -469,7 +469,7 @@ bool Edge::maybe_phonycycle_diagnostic() const {
 
 // static
 string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
-  string result = path;
+  const string& result = path;
 #ifdef _WIN32
   uint64_t mask = 1;
   for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
