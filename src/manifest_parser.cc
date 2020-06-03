@@ -200,10 +200,7 @@ bool ManifestParser::ParseDefault(string* err) {
       return false;
   } while (!eval.empty());
 
-  if (!ExpectToken(Lexer::NEWLINE, err))
-    return false;
-
-  return true;
+  return ExpectToken(Lexer::NEWLINE, err);
 }
 
 bool ManifestParser::ParseEdge(string* err) {
