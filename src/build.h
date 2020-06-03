@@ -190,7 +190,7 @@ struct Builder {
 
   /// Add a target to the build, scanning dependencies.
   /// @return false on error.
-  bool AddTarget(Node* target, string* err);
+  bool AddTarget(Node* node, string* err);
 
   /// Returns true if the build targets are already up to date.
   bool AlreadyUpToDate() const;
