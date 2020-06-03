@@ -297,21 +297,19 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
       node = edge->outputs_[0];
     }
     return node;
-  } else {
-    *err =
-        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
-    if (path == "clean") {
-      *err += ", did you mean 'ninja -t clean'?";
-    } else if (path == "help") {
-      *err += ", did you mean 'ninja -h'?";
-    } else {
-      Node* suggestion = state_.SpellcheckNode(path);
-      if (suggestion) {
-        *err += ", did you mean '" + suggestion->path() + "'?";
-      }
-    }
-    return NULL;
   }
+  *err = "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
+  if (path == "clean") {
+    *err += ", did you mean 'ninja -t clean'?";
+  } else if (path == "help") {
+    *err += ", did you mean 'ninja -h'?";
+  } else {
+    Node* suggestion = state_.SpellcheckNode(path);
+    if (suggestion) {
+      *err += ", did you mean '" + suggestion->path() + "'?";
+    }
+  }
+  return NULL;
 }
 
 bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
@@ -531,8 +529,7 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
         rule = argv[1];
       if (rule.empty())
         return ToolTargetsSourceList(&state_);
-      else
-        return ToolTargetsList(&state_, rule);
+      return ToolTargetsList(&state_, rule);
     } else if (mode == "depth") {
       if (argc > 1)
         depth = atoi(argv[1]);
@@ -555,10 +552,9 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
   vector<Node*> root_nodes = state_.RootNodes(&err);
   if (err.empty()) {
     return ToolTargetsList(root_nodes, depth, 0);
-  } else {
-    Error("%s", err.c_str());
-    return 1;
   }
+  Error("%s", err.c_str());
+  return 1;
 }
 
 int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
@@ -711,8 +707,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
-    else
-      return cleaner.CleanTargets(argc, argv);
+    return cleaner.CleanTargets(argc, argv);
   } else {
     return cleaner.CleanAll(generator);
   }
@@ -1020,34 +1015,43 @@ bool DebugEnable(const string& name) {
 #endif
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
-  } else if (name == "stats") {
+  }
+
+  if (name == "stats") {
     g_metrics = new Metrics;
     return true;
-  } else if (name == "explain") {
+  }
+
+  if (name == "explain") {
     g_explaining = true;
     return true;
-  } else if (name == "keepdepfile") {
+  }
+
+  if (name == "keepdepfile") {
     g_keep_depfile = true;
     return true;
-  } else if (name == "keeprsp") {
+  }
+
+  if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
-  } else if (name == "nostatcache") {
+  }
+
+  if (name == "nostatcache") {
     g_experimental_statcache = false;
     return true;
-  } else {
-    const char* suggestion =
-        SpellcheckString(name.c_str(),
-                         "stats", "explain", "keepdepfile", "keeprsp",
-                         "nostatcache", NULL);
-    if (suggestion) {
-      Error("unknown debug setting '%s', did you mean '%s'?",
-            name.c_str(), suggestion);
-    } else {
-      Error("unknown debug setting '%s'", name.c_str());
-    }
-    return false;
   }
+
+  const char* suggestion =
+      SpellcheckString(name.c_str(), "stats", "explain", "keepdepfile",
+                       "keeprsp", "nostatcache", NULL);
+  if (suggestion) {
+    Error("unknown debug setting '%s', did you mean '%s'?", name.c_str(),
+          suggestion);
+  } else {
+    Error("unknown debug setting '%s'", name.c_str());
+  }
+  return false;
 }
 
 /// Set a warning flag.  Returns false if Ninja should exit instead  of
@@ -1059,34 +1063,43 @@ bool WarningEnable(const string& name, Options* options) {
 "  phonycycle={err,warn}  phony build statement references itself\n"
     );
     return false;
-  } else if (name == "dupbuild=err") {
+  }
+
+  if (name == "dupbuild=err") {
     options->dupe_edges_should_err = true;
     return true;
-  } else if (name == "dupbuild=warn") {
+  }
+
+  if (name == "dupbuild=warn") {
     options->dupe_edges_should_err = false;
     return true;
-  } else if (name == "phonycycle=err") {
+  }
+
+  if (name == "phonycycle=err") {
     options->phony_cycle_should_err = true;
     return true;
-  } else if (name == "phonycycle=warn") {
+  }
+
+  if (name == "phonycycle=warn") {
     options->phony_cycle_should_err = false;
     return true;
-  } else if (name == "depfilemulti=err" ||
-             name == "depfilemulti=warn") {
+  }
+
+  if (name == "depfilemulti=err" || name == "depfilemulti=warn") {
     Warning("deprecated warning 'depfilemulti'");
     return true;
-  } else {
-    const char* suggestion =
-        SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn",
-                         "phonycycle=err", "phonycycle=warn", NULL);
-    if (suggestion) {
-      Error("unknown warning flag '%s', did you mean '%s'?",
-            name.c_str(), suggestion);
-    } else {
-      Error("unknown warning flag '%s'", name.c_str());
-    }
-    return false;
   }
+
+  const char* suggestion =
+      SpellcheckString(name.c_str(), "dupbuild=err", "dupbuild=warn",
+                       "phonycycle=err", "phonycycle=warn", NULL);
+  if (suggestion) {
+    Error("unknown warning flag '%s', did you mean '%s'?", name.c_str(),
+          suggestion);
+  } else {
+    Error("unknown warning flag '%s'", name.c_str());
+  }
+  return false;
 }
 
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
@@ -1203,10 +1216,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
       if (!err.empty()) {
         Error("%s", err.c_str());
         return 1;
-      } else {
-        // Added a target that is already up-to-date; not really
-        // an error.
       }
+      // Added a target that is already up-to-date; not really
+      // an error.
     }
   }
 
@@ -1416,7 +1428,9 @@ NORETURN void real_main(int argc, char** argv) {
         exit(0);
       // Start the build over with the new manifest.
       continue;
-    } else if (!err.empty()) {
+    }
+
+    if (!err.empty()) {
       Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
     }
