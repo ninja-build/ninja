@@ -39,7 +39,7 @@ vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
 }
 
 string JoinStringPiece(const vector<StringPiece>& list, char sep) {
-  if (list.size() == 0){
+  if (list.empty()) {
     return "";
   }
 
