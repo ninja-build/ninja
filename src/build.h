@@ -46,7 +46,7 @@ struct Plan {
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
   /// fill in |err| with an error message if there's a problem.
-  bool AddTarget(const Node* node, std::string* err);
+  bool AddTarget(const Node* target, std::string* err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns NULL if there's no work to do.
