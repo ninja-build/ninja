@@ -2,8 +2,12 @@
 Checks: '
   ,readability-avoid-const-params-in-decls,
   ,readability-non-const-parameter,
+  ,readability-container-size-empty,
+  ,readability-redundant-string-cstr,
 '
 WarningsAsErrors: '
   ,readability-avoid-const-params-in-decls,
   ,readability-non-const-parameter,
+  ,readability-container-size-empty,
+  ,readability-redundant-string-cstr,
 '
