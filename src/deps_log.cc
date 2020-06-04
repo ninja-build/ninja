@@ -399,7 +399,7 @@ bool DepsLog::RecordId(Node* node) {
   if (fwrite(&size, 4, 1, file_) < 1)
     return false;
   if (fwrite(node->path().data(), path_size, 1, file_) < 1) {
-    assert(node->path().size() > 0);
+    assert(!node->path().empty());
     return false;
   }
   if (padding && fwrite("\0\0", padding, 1, file_) < 1)
