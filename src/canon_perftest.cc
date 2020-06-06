@@ -18,6 +18,8 @@
 #include "util.h"
 #include "metrics.h"
 
+using namespace std;
+
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
     "platform/leveldb/LevelDBWriteBatch.cpp";

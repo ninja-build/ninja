@@ -22,6 +22,8 @@
 #include "state.h"
 #include "util.h"
 
+using namespace std;
+
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)

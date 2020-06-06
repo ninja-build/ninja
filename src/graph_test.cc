@@ -17,6 +17,8 @@
 
 #include "test.h"
 
+using namespace std;
+
 struct GraphTest : public StateTestWithBuiltinRules {
   GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL) {}
 

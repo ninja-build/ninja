@@ -28,6 +28,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 Metrics* g_metrics = NULL;
 
 namespace {

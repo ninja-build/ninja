@@ -19,6 +19,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 typedef BOOL (WINAPI *MiniDumpWriteDumpFunc) (
     IN HANDLE,
     IN DWORD,

@@ -27,6 +27,8 @@
 #endif
 #include <cassert>
 
+using namespace std;
+
 namespace {
 
 const char kTestFilename[] = "BuildLogTest-tempfile";

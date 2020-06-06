@@ -28,6 +28,8 @@
 #include "test.h"
 #include "line_printer.h"
 
+using namespace std;
+
 struct RegisteredTest {
   testing::Test* (*factory)();
   const char *name;

@@ -21,6 +21,8 @@
 #include "state.h"
 #include "test.h"
 
+using namespace std;
+
 struct ParserTest : public testing::Test {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, &fs_);

@@ -30,6 +30,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32

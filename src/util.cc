@@ -54,6 +54,8 @@
 #include "edit_distance.h"
 #include "metrics.h"
 
+using namespace std;
+
 void Fatal(const char* msg, ...) {
   va_list ap;
   fprintf(stderr, "ninja: fatal: ");

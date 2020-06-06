@@ -26,6 +26,8 @@
 #include <unistd.h>
 #endif
 
+using namespace std;
+
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {

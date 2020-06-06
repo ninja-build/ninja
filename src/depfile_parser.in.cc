@@ -17,6 +17,8 @@
 
 #include <algorithm>
 
+using namespace std;
+
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {

@@ -40,6 +40,8 @@
 #include "subprocess.h"
 #include "util.h"
 
+using namespace std;
+
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.

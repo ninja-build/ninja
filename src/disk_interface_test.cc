@@ -23,6 +23,8 @@
 #include "graph.h"
 #include "test.h"
 
+using namespace std;
+
 namespace {
 
 struct DiskInterfaceTest : public testing::Test {

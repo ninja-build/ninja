@@ -16,6 +16,8 @@
 
 #include "eval_env.h"
 
+using namespace std;
+
 string BindingEnv::LookupVariable(const string& var) {
   map<string, string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())

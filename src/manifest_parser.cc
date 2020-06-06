@@ -23,6 +23,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace std;
+
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
     : Parser(state, file_reader),

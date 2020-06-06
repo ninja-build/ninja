@@ -22,6 +22,8 @@
 #include <unistd.h>
 #endif
 
+using namespace std;
+
 namespace {
 
 const char kTestFilename[] = "CleanTest-tempfile";

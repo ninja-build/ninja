@@ -41,6 +41,8 @@
 #define strtoll _strtoi64
 #endif
 
+using namespace std;
+
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away

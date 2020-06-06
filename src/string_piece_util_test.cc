@@ -16,6 +16,8 @@
 
 #include "test.h"
 
+using namespace std;
+
 TEST(StringPieceUtilTest, SplitStringPiece) {
   {
     string input("a:b:c");
