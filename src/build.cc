@@ -958,6 +958,15 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   status_->BuildEdgeFinished(edge, result->success(), result->output,
                              &start_time, &end_time);
 
+  string logfile = edge->GetUnescapedLogfile();
+  if (!logfile.empty())
+  {
+    if (!result->output.empty())
+      disk_interface_->WriteFile(logfile, StripAnsiEscapeCodes(result->output));
+    else
+      disk_interface_->RemoveFile(logfile);
+  }
+
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
     return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);

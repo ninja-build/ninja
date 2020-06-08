@@ -430,6 +430,11 @@ std::string Edge::GetUnescapedRspfile() const {
   return env.LookupVariable("rspfile");
 }
 
+std::string Edge::GetUnescapedLogfile() const {
+  EdgeEnv env(this, EdgeEnv::kDoNotEscape);
+  return env.LookupVariable("logfile");
+}
+
 void Edge::Dump(const char* prefix) const {
   printf("%s[ ", prefix);
   for (vector<Node*>::const_iterator i = inputs_.begin();

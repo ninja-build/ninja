@@ -599,7 +599,9 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
              edge->rule().name() == "interrupt" ||
-             edge->rule().name() == "console") {
+             edge->rule().name() == "console" ||
+             edge->rule().name() == "true-with-output" ||
+             edge->rule().name() == "fail-with-output") {
     // Don't do anything.
   } else if (edge->rule().name() == "cp") {
     assert(!edge->inputs_.empty());
@@ -663,6 +665,16 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     result->status = ExitFailure;
   else
     result->status = ExitSuccess;
+
+  // Provide a way for test cases to verify command's console output
+  if (edge->rule().name() == "true-with-output") {
+    result->output = "success\n";
+    result->status = ExitSuccess;
+  }
+  if (edge->rule().name() == "fail-with-output") {
+    result->output = "failed\n";
+    result->status = ExitFailure;
+  }
 
   // Provide a way for test cases to verify when an edge finishes that
   // some other edge is still active.  This is useful for test cases
@@ -1260,6 +1272,124 @@ TEST_F(BuildTest, PoolEdgesReadyButNotWanted) {
   State save_state;
   RebuildTarget("final.stamp", manifest, NULL, NULL, &save_state);
   EXPECT_GE(save_state.LookupPool("some_pool")->current_use(), 0);
+}
+
+// No logfile shall be created in case of successful build without console output
+TEST_F(BuildTest, LogFileCreationTrueWithoutOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = touch $out\n"
+"  logfile = $out.log\n"
+"build out1: true\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(0u, fs_.files_created_.count("out1.log"));
+}
+
+// Logfile shall be created in case of successful command with console output
+TEST_F(BuildTest, LogFileCreationTrueWithOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true-with-output\n"
+"  command = touch $out\n"
+"  logfile = $out.log\n"
+"build out1: true-with-output\n"));
+
+  string content;
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(1u, fs_.files_created_.count("out1.log"));
+  EXPECT_EQ(DiskInterface::Okay, fs_.ReadFile("out1.log", &content, &err));
+  EXPECT_EQ("success\n", content);
+}
+
+// No logfile shall be created in case of successful command with console output but without logfile option
+TEST_F(BuildTest, LogFileCreationTrueWithoutLogFile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true-with-output\n"
+"  command = touch $out\n"
+"build out1: true-with-output\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(0u, fs_.files_created_.count("out1.log"));
+}
+
+// No logfile shall be created in case of failed build without console output
+TEST_F(BuildTest, LogFileCreationFailWithoutOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = touch $out\n"
+"  logfile = $out.log\n"
+"build out1: fail\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_NE("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(0u, fs_.files_created_.count("out1.log"));
+}
+
+// Logfile shall be created in case of failed build with console output
+TEST_F(BuildTest, LogFileCreationFailWithOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail-with-output\n"
+"  command = touch $out\n"
+"  logfile = $out.log\n"
+"build out1: fail-with-output\n"));
+
+  string content;
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_NE("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(1u, fs_.files_created_.count("out1.log"));
+  EXPECT_EQ(DiskInterface::Okay, fs_.ReadFile("out1.log", &content, &err));
+  EXPECT_EQ("failed\n", content);
+}
+
+// Logfile shall be deleted if there is no command output.
+// One usecase is: user fixes a compile warning and runs the build again.
+TEST_F(BuildTest, LogFileDeletion) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule true\n"
+"  command = touch $out\n"
+"  logfile = $out.log\n"
+"build out1: true\n"));
+
+  // Create the logfile
+  fs_.Create("out1.log", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[0]);
+  // The logfile was removed
+  EXPECT_EQ(1u, fs_.files_removed_.count("out1.log"));
 }
 
 struct BuildWithLogTest : public BuildTest {

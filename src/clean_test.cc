@@ -401,6 +401,21 @@ TEST_F(CleanTest, CleanRsp) {
   EXPECT_EQ(0, fs_.Stat("out2.rsp", &err));
 }
 
+TEST_F(CleanTest, CleanLogFile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc $in > $out\n"
+"  logfile = $out.log\n"
+"build out1: cc in1\n"));
+  fs_.Create("out1", "");
+  fs_.Create("out1.log", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+}
+
 TEST_F(CleanTest, CleanFailure) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build dir: cat src1\n"));

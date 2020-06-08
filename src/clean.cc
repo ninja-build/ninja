@@ -82,6 +82,10 @@ void Cleaner::RemoveEdgeFiles(Edge* edge) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
+
+  string logfile = edge->GetUnescapedLogfile();
+  if (!logfile.empty())
+    Remove(logfile);
 }
 
 void Cleaner::PrintHeader() {

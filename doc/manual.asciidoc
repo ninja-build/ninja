@@ -858,6 +858,12 @@ keys.
 `out`:: the space-separated list of files provided as outputs to the build line
   referencing this `rule`, shell-quoted if it appears in commands.
 
+`logfile`:: path to an optional file to dump the command's console output into.
+  If present, the command's console output (stdout and stderr) will be written
+  to this file. If the command's console output is empty, there will be no file
+  created. These files are cleaned by default and do not re-trigger the build
+  action if they are not present.
+
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
   the command did not change will be treated as though it had never
