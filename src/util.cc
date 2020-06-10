@@ -492,9 +492,8 @@ int GetProcessorCount() {
           reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
             buf.data()), &len)) {
       for (DWORD i = 0; i < len; ) {
-        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info =
-            reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
-              buf.data() + i);
+        auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data() + i);
         if (info->Relationship == RelationProcessorCore &&
             info->Processor.GroupCount == 1) {
           for (KAFFINITY core_mask = info->Processor.GroupMask[0].Mask;
@@ -504,7 +503,7 @@ int GetProcessorCount() {
         }
         i += info->Size;
       }
-      if (cores) {
+      if (cores != 0) {
         return cores;
       }
     }
