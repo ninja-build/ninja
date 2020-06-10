@@ -108,7 +108,9 @@ struct Node {
   void set_id(int id) { id_ = id; }
 
   const std::vector<Edge*>& out_edges() const { return out_edges_; }
+  const std::vector<Edge*>& validation_out_edges() const { return validation_out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
+  void AddValidationOutEdge(Edge* edge) { validation_out_edges_.push_back(edge); }
 
   void Dump(const char* prefix="") const;
 
@@ -150,6 +152,9 @@ private:
 
   /// All Edges that use this Node as an input.
   std::vector<Edge*> out_edges_;
+
+  /// All Edges that use this Node as a validation.
+  std::vector<Edge*> validation_out_edges_;
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
@@ -194,6 +199,7 @@ struct Edge {
   Pool* pool_;
   std::vector<Node*> inputs_;
   std::vector<Node*> outputs_;
+  std::vector<Node*> validations_;
   Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
@@ -309,12 +315,14 @@ struct DependencyScan {
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options),
         dyndep_loader_(state, disk_interface) {}
 
-  /// Update the |dirty_| state of the given node by inspecting its input edge.
+  /// Update the |dirty_| state of the given nodes by transitively inspecting
+  /// their input edges.
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
+  /// Appends any validation nodes found to the nodes parameter.
   /// Returns false on failure.
-  bool RecomputeDirty(Node* node, std::string* err);
+  bool RecomputeDirty(Node* node, std::vector<Node*>* validation_nodes, std::string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
@@ -340,7 +348,8 @@ struct DependencyScan {
   bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
  private:
-  bool RecomputeDirty(Node* node, std::vector<Node*>* stack, std::string* err);
+  bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
+                          std::vector<Node*>* validation_nodes, std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.

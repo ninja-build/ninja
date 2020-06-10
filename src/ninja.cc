@@ -404,6 +404,13 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
           label = "|| ";
         printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
       }
+      if (!edge->validations_.empty()) {
+        printf("  validations:\n");
+        for (std::vector<Node*>::iterator validation = edge->validations_.begin();
+             validation != edge->validations_.end(); ++validation) {
+          printf("    %s\n", (*validation)->path().c_str());
+        }
+      }
     }
     printf("  outputs:\n");
     for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
@@ -411,6 +418,17 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
       for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
            out != (*edge)->outputs_.end(); ++out) {
         printf("    %s\n", (*out)->path().c_str());
+      }
+    }
+    const std::vector<Edge*> validation_edges = node->validation_out_edges();
+    if (!validation_edges.empty()) {
+      printf("  validation for:\n");
+      for (std::vector<Edge*>::const_iterator edge = validation_edges.begin();
+           edge != validation_edges.end(); ++edge) {
+        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+             out != (*edge)->outputs_.end(); ++out) {
+          printf("    %s\n", (*out)->path().c_str());
+        }
       }
     }
   }
