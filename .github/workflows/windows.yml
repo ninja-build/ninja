@@ -23,7 +23,7 @@ jobs:
         cmake --build build --parallel --config Release
 
     - name: Test ninja
-      run: ctest -vv
+      run: ./ninja_test
       working-directory: build
 
     - name: Create ninja archive
