@@ -24,7 +24,7 @@ jobs:
 
     - name: Test ninja
       run: .\ninja_test.exe
-      working-directory: build
+      working-directory: build/Release
 
     - name: Create ninja archive
       shell: bash
