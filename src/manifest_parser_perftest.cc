@@ -115,4 +115,5 @@ int main(int argc, char* argv[]) {
   int max = *max_element(times.begin(), times.end());
   float total = accumulate(times.begin(), times.end(), 0.0f);
   printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
+  return 0;
 }

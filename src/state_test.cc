@@ -38,9 +38,9 @@ TEST(State, Basic) {
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 
-  EXPECT_FALSE(state.GetNode("in1", 0)->dirty());
-  EXPECT_FALSE(state.GetNode("in2", 0)->dirty());
-  EXPECT_FALSE(state.GetNode("out", 0)->dirty());
+  EXPECT_FALSE(state.GetNode("in1", &state.bindings_, 0)->dirty());
+  EXPECT_FALSE(state.GetNode("in2", &state.bindings_, 0)->dirty());
+  EXPECT_FALSE(state.GetNode("out", &state.bindings_, 0)->dirty());
 }
 
 }  // namespace

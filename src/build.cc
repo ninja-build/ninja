@@ -749,7 +749,12 @@ void Builder::Cleanup() {
 
     for (vector<Edge*>::iterator e = active_edges.begin();
          e != active_edges.end(); ++e) {
+      // The depfile will not have current chdir and must be fixed up.
       string depfile = (*e)->GetUnescapedDepfile();
+      // First detect whether depfile was absent.
+      bool noDepfile = depfile.empty();
+      // Apply chdir fixup.
+      depfile = (*e)->env_->ApplyChdir(depfile);
       for (vector<Node*>::iterator o = (*e)->outputs_.begin();
            o != (*e)->outputs_.end(); ++o) {
         // Only delete this output if it was actually modified.  This is
@@ -763,10 +768,10 @@ void Builder::Cleanup() {
         TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
         if (new_mtime == -1)  // Log and ignore Stat() errors.
           Error("%s", err.c_str());
-        if (!depfile.empty() || (*o)->mtime() != new_mtime)
+        if (!noDepfile || (*o)->mtime() != new_mtime)
           disk_interface_->RemoveFile((*o)->path());
       }
-      if (!depfile.empty())
+      if (!noDepfile)
         disk_interface_->RemoveFile(depfile);
     }
   }
@@ -913,8 +918,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
+  // The rspfile will not have current chdir and must be fixed up.
+  // But first detect whether rspfile was absent.
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
+    // Apply chdir fixup.
+    rspfile = edge->env_->ApplyChdir(rspfile);
     string content = edge->GetBinding("rspfile_content");
     if (!disk_interface_->WriteFile(rspfile, content))
       return false;
@@ -999,8 +1008,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
           restat_mtime = input_mtime;
       }
 
+      // The depfile will not have current chdir and must be fixed up.
+      // But first detect whether depfile was absent.
       string depfile = edge->GetUnescapedDepfile();
       if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
+        // Apply chdir fixup.
+        depfile = edge->env_->ApplyChdir(depfile);
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
         if (depfile_mtime == -1)
           return false;
@@ -1020,9 +1033,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     return false;
 
   // Delete any left over response file.
+  // The rspfile will not have current chdir and must be fixed up.
+  // But first detect whether rspfile was absent.
   string rspfile = edge->GetUnescapedRspfile();
-  if (!rspfile.empty() && !g_keep_rsp)
+  if (!rspfile.empty() && !g_keep_rsp) {
+    // Apply chdir fixup.
+    rspfile = edge->env_->ApplyChdir(rspfile);
     disk_interface_->RemoveFile(rspfile);
+  }
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
@@ -1065,7 +1083,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // all backslashes (as some of the slashes will certainly be backslashes
       // anyway). This could be fixed if necessary with some additional
       // complexity in IncludesNormalize::Relativize.
-      deps_nodes->push_back(state_->GetNode(*i, ~0u));
+      deps_nodes->push_back(state_->GetNode(*i, &state_->bindings_, ~0u));
     }
   } else
   if (deps_type == "gcc") {
@@ -1101,7 +1119,8 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
                             err))
         return false;
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      string s = result->edge->env_->ApplyChdir(i->AsString());
+      deps_nodes->push_back(state_->GetNode(s, &state_->bindings_, slash_bits));
     }
 
     if (!g_keep_depfile) {

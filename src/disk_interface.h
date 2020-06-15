@@ -37,6 +37,14 @@ struct FileReader {
   /// On error, return another Status and fill |err|.
   virtual Status ReadFile(const string& path, string* contents,
                           string* err) = 0;
+
+  // Change the current working directory.  On success, return Okay.
+  // On error, return another Status and fill |err|.
+  virtual Status Chdir(const string& path, string* err) = 0;
+
+  // Get the current working directory.  On success, return Okay.
+  // On error, return another Status and fill |err|.
+  virtual Status Getcwd(string* path, string* err) = 0;
 };
 
 /// Interface for accessing the disk.
@@ -79,6 +87,8 @@ struct RealDiskInterface : public DiskInterface {
   virtual bool MakeDir(const string& path);
   virtual bool WriteFile(const string& path, const string& contents);
   virtual Status ReadFile(const string& path, string* contents, string* err);
+  virtual Status Chdir(const string& path, string* err);
+  virtual Status Getcwd(string* path, string* err);
   virtual int RemoveFile(const string& path);
 
   /// Whether stat information can be cached.  Only has an effect on Windows.

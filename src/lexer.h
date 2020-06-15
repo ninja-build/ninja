@@ -18,8 +18,11 @@
 #include "string_piece.h"
 
 // Windows may #define ERROR.
+#ifdef _WIN32
+#include <windows.h>
 #ifdef ERROR
 #undef ERROR
+#endif
 #endif
 
 struct EvalString;

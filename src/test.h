@@ -148,6 +148,8 @@ struct VirtualFileSystem : public DiskInterface {
   virtual bool WriteFile(const string& path, const string& contents);
   virtual bool MakeDir(const string& path);
   virtual Status ReadFile(const string& path, string* contents, string* err);
+  virtual Status Chdir(const string& path, string* err);
+  virtual Status Getcwd(string* path, string* err);
   virtual int RemoveFile(const string& path);
 
   /// An entry for a single in-memory file.
@@ -166,6 +168,9 @@ struct VirtualFileSystem : public DiskInterface {
 
   /// A simple fake timestamp for file operations.
   int now_;
+
+  /// Current directory for file operations, should end in '/' if not empty.
+  string cwd_;
 };
 
 struct ScopedTempDir {

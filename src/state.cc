@@ -100,11 +100,17 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
-  Node* node = LookupNode(path);
+Node* State::GetNode(StringPiece path, BindingEnv* env, uint64_t slash_bits) {
+  Node* node;
+  if (env->AsString().empty()) {
+    // Optimization: skip env->ApplyChdir() unless it is needed.
+    node = LookupNode(path);
+  } else {
+    node = LookupNode(env->ApplyChdir(path.AsString()));
+  }
   if (node)
     return node;
-  node = new Node(path.AsString(), slash_bits);
+  node = new Node(env, path.AsString(), slash_bits);
   paths_[node->path()] = node;
   return node;
 }
@@ -135,13 +141,13 @@ Node* State::SpellcheckNode(const string& path) {
 }
 
 void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+  Node* node = GetNode(path, edge->env_, slash_bits);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
 
 bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+  Node* node = GetNode(path, edge->env_, slash_bits);
   if (node->in_edge())
     return false;
   edge->outputs_.push_back(node);
@@ -149,11 +155,17 @@ bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
   return true;
 }
 
-bool State::AddDefault(StringPiece path, string* err) {
-  Node* node = LookupNode(path);
+bool State::AddDefault(StringPiece path, BindingEnv* env, string* err) {
+  Node* node = LookupNode(env->ApplyChdir(path.AsString()));
   if (!node) {
-    *err = "unknown target '" + path.AsString() + "'";
+    *err = "unknown target " + env->AsString() + "'" + path.AsString() + "'";
     return false;
+  }
+  if (!env->AsString().empty()) {
+    // Ignore defaults in subninjas. The parent may specify subninja targets in
+    // its defaults list, but subninja defaults no longer apply when ninja
+    // builds the parent.
+    return true;
   }
   defaults_.push_back(node);
   return true;

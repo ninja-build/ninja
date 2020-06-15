@@ -20,7 +20,7 @@ string BindingEnv::LookupVariable(const string& var) {
   map<string, string>::iterator i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
-  if (parent_)
+  if (parent_ && !HasRelPath())
     return parent_->LookupVariable(var);
   return "";
 }
@@ -45,7 +45,7 @@ const Rule* BindingEnv::LookupRule(const string& rule_name) {
   map<string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i != rules_.end())
     return i->second;
-  if (parent_)
+  if (parent_ && !HasRelPath())
     return parent_->LookupRule(rule_name);
   return NULL;
 }
@@ -90,7 +90,7 @@ string BindingEnv::LookupWithFallback(const string& var,
   if (eval)
     return eval->Evaluate(env);
 
-  if (parent_)
+  if (parent_ && !HasRelPath())
     return parent_->LookupVariable(var);
 
   return "";

@@ -15,6 +15,7 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
+#include <assert.h>
 #include <string>
 #include <vector>
 using namespace std;
@@ -36,8 +37,10 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const string& path, uint64_t slash_bits)
-      : path_(path),
+  Node(BindingEnv* env, const string& path, uint64_t slash_bits)
+      : env_(env),
+        env_path_(env_->ApplyChdir(path)),
+        path_(path),
         slash_bits_(slash_bits),
         mtime_(-1),
         dirty_(false),
@@ -74,13 +77,9 @@ struct Node {
     return mtime_ != -1;
   }
 
-  const string& path() const { return path_; }
+  const string& path() const { return env_path_; }
   /// Get |path()| but use slash_bits to convert back to original slash styles.
-  string PathDecanonicalized() const {
-    return PathDecanonicalized(path_, slash_bits_);
-  }
-  static string PathDecanonicalized(const string& path,
-                                    uint64_t slash_bits);
+  string PathDecanonicalized(BindingEnv* in_env) const;
   uint64_t slash_bits() const { return slash_bits_; }
 
   TimeStamp mtime() const { return mtime_; }
@@ -103,7 +102,18 @@ struct Node {
 
   void Dump(const char* prefix="") const;
 
+  void ResetEnv(BindingEnv* newEnv) {
+    string oldPath = path();
+    path_ = oldPath;
+    path_.erase(0, newEnv->AsString().size());
+    env_ = newEnv;
+    assert(env_->ApplyChdir(path_) == oldPath);
+  }
+  BindingEnv* GetEnv() { return env_; }
+
 private:
+  BindingEnv* env_;
+  const string env_path_;
   string path_;
 
   /// Set bits starting from lowest for backslashes that were normalized to
@@ -161,11 +171,14 @@ struct Edge {
   std::string GetBinding(const string& key) const;
   bool GetBindingBool(const string& key) const;
 
-  /// Like GetBinding("depfile"), but without shell escaping.
+  /// Like GetBinding("depfile"), but without shell escaping. The result *must*
+  /// be passed through env_->ApplyChdir() to be correct.
   string GetUnescapedDepfile() const;
-  /// Like GetBinding("dyndep"), but without shell escaping.
+  /// Like GetBinding("dyndep"), but without shell escaping. The result *must*
+  /// be passed through env_->ApplyChdir() to be correct.
   string GetUnescapedDyndep() const;
-  /// Like GetBinding("rspfile"), but without shell escaping.
+  /// Like GetBinding("rspfile"), but without shell escaping. The result *must*
+  /// be passed through env_->ApplyChdir() to be correct.
   std::string GetUnescapedRspfile() const;
 
   void Dump(const char* prefix="") const;

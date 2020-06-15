@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "manifest_parser.h"
+#include "disk_interface.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -192,7 +193,7 @@ bool ManifestParser::ParseDefault(string* err) {
     uint64_t slash_bits;  // Unused because this only does lookup.
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
-    if (!state_->AddDefault(path, &path_err))
+    if (!state_->AddDefault(path, env_, &path_err))
       return lexer_.Error(path_err, err);
 
     eval.Clear();
@@ -384,10 +385,11 @@ bool ManifestParser::ParseEdge(string* err) {
   // be one of our manifest-specified inputs.
   string dyndep = edge->GetUnescapedDyndep();
   if (!dyndep.empty()) {
+    dyndep = env->ApplyChdir(dyndep);
     uint64_t slash_bits;
     if (!CanonicalizePath(&dyndep, &slash_bits, err))
       return false;
-    edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
+    edge->dyndep_ = state_->GetNode(dyndep, env, slash_bits);
     edge->dyndep_->set_dyndep_pending(true);
     vector<Node*>::iterator dgi =
       std::find(edge->inputs_.begin(), edge->inputs_.end(), edge->dyndep_);
@@ -405,18 +407,96 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
-  if (new_scope) {
-    subparser.env_ = new BindingEnv(env_);
-  } else {
-    subparser.env_ = env_;
-  }
-
-  if (!subparser.Load(path, err, &lexer_))
-    return false;
-
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  return true;
+  bool has_chdir = false;
+  string parent_path = env_->AsString();
+  string dir_err;
+  string prev_cwd;
+  string rel_path;
+  bool ok = true;  // Always restore prev_cwd, even if there is an error.
+  while (lexer_.PeekToken(Lexer::INDENT)) {
+    string key;
+    EvalString let_value;
+    if (!ParseLet(&key, &let_value, err)) {
+      ok = false;
+      break;
+    }
+    if (key != "chdir") {
+      lexer_.Error("illegal key '" + key + "' (only 'chdir' is supported)",
+                   err);
+      ok = false;
+      break;
+    }
+    if (!new_scope) {
+      lexer_.Error("invalid use of 'chdir' in include line", err);
+      ok = false;
+      break;
+    }
+    if (has_chdir) {
+      lexer_.Error("duplicate 'chdir' in subninja", err);
+      ok = false;
+      break;
+    }
+    rel_path = let_value.Evaluate(env_);
+    if (rel_path.find("./") == 0 || rel_path.find("/./") != string::npos ||
+        rel_path.find("../") == 0 || rel_path.find("/../") != string::npos) {
+      return lexer_.Error("invalid use of '.' or '..' in chdir", err);
+    }
+    if (file_reader_->Getcwd(&prev_cwd, &dir_err) != FileReader::Okay) {
+      *err = "Getcwd: " + dir_err;
+      return false;  // Can return because has_chdir is always false here.
+    }
+    if (file_reader_->Chdir(rel_path, &dir_err) != FileReader::Okay) {
+      *err = "Chdir to '" + rel_path + "': " + dir_err;
+      return false;
+    }
+    has_chdir = true;
+    rel_path += '/';
+  }
+
+  if (ok) {
+    ManifestParser subparser(state_, file_reader_, options_);
+    if (new_scope) {
+      // Note that rel_path of "" (for whatever reason) means no chdir.
+      subparser.env_ = new BindingEnv(env_, rel_path,
+                                      parent_path + rel_path);
+
+      if (!rel_path.empty()) {
+        subparser.env_->AddRule(&State::kPhonyRule);
+
+        const string& abs_path = subparser.env_->AsString();
+        // Find all inbound references to this chdir. Their env will be a parent
+        // of subparser.env_ and assume no chdir. Replace it so that
+        // subparser.env_ is used correctly with the chdir in place.
+        for (State::Paths::iterator i = state_->paths_.begin();
+            i != state_->paths_.end(); ++i) {
+          if (i->first.AsString().find(abs_path) == 0) {
+            Node* node = i->second;
+            node->ResetEnv(subparser.env_);
+          }
+        }
+      }
+    } else {
+      subparser.env_ = env_;
+    }
+
+    if (!subparser.Load(path, err, &lexer_)) {
+      ok = false;
+    }
+  }
+
+  // Restore prev_cwd. Note that has_chdir is set to true only after
+  // file_reader_->Chdir() succeeds, and any errors after that set ok = false.
+  // Do not smash the value of err if it was previously set.
+  if (has_chdir) {
+    if (file_reader_->Chdir(prev_cwd, &dir_err) != FileReader::Okay) {
+      if (ok) {
+        ok = false;
+        *err = "restore cwd = '" + prev_cwd + "': " + dir_err;
+      }
+    }
+  }
+  return ok;
 }

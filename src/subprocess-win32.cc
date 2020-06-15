@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <sstream>
 
 #include "util.h"
 
@@ -107,10 +108,38 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
-  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
+  std::string updatedCommand;
+  const char* pcommand = command.c_str();
+  char* chdir = NULL;
+  // Parse the command: if it starts with "cmd /c cd\"" and also has the
+  // endCD string, remove that much and call CreateProcessA(chdir). Even
+  // if the build.ninja somehow contained this string through some other
+  // means, this transformation will not cause the command to fail.
+  static const string hasCD = "cmd /c cd \"";
+  if (command.substr(0, hasCD.size()) == hasCD) {
+    auto endCD = command.find("\" && ", hasCD.size());
+    if (endCD == string::npos) {
+      chdir = _fullpath(NULL /*_fullpath will malloc*/,
+                        command.substr(hasCD.size(), endCD - hasCD.size())
+                               .c_str(),
+                        PATH_MAX);
+      if (!chdir) {
+        stringstream ss;
+        ss << "_fullpath(" << command << ") failed: errno=" << errno;
+        Fatal(ss.str().c_str());
+      }
+      updatedCommand = command.substr(endCD + 5);
+      pcommand = updatedCommand.c_str();
+    }
+  }
+  // CreateProcessA() here may have chdir == NULL.
+  if (!CreateProcessA(NULL, (char*)pcommand, NULL, NULL,
                       /* inherit handles */ TRUE, process_flags,
-                      NULL, NULL,
+                      NULL, chdir,
                       &startup_info, &process_info)) {
+    if (chdir) {
+      free(chdir);
+    }
     DWORD error = GetLastError();
     if (error == ERROR_FILE_NOT_FOUND) {
       // File (program) not found error is treated as a normal build
@@ -139,6 +168,9 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       }
       Win32Fatal("CreateProcess", hint);
     }
+  }
+  if (chdir) {
+    free(chdir);
   }
 
   // Close pipe channel only used by the child.

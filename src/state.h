@@ -94,13 +94,13 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(StringPiece path, uint64_t slash_bits);
+  Node* GetNode(StringPiece path, BindingEnv* env, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const string& path);
 
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
-  bool AddDefault(StringPiece path, string* error);
+  bool AddDefault(StringPiece path, BindingEnv* env, string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.

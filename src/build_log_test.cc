@@ -237,6 +237,14 @@ struct TestDiskInterface : public DiskInterface {
     assert(false);
     return 0;
   }
+  virtual Status Chdir(const string& path, string* err) {
+    assert(false);
+    return OtherError;
+  }
+  virtual Status Getcwd(string* path, string* err) {
+    assert(false);
+    return OtherError;
+  }
 };
 
 TEST_F(BuildLogTest, Restat) {

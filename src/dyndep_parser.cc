@@ -204,7 +204,7 @@ bool DyndepParser::ParseEdge(string* err) {
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
-    Node* n = state_->GetNode(path, slash_bits);
+    Node* n = state_->GetNode(path, &env_, slash_bits);
     dyndeps->implicit_inputs_.push_back(n);
   }
 
@@ -215,7 +215,7 @@ bool DyndepParser::ParseEdge(string* err) {
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
       return lexer_.Error(path_err, err);
-    Node* n = state_->GetNode(path, slash_bits);
+    Node* n = state_->GetNode(path, &env_, slash_bits);
     dyndeps->implicit_outputs_.push_back(n);
   }
 

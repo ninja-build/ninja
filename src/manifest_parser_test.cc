@@ -30,6 +30,18 @@ struct ParserTest : public testing::Test {
     VerifyGraph(state);
   }
 
+  Node* GetNode(const string& path) {
+    return state.GetNode(path, &state.bindings_, 0);
+  }
+
+  static string VerifyCwd(VirtualFileSystem& fs) {
+    string cwd;
+    string err;
+    EXPECT_EQ(FileReader::Okay, fs.Getcwd(&cwd, &err));
+    EXPECT_EQ("", err);
+    return cwd;
+  }
+
   State state;
   VirtualFileSystem fs_;
 };
@@ -84,7 +96,7 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
   const Rule* rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = GetNode("result")->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
   EXPECT_FALSE(edge->GetBindingBool("generator"));
 }
@@ -893,10 +905,7 @@ TEST_F(ParserTest, MissingSubNinja) {
   ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest("subninja foo.ninja\n", &err));
-  EXPECT_EQ("input:1: loading 'foo.ninja': No such file or directory\n"
-            "subninja foo.ninja\n"
-            "                  ^ near here"
-            , err);
+  EXPECT_EQ("input:2: loading 'foo.ninja': No such file or directory\n", err);
 }
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
@@ -934,15 +943,29 @@ TEST_F(ParserTest, Include) {
   EXPECT_EQ("inner", state.bindings_.LookupVariable("var"));
 }
 
-TEST_F(ParserTest, BrokenInclude) {
+TEST_F(ParserTest, IncludeErrors) {
   fs_.Create("include.ninja", "build\n");
-  ManifestParser parser(&state, &fs_);
-  string err;
-  EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
-  EXPECT_EQ("include.ninja:1: expected path\n"
-            "build\n"
-            "     ^ near here"
-            , err);
+  {
+    ManifestParser parser(&state, &fs_);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("include include.ninja\n", &err));
+    EXPECT_EQ("include.ninja:1: expected path\n"
+              "build\n"
+              "     ^ near here"
+              , err);
+  }
+
+  {
+    ManifestParser parser(&state, &fs_);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+        "include include.ninja\n"
+        "    chdir = somedir\n", &err));
+    EXPECT_EQ("input:2: invalid use of 'chdir' in include line\n"
+              "    chdir = somedir\n"
+              "                   ^ near here"
+              , err);
+  }
 }
 
 TEST_F(ParserTest, Implicit) {
@@ -1090,7 +1113,7 @@ TEST_F(ParserTest, DyndepNotSpecified) {
 "rule cat\n"
 "  command = cat $in > $out\n"
 "build result: cat in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result", &state.bindings_, 0)->in_edge();
   ASSERT_FALSE(edge->dyndep_);
 }
 
@@ -1113,7 +1136,7 @@ TEST_F(ParserTest, DyndepExplicitInput) {
 "  command = cat $in > $out\n"
 "build result: cat in\n"
 "  dyndep = in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result", &state.bindings_, 0)->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
@@ -1125,7 +1148,7 @@ TEST_F(ParserTest, DyndepImplicitInput) {
 "  command = cat $in > $out\n"
 "build result: cat in | dd\n"
 "  dyndep = dd\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result", &state.bindings_, 0)->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "dd");
@@ -1137,7 +1160,7 @@ TEST_F(ParserTest, DyndepOrderOnlyInput) {
 "  command = cat $in > $out\n"
 "build result: cat in || dd\n"
 "  dyndep = dd\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result", &state.bindings_, 0)->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "dd");
@@ -1149,8 +1172,275 @@ TEST_F(ParserTest, DyndepRuleInput) {
 "  command = cat $in > $out\n"
 "  dyndep = $in\n"
 "build result: cat in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result", &state.bindings_, 0)->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
+}
+
+TEST_F(ParserTest, SimpleChdir) {
+  fs_.MakeDir("test-a");
+  fs_.Create("test-a/a.ninja",
+    "rule cat\n"
+    "  command = cat $in > $out\n"
+    "build out2: cat in1\n"
+    "build out1: cat in2\n"
+    "build final: cat out1\n");
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"subninja a.ninja\n"
+"    chdir = test-a\n"
+"\n"
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+  ));
+  EXPECT_EQ("/", VerifyCwd(fs_));  // Verify cwd was restored
+
+  // Verify edge command includes correct 'cd test-a'
+  Edge* edge = GetNode("test-a/final")->in_edge();
+#if _WIN32
+  EXPECT_EQ("cmd /c cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#endif
+}
+
+TEST_F(ParserTest, SimpleChdirReordered) {
+  fs_.MakeDir("test-a");
+  fs_.Create("test-a/a.ninja",
+    "rule cat\n"
+    "  command = cat $in > $out\n"
+    "build out2: cat in1\n"
+    "build out1: cat in2\n"
+    "build final: cat out1\n");
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir = test-a\n"
+  ));
+  EXPECT_EQ("/", VerifyCwd(fs_));  // Verify cwd was restored
+
+  // Verify edge command includes correct 'cd test-a'
+  Edge* edge = GetNode("test-a/final")->in_edge();
+#if _WIN32
+  EXPECT_EQ("cmd /c cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#endif
+}
+
+TEST_F(ParserTest, TwoChdirs) {
+  fs_.MakeDir("test-a");
+  fs_.Create("test-a/a.ninja",
+    "rule cat\n"
+    "  command = cat $in > $out\n"
+    "build out2: cat in1\n"
+    "build out1: cat in2\n"
+    "build final: cat out1\n"
+    "default final\n");
+
+  fs_.MakeDir("test-b");
+  fs_.Create("test-b/b.ninja",
+    "rule cat\n"
+    "  command = cat $in > $out\n"
+    "build out2: cat in1\n"
+    "build out3: cat in2\n"
+    "build final: cat out3\n"
+    "default final\n");
+
+  // Verify that duplicate 'default final' lines in subninjas do not conflict.
+  // Verify that 'default final' in a chdir is ignored.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"subninja a.ninja\n"
+"    chdir = test-a\n"
+"\n"
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-b/final\n"
+"default foo\n"
+"\n"
+"subninja b.ninja\n"
+"    chdir = test-b\n"
+  ));
+  EXPECT_EQ("/", VerifyCwd(fs_));  // Verify cwd was restored
+
+  // Verify edge command includes correct 'cd test-a'
+  Edge* edge = GetNode("test-a/final")->in_edge();
+#if _WIN32
+  EXPECT_EQ("cmd /c cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cd \"test-a/\" && cat out1 > final", edge->EvaluateCommand());
+#endif
+
+  // Verify edge command includes correct 'cd test-b'
+  edge = GetNode("test-b/final")->in_edge();
+#if _WIN32
+  EXPECT_EQ("cmd /c cd \"test-b/\" && cat out3 > final", edge->EvaluateCommand());
+#else
+  EXPECT_EQ("cd \"test-b/\" && cat out3 > final", edge->EvaluateCommand());
+#endif
+}
+
+TEST_F(ParserTest, ChdirErrors) {
+  {
+    // Test an invalid ParseLet line (should be chdir = test-a)
+    VirtualFileSystem fs;
+    fs.MakeDir("test-a");
+    fs.Create("test-a/a.ninja",
+      "rule cat\n"
+      "  command = cat $in > $out\n"
+      "build out2: cat in1\n"
+      "build out1: cat in2\n"
+      "build final: cat out1\n");
+    State local_state;
+    ManifestParser parser(&local_state, &fs);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir test-a\n", &err));
+    EXPECT_EQ("input:9: expected '=', got identifier\n"
+              "    chdir test-a\n"
+              "          ^ near here"
+              , err);
+    EXPECT_EQ("/", VerifyCwd(fs));  // Verify cwd was restored
+  }
+
+  {
+    // Test duplicate chdir lets (only one is allowed)
+    VirtualFileSystem fs;
+    fs.MakeDir("test-a");
+    fs.Create("test-a/a.ninja",
+      "rule cat\n"
+      "  command = cat $in > $out\n"
+      "build out2: cat in1\n"
+      "build out1: cat in2\n"
+      "build final: cat out1\n");
+    State local_state;
+    ManifestParser parser(&local_state, &fs);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir = test-a\n"
+"    chdir = test-b\n", &err));
+    EXPECT_EQ("input:10: duplicate 'chdir' in subninja\n"
+              "    chdir = test-b\n"
+              "                  ^ near here"
+              , err);
+    EXPECT_EQ("/", VerifyCwd(fs));  // Verify cwd was restored
+  }
+
+  {
+    // Test an invalid let (only chdir is allowed)
+    VirtualFileSystem fs;
+    fs.MakeDir("test-a");
+    fs.Create("test-a/a.ninja",
+      "rule cat\n"
+      "  command = cat $in > $out\n"
+      "build out2: cat in1\n"
+      "build out1: cat in2\n"
+      "build final: cat out1\n");
+    State local_state;
+    ManifestParser parser(&local_state, &fs);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir = test-a\n"
+"    foo = test-b\n", &err));
+    EXPECT_EQ("input:10: illegal key 'foo' (only 'chdir' is supported)\n"
+              "    foo = test-b\n"
+              "                ^ near here"
+              , err);
+    EXPECT_EQ("/", VerifyCwd(fs));  // Verify cwd was restored
+  }
+
+  {
+    // Test chdir failure
+    VirtualFileSystem fs;
+    fs.MakeDir("test-a");
+    fs.Create("test-a/a.ninja",
+      "rule cat\n"
+      "  command = cat $in > $out\n"
+      "build out2: cat in1\n"
+      "build out1: cat in2\n"
+      "build final: cat out1\n");
+    State local_state;
+    ManifestParser parser(&local_state, &fs);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir = test-b\n", &err));
+    EXPECT_EQ("Chdir to 'test-b': No such file or directory", err);
+    EXPECT_EQ("/", VerifyCwd(fs));  // Verify cwd was restored
+  }
+
+  {
+    // Test that an error in a.ninja flows through the chdir.
+    // Verify that 'unknown target' includes the chdir in the message.
+    VirtualFileSystem fs;
+    fs.MakeDir("test-a");
+    fs.Create("test-a/a.ninja",
+      "rule cat\n"
+      "  command = cat $in > $out\n"
+      "build out2: cat in1\n"
+      "build out1: cat in2\n"
+      "build final: cat out1\n"
+      "default somethingweird\n");
+    ManifestParserOptions parser_opts;
+    parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+    State local_state;
+    ManifestParser parser(&local_state, &fs, parser_opts);
+    string err;
+    EXPECT_FALSE(parser.ParseTest(
+"rule pipe-through-test-a\n"
+"    command = $in | test-a/final > $out\n"
+"\n"
+"build foo: pipe-through-test-a | test-a/final\n"
+"\n"
+"default foo\n"
+"\n"
+"subninja a.ninja\n"
+"    chdir = test-a\n", &err));
+    EXPECT_EQ("a.ninja:6: unknown target test-a/'somethingweird'\n"
+              "default somethingweird\n"
+              "                      ^ near here"
+              , err);
+    EXPECT_EQ("/", VerifyCwd(fs));  // Verify cwd was restored
+  }
 }

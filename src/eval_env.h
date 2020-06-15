@@ -77,11 +77,62 @@ struct Rule {
   Bindings bindings_;
 };
 
+struct RelPathEnv : public Env {
+  RelPathEnv(const string& rel_path, const string& abs_path)
+    : rel_path_(rel_path),
+      abs_path_(abs_path) {}
+
+  const string& AsString() const { return abs_path_; }
+  bool equals(RelPathEnv* other) { return other->abs_path_ == abs_path_; }
+  bool HasRelPath() const { return !rel_path_.empty(); }
+  string ApplyChdir(string s) const {
+    if (s.size() > 0 && s[0] == '/') {
+      return s;
+    }
+    // Optimization: only simplify ./ and ../ on boundary between a and s.
+    // To process all ./ and ../, wrap the following code in a loop. At the end
+    // of the loop, search for ./ or ../ and construct new a and s using that as
+    // the new boundary.
+    //
+    // Note: there are dangerous filesystem bugs in assuming that ../ can be
+    // simplified in this way. It only "works" when the dir before ../ in the
+    // relative path is a physical directory entry (so, no symlinks, FS joins,
+    // or other filesystem features).
+    string a = AsString();
+    while (!a.empty() && s.size() > 3 &&
+        s[0] == '.') {
+      if (s[1] == '/') {
+        s.erase(0, 2);  // Remove "./" from s.
+      } else if (s[1] == '.' && s[2] == '/') {
+        string::size_type i = a.rfind('/', a.size() - 2);
+        if (i == string::npos) {
+          a.clear();
+        } else {
+          i++;
+          a.erase(i, a.size() - i);  // Remove "../" from s and one dir from a.
+        }
+        s.erase(0, 3);
+      }
+    }
+    return a + s;
+  }
+
+private:
+  // rel_path_ is relative to the parent BindingEnv.
+  string rel_path_;
+  // abs_path_ is still relative to the root ninja invocation.
+  string abs_path_;
+};
+
 /// An Env which contains a mapping of variables to values
 /// as well as a pointer to a parent scope.
-struct BindingEnv : public Env {
-  BindingEnv() : parent_(NULL) {}
-  explicit BindingEnv(BindingEnv* parent) : parent_(parent) {}
+struct BindingEnv : public RelPathEnv {
+  BindingEnv() : RelPathEnv("", ""), parent_(NULL) {}
+  explicit BindingEnv(BindingEnv* parent)
+    : RelPathEnv("", parent->AsString()), parent_(parent) {}
+  explicit BindingEnv(BindingEnv* parent, const string& rel_path,
+                      const string& abs_path)
+    : RelPathEnv(rel_path, abs_path), parent_(parent) {}
 
   virtual ~BindingEnv() {}
   virtual string LookupVariable(const string& var);
