@@ -43,8 +43,11 @@ using namespace std;
 struct Subprocess {
   ~Subprocess();
 
-  /// Returns ExitSuccess on successful process exit, ExitInterrupted if
-  /// the process was interrupted, ExitFailure if it otherwise failed.
+  /// Returns ExitStatus for the end of the process. The result field will be
+  /// populated with ExitSuccess on successful process exit, ExitInterrupted if
+  /// the process was interrupted, ExitFailure if it otherwise failed. The
+  /// exit_code field will contain the exit code (exit status, errorlevel) of
+  /// the process.
   ExitStatus Finish();
 
   bool Done() const;

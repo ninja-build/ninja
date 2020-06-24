@@ -68,7 +68,7 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
    if (finished_.empty())
      return false;
 
-   result->status = ExitSuccess;
+   result->status.result = ExitSuccess;
    result->edge = finished_.front();
    finished_.pop();
    return true;
@@ -110,8 +110,7 @@ void BuildStatus::BuildEdgeStarted(const Edge* edge) {
 }
 
 void BuildStatus::BuildEdgeFinished(Edge* edge,
-                                    bool success,
-                                    const string& output,
+                                    const CommandRunner::Result* result,
                                     int* start_time,
                                     int* end_time) {
   int64_t now = GetTimeMillis();
@@ -133,21 +132,26 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     PrintStatus(edge, kEdgeFinished);
 
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (!result->success()) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
+    char buf[32];
+    string exit_code_str;
+    snprintf(buf, sizeof(buf), "%d", result->status.exit_code);
+    exit_code_str += buf;
+    string failed = "FAILED (" + exit_code_str + "): ";
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+        printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+        printer_.PrintOnNewLine(failed + outputs + "\n");
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
-  if (!output.empty()) {
+  if (!result->output.empty()) {
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
     // isatty(stderr) to decide if they should print colored output.
@@ -161,9 +165,9 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
     // thousands of parallel compile commands.)
     string final_output;
     if (!printer_.supports_color())
-      final_output = StripAnsiEscapeCodes(output);
+      final_output = StripAnsiEscapeCodes(result->output);
     else
-      final_output = output;
+      final_output = result->output;
 
 #ifdef _WIN32
     // Fix extra CR being added on Windows, writing out CR CR LF (#773)
@@ -854,7 +858,7 @@ bool Builder::Build(string* err) {
     if (pending_commands) {
       CommandRunner::Result result;
       if (!command_runner_->WaitForCommand(&result) ||
-          result.status == ExitInterrupted) {
+          result.status.result == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
@@ -950,13 +954,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
-      result->status = ExitFailure;
+      result->status.result = ExitFailure;
     }
   }
 
   int start_time, end_time;
-  status_->BuildEdgeFinished(edge, result->success(), result->output,
-                             &start_time, &end_time);
+  status_->BuildEdgeFinished(edge, result, &start_time, &end_time);
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {

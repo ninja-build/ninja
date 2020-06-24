@@ -637,15 +637,15 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
 
   if (edge->rule().name() == "interrupt" ||
       edge->rule().name() == "touch-interrupt") {
-    result->status = ExitInterrupted;
+    result->status = ExitStatus(ExitInterrupted, 2);
     return true;
   }
 
   if (edge->rule().name() == "console") {
     if (edge->use_console())
-      result->status = ExitSuccess;
+      result->status = ExitStatus(ExitSuccess, 0);
     else
-      result->status = ExitFailure;
+      result->status = ExitStatus(ExitFailure, 1);
     active_edges_.erase(edge_iter);
     return true;
   }
@@ -660,9 +660,9 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
 
   if (edge->rule().name() == "fail" ||
       (edge->rule().name() == "touch-fail-tick2" && fs_->now_ == 2))
-    result->status = ExitFailure;
+    result->status = ExitStatus(ExitFailure, 1);
   else
-    result->status = ExitSuccess;
+    result->status = ExitStatus(ExitSuccess, 0);
 
   // Provide a way for test cases to verify when an edge finishes that
   // some other edge is still active.  This is useful for test cases

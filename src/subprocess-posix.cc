@@ -155,13 +155,15 @@ ExitStatus Subprocess::Finish() {
   if (WIFEXITED(status)) {
     int exit = WEXITSTATUS(status);
     if (exit == 0)
-      return ExitSuccess;
+      return ExitStatus(ExitSuccess, exit);
+    else
+      return ExitStatus(ExitFailure, exit);
   } else if (WIFSIGNALED(status)) {
     if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
         || WTERMSIG(status) == SIGHUP)
-      return ExitInterrupted;
+      return ExitStatus(ExitInterrupted, status);
   }
-  return ExitFailure;
+  return ExitStatus(ExitFailure, status);
 }
 
 bool Subprocess::Done() const {

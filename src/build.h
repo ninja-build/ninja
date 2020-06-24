@@ -147,7 +147,7 @@ struct CommandRunner {
     Edge* edge;
     ExitStatus status;
     string output;
-    bool success() const { return status == ExitSuccess; }
+    bool success() const { return status.result == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
   virtual bool WaitForCommand(Result* result) = 0;
@@ -241,7 +241,7 @@ struct BuildStatus {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(const Edge* edge);
-  void BuildEdgeFinished(Edge* edge, bool success, const string& output,
+  void BuildEdgeFinished(Edge* edge, const CommandRunner::Result* result,
                          int* start_time, int* end_time);
   void BuildLoadDyndeps();
   void BuildStarted();

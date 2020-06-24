@@ -15,10 +15,19 @@
 #ifndef NINJA_EXIT_STATUS_H_
 #define NINJA_EXIT_STATUS_H_
 
-enum ExitStatus {
+enum ExitResult {
   ExitSuccess,
   ExitFailure,
   ExitInterrupted
 };
+
+struct ExitStatus {
+  ExitStatus(): result(ExitSuccess), exit_code(0) {}
+  ExitStatus(ExitResult result, int exit_code):
+    result(result), exit_code(exit_code) {}
+  ExitResult result;
+  int exit_code;
+};
+
 
 #endif  // NINJA_EXIT_STATUS_H_
