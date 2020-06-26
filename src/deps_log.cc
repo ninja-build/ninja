@@ -232,8 +232,11 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
 
       Deps* deps = new Deps(mtime, deps_count);
       for (int i = 0; i < deps_count; ++i) {
-        assert(deps_data[i] < (int)nodes_.size());
-        assert(nodes_[deps_data[i]]);
+        int node_id = deps_data[i];
+        if (node_id < 0 || static_cast<size_t>(node_id) > nodes_.size()) {
+          read_failed = true;
+          break;
+        }
         deps->nodes[i] = nodes_[deps_data[i]];
       }
 
