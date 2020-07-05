@@ -91,7 +91,7 @@ struct NinjaMain : public BuildLogUser {
   /// Loaded state (rules, nodes).
   State state_;
 
-  /// Functions for accesssing the disk.
+  /// Functions for accessing the disk.
   RealDiskInterface disk_interface_;
 
   /// The build directory, used for storing the build log etc.
@@ -1050,7 +1050,7 @@ bool DebugEnable(const string& name) {
   }
 }
 
-/// Set a warning flag.  Returns false if Ninja should exit instead  of
+/// Set a warning flag.  Returns false if Ninja should exit instead of
 /// continuing.
 bool WarningEnable(const string& name, Options* options) {
   if (name == "list") {

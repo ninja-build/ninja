@@ -183,7 +183,7 @@ void BuildStatus::BuildLoadDyndeps() {
   // it considers a portion of the graph to be out of date.  Normally
   // this is done before the build starts, but our caller is about to
   // load a dyndep file during the build.  Doing so may generate more
-  // exlanation lines (via fprintf directly to stderr), but in an
+  // explanation lines (via fprintf directly to stderr), but in an
   // interactive console the cursor is currently at the end of a status
   // line.  Start a new line so that the first explanation does not
   // append to the status line.  After the explanations are done a
