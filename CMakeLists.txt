@@ -53,6 +53,7 @@ add_library(libninja OBJECT
 	src/build_log.cc
 	src/build.cc
 	src/clean.cc
+	src/clsourcedependencies_parser.cc
 	src/clparser.cc
 	src/dyndep.cc
 	src/dyndep_parser.cc
@@ -102,6 +103,7 @@ add_executable(ninja_test
 	src/build_test.cc
 	src/clean_test.cc
 	src/clparser_test.cc
+	src/clsourcedependencies_parser_test.cc
 	src/depfile_parser_test.cc
 	src/deps_log_test.cc
 	src/disk_interface_test.cc
@@ -121,6 +123,24 @@ if(WIN32)
 	target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
 endif()
 target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+
+# Use RadpidJSON on Windows to support MSVC's /sourceDependencies format.
+if(WIN32)
+	find_package(RapidJSON)
+	if(NOT RapidJSON_FOUND)
+		include(FetchContent)
+		FetchContent_Declare(
+			rapidjson
+			URL https://github.com/Tencent/rapidjson/archive/f56928de85d56add3ca6ae7cf7f119a42ee1585b.zip
+			URL_HASH SHA256=42D93071C6BC4A9AC24D83055C2CDEF5E355281A2A2AEEB917FD905257970473
+		)
+		FetchContent_MakeAvailable(rapidjson)
+		find_package(RapidJSON)
+	endif()
+	target_compile_definitions(libninja PRIVATE NINJA_ENABLE_CL_SOURCE_DEPENDENCIES=1)
+	target_compile_definitions(ninja_test PRIVATE NINJA_ENABLE_CL_SOURCE_DEPENDENCIES=1)
+	target_link_libraries(libninja PRIVATE rapidjson)
+endif()
 
 foreach(perftest
   build_log_perftest

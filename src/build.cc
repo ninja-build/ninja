@@ -40,6 +40,10 @@
 #include "subprocess.h"
 #include "util.h"
 
+#if NINJA_ENABLE_CL_SOURCE_DEPENDENCIES
+#include "clsourcedependencies_parser.h"
+#endif
+
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
@@ -1067,11 +1071,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else
-  if (deps_type == "gcc") {
+  } else if (deps_type == "gcc" || deps_type == "msvc_source_dependencies") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
-      *err = string("edge with deps=gcc but no depfile makes no sense");
+      *err = string("edge with deps=") + deps_type +
+             string(" but no depfile makes no sense");
       return false;
     }
 
@@ -1089,19 +1093,37 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     if (content.empty())
       return true;
 
-    DepfileParser deps(config_.depfile_parser_options);
-    if (!deps.Parse(&content, err))
-      return false;
-
-    // XXX check depfile matches expected output.
-    deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
-         i != deps.ins_.end(); ++i) {
-      uint64_t slash_bits;
-      if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                            err))
+    if (deps_type == "gcc") {
+      DepfileParser deps(config_.depfile_parser_options);
+      if (!deps.Parse(&content, err))
         return false;
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+
+      // XXX check depfile matches expected output.
+      deps_nodes->reserve(deps.ins_.size());
+      for (vector<StringPiece>::iterator i = deps.ins_.begin();
+           i != deps.ins_.end(); ++i) {
+        uint64_t slash_bits;
+        if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
+                              err))
+          return false;
+        deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      }
+    } else if (deps_type == "msvc_source_dependencies") {
+#if !NINJA_ENABLE_CL_SOURCE_DEPENDENCIES
+      *err = string("msvc_source_dependencies is only supported on Windows");
+      return false;
+#else
+      std::set<std::string> includes;
+      if (!ParseCLSourceDependencies(content, err, includes))
+        return false;
+
+      for (std::set<std::string>::iterator i = includes.begin();
+           i != includes.end(); ++i) {
+        // Like above, ~0 is assuming that with MSVC-parsed headers, it's ok to
+        // always make all backslashes.
+        deps_nodes->push_back(state_->GetNode(*i, ~0u));
+      }
+#endif
     }
 
     if (!g_keep_depfile) {

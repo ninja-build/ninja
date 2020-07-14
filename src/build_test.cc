@@ -1838,6 +1838,24 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildTest, DepsMsvcSourceDependenciesWithEmptyDepfileErrorsOut) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"  deps = msvc_source_dependencies\n"
+"build out: cc\n"));
+  Dirty("out");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_FALSE(builder_.Build(&err));
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildTest, StatusFormatElapsed) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
