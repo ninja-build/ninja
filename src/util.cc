@@ -68,6 +68,10 @@ void Fatal(const char* msg, ...) {
   fflush(stdout);
   ExitProcess(1);
 #else
+  // If we have a fatal error, then the shared semaphores might be wrong.
+  // Just unlink them and let the next ninja instance recreate it.
+  sem_unlink(shared_ninja_jobs_semaphore_name);
+  sem_unlink(shared_ninjas_semaphore_name);
   exit(1);
 #endif
 }

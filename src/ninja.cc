@@ -223,6 +223,61 @@ void Usage(const BuildConfig& config) {
           kNinjaVersion, config.parallelism);
 }
 
+/// The error code paths don't always clean up so let's clean up at exit.
+void SharedNinjaCleanup() {
+  if (sem_wait(shared_ninjas_semaphore) != 0)
+    Fatal("sem_post: %s", strerror(errno));
+  while (shared_ninja_local_jobs-- > 0) {
+    if (sem_post(shared_ninja_jobs_semaphore) != 0)
+      Fatal("sem_post: %s", strerror(errno));
+  }
+}
+
+/// Get the shared jobs limit from the inter-process semaphore if available.
+int GetSharedJobsLimit() {
+  auto env = getenv("NINJA_SHARED_JOBS_LIMIT");
+  if (env == nullptr)
+    return INT_MAX;
+
+  int count = atoi(env);
+  if (count < 1)
+    Fatal("Invalid NINJA_SHARED_JOBS_LIMIT value: %d", count);
+
+  shared_ninja_jobs = unsigned(count);
+
+  snprintf(shared_ninjas_semaphore_name, sizeof(shared_ninjas_semaphore_name),
+           SHARED_NINJAS_SEMAPHORE_PREFIX "%llu",
+           static_cast<unsigned long long>(getuid()));
+  shared_ninjas_semaphore =
+      sem_open(shared_ninjas_semaphore_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+  if (shared_ninjas_semaphore == nullptr)
+    Fatal("sem_open: %s", strerror(errno));
+  if (sem_post(shared_ninjas_semaphore) != 0)
+    Fatal("sem_post: %s", strerror(errno));
+
+  snprintf(shared_ninja_jobs_semaphore_name,
+           sizeof(shared_ninja_jobs_semaphore_name),
+           SHARED_NINJA_JOBS_SEMAPHORE_PREFIX "%llu",
+           static_cast<unsigned long long>(getuid()));
+  shared_ninja_jobs_semaphore =
+      sem_open(shared_ninja_jobs_semaphore_name, O_CREAT, S_IRUSR | S_IWUSR,
+               unsigned(count));
+  if (shared_ninja_jobs_semaphore == nullptr)
+    Fatal("sem_open: %s", strerror(errno));
+
+  int current_count;
+  if (sem_getvalue(shared_ninja_jobs_semaphore, &current_count) != 0)
+    Fatal("sem_getvalue: %s", strerror(errno));
+
+  if (current_count > count)
+    Fatal("NINJA_SHARED_JOBS_LIMIT is not set to the same value everywhere");
+
+  if (atexit(SharedNinjaCleanup) != 0)
+    Fatal("atexit: %s", strerror(errno));
+
+  return count;
+}
+
 /// Choose a default value for the -j (parallelism) flag.
 int GuessParallelism() {
   switch (int processors = GetProcessorCount()) {
@@ -1256,7 +1311,9 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
+  int shared_jobs_limit = GetSharedJobsLimit();
+  // Limit the parallelism or else we can deadlock against ourself.
+  config->parallelism = std::min(GuessParallelism(), shared_jobs_limit);
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -1283,10 +1340,13 @@ int ReadFlags(int* argc, char*** argv,
         int value = strtol(optarg, &end, 10);
         if (*end != 0 || value < 0)
           Fatal("invalid -j parameter");
-
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
-        config->parallelism = value > 0 ? value : INT_MAX;
+        if (value == 0)
+          value = INT_MAX;
+
+        // Limit the parallelism or else we can deadlock against ourself.
+        config->parallelism = std::min(value, shared_jobs_limit);
         break;
       }
       case 'k': {

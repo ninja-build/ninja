@@ -544,6 +544,9 @@ else:
 if platform.is_aix() and not platform.is_os400_pase():
     libs.append('-lperfstat')
 
+if not platform.is_msvc():
+    libs.append('-lpthread')
+
 all_targets = []
 
 n.comment('Main executable is library plus main() function.')
