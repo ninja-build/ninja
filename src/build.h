@@ -159,8 +159,9 @@ struct BuildConfig {
                   failures_allowed(1), max_load_average(-0.0f) {}
 
   enum Verbosity {
-    NORMAL,
     QUIET,  // No output -- used when testing.
+    NO_STATUS_UPDATE,  // just regular output but suppress status update
+    NORMAL,  // regular output and status update
     VERBOSE
   };
   Verbosity verbosity;
