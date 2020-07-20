@@ -291,7 +291,8 @@ string BuildStatus::FormatProgressStatus(
 }
 
 void BuildStatus::PrintStatus(const Edge* edge, EdgeStatus status) {
-  if (config_.verbosity == BuildConfig::QUIET)
+  if (config_.verbosity == BuildConfig::QUIET
+      || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
