@@ -207,7 +207,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version      print ninja version (\"%s\")\n"
 "  -v, --verbose  show all command lines while building\n"
-"  --quiet        don't show progress updates.\n"
+"  --quiet        don't show progress status, just command output\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
