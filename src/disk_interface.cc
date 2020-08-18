@@ -26,6 +26,8 @@
 #include <sstream>
 #include <windows.h>
 #include <direct.h>  // _mkdir
+#else
+#include <unistd.h>
 #endif
 
 #include "metrics.h"

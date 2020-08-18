@@ -11,18 +11,22 @@ jobs:
     runs-on: macOS-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: Install dependencies
       run: brew install re2c p7zip cmake
 
     - name: Build ninja
       shell: bash
+      env:
+        MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . --parallel --config Release
-        ctest -vv
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        cmake --build build --parallel --config Release
+
+    - name: Test ninja
+      run: ctest -vv
+      working-directory: build
 
     - name: Create ninja archive
       shell: bash

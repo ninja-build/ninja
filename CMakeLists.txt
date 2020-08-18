@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
-cmake_policy(SET CMP0091 NEW)
 project(ninja)
 
+# --- optional link-time optimization
 if(CMAKE_BUILD_TYPE MATCHES "Release")
-	cmake_policy(SET CMP0069 NEW)
 	include(CheckIPOSupported)
 	check_ipo_supported(RESULT lto_supported OUTPUT error)
 
@@ -15,13 +14,23 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 	endif()
 endif()
 
+# --- compiler flags
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GR- /Zc:__cplusplus")
+	string(APPEND CMAKE_CXX_FLAGS " /W4 /GR- /Zc:__cplusplus")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -fdiagnostics-color")
+	include(CheckCXXCompilerFlag)
+	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
+	if(flag_no_deprecated)
+		string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated")
+	endif()
+	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
+	if(flag_color_diag)
+		string(APPEND CMAKE_CXX_FLAGS " -fdiagnostics-color")
+	endif()
 endif()
 
+# --- optional re2c
 find_program(RE2C re2c)
 if(RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
@@ -30,9 +39,9 @@ if(RE2C)
 			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
 		)
 	endfunction()
-	re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
-	re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
-	add_library(libninja-re2c OBJECT ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+	re2c(${PROJECT_SOURCE_DIR}/src/depfile_parser.in.cc ${PROJECT_BINARY_DIR}/depfile_parser.cc)
+	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
+	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
 	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
@@ -127,3 +136,5 @@ endforeach()
 
 enable_testing()
 add_test(NinjaTest ninja_test)
+
+install(TARGETS ninja DESTINATION bin)

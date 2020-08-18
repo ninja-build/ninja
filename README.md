@@ -16,7 +16,8 @@ resulting ninja binary. However, to enable features like Bash
 completion and Emacs and Vim editing modes, some files in misc/ must be
 copied to appropriate locations.
 
-If you're interested in making changes to Ninja, read CONTRIBUTING.md first.
+If you're interested in making changes to Ninja, read
+[CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 ## Building Ninja itself
 
@@ -31,7 +32,7 @@ via CMake. For more details see
 ```
 
 This will generate the `ninja` binary and a `build.ninja` file you can now use
-to built Ninja with itself.
+to build Ninja with itself.
 
 ### CMake
 

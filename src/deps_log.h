@@ -110,8 +110,13 @@ struct DepsLog {
   // Write a node name record, assigning it an id.
   bool RecordId(Node* node);
 
+  /// Should be called before using file_. When false is returned, errno will
+  /// be set.
+  bool OpenForWriteIfNeeded();
+
   bool needs_recompaction_;
   FILE* file_;
+  std::string file_path_;
 
   /// Maps id -> Node.
   vector<Node*> nodes_;

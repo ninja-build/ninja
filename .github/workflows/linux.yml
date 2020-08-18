@@ -12,25 +12,29 @@ jobs:
     container:
       image: centos:7
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.2/cmake-3.16.2-Linux-x86_64.sh
-        chmod +x cmake-3.16.2-Linux-x86_64.sh
-        ./cmake-3.16.2-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4-Linux-x86_64.sh
+        chmod +x cmake-3.16.4-Linux-x86_64.sh
+        ./cmake-3.16.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-10.el7.x86_64.rpm
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-10.el7.x86_64.rpm
         rpm -U --quiet p7zip-16.02-10.el7.x86_64.rpm
         rpm -U --quiet p7zip-plugins-16.02-10.el7.x86_64.rpm
         yum install -y make gcc-c++
+
     - name: Build ninja
       shell: bash
       run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . --parallel --config Release
-        ctest -vv
-        strip ninja
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        cmake --build build --parallel --config Release
+        strip build/ninja
+
+    - name: Test ninja
+      run: ./ninja_test
+      working-directory: build
+
     - name: Create ninja archive
       run: |
         mkdir artifact

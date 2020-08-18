@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: Install dependencies
       run: choco install re2c
@@ -19,10 +19,12 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . --parallel --config Release
-        ctest -vv
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        cmake --build build --parallel --config Release
+
+    - name: Test ninja
+      run: .\ninja_test.exe
+      working-directory: build/Release
 
     - name: Create ninja archive
       shell: bash

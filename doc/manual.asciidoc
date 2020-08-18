@@ -273,7 +273,7 @@ tool takes in account the +-v+ and the +-n+ options (note that +-n+
 implies +-v+).
 
 `cleandead`:: remove files produced by previous builds that are no longer in the
-manifest. _Available since Ninja 1.10._
+build file. _Available since Ninja 1.10._
 
 `compdb`:: given a list of rules, each of which is expected to be a
 C family language compiler rule whose first input is the name of the
@@ -900,7 +900,7 @@ set environment variables.
 On Windows, commands are strings, so Ninja passes the `command` string
 directly to `CreateProcess`.  (In the common case of simply executing
 a compiler this means there is less overhead.)  Consequently the
-quoting rules are deterimined by the called program, which on Windows
+quoting rules are determined by the called program, which on Windows
 are usually provided by the C library.  If you need shell
 interpretation of the command (such as the use of `&&` to chain
 multiple commands), make the command execute the Windows shell by
@@ -936,7 +936,7 @@ There are three types of build dependencies which are subtly different.
 
 1. _Explicit dependencies_, as listed in a build line.  These are
    available as the `$in` variable in the rule.  Changes in these files
-   cause the output to be rebuilt; if these file are missing and
+   cause the output to be rebuilt; if these files are missing and
    Ninja doesn't know how to build them, the build is aborted.
 +
 This is the standard form of dependency to be used e.g. for the
