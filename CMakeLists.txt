@@ -48,6 +48,18 @@ else()
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
+# --- Check for 'browse' mode support
+set(unsupported_browse_platforms
+	"Windows"
+	"SunOS"
+	"AIX"
+)
+if(${CMAKE_SYSTEM_NAME} IN_LIST unsupported_browse_platforms)
+	set(platform_supports_ninja_browse FALSE)
+else()
+	set(platform_supports_ninja_browse TRUE)
+endif()
+
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
 	src/build_log.cc
@@ -95,6 +107,32 @@ endif()
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+
+# Adds browse mode into the ninja binary if it's supported by the host platform.
+if(platform_supports_ninja_browse)
+	# Inlines src/browse.py into the browse_py.h header, so that it can be included
+	# by src/browse.cc
+	add_custom_command(
+		OUTPUT build/browse_py.h
+		MAIN_DEPENDENCY src/browse.py
+		DEPENDS src/inline.sh
+		COMMAND cmake -E make_directory ${CMAKE_BINARY_DIR}/build
+		COMMAND src/inline.sh kBrowsePy
+						< src/browse.py
+						> ${CMAKE_BINARY_DIR}/build/browse_py.h
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		VERBATIM
+	)
+
+	target_compile_definitions(ninja PRIVATE NINJA_HAVE_BROWSE)
+	target_sources(ninja PRIVATE src/browse.cc)
+	set_source_files_properties(src/browse.cc
+		PROPERTIES
+			OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/build/browse_py.h"
+			INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}"
+			COMPILE_DEFINITIONS NINJA_PYTHON="python"
+	)
+endif()
 
 # Tests all build into ninja_test executable.
 add_executable(ninja_test
