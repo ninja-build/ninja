@@ -269,7 +269,7 @@ if configure_env:
     n.variable('configure_env', config_str + '$ ')
 n.newline()
 
-CXX = configure_env.get('CXX', 'g++')
+CXX = configure_env.get('CXX', 'c++')
 objext = '.o'
 if platform.is_msvc():
     CXX = 'cl'
