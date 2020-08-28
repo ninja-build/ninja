@@ -19,7 +19,14 @@
 # stdin and writes stdout.
 
 varname="$1"
-echo "const char $varname[] ="
-od -t x1 -A n -v | sed -e 's|^[\t ]\{0,\}$||g; s|[\t ]\{1,\}| |g; s| \{1,\}$||g; s| |\\x|g; s|^|"|; s|$|"|'
-echo ";"
 
+# 'od' and 'sed' may not be available on all platforms, and may not support the
+# flags used here. We must ensure that the script exits with a non-zero exit
+# code in those cases.
+byte_vals=$(od -t x1 -A n -v) || exit 1
+escaped_byte_vals=$(echo "${byte_vals}" \
+  | sed -e 's|^[\t ]\{0,\}$||g; s|[\t ]\{1,\}| |g; s| \{1,\}$||g; s| |\\x|g; s|^|"|; s|$|"|') \
+  || exit 1
+
+# Only write output once we have successfully generated the required data
+printf "const char %s[] = \n%s;" "${varname}" "${escaped_byte_vals}"

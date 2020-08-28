@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
+
+include(CheckIncludeFileCXX)
+
 project(ninja)
 
 # --- optional link-time optimization
@@ -48,6 +51,30 @@ else()
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
+# --- Check for 'browse' mode support
+function(check_platform_supports_browse_mode RESULT)
+	# Make sure the inline.sh script works on this platform.
+	# It uses the shell commands such as 'od', which may not be available.
+	execute_process(
+		COMMAND sh -c "echo 'TEST' | src/inline.sh var"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		RESULT_VARIABLE inline_result
+		OUTPUT_QUIET
+		ERROR_QUIET
+	)
+	if(NOT inline_result EQUAL "0")
+		# The inline script failed, so browse mode is not supported.
+		set(${RESULT} "0" PARENT_SCOPE)
+		return()
+	endif()
+
+	# Now check availability of the unistd header
+	check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
+	set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
+endfunction()
+
+check_platform_supports_browse_mode(platform_supports_ninja_browse)
+
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
 	src/build_log.cc
@@ -95,6 +122,32 @@ endif()
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+
+# Adds browse mode into the ninja binary if it's supported by the host platform.
+if(platform_supports_ninja_browse)
+	# Inlines src/browse.py into the browse_py.h header, so that it can be included
+	# by src/browse.cc
+	add_custom_command(
+		OUTPUT build/browse_py.h
+		MAIN_DEPENDENCY src/browse.py
+		DEPENDS src/inline.sh
+		COMMAND cmake -E make_directory ${CMAKE_BINARY_DIR}/build
+		COMMAND src/inline.sh kBrowsePy
+						< src/browse.py
+						> ${CMAKE_BINARY_DIR}/build/browse_py.h
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		VERBATIM
+	)
+
+	target_compile_definitions(ninja PRIVATE NINJA_HAVE_BROWSE)
+	target_sources(ninja PRIVATE src/browse.cc)
+	set_source_files_properties(src/browse.cc
+		PROPERTIES
+			OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/build/browse_py.h"
+			INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}"
+			COMPILE_DEFINITIONS NINJA_PYTHON="python"
+	)
+endif()
 
 # Tests all build into ninja_test executable.
 add_executable(ninja_test
