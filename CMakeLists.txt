@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
+
+include(CheckIncludeFileCXX)
+
 project(ninja)
 
 # --- optional link-time optimization
@@ -49,16 +52,28 @@ endif()
 target_include_directories(libninja-re2c PRIVATE src)
 
 # --- Check for 'browse' mode support
-set(unsupported_browse_platforms
-	"Windows"
-	"SunOS"
-	"AIX"
-)
-if(${CMAKE_SYSTEM_NAME} IN_LIST unsupported_browse_platforms)
-	set(platform_supports_ninja_browse FALSE)
-else()
-	set(platform_supports_ninja_browse TRUE)
-endif()
+function(check_platform_supports_browse_mode RESULT)
+	# Make sure the inline.sh script works on this platform.
+	# It uses the shell commands such as 'od', which may not be available.
+	execute_process(
+		COMMAND sh -c "echo 'TEST' | src/inline.sh var"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		RESULT_VARIABLE inline_result
+		OUTPUT_QUIET
+		ERROR_QUIET
+	)
+	if(NOT inline_result EQUAL "0")
+		# The inline script failed, so browse mode is not supported.
+		set(${RESULT} "0" PARENT_SCOPE)
+		return()
+	endif()
+
+	# Now check availability of the unistd header
+	check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
+	set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
+endfunction()
+
+check_platform_supports_browse_mode(platform_supports_ninja_browse)
 
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
