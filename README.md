@@ -27,7 +27,7 @@ via CMake. For more details see
 
 ### Python
 
-```
+```sh
 ./configure.py --bootstrap
 ```
 
@@ -36,16 +36,25 @@ to build Ninja with itself.
 
 ### CMake
 
-```
+```sh
 cmake -Bbuild-cmake -H.
-cmake --build build-cmake
+cmake --build build-cmake --parallel
 ```
+
+The optional `--parallel` argument builds Ninja more quickly by parallel compilation.
 
 The `ninja` binary will now be inside the `build-cmake` directory (you can
 choose any other name you like).
 
 To run the unit tests:
 
-```
+```sh
 ./build-cmake/ninja_test
+```
+
+The Ninja build can be sped up by omitting the self tests:
+
+```sh
+cmake -Bbuild-cmake -DNINJA_BUILD_TESTING=off
+cmake --build build-cmake --parallel
 ```
