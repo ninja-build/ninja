@@ -4,6 +4,8 @@ include(CheckIncludeFileCXX)
 
 project(ninja)
 
+option(NINJA_BUILD_TESTING "build optional self-tests" ON)
+
 # --- optional link-time optimization
 if(CMAKE_BUILD_TYPE MATCHES "Release")
 	include(CheckIPOSupported)
@@ -149,6 +151,7 @@ if(platform_supports_ninja_browse)
 	)
 endif()
 
+if(NINJA_BUILD_TESTING)
 # Tests all build into ninja_test executable.
 add_executable(ninja_test
 	src/build_log_test.cc
@@ -190,4 +193,14 @@ endforeach()
 enable_testing()
 add_test(NinjaTest ninja_test)
 
+endif(NINJA_BUILD_TESTING)
+
 install(TARGETS ninja DESTINATION bin)
+
+include(FeatureSummary)
+
+add_feature_info(selftest NINJA_BUILD_TESTING "Ninja self tests")
+add_feature_info(re2c RE2C "lexer generator")
+add_feature_info(LTO lto_supported "Link time / interprocess optimization  ${error}")
+
+feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)
