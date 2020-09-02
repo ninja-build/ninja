@@ -594,7 +594,7 @@ Ninja 1.3 can instead process dependencies just after they're generated
 and save a compacted form of the same information in a Ninja-internal
 database.
 
-Ninja supports this processing in two forms.
+Ninja supports this processing in three forms.
 
 1. `deps = gcc` specifies that the tool outputs `gcc`-style dependencies
    in the form of Makefiles.  Adding this to the above example will
@@ -617,6 +617,20 @@ msvc_deps_prefix = Note: including file:
 rule cc
   deps = msvc
   command = cl /showIncludes -c $in /Fo$out
+----
+
+3. (since Ninja 1.11, Windows only) `deps = msvc_source_dependencies` specifies
+   that the tool outputs header dependencies in the form produced by Visual
+   Studio's compiler's `/sourceDependencies` flag. This flag is supported since
+   Visual Studio 16.7. Ninja will process `depfile` as a JSON file specifying
+   header dependencies immediately after the compilation finishes, then delete
+   the `.json` file (which is only used as a temporary).
++
+----
+rule cc
+  depfile = $out.json
+  deps = msvc_source_dependencies
+  command = cl /sourceDependencies $out.json -c $in /Fo$out
 ----
 
 If the include directory directives are using absolute paths, your depfile
