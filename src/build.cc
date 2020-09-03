@@ -203,10 +203,14 @@ void BuildStatus::BuildFinished() {
 }
 
 string BuildStatus::FormatProgressStatus(
-    const char* progress_status_format, EdgeStatus status) const {
+    const char* progress_status_format, EdgeStatus status, const string to_print) const {
   string out;
   char buf[32];
   int percent;
+  bool has_desc = false;
+  char total_edges_str[32];
+  snprintf(total_edges_str, sizeof(total_edges_str), "%d", total_edges_);
+  int total_edges_len = strlen(total_edges_str);
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
       ++s;
@@ -217,14 +221,13 @@ string BuildStatus::FormatProgressStatus(
 
         // Started edges.
       case 's':
-        snprintf(buf, sizeof(buf), "%d", started_edges_);
+        snprintf(buf, sizeof(buf), "%*d", total_edges_len, started_edges_);
         out += buf;
         break;
 
         // Total edges.
       case 't':
-        snprintf(buf, sizeof(buf), "%d", total_edges_);
-        out += buf;
+        out += total_edges_str;
         break;
 
         // Running edges.
@@ -233,20 +236,20 @@ string BuildStatus::FormatProgressStatus(
         // count the edge that just finished as a running edge
         if (status == kEdgeFinished)
           running_edges++;
-        snprintf(buf, sizeof(buf), "%d", running_edges);
+        snprintf(buf, sizeof(buf), "%*d", total_edges_len, running_edges);
         out += buf;
         break;
       }
 
         // Unstarted edges.
       case 'u':
-        snprintf(buf, sizeof(buf), "%d", total_edges_ - started_edges_);
+        snprintf(buf, sizeof(buf), "%*d", total_edges_len, total_edges_ - started_edges_);
         out += buf;
         break;
 
         // Finished edges.
       case 'f':
-        snprintf(buf, sizeof(buf), "%d", finished_edges_);
+        snprintf(buf, sizeof(buf), "%*d", total_edges_len, finished_edges_);
         out += buf;
         break;
 
@@ -278,6 +281,12 @@ string BuildStatus::FormatProgressStatus(
         break;
       }
 
+        // Description (to_print)
+      case 'd':
+        out += to_print;
+        has_desc = true;
+        break;
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
@@ -286,6 +295,9 @@ string BuildStatus::FormatProgressStatus(
       out.push_back(*s);
     }
   }
+
+  if (!has_desc)
+    out += to_print;
 
   return out;
 }
@@ -300,7 +312,7 @@ void BuildStatus::PrintStatus(const Edge* edge, EdgeStatus status) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, status) + to_print;
+  to_print = FormatProgressStatus(progress_status_format_, status, to_print);
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
