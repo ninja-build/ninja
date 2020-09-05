@@ -1214,18 +1214,19 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
-    printf("ninja: no work to do.\n");
+    Success("no work to do.");
     return 0;
   }
 
   if (!builder.Build(&err)) {
-    printf("ninja: build stopped: %s.\n", err.c_str());
+    Error("build stopped: %s.", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
       return 2;
     }
     return 1;
   }
 
+  Success("build success.");
   return 0;
 }
 

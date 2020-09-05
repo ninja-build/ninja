@@ -52,14 +52,23 @@
 #endif
 
 #include "edit_distance.h"
+#include "line_printer.h"
 #include "metrics.h"
+
+static LinePrinter gLinePrinter;
 
 void Fatal(const char* msg, ...) {
   va_list ap;
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[31m");
+  }
   fprintf(stderr, "ninja: fatal: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[39m");
+  }
   fprintf(stderr, "\n");
 #ifdef _WIN32
   // On Windows, some tools may inject extra threads.
@@ -74,20 +83,47 @@ void Fatal(const char* msg, ...) {
 
 void Warning(const char* msg, ...) {
   va_list ap;
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[33m");
+  }
   fprintf(stderr, "ninja: warning: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[39m");
+  }
   fprintf(stderr, "\n");
 }
 
 void Error(const char* msg, ...) {
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[31m");
+  }
   va_list ap;
   fprintf(stderr, "ninja: error: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
+  if (gLinePrinter.supports_color()) {
+    fprintf(stderr, "\x1b[39m");
+  }
   fprintf(stderr, "\n");
+}
+
+void Success(const char* msg, ...) {
+  if (gLinePrinter.supports_color()) {
+    fprintf(stdout, "\x1b[32m");
+  }
+  va_list ap;
+  fprintf(stdout, "ninja: ");
+  va_start(ap, msg);
+  vfprintf(stdout, msg, ap);
+  va_end(ap);
+  if (gLinePrinter.supports_color()) {
+    fprintf(stdout, "\x1b[39m");
+  }
+  fprintf(stdout, "\n");
 }
 
 bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
