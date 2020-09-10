@@ -1064,8 +1064,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else
-  if (deps_type == "gcc") {
+  } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");
