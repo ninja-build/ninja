@@ -38,6 +38,7 @@
 #include "graph.h"
 #include "state.h"
 #include "subprocess.h"
+#include "tokenpool.h"
 #include "util.h"
 
 namespace {
@@ -48,8 +49,9 @@ struct DryRunCommandRunner : public CommandRunner {
 
   // Overridden from CommandRunner:
   virtual bool CanRunMore() const;
+  virtual bool AcquireToken();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual bool WaitForCommand(Result* result, bool more_ready);
 
  private:
   queue<Edge*> finished_;
@@ -59,12 +61,16 @@ bool DryRunCommandRunner::CanRunMore() const {
   return true;
 }
 
+bool DryRunCommandRunner::AcquireToken() {
+  return true;
+}
+
 bool DryRunCommandRunner::StartCommand(Edge* edge) {
   finished_.push(edge);
   return true;
 }
 
-bool DryRunCommandRunner::WaitForCommand(Result* result) {
+bool DryRunCommandRunner::WaitForCommand(Result* result, bool more_ready) {
    if (finished_.empty())
      return false;
 
@@ -377,7 +383,7 @@ void Plan::EdgeWanted(const Edge* edge) {
 }
 
 Edge* Plan::FindWork() {
-  if (ready_.empty())
+  if (!more_ready())
     return NULL;
   set<Edge*>::iterator e = ready_.begin();
   Edge* edge = *e;
@@ -663,18 +669,38 @@ void Plan::Dump() const {
 }
 
 struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
-  virtual ~RealCommandRunner() {}
+  explicit RealCommandRunner(const BuildConfig& config);
+  virtual ~RealCommandRunner();
   virtual bool CanRunMore() const;
+  virtual bool AcquireToken();
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual bool WaitForCommand(Result* result, bool more_ready);
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
   const BuildConfig& config_;
+  // copy of config_.max_load_average; can be modified by TokenPool setup
+  double max_load_average_;
   SubprocessSet subprocs_;
+  TokenPool* tokens_;
   map<const Subprocess*, Edge*> subproc_to_edge_;
 };
+
+RealCommandRunner::RealCommandRunner(const BuildConfig& config) : config_(config) {
+  max_load_average_ = config.max_load_average;
+  if ((tokens_ = TokenPool::Get()) != NULL) {
+    if (!tokens_->Setup(config_.parallelism_from_cmdline,
+                        config_.verbosity == BuildConfig::VERBOSE,
+                        max_load_average_)) {
+      delete tokens_;
+      tokens_ = NULL;
+    }
+  }
+}
+
+RealCommandRunner::~RealCommandRunner() {
+  delete tokens_;
+}
 
 vector<Edge*> RealCommandRunner::GetActiveEdges() {
   vector<Edge*> edges;
@@ -686,14 +712,23 @@ vector<Edge*> RealCommandRunner::GetActiveEdges() {
 
 void RealCommandRunner::Abort() {
   subprocs_.Clear();
+  if (tokens_)
+    tokens_->Clear();
 }
 
 bool RealCommandRunner::CanRunMore() const {
-  size_t subproc_number =
-      subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
-    && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
-        || GetLoadAverage() < config_.max_load_average);
+  bool parallelism_limit_not_reached =
+    tokens_ || // ignore config_.parallelism
+    ((int) (subprocs_.running_.size() +
+            subprocs_.finished_.size()) < config_.parallelism);
+  return parallelism_limit_not_reached
+    && (subprocs_.running_.empty() ||
+        (max_load_average_ <= 0.0f ||
+         GetLoadAverage() < max_load_average_));
+}
+
+bool RealCommandRunner::AcquireToken() {
+  return (!tokens_ || tokens_->Acquire());
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -701,18 +736,32 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   Subprocess* subproc = subprocs_.Add(command, edge->use_console());
   if (!subproc)
     return false;
+  if (tokens_)
+    tokens_->Reserve();
   subproc_to_edge_.insert(make_pair(subproc, edge));
 
   return true;
 }
 
-bool RealCommandRunner::WaitForCommand(Result* result) {
+bool RealCommandRunner::WaitForCommand(Result* result, bool more_ready) {
   Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
+  subprocs_.ResetTokenAvailable();
+  while (((subproc = subprocs_.NextFinished()) == NULL) &&
+         !subprocs_.IsTokenAvailable()) {
+    bool interrupted = subprocs_.DoWork(more_ready ? tokens_ : NULL);
     if (interrupted)
       return false;
   }
+
+  // token became available
+  if (subproc == NULL) {
+    result->status = ExitTokenAvailable;
+    return true;
+  }
+
+  // command completed
+  if (tokens_)
+    tokens_->Release();
 
   result->status = subproc->Finish();
   result->output = subproc->GetOutput();
@@ -823,40 +872,49 @@ bool Builder::Build(string* err) {
   // command runner.
   // Second, we attempt to wait for / reap the next finished command.
   while (plan_.more_to_do()) {
-    // See if we can start any more commands.
-    if (failures_allowed && command_runner_->CanRunMore()) {
-      if (Edge* edge = plan_.FindWork()) {
-        if (!StartEdge(edge, err)) {
+    // See if we can start any more commands...
+    bool can_run_more =
+        failures_allowed   &&
+        plan_.more_ready() &&
+        command_runner_->CanRunMore();
+
+    // ... but we also need a token to do that.
+    if (can_run_more && command_runner_->AcquireToken()) {
+      Edge* edge = plan_.FindWork();
+      if (!StartEdge(edge, err)) {
+        Cleanup();
+        status_->BuildFinished();
+        return false;
+      }
+
+      if (edge->is_phony()) {
+        if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
           Cleanup();
           status_->BuildFinished();
           return false;
         }
-
-        if (edge->is_phony()) {
-          if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
-            Cleanup();
-            status_->BuildFinished();
-            return false;
-          }
-        } else {
-          ++pending_commands;
-        }
-
-        // We made some progress; go back to the main loop.
-        continue;
+      } else {
+        ++pending_commands;
       }
+
+      // We made some progress; go back to the main loop.
+      continue;
     }
 
     // See if we can reap any finished commands.
     if (pending_commands) {
       CommandRunner::Result result;
-      if (!command_runner_->WaitForCommand(&result) ||
+      if (!command_runner_->WaitForCommand(&result, can_run_more) ||
           result.status == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
       }
+
+      // We might be able to start another command; start the main loop over.
+      if (result.status == ExitTokenAvailable)
+        continue;
 
       --pending_commands;
       if (!FinishCommand(&result, err)) {

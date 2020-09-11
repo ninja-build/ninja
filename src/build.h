@@ -55,6 +55,9 @@ struct Plan {
   /// Returns true if there's more work to be done.
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
+  /// Returns true if there's more edges ready to start
+  bool more_ready() const { return !ready_.empty(); }
+
   /// Dumps the current state of the plan.
   void Dump() const;
 
@@ -139,6 +142,7 @@ private:
 struct CommandRunner {
   virtual ~CommandRunner() {}
   virtual bool CanRunMore() const = 0;
+  virtual bool AcquireToken() = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
@@ -150,7 +154,9 @@ struct CommandRunner {
     bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.
-  virtual bool WaitForCommand(Result* result) = 0;
+  /// If more_ready is true then the optional TokenPool is monitored too
+  /// and we return when a token becomes available.
+  virtual bool WaitForCommand(Result* result, bool more_ready) = 0;
 
   virtual vector<Edge*> GetActiveEdges() { return vector<Edge*>(); }
   virtual void Abort() {}
@@ -158,7 +164,8 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
+  BuildConfig() : verbosity(NORMAL), dry_run(false),
+                  parallelism(1), parallelism_from_cmdline(false),
                   failures_allowed(1), max_load_average(-0.0f) {}
 
   enum Verbosity {
@@ -169,6 +176,7 @@ struct BuildConfig {
   Verbosity verbosity;
   bool dry_run;
   int parallelism;
+  bool parallelism_from_cmdline;
   int failures_allowed;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
