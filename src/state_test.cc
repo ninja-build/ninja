@@ -32,9 +32,10 @@ TEST(State, Basic) {
   state.bindings_.AddRule(rule);
 
   Edge* edge = state.AddEdge(rule);
-  state.AddIn(edge, "in1", 0);
-  state.AddIn(edge, "in2", 0);
-  state.AddOut(edge, "out", 0);
+  string err;
+  state.AddIn(edge, "in1", &err);
+  state.AddIn(edge, "in2", &err);
+  state.AddOut(edge, "out", &err);
 
   EXPECT_EQ("cat in1 in2 > out", edge->EvaluateCommand());
 

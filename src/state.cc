@@ -134,14 +134,35 @@ Node* State::SpellcheckNode(const string& path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+bool State::AddIn(Edge* edge, string path, string *path_err) {
+  Node *node;
+
+  Paths::const_iterator i = paths_.find(path);
+  if (i != paths_.end()) {
+    node = i->second;
+  } else {
+    uint64_t slash_bits;
+    if (!CanonicalizePath(&path, &slash_bits, path_err))
+      return false;
+    node = GetNode(path, slash_bits);
+  }
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
+  return true;
 }
 
-bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+bool State::AddOut(Edge* edge, string path, string *path_err) {
+  Node *node;
+
+  Paths::const_iterator i = paths_.find(path);
+  if (i != paths_.end()) {
+    node = i->second;
+  } else {
+    uint64_t slash_bits;
+    if (!CanonicalizePath(&path, &slash_bits, path_err))
+      return false;
+    node = GetNode(path, slash_bits);
+  }
   if (node->in_edge())
     return false;
   edge->outputs_.push_back(node);
