@@ -151,45 +151,45 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-	# Tests all build into ninja_test executable.
-	add_executable(ninja_test
-		src/build_log_test.cc
-		src/build_test.cc
-		src/clean_test.cc
-		src/clparser_test.cc
-		src/depfile_parser_test.cc
-		src/deps_log_test.cc
-		src/disk_interface_test.cc
-		src/dyndep_parser_test.cc
-		src/edit_distance_test.cc
-		src/graph_test.cc
-		src/lexer_test.cc
-		src/manifest_parser_test.cc
-		src/ninja_test.cc
-		src/state_test.cc
-		src/string_piece_util_test.cc
-		src/subprocess_test.cc
-		src/test.cc
-		src/util_test.cc
-	)
-	if(WIN32)
-		target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
-	endif()
-	target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  # Tests all build into ninja_test executable.
+  add_executable(ninja_test
+    src/build_log_test.cc
+    src/build_test.cc
+    src/clean_test.cc
+    src/clparser_test.cc
+    src/depfile_parser_test.cc
+    src/deps_log_test.cc
+    src/disk_interface_test.cc
+    src/dyndep_parser_test.cc
+    src/edit_distance_test.cc
+    src/graph_test.cc
+    src/lexer_test.cc
+    src/manifest_parser_test.cc
+    src/ninja_test.cc
+    src/state_test.cc
+    src/string_piece_util_test.cc
+    src/subprocess_test.cc
+    src/test.cc
+    src/util_test.cc
+  )
+  if(WIN32)
+    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+  endif()
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
-	foreach(perftest
-		build_log_perftest
-		canon_perftest
-		clparser_perftest
-		depfile_parser_perftest
-		hash_collision_bench
-		manifest_parser_perftest
-	)
-		add_executable(${perftest} src/${perftest}.cc)
-		target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
-	endforeach()
+  foreach(perftest
+    build_log_perftest
+    canon_perftest
+    clparser_perftest
+    depfile_parser_perftest
+    hash_collision_bench
+    manifest_parser_perftest
+  )
+    add_executable(${perftest} src/${perftest}.cc)
+    target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+  endforeach()
 
-	add_test(NinjaTest ninja_test)
+  add_test(NinjaTest ninja_test)
 endif()
 
 install(TARGETS ninja DESTINATION bin)
