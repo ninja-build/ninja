@@ -103,6 +103,29 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '#';
         continue;
       }
+      '\\'+ ':' [\x00\x20\r\n\t] {
+        // Backslash followed by : and whitespace.
+        // It is therefore normal text and not an escaped colon
+        int len = (int)(in - start - 1);
+        // Need to shift it over if we're overwriting backslashes.
+        if (out < start)
+          memmove(out, start, len);
+        out += len;
+        if (*(in - 1) == '\n')
+          have_newline = true;
+        break;
+      }
+      '\\'+ ':' {
+        // De-escape colon sign, but preserve other leading backslashes.
+        // Regular expression uses lookahead to make sure that no whitespace
+        // nor EOF follows. In that case it'd be the : at the end of a target
+        int len = (int)(in - start);
+        if (len > 2 && out < start)
+          memset(out, '\\', len - 2);
+        out += len - 2;
+        *out++ = ':';
+        continue;
+      }
       '$$' {
         // De-escape dollar character.
         *out++ = '$';

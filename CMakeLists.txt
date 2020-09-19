@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
+
+include(CheckIncludeFileCXX)
+
 project(ninja)
 
 # --- optional link-time optimization
@@ -39,14 +42,38 @@ if(RE2C)
 			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
 		)
 	endfunction()
-	re2c(${CMAKE_SOURCE_DIR}/src/depfile_parser.in.cc ${CMAKE_BINARY_DIR}/depfile_parser.cc)
-	re2c(${CMAKE_SOURCE_DIR}/src/lexer.in.cc ${CMAKE_BINARY_DIR}/lexer.cc)
-	add_library(libninja-re2c OBJECT ${CMAKE_BINARY_DIR}/depfile_parser.cc ${CMAKE_BINARY_DIR}/lexer.cc)
+	re2c(${PROJECT_SOURCE_DIR}/src/depfile_parser.in.cc ${PROJECT_BINARY_DIR}/depfile_parser.cc)
+	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
+	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
 	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
+
+# --- Check for 'browse' mode support
+function(check_platform_supports_browse_mode RESULT)
+	# Make sure the inline.sh script works on this platform.
+	# It uses the shell commands such as 'od', which may not be available.
+	execute_process(
+		COMMAND sh -c "echo 'TEST' | src/inline.sh var"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		RESULT_VARIABLE inline_result
+		OUTPUT_QUIET
+		ERROR_QUIET
+	)
+	if(NOT inline_result EQUAL "0")
+		# The inline script failed, so browse mode is not supported.
+		set(${RESULT} "0" PARENT_SCOPE)
+		return()
+	endif()
+
+	# Now check availability of the unistd header
+	check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
+	set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
+endfunction()
+
+check_platform_supports_browse_mode(platform_supports_ninja_browse)
 
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
@@ -96,45 +123,73 @@ endif()
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
-# Tests all build into ninja_test executable.
-add_executable(ninja_test
-	src/build_log_test.cc
-	src/build_test.cc
-	src/clean_test.cc
-	src/clparser_test.cc
-	src/depfile_parser_test.cc
-	src/deps_log_test.cc
-	src/disk_interface_test.cc
-	src/dyndep_parser_test.cc
-	src/edit_distance_test.cc
-	src/graph_test.cc
-	src/lexer_test.cc
-	src/manifest_parser_test.cc
-	src/ninja_test.cc
-	src/state_test.cc
-	src/string_piece_util_test.cc
-	src/subprocess_test.cc
-	src/test.cc
-	src/util_test.cc
-)
-if(WIN32)
-	target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+# Adds browse mode into the ninja binary if it's supported by the host platform.
+if(platform_supports_ninja_browse)
+	# Inlines src/browse.py into the browse_py.h header, so that it can be included
+	# by src/browse.cc
+	add_custom_command(
+		OUTPUT build/browse_py.h
+		MAIN_DEPENDENCY src/browse.py
+		DEPENDS src/inline.sh
+		COMMAND cmake -E make_directory ${CMAKE_BINARY_DIR}/build
+		COMMAND src/inline.sh kBrowsePy
+						< src/browse.py
+						> ${CMAKE_BINARY_DIR}/build/browse_py.h
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		VERBATIM
+	)
+
+	target_compile_definitions(ninja PRIVATE NINJA_HAVE_BROWSE)
+	target_sources(ninja PRIVATE src/browse.cc)
+	set_source_files_properties(src/browse.cc
+		PROPERTIES
+			OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/build/browse_py.h"
+			INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}"
+			COMPILE_DEFINITIONS NINJA_PYTHON="python"
+	)
 endif()
-target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
-foreach(perftest
-  build_log_perftest
-  canon_perftest
-  clparser_perftest
-  depfile_parser_perftest
-  hash_collision_bench
-  manifest_parser_perftest
-)
-  add_executable(${perftest} src/${perftest}.cc)
-  target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
-endforeach()
+include(CTest)
+if(BUILD_TESTING)
+  # Tests all build into ninja_test executable.
+  add_executable(ninja_test
+    src/build_log_test.cc
+    src/build_test.cc
+    src/clean_test.cc
+    src/clparser_test.cc
+    src/depfile_parser_test.cc
+    src/deps_log_test.cc
+    src/disk_interface_test.cc
+    src/dyndep_parser_test.cc
+    src/edit_distance_test.cc
+    src/graph_test.cc
+    src/lexer_test.cc
+    src/manifest_parser_test.cc
+    src/ninja_test.cc
+    src/state_test.cc
+    src/string_piece_util_test.cc
+    src/subprocess_test.cc
+    src/test.cc
+    src/util_test.cc
+  )
+  if(WIN32)
+    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+  endif()
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
-enable_testing()
-add_test(NinjaTest ninja_test)
+  foreach(perftest
+    build_log_perftest
+    canon_perftest
+    clparser_perftest
+    depfile_parser_perftest
+    hash_collision_bench
+    manifest_parser_perftest
+  )
+    add_executable(${perftest} src/${perftest}.cc)
+    target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+  endforeach()
+
+  add_test(NinjaTest ninja_test)
+endif()
 
 install(TARGETS ninja DESTINATION bin)

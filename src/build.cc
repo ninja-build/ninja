@@ -77,12 +77,9 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 }  // namespace
 
 BuildStatus::BuildStatus(const BuildConfig& config)
-    : config_(config),
-      start_time_millis_(GetTimeMillis()),
-      started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
-      overall_rate_(), current_rate_(config.parallelism) {
-
+    : config_(config), start_time_millis_(GetTimeMillis()), started_edges_(0),
+      finished_edges_(0), total_edges_(0), progress_status_format_(NULL),
+      current_rate_(config.parallelism) {
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
@@ -183,7 +180,7 @@ void BuildStatus::BuildLoadDyndeps() {
   // it considers a portion of the graph to be out of date.  Normally
   // this is done before the build starts, but our caller is about to
   // load a dyndep file during the build.  Doing so may generate more
-  // exlanation lines (via fprintf directly to stderr), but in an
+  // explanation lines (via fprintf directly to stderr), but in an
   // interactive console the cursor is currently at the end of a status
   // line.  Start a new line so that the first explanation does not
   // append to the status line.  After the explanations are done a
@@ -1033,7 +1030,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   }
 
   if (!deps_type.empty() && !config_.dry_run) {
-    assert(edge->outputs_.size() >= 1 && "should have been rejected by parser");
+    assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
       TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
@@ -1067,8 +1064,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else
-  if (deps_type == "gcc") {
+  } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");

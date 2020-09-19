@@ -672,7 +672,7 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     bool verify_active_edge_found = false;
     for (vector<Edge*>::iterator i = active_edges_.begin();
          i != active_edges_.end(); ++i) {
-      if ((*i)->outputs_.size() >= 1 &&
+      if (!(*i)->outputs_.empty() &&
           (*i)->outputs_[0]->path() == verify_active_edge) {
         verify_active_edge_found = true;
       }
