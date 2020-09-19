@@ -59,13 +59,13 @@ jobs:
         asset_content_type: application/zip
 
   test:
-    runs-on: [ubuntu-18.04]
+    runs-on: [ubuntu-20.04]
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y python3-pytest ninja-build clang-tidy-9
+        sudo apt install -y python3-pytest ninja-build clang-tidy
         pip install cmake==3.17.*
 
     - name: Configure (GCC)
@@ -88,7 +88,7 @@ jobs:
       working-directory: build-gcc/Release
 
     - name: Configure (Clang)
-      run: CC=clang-9 CXX=clang++-9 cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config' -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+      run: CC=clang CXX=clang++ cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config' -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
     - name: Build (Clang, Debug)
       run: cmake --build build-clang --config Debug
@@ -107,5 +107,5 @@ jobs:
       working-directory: build-clang/Release
 
     - name: clang-tidy
-      run: /usr/lib/llvm-9/share/clang/run-clang-tidy.py -header-filter=src
+      run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
       working-directory: build-clang
