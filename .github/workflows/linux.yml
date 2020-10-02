@@ -22,13 +22,13 @@ jobs:
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-10.el7.x86_64.rpm
         rpm -U --quiet p7zip-16.02-10.el7.x86_64.rpm
         rpm -U --quiet p7zip-plugins-16.02-10.el7.x86_64.rpm
-        yum install -y make gcc-c++
+        yum install -y make gcc-c++ clang-analyzer
 
     - name: Build ninja
       shell: bash
       run: |
         cmake -DCMAKE_BUILD_TYPE=Release -B build
-        cmake --build build --parallel --config Release
+        scan-build -o scanlogs cmake --build build --parallel --config Release
         strip build/ninja
 
     - name: Test ninja
