@@ -65,6 +65,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
+        sudo apt upgrade -y
         sudo apt install -y python3-pytest ninja-build clang-tidy
         pip install cmake==3.17.*
 
