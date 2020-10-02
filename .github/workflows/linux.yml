@@ -27,7 +27,7 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        scan-build -o scanlogs cmake -DCMAKE_BUILD_TYPE=Release -B build
         scan-build -o scanlogs cmake --build build --parallel --config Release
         strip build/ninja
 
