@@ -64,8 +64,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
-        sudo apt update
-        sudo apt install -y python3-pytest ninja-build clang-tidy-10 libllvm10 clang-tools-10
+        sudo apt install -y python3-pytest ninja-build clang-tidy
         pip install cmake==3.17.*
 
     - name: Configure (GCC)
