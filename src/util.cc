@@ -21,6 +21,9 @@
 #include <windows.h>
 #include <io.h>
 #include <share.h>
+#include <locale> // For UTF-8 conversion
+#include <cassert> // For checking string size
+#include <limits>
 #endif
 
 #include <assert.h>
@@ -313,12 +316,12 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
+int ReadFile(const StringPiece path, string* contents, string* err) {
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+  HANDLE f = ::CreateFileW(Utf8ToWide(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
@@ -340,7 +343,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   ::CloseHandle(f);
   return 0;
 #else
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = fopen(path.str_, "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -423,21 +426,137 @@ const char* SpellcheckString(const char* text, ...) {
 }
 
 #ifdef _WIN32
+std::wstring Utf8ToWide(const StringPiece u8_string) {
+  if (u8_string.len_ == 0)
+    return std::wstring();
+
+  // Make sure that the string size can be casted to an int.
+  assert(u8_string.size() <= std::numeric_limits<int>::max());
+
+  size_t size_needed = MultiByteToWideChar(
+      CP_UTF8, 0, u8_string.str_, static_cast<int>(u8_string.size()), NULL, 0);
+  if (size_needed == 0) {
+    Win32Fatal("Utf8ToWide", "Failed to get needed size of wide string");
+  }
+
+  std::wstring w_string(size_needed, 0);
+  int w_size_needed = MultiByteToWideChar(CP_UTF8, 0, u8_string.str_,
+                                          static_cast<int>(u8_string.size()),
+                                          &w_string[0], w_string.size());
+  if (w_size_needed != size_needed) {
+    Win32Fatal("Utf8ToWide", "Failed conversion to wide string");
+  }
+
+  return w_string;
+}
+
+int GetUtf8SizeNeeded(const WStringPiece w_string) {
+  // Make sure that the string size can be casted to an int.
+  assert(w_string.size() <= std::numeric_limits<int>::max());
+
+  int size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.str_,
+                                        static_cast<int>(w_string.size()), NULL,
+                                        0, NULL, NULL);
+  if (size_needed == 0) {
+    Win32Fatal("GetUtf8SizeNeeded",
+               "Failed to get needed size of UTF-8 string");
+  }
+
+  return size_needed;
+}
+
+std::string WideToUtf8(const WStringPiece w_string) {
+  if (w_string.len_ == 0)
+    return string();
+
+  // Make sure that the string size can be casted to an int.
+  assert(w_string.size() <= std::numeric_limits<int>::max());
+
+  int size_needed = GetUtf8SizeNeeded(w_string);
+
+  std::string u8_string(size_needed, '\0');
+  int u8_size_needed = WideCharToMultiByte(
+      CP_UTF8, 0, w_string.str_, static_cast<int>(w_string.size()),
+      &u8_string[0], size_needed, NULL, NULL);
+  if (u8_size_needed != size_needed) {
+    Win32Fatal("WideToUtf8", "Failed conversion to UTF-8 string");
+  }
+  return u8_string;
+}
+
+// Method calling this funcion must ensure that the buffer is large enough to
+// fit the converted string. The correct size is obtained using the
+// GetUtf8SizeNeeded method.
+// Note that GetUtf8SizeNeeded does not account for nulltermination.
+int ConvertWideToUtf8(const WStringPiece w_string, char* buff,
+                      size_t buffer_length) {
+  int u8_size_needed = WideCharToMultiByte(CP_UTF8, 0, w_string.str_,
+                                           static_cast<int>(w_string.size()),
+                                           buff, buffer_length, NULL, NULL);
+
+  if (u8_size_needed > (buffer_length - 1)) {
+    Win32Fatal("ConvertWideToUtf8", "Failed conversion to UTF-8 string");
+  }
+
+  // The conversion does not include the nulltermination.
+  buff[u8_size_needed] = '\0';
+  return u8_size_needed;
+}
+
+void WideToUtf8(const WStringPiece w_string, char* buff, size_t buffer_length) {
+  if (w_string.len_ == 0) {
+    return;
+  }
+
+  ConvertWideToUtf8(w_string, buff, buffer_length);
+}
+
+char** convertCommandLine(int argc, wchar_t** wargv) {
+  size_t total_size = 0;
+
+  for (int i = 0; i < argc; i++) {
+    total_size += (GetUtf8SizeNeeded(wargv[i]) + 1);
+  }
+
+  size_t pointer_size = (argc + 1) * sizeof(char*);
+  char* commandBuffer = new char[pointer_size + total_size];
+  char** retvalue = reinterpret_cast<char**>(commandBuffer);
+  int index = 0;
+
+  for (int command_no = 0; command_no < argc; command_no++) {
+    char* buf = pointer_size + commandBuffer + index;
+
+    // Convert the commandline option.
+    int written_bytes = ConvertWideToUtf8(
+        wargv[command_no],
+        buf,                  // Buffer to write to
+        total_size - index);  // The size of the remaining buffer.
+
+    index = index + written_bytes + 1;  // Account for the null termination.
+    retvalue[command_no] = buf;
+  }
+
+  // Just to follow the c++ standard, we need to add this!
+  // Also, ninja will not work properly if we do not do so.
+  retvalue[argc] = NULL;
+  return retvalue;
+}
+
 string GetLastErrorString() {
   DWORD err = GetLastError();
 
-  char* msg_buf;
-  FormatMessageA(
+  wchar_t* msg_buf;
+  FormatMessageW(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
         NULL,
         err,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (char*)&msg_buf,
+        (wchar_t*)&msg_buf,
         0,
         NULL);
-  string msg = msg_buf;
+  string msg = WideToUtf8(msg_buf);
   LocalFree(msg_buf);
   return msg;
 }

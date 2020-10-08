@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string>
+#include "string_piece.h"
 using namespace std;
 
 string EscapeForDepfile(const string& path);
@@ -27,7 +28,7 @@ struct CLWrapper {
 
   /// Start a process and gather its raw output.  Returns its exit code.
   /// Crashes (calls Fatal()) on error.
-  int Run(const string& command, string* output);
+  int Run(const StringPiece command, string* output);
 
   void* env_block_;
 };

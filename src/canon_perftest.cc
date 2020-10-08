@@ -22,7 +22,12 @@ const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
     "platform/leveldb/LevelDBWriteBatch.cpp";
 
+
+#ifdef _WIN32
+int wmain() {
+#else
 int main() {
+#endif
   vector<int> times;
   string err;
 

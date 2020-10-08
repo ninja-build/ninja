@@ -18,7 +18,11 @@
 #include "clparser.h"
 #include "metrics.h"
 
-int main(int argc, char* argv[]) {
+#ifdef _WIN32
+int wmain() {
+#else
+int main() {
+#endif
   // Output of /showIncludes from #include <iostream>
   string perf_testdata =
       "Note: including file: C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\INCLUDE\\iostream\r\n"
@@ -155,3 +159,4 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
+

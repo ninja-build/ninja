@@ -35,6 +35,7 @@ using namespace std;
 #endif
 
 #include "exit_status.h"
+#include "string_piece.h"
 
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
@@ -53,7 +54,7 @@ struct Subprocess {
 
  private:
   Subprocess(bool use_console);
-  bool Start(struct SubprocessSet* set, const string& command);
+  bool Start(struct SubprocessSet* set, const StringPiece command);
   void OnPipeReady();
 
   string buf_;

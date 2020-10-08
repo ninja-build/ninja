@@ -40,8 +40,9 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   char pipe_name[100];
   snprintf(pipe_name, sizeof(pipe_name),
            "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
+  const std::wstring w_pipe_name = Utf8ToWide(pipe_name);
 
-  pipe_ = ::CreateNamedPipeA(pipe_name,
+  pipe_ = ::CreateNamedPipeW(w_pipe_name.c_str(),
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                              PIPE_TYPE_BYTE,
                              PIPE_UNLIMITED_INSTANCES,
@@ -60,7 +61,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
 
   // Get the write end of the pipe as a handle inheritable across processes.
   HANDLE output_write_handle =
-      CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+      CreateFileW(w_pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
   HANDLE output_write_child;
   if (!DuplicateHandle(GetCurrentProcess(), output_write_handle,
                        GetCurrentProcess(), &output_write_child,
@@ -72,7 +73,7 @@ HANDLE Subprocess::SetupPipe(HANDLE ioport) {
   return output_write_child;
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const StringPiece command) {
   HANDLE child_pipe = SetupPipe(set->ioport_);
 
   SECURITY_ATTRIBUTES security_attributes;
@@ -81,13 +82,13 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   security_attributes.bInheritHandle = TRUE;
   // Must be inheritable so subprocesses can dup to children.
   HANDLE nul =
-      CreateFileA("NUL", GENERIC_READ,
+      CreateFileW(L"NUL", GENERIC_READ,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
-  STARTUPINFOA startup_info;
+  STARTUPINFOW startup_info;
   memset(&startup_info, 0, sizeof(startup_info));
   startup_info.cb = sizeof(STARTUPINFO);
   if (!use_console_) {
@@ -107,9 +108,9 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
-  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
-                      /* inherit handles */ TRUE, process_flags,
-                      NULL, NULL,
+  std::wstring commands = Utf8ToWide(command);
+  if (!CreateProcessW(NULL, &commands[0], NULL, NULL,
+                      /* inherit handles */ TRUE, process_flags, NULL, NULL,
                       &startup_info, &process_info)) {
     DWORD error = GetLastError();
     if (error == ERROR_FILE_NOT_FOUND) {
@@ -121,18 +122,20 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       CloseHandle(nul);
       pipe_ = NULL;
       // child_ is already NULL;
-      buf_ = "CreateProcess failed: The system cannot find the file "
+      buf_ =
+          "CreateProcess failed: The system cannot find the file "
           "specified.\n";
       return true;
     } else {
-      fprintf(stderr, "\nCreateProcess failed. Command attempted:\n\"%s\"\n",
-              command.c_str());
+      fwprintf(stderr, L"\nCreateProcess failed. Command attempted:\n\"%s\"\n",
+               commands.c_str());
       const char* hint = NULL;
       // ERROR_INVALID_PARAMETER means the command line was formatted
       // incorrectly. This can be caused by a command line being too long or
       // leading whitespace in the command. Give extra context for this case.
       if (error == ERROR_INVALID_PARAMETER) {
-        if (command.length() > 0 && (command[0] == ' ' || command[0] == '\t'))
+        if (commands.length() > 0 &&
+            (commands[0] == L' ' || commands[0] == L'\t'))
           hint = "command contains leading whitespace";
         else
           hint = "is the command line too long?";

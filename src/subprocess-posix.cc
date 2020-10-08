@@ -33,6 +33,7 @@
 extern char** environ;
 
 #include "util.h"
+#include "string_piece.h"
 
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
@@ -46,7 +47,7 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const StringPiece command) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -115,7 +116,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (err != 0)
     Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
-  const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
+  const char* spawned_args[] = { "/bin/sh", "-c", command.str_, NULL };
   err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
         const_cast<char**>(spawned_args), environ);
   if (err != 0)

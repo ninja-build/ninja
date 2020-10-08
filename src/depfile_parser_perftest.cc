@@ -19,7 +19,12 @@
 #include "util.h"
 #include "metrics.h"
 
-int main(int argc, char* argv[]) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) {
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
   if (argc < 2) {
     printf("usage: %s <file1> <file2...>\n", argv[0]);
     return 1;
@@ -75,3 +80,4 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
+

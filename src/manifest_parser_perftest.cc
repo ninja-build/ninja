@@ -71,7 +71,12 @@ int LoadManifests(bool measure_command_evaluation) {
   return optimization_guard;
 }
 
-int main(int argc, char* argv[]) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) {
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
   bool measure_command_evaluation = true;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("fh"))) != -1) {
@@ -98,7 +103,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+#ifdef _WIN32
+  wstring wDir = Utf8ToWide(kManifestDir);
+  if (_wchdir(wDir.c_str()) < 0)
+#else
   if (chdir(kManifestDir) < 0)
+#endif
     Fatal("chdir: %s", strerror(errno));
 
   const int kNumRepetitions = 5;
@@ -115,4 +125,6 @@ int main(int argc, char* argv[]) {
   int max = *max_element(times.begin(), times.end());
   float total = accumulate(times.begin(), times.end(), 0.0f);
   printf("min %dms  max %dms  avg %.1fms\n", min, max, total / times.size());
+
+  return 0;
 }

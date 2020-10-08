@@ -31,7 +31,11 @@ void RandomCommand(char** s) {
     (*s)[i] = (char)random(32, 127);
 }
 
+#ifdef _WIN32
+int wmain() {
+#else
 int main() {
+#endif
   const int N = 20 * 1000 * 1000;
 
   // Leak these, else 10% of the runtime is spent destroying strings.

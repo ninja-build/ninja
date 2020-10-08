@@ -126,7 +126,12 @@ bool testing::Test::Check(bool condition, const char* file, int line,
   return condition;
 }
 
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv){
+  char** argv = convertCommandLine(argc, wargv);
+#else
 int main(int argc, char **argv) {
+#endif
   int tests_started = 0;
 
   const char* test_filter = "*";

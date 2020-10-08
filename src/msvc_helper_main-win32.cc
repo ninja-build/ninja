@@ -113,18 +113,19 @@ int MSVCHelperMain(int argc, char** argv) {
     PushPathIntoEnvironment(env);
   }
 
-  char* command = GetCommandLineA();
-  command = strstr(command, " -- ");
-  if (!command) {
+  wchar_t* command = GetCommandLineW();
+  command = wcsstr(command, L" -- ");
+  if(!command){
     Fatal("expected command line to end with \" -- command args\"");
   }
+
   command += 4;
 
   CLWrapper cl;
   if (!env.empty())
     cl.SetEnvBlock((void*)env.data());
   string output;
-  int exit_code = cl.Run(command, &output);
+  int exit_code = cl.Run(WideToUtf8(command).c_str(), &output);
 
   if (output_filename) {
     CLParser parser;

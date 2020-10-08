@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include "string_piece.h"
 using namespace std;
 
 #ifdef _MSC_VER
@@ -71,7 +72,7 @@ void GetWin32EscapedString(const string& input, string* result);
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+int ReadFile(const StringPiece path, string* contents, string* err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
@@ -115,6 +116,12 @@ bool Truncate(const string& path, size_t size, string* err);
 #endif
 
 #ifdef _WIN32
+/// UTF-8 converters
+std::wstring Utf8ToWide(const StringPiece);
+std::string WideToUtf8(const WStringPiece);
+void WideToUtf8(const WStringPiece, char* buff, size_t buffer_length);
+char** convertCommandLine(int argc, wchar_t** wargv);
+
 /// Convert the value returned by GetLastError() into a string.
 string GetLastErrorString();
 

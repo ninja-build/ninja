@@ -319,11 +319,13 @@ if platform.is_msvc():
               '/wd4355',
               # Disable warnings about ignored typedef in DbgHelp.h
               '/wd4091',
+              # Disable warnings about codepage in testsuite
+              '/wd4566',
               '/GR-',  # Disable RTTI.
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
-              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
+              '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS', '/DUNICODE',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
     if platform.msvc_needs_fs():
@@ -357,6 +359,9 @@ else:
         pass
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0601', '-D__USE_MINGW_ANSI_STDIO=1']
+        cflags += ['-DNOMINMAX']
+    if platform.is_windows():
+        cflags += ['-DUNICODE', '-DNOMINMAX']
     ldflags = ['-L$builddir']
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
@@ -372,6 +377,7 @@ libs = []
 if platform.is_mingw():
     cflags.remove('-fvisibility=hidden');
     ldflags.append('-static')
+    ldflags.append('-municode')
 elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_aix():

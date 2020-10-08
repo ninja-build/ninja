@@ -1365,7 +1365,11 @@ NORETURN void real_main(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (!options.tool)
       printf("ninja: Entering directory `%s'\n", options.working_dir);
+#ifdef _WIN32
+    if (_wchdir(Utf8ToWide(options.working_dir).c_str()) < 0) {
+#else
     if (chdir(options.working_dir) < 0) {
+#endif
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
@@ -1434,7 +1438,12 @@ NORETURN void real_main(int argc, char** argv) {
 
 }  // anonymous namespace
 
-int main(int argc, char** argv) {
+#ifdef _WIN32
+int wmain(int argc, wchar_t** wargv) {
+  char** argv = convertCommandLine(argc, wargv);
+#else
+int main(int argc, char **argv) {
+#endif
 #if defined(_MSC_VER)
   // Set a handler to catch crashes not caught by the __try..__except
   // block (e.g. an exception in a stack-unwind-block).

@@ -32,6 +32,7 @@
 
 #include "metrics.h"
 #include "util.h"
+#include "string_piece.h"
 
 namespace {
 
@@ -54,7 +55,7 @@ string DirName(const string& path) {
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  return _wmkdir(Utf8ToWide(path).c_str());
 #else
   return mkdir(path.c_str(), 0777);
 #endif
@@ -71,13 +72,13 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
-TimeStamp StatSingleFile(const string& path, string* err) {
+TimeStamp StatSingleFile(const StringPiece path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExW(Utf8ToWide(path).c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
+    *err = "GetFileAttributesExW(" + path.AsString() + "): " + GetLastErrorString();
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -93,7 +94,7 @@ bool IsWindows7OrLater() {
       &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
 
-bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
+bool StatAllFilesInDir(const StringPiece dir, map<string, TimeStamp>* stamps,
                        string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
@@ -102,28 +103,34 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
-                                        FindExSearchNameMatch, NULL, 0);
+
+  std::string dir_string;
+  dir_string.reserve(dir.len_ + 2); // Make room for the \*
+  dir_string.append(dir.begin(),dir.end());
+  dir_string.append("\\*");
+
+  WIN32_FIND_DATAW ffd;
+  HANDLE find_handle = FindFirstFileExW(Utf8ToWide(dir_string).c_str(), level,
+                                       &ffd, FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return true;
-    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
+    *err = "FindFirstFileEx(" + dir.AsString() + "): " + GetLastErrorString();
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
-    if (lowername == "..") {
+    if (ffd.cFileName[0] == L'.' && ffd.cFileName[1] == L'.') {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
+    string lowername = WideToUtf8(ffd.cFileName);
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(lowername,
-                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFileA(find_handle, &ffd));
+    stamps->emplace(std::move(lowername),
+                             TimeStampFromFileTime(ffd.ftLastWriteTime));
+  } while (FindNextFileW(find_handle, &ffd));
   FindClose(find_handle);
   return true;
 }
@@ -218,7 +225,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
+#ifdef _WIN32
+  FILE* fp = _wfopen(Utf8ToWide(path).c_str(), L"w");
+#else
   FILE* fp = fopen(path.c_str(), "w");
+#endif
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
@@ -263,7 +274,11 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 }
 
 int RealDiskInterface::RemoveFile(const string& path) {
+#ifdef _WIN32
+  if (_wremove(Utf8ToWide(path).c_str()) < 0) {
+#else
   if (remove(path.c_str()) < 0) {
+#endif
     switch (errno) {
       case ENOENT:
         return 1;

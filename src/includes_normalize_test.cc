@@ -163,5 +163,5 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
 
   // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
-  EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+  EXPECT_TRUE(err.find("path too long") != string::npos);
 }

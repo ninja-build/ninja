@@ -66,10 +66,11 @@ char* mkdtemp(char* name_template) {
 
 string GetSystemTempDir() {
 #ifdef _WIN32
-  char buf[1024];
-  if (!GetTempPath(sizeof(buf), buf))
+  WCHAR buf[MAX_PATH];
+  // GetTempPath returns zero if no path is found
+  if(GetTempPathW(MAX_PATH, buf) == 0)
     return "";
-  return buf;
+  return WideToUtf8(buf);
 #else
   const char* tempdir = getenv("TMPDIR");
   if (tempdir)
