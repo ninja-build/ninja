@@ -18,7 +18,30 @@
 #ifdef _WIN32
 #include "win32port.h"
 #else
+#include <fcntl.h>
+#include <semaphore.h>
 #include <stdint.h>
+#include <sys/stat.h>
+
+// The semaphores shared between all ninja processes.
+extern sem_t* shared_ninja_jobs_semaphore;  // Count down of shared job. Zero
+                                            // means no more CPUs.
+extern sem_t* shared_ninjas_semaphore;      // Count of running ninjas for
+                                            // calculating "fairness".
+
+// The shared number of jobs:
+extern unsigned shared_ninja_jobs;
+
+// The local contribution to the shared semaphore:
+extern unsigned shared_ninja_local_jobs;
+
+#define SHARED_NINJA_JOBS_SEMAPHORE_PREFIX "ninja-jobs-"
+extern char shared_ninja_jobs_semaphore_name[sizeof(
+    SHARED_NINJA_JOBS_SEMAPHORE_PREFIX "18446744073709551615")];  // UINT64_MAX
+
+#define SHARED_NINJAS_SEMAPHORE_PREFIX "ninjas-"
+extern char shared_ninjas_semaphore_name[sizeof(
+    SHARED_NINJAS_SEMAPHORE_PREFIX "18446744073709551615")];  // UINT64_MAX
 #endif
 
 #include <string>

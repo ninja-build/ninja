@@ -40,7 +40,57 @@
 #include "subprocess.h"
 #include "util.h"
 
+#ifndef _WIN32
+unsigned shared_ninja_jobs = 0;
+unsigned shared_ninja_local_jobs = 0;
+sem_t* shared_ninja_jobs_semaphore = nullptr;
+sem_t* shared_ninjas_semaphore = nullptr;
+char shared_ninja_jobs_semaphore_name[sizeof(SHARED_NINJA_JOBS_SEMAPHORE_PREFIX
+                                             "18446744073709551615")] =
+    "";  // UINT64_MAX
+char shared_ninjas_semaphore_name[sizeof(
+    SHARED_NINJAS_SEMAPHORE_PREFIX "18446744073709551615")] = "";  // UINT64_MAX
+#endif
+
 namespace {
+
+bool TryGlobalSpawnEnter() {
+#ifndef _WIN32
+  if (shared_ninja_jobs_semaphore == nullptr)
+    return true;
+
+  int current_ninjas;
+  if (sem_getvalue(shared_ninjas_semaphore, &current_ninjas) != 0)
+    Fatal("sem_getvalue: %s", strerror(errno));
+
+  // There is a technically race between getting the number of ninjas and
+  // waiting, so as a hack add one more phantom ninja just in case.
+  bool wait = shared_ninja_local_jobs <
+              (shared_ninja_jobs / unsigned(current_ninjas + 1));
+
+  if (wait) {
+    if (sem_wait(shared_ninja_jobs_semaphore) != 0)
+      Fatal("sem_wait: %s", strerror(errno));
+  } else if (sem_trywait(shared_ninja_jobs_semaphore) != 0) {
+    if (errno == EAGAIN)
+      return false;
+    Fatal("sem_trywait: %s", strerror(errno));
+  }
+  ++shared_ninja_local_jobs;
+#endif
+
+  return true;
+}
+
+void GlobalSpawnLeave() {
+#ifndef _WIN32
+  if (shared_ninja_jobs_semaphore == nullptr)
+    return;
+  --shared_ninja_local_jobs;
+  if (sem_post(shared_ninja_jobs_semaphore) != 0)
+    Fatal("sem_post: %s", strerror(errno));
+#endif
+}
 
 /// A CommandRunner that doesn't actually run the commands.
 struct DryRunCommandRunner : public CommandRunner {
@@ -825,25 +875,30 @@ bool Builder::Build(string* err) {
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
     if (failures_allowed && command_runner_->CanRunMore()) {
-      if (Edge* edge = plan_.FindWork()) {
-        if (!StartEdge(edge, err)) {
-          Cleanup();
-          status_->BuildFinished();
-          return false;
-        }
-
-        if (edge->is_phony()) {
-          if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
+      if (TryGlobalSpawnEnter()) {
+        if (Edge* edge = plan_.FindWork()) {
+          if (!StartEdge(edge, err)) {
             Cleanup();
             status_->BuildFinished();
             return false;
           }
-        } else {
-          ++pending_commands;
-        }
 
-        // We made some progress; go back to the main loop.
-        continue;
+          if (edge->is_phony()) {
+            GlobalSpawnLeave();
+            if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
+              Cleanup();
+              status_->BuildFinished();
+              return false;
+            }
+          } else {
+            ++pending_commands;
+          }
+
+          // We made some progress; go back to the main loop.
+          continue;
+        } else {
+          GlobalSpawnLeave();
+        }
       }
     }
 
@@ -859,6 +914,7 @@ bool Builder::Build(string* err) {
       }
 
       --pending_commands;
+      GlobalSpawnLeave();
       if (!FinishCommand(&result, err)) {
         Cleanup();
         status_->BuildFinished();
