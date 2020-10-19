@@ -37,6 +37,8 @@
 #include "state.h"
 #include "util.h"
 
+using namespace std;
+
 bool WriteFakeManifests(const string& dir, string* err) {
   RealDiskInterface disk_interface;
   TimeStamp mtime = disk_interface.Stat(dir + "/build.ninja", err);

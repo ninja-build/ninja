@@ -28,6 +28,8 @@
 #include "util.h"
 #endif
 
+using namespace std;
+
 namespace {
 
 /// Return true if \a input ends with \a needle.

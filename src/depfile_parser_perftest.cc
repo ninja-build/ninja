@@ -19,6 +19,8 @@
 #include "util.h"
 #include "metrics.h"
 
+using namespace std;
+
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     printf("usage: %s <file1> <file2...>\n", argv[0]);

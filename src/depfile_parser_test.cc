@@ -16,6 +16,8 @@
 
 #include "test.h"
 
+using namespace std;
+
 struct DepfileParserTest : public testing::Test {
   bool Parse(const char* input, string* err);
 

@@ -21,6 +21,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 Subprocess::Subprocess(bool use_console) : child_(NULL) , overlapped_(),
                                            is_reading_(false),
                                            use_console_(use_console) {

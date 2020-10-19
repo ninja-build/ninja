@@ -24,6 +24,8 @@
 #include <unistd.h>
 #endif
 
+using namespace std;
+
 namespace {
 
 #ifdef _WIN32

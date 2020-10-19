@@ -16,6 +16,8 @@
 
 #include "test.h"
 
+using namespace std;
+
 namespace {
 
 bool CanonicalizePath(string* path, string* err) {

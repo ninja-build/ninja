@@ -17,6 +17,8 @@
 #include "disk_interface.h"
 #include "metrics.h"
 
+using namespace std;
+
 bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;

@@ -43,6 +43,8 @@ extern "C" {
 }
 #endif
 
+using namespace std;
+
 namespace {
 
 #ifdef _WIN32

@@ -18,6 +18,8 @@
 #include "clparser.h"
 #include "metrics.h"
 
+using namespace std;
+
 int main(int argc, char* argv[]) {
   // Output of /showIncludes from #include <iostream>
   string perf_testdata =

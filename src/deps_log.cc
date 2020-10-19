@@ -30,6 +30,8 @@ typedef unsigned __int32 uint32_t;
 #include "state.h"
 #include "util.h"
 
+using namespace std;
+
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";

@@ -23,6 +23,8 @@
 #include "util.h"
 #include "test.h"
 
+using namespace std;
+
 namespace {
 
 const char kTestFilename[] = "DepsLogTest-tempfile";

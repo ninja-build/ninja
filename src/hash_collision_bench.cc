@@ -15,10 +15,11 @@
 #include "build_log.h"
 
 #include <algorithm>
-using namespace std;
 
 #include <stdlib.h>
 #include <time.h>
+
+using namespace std;
 
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);

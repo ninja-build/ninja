@@ -22,6 +22,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace std;
+
 DyndepParser::DyndepParser(State* state, FileReader* file_reader,
                            DyndepFile* dyndep_file)
     : Parser(state, file_reader)
