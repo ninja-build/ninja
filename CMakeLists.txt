@@ -119,6 +119,13 @@ if(MINGW)
 target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601 __USE_MINGW_ANSI_STDIO=1)
 endif()
 
+# On IBM i (identified as "OS400" for compatibility reasons), this fixes missing
+# PRId64 (and others) at compile time, and links to libutil for getopt_long
+if(CMAKE_SYSTEM_NAME STREQUAL "OS400")
+	string(APPEND CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS")
+	string(APPEND CMAKE_EXE_LINKER_FLAGS " -lutil")
+endif()
+
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
