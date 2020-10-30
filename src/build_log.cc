@@ -190,7 +190,9 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (!log_file_) {
     return false;
   }
-  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
+  if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
+    return false;
+  }
   SetCloseOnExec(fileno(log_file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
