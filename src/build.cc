@@ -828,6 +828,10 @@ bool Builder::Build(string* err) {
     // See if we can start any more commands.
     if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
+        if (edge->GetBindingBool("generator")) {
+          scan_.build_log()->Close();
+        }
+
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();

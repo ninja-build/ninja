@@ -183,7 +183,7 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::OpenForWriteIfNeeded() {
-  if (log_file_path_.empty()) {
+  if (log_file_ || log_file_path_.empty()) {
     return true;
   }
   log_file_ = fopen(log_file_path_.c_str(), "ab");
@@ -204,7 +204,6 @@ bool BuildLog::OpenForWriteIfNeeded() {
       return false;
     }
   }
-  log_file_path_.clear();
   return true;
 }
 
