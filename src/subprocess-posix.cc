@@ -154,6 +154,16 @@ ExitStatus Subprocess::Finish() {
     Fatal("waitpid(%d): %s", pid_, strerror(errno));
   pid_ = -1;
 
+#ifdef _AIX
+  if (WIFEXITED(status) && WEXITSTATUS(status) & 0x80) {
+    // Map the shell's exit code used for signal failure (128 + signal) to the
+    // status code expected by AIX WIFSIGNALED and WTERMSIG macros which, unlike
+    // other systems, uses a different bit layout.
+    int signal = WEXITSTATUS(status) & 0x7f;
+    status = (signal << 16) | signal;
+  }
+#endif
+
   if (WIFEXITED(status)) {
     int exit = WEXITSTATUS(status);
     if (exit == 0)
