@@ -115,6 +115,11 @@ else()
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
 	endif()
+
+	# Needed for perfstat_cpu_total
+	if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+		target_link_libraries(libninja PUBLIC "-lperfstat")
+	endif()
 endif()
 
 #Fixes GetActiveProcessorCount on MinGW
