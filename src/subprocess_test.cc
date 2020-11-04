@@ -75,7 +75,7 @@ TEST_F(SubprocessTest, NoSuchCommand) {
 #ifndef _WIN32
 
 TEST_F(SubprocessTest, InterruptChild) {
-  Subprocess* subproc = subprocs_.Add("kill -INT $$");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -INT $$'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
@@ -86,7 +86,7 @@ TEST_F(SubprocessTest, InterruptChild) {
 }
 
 TEST_F(SubprocessTest, InterruptParent) {
-  Subprocess* subproc = subprocs_.Add("kill -INT $PPID ; sleep 1");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -INT $PPID ; sleep 1'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
@@ -99,7 +99,7 @@ TEST_F(SubprocessTest, InterruptParent) {
 }
 
 TEST_F(SubprocessTest, InterruptChildWithSigTerm) {
-  Subprocess* subproc = subprocs_.Add("kill -TERM $$");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -TERM $$'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
@@ -110,7 +110,7 @@ TEST_F(SubprocessTest, InterruptChildWithSigTerm) {
 }
 
 TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
-  Subprocess* subproc = subprocs_.Add("kill -TERM $PPID ; sleep 1");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -TERM $PPID ; sleep 1'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
@@ -123,7 +123,7 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
 }
 
 TEST_F(SubprocessTest, InterruptChildWithSigHup) {
-  Subprocess* subproc = subprocs_.Add("kill -HUP $$");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -HUP $$'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
@@ -134,7 +134,7 @@ TEST_F(SubprocessTest, InterruptChildWithSigHup) {
 }
 
 TEST_F(SubprocessTest, InterruptParentWithSigHup) {
-  Subprocess* subproc = subprocs_.Add("kill -HUP $PPID ; sleep 1");
+  Subprocess* subproc = subprocs_.Add("/bin/sh -c 'kill -HUP $PPID ; sleep 1'");
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
