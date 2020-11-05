@@ -138,7 +138,7 @@ if(platform_supports_ninja_browse)
 		OUTPUT build/browse_py.h
 		MAIN_DEPENDENCY src/browse.py
 		DEPENDS src/inline.sh
-		COMMAND cmake -E make_directory ${CMAKE_BINARY_DIR}/build
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/build
 		COMMAND src/inline.sh kBrowsePy
 						< src/browse.py
 						> ${CMAKE_BINARY_DIR}/build/browse_py.h
