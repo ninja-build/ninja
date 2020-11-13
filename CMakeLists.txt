@@ -1,20 +1,18 @@
 cmake_minimum_required(VERSION 3.15)
 
 include(CheckIncludeFileCXX)
+include(CheckIPOSupported)
 
 project(ninja)
 
 # --- optional link-time optimization
-if(CMAKE_BUILD_TYPE MATCHES "Release")
-	include(CheckIPOSupported)
-	check_ipo_supported(RESULT lto_supported OUTPUT error)
+check_ipo_supported(RESULT lto_supported OUTPUT error)
 
-	if(lto_supported)
-		message(STATUS "IPO / LTO enabled")
-		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-	else()
-		message(STATUS "IPO / LTO not supported: <${error}>")
-	endif()
+if(lto_supported)
+	message(STATUS "IPO / LTO enabled")
+	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+	message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
 # --- compiler flags
