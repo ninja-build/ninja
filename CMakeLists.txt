@@ -203,6 +203,12 @@ if(BUILD_TESTING)
     target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
   endforeach()
 
+  if(CMAKE_SYSTEM_NAME STREQUAL "AIX" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+    # These tests require more memory than will fit in the standard AIX shared stack/heap (256M)
+    target_link_libraries(hash_collision_bench PRIVATE "-Wl,-bmaxdata:0x80000000")
+    target_link_libraries(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
+  endif()
+
   add_test(NinjaTest ninja_test)
 endif()
 

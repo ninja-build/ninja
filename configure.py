@@ -596,6 +596,11 @@ all_targets += ninja_test
 
 n.comment('Ancillary executables.')
 
+if platform.is_aix() and '-maix64' not in ldflags:
+    # Both hash_collision_bench and manifest_parser_perftest require more
+    # memory than will fit in the standard 32-bit AIX shared stack/heap (256M)
+    libs.append('-Wl,-bmaxdata:0x80000000')
+
 for name in ['build_log_perftest',
              'canon_perftest',
              'depfile_parser_perftest',
