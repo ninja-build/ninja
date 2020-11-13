@@ -27,9 +27,10 @@ int random(int low, int high) {
 
 void RandomCommand(char** s) {
   int len = random(5, 100);
-  *s = new char[len];
+  *s = new char[len+1];
   for (int i = 0; i < len; ++i)
     (*s)[i] = (char)random(32, 127);
+  (*s)[len] = '\0';
 }
 
 int main() {
