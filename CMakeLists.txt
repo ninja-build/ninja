@@ -33,12 +33,6 @@ if(MSVC)
 	add_compile_options("/Zc:__cplusplus")
 	# Turn off RTTI
 	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/GR->")
-
-	# Use ICF[=iterations] to perform identical COMDAT folding.
-	# Redundant COMDATs can be removed from the linker output.
-	add_link_options("$<$<CONFIG:Release>:/OPT:ICF>")
-	# /OPT:REF eliminates functions and data that are never referenced
-	add_link_options("$<$<CONFIG:Release>:/OPT:REF>")
 else()
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
