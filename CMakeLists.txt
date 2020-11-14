@@ -15,10 +15,30 @@ else()
 	message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
+# Allow usage of folders in IDE generators
+set_property(GLOBAL PROPERTY USE_FOLDERS YES)
+
 # --- compiler flags
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-	string(APPEND CMAKE_CXX_FLAGS " /W4 /GR- /Zc:__cplusplus")
+
+	if (MSVC_IDE)
+		# If the user is using Visual Studio multi-thread the build
+		add_compile_options("/MP")
+	endif()
+
+	# Highest warning level MSVC reasonably has (/Wall doesn't compile with most code)
+	add_compile_options("/W4")
+	# Enable the __cplusplus macro to report the supported standard (off by default).
+	add_compile_options("/Zc:__cplusplus")
+	# Turn off RTTI
+	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/GR->")
+
+	# Use ICF[=iterations] to perform identical COMDAT folding.
+	# Redundant COMDATs can be removed from the linker output.
+	add_link_options("$<$<CONFIG:Release>:/OPT:ICF>")
+	# /OPT:REF eliminates functions and data that are never referenced
+	add_link_options("$<$<CONFIG:Release>:/OPT:REF>")
 else()
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
