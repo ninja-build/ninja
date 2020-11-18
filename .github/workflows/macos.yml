@@ -21,7 +21,7 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        CXXFLAGS=-std=c++11 cmake -DCMAKE_BUILD_TYPE=Release -B build
         cmake --build build --parallel --config Release
 
     - name: Test ninja

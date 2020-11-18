@@ -559,41 +559,6 @@ if options.bootstrap:
     # build.ninja file.
     n = ninja_writer
 
-n.comment('Tests all build into ninja_test executable.')
-
-objs = []
-if platform.is_msvc():
-    cxxvariables = [('pdb', 'ninja_test.pdb')]
-
-for name in ['build_log_test',
-             'build_test',
-             'clean_test',
-             'clparser_test',
-             'depfile_parser_test',
-             'deps_log_test',
-             'dyndep_parser_test',
-             'disk_interface_test',
-             'edit_distance_test',
-             'graph_test',
-             'lexer_test',
-             'manifest_parser_test',
-             'ninja_test',
-             'state_test',
-             'string_piece_util_test',
-             'subprocess_test',
-             'test',
-             'util_test']:
-    objs += cxx(name, variables=cxxvariables)
-if platform.is_windows():
-    for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=cxxvariables)
-
-ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-                     variables=[('libs', libs)])
-n.newline()
-all_targets += ninja_test
-
-
 n.comment('Ancillary executables.')
 
 if platform.is_aix() and '-maix64' not in ldflags:
