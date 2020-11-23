@@ -180,7 +180,6 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     dir = path;
   }
 
-  transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
 
   Cache::iterator ci = cache_.find(dir);
