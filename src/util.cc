@@ -51,6 +51,10 @@
 #include <sys/sysinfo.h>
 #endif
 
+#if defined(__FreeBSD__)
+#include <sys/cpuset.h>
+#endif
+
 #include "edit_distance.h"
 #include "metrics.h"
 
@@ -485,10 +489,17 @@ int GetProcessorCount() {
 #ifdef _WIN32
   return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
-#ifdef CPU_COUNT
   // The number of exposed processors might not represent the actual number of
   // processors threads can run on. This happens when a CPU set limitation is
   // active, see https://github.com/ninja-build/ninja/issues/1278
+#if defined(__FreeBSD__)
+  cpuset_t mask;
+  CPU_ZERO(&mask);
+  if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(mask),
+    &mask) == 0) {
+    return CPU_COUNT(&mask);
+  }
+#elif defined(CPU_COUNT)
   cpu_set_t set;
   if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
     return CPU_COUNT(&set);
