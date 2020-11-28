@@ -18,6 +18,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 const char* kNinjaVersion = "1.10.2";
 
 void ParseVersion(const string& version, int* major, int* minor) {
