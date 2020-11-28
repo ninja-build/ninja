@@ -41,6 +41,8 @@
 #define strtoll _strtoi64
 #endif
 
+using namespace std;
+
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
@@ -181,14 +183,16 @@ void BuildLog::Close() {
 }
 
 bool BuildLog::OpenForWriteIfNeeded() {
-  if (log_file_path_.empty()) {
+  if (log_file_ || log_file_path_.empty()) {
     return true;
   }
   log_file_ = fopen(log_file_path_.c_str(), "ab");
   if (!log_file_) {
     return false;
   }
-  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
+  if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
+    return false;
+  }
   SetCloseOnExec(fileno(log_file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
@@ -200,7 +204,6 @@ bool BuildLog::OpenForWriteIfNeeded() {
       return false;
     }
   }
-  log_file_path_.clear();
   return true;
 }
 

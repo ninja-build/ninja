@@ -24,6 +24,8 @@
 
 #include <windows.h>
 
+using namespace std;
+
 namespace {
 
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,

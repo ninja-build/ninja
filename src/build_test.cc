@@ -21,6 +21,8 @@
 #include "graph.h"
 #include "test.h"
 
+using namespace std;
+
 struct CompareEdgesByOutput {
   static bool cmp(const Edge* a, const Edge* b) {
     return a->outputs_[0]->path() < b->outputs_[0]->path();

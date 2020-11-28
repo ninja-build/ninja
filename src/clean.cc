@@ -22,14 +22,14 @@
 #include "state.h"
 #include "util.h"
 
+using namespace std;
+
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
   : state_(state),
     config_(config),
     dyndep_loader_(state, disk_interface),
-    removed_(),
-    cleaned_(),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
     status_(0) {

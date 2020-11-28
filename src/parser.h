@@ -17,8 +17,6 @@
 
 #include <string>
 
-using namespace std;
-
 #include "lexer.h"
 
 struct FileReader;
@@ -30,12 +28,12 @@ struct Parser {
       : state_(state), file_reader_(file_reader) {}
 
   /// Load and parse a file.
-  bool Load(const string& filename, string* err, Lexer* parent = NULL);
+  bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
 
 protected:
   /// If the next token is not \a expected, produce an error string
   /// saying "expected foo, got bar".
-  bool ExpectToken(Lexer::Token expected, string* err);
+  bool ExpectToken(Lexer::Token expected, std::string* err);
 
   State* state_;
   FileReader* file_reader_;
@@ -43,8 +41,8 @@ protected:
 
 private:
   /// Parse a file, given its contents as a string.
-  virtual bool Parse(const string& filename, const string& input,
-                     string* err) = 0;
+  virtual bool Parse(const std::string& filename, const std::string& input,
+                     std::string* err) = 0;
 };
 
 #endif  // NINJA_PARSER_H_

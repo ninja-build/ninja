@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <vector>
 
+using namespace std;
+
 int EditDistance(const StringPiece& s1,
                  const StringPiece& s2,
                  bool allow_replacements,

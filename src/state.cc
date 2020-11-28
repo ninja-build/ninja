@@ -22,6 +22,7 @@
 #include "metrics.h"
 #include "util.h"
 
+using namespace std;
 
 void Pool::EdgeScheduled(const Edge& edge) {
   if (depth_ != 0)

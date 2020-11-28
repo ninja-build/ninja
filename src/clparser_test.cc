@@ -17,6 +17,8 @@
 #include "test.h"
 #include "util.h"
 
+using namespace std;
+
 TEST(CLParserTest, ShowIncludes) {
   ASSERT_EQ("", CLParser::FilterShowIncludes("", ""));
 

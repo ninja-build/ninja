@@ -1,0 +1,13 @@
+---
+Checks: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-non-const-parameter,
+  ,readability-redundant-string-cstr,
+  ,readability-redundant-string-init,
+'
+WarningsAsErrors: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-non-const-parameter,
+  ,readability-redundant-string-cstr,
+  ,readability-redundant-string-init,
+'

@@ -46,6 +46,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace std;
+
 #ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);

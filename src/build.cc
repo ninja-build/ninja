@@ -40,6 +40,8 @@
 #include "subprocess.h"
 #include "util.h"
 
+using namespace std;
+
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
@@ -77,12 +79,9 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 }  // namespace
 
 BuildStatus::BuildStatus(const BuildConfig& config)
-    : config_(config),
-      start_time_millis_(GetTimeMillis()),
-      started_edges_(0), finished_edges_(0), total_edges_(0),
-      progress_status_format_(NULL),
-      overall_rate_(), current_rate_(config.parallelism) {
-
+    : config_(config), start_time_millis_(GetTimeMillis()), started_edges_(0),
+      finished_edges_(0), total_edges_(0), progress_status_format_(NULL),
+      current_rate_(config.parallelism) {
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
@@ -829,6 +828,10 @@ bool Builder::Build(string* err) {
     // See if we can start any more commands.
     if (failures_allowed && command_runner_->CanRunMore()) {
       if (Edge* edge = plan_.FindWork()) {
+        if (edge->GetBindingBool("generator")) {
+          scan_.build_log()->Close();
+        }
+
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();
@@ -1067,8 +1070,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else
-  if (deps_type == "gcc") {
+  } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");

@@ -25,6 +25,9 @@
 #ifdef _WIN32
 #include "getopt.h"
 #include <direct.h>
+#elif defined(_AIX)
+#include "getopt.h"
+#include <unistd.h>
 #else
 #include <getopt.h>
 #include <unistd.h>
@@ -36,6 +39,8 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+
+using namespace std;
 
 bool WriteFakeManifests(const string& dir, string* err) {
   RealDiskInterface disk_interface;
