@@ -220,6 +220,34 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
+#ifdef _WIN32
+  wstring fullpath;
+  string err;
+
+  if (!FullPathName(&fullpath, path, &err)) {
+    Error("WriteFile(%s): %s", path.c_str(), err.c_str());
+    return false;
+  }
+
+  HANDLE handle = CreateFileW(fullpath.c_str(), GENERIC_WRITE, 0, NULL,
+                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (handle == INVALID_HANDLE_VALUE) {
+    Error("WriteFile(%s): CreateFileW(%S) %s", path.c_str(),
+          fullpath.c_str(), GetLastErrorString().c_str());
+    return false;
+  }
+
+  DWORD written;
+  if (!::WriteFile(handle, contents.data(), contents.length(), &written, NULL)) {
+    Error("WriteFile(%s): WriteFile %s", path.c_str(), GetLastErrorString().c_str());
+    return false;
+  }
+
+  if (!CloseHandle(handle)) {
+    Error("WriteFile(%s): CloseHandle %s", path.c_str(), GetLastErrorString().c_str());
+    return false;
+  }
+#else
   FILE* fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
@@ -239,6 +267,7 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
           path.c_str(), strerror(errno));
     return false;
   }
+#endif
 
   return true;
 }
