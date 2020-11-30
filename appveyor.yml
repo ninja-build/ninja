@@ -20,6 +20,9 @@ matrix:
     - image: Ubuntu1804
       MSYSTEM: MSVC
 
+init:
+- cmd: set PATH=C:\Python36;%PATH%
+
 for:
   -
     matrix:
@@ -28,7 +31,7 @@ for:
     build_script:
       ps: "C:\\msys64\\usr\\bin\\bash -lc @\"\n
       pacman -S --quiet --noconfirm --needed re2c 2>&1\n
-      ./configure.py --bootstrap --platform mingw 2>&1\n
+      ./configure.py --bootstrap 2>&1\n
       ./ninja all\n
       ./ninja_test 2>&1\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
