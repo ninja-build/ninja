@@ -742,7 +742,7 @@ Builder::~Builder() {
 }
 
 void Builder::Cleanup() {
-  if (command_runner_.get()) {
+  if (command_runner_) {
     vector<Edge*> active_edges = command_runner_->GetActiveEdges();
     command_runner_->Abort();
 
@@ -809,7 +809,7 @@ bool Builder::Build(string* err) {
   int failures_allowed = config_.failures_allowed;
 
   // Set up the command runner if we haven't done so already.
-  if (!command_runner_.get()) {
+  if (!command_runner_) {
     if (config_.dry_run)
       command_runner_.reset(new DryRunCommandRunner);
     else
