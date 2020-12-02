@@ -76,9 +76,8 @@ int64_t TimerToMicros(int64_t dt) {
 
 }  // anonymous namespace
 
-
-ScopedMetric::ScopedMetric(Metric* metric) {
-  metric_ = metric;
+ScopedMetric::ScopedMetric(const Metric* metric) {
+  metric_ = const_cast<Metric*>(metric);
   if (!metric_)
     return;
   start_ = HighResTimer();

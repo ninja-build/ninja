@@ -29,9 +29,9 @@ using namespace std;
 namespace {
 
 #ifdef _WIN32
-const char* kSimpleCommand = "cmd /c dir \\";
+const char* const kSimpleCommand = "cmd /c dir \\";
 #else
-const char* kSimpleCommand = "ls /";
+const char* const kSimpleCommand = "ls /";
 #endif
 
 struct SubprocessTest : public testing::Test {

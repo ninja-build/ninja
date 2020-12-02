@@ -36,7 +36,7 @@ struct Metric {
 /// A scoped object for recording a metric across the body of a function.
 /// Used by the METRIC_RECORD macro.
 struct ScopedMetric {
-  explicit ScopedMetric(Metric* metric);
+  explicit ScopedMetric(const Metric* metric);
   ~ScopedMetric();
 
 private:
@@ -81,9 +81,9 @@ struct Stopwatch {
 
 /// The primary interface to metrics.  Use METRIC_RECORD("foobar") at the top
 /// of a function to get timing stats recorded for each call of the function.
-#define METRIC_RECORD(name)                                             \
-  static Metric* metrics_h_metric =                                     \
-      g_metrics ? g_metrics->NewMetric(name) : NULL;                    \
+#define METRIC_RECORD(name)                          \
+  static const Metric* const metrics_h_metric =      \
+      g_metrics ? g_metrics->NewMetric(name) : NULL; \
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
 extern Metrics* g_metrics;
