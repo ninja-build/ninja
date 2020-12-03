@@ -38,3 +38,7 @@
 
 # Qt Creator project files
 /CMakeLists.txt.user
+
+# clangd
+/.clangd/
+/compile_commands.json
