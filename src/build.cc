@@ -318,8 +318,8 @@ void Plan::Reset() {
   want_.clear();
 }
 
-bool Plan::AddTarget(const Node* node, string* err) {
-  return AddSubTarget(node, NULL, err, NULL);
+bool Plan::AddTarget(const Node* target, string* err) {
+  return AddSubTarget(target, NULL, err, NULL);
 }
 
 bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
@@ -782,16 +782,16 @@ Node* Builder::AddTarget(const string& name, string* err) {
   return node;
 }
 
-bool Builder::AddTarget(Node* node, string* err) {
-  if (!scan_.RecomputeDirty(node, err))
+bool Builder::AddTarget(Node* target, string* err) {
+  if (!scan_.RecomputeDirty(target, err))
     return false;
 
-  if (Edge* in_edge = node->in_edge()) {
+  if (Edge* in_edge = target->in_edge()) {
     if (in_edge->outputs_ready())
       return true;  // Nothing to do.
   }
 
-  if (!plan_.AddTarget(node, err))
+  if (!plan_.AddTarget(target, err))
     return false;
 
   return true;
