@@ -381,7 +381,7 @@ void Plan::EdgeWanted(const Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  set<Edge*>::iterator e = ready_.begin();
+  EdgeSet::iterator e = ready_.begin();
   Edge* edge = *e;
   ready_.erase(e);
   return edge;
