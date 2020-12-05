@@ -123,3 +123,24 @@ jobs:
     - name: clang-tidy
       run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
       working-directory: build-clang
+
+  build-with-python:
+    runs-on: [ubuntu-latest]
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      matrix:
+        image: ['ubuntu:14.04', 'ubuntu:16.04', 'ubuntu:18.04']
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        apt update
+        apt install -y g++ python3
+    - name: ${{ matrix.image }}
+      run: |
+        python3 configure.py --bootstrap
+        ./ninja all
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        python3 misc/ninja_syntax_test.py
+        ./misc/output_test.py
