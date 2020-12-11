@@ -26,7 +26,7 @@ jobs:
         cmake --build build --config Release
 
     - name: Test ninja
-      run: ctest -vv
+      run: ctest -C Release -vv
       working-directory: build
 
     - name: Create ninja archive

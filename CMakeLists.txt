@@ -209,7 +209,7 @@ if(BUILD_TESTING)
     target_link_libraries(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
   endif()
 
-  add_test(NinjaTest ninja_test)
+  add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
 install(TARGETS ninja DESTINATION bin)
