@@ -162,7 +162,7 @@ struct BuildConfig {
 
   enum Verbosity {
     NORMAL,
-    QUIET,  // No output -- used when testing.
+    QUIET,
     VERBOSE
   };
   Verbosity verbosity;

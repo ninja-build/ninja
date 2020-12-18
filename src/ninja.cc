@@ -209,6 +209,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version      print ninja version (\"%s\")\n"
 "  -v, --verbose  show all command lines while building\n"
+"  -q, --quiet    silence output when building\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -1215,7 +1216,7 @@ int NinjaMain::RunBuild(int argc, char** argv) {
   // Make sure restat rules do not see stale timestamps.
   disk_interface_.AllowStatCache(false);
 
-  if (builder.AlreadyUpToDate()) {
+  if (builder.AlreadyUpToDate() && config_.verbosity != BuildConfig::QUIET) {
     printf("ninja: no work to do.\n");
     return 0;
   }
@@ -1265,12 +1266,13 @@ int ReadFlags(int* argc, char*** argv,
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
+    { "quiet", no_argument, NULL, 'q' },
     { NULL, 0, NULL, 0 }
   };
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vqw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1322,6 +1324,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'v':
         config->verbosity = BuildConfig::VERBOSE;
         break;
+      case 'q':
+        config->verbosity = BuildConfig::QUIET;
+        break;
       case 'w':
         if (!WarningEnable(optarg, options))
           return 1;
@@ -1359,13 +1364,18 @@ NORETURN void real_main(int argc, char** argv) {
   if (exit_code >= 0)
     exit(exit_code);
 
+  const char* quiet_env_or_null = getenv("QUIET");
+  if (quiet_env_or_null != NULL && quiet_env_or_null[0] == '1') {
+    config.verbosity = BuildConfig::QUIET;
+  }
+
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool)
+    if (!options.tool && config.verbosity != BuildConfig::QUIET)
       printf("ninja: Entering directory `%s'\n", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
