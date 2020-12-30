@@ -1254,11 +1254,25 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 #endif  // _MSC_VER
 
+class DeferGuessParallelism {
+ public:
+  bool needGuess;
+  BuildConfig* config;
+
+  DeferGuessParallelism(BuildConfig* config)
+      : config(config), needGuess(true) {}
+
+  ~DeferGuessParallelism() {
+    if (needGuess)
+      config->parallelism = GuessParallelism();
+  }
+};
+
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
+  DeferGuessParallelism deferGuessParallelism(config);
 
   enum { OPT_VERSION = 1 };
   const option kLongOptions[] = {
@@ -1289,6 +1303,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
         config->parallelism = value > 0 ? value : INT_MAX;
+        deferGuessParallelism.needGuess = false;
         break;
       }
       case 'k': {
