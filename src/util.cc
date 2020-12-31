@@ -481,6 +481,7 @@ string StripAnsiEscapeCodes(const string& in) {
 
 int GetProcessorCount() {
 #ifdef _WIN32
+#ifndef _WIN64
   // Need to use GetLogicalProcessorInformationEx to get real core count on
   // machines with >64 cores. See https://stackoverflow.com/a/31209344/21475
   DWORD len = 0;
@@ -508,7 +509,7 @@ int GetProcessorCount() {
       }
     }
   }
-  // fallback just in case
+#endif
   return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
 #ifdef CPU_COUNT
