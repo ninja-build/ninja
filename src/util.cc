@@ -487,6 +487,35 @@ string StripAnsiEscapeCodes(const string& in) {
 
 int GetProcessorCount() {
 #ifdef _WIN32
+#ifndef _WIN64
+  // Need to use GetLogicalProcessorInformationEx to get real core count on
+  // machines with >64 cores. See https://stackoverflow.com/a/31209344/21475
+  DWORD len = 0;
+  if (!GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &len)
+        && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+    std::vector<char> buf(len);
+    int cores = 0;
+    if (GetLogicalProcessorInformationEx(RelationProcessorCore,
+          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data()), &len)) {
+      for (DWORD i = 0; i < len; ) {
+        auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data() + i);
+        if (info->Relationship == RelationProcessorCore &&
+            info->Processor.GroupCount == 1) {
+          for (KAFFINITY core_mask = info->Processor.GroupMask[0].Mask;
+               core_mask; core_mask >>= 1) {
+            cores += (core_mask & 1);
+          }
+        }
+        i += info->Size;
+      }
+      if (cores != 0) {
+        return cores;
+      }
+    }
+  }
+#endif
   return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
   // The number of exposed processors might not represent the actual number of
