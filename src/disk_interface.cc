@@ -180,11 +180,13 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     dir = path;
   }
 
+  string dir_lowercase = dir;
+  transform(dir.begin(), dir.end(), dir_lowercase.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
 
-  Cache::iterator ci = cache_.find(dir);
+  Cache::iterator ci = cache_.find(dir_lowercase);
   if (ci == cache_.end()) {
-    ci = cache_.insert(make_pair(dir, DirCache())).first;
+    ci = cache_.insert(make_pair(dir_lowercase, DirCache())).first;
     if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
