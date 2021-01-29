@@ -949,8 +949,9 @@ source file of a compile command.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
-script, the script itself should be an implicit dependency, as
-changes to the script should cause the output to rebuild.
+script that reads a hardcoded file, the hardcoded file should 
+be an implicit dependency, as changes to the file should cause 
+the output to rebuild, even though it doesn't show up in the arguments.
 +
 Note that dependencies as loaded through depfiles have slightly different
 semantics, as described in the <<ref_rule,rule reference>>.
