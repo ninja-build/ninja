@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
+include(FeatureSummary)
 include(CheckIncludeFileCXX)
 include(CheckIPOSupported)
 
@@ -9,7 +10,6 @@ project(ninja)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
 if(lto_supported)
-	message(STATUS "IPO / LTO enabled")
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 else()
 	message(STATUS "IPO / LTO not supported: <${error}>")
@@ -46,7 +46,6 @@ if(RE2C)
 	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
-	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
@@ -213,3 +212,10 @@ if(BUILD_TESTING)
 endif()
 
 install(TARGETS ninja DESTINATION bin)
+
+add_feature_info("IPO/LTO" lto_supported "Build with link-time optimization.")
+add_feature_info("re2c" RE2C "Lexer generator: If disabled, changes to src/*.in.cc will not affect your build.")
+add_feature_info("Browse mode" platform_supports_ninja_browse "View the dependency graph in a web browser.")
+add_feature_info("Tests" BUILD_TESTING "Build test programs.")
+
+feature_summary(WHAT ALL)
