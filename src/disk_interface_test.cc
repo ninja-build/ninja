@@ -211,6 +211,12 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
   EXPECT_EQ(0, disk_.RemoveFile(kFileName));
   EXPECT_EQ(1, disk_.RemoveFile(kFileName));
   EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
+#ifdef _WIN32
+  ASSERT_TRUE(Touch(kFileName));
+  EXPECT_EQ(0, system((std::string("attrib +R ") + kFileName).c_str()));
+  EXPECT_EQ(0, disk_.RemoveFile(kFileName));
+  EXPECT_EQ(1, disk_.RemoveFile(kFileName));
+#endif
 }
 
 struct StatTest : public StateTestWithBuiltinRules,
