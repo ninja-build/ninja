@@ -272,9 +272,9 @@ int RealDiskInterface::RemoveFile(const string& path) {
     return 1;
   }
   if (attributes & FILE_ATTRIBUTE_READONLY) {
-    // On non-Windows systems remove will happily delete read-only files. On
-    // Windows Ninja should behave the same. See
-    // https://github.com/ninja-build/ninja/issues/1886
+    // On non-Windows systems, remove() will happily delete read-only files.
+    // On Windows Ninja should behave the same:
+    //   https://github.com/ninja-build/ninja/issues/1886
     SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (!DeleteFile(path.c_str())) {
