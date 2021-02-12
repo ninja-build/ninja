@@ -267,11 +267,11 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
   DWORD attributes = GetFileAttributes(path.c_str());
-  if (attributes == INVALID_FILE_ATTRIBUTES &&
-      GetLastError() == ERROR_FILE_NOT_FOUND) {
-    return 1;
-  }
-  if (attributes & FILE_ATTRIBUTE_READONLY) {
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+      return 1;
+    }
+  } else if (attributes & FILE_ATTRIBUTE_READONLY) {
     // On non-Windows systems, remove() will happily delete read-only files.
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
