@@ -267,17 +267,24 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
   DWORD attributes = GetFileAttributes(path.c_str());
-  if (attributes == INVALID_FILE_ATTRIBUTES &&
-      GetLastError() == ERROR_FILE_NOT_FOUND) {
-    return 1;
-  }
-  if (attributes & FILE_ATTRIBUTE_READONLY) {
-    // On non-Windows systems remove will happily delete read-only files. On
-    // Windows Ninja should behave the same. See
-    // https://github.com/ninja-build/ninja/issues/1886
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    DWORD win_err = GetLastError();
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
+      return 1;
+    }
+  } else if (attributes & FILE_ATTRIBUTE_READONLY) {
+    // On non-Windows systems, remove() will happily delete read-only files.
+    // On Windows Ninja should behave the same:
+    //   https://github.com/ninja-build/ninja/issues/1886
+    // Skip error checking.  If this fails, accept whatever happens below.
     SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (!DeleteFile(path.c_str())) {
+    DWORD win_err = GetLastError();
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
+      return 1;
+    }
+    // Report as remove(), not DeleteFile(), for cross-platform consistency.
     Error("remove(%s): %s", path.c_str(), GetLastErrorString().c_str());
     return -1;
   }
