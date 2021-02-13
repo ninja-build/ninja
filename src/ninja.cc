@@ -217,6 +217,7 @@ void Usage(const BuildConfig& config) {
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
+"  -x       expand @rspfile style response file invocations in output\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
@@ -734,41 +735,12 @@ void EncodeJSONString(const char *str) {
   }
 }
 
-enum EvaluateCommandMode {
-  ECM_NORMAL,
-  ECM_EXPAND_RSPFILE
-};
-std::string EvaluateCommandWithRspfile(const Edge* edge,
-                                       const EvaluateCommandMode mode) {
-  string command = edge->EvaluateCommand();
-  if (mode == ECM_NORMAL)
-    return command;
-
-  string rspfile = edge->GetUnescapedRspfile();
-  if (rspfile.empty())
-    return command;
-
-  size_t index = command.find(rspfile);
-  if (index == 0 || index == string::npos || command[index - 1] != '@')
-    return command;
-
-  string rspfile_content = edge->GetBinding("rspfile_content");
-  size_t newline_index = 0;
-  while ((newline_index = rspfile_content.find('\n', newline_index)) !=
-         string::npos) {
-    rspfile_content.replace(newline_index, 1, 1, ' ');
-    ++newline_index;
-  }
-  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
-  return command;
-}
-
 void printCompdb(const char* const directory, const Edge* const edge,
-                 const EvaluateCommandMode eval_mode) {
+                 const Edge::EvaluateCommandMode eval_mode) {
   printf("\n  {\n    \"directory\": \"");
   EncodeJSONString(directory);
   printf("\",\n    \"command\": \"");
-  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+  EncodeJSONString(edge->EvaluateCommandWithRspfile(eval_mode).c_str());
   printf("\",\n    \"file\": \"");
   EncodeJSONString(edge->inputs_[0]->path().c_str());
   printf("\",\n    \"output\": \"");
@@ -783,14 +755,14 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc++;
   argv--;
 
-  EvaluateCommandMode eval_mode = ECM_NORMAL;
+  Edge::EvaluateCommandMode eval_mode = Edge::ECM_NORMAL;
 
   optind = 1;
   int opt;
   while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
     switch(opt) {
       case 'x':
-        eval_mode = ECM_EXPAND_RSPFILE;
+        eval_mode = Edge::ECM_EXPAND_RSPFILE;
         break;
 
       case 'h':
@@ -1270,7 +1242,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:xC:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1325,6 +1297,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'w':
         if (!WarningEnable(optarg, options))
           return 1;
+        break;
+      case 'x':
+        config->expand_rsp = Edge::ECM_EXPAND_RSPFILE;
         break;
       case 'C':
         options->working_dir = optarg;
