@@ -172,10 +172,15 @@ void MissingDependencyScanner::PrintStats() {
 }
 
 bool MissingDependencyScanner::PathExistsBetween(Edge* from, Edge* to) {
-  EdgePair key(from, to);
-  EdgeAdjacencyMap::iterator it = edge_adjacency_map_.find(key);
-  if (it != edge_adjacency_map_.end())
-    return it->second;
+  AdjacencyMap::iterator it = adjacency_map_.find(from);
+  if (it != adjacency_map_.end()) {
+    InnerAdjacencyMap::iterator inner_it = it->second.find(to);
+    if (inner_it != it->second.end()) {
+      return inner_it->second;
+    }
+  } else {
+    it = adjacency_map_.insert(std::make_pair(from, InnerAdjacencyMap())).first;
+  }
   bool found = false;
   for (size_t i = 0; i < to->inputs_.size(); ++i) {
     Edge* e = to->inputs_[i]->in_edge();
@@ -184,6 +189,6 @@ bool MissingDependencyScanner::PathExistsBetween(Edge* from, Edge* to) {
       break;
     }
   }
-  edge_adjacency_map_.insert(std::make_pair(key, found));
+  it->second.insert(std::make_pair(to, found));
   return found;
 }

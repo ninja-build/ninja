@@ -44,32 +44,6 @@ class MissingDependencyPrinter : public MissingDependencyScannerDelegate {
                int generator_rules);
 };
 
-struct EdgePair {
-  EdgePair(Edge* from, Edge* to) : from_(from), to_(to) {}
-  bool operator==(const EdgePair& other) const {
-    return from_ == other.from_ && to_ == other.to_;
-  }
-  bool operator<(const EdgePair& other) const {
-    return (from_ < other.from_) ||
-           ((from_ == other.from_) && (to_ < other.to_));
-  }
-  Edge* from_;
-  Edge* to_;
-};
-
-#if __cplusplus >= 201103L
-namespace std {
-template <>
-struct hash<EdgePair> {
-  size_t operator()(const EdgePair& k) const {
-    uintptr_t uint_from = uintptr_t(k.from_);
-    uintptr_t uint_to = uintptr_t(k.to_);
-    return hash<uintptr_t>()(uint_from ^ (uint_to >> 3));
-  }
-};
-}  // namespace std
-#endif  // __cplusplus >= 201103L
-
 struct MissingDependencyScanner {
  public:
   MissingDependencyScanner(MissingDependencyScannerDelegate* delegate,
@@ -95,11 +69,13 @@ struct MissingDependencyScanner {
 
  private:
 #if __cplusplus >= 201103L
-  using EdgeAdjacencyMap = std::unordered_map<EdgePair, bool>;
+  using InnerAdjacencyMap = std::unordered_map<Edge*, bool>;
+  using AdjacencyMap = std::unordered_map<Edge*, InnerAdjacencyMap>;
 #else
-  typedef std::map<EdgePair, bool> EdgeAdjacencyMap;
+  typedef std::map<Edge*, bool> InnerAdjacencyMap;
+  typedef std::map<Edge*, InnerAdjacencyMap> AdjacencyMap;
 #endif
-  EdgeAdjacencyMap edge_adjacency_map_;
+  AdjacencyMap adjacency_map_;
 };
 
 #endif  // NINJA_MISSING_DEPS_H_
