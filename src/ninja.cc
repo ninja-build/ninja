@@ -37,11 +37,13 @@
 #include "deps_log.h"
 #include "clean.h"
 #include "debug_flags.h"
+#include "depfile_parser.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "manifest_parser.h"
 #include "metrics.h"
+#include "missing_deps.h"
 #include "state.h"
 #include "util.h"
 #include "version.h"
@@ -117,6 +119,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolGraph(const Options* options, int argc, char* argv[]);
   int ToolQuery(const Options* options, int argc, char* argv[]);
   int ToolDeps(const Options* options, int argc, char* argv[]);
+  int ToolMissingDeps(const Options* options, int argc, char* argv[]);
   int ToolBrowse(const Options* options, int argc, char* argv[]);
   int ToolMSVC(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
@@ -520,6 +523,26 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
     printf("\n");
   }
 
+  return 0;
+}
+
+int NinjaMain::ToolMissingDeps(const Options* options, int argc, char** argv) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+  RealDiskInterface disk_interface;
+  MissingDependencyPrinter printer;
+  MissingDependencyScanner scanner(&printer, &deps_log_, &state_,
+                                   &disk_interface);
+  for (vector<Node*>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+    scanner.ProcessNode(*it);
+  }
+  scanner.PrintStats();
+  if (scanner.HadMissingDeps())
+    return 3;
   return 0;
 }
 
@@ -960,6 +983,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
+    { "missingdeps", "check deps log dependencies on generated files",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolMissingDeps },
     { "graph", "output graphviz dot file for targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolGraph },
     { "query", "show inputs/outputs for a path",
@@ -985,7 +1010,7 @@ const Tool* ChooseTool(const string& tool_name) {
     printf("ninja subtools:\n");
     for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
       if (tool->desc)
-        printf("%10s  %s\n", tool->name, tool->desc);
+        printf("%11s  %s\n", tool->name, tool->desc);
     }
     return NULL;
   }

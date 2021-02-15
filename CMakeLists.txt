@@ -93,6 +93,7 @@ add_library(libninja OBJECT
 	src/line_printer.cc
 	src/manifest_parser.cc
 	src/metrics.cc
+	src/missing_deps.cc
 	src/parser.cc
 	src/state.cc
 	src/string_piece_util.cc
@@ -179,6 +180,7 @@ if(BUILD_TESTING)
     src/graph_test.cc
     src/lexer_test.cc
     src/manifest_parser_test.cc
+    src/missing_deps_test.cc
     src/ninja_test.cc
     src/state_test.cc
     src/string_piece_util_test.cc
