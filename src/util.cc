@@ -21,6 +21,7 @@
 #include <windows.h>
 #include <io.h>
 #include <share.h>
+#include <direct.h>
 #endif
 
 #include <assert.h>
@@ -115,6 +116,22 @@ void Info(const char* msg, ...) {
   va_start(ap, msg);
   Info(msg, ap);
   va_end(ap);
+}
+
+bool GetCWD(std::string* result) {
+  vector<char> cwd;
+  char* success = NULL;
+  do {
+    cwd.resize(cwd.size() + 1024);
+    errno = 0;
+    success = getcwd(&cwd[0], cwd.size());
+  } while (!success && errno == ERANGE);
+  if (!success) {
+    Error("cannot determine working directory: %s", strerror(errno));
+    return false;
+  }
+  result->assign(success);
+  return true;
 }
 
 bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {

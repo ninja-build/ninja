@@ -27,6 +27,13 @@ bool CanonicalizePath(string* path, string* err) {
 
 }  // namespace
 
+TEST(GetCWD, Basic) {
+  string cwd;
+
+  EXPECT_TRUE(GetCWD(&cwd));
+  EXPECT_TRUE(!cwd.empty());
+}
+
 TEST(CanonicalizePath, PathSamples) {
   string path;
   string err;
