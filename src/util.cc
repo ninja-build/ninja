@@ -254,6 +254,22 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
   return true;
 }
 
+bool IsAbsolutePath(StringPiece path) {
+  if (path.len_ < 1)
+    return false;
+  if (path.str_[0] == '/')
+    return true; // NOLINT(readability-simplify-boolean-expr)
+#ifdef _WIN32
+  if (path.str_[0] == '\\')
+    return true;
+  if (path.len_ < 2)
+    return false;
+  if (path.str_[1] == ':')
+    return true;
+#endif
+  return false;
+}
+
 static inline bool IsKnownShellSafeCharacter(char ch) {
   if ('A' <= ch && ch <= 'Z') return true;
   if ('a' <= ch && ch <= 'z') return true;

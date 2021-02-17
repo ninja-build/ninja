@@ -377,6 +377,27 @@ TEST(CanonicalizePath, NotNullTerminated) {
   EXPECT_EQ("file ./file bar/.", string(path));
 }
 
+TEST(IsAbsolutePath, Basic) {
+  string const empty_path;
+  string const relative_path = "foo/bar";
+  string const absolute_path_unix = "/path/to/foo/bar";
+  string const absolute_path_network = "//machine/share/path/to/foo/bar";
+  string const absolute_path_windows = "c:/path/to/foo/bar";
+  string const absolute_path_windows_backslash = "c:\\path\\to\\foo\\bar";
+
+  EXPECT_FALSE(IsAbsolutePath(empty_path));
+  EXPECT_FALSE(IsAbsolutePath(relative_path));
+  EXPECT_TRUE(IsAbsolutePath(absolute_path_unix));
+  EXPECT_TRUE(IsAbsolutePath(absolute_path_network));
+#ifdef _WIN32
+  EXPECT_TRUE(IsAbsolutePath(absolute_path_windows));
+  EXPECT_TRUE(IsAbsolutePath(absolute_path_windows_backslash));
+#else
+  EXPECT_FALSE(IsAbsolutePath(absolute_path_windows));
+  EXPECT_FALSE(IsAbsolutePath(absolute_path_windows_backslash));
+#endif
+}
+
 TEST(PathEscaping, TortureTest) {
   string result;
 

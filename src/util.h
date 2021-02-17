@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "string_piece.h"
+
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
 #else
@@ -71,6 +73,10 @@ bool CanonicalizePath(std::string* path, uint64_t* slash_bits,
                       std::string* err);
 bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
                       std::string* err);
+
+/// Returns true if the given path is absolute
+/// (starts in '/', or 'x:' on Windows).
+bool IsAbsolutePath(StringPiece path);
 
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
