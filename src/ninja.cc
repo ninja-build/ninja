@@ -849,18 +849,10 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<char> cwd;
-  char* success = NULL;
+  std::string cwd;
 
-  do {
-    cwd.resize(cwd.size() + 1024);
-    errno = 0;
-    success = getcwd(&cwd[0], cwd.size());
-  } while (!success && errno == ERANGE);
-  if (!success) {
-    Error("cannot determine working directory: %s", strerror(errno));
+  if (!GetCWD(&cwd))
     return 1;
-  }
 
   putchar('[');
   for (vector<Edge*>::iterator e = state_.edges_.begin();
