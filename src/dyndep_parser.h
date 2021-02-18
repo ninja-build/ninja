@@ -26,6 +26,9 @@ struct DyndepParser: public Parser {
   DyndepParser(State* state, FileReader* file_reader,
                DyndepFile* dyndep_file);
 
+  /// Load and parse a dyndep file.
+  bool Load(const std::string& filename, std::string* err);
+
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     return Parse("input", input, err);

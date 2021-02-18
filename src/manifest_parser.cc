@@ -32,6 +32,10 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
   env_ = &state->bindings_;
 }
 
+bool ManifestParser::Load(const std::string& filename, std::string* err) {
+  return LoadFile(filename, err, NULL);
+}
+
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
   lexer_.Start(filename, input);
@@ -411,7 +415,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     subparser.env_ = env_;
   }
 
-  if (!subparser.Load(path, err, &lexer_))
+  if (!subparser.LoadFile(path, err, &lexer_))
     return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))

@@ -43,6 +43,9 @@ struct ManifestParser : public Parser {
   ManifestParser(State* state, FileReader* file_reader,
                  ManifestParserOptions options = ManifestParserOptions());
 
+  /// Load and parse a top-level manifest file.
+  bool Load(const std::string& filename, std::string* err);
+
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     quiet_ = true;

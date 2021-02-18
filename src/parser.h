@@ -27,10 +27,10 @@ struct Parser {
   Parser(State* state, FileReader* file_reader)
       : state_(state), file_reader_(file_reader) {}
 
-  /// Load and parse a file.
-  bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
-
 protected:
+  /// Load and parse a file.  Called by subclass Load methods.
+  bool LoadFile(const std::string& filename, std::string* err, Lexer* parent);
+
   /// If the next token is not \a expected, produce an error string
   /// saying "expected foo, got bar".
   bool ExpectToken(Lexer::Token expected, std::string* err);
