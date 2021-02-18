@@ -55,6 +55,7 @@ target_include_directories(libninja-re2c PRIVATE src)
 function(check_platform_supports_browse_mode RESULT)
 	# Make sure the inline.sh script works on this platform.
 	# It uses the shell commands such as 'od', which may not be available.
+
 	execute_process(
 		COMMAND sh -c "echo 'TEST' | src/inline.sh var"
 		WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -65,12 +66,19 @@ function(check_platform_supports_browse_mode RESULT)
 	if(NOT inline_result EQUAL "0")
 		# The inline script failed, so browse mode is not supported.
 		set(${RESULT} "0" PARENT_SCOPE)
+		if(NOT WIN32)
+			message(WARNING "browse feature omitted due to inline script failure")
+		endif()
 		return()
 	endif()
 
 	# Now check availability of the unistd header
 	check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
 	set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
+	if(NOT PLATFORM_HAS_UNISTD_HEADER)
+		message(WARNING "browse feature omitted due to missing unistd.h")
+	endif()
+
 endfunction()
 
 check_platform_supports_browse_mode(platform_supports_ninja_browse)
