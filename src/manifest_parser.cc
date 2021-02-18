@@ -33,7 +33,9 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
 }
 
 bool ManifestParser::Load(const std::string& filename, std::string* err) {
-  return LoadFile(filename, err, NULL);
+  if (!LoadFile(filename, err, NULL))
+    return false;
+  return CheckTopLevelBindings(err);
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
@@ -421,5 +423,10 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
+  return true;
+}
+
+bool ManifestParser::CheckTopLevelBindings(std::string* err) {
+  static_cast<void>(err);
   return true;
 }

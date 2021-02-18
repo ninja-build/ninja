@@ -49,7 +49,9 @@ struct ManifestParser : public Parser {
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     quiet_ = true;
-    return Parse("input", input, err);
+    if (!Parse("input", input, err))
+      return false;
+    return CheckTopLevelBindings(err);
   }
 
 private:
@@ -66,6 +68,8 @@ private:
 
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(bool new_scope, std::string* err);
+
+  bool CheckTopLevelBindings(std::string* err);
 
   BindingEnv* env_;
   ManifestParserOptions options_;
