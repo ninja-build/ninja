@@ -19,6 +19,7 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "graph.h"
+#include "status.h"
 #include "test.h"
 
 using namespace std;
@@ -485,14 +486,13 @@ struct FakeCommandRunner : public CommandRunner {
 };
 
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
-  BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
-                builder_(&state_, config_, NULL, NULL, &fs_),
-                status_(config_) {
+  BuildTest() : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
+                builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0) {
   }
 
   explicit BuildTest(DepsLog* log)
-      : config_(MakeConfig()), command_runner_(&fs_),
-        builder_(&state_, config_, NULL, log, &fs_), status_(config_) {}
+      : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
+        builder_(&state_, config_, NULL, log, &fs_, &status_, 0) {}
 
   virtual void SetUp() {
     StateTestWithBuiltinRules::SetUp();
@@ -532,9 +532,8 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildConfig config_;
   FakeCommandRunner command_runner_;
   VirtualFileSystem fs_;
+  StatusPrinter status_;
   Builder builder_;
-
-  BuildStatus status_;
 };
 
 void BuildTest::RebuildTarget(const string& target, const char* manifest,
@@ -563,7 +562,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
     pdeps_log = &deps_log;
   }
 
-  Builder builder(pstate, config_, pbuild_log, pdeps_log, &fs_);
+  Builder builder(pstate, config_, pbuild_log, pdeps_log, &fs_, &status_, 0);
   EXPECT_TRUE(builder.AddTarget(target, &err));
 
   command_runner_.commands_ran_.clear();
@@ -1400,8 +1399,8 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-  EXPECT_EQ("[3/3]", builder_.status_->FormatProgressStatus("[%s/%t]",
-      BuildStatus::kEdgeStarted));
+  EXPECT_EQ(3u, command_runner_.commands_ran_.size());
+  EXPECT_EQ(3u, builder_.plan_.command_edge_count());
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1843,14 +1842,12 @@ TEST_F(BuildTest, StatusFormatElapsed) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
   EXPECT_EQ("[%/e0.000]",
-            status_.FormatProgressStatus("[%%/e%e]",
-                BuildStatus::kEdgeStarted));
+            status_.FormatProgressStatus("[%%/e%e]", 0));
 }
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
-            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]",
-                BuildStatus::kEdgeStarted));
+            status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));
 }
 
 TEST_F(BuildTest, FailedDepsParse) {
@@ -2120,7 +2117,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2150,7 +2147,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2191,7 +2188,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2220,7 +2217,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2256,7 +2253,7 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 
   // The deps log is NULL in dry runs.
   config_.dry_run = true;
-  Builder builder(&state, config_, NULL, NULL, &fs_);
+  Builder builder(&state, config_, NULL, NULL, &fs_, &status_, 0);
   builder.command_runner_.reset(&command_runner_);
   command_runner_.commands_ran_.clear();
 
@@ -2314,7 +2311,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2340,7 +2337,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2373,7 +2370,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
@@ -2394,7 +2391,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
 
     Edge* edge = state.edges_.back();
@@ -2435,7 +2432,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
@@ -2458,7 +2455,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
 
     Edge* edge = state.edges_.back();
