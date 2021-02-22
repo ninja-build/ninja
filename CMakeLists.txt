@@ -19,17 +19,17 @@ endif()
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-	string(APPEND CMAKE_CXX_FLAGS " /W4 /wd4100 /wd4267 /wd4706 /wd4702 /wd4244 /GR- /Zc:__cplusplus")
-	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+	add_compile_options(/W4 /wd4100 /wd4267 /wd4706 /wd4702 /wd4244 /GR- /Zc:__cplusplus)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else()
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
 	if(flag_no_deprecated)
-		string(APPEND CMAKE_CXX_FLAGS " -Wno-deprecated")
+		add_compile_options(-Wno-deprecated)
 	endif()
 	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
 	if(flag_color_diag)
-		string(APPEND CMAKE_CXX_FLAGS " -fdiagnostics-color")
+		add_compile_options(-fdiagnostics-color)
 	endif()
 endif()
 
@@ -57,7 +57,7 @@ function(check_platform_supports_browse_mode RESULT)
 	# It uses the shell commands such as 'od', which may not be available.
 	execute_process(
 		COMMAND sh -c "echo 'TEST' | src/inline.sh var"
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 		RESULT_VARIABLE inline_result
 		OUTPUT_QUIET
 		ERROR_QUIET
@@ -131,7 +131,7 @@ endif()
 # On IBM i (identified as "OS400" for compatibility reasons) and AIX, this fixes missing
 # PRId64 (and others) at compile time in C++ sources
 if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
-	string(APPEND CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS")
+	add_compile_definitions(__STDC_FORMAT_MACROS)
 endif()
 
 # Main executable is library plus main() function.
@@ -146,11 +146,11 @@ if(platform_supports_ninja_browse)
 		OUTPUT build/browse_py.h
 		MAIN_DEPENDENCY src/browse.py
 		DEPENDS src/inline.sh
-		COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/build
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/build
 		COMMAND src/inline.sh kBrowsePy
 						< src/browse.py
-						> ${CMAKE_BINARY_DIR}/build/browse_py.h
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+						> ${PROJECT_BINARY_DIR}/build/browse_py.h
+		WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 		VERBATIM
 	)
 
@@ -158,8 +158,8 @@ if(platform_supports_ninja_browse)
 	target_sources(ninja PRIVATE src/browse.cc)
 	set_source_files_properties(src/browse.cc
 		PROPERTIES
-			OBJECT_DEPENDS "${CMAKE_BINARY_DIR}/build/browse_py.h"
-			INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}"
+			OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/build/browse_py.h"
+			INCLUDE_DIRECTORIES "${PROJECT_BINARY_DIR}"
 			COMPILE_DEFINITIONS NINJA_PYTHON="python"
 	)
 endif()
@@ -206,8 +206,8 @@ if(BUILD_TESTING)
 
   if(CMAKE_SYSTEM_NAME STREQUAL "AIX" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     # These tests require more memory than will fit in the standard AIX shared stack/heap (256M)
-    target_link_libraries(hash_collision_bench PRIVATE "-Wl,-bmaxdata:0x80000000")
-    target_link_libraries(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
+    target_link_options(hash_collision_bench PRIVATE "-Wl,-bmaxdata:0x80000000")
+    target_link_options(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
   endif()
 
   add_test(NAME NinjaTest COMMAND ninja_test)
