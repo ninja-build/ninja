@@ -427,6 +427,21 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 }
 
 bool ManifestParser::CheckTopLevelBindings(std::string* err) {
-  static_cast<void>(err);
+  std::string workdir = env_->LookupVariable("ninja_workdir");
+
+  if (!workdir.empty()) {
+    std::string path_err;
+    if (!NormalizeWorkDir(&workdir, &path_err)) {
+      *err = "invalid ninja_workdir: " + path_err;
+      return false;
+    }
+    if (!IsAbsolutePath(StringPiece(workdir))) {
+      *err = "invalid ninja_workdir: not an absolute path";
+      return false;
+    }
+  }
+
+  state_->workdir_ = workdir;
+
   return true;
 }

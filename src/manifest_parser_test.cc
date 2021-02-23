@@ -279,6 +279,108 @@ TEST_F(ParserTest, CanonicalizeFileBackslashes) {
 }
 #endif
 
+TEST_F(ParserTest, WorkDirEmpty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"ninja_workdir =\n"));
+}
+
+TEST_F(ParserTest, WorkDirAbsolute) {
+  const char kInput[] =
+"ninja_workdir = /path/to/start\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("/path/to/start/", state.workdir_);
+}
+
+TEST_F(ParserTest, WorkDirAbsoluteExtra) {
+  const char kInput[] =
+"ninja_workdir = /path/./to/start//.//\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("/path/to/start/", state.workdir_);
+}
+
+#ifdef _WIN32
+TEST_F(ParserTest, WorkDirAbsoluteWindows) {
+  const char kInput[] =
+"ninja_workdir = c:/path/to/start\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("c:/path/to/start/", state.workdir_);
+}
+
+TEST_F(ParserTest, WorkDirAbsoluteWindowsExtra) {
+  const char kInput[] =
+"ninja_workdir = c:/path/./to/start//.//\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("c:/path/to/start/", state.workdir_);
+}
+
+TEST_F(ParserTest, WorkDirAbsoluteWindowsBackslash) {
+  const char kInput[] =
+"ninja_workdir = c:\\path\\to\\start\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("c:/path/to/start/", state.workdir_);
+}
+
+TEST_F(ParserTest, WorkDirAbsoluteWindowsBackslashExtra) {
+  const char kInput[] =
+"ninja_workdir = c:\\path\\.\\to\\start\\\\\\.\\\\\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_TRUE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("c:/path/to/start/", state.workdir_);
+}
+#else
+TEST_F(ParserTest, WorkDirAbsoluteWindows) {
+  const char kInput[] =
+"ninja_workdir = c:/path/to/start\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("invalid ninja_workdir: not an absolute path", err);
+  EXPECT_EQ("", state.workdir_);
+}
+#endif
+
+TEST_F(ParserTest, WorkDirNotAbsolute) {
+  const char kInput[] =
+"ninja_workdir = foo\n";
+  ManifestParserOptions parser_opts;
+  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  std::string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("invalid ninja_workdir: not an absolute path", err);
+}
+
 TEST_F(ParserTest, PathVariables) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"

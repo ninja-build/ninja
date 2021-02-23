@@ -828,6 +828,11 @@ Two variables are significant when declared in the outermost file scope.
   discussion of the build log>>.  (You can also store other build output
   in this directory.)
 
+`ninja_workdir`:: _(Available since Ninja 1.11.)_ If present, sets the
+  working directory in which the build will take place.  Otherwise, the
+  build will take place in the working directory in which `ninja` is
+  invoked, or that specified by `ninja -C`.
+
 `ninja_required_version`:: the minimum version of Ninja required to process
   the build correctly.  See <<ref_versioning,the discussion of versioning>>.
 

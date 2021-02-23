@@ -103,6 +103,12 @@ struct NinjaMain : public BuildLogUser {
   /// The build directory, used for storing the build log etc.
   string build_dir_;
 
+  /// The startup working directory, used for loading the build manifest.
+  std::string startup_cwd_;
+
+  /// The manifest working directory, used for running the build.
+  std::string manifest_cwd_;
+
   BuildLog build_log_;
   DepsLog deps_log_;
 
@@ -146,6 +152,16 @@ struct NinjaMain : public BuildLogUser {
   /// Ensure the build directory exists, creating it if necessary.
   /// @return false on error.
   bool EnsureBuildDirExists();
+
+  /// Set the process working directory to the build working directory.
+  /// This is the startup directory or that specified by 'ninja_workdir'.
+  /// @return false on error.
+  bool EnterManifestWorkDir(const Options* options, Status *status);
+
+  /// Set the process working directory to the startup working directory.
+  /// This is the original working directory or that specified by -C.
+  /// @return false on error.
+  void EnterStartupWorkDir(const Options* options, Status *status);
 
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
@@ -1245,6 +1261,55 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
+bool NinjaMain::EnterManifestWorkDir(const Options* options, Status* status) {
+  // Save the original startup working directory for EnterStartupWorkDir.
+  if (startup_cwd_.empty() && !GetCWD(&startup_cwd_))
+    return false;
+
+  if (!state_.workdir_.empty()) {
+    // Get 'ninja_workdir' minus the trailing slash.
+    std::string const& workdir =
+        state_.workdir_.substr(0, state_.workdir_.size() - 1);
+    if (workdir == startup_cwd_) {
+      // The process working directory already matches 'ninja_workdir'.
+      manifest_cwd_ = startup_cwd_;
+    } else {
+      // Set the process working directory to match 'ninja_workdir'.
+      ChangeDirectory(workdir.c_str());
+
+      // Save the manifest working directory we just entered.  This may not
+      // exactly match the 'ninja_workdir' if the latter is not canonical.
+      if (!GetCWD(&manifest_cwd_))
+        return false;
+    }
+
+    if (!options->tool && manifest_cwd_ != startup_cwd_) {
+      // Report our new working directory as specified by 'ninja_workdir'.
+      PrintEnteringDirectory(workdir.c_str(), options, status);
+    }
+  } else {
+    // Compute the workdir from the startup working directory.
+    std::string workdir = startup_cwd_;
+
+    std::string err;
+    if (!NormalizeWorkDir(&workdir, &err)) {
+      Error("invalid working directory: %s", err.c_str());
+      return false;
+    }
+
+    state_.workdir_ = workdir;
+    manifest_cwd_ = startup_cwd_;
+  }
+  return true;
+}
+
+void NinjaMain::EnterStartupWorkDir(const Options* options, Status* status) {
+  if (manifest_cwd_ == startup_cwd_)
+    return;
+  PrintEnteringDirectory(startup_cwd_.c_str(), options, status);
+  ChangeDirectory(startup_cwd_.c_str());
+}
+
 int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
@@ -1449,6 +1514,9 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
+    if (!ninja.EnterManifestWorkDir(&options, status))
+      exit(1);
+
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
@@ -1468,6 +1536,7 @@ NORETURN void real_main(int argc, char** argv) {
       if (config.dry_run)
         exit(0);
       // Start the build over with the new manifest.
+      ninja.EnterStartupWorkDir(&options, status);
       continue;
     } else if (!err.empty()) {
       status->Error("rebuilding '%s': %s", options.input_file, err.c_str());

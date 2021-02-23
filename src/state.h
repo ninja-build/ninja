@@ -125,6 +125,11 @@ struct State {
   typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
 
+  /// Working directory in which to run commands, ending in a trailing slash.
+  /// This may be set by a 'ninja_workdir' top-level binding in the manifest.
+  /// Otherwise, this is computed from the process working directory.
+  std::string workdir_;
+
   /// All the pools used in the graph.
   std::map<std::string, Pool*> pools_;
 
