@@ -605,7 +605,7 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
                           err))
       return false;
 
-    Node* node = state_->GetNode(*i, slash_bits);
+    Node* node = state_->GetNodeForDepfile(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
     CreatePhonyInEdge(node);
