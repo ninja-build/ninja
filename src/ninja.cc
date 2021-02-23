@@ -246,6 +246,23 @@ int GuessParallelism() {
   }
 }
 
+void PrintEnteringDirectory(const char* wd, const Options* options,
+                            Status* status) {
+  // Don't print this if a tool is being used, so that tool output
+  // can be piped into a file without this string showing up.
+  if (!options->tool) {
+    // The formatting of this string, complete with funny quotes, is
+    // so Emacs can properly identify that the cwd has changed for
+    // subsequent commands.
+    status->Info("Entering directory `%s'", wd);
+  }
+}
+
+void ChangeDirectory(const char* wd) {
+  if (chdir(wd) < 0)
+    Fatal("chdir to '%s' - %s", wd, strerror(errno));
+}
+
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
 bool NinjaMain::RebuildManifest(const char* input_file, string* err,
@@ -1402,16 +1419,8 @@ NORETURN void real_main(int argc, char** argv) {
   Status* status = new StatusPrinter(config);
 
   if (options.working_dir) {
-    // The formatting of this string, complete with funny quotes, is
-    // so Emacs can properly identify that the cwd has changed for
-    // subsequent commands.
-    // Don't print this if a tool is being used, so that tool output
-    // can be piped into a file without this string showing up.
-    if (!options.tool)
-      status->Info("Entering directory `%s'", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
-    }
+    PrintEnteringDirectory(options.working_dir, &options, status);
+    ChangeDirectory(options.working_dir);
   }
 
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
