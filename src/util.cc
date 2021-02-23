@@ -134,6 +134,19 @@ bool GetCWD(std::string* result) {
   return true;
 }
 
+bool NormalizeWorkDir(std::string* workdir, std::string* err) {
+  // Ensure we have forward slashes.
+  uint64_t slash_bits;
+  if (!CanonicalizePath(workdir, &slash_bits, err))
+    return false;
+
+  // Add a trailing slash so we can simply append relative paths later.
+  if ((*workdir)[workdir->size() - 1] != '/')
+    *workdir += '/';
+
+  return true;
+}
+
 bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
