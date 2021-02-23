@@ -138,6 +138,10 @@ endif()
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
+if(WIN32)
+  target_sources(ninja PRIVATE windows/ninja.manifest)
+endif()
+
 # Adds browse mode into the ninja binary if it's supported by the host platform.
 if(platform_supports_ninja_browse)
 	# Inlines src/browse.py into the browse_py.h header, so that it can be included
