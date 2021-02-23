@@ -247,6 +247,52 @@ TEST_F(GraphTest, DepfileWithCanonicalizablePath) {
   EXPECT_FALSE(GetNode("out.o")->dirty());
 }
 
+TEST_F(GraphTest, DepfileWithAbsolutePathToRelativeNode) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"ninja_workdir = /path/to\n"
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdep ./foo.cc\n"));
+  fs_.Create("foo.cc", "");
+  fs_.Create("out.o.d", "out.o: /path/to/foo.cc\n");
+  fs_.Create("out.o", "");
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_EQ(1, edge->implicit_deps_);
+  ASSERT_EQ(2, edge->inputs_.size());
+  EXPECT_EQ("foo.cc", edge->inputs_[1]->path());
+
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+}
+
+TEST_F(GraphTest, DepfileWithRelativePathToAbsoluteNode) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"ninja_workdir = /path/to\n"
+"rule catdep\n"
+"  depfile = $out.d\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdep /path/to/foo.cc\n"));
+  fs_.Create("/path/to/foo.cc", "");
+  fs_.Create("out.o.d", "out.o: foo.cc\n");
+  fs_.Create("out.o", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), &err));
+  ASSERT_EQ("", err);
+
+  Edge* edge = GetNode("out.o")->in_edge();
+  EXPECT_EQ(1, edge->implicit_deps_);
+  ASSERT_EQ(2, edge->inputs_.size());
+  EXPECT_EQ("/path/to/foo.cc", edge->inputs_[1]->path());
+
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+}
+
 // Regression test for https://github.com/ninja-build/ninja/issues/404
 TEST_F(GraphTest, DepfileRemoved) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

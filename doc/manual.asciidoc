@@ -589,6 +589,14 @@ build edges such that it is not an error if the listed dependency is
 missing.  This allows you to delete a header file and rebuild without
 the build aborting due to a missing input.
 
+Paths emitted by the compiler may be either absolute or relative paths,
+depending on compiler behavior and the include directory flags given to it.
+Paths loaded from a depfile are matched to paths in build statements
+if they match exactly.  _Since Ninja 1.11_, paths are also matched if
+one of them is relative and matches the other when prefixed by the
+working directory (determined as documented by the
+<<ref_toplevel, top-level variable>> `ninja_workdir`).
+
 depfile
 ^^^^^^^
 
@@ -649,11 +657,6 @@ rule cc
   deps = msvc
   command = cl /showIncludes -c $in /Fo$out
 ----
-
-If the include directory directives are using absolute paths, your depfile
-may result in a mixture of relative and absolute paths. Paths used by other
-build rules need to match exactly. Therefore, it is recommended to use
-relative paths in these cases.
 
 [[ref_pool]]
 Pools
@@ -832,6 +835,7 @@ Two variables are significant when declared in the outermost file scope.
   working directory in which the build will take place.  Otherwise, the
   build will take place in the working directory in which `ninja` is
   invoked, or that specified by `ninja -C`.
+  See also the <<ref_headers, discussion of header dependencies>>.
 
 `ninja_required_version`:: the minimum version of Ninja required to process
   the build correctly.  See <<ref_versioning,the discussion of versioning>>.
@@ -1002,8 +1006,11 @@ header file before starting a subsequent compilation step.  (Once the
 header is used in compilation, a generated dependency file will then
 express the implicit dependency.)
 
-File paths are compared as is, which means that an absolute path and a
-relative path, pointing to the same file, are considered different by Ninja.
+File paths in `build.ninja` are compared as is, which means that an
+absolute path and a relative path, pointing to the same file, are
+considered different by Ninja.
+See <<ref_headers, discussion of header dependencies>> for treatment
+of paths in a depfile.
 
 Variable expansion
 ~~~~~~~~~~~~~~~~~~

@@ -107,11 +107,61 @@ Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
   return AddNode(path, slash_bits);
 }
 
+Node* State::GetNodeForDepfile(StringPiece path, uint64_t slash_bits) {
+  Node* node = LookupNodeForDepfile(path);
+  if (node)
+    return node;
+  return AddNode(path, slash_bits);
+}
+
 Node* State::LookupNode(StringPiece path) const {
   METRIC_RECORD("lookup node");
   Paths::const_iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
+  return NULL;
+}
+
+Node* State::LookupNodeForDepfile(StringPiece path) const {
+  // First look for a node with the exact path given.
+  Node* node = LookupNode(path);
+  if (node)
+    return node;
+
+  if (workdir_.empty())
+    return NULL;
+
+  // Account for differences between absolute and relative paths
+  // to the same node.
+  if (IsAbsolutePath(path)) {
+    // If the absolute path is prefixed with the working directory then
+    // look for a node with the matching relative path.
+    // This will not help for nodes that use relative paths starting in `../`
+    // so it is the responsibility of the build manifest generator not to
+    // produce those.  Note that 'workdir_' already has a trailing slash.
+    if (path.len_ > workdir_.size() &&
+        memcmp(path.str_, workdir_.c_str(), workdir_.size()) == 0) {
+      path.str_ += workdir_.size();
+      path.len_ -= workdir_.size();
+      node = LookupNode(path);
+      if (node)
+        return node;
+    }
+  } else {
+    // Convert this relative path to an absolute path by prefixing it with
+    // the working directory.  Look for a node with the absolute path.
+    // Note that 'workdir_' already has a trailing slash.
+    // If CanonicalizePath fails on the combined path then just skip this.
+    std::string p = workdir_ + path.AsString();
+    std::string path_err;
+    uint64_t slash_bits;
+    if (CanonicalizePath(&p, &slash_bits, &path_err)) {
+      node = LookupNode(StringPiece(p));
+      if (node)
+        return node;
+    }
+  }
+
   return NULL;
 }
 

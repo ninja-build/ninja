@@ -102,7 +102,9 @@ struct State {
   Edge* AddEdge(const Rule* rule);
 
   Node* GetNode(StringPiece path, uint64_t slash_bits);
+  Node* GetNodeForDepfile(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
+  Node* LookupNodeForDepfile(StringPiece path) const;
   Node* SpellcheckNode(const std::string& path);
 
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
