@@ -138,6 +138,9 @@ struct State {
 
   BindingEnv bindings_;
   std::vector<Node*> defaults_;
+
+ private:
+  Node* AddNode(StringPiece path, uint64_t slash_bits);
 };
 
 #endif  // NINJA_STATE_H_

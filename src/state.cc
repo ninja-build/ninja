@@ -94,13 +94,17 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
+Node* State::AddNode(StringPiece path, uint64_t slash_bits) {
+  Node* node = new Node(path.AsString(), slash_bits);
+  paths_[node->path()] = node;
+  return node;
+}
+
 Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
   Node* node = LookupNode(path);
   if (node)
     return node;
-  node = new Node(path.AsString(), slash_bits);
-  paths_[node->path()] = node;
-  return node;
+  return AddNode(path, slash_bits);
 }
 
 Node* State::LookupNode(StringPiece path) const {
