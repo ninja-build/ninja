@@ -133,6 +133,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolRestat(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
   int ToolRules(const Options* options, int argc, char* argv[]);
+  int ToolWinCodePage(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
   /// @return LOAD_ERROR on error.
@@ -641,6 +642,18 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
+#ifdef _WIN32
+int NinjaMain::ToolWinCodePage(const Options* options, int argc, char* argv[]) {
+  if (argc != 0) {
+    printf("usage: ninja -t wincodepage\n");
+    return 1;
+  }
+  printf("ANSI code page: %u\n", GetACP());
+  printf("Console code page: %u\n", GetConsoleOutputCP());
+  return 0;
+}
+#endif
+
 enum PrintCommandMode { PCM_Single, PCM_All };
 void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
   if (!edge)
@@ -1009,6 +1022,10 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolCleanDead },
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
+#ifdef _WIN32
+    { "wincodepage", "print the Windows ANSI code page identifier",
+      Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolWinCodePage },
+#endif
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
   };
 

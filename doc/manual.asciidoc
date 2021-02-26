@@ -308,6 +308,18 @@ file. _Available since Ninja 1.10._
 if they have one).  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+ or +ninja -t compdb+.
 
+`wincodepage`:: available on Windows hosts.  Prints the ANSI code page
+used by `ninja`, whose encoding is expected in `build.ninja`.  Also prints
+the Console code page for reference.  The output has the form:
++
+----
+ANSI code page: %u
+Console code page: %u
+----
++
+where each `%u` is an integer code page identifier, expressed in decimal.
+_Available since Ninja 1.11._
+
 Writing your own Ninja files
 ----------------------------
 
