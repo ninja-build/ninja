@@ -648,8 +648,7 @@ int NinjaMain::ToolWinCodePage(const Options* options, int argc, char* argv[]) {
     printf("usage: ninja -t wincodepage\n");
     return 1;
   }
-  printf("ANSI code page: %u\n", GetACP());
-  printf("Console code page: %u\n", GetConsoleOutputCP());
+  printf("Build file encoding: %s\n", GetACP() == CP_UTF8? "UTF-8" : "ANSI");
   return 0;
 }
 #endif
@@ -1023,7 +1022,7 @@ const Tool* ChooseTool(const string& tool_name) {
     { "urtle", NULL,
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolUrtle },
 #ifdef _WIN32
-    { "wincodepage", "print the Windows ANSI code page identifier",
+    { "wincodepage", "print the Windows code page used by ninja",
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolWinCodePage },
 #endif
     { NULL, NULL, Tool::RUN_AFTER_FLAGS, NULL }
