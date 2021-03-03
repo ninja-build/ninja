@@ -117,8 +117,26 @@ void EvalString::AddText(StringPiece text) {
     parsed_.push_back(make_pair(text.AsString(), RAW));
   }
 }
+
 void EvalString::AddSpecial(StringPiece text) {
   parsed_.push_back(make_pair(text.AsString(), SPECIAL));
+}
+
+void EvalString::AddHexEncodedChar(StringPiece text) {
+  assert(text.size() == 2);
+  char lo = text[0], hi = text[1];
+  unsigned char val = (
+    ((9 * (lo >> 6) + (lo & 15)) << 4) |
+    (9 * (hi >> 6) + (hi & 15))
+  );
+  // Add it to the end of an existing RAW token if possible.
+  if (!parsed_.empty() && parsed_.back().second == RAW) {
+    parsed_.back().first.push_back(val);
+  } else {
+    std::string s;
+    s.push_back(val);
+    parsed_.push_back(make_pair(s, RAW));
+  }
 }
 
 string EvalString::Serialize() const {

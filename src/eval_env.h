@@ -44,6 +44,7 @@ struct EvalString {
 
   void AddText(StringPiece text);
   void AddSpecial(StringPiece text);
+  void AddHexEncodedChar(StringPiece escape);
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.
