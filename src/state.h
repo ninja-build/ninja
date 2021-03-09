@@ -125,6 +125,10 @@ struct State {
   typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
 
+  /// The working directory in which commands run, ending in a trailing slash.
+  /// This is computed from the process working directory, or set by tests.
+  std::string workdir_;
+
   /// All the pools used in the graph.
   std::map<std::string, Pool*> pools_;
 

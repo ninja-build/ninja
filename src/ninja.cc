@@ -147,6 +147,10 @@ struct NinjaMain : public BuildLogUser {
   /// @return false on error.
   bool EnsureBuildDirExists();
 
+  /// Save the process working directory.
+  /// @return false on error.
+  bool MemoizeWorkDir(const Options* options, Status *status);
+
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
@@ -1228,6 +1232,21 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
+bool NinjaMain::MemoizeWorkDir(const Options* options, Status* status) {
+  std::string workdir;
+  if (!GetCWD(&workdir))
+    return false;
+
+  std::string err;
+  if (!NormalizeWorkDir(&workdir, &err)) {
+    Error("invalid working directory: %s", err.c_str());
+    return false;
+  }
+
+  state_.workdir_ = workdir;
+  return true;
+}
+
 int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
@@ -1439,6 +1458,9 @@ NORETURN void real_main(int argc, char** argv) {
       status->Error("%s", err.c_str());
       exit(1);
     }
+
+    if (!ninja.MemoizeWorkDir(&options, status))
+      exit(1);
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
       exit((ninja.*options.tool->func)(&options, argc, argv));
