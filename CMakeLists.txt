@@ -73,12 +73,14 @@ function(check_platform_supports_browse_mode RESULT)
 	endif()
 
 	# Now check availability of the unistd header
-	check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
-	set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
-	if(NOT PLATFORM_HAS_UNISTD_HEADER)
-		message(WARNING "browse feature omitted due to missing unistd.h")
-	endif()
 
+	if(NOT WIN32)
+		check_include_file_cxx(unistd.h PLATFORM_HAS_UNISTD_HEADER)
+		set(${RESULT} "${PLATFORM_HAS_UNISTD_HEADER}" PARENT_SCOPE)
+		if(NOT PLATFORM_HAS_UNISTD_HEADER)
+			message(WARNING "browse feature omitted due to missing unistd.h")
+		endif()
+	endif()
 endfunction()
 
 check_platform_supports_browse_mode(platform_supports_ninja_browse)
