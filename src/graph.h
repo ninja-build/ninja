@@ -146,6 +146,7 @@ struct Edge {
 
   Edge()
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
+        most_recent_input_(NULL), most_recent_input_mtime_(0),
         id_(0), outputs_ready_(false), deps_loaded_(false),
         deps_missing_(false), implicit_deps_(0), order_only_deps_(0),
         implicit_outs_(0) {}
@@ -178,6 +179,8 @@ struct Edge {
   Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
+  Node* most_recent_input_;
+  TimeStamp most_recent_input_mtime_;
   size_t id_;
   bool outputs_ready_;
   bool deps_loaded_;
@@ -298,8 +301,7 @@ struct DependencyScan {
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
-  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                             bool* dirty, std::string* err);
+  bool RecomputeOutputsDirty(Edge* edge, bool* dirty, std::string* err);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -325,8 +327,8 @@ struct DependencyScan {
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
-  bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
-                            const std::string& command, Node* output);
+  bool RecomputeOutputDirty(const Edge* edge, const std::string& command,
+                            Node* output);
 
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
