@@ -1104,7 +1104,6 @@ bool DebugEnable(const string& name) {
 bool WarningEnable(const string& name, Options* options) {
   if (name == "list") {
     printf("warning flags:\n"
-"  dupbuild={err,warn}  multiple build lines for one target\n"
 "  phonycycle={err,warn}  phony build statement references itself\n"
     );
     return false;
