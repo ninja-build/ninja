@@ -1288,6 +1288,24 @@ struct BuildWithLogTest : public BuildTest {
   BuildLog build_log_;
 };
 
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule generator\n"
+"  command = touch out.imp\n"
+"  generator = 1\n"
+"build out.imp:  generator | in\n"));
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
 TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"

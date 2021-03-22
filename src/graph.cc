@@ -249,6 +249,28 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   }
 
   const Node* most_recent_input = edge->most_recent_input_;
+  bool used_log = false;
+
+  // Dirty if the output is older than the input.
+  if (most_recent_input && output->mtime() < most_recent_input->mtime()) {
+    TimeStamp output_mtime = output->mtime();
+
+    // if this output exists in the build log, use the mtime from there instead. That time
+    // reflects the most recent input file's mtime at the time the output began
+    if (build_log() && (entry = build_log()->LookupByOutput(output->path()))) {
+      output_mtime = entry->mtime;
+      used_log = true;
+    }
+
+    if (output_mtime < most_recent_input->mtime()) {
+      EXPLAIN("%soutput %s older than most recent input %s "
+              "(%" PRId64 " vs %" PRId64 ")",
+              used_log ? "logged mtime of " : "", output->path().c_str(),
+              most_recent_input->path().c_str(),
+              output_mtime, most_recent_input->mtime());
+      return true;
+    }
+  }
 
   if (build_log()) {
     bool generator = edge->GetBindingBool("generator");
@@ -261,7 +283,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
         EXPLAIN("command line changed for %s", output->path().c_str());
         return true;
       }
-      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
+      if (!used_log && most_recent_input && entry->mtime < most_recent_input->mtime()) {
         // May also be dirty due to the mtime in the log being older than the
         // mtime of the most recent input.  This can occur even when the mtime
         // on disk is newer if a previous run wrote to the output file but
@@ -276,14 +298,6 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
       EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }
-  } else if (most_recent_input &&
-             output->mtime() < most_recent_input->mtime()) {
-      EXPLAIN(
-          "output %s older than most recent input %s "
-          "(%" PRId64 " vs %" PRId64 ")",
-          output->path().c_str(), most_recent_input->path().c_str(),
-          output->mtime(), most_recent_input->mtime());
-    return true;
   }
 
   return false;
