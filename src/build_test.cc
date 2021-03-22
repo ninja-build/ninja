@@ -618,6 +618,13 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       fs_->Tick();
       fs_->Create((*out)->path(), "");
     }
+  } else if (edge->rule().name() == "implicit-generator") {
+    fs_->Create("inout", "");
+    fs_->Tick();
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      fs_->Create((*out)->path(), "");
+    }
   } else {
     printf("unknown command\n");
     return false;
@@ -1293,7 +1300,7 @@ TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate) {
 "rule generator\n"
 "  command = touch out.imp\n"
 "  generator = 1\n"
-"build out.imp:  generator | in\n"));
+"build out.imp: generator | in\n"));
   fs_.Create("out.imp", "");
   fs_.Tick();
   fs_.Create("in", "");
@@ -1304,6 +1311,36 @@ TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate) {
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
   EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule implicit-generator\n"
+"  command = touch inout ; sleep 1; touch out.imp\n"
+"  generator = 1\n"
+"build out.imp: implicit-generator | inout inimp\n"));
+  fs_.Create("inout", "");
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("inimp", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_FALSE(GetNode("out.imp")->dirty());
 }
 
 TEST_F(BuildWithLogTest, NotInLogButOnDisk) {

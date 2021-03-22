@@ -750,7 +750,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
   }
 
-  TimeStamp most_recent_input_mtime = 0;
+  TimeStamp record_mtime = 0;
   if (!config_.dry_run) {
     // Restat the edge outputs
     bool node_cleaned = false;
@@ -761,6 +761,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       TimeStamp new_mtime = (*o)->mtime();
       if (new_mtime == -1)
         return false;
+      if (new_mtime > record_mtime)
+        record_mtime = new_mtime;
       if (old_mtime == new_mtime && edge->GetBindingBool("restat")) {
         // The rule command did not change the output.  Propagate the clean
         // state through the build graph.
@@ -772,28 +774,34 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
 
     // Use the time from the most recent input that was computed when the edge was
-    // started, not the mtime of the node as it is now. There could have been other edges
-    // that restat'd the input node and detected a change, but for *this* edge, we want
-    // the mtime as it was when the command began.
-    most_recent_input_mtime = edge->most_recent_input_mtime_;
+    // started, not the mtime of the edge's latest output as it is now. There could have
+    // been other edges that restat'd the input node and detected a change, but for *this*
+    // edge, we want the mtime as it was when the command began.
+    //
+    // Generator edges should just use the edge's latest output mtime since it's possible that
+    // the generator rule could create/update implicit inputs as part of the command, and
+    // we don't want to get into an infinite loop.
+    if (!edge->GetBindingBool("generator")) {
+      record_mtime = edge->most_recent_input_mtime_;
 
-    // If there were any added deps, compute the most recent input mtime
-    for (vector<Node*>::iterator i = deps_nodes.begin();
-         i != deps_nodes.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface_, err);
-      if ((*i)->mtime() > most_recent_input_mtime)
-        most_recent_input_mtime = (*i)->mtime();
+      // If there were any added deps, compute the most recent input mtime
+      for (vector<Node*>::iterator i = deps_nodes.begin();
+          i != deps_nodes.end(); ++i) {
+        (*i)->StatIfNecessary(disk_interface_, err);
+        if ((*i)->mtime() > record_mtime)
+          record_mtime = (*i)->mtime();
+      }
     }
 
     if (node_cleaned) {
       // If any output was cleaned, take into account the mtime of the depfile
       string depfile = edge->GetUnescapedDepfile();
-      if (most_recent_input_mtime != 0 && deps_type.empty() && !depfile.empty()) {
+      if (record_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
         if (depfile_mtime == -1)
           return false;
-        if (depfile_mtime > most_recent_input_mtime)
-          most_recent_input_mtime = depfile_mtime;
+        if (depfile_mtime > record_mtime)
+          record_mtime = depfile_mtime;
       }
 
       // The total number of edges in the plan may have changed as a result
@@ -812,7 +820,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, most_recent_input_mtime)) {
+                                          end_time_millis, record_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
