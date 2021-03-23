@@ -625,6 +625,15 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
          out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
     }
+  } else if (edge->rule().name() == "generate-depfile") {
+    string depfile = edge->GetUnescapedDepfile();
+    string contents;
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      contents += (*out)->path() + ": inimp\n";
+      fs_->Create((*out)->path(), "");
+    }
+    fs_->Create(depfile, contents);
   } else {
     printf("unknown command\n");
     return false;
@@ -1642,6 +1651,32 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->mtime);
+}
+
+TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule generate-depfile\n"
+"  command = echo \"$out: inimp\" > $depfile ; touch $out\n"
+"build out: generate-depfile\n"
+"  depfile = out.d\n"));
+  fs_.Create("inimp", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 struct BuildDryRun : public BuildWithLogTest {

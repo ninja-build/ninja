@@ -773,6 +773,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       }
     }
 
+    if (node_cleaned) {
+      // The total number of edges in the plan may have changed as a result
+      // of a restat.
+      status_->PlanHasTotalEdges(plan_.command_edge_count());
+    }
+
     // Use the time from the most recent input that was computed when the edge was
     // started, not the mtime of the edge's latest output as it is now. There could have
     // been other edges that restat'd the input node and detected a change, but for *this*
@@ -793,20 +799,15 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       }
     }
 
-    if (node_cleaned) {
-      // If any output was cleaned, take into account the mtime of the depfile
-      string depfile = edge->GetUnescapedDepfile();
-      if (record_mtime != 0 && deps_type.empty() && !depfile.empty()) {
-        TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
-        if (depfile_mtime == -1)
-          return false;
-        if (depfile_mtime > record_mtime)
-          record_mtime = depfile_mtime;
-      }
-
-      // The total number of edges in the plan may have changed as a result
-      // of a restat.
-      status_->PlanHasTotalEdges(plan_.command_edge_count());
+    // Take into account the mtime of the depfile. Special depfiles (denoted with a "deps"
+    // binding) are handled above
+    string depfile = edge->GetUnescapedDepfile();
+    if (deps_type.empty() && !depfile.empty()) {
+      TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
+      if (depfile_mtime == -1)
+        return false;
+      if (depfile_mtime > record_mtime)
+        record_mtime = depfile_mtime;
     }
   }
 
