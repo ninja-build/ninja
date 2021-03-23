@@ -609,6 +609,32 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content);
+  } else if (edge->rule().name() == "touch-implicit-dep-out") {
+    string dep = edge->GetBinding("test_dependency");
+    fs_->Create(dep, "");
+    fs_->Tick();
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      fs_->Create((*out)->path(), "");
+    }
+  } else if (edge->rule().name() == "touch-out-implicit-dep") {
+    string dep = edge->GetBinding("test_dependency");
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      fs_->Create((*out)->path(), "");
+    }
+    fs_->Tick();
+    fs_->Create(dep, "");
+  } else if (edge->rule().name() == "generate-depfile") {
+    string dep = edge->GetBinding("test_dependency");
+    string depfile = edge->GetUnescapedDepfile();
+    string contents;
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      contents += (*out)->path() + ": " + dep + "\n";
+      fs_->Create((*out)->path(), "");
+    }
+    fs_->Create(depfile, contents);
   } else {
     printf("unknown command\n");
     return false;
@@ -1270,6 +1296,55 @@ struct BuildWithLogTest : public BuildTest {
   BuildLog build_log_;
 };
 
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"  generator = 1\n"
+"build out.imp: touch | in\n"));
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch-implicit-dep-out\n"
+"  command = touch $test_dependency ; sleep 1 ; touch $out\n"
+"  generator = 1\n"
+"build out.imp: touch-implicit-dep-out | inimp inimp2\n"
+"  test_dependency = inimp\n"));
+  fs_.Create("inimp", "");
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("inimp2", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_FALSE(GetNode("out.imp")->dirty());
+}
+
 TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"
@@ -1569,6 +1644,33 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->mtime);
+}
+
+TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule generate-depfile\n"
+"  command = touch $out ; echo \"$out: $test_dependency\" > $depfile\n"
+"build out: generate-depfile\n"
+"  test_dependency = inimp\n"
+"  depfile = out.d\n"));
+  fs_.Create("inimp", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 struct BuildDryRun : public BuildWithLogTest {
@@ -2408,6 +2510,90 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     // Expect the command line we generate to only use the original input.
     ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+}
+
+TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
+  string err;
+  const char* manifest =
+    "rule touch-out-implicit-dep\n"
+    "  command = touch $out ; sleep 1 ; touch $test_dependency\n"
+    "rule generate-depfile\n"
+    "  command = touch $out ; echo \"$out: $test_dependency\" > $depfile\n"
+    "build out1: touch-out-implicit-dep in1\n"
+    "  test_dependency = inimp\n"
+    "build out2: generate-depfile in1 || out1\n"
+    "  test_dependency = inimp\n"
+    "  depfile = out2.d\n"
+    "  deps = gcc\n";
+
+  fs_.Create("in1", "");
+  fs_.Tick();
+
+  BuildLog build_log;
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_FALSE(builder.AlreadyUpToDate());
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  fs_.Tick();
+  fs_.Create("in1", "");
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_FALSE(builder.AlreadyUpToDate());
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  fs_.Tick();
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
     builder.command_runner_.release();
