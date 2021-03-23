@@ -143,12 +143,10 @@ bool DependencyScan::RecomputeDirty(Node* node, vector<Node*>* stack,
     }
   }
 
-  edge->most_recent_input_ = most_recent_input;
-
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
   if (!dirty)
-    if (!RecomputeOutputsDirty(edge, &dirty, err))
+    if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
       return false;
 
   // Finally, visit each output and update their dirty state if necessary.
@@ -214,11 +212,12 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
   return false;
 }
 
-bool DependencyScan::RecomputeOutputsDirty(Edge* edge, bool* outputs_dirty, string* err) {
+bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
+                                           bool* outputs_dirty, string* err) {
   string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    if (RecomputeOutputDirty(edge, command, *o)) {
+    if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
       *outputs_dirty = true;
       return true;
     }
@@ -227,6 +226,7 @@ bool DependencyScan::RecomputeOutputsDirty(Edge* edge, bool* outputs_dirty, stri
 }
 
 bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
+                                          const Node* most_recent_input,
                                           const string& command,
                                           Node* output) {
   if (edge->is_phony()) {
@@ -248,7 +248,30 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     return true;
   }
 
-  const Node* most_recent_input = edge->most_recent_input_;
+  // Dirty if the output is older than the input.
+  if (most_recent_input && output->mtime() < most_recent_input->mtime()) {
+    TimeStamp output_mtime = output->mtime();
+
+    // If this is a restat rule, we may have cleaned the output with a restat
+    // rule in a previous run and stored the most recent input mtime in the
+    // build log.  Use that mtime instead, so that the file will only be
+    // considered dirty if an input was modified since the previous run.
+    bool used_restat = false;
+    if (edge->GetBindingBool("restat") && build_log() &&
+        (entry = build_log()->LookupByOutput(output->path()))) {
+      output_mtime = entry->mtime;
+      used_restat = true;
+    }
+
+    if (output_mtime < most_recent_input->mtime()) {
+      EXPLAIN("%soutput %s older than most recent input %s "
+              "(%" PRId64 " vs %" PRId64 ")",
+              used_restat ? "restat of " : "", output->path().c_str(),
+              most_recent_input->path().c_str(),
+              output_mtime, most_recent_input->mtime());
+      return true;
+    }
+  }
 
   if (build_log()) {
     bool generator = edge->GetBindingBool("generator");
@@ -276,14 +299,6 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
       EXPLAIN("command line not found in log for %s", output->path().c_str());
       return true;
     }
-  } else if (most_recent_input &&
-             output->mtime() < most_recent_input->mtime()) {
-      EXPLAIN(
-          "output %s older than most recent input %s "
-          "(%" PRId64 " vs %" PRId64 ")",
-          output->path().c_str(), most_recent_input->path().c_str(),
-          output->mtime(), most_recent_input->mtime());
-    return true;
   }
 
   return false;
