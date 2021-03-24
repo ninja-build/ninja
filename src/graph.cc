@@ -654,6 +654,7 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
     return;
 
   Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  phony_edge->generated_by_dep_loader_ = true;
   node->set_in_edge(phony_edge);
   phony_edge->outputs_.push_back(node);
 
