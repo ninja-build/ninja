@@ -270,11 +270,19 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 #define MEM_FN mem_fn  // mem_fun was removed in C++17.
 #endif
     if (find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
+      // Recompute most_recent_input.
+      Node* most_recent_input = NULL;
+      for (vector<Node*>::iterator i = begin; i != end; ++i) {
+        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime())
+          most_recent_input = *i;
+      }
+
       // Now, this edge is dirty if any of the outputs are dirty.
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
       bool outputs_dirty = false;
-      if (!scan->RecomputeOutputsDirty(*oe, &outputs_dirty, err)) {
+      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
+                                       &outputs_dirty, err)) {
         return false;
       }
       if (!outputs_dirty) {
@@ -688,20 +696,6 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       return false;
   }
 
-  // Find the most recent mtime of any (existing) non-order-only input
-  Node* most_recent_input = NULL;
-  for (vector<Node*>::iterator i = edge->inputs_.begin();
-       i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-    if (!(*i)->Stat(disk_interface_, err))
-      return false;
-    if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime())
-      most_recent_input = *i;
-  }
-
-  edge->most_recent_input_ = most_recent_input;
-  if (most_recent_input)
-    edge->most_recent_input_mtime_ = most_recent_input->mtime();
-
   // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
     err->assign("command '" + edge->EvaluateCommand() + "' failed.");
@@ -750,18 +744,20 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
   }
 
-  TimeStamp most_recent_input_mtime = 0;
+  // Restat the edge outputs
+  TimeStamp output_mtime = 0;
+  bool restat = edge->GetBindingBool("restat");
   if (!config_.dry_run) {
-    // Restat the edge outputs
     bool node_cleaned = false;
+
     for (vector<Node*>::iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
-      TimeStamp old_mtime = (*o)->mtime();
-      (*o)->Stat(disk_interface_, err);
-      TimeStamp new_mtime = (*o)->mtime();
+      TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
       if (new_mtime == -1)
         return false;
-      if (old_mtime == new_mtime && edge->GetBindingBool("restat")) {
+      if (new_mtime > output_mtime)
+        output_mtime = new_mtime;
+      if ((*o)->mtime() == new_mtime && restat) {
         // The rule command did not change the output.  Propagate the clean
         // state through the build graph.
         // Note that this also applies to nonexistent outputs (mtime == 0).
@@ -771,34 +767,33 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       }
     }
 
-    // Use the time from the most recent input that was computed when the edge was
-    // started, not the mtime of the node as it is now. There could have been other edges
-    // that restat'd the input node and detected a change, but for *this* edge, we want
-    // the mtime as it was when the command began.
-    most_recent_input_mtime = edge->most_recent_input_mtime_;
-
-    // If there were any added deps, compute the most recent input mtime
-    for (vector<Node*>::iterator i = deps_nodes.begin();
-         i != deps_nodes.end(); ++i) {
-      (*i)->StatIfNecessary(disk_interface_, err);
-      if ((*i)->mtime() > most_recent_input_mtime)
-        most_recent_input_mtime = (*i)->mtime();
-    }
-
     if (node_cleaned) {
-      // If any output was cleaned, take into account the mtime of the depfile
+      TimeStamp restat_mtime = 0;
+      // If any output was cleaned, find the most recent mtime of any
+      // (existing) non-order-only input or the depfile.
+      for (vector<Node*>::iterator i = edge->inputs_.begin();
+           i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
+        TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
+        if (input_mtime == -1)
+          return false;
+        if (input_mtime > restat_mtime)
+          restat_mtime = input_mtime;
+      }
+
       string depfile = edge->GetUnescapedDepfile();
-      if (most_recent_input_mtime != 0 && deps_type.empty() && !depfile.empty()) {
+      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
         if (depfile_mtime == -1)
           return false;
-        if (depfile_mtime > most_recent_input_mtime)
-          most_recent_input_mtime = depfile_mtime;
+        if (depfile_mtime > restat_mtime)
+          restat_mtime = depfile_mtime;
       }
 
       // The total number of edges in the plan may have changed as a result
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
+
+      output_mtime = restat_mtime;
     }
   }
 
@@ -812,7 +807,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, most_recent_input_mtime)) {
+                                          end_time_millis, output_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }

@@ -609,15 +609,32 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content);
-  } else if (edge->rule().name() == "long-cc" ||
-             edge->rule().name() == "long-cc2") {
+  } else if (edge->rule().name() == "touch-implicit-dep-out") {
+    string dep = edge->GetBinding("test_dependency");
+    fs_->Create(dep, "");
+    fs_->Tick();
     for (vector<Node*>::iterator out = edge->outputs_.begin();
-        out != edge->outputs_.end(); ++out) {
-      fs_->Tick();
-      fs_->Tick();
-      fs_->Tick();
+         out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
     }
+  } else if (edge->rule().name() == "touch-out-implicit-dep") {
+    string dep = edge->GetBinding("test_dependency");
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      fs_->Create((*out)->path(), "");
+    }
+    fs_->Tick();
+    fs_->Create(dep, "");
+  } else if (edge->rule().name() == "generate-depfile") {
+    string dep = edge->GetBinding("test_dependency");
+    string depfile = edge->GetUnescapedDepfile();
+    string contents;
+    for (vector<Node*>::iterator out = edge->outputs_.begin();
+         out != edge->outputs_.end(); ++out) {
+      contents += (*out)->path() + ": " + dep + "\n";
+      fs_->Create((*out)->path(), "");
+    }
+    fs_->Create(depfile, contents);
   } else {
     printf("unknown command\n");
     return false;
@@ -672,15 +689,6 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
     result->status = ExitFailure;
   else
     result->status = ExitSuccess;
-
-  // These rules simulate an external process modifying files while the build command
-  // runs. See TestInputMtimeRaceCondition and TestInputMtimeRaceConditionWithDepFile.
-  // Note: only the "first" time the rule is run per test is the file modified, so the
-  // test can verify that subsequent runs without the race have no work to do.
-  if (edge->rule().name() == "long-cc" && fs_->now_ == 4)
-    fs_->files_["in1"].mtime = 3;
-  if (edge->rule().name() == "long-cc2" && fs_->now_ == 4)
-    fs_->files_["header.h"].mtime = 3;
 
   // Provide a way for test cases to verify when an edge finishes that
   // some other edge is still active.  This is useful for test cases
@@ -1288,6 +1296,55 @@ struct BuildWithLogTest : public BuildTest {
   BuildLog build_log_;
 };
 
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"  generator = 1\n"
+"build out.imp: touch | in\n"));
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(GetNode("out.imp")->dirty());
+}
+
+TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch-implicit-dep-out\n"
+"  command = touch $test_dependency ; sleep 1 ; touch $out\n"
+"  generator = 1\n"
+"build out.imp: touch-implicit-dep-out | inimp inimp2\n"
+"  test_dependency = inimp\n"));
+  fs_.Create("inimp", "");
+  fs_.Create("out.imp", "");
+  fs_.Tick();
+  fs_.Create("inimp2", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_FALSE(GetNode("out.imp")->dirty());
+}
+
 TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n"
@@ -1587,6 +1644,33 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->mtime);
+}
+
+TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule generate-depfile\n"
+"  command = touch $out ; echo \"$out: $test_dependency\" > $depfile\n"
+"build out: generate-depfile\n"
+"  test_dependency = inimp\n"
+"  depfile = out.d\n"));
+  fs_.Create("inimp", "");
+  fs_.Tick();
+
+  string err;
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  builder_.Cleanup();
+  builder_.plan_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 struct BuildDryRun : public BuildWithLogTest {
@@ -2284,148 +2368,6 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   builder.command_runner_.release();
 }
 
-TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
-  string err;
-  const char* manifest =
-      "rule long-cc\n"
-      "  command = long-cc\n"
-      "build out: long-cc in1\n";
-
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
-
-  BuildLog build_log;
-  ASSERT_TRUE(build_log.Load("build_log", &err));
-  ASSERT_TRUE(build_log.OpenForWrite("build_log", *this, &err));
-
-  DepsLog deps_log;
-  ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
-
-  BuildLog::LogEntry* log_entry = NULL;
-  {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-    builder.command_runner_.reset(&command_runner_);
-    command_runner_.commands_ran_.clear();
-
-    // Run the build, out gets built, dep file is created
-    EXPECT_TRUE(builder.AddTarget("out", &err));
-    ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
-    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    // See that an entry in the logfile is created. the input_mtime is 1 since that was
-    // the mtime of in1 when the command was started
-    log_entry = build_log.LookupByOutput("out");
-    ASSERT_TRUE(NULL != log_entry);
-    ASSERT_EQ(1u, log_entry->mtime);
-
-    builder.command_runner_.release();
-  }
-
-  {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-    builder.command_runner_.reset(&command_runner_);
-    command_runner_.commands_ran_.clear();
-
-    // Trigger the build again - "out" should rebuild despite having a newer mtime than
-    // "in1", since "in1" was touched during the build of out (simulated by changing its
-    // mtime in the the test builder's WaitForCommand() which runs before FinishCommand()
-    command_runner_.commands_ran_.clear();
-    state.Reset();
-    EXPECT_TRUE(builder.AddTarget("out", &err));
-    ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
-    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    // Check that the logfile entry is still correct
-    log_entry = build_log.LookupByOutput("out");
-    ASSERT_TRUE(NULL != log_entry);
-    ASSERT_EQ(fs_.files_["in1"].mtime, log_entry->mtime);
-    builder.command_runner_.release();
-  }
-
-  {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-    builder.command_runner_.reset(&command_runner_);
-    command_runner_.commands_ran_.clear();
-
-    // And a subsequent run should not have any work to do
-    command_runner_.commands_ran_.clear();
-    state.Reset();
-    EXPECT_TRUE(builder.AddTarget("out", &err));
-    ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.AlreadyUpToDate());
-
-    builder.command_runner_.release();
-  }
-}
-
-TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
-  string err;
-  const char* manifest =
-      "rule long-cc2\n"
-      "  command = long-cc2\n"
-      "build out: long-cc2 in1\n"
-      "  deps = gcc\n"
-      "  depfile = in1.d\n";
-
-  fs_.Create("header.h", "");
-  fs_.Create("in1.d", "out: header.h");
-
-  State state;
-  ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
-
-  BuildLog build_log;
-  ASSERT_TRUE(build_log.Load("build_log", &err));
-  ASSERT_TRUE(build_log.OpenForWrite("build_log", *this, &err));
-
-  DepsLog deps_log;
-  ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
-
-  {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-    builder.command_runner_.reset(&command_runner_);
-    command_runner_.commands_ran_.clear();
-
-    // Run the build, out gets built, dep file is created
-    EXPECT_TRUE(builder.AddTarget("out", &err));
-    ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
-    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    // See that an entry in the logfile is created. the mtime is 3 due to header.h being
-    // updated during the build of out (simulated by changing its mtime in the the test
-    // builder's WaitForCommand() which runs before FinishCommand()
-    BuildLog::LogEntry* log_entry = build_log.LookupByOutput("out");
-    ASSERT_TRUE(NULL != log_entry);
-    ASSERT_EQ(3u, log_entry->mtime);
-
-    builder.command_runner_.release();
-  }
-
-  {
-    // Trigger the build again - "out" won't rebuild since its newest mtime (header.h)
-    // wasn't known when out was originally built and was only discovered via the deps file
-    // when the command completed. Subsequent runs will see out's recorded mtime equal to
-    // the actual most recent mtime.
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-    builder.command_runner_.reset(&command_runner_);
-    command_runner_.commands_ran_.clear();
-
-    command_runner_.commands_ran_.clear();
-    state.Reset();
-    EXPECT_TRUE(builder.AddTarget("out", &err));
-    ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.AlreadyUpToDate());
-
-    builder.command_runner_.release();
-  }
-}
-
 /// Check that a restat rule generating a header cancels compilations correctly.
 TEST_F(BuildTest, RestatDepfileDependency) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -2568,6 +2510,90 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     // Expect the command line we generate to only use the original input.
     ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+}
+
+TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
+  string err;
+  const char* manifest =
+    "rule touch-out-implicit-dep\n"
+    "  command = touch $out ; sleep 1 ; touch $test_dependency\n"
+    "rule generate-depfile\n"
+    "  command = touch $out ; echo \"$out: $test_dependency\" > $depfile\n"
+    "build out1: touch-out-implicit-dep in1\n"
+    "  test_dependency = inimp\n"
+    "build out2: generate-depfile in1 || out1\n"
+    "  test_dependency = inimp\n"
+    "  depfile = out2.d\n"
+    "  deps = gcc\n";
+
+  fs_.Create("in1", "");
+  fs_.Tick();
+
+  BuildLog build_log;
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_FALSE(builder.AlreadyUpToDate());
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  fs_.Tick();
+  fs_.Create("in1", "");
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_FALSE(builder.AlreadyUpToDate());
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  fs_.Tick();
+
+  {
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
     builder.command_runner_.release();
