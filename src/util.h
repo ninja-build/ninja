@@ -126,6 +126,9 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 /// Convert the value returned by GetLastError() into a string.
 std::string GetLastErrorString();
 
+/// @return Get the extended form of the path in the form \\?\C:\verylongpath
+std::wstring GetExtendedLengthPath(const std::string& path);
+
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
 #endif

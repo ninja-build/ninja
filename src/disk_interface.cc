@@ -105,8 +105,17 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
   WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
-                                        FindExSearchNameMatch, NULL, 0);
+  HANDLE find_handle = INVALID_HANDLE_VALUE;
+  string dirPattern = dir + "\\*";
+  if (dirPattern.size() > MAX_PATH) {
+    wstring dirPatternw = GetExtendedLengthPath(dirPattern);
+    find_handle = FindFirstFileExW(dirPatternw.c_str(), level, &ffd,
+      FindExSearchNameMatch, NULL, 0);
+  }
+  else {
+    find_handle = FindFirstFileExA(dirPattern.c_str(), level, &ffd,
+      FindExSearchNameMatch, NULL, 0);
+  }
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();

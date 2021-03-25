@@ -345,8 +345,17 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+  HANDLE f = INVALID_HANDLE_VALUE;
+  if (path.size() > MAX_PATH) {
+    wstring pathw = GetExtendedLengthPath(path);
+    f = ::CreateFileW(pathw.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                      OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  } else {
+    f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                      OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  }
+
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;
@@ -467,6 +476,24 @@ string GetLastErrorString() {
   string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
+}
+
+wstring GetExtendedLengthPath(const string& path) {
+  wstring pathw(path.begin(), path.end());
+  DWORD fullPathLength = GetFullPathNameW(pathw.c_str(), 0, nullptr, nullptr);
+
+  vector<wchar_t> fullPathwchars(fullPathLength);
+  GetFullPathNameW(pathw.c_str(), fullPathLength, fullPathwchars.data(),
+                   nullptr);
+
+  wstring fullPathw(fullPathwchars.data());
+
+  // Append \\?\ for absolute paths
+  if (fullPathw.length() >= 2 && fullPathw[1] == ':') {
+    return L"\\\\?\\" + fullPathw;
+  }
+
+  return wstring(fullPathw);
 }
 
 void Win32Fatal(const char* function, const char* hint) {
