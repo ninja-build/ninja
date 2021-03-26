@@ -70,15 +70,13 @@ std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
   return path.substr(0, slash_pos);
 }
 
+int MakeDir(const string& path) {
 #ifdef _WIN32
-int MakeDir(const wstring& path) {
-  return _wmkdir(path.c_str());
-}
+  return _wmkdir(WidenPath(path).c_str());
 #else
-int MakeDir(const wstring& path) {
   return mkdir(path.c_str(), 0777);
-}
 #endif
+}
 
 #ifdef _WIN32
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
@@ -264,7 +262,7 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
-  if (::MakeDir(WidenPath(path)) < 0) {
+  if (::MakeDir(path) < 0) {
     if (errno == EEXIST) {
       return true;
     }
