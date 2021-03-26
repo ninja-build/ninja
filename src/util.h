@@ -81,6 +81,10 @@ void GetWin32EscapedString(const std::string& input, std::string* result);
 /// Returns -errno and fills in \a err on error.
 int ReadFile(const std::string& path, std::string* contents, std::string* err);
 
+/// Open a file with the specified mode
+/// Returns NULL and fills in \a err on error.
+FILE* OpenFile(const std::string& path, const char* mode);
+
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 
@@ -112,6 +116,15 @@ std::string ElideMiddle(const std::string& str, size_t width);
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
 
+/// Changes the process working directory
+bool ChangeCurrentWorkingDirectory(const std::string& path);
+
+/// Convert path from char to wchar_t
+std::wstring WidenPath(const std::string& path);
+
+/// Convert path from wchar_t to char.
+std::string NarrowPath(const std::wstring& path);
+
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
@@ -119,15 +132,16 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+#define PATH_MAX 1000
+#else
 #define PATH_MAX _MAX_PATH
+#endif
 #endif
 
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 std::string GetLastErrorString();
-
-/// @return Get the extended form of the path in the form \\?\C:\verylongpath
-std::wstring GetExtendedLengthPath(const std::string& path);
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);

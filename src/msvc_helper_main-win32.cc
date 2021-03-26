@@ -52,7 +52,7 @@ void PushPathIntoEnvironment(const string& env_block) {
 
 void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
   string depfile_path = string(object_path) + ".d";
-  FILE* depfile = fopen(depfile_path.c_str(), "w");
+  FILE* depfile = OpenFile(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
     Fatal("opening %s: %s", depfile_path.c_str(),

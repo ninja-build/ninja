@@ -346,15 +346,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // than using the generic fopen code below.
   err->clear();
 
-  HANDLE f = INVALID_HANDLE_VALUE;
-  if (path.size() > MAX_PATH) {
-    wstring pathw = GetExtendedLengthPath(path);
-    f = ::CreateFileW(pathw.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                      OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-  } else {
-    f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                      OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-  }
+  HANDLE f = ::CreateFileW(WidenPath(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                    OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
@@ -376,7 +369,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   ::CloseHandle(f);
   return 0;
 #else
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = OpenFile(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -406,6 +399,14 @@ int ReadFile(const string& path, string* contents, string* err) {
   fclose(f);
   return 0;
 #endif
+}
+
+FILE* OpenFile(const string& path, const char* mode)
+{
+#ifdef _WIN32
+  return _wfopen(WidenPath(path).c_str(), WidenPath(mode).c_str());
+#endif
+  return fopen(path.c_str(), mode);
 }
 
 void SetCloseOnExec(int fd) {
@@ -458,6 +459,28 @@ const char* SpellcheckString(const char* text, ...) {
   return SpellcheckStringV(text, words);
 }
 
+bool ChangeCurrentWorkingDirectory(const string& path) {
+  int result = 0;
+
+#ifdef _WIN32
+  result = _wchdir(WidenPath(path).c_str());
+#else
+  result = chdir(path.c_str());
+#endif
+
+  return result < 0;
+}
+
+/// Convert path from char to wchar_t
+std::wstring WidenPath(const std::string& path) {
+  return std::wstring(path.begin(), path.end());
+}
+
+/// Convert path from wchar_t to char.
+std::string NarrowPath(const std::wstring& path) {
+  return std::string(path.begin(), path.end());
+}
+
 #ifdef _WIN32
 string GetLastErrorString() {
   DWORD err = GetLastError();
@@ -476,24 +499,6 @@ string GetLastErrorString() {
   string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
-}
-
-wstring GetExtendedLengthPath(const string& path) {
-  wstring pathw(path.begin(), path.end());
-  DWORD fullPathLength = GetFullPathNameW(pathw.c_str(), 0, nullptr, nullptr);
-
-  vector<wchar_t> fullPathwchars(fullPathLength);
-  GetFullPathNameW(pathw.c_str(), fullPathLength, fullPathwchars.data(),
-                   nullptr);
-
-  wstring fullPathw(fullPathwchars.data());
-
-  // Append \\?\ for absolute paths
-  if (fullPathw.length() >= 2 && fullPathw[1] == ':') {
-    return L"\\\\?\\" + fullPathw;
-  }
-
-  return wstring(fullPathw);
 }
 
 void Win32Fatal(const char* function, const char* hint) {

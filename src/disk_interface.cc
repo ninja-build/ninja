@@ -37,30 +37,48 @@ using namespace std;
 
 namespace {
 
-string DirName(const string& path) {
-#ifdef _WIN32
-  static const char kPathSeparators[] = "\\/";
-#else
-  static const char kPathSeparators[] = "/";
-#endif
-  static const char* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
+template<typename C>
+const C * ChooseCharT(const char* c, const wchar_t* w);
 
-  string::size_type slash_pos = path.find_last_of(kPathSeparators);
-  if (slash_pos == string::npos)
-    return string();  // Nothing to do.
+template<>
+const char* ChooseCharT<char>(const char* c, const wchar_t* w) {
+    return c;
+}
+
+template<>
+const wchar_t* ChooseCharT<wchar_t>(const char* c, const wchar_t* w) {
+    return w;
+}
+
+#define CHOOSE_CHART(CHART, STR) ChooseCharT<CHART>(STR, L##STR)
+
+template<typename CharT>
+std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
+#ifdef _WIN32
+  static const CharT* kPathSeparators = CHOOSE_CHART(CharT, "\\/");
+#else
+  static const CharT* kPathSeparators = CHOOSE_CHART(CharT, "/");
+#endif
+  static const CharT* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
+
+  std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
+  if (slash_pos == std::basic_string<CharT>::npos)
+    return std::basic_string<CharT>();  // Nothing to do.
   while (slash_pos > 0 &&
          std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
     --slash_pos;
   return path.substr(0, slash_pos);
 }
 
-int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
-#else
-  return mkdir(path.c_str(), 0777);
-#endif
+int MakeDir(const wstring& path) {
+  return _wmkdir(path.c_str());
 }
+#else
+int MakeDir(const wstring& path) {
+  return mkdir(path.c_str(), 0777);
+}
+#endif
 
 #ifdef _WIN32
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
@@ -73,13 +91,13 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
-TimeStamp StatSingleFile(const string& path, string* err) {
+TimeStamp StatSingleFile(const wstring& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
+    *err = "GetFileAttributesExW(" + NarrowPath(path) + "): " + GetLastErrorString();
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -95,7 +113,7 @@ bool IsWindows7OrLater() {
       &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
 
-bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
+bool StatAllFilesInDir(const wstring& dir, map<wstring, TimeStamp>* stamps,
                        string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
@@ -104,29 +122,21 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = INVALID_HANDLE_VALUE;
-  string dirPattern = dir + "\\*";
-  if (dirPattern.size() > MAX_PATH) {
-    wstring dirPatternw = GetExtendedLengthPath(dirPattern);
-    find_handle = FindFirstFileExW(dirPatternw.c_str(), level, &ffd,
-      FindExSearchNameMatch, NULL, 0);
-  }
-  else {
-    find_handle = FindFirstFileExA(dirPattern.c_str(), level, &ffd,
-      FindExSearchNameMatch, NULL, 0);
-  }
+  WIN32_FIND_DATAW ffd;
+  wstring dirPatternw = dir + L"\\*";
+  HANDLE find_handle = FindFirstFileExW(dirPatternw.c_str(), level, &ffd,
+    FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return true;
-    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
+    *err = "FindFirstFileExW(" + NarrowPath(dir) + "): " + GetLastErrorString();
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
-    if (lowername == "..") {
+    wstring lowername = ffd.cFileName;
+    if (lowername == L"..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
@@ -134,7 +144,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFileA(find_handle, &ffd));
+  } while (FindNextFileW(find_handle, &ffd));
   FindClose(find_handle);
   return true;
 }
@@ -171,22 +181,23 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+  if (!path.empty() && path[0] != '\\' && path.size() > PATH_MAX) {
     ostringstream err_stream;
-    err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
+    err_stream << "Stat(" << path << "): Filename longer than " << PATH_MAX
                << " characters";
     *err = err_stream.str();
     return -1;
   }
+  wstring pathw = WidenPath(path);
   if (!use_cache_)
-    return StatSingleFile(path, err);
+    return StatSingleFile(pathw, err);
 
-  string dir = DirName(path);
-  string base(path.substr(dir.size() ? dir.size() + 1 : 0));
-  if (base == "..") {
+  wstring dir = DirName(pathw);
+  wstring base(pathw.substr(dir.size() ? dir.size() + 1 : 0));
+  if (base == L"..") {
     // StatAllFilesInDir does not report any information for base = "..".
-    base = ".";
-    dir = path;
+    base = L".";
+    dir = pathw;
   }
 
   transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
@@ -195,7 +206,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
     ci = cache_.insert(make_pair(dir, DirCache())).first;
-    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
+    if (!StatAllFilesInDir(dir.empty() ? L"." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
     }
@@ -229,7 +240,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE* fp = fopen(path.c_str(), "w");
+  FILE* fp = OpenFile(path.c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
@@ -253,7 +264,7 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
-  if (::MakeDir(path) < 0) {
+  if (::MakeDir(WidenPath(path)) < 0) {
     if (errno == EEXIST) {
       return true;
     }
@@ -275,7 +286,8 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
-  DWORD attributes = GetFileAttributes(path.c_str());
+  wstring pathw = WidenPath(path);
+  DWORD attributes = GetFileAttributesW(pathw.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
@@ -286,9 +298,9 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
     // Skip error checking.  If this fails, accept whatever happens below.
-    SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
+    SetFileAttributesW(pathw.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
-  if (!DeleteFile(path.c_str())) {
+  if (!DeleteFileW(pathw.c_str())) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
       return 1;

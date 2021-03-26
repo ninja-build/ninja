@@ -152,7 +152,7 @@ void DepsLog::Close() {
 LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = OpenFile(path.c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -407,7 +407,7 @@ bool DepsLog::OpenForWriteIfNeeded() {
   if (file_path_.empty()) {
     return true;
   }
-  file_ = fopen(file_path_.c_str(), "ab");
+  file_ = OpenFile(file_path_.c_str(), "ab");
   if (!file_) {
     return false;
   }

@@ -186,7 +186,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (log_file_ || log_file_path_.empty()) {
     return true;
   }
-  log_file_ = fopen(log_file_path_.c_str(), "ab");
+  log_file_ = OpenFile(log_file_path_.c_str(), "ab");
   if (!log_file_) {
     return false;
   }
@@ -260,7 +260,7 @@ struct LineReader {
 
 LoadStatus BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = OpenFile(path.c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -393,7 +393,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
   Close();
   string temp_path = path + ".recompact";
-  FILE* f = fopen(temp_path.c_str(), "wb");
+  FILE* f = OpenFile(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
     return false;
@@ -444,7 +444,7 @@ bool BuildLog::Restat(const StringPiece path,
 
   Close();
   std::string temp_path = path.AsString() + ".restat";
-  FILE* f = fopen(temp_path.c_str(), "wb");
+  FILE* f = OpenFile(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
     return false;
