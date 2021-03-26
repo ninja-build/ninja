@@ -61,7 +61,7 @@ std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
 #endif
   static const CharT* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
 
-  std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
+  typename std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == std::basic_string<CharT>::npos)
     return std::basic_string<CharT>();  // Nothing to do.
   while (slash_pos > 0 &&
