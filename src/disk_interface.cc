@@ -38,15 +38,15 @@ using namespace std;
 namespace {
 
 template<typename C>
-const C * ChooseCharT(const char* c, const wchar_t* w);
+const C* const ChooseCharT(const char* const c, const wchar_t* const w);
 
 template<>
-const char* ChooseCharT<char>(const char* c, const wchar_t* w) {
+const char* const ChooseCharT<char>(const char* const c, const wchar_t* const w) {
     return c;
 }
 
 template<>
-const wchar_t* ChooseCharT<wchar_t>(const char* c, const wchar_t* w) {
+const wchar_t* const ChooseCharT<wchar_t>(const char* const c, const wchar_t* const w) {
     return w;
 }
 
@@ -59,7 +59,7 @@ std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
 #else
   static const CharT* kPathSeparators = CHOOSE_CHART(CharT, "/");
 #endif
-  static const CharT* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
+  static const CharT* const kEnd = kPathSeparators + (sizeof(kPathSeparators) / sizeof(CharT)) - 1;
 
   typename std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == std::basic_string<CharT>::npos)
