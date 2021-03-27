@@ -55,11 +55,11 @@ const wchar_t* const ChooseCharT<wchar_t>(const char* const c, const wchar_t* co
 template<typename CharT>
 std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
 #ifdef _WIN32
-  static const CharT* kPathSeparators = CHOOSE_CHART(CharT, "\\/");
+  const CharT* kPathSeparators = CHOOSE_CHART(CharT, "\\/");
 #else
-  static const CharT* kPathSeparators = CHOOSE_CHART(CharT, "/");
+  const CharT* kPathSeparators = CHOOSE_CHART(CharT, "/");
 #endif
-  static const CharT* const kEnd = kPathSeparators + (sizeof(kPathSeparators) / sizeof(CharT)) - 1;
+  const CharT* const kEnd = kPathSeparators + (sizeof(kPathSeparators) / sizeof(CharT)) - 1;
 
   typename std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == std::basic_string<CharT>::npos)
