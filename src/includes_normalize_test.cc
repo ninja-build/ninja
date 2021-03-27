@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include <direct.h>
+#include <windows.h>
 
 #include "string_piece_util.h"
 #include "test.h"
@@ -151,7 +152,7 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
   EXPECT_TRUE(normalizer.Normalize("a", &result, &err));
   EXPECT_EQ("", err);
 
-  // Construct max size path having cwd prefix.
+  // Construct MAX_PATH size path having cwd prefix.
   // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
   char kExactlyMaxPath[_MAX_PATH + 1];
   for (int i = 0; i < _MAX_PATH; ++i) {
@@ -163,7 +164,18 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
   kExactlyMaxPath[_MAX_PATH] = '\0';
   EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
 
-  // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
-  EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
-  EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+  DWORD longPathsEnabled = 0;
+  DWORD longPathsEnabledSize = sizeof(longPathsEnabled);
+  RegGetValueW(HKEY_LOCAL_MACHINE,
+    L"SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+    L"LongPathsEnabled",
+    RRF_RT_REG_DWORD | RRF_ZEROONFAILURE,
+    nullptr,
+    &longPathsEnabled,
+    &longPathsEnabledSize
+  );
+
+  // Make sure a path that's exactly _MAX_PATH long fails with a proper error if long paths not enabled.
+  EXPECT_EQ(normalizer.Normalize(kExactlyMaxPath, &result, &err), !!longPathsEnabled);
+  EXPECT_EQ(err.find("GetFullPathName") != string::npos, !longPathsEnabled);
 }

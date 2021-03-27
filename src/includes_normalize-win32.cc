@@ -78,14 +78,14 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
 
   wchar_t a_absolute[PATH_MAX];
   wchar_t b_absolute[PATH_MAX];
-  if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
+  if (!InternalGetFullPathName(a, a_absolute, _countof(a_absolute), err)) {
     return false;
   }
-  if (!InternalGetFullPathName(b, b_absolute, sizeof(b_absolute), err)) {
+  if (!InternalGetFullPathName(b, b_absolute, _countof(b_absolute), err)) {
     return false;
   }
-  wchar_t a_drive[PATH_MAX];
-  wchar_t b_drive[PATH_MAX];
+  wchar_t a_drive[_MAX_PATH];
+  wchar_t b_drive[_MAX_PATH];
   _wsplitpath(a_absolute, a_drive, NULL, NULL, NULL);
   _wsplitpath(b_absolute, b_drive, NULL, NULL, NULL);
   return _wcsicmp(a_drive, b_drive) == 0;
@@ -147,7 +147,7 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
   }
 
   wchar_t result[PATH_MAX];
-  if (!InternalGetFullPathName(s, result, sizeof(result), err)) {
+  if (!InternalGetFullPathName(s, result, _countof(result), err)) {
     return "";
   }
   for (wchar_t* c = result; *c; ++c)
