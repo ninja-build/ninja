@@ -3115,6 +3115,48 @@ TEST_F(BuildTest, DyndepBuildDiscoverImplicitConnection) {
   EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[2]);
 }
 
+TEST_F(BuildTest, DyndepBuildDiscoverOutputAndDepfileInput) {
+  // Verify that a dyndep file can be built and loaded to discover
+  // that one edge has an implicit output that is also reported by
+  // a depfile as an input of another edge.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out $out.imp\n"
+"rule cp\n"
+"  command = cp $in $out\n"
+"build dd: cp dd-in\n"
+"build tmp: touch || dd\n"
+"  dyndep = dd\n"
+"build out: cp tmp\n"
+"  depfile = out.d\n"
+));
+  fs_.Create("out.d", "out: tmp.imp\n");
+  fs_.Create("dd-in",
+"ninja_dyndep_version = 1\n"
+"build tmp | tmp.imp: dyndep\n"
+);
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  // Loading the depfile gave tmp.imp a phony input edge.
+  ASSERT_TRUE(GetNode("tmp.imp")->in_edge()->is_phony());
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  // Loading the dyndep file gave tmp.imp a real input edge.
+  ASSERT_FALSE(GetNode("tmp.imp")->in_edge()->is_phony());
+
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("touch tmp tmp.imp", command_runner_.commands_ran_[1]);
+  EXPECT_EQ("cp tmp out", command_runner_.commands_ran_[2]);
+  EXPECT_EQ(1u, fs_.files_created_.count("tmp.imp"));
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+}
+
 TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdge) {
   // Verify that a dyndep file can be built and loaded to discover
   // that an edge is actually wanted due to a missing implicit output.
