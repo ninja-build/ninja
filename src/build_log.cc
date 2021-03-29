@@ -186,7 +186,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (log_file_ || log_file_path_.empty()) {
     return true;
   }
-  log_file_ = OpenFile(log_file_path_.c_str(), "ab");
+  log_file_ = OpenFile(log_file_path_, "ab");
   if (!log_file_) {
     return false;
   }

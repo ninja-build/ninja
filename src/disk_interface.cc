@@ -56,10 +56,11 @@ template<typename CharT>
 std::basic_string<CharT> DirName(const std::basic_string<CharT>& path) {
 #ifdef _WIN32
   const CharT* kPathSeparators = CHOOSE_CHART(CharT, "\\/");
+  const CharT* kEnd = kPathSeparators + 2;
 #else
   const CharT* kPathSeparators = CHOOSE_CHART(CharT, "/");
+  const CharT* kEnd = kPathSeparators + 1;
 #endif
-  const CharT* const kEnd = kPathSeparators + (sizeof(kPathSeparators) / sizeof(CharT)) - 1;
 
   typename std::basic_string<CharT>::size_type slash_pos = path.find_last_of(kPathSeparators);
   if (slash_pos == std::basic_string<CharT>::npos)

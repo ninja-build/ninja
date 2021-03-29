@@ -183,9 +183,9 @@ string IncludesNormalize::Relativize(
 
 bool IncludesNormalize::Normalize(const string& input,
                                   string* result, string* err) const {
-  char copy[_MAX_PATH + 1];
+  char copy[PATH_MAX + 1];
   size_t len = input.size();
-  if (len > _MAX_PATH) {
+  if (len > PATH_MAX) {
     *err = "path too long";
     return false;
   }

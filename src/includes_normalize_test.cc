@@ -107,36 +107,51 @@ TEST(IncludesNormalize, LongInvalidPath) {
       "pdb (for example, mspdb110.dll) could not be found on your path. This "
       "is usually a configuration error. Compilation will continue using /Z7 "
       "instead of /Zi, but expect a similar error when you link your program.";
+
+  DWORD longPathsEnabled = 0;
+  DWORD longPathsEnabledSize = sizeof(longPathsEnabled);
+  RegGetValueW(HKEY_LOCAL_MACHINE,
+    L"SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+    L"LongPathsEnabled",
+    RRF_RT_REG_DWORD | RRF_ZEROONFAILURE,
+    nullptr,
+    &longPathsEnabled,
+    &longPathsEnabledSize
+  );
+
   // Too long, won't be canonicalized. Ensure doesn't crash.
   string result, err;
   IncludesNormalize normalizer(".");
-  EXPECT_FALSE(
-      normalizer.Normalize(kLongInputString, &result, &err));
-  EXPECT_EQ("path too long", err);
+  EXPECT_EQ(
+      normalizer.Normalize(kLongInputString, &result, &err), !!longPathsEnabled);
+  if (!longPathsEnabled)
+  {
+    EXPECT_EQ("path too long", err);
+  }
 
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
+  char kExactlyMaxPath[PATH_MAX + 1];
   ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
 
   int cwd_len = strlen(kExactlyMaxPath);
-  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
+  ASSERT_LE(cwd_len + 3 + 1, PATH_MAX)
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';
   kExactlyMaxPath[cwd_len + 2] = '\\';
 
   kExactlyMaxPath[cwd_len + 3] = 'a';
 
-  for (int i = cwd_len + 4; i < _MAX_PATH; ++i) {
-    if (i > cwd_len + 4 && i < _MAX_PATH - 1 && i % 10 == 0)
+  for (int i = cwd_len + 4; i < PATH_MAX; ++i) {
+    if (i > cwd_len + 4 && i < PATH_MAX - 1 && i % 10 == 0)
       kExactlyMaxPath[i] = '\\';
     else
       kExactlyMaxPath[i] = 'a';
   }
 
-  kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+  kExactlyMaxPath[PATH_MAX] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), PATH_MAX);
 
   string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');

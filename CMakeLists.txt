@@ -205,6 +205,9 @@ if(BUILD_TESTING)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
   endif()
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  if (MSVC AND "$ENV{VSCMD_ARG_TGT_ARCH}" STREQUAL "x86")
+    target_compile_options(ninja_test PRIVATE "/fsanitize=address")
+  endif()
 
   foreach(perftest
     build_log_perftest
