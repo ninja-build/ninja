@@ -276,6 +276,20 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   if (build_log()) {
     bool generator = edge->GetBindingBool("generator");
     if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
+      if (output->mtime() > entry->mtime) {
+        // May also be dirty due to the mtime in the log being older from the
+        // actual mtime of the output. This can occur if the output has been
+        // modified from a process unrelated to the build system. In that case the
+        // output state does not match anymore the state it would have if rebuilt
+        // by ninja, so it is dirty.
+        //
+        // Note: The mtime in the log can be for recent than the actual mtime. This can
+        // occur if the edge is mark with 'restat = 1'. If the rule command did not
+        // change the output, the output log mtime will be inherited from the most 
+        // recent inputs or depfile.
+        EXPLAIN("recored mtime of %s is different from its actual mtime", output->path().c_str());
+        return true;
+      }
       if (!generator &&
           BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
         // May also be dirty due to the command changing since the last build.

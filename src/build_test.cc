@@ -1446,6 +1446,32 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildWithLogTest, RebuildIfOutputIsModified) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  fs_.Tick();
+
+  fs_.WriteFile("out", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule true\n"
@@ -1541,7 +1567,6 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 
   fs_.Tick();
   fs_.Create("in", "");
-  fs_.Create("out2", "");
 
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so
