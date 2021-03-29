@@ -200,7 +200,7 @@ void ScopedTempDir::CreateAndEnter(const string& name) {
   start_dir_ = GetSystemTempDir();
   if (start_dir_.empty())
     Fatal("couldn't get system temp dir");
-  if (ChangeCurrentWorkingDirectory(start_dir_.c_str()))
+  if (ChangeCurrentWorkingDirectory(start_dir_))
     Fatal("chdir: %s", strerror(errno));
 
   // Create a temporary subdirectory of that.
@@ -213,7 +213,7 @@ void ScopedTempDir::CreateAndEnter(const string& name) {
   temp_dir_name_ = tempname;
 
   // chdir into the new temporary directory.
-  if (ChangeCurrentWorkingDirectory(temp_dir_name_.c_str()))
+  if (ChangeCurrentWorkingDirectory(temp_dir_name_)
     Fatal("chdir: %s", strerror(errno));
 }
 
@@ -222,7 +222,7 @@ void ScopedTempDir::Cleanup() {
     return;  // Something went wrong earlier.
 
   // Move out of the directory we're about to clobber.
-  if (ChangeCurrentWorkingDirectory(start_dir_.c_str()))
+  if (ChangeCurrentWorkingDirectory(start_dir_))
     Fatal("chdir: %s", strerror(errno));
 
 #ifdef _WIN32
