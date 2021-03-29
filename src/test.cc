@@ -213,7 +213,7 @@ void ScopedTempDir::CreateAndEnter(const string& name) {
   temp_dir_name_ = tempname;
 
   // chdir into the new temporary directory.
-  if (ChangeCurrentWorkingDirectory(temp_dir_name_)
+  if (ChangeCurrentWorkingDirectory(temp_dir_name_))
     Fatal("chdir: %s", strerror(errno));
 }
 
