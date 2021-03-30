@@ -149,6 +149,11 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
+void VirtualFileSystem::Hardlink(const string& input, const string& ouput) {
+  files_[ouput].mtime = files_[input].mtime;
+  files_[ouput].contents = files_[input].contents;
+}
+
 TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
