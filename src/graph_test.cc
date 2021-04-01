@@ -20,7 +20,7 @@
 using namespace std;
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL) {}
+  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL, false) {}
 
   VirtualFileSystem fs_;
   DependencyScan scan_;

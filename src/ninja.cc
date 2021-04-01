@@ -224,6 +224,7 @@ void Usage(const BuildConfig& config) {
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
+"  -m       considered modified output as dirty\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
@@ -1356,6 +1357,10 @@ int ReadFlags(int* argc, char*** argv,
         if (end == optarg)
           Fatal("-l parameter not numeric: did you mean -l 0.0?");
         config->max_load_average = value;
+        break;
+      }
+      case 'm': {
+        config->modified_output_is_dirty = true;
         break;
       }
       case 'n':
