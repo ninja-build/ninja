@@ -494,6 +494,10 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
       : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
         builder_(&state_, config_, NULL, log, &fs_, &status_, 0) {}
 
+  explicit BuildTest(const BuildConfig& config)
+      : config_(config), command_runner_(&fs_), status_(config_),
+        builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0) {}
+
   virtual void SetUp() {
     StateTestWithBuiltinRules::SetUp();
 
@@ -1292,6 +1296,12 @@ struct BuildWithLogTest : public BuildTest {
   BuildWithLogTest() {
     builder_.SetBuildLog(&build_log_);
   }
+  
+  explicit BuildWithLogTest(const BuildConfig& config)
+      : BuildTest(config)
+  {
+    builder_.SetBuildLog(&build_log_);
+  }
 
   BuildLog build_log_;
 };
@@ -1446,7 +1456,19 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
-TEST_F(BuildWithLogTest, RebuildIfOutputIsModified) {
+struct BuildWithModifiedOutputDirtyAndLogTest : public BuildWithLogTest {
+  BuildWithModifiedOutputDirtyAndLogTest() : BuildWithLogTest(MakeConfig()) {
+  }
+
+  BuildConfig MakeConfig() {
+    BuildConfig config;
+    config.verbosity = BuildConfig::QUIET;
+    config.modified_output_is_dirty = true;
+    return config;
+  }
+};
+
+TEST_F(BuildWithModifiedOutputDirtyAndLogTest, RebuildIfOutputIsModified) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build out: cat in\n"));
 
@@ -1567,6 +1589,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 
   fs_.Tick();
   fs_.Create("in", "");
+  fs_.Create("out2", "");
 
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so

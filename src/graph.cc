@@ -276,7 +276,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   if (build_log()) {
     bool generator = edge->GetBindingBool("generator");
     if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
-      if (output->mtime() > entry->mtime) {
+      if (modified_output_is_dirty_ && output->mtime() > entry->mtime) {
         // May also be dirty due to the mtime in the log being older from the
         // actual mtime of the output. This can occur if the output has been
         // modified from a process unrelated to the build system. In that case the
