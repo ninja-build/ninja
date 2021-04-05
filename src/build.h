@@ -135,7 +135,7 @@ private:
 /// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
-  virtual bool CanRunMore() const = 0;
+  virtual size_t CanRunMore() const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
