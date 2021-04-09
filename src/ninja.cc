@@ -136,11 +136,11 @@ struct NinjaMain : public BuildLogUser {
   int ToolWinCodePage(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
-  /// @return LOAD_ERROR on error.
+  /// @return false on error.
   bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
-  /// @return LOAD_ERROR on error.
+  /// @return false on error.
   bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
@@ -894,8 +894,8 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  if (OpenBuildLog(/*recompact_only=*/true) == LOAD_ERROR ||
-      OpenDepsLog(/*recompact_only=*/true) == LOAD_ERROR)
+  if (!OpenBuildLog(/*recompact_only=*/true) ||
+      !OpenDepsLog(/*recompact_only=*/true))
     return 1;
 
   return 0;
