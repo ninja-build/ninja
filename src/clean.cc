@@ -79,6 +79,10 @@ void Cleaner::RemoveEdgeFiles(Edge* edge) {
   if (!depfile.empty())
     Remove(depfile);
 
+  string dynout = edge->GetUnescapedDynout();
+  if (!dynout.empty())
+    Remove(dynout);
+
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);

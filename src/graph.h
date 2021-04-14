@@ -164,6 +164,8 @@ struct Edge {
 
   /// Like GetBinding("depfile"), but without shell escaping.
   std::string GetUnescapedDepfile() const;
+  /// Like GetBinding("dynout"), but without shell escaping.
+  std::string GetUnescapedDynout() const;
   /// Like GetBinding("dyndep"), but without shell escaping.
   std::string GetUnescapedDyndep() const;
   /// Like GetBinding("rspfile"), but without shell escaping.
@@ -243,6 +245,10 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
   bool LoadDeps(Edge* edge, std::string* err);
+  bool LoadImplicitOutputs(Edge* edge, std::string* err);
+  static bool LoadDynOutFile(State* state, DiskInterface* disk_interface,
+                             Edge* edge, const std::string& path,
+                             std::string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -258,7 +264,7 @@ struct ImplicitDepLoader {
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
-
+  
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepsFromLog(Edge* edge, std::string* err);

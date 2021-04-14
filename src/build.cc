@@ -519,6 +519,7 @@ void Builder::Cleanup() {
     for (vector<Edge*>::iterator e = active_edges.begin();
          e != active_edges.end(); ++e) {
       string depfile = (*e)->GetUnescapedDepfile();
+      string dynout = (*e)->GetUnescapedDynout();
       for (vector<Node*>::iterator o = (*e)->outputs_.begin();
            o != (*e)->outputs_.end(); ++o) {
         // Only delete this output if it was actually modified.  This is
@@ -537,6 +538,8 @@ void Builder::Cleanup() {
       }
       if (!depfile.empty())
         disk_interface_->RemoveFile(depfile);
+      if (!dynout.empty())
+        disk_interface_->RemoveFile(dynout);
     }
   }
 }
@@ -723,6 +726,18 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
                      &extract_err) &&
         result->success()) {
+      if (!result->output.empty())
+        result->output.append("\n");
+      result->output.append(extract_err);
+      result->status = ExitFailure;
+    }
+  }
+
+  string dynout = edge->GetUnescapedDynout();
+  if (!dynout.empty()) {
+    string extract_err;
+    if (!ImplicitDepLoader::LoadDynOutFile(state_, disk_interface_, edge, dynout, &extract_err)
+      && result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
