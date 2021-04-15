@@ -292,6 +292,9 @@ _Available since Ninja 1.2._
 `deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
 target, show just the target's dependencies. _Available since Ninja 1.4._
 
+`dynouts`:: show all dynamic outputs stored in the `.ninja_deps` file. When
+given a target, show just the target's outputs.
+
 `missingdeps`:: given a list of targets, look for targets that depend on
 a generated file, but do not have a properly (possibly transitive) dependency
 on the generator.  Such targets may cause build flakiness on clean builds.
@@ -306,6 +309,9 @@ a clean outdir without building any other targets.  The build should fail for
 each of them with a missing include error or equivalent pointing to the
 generated file.
 _Available since Ninja 1.11._
+
+`outputs`:: list all outputs of the build graph. This includes any dynamic
+outputs stored in the deps log.
 
 `recompact`:: recompact the `.ninja_deps` file. _Available since Ninja 1.4._
 
