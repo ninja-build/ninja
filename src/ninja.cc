@@ -125,6 +125,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolBrowse(const Options* options, int argc, char* argv[]);
   int ToolMSVC(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
+  int ToolOutputs(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
@@ -550,6 +551,43 @@ int NinjaMain::ToolMissingDeps(const Options* options, int argc, char** argv) {
   scanner.PrintStats();
   if (scanner.HadMissingDeps())
     return 3;
+  return 0;
+}
+
+int NinjaMain::ToolOutputs(const Options*, int, char*[]) {
+  // Load dyndep files that exist, in order to load dynamic outputs
+  DyndepLoader dyndep_loader(&state_, &disk_interface_);
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    if (Node* dyndep = (*e)->dyndep_) {
+      std::string err;
+      dyndep_loader.LoadDyndeps(dyndep, &err);
+    }
+  }
+
+  std::string err;
+  // Load dynamic outputs which may exist in the deps log
+  DepfileParserOptions depfileOptions;
+  ImplicitDepLoader implicit_dep_loader(&state_, &deps_log_, &disk_interface_,
+                                        &depfileOptions);
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    string dynout = (*e)->GetUnescapedDynout();
+
+    if (!dynout.empty()) {
+      implicit_dep_loader.LoadImplicitOutputs(*e, &err);
+    }
+  }
+
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end(); ++out_node) {
+      printf("%s: %s\n", (*out_node)->path().c_str(),
+             (*e)->rule_->name().c_str());
+    }
+  }
+
   return 0;
 }
 
@@ -1009,6 +1047,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
+    { "outputs", "list all outputs of the build graph, include dynamic outputs if there are and they have been built.",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolOutputs },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
