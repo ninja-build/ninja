@@ -247,7 +247,7 @@ struct ImplicitDepLoader {
   bool LoadDeps(Edge* edge, std::string* err);
   bool LoadImplicitOutputs(Edge* edge, std::string* err);
   static bool LoadDynOutFile(State* state, DiskInterface* disk_interface,
-                             Edge* edge, const std::string& path,
+                             Edge* edge, const std::string& path, std::vector<Node*>* nodes, int* outputs_count,
                              std::string* err);
 
   DepsLog* deps_log() const {
@@ -268,6 +268,8 @@ struct ImplicitDepLoader {
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepsFromLog(Edge* edge, std::string* err);
+
+  bool LoadOutputsFromLog(Edge* edge, std::string* err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
