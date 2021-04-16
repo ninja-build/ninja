@@ -35,7 +35,7 @@ using namespace std;
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 4;
+const int kCurrentVersion = 5;
 
 // Record size is currently limited to less than the full 32 bit, due to
 // internal buffers having to have this size.
