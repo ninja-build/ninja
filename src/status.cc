@@ -237,6 +237,11 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
+  // If the user supplies an empty value for NINJA_STATUS, print nothing.
+  size_t progress_status_format_len = strlen(progress_status_format_);
+  if (progress_status_format_len == 0 && !force_full_command)
+    return;
+
   to_print = FormatProgressStatus(progress_status_format_, time_millis)
       + to_print;
 

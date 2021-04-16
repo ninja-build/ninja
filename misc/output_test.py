@@ -48,6 +48,15 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
+    BUILD_SIMPLE_ECHO = '\n'.join((
+        'rule echo',
+        '  command = printf "do thing"',
+        '  description = echo $out',
+        '',
+        'build a: echo',
+        ''
+    ))
+
     def test_issue_1418(self):
         self.assertEqual(run(
 '''rule echo
@@ -110,6 +119,24 @@ red
 
     def test_status(self):
         self.assertEqual(run(''), 'ninja: no work to do.\n')
+
+    def test_ninja_status_unpopulated(self):
+        'Do we show the default status without NINJA_STATUS set?'
+        self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1/1] echo a\x1b[K\ndo thing\n')
+
+    def test_ninja_status_populated(self):
+        'Do we show the specified NINJA_STATUS?'
+        output = run(Output.BUILD_SIMPLE_ECHO, env={
+            'NINJA_STATUS': 'status: ',
+        })
+        self.assertEqual(output, 'status: echo a\ndo thing\n')
+
+    def test_ninja_status_suppressed(self):
+        'Do we suppress all status output when NINJA_STATUS is empty?'
+        output = run(Output.BUILD_SIMPLE_ECHO, env={
+            'NINJA_STATUS': '',
+        })
+        self.assertEqual(output, 'do thing\n')
 
 if __name__ == '__main__':
     unittest.main()
