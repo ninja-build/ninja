@@ -537,4 +537,25 @@ TEST_F(CleanDeadTest, CleanDead) {
   EXPECT_NE(0, fs_.Stat("out2", &err));
   log2.Close();
 }
+
+TEST_F(CleanTest, CleanDynamicOutputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp\n"
+"  command = cp $in $out && cp $in $out.bis\n"
+"  dynout = $oud.dynout"
+"build out: cp in\n"
+));
+  fs_.Create("out", "");
+  fs_.Create("out.bis", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(0, fs_.Stat("out.bis", &err));
+}
+
 }  // anonymous namespace

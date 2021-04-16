@@ -609,6 +609,16 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content);
+  } else if (edge->rule().name() == "cp-plus-bis") {
+    assert(!edge->inputs_.empty());
+    assert(edge->outputs_.size() >= 1);
+    string content;
+    string err;
+    if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
+        DiskInterface::Okay) {
+      fs_->WriteFile(edge->outputs_[0]->path(), content);
+      fs_->WriteFile(edge->outputs_[0]->path() + ".bis", content);
+    }
   } else if (edge->rule().name() == "touch-implicit-dep-out") {
     string dep = edge->GetBinding("test_dependency");
     fs_->Create(dep, "");
@@ -3525,4 +3535,54 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   EXPECT_EQ("touch in", command_runner_.commands_ran_[2]);
   EXPECT_EQ("touch tmp", command_runner_.commands_ran_[3]);
   EXPECT_EQ("touch out", command_runner_.commands_ran_[4]);
+}
+
+TEST_F(BuildTest, RebuildMissingDynamicOutputs) {
+  string err;
+
+  FakeCommandRunner command_runner(&fs_);
+  BuildLog build_log;
+  State state;
+  DepsLog deps_log;
+  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+  ASSERT_EQ("", err);
+  Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+  builder.command_runner_.reset(&command_runner);
+  
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
+"rule cp-plus-bis\n"
+"  command = cp $in $out && cp $in $out.bis\n"
+"  dynout = $out.dynout\n"
+"build out: cp-plus-bis in\n"
+));
+  
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Create("out.dynout", "out.bis\n");
+
+  // foo.o and order-only dep dirty, build both.
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner.commands_ran_.size());
+  ASSERT_GT(fs_.Stat("out", &err), 0);
+  ASSERT_GT(fs_.Stat("out.bis", &err), 0);
+
+  // all clean, no rebuild.
+  command_runner.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder.AlreadyUpToDate());
+
+  // order-only dep missing, build it only.
+  fs_.RemoveFile("out.bis");
+  command_runner.commands_ran_.clear();
+  state.Reset();
+  EXPECT_TRUE(builder.AddTarget("out", &err));
+  EXPECT_TRUE(builder.Build(&err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(1u, command_runner.commands_ran_.size());
+
+  builder.command_runner_.release();
 }
