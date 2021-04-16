@@ -1047,7 +1047,7 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
-    { "outputs", "list all outputs of the build graph, include dynamic outputs if there are and they have been built.",
+    { "outputs", "list all outputs of the build graph, include dynamic outputs if there are any and they have been built.",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolOutputs },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
@@ -1265,7 +1265,7 @@ void NinjaMain::DumpMetrics() {
 
 bool NinjaMain::EnsureBuildDirExists() {
   build_dir_ = state_.bindings_.LookupVariable("builddir");
-   if (!build_dir_.empty() && !config_.dry_run) {
+  if (!build_dir_.empty() && !config_.dry_run) {
     if (!disk_interface_.MakeDirs(build_dir_ + "/.") && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir_.c_str(), strerror(errno));
