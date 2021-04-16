@@ -18,6 +18,8 @@
 #include "debug_flags.h"
 #include "metrics.h"
 
+#include <errno.h>
+
 using namespace std;
 
 namespace {
@@ -127,5 +129,13 @@ METRIC_RECORD("dynout load");
 
   nodes->insert(nodes->end(), implicit_outputs.begin(), implicit_outputs.end());
   *outputs_count = (int) implicit_outputs.size();
+
+  
+  if (!g_keep_dynout) {
+    if (disk_interface->RemoveFile(path) < 0) {
+      *err = string("deleting dynout: ") + strerror(errno) + string("\n");
+      return false;
+    }
+  }
   return true;
 }

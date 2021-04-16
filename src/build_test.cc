@@ -3560,13 +3560,16 @@ TEST_F(BuildTest, RebuildMissingDynamicOutputs) {
   fs_.Create("in", "");
   fs_.Create("out.dynout", "out.bis\n");
 
-  // foo.o and order-only dep dirty, build both.
   EXPECT_TRUE(builder.AddTarget("out", &err));
   EXPECT_TRUE(builder.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner.commands_ran_.size());
   ASSERT_GT(fs_.Stat("out", &err), 0);
   ASSERT_GT(fs_.Stat("out.bis", &err), 0);
+  // Make sure the dynout file has been removed after its
+  // information has been extracted in the deps log.
+  ASSERT_EQ(fs_.Stat("out.dynout", &err), 0);
+
 
   // all clean, no rebuild.
   command_runner.commands_ran_.clear();
@@ -3575,14 +3578,20 @@ TEST_F(BuildTest, RebuildMissingDynamicOutputs) {
   EXPECT_EQ("", err);
   EXPECT_TRUE(builder.AlreadyUpToDate());
 
-  // order-only dep missing, build it only.
   fs_.RemoveFile("out.bis");
   command_runner.commands_ran_.clear();
   state.Reset();
+
+  // Recreate the dynout file because it is not created by the edge
+  fs_.Create("out.dynout", "out.bis\n");
   EXPECT_TRUE(builder.AddTarget("out", &err));
   EXPECT_TRUE(builder.Build(&err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner.commands_ran_.size());
+
+  // Make sure the dynout file has been removed after its
+  // information has been extracted in the deps log.
+  ASSERT_EQ(fs_.Stat("out.dynout", &err), 0);
 
   builder.command_runner_.release();
 

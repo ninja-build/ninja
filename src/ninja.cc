@@ -1118,6 +1118,9 @@ bool DebugEnable(const string& name) {
   } else if (name == "keepdepfile") {
     g_keep_depfile = true;
     return true;
+  } else if (name == "keepdynout") {
+    g_keep_dynout = true;
+    return true;
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
