@@ -211,6 +211,9 @@ The default progress status is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
 
+If `NINJA_STATUS` is set to an empty string then all progress status
+information will be suppressed.
+
 Extra tools
 ~~~~~~~~~~~
 
