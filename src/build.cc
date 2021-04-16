@@ -30,6 +30,7 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "dynout_parser.h"
 #include "graph.h"
 #include "metrics.h"
 #include "state.h"
@@ -737,7 +738,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   string dynout = edge->GetUnescapedDynout();
   if (!dynout.empty()) {
     string extract_err;
-    if (!ImplicitDepLoader::LoadDynOutFile(state_, disk_interface_, edge, dynout, &deps_nodes, &outputs_count, &extract_err)
+    if (!DynoutParser::Parse(state_, disk_interface_, edge, dynout, &deps_nodes, &outputs_count, &extract_err)
       && result->success()) {
       if (!result->output.empty())
         result->output.append("\n");

@@ -246,9 +246,6 @@ struct ImplicitDepLoader {
   //                          or out of date).
   bool LoadDeps(Edge* edge, std::string* err);
   bool LoadImplicitOutputs(Edge* edge, std::string* err);
-  static bool LoadDynOutFile(State* state, DiskInterface* disk_interface,
-                             Edge* edge, const std::string& path, std::vector<Node*>* nodes, int* outputs_count,
-                             std::string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
