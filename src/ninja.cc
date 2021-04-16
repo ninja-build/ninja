@@ -788,7 +788,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -800,7 +800,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
 }
 
 int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   return cleaner.CleanDead(build_log_.entries());
 }
 
@@ -1034,7 +1034,7 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolMSVC },
 #endif
     { "clean", "clean built files",
-      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "deps", "show dependencies stored in the deps log",

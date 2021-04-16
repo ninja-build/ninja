@@ -31,7 +31,8 @@ struct Cleaner {
   /// Build a cleaner object with the given @a disk_interface
   Cleaner(State* state,
           const BuildConfig& config,
-          DiskInterface* disk_interface);
+          DiskInterface* disk_interface,
+          DepsLog* deps_log);
 
   /// Clean the given @a target and all the file built for it.
   /// @return non-zero if an error occurs.
@@ -98,6 +99,9 @@ struct Cleaner {
   /// Load dependencies from dyndep bindings.
   void LoadDyndeps();
 
+  /// Load dynamic outputs from deps log.
+  void LoadDynamicOutputs();
+
   State* state_;
   const BuildConfig& config_;
   DyndepLoader dyndep_loader_;
@@ -105,6 +109,7 @@ struct Cleaner {
   std::set<Node*> cleaned_;
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
+  DepsLog* deps_log_;
   int status_;
 };
 
