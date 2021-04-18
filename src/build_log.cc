@@ -41,8 +41,6 @@
 #define strtoll _strtoi64
 #endif
 
-using namespace std;
-
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
@@ -112,10 +110,10 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return MurmurHash64A(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const string& output)
+BuildLog::LogEntry::LogEntry(const std::string& output)
   : output(output) {}
 
-BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
+BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
   int start_time, int end_time, TimeStamp restat_mtime)
   : output(output), command_hash(command_hash),
     start_time(start_time), end_time(end_time), mtime(restat_mtime)
@@ -128,8 +126,8 @@ BuildLog::~BuildLog() {
   Close();
 }
 
-bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
-                            string* err) {
+bool BuildLog::OpenForWrite(const std::string& path, const BuildLogUser& user,
+                            std::string* err) {
   if (needs_recompaction_) {
     if (!Recompact(path, user, err))
       return false;
@@ -143,11 +141,11 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
-  string command = edge->EvaluateCommand(true);
+  std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
+  for (std::vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->path();
+    const std::string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
     if (i != entries_.end()) {
@@ -258,7 +256,7 @@ struct LineReader {
   char* line_end_;
 };
 
-LoadStatus BuildLog::Load(const string& path, string* err) {
+LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
@@ -325,7 +323,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
     if (!end)
       continue;
-    string output = string(start, end - start);
+    std::string output = std::string(start, end - start);
 
     start = end + 1;
     end = line_end;
@@ -374,7 +372,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
     return i->second;
@@ -387,12 +385,12 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
-bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
-                         string* err) {
+bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
+                         std::string* err) {
   METRIC_RECORD(".ninja_log recompact");
 
   Close();
-  string temp_path = path + ".recompact";
+  std::string temp_path = path + ".recompact";
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
@@ -405,7 +403,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     return false;
   }
 
-  vector<StringPiece> dead_outputs;
+  std::vector<StringPiece> dead_outputs;
   for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
     if (user.IsPathDead(i->first)) {
       dead_outputs.push_back(i->first);

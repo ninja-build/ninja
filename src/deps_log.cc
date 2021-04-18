@@ -30,8 +30,6 @@ typedef unsigned __int32 uint32_t;
 #include "state.h"
 #include "util.h"
 
-using namespace std;
-
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
@@ -45,7 +43,7 @@ DepsLog::~DepsLog() {
   Close();
 }
 
-bool DepsLog::OpenForWrite(const string& path, string* err) {
+bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
   if (needs_recompaction_) {
     if (!Recompact(path, err))
       return false;
@@ -58,7 +56,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         const vector<Node*>& nodes) {
+                         const std::vector<Node*>& nodes) {
   return RecordDeps(node, mtime, nodes.size(),
                     nodes.empty() ? NULL : (Node**)&nodes.front());
 }
@@ -149,7 +147,7 @@ void DepsLog::Close() {
   file_ = NULL;
 }
 
-LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
+LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
   FILE* f = fopen(path.c_str(), "rb");
@@ -295,11 +293,11 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   return deps_[node->id()];
 }
 
-bool DepsLog::Recompact(const string& path, string* err) {
+bool DepsLog::Recompact(const std::string& path, std::string* err) {
   METRIC_RECORD(".ninja_deps recompact");
 
   Close();
-  string temp_path = path + ".recompact";
+  std::string temp_path = path + ".recompact";
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
   // left-over file from a previous recompaction attempt that crashed somehow.
@@ -311,7 +309,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   // Clear all known ids so that new ones can be reassigned.  The new indices
   // will refer to the ordering in new_log, not in the current log.
-  for (vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
+  for (std::vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
     (*i)->set_id(-1);
 
   // Write out all deps again.

@@ -19,23 +19,21 @@
 #include "util.h"
 #include "metrics.h"
 
-using namespace std;
-
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     printf("usage: %s <file1> <file2...>\n", argv[0]);
     return 1;
   }
 
-  vector<float> times;
+  std::vector<float> times;
   for (int i = 1; i < argc; ++i) {
     const char* filename = argv[i];
 
     for (int limit = 1 << 10; limit < (1<<20); limit *= 2) {
       int64_t start = GetTimeMillis();
       for (int rep = 0; rep < limit; ++rep) {
-        string buf;
-        string err;
+        std::string buf;
+        std::string err;
         if (ReadFile(filename, &buf, &err) < 0) {
           printf("%s: %s\n", filename, err.c_str());
           return 1;

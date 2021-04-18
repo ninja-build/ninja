@@ -19,8 +19,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-using namespace std;
-
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);
 }
@@ -38,13 +36,13 @@ int main() {
 
   // Leak these, else 10% of the runtime is spent destroying strings.
   char** commands = new char*[N];
-  pair<uint64_t, int>* hashes = new pair<uint64_t, int>[N];
+  std::pair<uint64_t, int>* hashes = new std::pair<uint64_t, int>[N];
 
   srand((int)time(NULL));
 
   for (int i = 0; i < N; ++i) {
     RandomCommand(&commands[i]);
-    hashes[i] = make_pair(BuildLog::LogEntry::HashCommand(commands[i]), i);
+    hashes[i] = std::make_pair(BuildLog::LogEntry::HashCommand(commands[i]), i);
   }
 
   sort(hashes, hashes + N);

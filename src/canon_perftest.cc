@@ -18,15 +18,13 @@
 #include "util.h"
 #include "metrics.h"
 
-using namespace std;
-
 const char kPath[] =
     "../../third_party/WebKit/Source/WebCore/"
     "platform/leveldb/LevelDBWriteBatch.cpp";
 
 int main() {
-  vector<int> times;
-  string err;
+  std::vector<int> times;
+  std::string err;
 
   char buf[200];
   size_t len = strlen(kPath);

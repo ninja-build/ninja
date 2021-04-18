@@ -24,8 +24,6 @@
 
 #include "debug_flags.h"
 
-using namespace std;
-
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
@@ -59,7 +57,7 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                      bool success, const string& output) {
+                                      bool success, const std::string& output) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
 
@@ -76,8 +74,8 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
 
   // Print the command that is spewing before printing its output.
   if (!success) {
-    string outputs;
-    for (vector<Node*>::const_iterator o = edge->outputs_.begin();
+    std::string outputs;
+    for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
@@ -101,7 +99,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    string final_output;
+    std::string final_output;
     if (!printer_.supports_color())
       final_output = StripAnsiEscapeCodes(output);
     else
@@ -145,9 +143,9 @@ void StatusPrinter::BuildFinished() {
   printer_.PrintOnNewLine("");
 }
 
-string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
-                                           int64_t time_millis) const {
-  string out;
+std::string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
+                                                int64_t time_millis) const {
+  std::string out;
   char buf[32];
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
     if (*s == '%') {
@@ -233,7 +231,7 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
 
-  string to_print = edge->GetBinding("description");
+  std::string to_print = edge->GetBinding("description");
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 

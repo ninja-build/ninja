@@ -24,8 +24,6 @@
 #include "state.h"
 #include "util.h"
 
-using namespace std;
-
 bool DyndepLoader::LoadDyndeps(Node* node, std::string* err) const {
   DyndepFile ddf;
   return LoadDyndeps(node, &ddf, err);

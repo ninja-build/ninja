@@ -22,8 +22,6 @@
 #include "state.h"
 #include "util.h"
 
-using namespace std;
-
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
@@ -35,25 +33,25 @@ Cleaner::Cleaner(State* state,
     status_(0) {
 }
 
-int Cleaner::RemoveFile(const string& path) {
+int Cleaner::RemoveFile(const std::string& path) {
   return disk_interface_->RemoveFile(path);
 }
 
-bool Cleaner::FileExists(const string& path) {
-  string err;
+bool Cleaner::FileExists(const std::string& path) {
+  std::string err;
   TimeStamp mtime = disk_interface_->Stat(path, &err);
   if (mtime == -1)
     Error("%s", err.c_str());
   return mtime > 0;  // Treat Stat() errors as "file does not exist".
 }
 
-void Cleaner::Report(const string& path) {
+void Cleaner::Report(const std::string& path) {
   ++cleaned_files_count_;
   if (IsVerbose())
     printf("Remove %s\n", path.c_str());
 }
 
-void Cleaner::Remove(const string& path) {
+void Cleaner::Remove(const std::string& path) {
   if (!IsAlreadyRemoved(path)) {
     removed_.insert(path);
     if (config_.dry_run) {
@@ -69,17 +67,17 @@ void Cleaner::Remove(const string& path) {
   }
 }
 
-bool Cleaner::IsAlreadyRemoved(const string& path) {
-  set<string>::iterator i = removed_.find(path);
+bool Cleaner::IsAlreadyRemoved(const std::string& path) {
+  std::set<std::string>::iterator i = removed_.find(path);
   return (i != removed_.end());
 }
 
 void Cleaner::RemoveEdgeFiles(Edge* edge) {
-  string depfile = edge->GetUnescapedDepfile();
+  std::string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
     Remove(depfile);
 
-  string rspfile = edge->GetUnescapedRspfile();
+  std::string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
 }
@@ -105,7 +103,7 @@ int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   LoadDyndeps();
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
     if ((*e)->is_phony())
@@ -113,7 +111,7 @@ int Cleaner::CleanAll(bool generator) {
     // Do not remove generator's files unless generator specified.
     if (!generator && (*e)->GetBindingBool("generator"))
       continue;
-    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+    for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
          out_node != (*e)->outputs_.end(); ++out_node) {
       Remove((*out_node)->path());
     }
@@ -144,7 +142,7 @@ void Cleaner::DoCleanTarget(Node* target) {
       Remove(target->path());
       RemoveEdgeFiles(e);
     }
-    for (vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
+    for (std::vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
          ++n) {
       Node* next = *n;
       // call DoCleanTarget recursively if this node has not been visited
@@ -188,9 +186,9 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   PrintHeader();
   LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
-    string target_name = targets[i];
+    std::string target_name = targets[i];
     uint64_t slash_bits;
-    string err;
+    std::string err;
     if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
       Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
       status_ = 1;
@@ -213,10 +211,10 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
 void Cleaner::DoCleanRule(const Rule* rule) {
   assert(rule);
 
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if ((*e)->rule().name() == rule->name()) {
-      for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+      for (std::vector<Node*>::iterator out_node = (*e)->outputs_.begin();
            out_node != (*e)->outputs_.end(); ++out_node) {
         Remove((*out_node)->path());
         RemoveEdgeFiles(*e);
@@ -281,7 +279,7 @@ void Cleaner::Reset() {
 
 void Cleaner::LoadDyndeps() {
   // Load dyndep files that exist, before they are cleaned.
-  for (vector<Edge*>::iterator e = state_->edges_.begin();
+  for (std::vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     if (Node* dyndep = (*e)->dyndep_) {
       // Capture and ignore errors loading the dyndep file.
