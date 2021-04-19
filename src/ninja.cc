@@ -1103,6 +1103,7 @@ bool DebugEnable(const string& name) {
 "  stats        print operation counts/timing info\n"
 "  explain      explain what caused a command to execute\n"
 "  keepdepfile  don't delete depfiles after they're read by ninja\n"
+"  keepdynout   don't delete dynout files after they're read by ninja\n"
 "  keeprsp      don't delete @response files on success\n"
 #ifdef _WIN32
 "  nostatcache  don't batch stat() calls per directory and cache them\n"
@@ -1130,7 +1131,7 @@ bool DebugEnable(const string& name) {
   } else {
     const char* suggestion =
         SpellcheckString(name.c_str(),
-                         "stats", "explain", "keepdepfile", "keeprsp",
+                         "stats", "explain", "keepdepfile", "keepdynout", "keeprsp",
                          "nostatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",

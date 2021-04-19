@@ -51,10 +51,8 @@ METRIC_RECORD("dynout load");
     *err = "loading '" + path + "': " + *err;
     return false;
   }
-  // On a missing depfile: return false and empty *err.
   if (content.empty()) {
-    EXPLAIN("dynout '%s' is missing", path.c_str());
-    return false;
+    return true;
   }
 
   vector<string> output_paths;
@@ -63,7 +61,7 @@ METRIC_RECORD("dynout load");
   size_t next = find_newline(content, pos);
   while (next != std::string::npos) {
     if (next > pos) {
-      output_paths.push_back(content.substr(pos, next));
+      output_paths.push_back(content.substr(pos, next - pos));
     }
     pos = next + 1;
     next = find_newline(content, pos);
@@ -97,9 +95,6 @@ METRIC_RECORD("dynout load");
       }
     }
     if (!exist) {
-      if (!new_node->StatIfNecessary(disk_interface, err)) {
-        return false;
-      }
       implicit_outputs.push_back(new_node);
     }
   }
