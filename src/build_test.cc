@@ -1494,6 +1494,55 @@ TEST_F(BuildWithModifiedOutputDirtyAndLogTest, RebuildIfOutputIsModified) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+
+TEST_F(BuildWithModifiedOutputDirtyAndLogTest, DoNotRebuildMultipleOutputEdgeWithRestat) {
+  string err;
+
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_,
+                  "rule true\n"
+                  "  command = true $in\n"
+                  "  restat = 1\n"
+                  "build out | out.bis: true in\n"));
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+  fs_.Create("out.bis", "");
+  fs_.Tick();
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  state_.Reset();
+  command_runner_.commands_ran_.clear();
+
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  state_.Reset();
+  command_runner_.commands_ran_.clear();
+
+  // In this situation 'out.bis' should have been restat, its mtime
+  // will be older than 'in'. 'out' will have its mtime more
+  // recent than 'in'. We wanna check than ninja will not try to
+  // rebuild anything it this tricky situation.
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_EQ(0u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule true\n"

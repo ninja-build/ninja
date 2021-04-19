@@ -794,7 +794,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
 
-      output_mtime = restat_mtime;
+      if (restat_mtime > output_mtime)
+        output_mtime = restat_mtime;
     }
   }
 
