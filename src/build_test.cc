@@ -897,6 +897,14 @@ TEST_F(BuildTest, MissingTarget) {
   EXPECT_EQ("unknown target: 'meow'", err);
 }
 
+TEST_F(BuildTest, MissingInputTarget) {
+  // Target is a missing input file
+  string err;
+  Dirty("in1");
+  EXPECT_FALSE(builder_.AddTarget("in1", &err));
+  EXPECT_EQ("'in1' missing and no known rule to make it", err);
+}
+
 TEST_F(BuildTest, MakeDirs) {
   string err;
 

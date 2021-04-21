@@ -556,13 +556,13 @@ bool Builder::AddTarget(Node* target, string* err) {
   if (!scan_.RecomputeDirty(target, err))
     return false;
 
-  if (Edge* in_edge = target->in_edge()) {
-    if (in_edge->outputs_ready())
-      return true;  // Nothing to do.
+  Edge* in_edge = target->in_edge();
+  if (!in_edge || !in_edge->outputs_ready()) {
+    if (!plan_.AddTarget(target, err)) {
+      return false;
+    }
   }
 
-  if (!plan_.AddTarget(target, err))
-    return false;
 
   return true;
 }
