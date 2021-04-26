@@ -204,7 +204,11 @@ Several placeholders are available:
 `%o`:: Overall rate of finished edges per second
 `%c`:: Current rate of finished edges per second (average over builds
 specified by `-j` or its default)
-`%e`:: Elapsed time in seconds.  _(Available since Ninja 1.2.)_
+`%e`:: Elapsed time in seconds. _(Available since Ninja 1.2.)_
+`%E`:: Remaining time (ETA) in seconds. _(Available since Ninja 1.12.)_
+`%w`:: Elapsed time in [h:]mm:ss format. _(Available since Ninja 1.12.)_
+`%W`:: Remaining time (ETA) in [h:]mm:ss format. _(Available since Ninja 1.12.)_
+`%P`:: The percentage (in ppp% format) of time elapsed out of predicted total runtime. _(Available since Ninja 1.12.)_
 `%%`:: A plain `%` character.
 
 The default progress status is `"[%f/%t] "` (note the trailing space

@@ -250,6 +250,10 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
+
+  // Historical info: how long did this edge take last time,
+  // as per .ninja_log, if known? Defaults to -1 if unknown.
+  int64_t prev_elapsed_time_millis = -1;
 };
 
 struct EdgeCmp {

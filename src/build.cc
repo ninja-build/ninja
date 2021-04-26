@@ -144,8 +144,11 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
 
 void Plan::EdgeWanted(const Edge* edge) {
   ++wanted_edges_;
-  if (!edge->is_phony())
+  if (!edge->is_phony()) {
     ++command_edges_;
+    if (builder_)
+      builder_->status_->EdgeAddedToPlan(edge);
+  }
 }
 
 Edge* Plan::FindWork() {
@@ -294,8 +297,11 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 
         want_e->second = kWantNothing;
         --wanted_edges_;
-        if (!(*oe)->is_phony())
+        if (!(*oe)->is_phony()) {
           --command_edges_;
+          if (builder_)
+            builder_->status_->EdgeRemovedFromPlan(*oe);
+        }
       }
     }
   }
@@ -607,7 +613,6 @@ bool Builder::AlreadyUpToDate() const {
 bool Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
 
-  status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
   int failures_allowed = config_.failures_allowed;
 
@@ -780,8 +785,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   end_time_millis = GetTimeMillis() - start_time_millis_;
   running_edges_.erase(it);
 
-  status_->BuildEdgeFinished(edge, end_time_millis, result->success(),
-                             result->output);
+  status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
+                             result->success(), result->output);
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
@@ -821,10 +826,6 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
     if (node_cleaned) {
       record_mtime = edge->command_start_time_;
-
-      // The total number of edges in the plan may have changed as a result
-      // of a restat.
-      status_->PlanHasTotalEdges(plan_.command_edge_count());
     }
   }
 
@@ -937,9 +938,6 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
   // Update the build plan to account for dyndep modifications to the graph.
   if (!plan_.DyndepsLoaded(&scan_, node, ddf, err))
     return false;
-
-  // New command edges may have been added to the plan.
-  status_->PlanHasTotalEdges(plan_.command_edge_count());
 
   return true;
 }

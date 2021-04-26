@@ -2197,11 +2197,28 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
-TEST_F(BuildTest, StatusFormatElapsed) {
+TEST_F(BuildTest, StatusFormatElapsed_e) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
-  EXPECT_EQ("[%/e0.000]",
-            status_.FormatProgressStatus("[%%/e%e]", 0));
+  EXPECT_EQ("[%/e0.000]", status_.FormatProgressStatus("[%%/e%e]", 0));
+}
+
+TEST_F(BuildTest, StatusFormatElapsed_w) {
+  status_.BuildStarted();
+  // Before any task is done, the elapsed time must be zero.
+  EXPECT_EQ("[%/e00:00]", status_.FormatProgressStatus("[%%/e%w]", 0));
+}
+
+TEST_F(BuildTest, StatusFormatETA) {
+  status_.BuildStarted();
+  // Before any task is done, the ETA time must be unknown.
+  EXPECT_EQ("[%/E?]", status_.FormatProgressStatus("[%%/E%E]", 0));
+}
+
+TEST_F(BuildTest, StatusFormatTimeProgress) {
+  status_.BuildStarted();
+  // Before any task is done, the percentage of elapsed time must be zero.
+  EXPECT_EQ("[%/p  0%]", status_.FormatProgressStatus("[%%/p%p]", 0));
 }
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
