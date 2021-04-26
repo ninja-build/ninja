@@ -148,7 +148,8 @@ struct Edge {
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
         id_(0), outputs_ready_(false), deps_loaded_(false),
         deps_missing_(false), generated_by_dep_loader_(false),
-        implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
+        implicit_deps_(0), order_only_deps_(0), implicit_outs_(0),
+        prev_elapsed_time(-1) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -220,6 +221,10 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
+
+  // Historical info: how long did this edge take last time,
+  // as per .ninja_log, if known? Defaults to -1 if unknown.
+  int64_t prev_elapsed_time;
 };
 
 struct EdgeCmp {

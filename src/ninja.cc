@@ -152,6 +152,10 @@ struct NinjaMain : public BuildLogUser {
   /// @return true if the manifest was rebuilt.
   bool RebuildManifest(const char* input_file, string* err, Status* status);
 
+  /// For each edge, lookup in build log how long it took last time,
+  /// and record that in the edge itself. It will be used for ETA predicton.
+  void ParsePreviousElapsedTimes();
+
   /// Build the targets listed on the command line.
   /// @return an exit code.
   int RunBuild(int argc, char** argv, Status* status);
@@ -279,6 +283,22 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   }
 
   return true;
+}
+
+void NinjaMain::ParsePreviousElapsedTimes() {
+  for (vector<Edge*>::iterator edge = state_.edges_.begin(),
+                               edge_end = state_.edges_.end();
+       edge != edge_end; ++edge) {
+    for (vector<Node*>::iterator out = (*edge)->outputs_.begin(),
+                                 out_end = (*edge)->outputs_.end();
+         out != out_end; ++out) {
+      BuildLog::LogEntry* log_entry = build_log_.LookupByOutput((*out)->path());
+      if (!log_entry)
+        continue;  // Maybe we'll have log entry for next output of this edge?
+      (*edge)->prev_elapsed_time = log_entry->end_time - log_entry->start_time;
+      break;  // Onto next edge.
+    }
+  }
 }
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
@@ -1471,6 +1491,8 @@ NORETURN void real_main(int argc, char** argv) {
       status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
     }
+
+    ninja.ParsePreviousElapsedTimes();
 
     int result = ninja.RunBuild(argc, argv, status);
     if (g_metrics)
