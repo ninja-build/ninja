@@ -3541,63 +3541,105 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
 
 TEST_F(BuildTest, RebuildMissingDynamicOutputs) {
   string err;
-
-  FakeCommandRunner command_runner(&fs_);
   BuildLog build_log;
-  State state;
-  DepsLog deps_log;
-  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
-  ASSERT_EQ("", err);
-  Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
-  builder.command_runner_.reset(&command_runner);
   
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state,
-"rule cp-plus-bis\n"
-"  command = cp $in $out && cp $in $out.bis\n"
-"  dynout = $out.dynout\n"
-"build out: cp-plus-bis in\n"
-));
-  
-  fs_.Tick();
-  fs_.Create("in", "");
-  fs_.Create("out.dynout", "out.bis\n");
+  {
+    FakeCommandRunner command_runner(&fs_);
+    State state;
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner);
 
-  EXPECT_TRUE(builder.AddTarget("out", &err));
-  EXPECT_TRUE(builder.Build(&err));
-  ASSERT_EQ("", err);
-  ASSERT_EQ(1u, command_runner.commands_ran_.size());
-  ASSERT_GT(fs_.Stat("out", &err), 0);
-  ASSERT_GT(fs_.Stat("out.bis", &err), 0);
-  // Make sure the dynout file has been removed after its
-  // information has been extracted in the deps log.
-  ASSERT_EQ(fs_.Stat("out.dynout", &err), 0);
+    ASSERT_NO_FATAL_FAILURE(
+        AssertParse(&state,
+                    "rule cp-plus-bis\n"
+                    "  command = cp $in $out && cp $in $out.bis\n"
+                    "  dynout = $out.dynout\n"
+                    "build out: cp-plus-bis in\n"));
 
+    fs_.Tick();
+    fs_.Create("in", "");
+    fs_.Create("out.dynout", "out.bis\n");
 
-  // all clean, no rebuild.
-  command_runner.commands_ran_.clear();
-  state.Reset();
-  EXPECT_TRUE(builder.AddTarget("out", &err));
-  EXPECT_EQ("", err);
-  EXPECT_TRUE(builder.AlreadyUpToDate());
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    EXPECT_TRUE(builder.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner.commands_ran_.size());
+    ASSERT_GT(fs_.Stat("out", &err), 0);
+    ASSERT_GT(fs_.Stat("out.bis", &err), 0);
+    // Make sure the dynout file has been removed after its
+    // information has been extracted in the deps log.
+    ASSERT_EQ(fs_.Stat("out.dynout", &err), 0);
 
-  fs_.RemoveFile("out.bis");
-  command_runner.commands_ran_.clear();
-  state.Reset();
+    // all clean, no rebuild.
+    command_runner.commands_ran_.clear();
+    state.Reset();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    EXPECT_EQ("", err);
+    EXPECT_TRUE(builder.AlreadyUpToDate());
 
-  // Recreate the dynout file because it is not created by the edge
-  fs_.Create("out.dynout", "out.bis\n");
-  EXPECT_TRUE(builder.AddTarget("out", &err));
-  EXPECT_TRUE(builder.Build(&err));
-  ASSERT_EQ("", err);
-  ASSERT_EQ(1u, command_runner.commands_ran_.size());
+    // Test dynamic output are rebuilt if they are deleted.
+    fs_.RemoveFile("out.bis");
+    command_runner.commands_ran_.clear();
+    state.Reset();
 
-  // Make sure the dynout file has been removed after its
-  // information has been extracted in the deps log.
-  ASSERT_EQ(fs_.Stat("out.dynout", &err), 0);
+    fs_.Create("out.dynout", "out.bis\n");
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    EXPECT_TRUE(builder.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner.commands_ran_.size());
+     
+    builder.command_runner_.release();
+    deps_log.Close();
+  }
 
-  builder.command_runner_.release();
+  // Create a new state to make sure outputs are reset
+  {
+    FakeCommandRunner command_runner(&fs_);
+    State state;
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+    deps_log.Load("ninja_deps", &state, &err);
+    ASSERT_EQ("", err);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner);
 
-  deps_log.Close();
+    ASSERT_NO_FATAL_FAILURE(
+        AssertParse(&state,
+                    "rule cp-plus-bis\n"
+                    "  command = cp $in $out && cp $in $out.bis\n"
+                    "  dynout = $out.dynout\n"
+                    "build out: cp-plus-bis in\n"));
+    
+    // all clean, no rebuild.
+    command_runner.commands_ran_.clear();
+    state.Reset();
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    EXPECT_EQ("", err);
+    EXPECT_TRUE(builder.AlreadyUpToDate());
+
+    // Test dynamic output are rebuilt if they are deleted
+    // after having been rebuilt in order to make sure
+    // when dynamic output information was already exist they
+    // keep being valid for the next build.
+    fs_.RemoveFile("out.bis");
+    command_runner.commands_ran_.clear();
+    state.Reset();
+
+    // Recreate the dynout file because it is not created by the edge
+    fs_.Create("out.dynout", "out.bis\n");
+    EXPECT_TRUE(builder.AddTarget("out", &err));
+    EXPECT_TRUE(builder.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner.commands_ran_.size());
+
+    builder.command_runner_.release();
+    deps_log.Close();
+  }
+
   RealDiskInterface disk_interface;
   disk_interface.RemoveFile("ninja_deps");
 }
