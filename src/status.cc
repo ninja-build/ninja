@@ -228,7 +228,8 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 }
 
 void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
-  if (config_.verbosity == BuildConfig::QUIET)
+  if (config_.verbosity == BuildConfig::QUIET
+      || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
