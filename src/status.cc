@@ -49,7 +49,7 @@ void StatusPrinter::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void StatusPrinter::BuildEdgeStarted(Edge* edge,
+void StatusPrinter::BuildEdgeStarted(const Edge* edge,
                                      int64_t start_time_millis) {
   ++started_edges_;
   ++running_edges_;
@@ -80,7 +80,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
     }
   }
 
-  if (!edge->status_printed_ && printStatus)
+  if (!edge->use_console() && printStatus)
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -238,7 +238,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
   return out;
 }
 
-void StatusPrinter::PrintStatus(Edge* edge, int64_t time_millis) {
+void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (config_.verbosity == BuildConfig::QUIET
       || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
@@ -256,7 +256,6 @@ void StatusPrinter::PrintStatus(Edge* edge, int64_t time_millis) {
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 
   terse_status_time_millis_ = time_millis;
-  edge->status_printed_ = true;
 }
 
 void StatusPrinter::Warning(const char* msg, ...) {
