@@ -147,7 +147,7 @@ struct Edge {
   Edge()
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
         id_(0), outputs_ready_(false), deps_loaded_(false),
-        deps_missing_(false), generated_by_dep_loader_(false),
+        deps_missing_(false), generated_by_dep_loader_(false), status_printed_(false),
         implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
@@ -183,6 +183,7 @@ struct Edge {
   bool deps_loaded_;
   bool deps_missing_;
   bool generated_by_dep_loader_;
+  bool status_printed_;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }

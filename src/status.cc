@@ -26,10 +26,14 @@
 
 using namespace std;
 
+static const int64_t kTerseIntervalMillies = 15 * 1000;
+
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
-      time_millis_(0), progress_status_format_(NULL),
+      time_millis_(0),
+      terse_status_time_millis_(0 - kTerseIntervalMillies),
+      progress_status_format_(NULL),
       current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
@@ -45,7 +49,7 @@ void StatusPrinter::PlanHasTotalEdges(int total) {
   total_edges_ = total;
 }
 
-void StatusPrinter::BuildEdgeStarted(const Edge* edge,
+void StatusPrinter::BuildEdgeStarted(Edge* edge,
                                      int64_t start_time_millis) {
   ++started_edges_;
   ++running_edges_;
@@ -69,7 +73,14 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  bool printStatus = true;
+  if (config_.verbosity == BuildConfig::TERSE) {
+    if (success && output.empty() && end_time_millis - terse_status_time_millis_ < kTerseIntervalMillies) {
+      printStatus = false;
+    }
+  }
+
+  if (!edge->status_printed_ && printStatus)
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -227,7 +238,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
   return out;
 }
 
-void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
+void StatusPrinter::PrintStatus(Edge* edge, int64_t time_millis) {
   if (config_.verbosity == BuildConfig::QUIET
       || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
@@ -243,6 +254,9 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+
+  terse_status_time_millis_ = time_millis;
+  edge->status_printed_ = true;
 }
 
 void StatusPrinter::Warning(const char* msg, ...) {

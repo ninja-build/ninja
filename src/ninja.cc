@@ -1308,12 +1308,13 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_TERSE = 3 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
+    { "terse", no_argument, NULL, OPT_TERSE },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1373,6 +1374,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case OPT_QUIET:
         config->verbosity = BuildConfig::NO_STATUS_UPDATE;
+        break;
+      case OPT_TERSE:
+        config->verbosity = BuildConfig::TERSE;
         break;
       case 'w':
         if (!WarningEnable(optarg, options))
