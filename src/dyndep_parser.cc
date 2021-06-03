@@ -115,6 +115,8 @@ bool DyndepParser::ParseEdge(string* err) {
       return lexer_.Error("expected path", err);
 
     string path = out0.Evaluate(&env_);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -202,6 +204,8 @@ bool DyndepParser::ParseEdge(string* err) {
   dyndeps->implicit_inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(&env_);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -213,6 +217,8 @@ bool DyndepParser::ParseEdge(string* err) {
   dyndeps->implicit_outputs_.reserve(outs.size());
   for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     string path = i->Evaluate(&env_);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))

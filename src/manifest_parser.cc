@@ -190,6 +190,8 @@ bool ManifestParser::ParseDefault(string* err) {
 
   do {
     string path = eval.Evaluate(env_);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;  // Unused because this only does lookup.
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -317,6 +319,8 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->outputs_.reserve(outs.size());
   for (size_t i = 0, e = outs.size(); i != e; ++i) {
     string path = outs[i].Evaluate(env);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -349,6 +353,8 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))

@@ -252,6 +252,10 @@ int GuessParallelism() {
 bool NinjaMain::RebuildManifest(const char* input_file, string* err,
                                 Status* status) {
   string path = input_file;
+  if (path.empty()) {
+    *err = "empty path";
+    return false;
+  }
   uint64_t slash_bits;  // Unused because this path is only used for lookup.
   if (!CanonicalizePath(&path, &slash_bits, err))
     return false;
@@ -284,6 +288,10 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
+  if (path.empty()) {
+    *err = "empty path";
+    return NULL;
+  }
   uint64_t slash_bits;
   if (!CanonicalizePath(&path, &slash_bits, err))
     return NULL;

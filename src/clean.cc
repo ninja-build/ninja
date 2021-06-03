@@ -189,6 +189,11 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
     string target_name = targets[i];
+    if (target_name.empty()) {
+      Error("failed to canonicalize '': empty path");
+      status_ = 1;
+      continue;
+    }
     uint64_t slash_bits;
     string err;
     if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
