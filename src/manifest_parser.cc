@@ -192,12 +192,11 @@ bool ManifestParser::ParseDefault(string* err) {
     string path = eval.Evaluate(env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;  // Unused because this only does lookup.
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
-    if (!state_->AddDefault(path, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
+    std::string default_err;
+    if (!state_->AddDefault(path, &default_err))
+      return lexer_.Error(default_err, err);
 
     eval.Clear();
     if (!lexer_.ReadPath(&eval, err))
@@ -321,10 +320,8 @@ bool ManifestParser::ParseEdge(string* err) {
     string path = outs[i].Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     if (!state_->AddOut(edge, path, slash_bits)) {
       if (options_.dupe_edge_action_ == kDupeEdgeActionError) {
         lexer_.Error("multiple rules generate " + path, err);
@@ -355,10 +352,8 @@ bool ManifestParser::ParseEdge(string* err) {
     string path = i->Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     state_->AddIn(edge, path, slash_bits);
   }
   edge->implicit_deps_ = implicit;
@@ -389,8 +384,7 @@ bool ManifestParser::ParseEdge(string* err) {
   string dyndep = edge->GetUnescapedDyndep();
   if (!dyndep.empty()) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(&dyndep, &slash_bits, err))
-      return false;
+    CanonicalizePath(&dyndep, &slash_bits);
     edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
     edge->dyndep_->set_dyndep_pending(true);
     vector<Node*>::iterator dgi =

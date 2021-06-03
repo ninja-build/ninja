@@ -52,9 +52,7 @@ bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                          err))
-      return false;
+    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
     Node* node = state_->GetNode(*i, slash_bits);
     dep_nodes_output_->push_back(node);
   }

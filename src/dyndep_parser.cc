@@ -117,10 +117,8 @@ bool DyndepParser::ParseEdge(string* err) {
     string path = out0.Evaluate(&env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* node = state_->LookupNode(path);
     if (!node || !node->in_edge())
       return lexer_.Error("no build statement exists for '" + path + "'", err);
@@ -206,10 +204,8 @@ bool DyndepParser::ParseEdge(string* err) {
     string path = i->Evaluate(&env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);
     dyndeps->implicit_inputs_.push_back(n);
   }
@@ -221,8 +217,7 @@ bool DyndepParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);
     dyndeps->implicit_outputs_.push_back(n);
   }

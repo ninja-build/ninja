@@ -195,20 +195,15 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
       continue;
     }
     uint64_t slash_bits;
-    string err;
-    if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
-      Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
-      status_ = 1;
+    CanonicalizePath(&target_name, &slash_bits);
+    Node* target = state_->LookupNode(target_name);
+    if (target) {
+      if (IsVerbose())
+        printf("Target %s\n", target_name.c_str());
+      DoCleanTarget(target);
     } else {
-      Node* target = state_->LookupNode(target_name);
-      if (target) {
-        if (IsVerbose())
-          printf("Target %s\n", target_name.c_str());
-        DoCleanTarget(target);
-      } else {
-        Error("unknown target '%s'", target_name.c_str());
-        status_ = 1;
-      }
+      Error("unknown target '%s'", target_name.c_str());
+      status_ = 1;
     }
   }
   PrintFooter();

@@ -117,16 +117,14 @@ void Info(const char* msg, ...) {
   va_end(ap);
 }
 
-bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
+void CanonicalizePath(string* path, uint64_t* slash_bits) {
   METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
     str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, slash_bits, err))
-    return false;
+  CanonicalizePath(str, &len, slash_bits);
   path->resize(len);
-  return true;
 }
 
 static bool IsPathSeparator(char c) {
@@ -137,14 +135,12 @@ static bool IsPathSeparator(char c) {
 #endif
 }
 
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      string* err) {
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
   METRIC_RECORD("canonicalize path");
   if (*len == 0) {
-    *err = "empty path";
-    return false;
+    return;
   }
 
   const int kMaxPathComponents = 60;
@@ -234,7 +230,6 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
 #else
   *slash_bits = 0;
 #endif
-  return true;
 }
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
