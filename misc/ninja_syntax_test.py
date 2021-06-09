@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import unittest
+import pathlib
 
 try:
     from StringIO import StringIO
@@ -186,6 +187,15 @@ class TestExpand(unittest.TestCase):
 
     def test_double(self):
         self.assertEqual('a b$c', ninja_syntax.expand('a$ b$$c', {}))
+
+class TestPath(unittest.TestCase):
+    def setUp(self):
+        self.out = StringIO()
+        self.n = ninja_syntax.Writer(self.out)
+
+    def test_pathlib(self):
+        self.n.build(pathlib.Path('foo') / 'bar', 'bax', [pathlib.Path('qux'), 'fazz'])
+        self.assertEqual('build foo/bar: bax qux fazz\n', self.out.getvalue())
 
 if __name__ == '__main__':
     unittest.main()

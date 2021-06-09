@@ -25,6 +25,8 @@ import re
 import textwrap
 
 def escape_path(word):
+    if not isinstance(word, str):
+        word = str(word)
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
 
 class Writer(object):
