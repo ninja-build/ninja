@@ -105,9 +105,9 @@ void Error(const char* msg, ...) {
 }
 
 void Info(const char* msg, va_list ap) {
-  fprintf(stderr, "ninja: ");
-  vfprintf(stderr, msg, ap);
-  fprintf(stderr, "\n");
+  fprintf(stdout, "ninja: ");
+  vfprintf(stdout, msg, ap);
+  fprintf(stdout, "\n");
 }
 
 void Info(const char* msg, ...) {

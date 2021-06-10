@@ -119,6 +119,7 @@ red
 
     def test_status(self):
         self.assertEqual(run(''), 'ninja: no work to do.\n')
+        self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
 
     def test_ninja_status_default(self):
         'Do we show the default status by default?'
@@ -128,6 +129,10 @@ red
         'Do we suppress the status information when --quiet is specified?'
         output = run(Output.BUILD_SIMPLE_ECHO, flags='--quiet')
         self.assertEqual(output, 'do thing\n')
+
+    def test_entering_directory_on_stdout(self):
+        output = run(Output.BUILD_SIMPLE_ECHO, flags='-C$PWD', pipe=True)
+        self.assertEqual(output.splitlines()[0][:25], "ninja: Entering directory")
 
 if __name__ == '__main__':
     unittest.main()
