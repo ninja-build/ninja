@@ -252,9 +252,12 @@ int GuessParallelism() {
 bool NinjaMain::RebuildManifest(const char* input_file, string* err,
                                 Status* status) {
   string path = input_file;
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, &slash_bits, err))
+  if (path.empty()) {
+    *err = "empty path";
     return false;
+  }
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  CanonicalizePath(&path, &slash_bits);
   Node* node = state_.LookupNode(path);
   if (!node)
     return false;
@@ -284,9 +287,12 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
-  uint64_t slash_bits;
-  if (!CanonicalizePath(&path, &slash_bits, err))
+  if (path.empty()) {
+    *err = "empty path";
     return NULL;
+  }
+  uint64_t slash_bits;
+  CanonicalizePath(&path, &slash_bits);
 
   // Special syntax: "foo.cc^" means "the first output of foo.cc".
   bool first_dependent = false;
