@@ -335,7 +335,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
   };
   for (size_t i = 0; i < sizeof(kInvalidHeaders) / sizeof(kInvalidHeaders[0]);
        ++i) {
-    FILE* deps_log = fopen(kTestFilename, "wb");
+    FILE* deps_log = OpenFile(kTestFilename, "wb");
     ASSERT_TRUE(deps_log != NULL);
     ASSERT_EQ(
         strlen(kInvalidHeaders[i]),

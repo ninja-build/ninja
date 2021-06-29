@@ -39,6 +39,7 @@
 #endif
 
 #include <vector>
+#include <algorithm>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
@@ -143,7 +144,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
     return;
   }
 
-  const int kMaxPathComponents = 60;
+  const int kMaxPathComponents = 120;
   char* components[kMaxPathComponents];
   int component_count = 0;
 
@@ -340,8 +341,10 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+  HANDLE f = ::CreateFileW(WidenPath(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                    OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;
@@ -362,7 +365,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   ::CloseHandle(f);
   return 0;
 #else
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = OpenFile(path.c_str(), "rb");
   if (!f) {
     err->assign(strerror(errno));
     return -errno;
@@ -392,6 +395,14 @@ int ReadFile(const string& path, string* contents, string* err) {
   fclose(f);
   return 0;
 #endif
+}
+
+FILE* OpenFile(const string& path, const char* mode)
+{
+#ifdef _WIN32
+  return _wfopen(WidenPath(path).c_str(), WidenPath(mode).c_str());
+#endif
+  return fopen(path.c_str(), mode);
 }
 
 void SetCloseOnExec(int fd) {
@@ -442,6 +453,28 @@ const char* SpellcheckString(const char* text, ...) {
     words.push_back(word);
   va_end(ap);
   return SpellcheckStringV(text, words);
+}
+
+bool ChangeCurrentWorkingDirectory(const string& path) {
+  int result = 0;
+
+#ifdef _WIN32
+  result = _wchdir(WidenPath(path).c_str());
+#else
+  result = chdir(path.c_str());
+#endif
+
+  return result < 0;
+}
+
+/// Convert path from char to wchar_t
+std::wstring WidenPath(const std::string& path) {
+  return std::wstring(path.begin(), path.end());
+}
+
+/// Convert path from wchar_t to char.
+std::string NarrowPath(const std::wstring& path) {
+  return std::string(path.begin(), path.end());
 }
 
 #ifdef _WIN32
@@ -677,7 +710,7 @@ string ElideMiddle(const string& str, size_t width) {
 
 bool Truncate(const string& path, size_t size, string* err) {
 #ifdef _WIN32
-  int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
+  int fh = _wsopen(WidenPath(path).c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);
   int success = _chsize(fh, size);
   _close(fh);

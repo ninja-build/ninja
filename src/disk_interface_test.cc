@@ -38,7 +38,7 @@ struct DiskInterfaceTest : public testing::Test {
   }
 
   bool Touch(const char* path) {
-    FILE *f = fopen(path, "w");
+    FILE *f = OpenFile(path, "w");
     if (!f)
       return false;
     return fclose(f) == 0;

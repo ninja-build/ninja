@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (chdir(kManifestDir) < 0)
+  if (ChangeCurrentWorkingDirectory(kManifestDir))
     Fatal("chdir: %s", strerror(errno));
 
   const int kNumRepetitions = 5;

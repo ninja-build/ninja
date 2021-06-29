@@ -1427,7 +1427,7 @@ NORETURN void real_main(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
       status->Info("Entering directory `%s'", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
+    if (ChangeCurrentWorkingDirectory(options.working_dir)) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
