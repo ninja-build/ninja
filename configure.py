@@ -84,7 +84,7 @@ class Platform(object):
         return self._platform == 'msvc'
 
     def msvc_needs_fs(self):
-        popen = subprocess.Popen(['cl', '/nologo', '/?'],
+        popen = subprocess.Popen(['cl', '/nologo', '/help'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
