@@ -687,6 +687,14 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       return false;
   }
 
+  // Create the depfile directory
+  // XXX: this will block; do we care?
+  string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty()) {
+    if (!disk_interface_->MakeDirs(depfile))
+      return false;
+  }
+
   // Create response file, if needed
   // XXX: this may also block; do we care?
   string rspfile = edge->GetUnescapedRspfile();
