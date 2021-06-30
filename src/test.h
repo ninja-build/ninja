@@ -151,6 +151,8 @@ struct VirtualFileSystem : public DiskInterface {
                           std::string* err);
   virtual int RemoveFile(const std::string& path);
 
+  void Hardlink(const std::string& input, const std::string& ouput);
+
   /// An entry for a single in-memory file.
   struct Entry {
     int mtime;

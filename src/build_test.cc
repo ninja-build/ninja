@@ -596,6 +596,14 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
          out != edge->outputs_.end(); ++out) {
       fs_->Create((*out)->path(), "");
     }
+  } else if (edge->rule().name() == "hardlink") {
+    assert(!edge->inputs_.empty());
+    if (edge->inputs_.size() > 1u) {
+      assert(edge->is_implicit(1u) || edge->is_order_only(1u));
+    }
+    assert(!edge->outputs_.empty());
+    assert(edge->outputs_.size() == 1);
+    fs_->Hardlink(edge->inputs_[0]->path(), edge->outputs_[0]->path());
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
              edge->rule().name() == "interrupt" ||
@@ -1642,6 +1650,41 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
 
   // Check that the logfile entry remains correctly set
   log_entry = build_log_.LookupByOutput("out1");
+  ASSERT_TRUE(NULL != log_entry);
+  ASSERT_EQ(restat_mtime, log_entry->mtime);
+}
+
+// Test scenario with restat and hardlinking, restat should protect ninja
+// from always rebuilding in this scenario when the input mtime will
+// always equal the output
+// https://github.com/ninja-build/ninja/issues/1940
+TEST_F(BuildWithLogTest, RestatHardlink) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule hardlink\n"
+    "  command = hardlink\n"
+    "  restat = 1\n"
+    "build out1: hardlink in1\n"
+    "build out2: hardlink out1 | out3\n"
+    "build out3: hardlink in2\n"));
+
+  // Create each file with a different timestamp so when
+  // hardlinking, the out2 will have an older timestamp
+  // then its input out3 (hardlinked -> in2)
+  fs_.Create("in1", "");
+  TimeStamp restat_mtime = fs_.Tick();
+
+  fs_.Create("in2", "");
+  fs_.Tick();
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+
+  // See that an entry in the logfile is created, capturing
+  // the right restat mtime
+  BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out2");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(restat_mtime, log_entry->mtime);
 }

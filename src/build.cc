@@ -748,7 +748,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   TimeStamp output_mtime = 0;
   bool restat = edge->GetBindingBool("restat");
   if (!config_.dry_run) {
-    bool node_cleaned = false;
+    bool set_restat_mtime = false;
 
     for (vector<Node*>::iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
@@ -757,17 +757,23 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
         return false;
       if (new_mtime > output_mtime)
         output_mtime = new_mtime;
-      if ((*o)->mtime() == new_mtime && restat) {
-        // The rule command did not change the output.  Propagate the clean
-        // state through the build graph.
-        // Note that this also applies to nonexistent outputs (mtime == 0).
-        if (!plan_.CleanNode(&scan_, *o, err))
-          return false;
-        node_cleaned = true;
+      if (restat) {
+        if ((*o)->mtime() == new_mtime) {
+          // The rule command did not change the output.  Propagate the clean
+          // state through the build graph.
+          // Note that this also applies to nonexistent outputs (mtime == 0).
+          if (!plan_.CleanNode(&scan_, *o, err))
+            return false;
+          set_restat_mtime = true;
+        } else if ((*o)->mtime() == 0) {
+          // The first time a restat output is built, we should record
+          // the restat time in the build log so as to not rebuild
+          set_restat_mtime = true;
+        }
       }
     }
 
-    if (node_cleaned) {
+    if (set_restat_mtime) {
       TimeStamp restat_mtime = 0;
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
