@@ -73,7 +73,7 @@ struct BuildLog {
 
     explicit LogEntry(const std::string& output);
     LogEntry(const std::string& output, uint64_t command_hash,
-             int start_time, int end_time, TimeStamp restat_mtime);
+             int start_time, int end_time, TimeStamp mtime);
   };
 
   /// Lookup a previously-run command by its output path.

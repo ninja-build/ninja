@@ -234,6 +234,7 @@ struct Builder {
   /// Time the build started.
   int64_t start_time_millis_;
 
+  std::string tmp_mtime_file_path_;
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 
