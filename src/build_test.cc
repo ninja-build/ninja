@@ -1943,8 +1943,20 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
 TEST_F(BuildTest, StatusFormatElapsed) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
-  EXPECT_EQ("[%/e0.000]",
-            status_.FormatProgressStatus("[%%/e%e]", 0));
+  EXPECT_EQ("[%/e0:00:00]", status_.FormatProgressStatus("[%%/e%e]", 0));
+}
+
+TEST_F(BuildTest, StatusFormatETA) {
+  status_.BuildStarted();
+  // Before any task is done, the ETA time must be unknown.
+  auto z = status_.FormatProgressStatus("[%%/E%E]", 0);
+  EXPECT_EQ("[%/E0:00:00]", status_.FormatProgressStatus("[%%/E%E]", 0));
+}
+
+TEST_F(BuildTest, StatusFormatTimeProgress) {
+  status_.BuildStarted();
+  // Before any task is done, the percentage of elapsed time must be zero.
+  EXPECT_EQ("[%/p  0%]", status_.FormatProgressStatus("[%%/p%p]", 0));
 }
 
 TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
