@@ -478,26 +478,57 @@ bool islatinalpha(int c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+/// Return the end of a span in `in` starting at `from` and whether it is an
+/// ANSI escapse sequence or not.
+///
+/// The index returned creates an half-open interval with the input index over
+/// the span.
+static pair<size_t, bool> AnsiSpan(const string& in, size_t from) {
+  size_t pos = from;
+  bool in_seq = in[pos] == '\33';
+
+  if (in_seq) {
+    if (pos + 1 >= in.size()) {
+      // A lone escape character at the end of the string.
+      pos = in.size();
+    } else if (in[pos + 1] != '[') {
+      // A non-CSI sequence. Just ignore the escape character.
+      ++pos;
+    } else {
+      pos += 2;
+
+      // Skip everything up to and including the next [a-zA-Z].
+      while (pos < in.size() && !islatinalpha(in[pos])) {
+        ++pos;
+      }
+      // Also take the last character of the escape sequence.
+      ++pos;
+    }
+  } else {
+    // Find the next sequence.
+    pos = in.find('\33', pos);
+    if (pos == string::npos) {
+      pos = in.size();
+    }
+  }
+
+  return make_pair(pos, in_seq);
+}
+
 string StripAnsiEscapeCodes(const string& in) {
   string stripped;
   stripped.reserve(in.size());
 
-  for (size_t i = 0; i < in.size(); ++i) {
-    if (in[i] != '\33') {
-      // Not an escape code.
-      stripped.push_back(in[i]);
-      continue;
+  size_t pos = 0;
+  while (pos < in.size()) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (!span.second) {
+      stripped.append(in.begin() + pos, in.begin() + span.first);
     }
 
-    // Only strip CSIs for now.
-    if (i + 1 >= in.size()) break;
-    if (in[i + 1] != '[') continue;  // Not a CSI.
-    i += 2;
-
-    // Skip everything up to and including the next [a-zA-Z].
-    while (i < in.size() && !islatinalpha(in[i]))
-      ++i;
+    pos = span.first;
   }
+
   return stripped;
 }
 
@@ -657,6 +688,64 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
+static size_t ConsoleWidth(const string& in) {
+  size_t size = 0;
+  size_t pos = 0;
+
+  while (pos < in.size()) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (!span.second) {
+      size += span.first - pos;
+    }
+
+    pos = span.first;
+  }
+
+  return size;
+}
+
+static string ConsoleSubstr(const string& in, size_t start, size_t end) {
+  string substr;
+  substr.reserve(in.size());
+
+  size_t skipped_size = 0;
+  size_t size = 0;
+  size_t pos = 0;
+  while (pos < in.size() && size < end) {
+    pair<size_t, bool> span = AnsiSpan(in, pos);
+    if (span.second) {
+      // An ANSI sequence; it has zero length.
+      substr.append(in.begin() + pos, in.begin() + span.first);
+    } else {
+      // Real output.
+      size += span.first - pos;
+
+      // Check if we have the start of the substring.
+      if (size >= start) {
+        // The substring start where we started at plus the size, but without
+        // any size that we've skipped.
+        size_t substr_begin = pos + start - skipped_size;
+        size_t substr_end;
+        if (size < end) {
+          // The entire span is wanted.
+          substr_end = span.first;
+        } else {
+          // The span has too much. Cut it off at the appropriate place.
+          substr_end = pos + end - skipped_size;
+        }
+        substr.append(in.begin() + substr_begin, in.begin() + substr_end);
+      } else {
+        // We've skipped some size. Keep track of it.
+        skipped_size += size;
+      }
+    }
+
+    pos = span.first;
+  }
+
+  return substr;
+}
+
 string ElideMiddle(const string& str, size_t width) {
   switch (width) {
       case 0: return "";
@@ -666,11 +755,12 @@ string ElideMiddle(const string& str, size_t width) {
   }
   const int kMargin = 3;  // Space for "...".
   string result = str;
-  if (result.size() > width) {
+  size_t console_width = ConsoleWidth(result);
+  if (console_width > width) {
     size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
+    result = ConsoleSubstr(result, 0, elide_size)
       + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+      + ConsoleSubstr(result, console_width - elide_size, console_width + 1);
   }
   return result;
 }
