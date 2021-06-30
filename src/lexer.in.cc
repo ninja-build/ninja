@@ -131,6 +131,7 @@ Lexer::Token Lexer::ReadToken() {
     nul = "\000";
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
+    hex_escape = "\\x"[a-fA-F0-9][a-fA-F0-9];
 
     [ ]*"#"[^\000\n]*"\n" { continue; }
     [ ]*"\r\n" { token = NEWLINE;  break; }
@@ -147,6 +148,7 @@ Lexer::Token Lexer::ReadToken() {
     "include"  { token = INCLUDE;  break; }
     "subninja" { token = SUBNINJA; break; }
     varname    { token = IDENT;    break; }
+    hex_escape { token = IDENT;    break; }
     nul        { token = TEOF;     break; }
     [^]        { token = ERROR;    break; }
     */
@@ -247,6 +249,10 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     }
     "${"varname"}" {
       eval->AddSpecial(StringPiece(start + 2, p - start - 3));
+      continue;
+    }
+    "${"hex_escape"}" {
+      eval->AddHexEncodedChar(StringPiece(start + 4, p - start - 5));
       continue;
     }
     "$"simple_varname {
