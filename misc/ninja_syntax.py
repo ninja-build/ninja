@@ -23,6 +23,7 @@ use Python.
 
 import re
 import textwrap
+import types
 
 def escape_path(word):
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
@@ -172,7 +173,7 @@ class Writer(object):
 def as_list(input):
     if input is None:
         return []
-    if isinstance(input, list):
+    if isinstance(input, list) or isinstance(input, types.GeneratorType):
         return input
     return [input]
 
