@@ -26,10 +26,14 @@
 
 using namespace std;
 
+static const int64_t kTerseIntervalMillies = 15 * 1000;
+
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config),
       started_edges_(0), finished_edges_(0), total_edges_(0), running_edges_(0),
-      time_millis_(0), progress_status_format_(NULL),
+      time_millis_(0),
+      terse_status_time_millis_(0 - kTerseIntervalMillies),
+      progress_status_format_(NULL),
       current_rate_(config.parallelism) {
 
   // Don't do anything fancy in verbose mode.
@@ -69,7 +73,14 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  bool printStatus = true;
+  if (config_.verbosity == BuildConfig::TERSE) {
+    if (success && output.empty() && end_time_millis - terse_status_time_millis_ < kTerseIntervalMillies) {
+      printStatus = false;
+    }
+  }
+
+  if (!edge->use_console() && printStatus)
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -243,6 +254,8 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+
+  terse_status_time_millis_ = time_millis;
 }
 
 void StatusPrinter::Warning(const char* msg, ...) {

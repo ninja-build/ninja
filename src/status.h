@@ -72,6 +72,7 @@ struct StatusPrinter : Status {
 
   int started_edges_, finished_edges_, total_edges_, running_edges_;
   int64_t time_millis_;
+  int64_t terse_status_time_millis_;
 
   /// Prints progress output.
   LinePrinter printer_;
