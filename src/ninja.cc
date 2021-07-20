@@ -41,6 +41,7 @@
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "json.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "missing_deps.h"
@@ -773,15 +774,6 @@ int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
   return cleaner.CleanDead(build_log_.entries());
 }
 
-void EncodeJSONString(const char *str) {
-  while (*str) {
-    if (*str == '"' || *str == '\\')
-      putchar('\\');
-    putchar(*str);
-    str++;
-  }
-}
-
 enum EvaluateCommandMode {
   ECM_NORMAL,
   ECM_EXPAND_RSPFILE
@@ -814,13 +806,13 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
 void printCompdb(const char* const directory, const Edge* const edge,
                  const EvaluateCommandMode eval_mode) {
   printf("\n  {\n    \"directory\": \"");
-  EncodeJSONString(directory);
+  PrintJSONString(directory);
   printf("\",\n    \"command\": \"");
-  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+  PrintJSONString(EvaluateCommandWithRspfile(edge, eval_mode));
   printf("\",\n    \"file\": \"");
-  EncodeJSONString(edge->inputs_[0]->path().c_str());
+  PrintJSONString(edge->inputs_[0]->path());
   printf("\",\n    \"output\": \"");
-  EncodeJSONString(edge->outputs_[0]->path().c_str());
+  PrintJSONString(edge->outputs_[0]->path());
   printf("\"\n  }");
 }
 
