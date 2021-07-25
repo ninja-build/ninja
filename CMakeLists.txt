@@ -103,6 +103,7 @@ add_library(libninja OBJECT
 	src/eval_env.cc
 	src/graph.cc
 	src/graphviz.cc
+	src/json.cc
 	src/line_printer.cc
 	src/manifest_parser.cc
 	src/metrics.cc
@@ -196,6 +197,7 @@ if(BUILD_TESTING)
     src/dyndep_parser_test.cc
     src/edit_distance_test.cc
     src/graph_test.cc
+    src/json_test.cc
     src/lexer_test.cc
     src/manifest_parser_test.cc
     src/missing_deps_test.cc
