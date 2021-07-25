@@ -71,17 +71,18 @@ struct DepsLog {
 
   // Writing (build-time) interface.
   bool OpenForWrite(const std::string& path, std::string* err);
-  bool RecordDeps(Node* node, TimeStamp mtime, const std::vector<Node*>& nodes);
-  bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
+  bool RecordDeps(Node* node, TimeStamp mtime, const std::vector<Node*>& nodes, int outputs_count = 0);
+  bool RecordDeps(Node* node, TimeStamp mtime, int node_count, int outputs_count, Node** nodes);
   void Close();
 
   // Reading (startup-time) interface.
   struct Deps {
-    Deps(int64_t mtime, int node_count)
-        : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
+    Deps(int64_t mtime, int node_count, int outputs_count)
+        : mtime(mtime), node_count(node_count), outputs_count(outputs_count), nodes(new Node*[node_count]) {}
     ~Deps() { delete [] nodes; }
     TimeStamp mtime;
     int node_count;
+    int outputs_count;
     Node** nodes;
   };
   LoadStatus Load(const std::string& path, State* state, std::string* err);

@@ -30,6 +30,7 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "dynout_parser.h"
 #include "graph.h"
 #include "metrics.h"
 #include "state.h"
@@ -519,6 +520,7 @@ void Builder::Cleanup() {
     for (vector<Edge*>::iterator e = active_edges.begin();
          e != active_edges.end(); ++e) {
       string depfile = (*e)->GetUnescapedDepfile();
+      string dynout = (*e)->GetUnescapedDynout();
       for (vector<Node*>::iterator o = (*e)->outputs_.begin();
            o != (*e)->outputs_.end(); ++o) {
         // Only delete this output if it was actually modified.  This is
@@ -537,6 +539,8 @@ void Builder::Cleanup() {
       }
       if (!depfile.empty())
         disk_interface_->RemoveFile(depfile);
+      if (!dynout.empty())
+        disk_interface_->RemoveFile(dynout);
     }
   }
 }
@@ -716,6 +720,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   // extraction itself can fail, which makes the command fail from a
   // build perspective.
   vector<Node*> deps_nodes;
+  int outputs_count = 0;
   string deps_type = edge->GetBinding("deps");
   const string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
@@ -723,6 +728,18 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
                      &extract_err) &&
         result->success()) {
+      if (!result->output.empty())
+        result->output.append("\n");
+      result->output.append(extract_err);
+      result->status = ExitFailure;
+    }
+  }
+
+  string dynout = edge->GetUnescapedDynout();
+  if (!dynout.empty()) {
+    string extract_err;
+    if (!DynoutParser::Parse(state_, disk_interface_, edge, dynout, &deps_nodes, &outputs_count, &extract_err)
+      && result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
       result->output.append(extract_err);
@@ -813,14 +830,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  if (!deps_type.empty() && !config_.dry_run) {
+  if ((!deps_type.empty() || !dynout.empty()) && !config_.dry_run) {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
       TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
       if (deps_mtime == -1)
         return false;
-      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
+      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes, outputs_count)) {
         *err = std::string("Error writing to deps log: ") + strerror(errno);
         return false;
       }
