@@ -99,7 +99,16 @@ string BindingEnv::LookupWithFallback(const string& var,
 }
 
 string EvalString::Evaluate(Env* env) const {
+  // Estimate how much space will be needed for the concatenation. This will
+  // usually avoid reallocations, and will be perfectly sized in the ~99% of
+  // cases where all of the components are RAW strings.
+  size_t size_estimate = 0;
+  for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
+    size_estimate += i->first.size();
+  }
+
   string result;
+  result.reserve(size_estimate);
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
       result.append(i->first);
