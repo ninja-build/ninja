@@ -305,7 +305,16 @@ if platform.is_msvc():
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
+def SearchPath(exe_name):
+  """Find an executable (.exe, .bat, whatever) in the system path."""
+  for dir in os.environ['path'].split(';'):
+    path = os.path.join(dir, exe_name)
+    if os.path.exists(path):
+      return path
+
 if platform.is_msvc():
+    if not SearchPath('cl.exe'):
+        raise Exception('cl.exe not found. Run again from the Developer Command Prompt for VS')
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
               '/Zi',  # Create pdb with debug info.
