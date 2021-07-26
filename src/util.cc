@@ -56,7 +56,6 @@
 #endif
 
 #include "edit_distance.h"
-#include "metrics.h"
 
 using namespace std;
 
@@ -118,7 +117,6 @@ void Info(const char* msg, ...) {
 }
 
 void CanonicalizePath(string* path, uint64_t* slash_bits) {
-  METRIC_RECORD("canonicalize str");
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
@@ -138,7 +136,6 @@ static bool IsPathSeparator(char c) {
 void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
-  METRIC_RECORD("canonicalize path");
   if (*len == 0) {
     return;
   }

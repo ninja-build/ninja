@@ -19,7 +19,6 @@
 
 #include "edit_distance.h"
 #include "graph.h"
-#include "metrics.h"
 #include "util.h"
 
 using namespace std;
@@ -104,7 +103,6 @@ Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
 }
 
 Node* State::LookupNode(StringPiece path) const {
-  METRIC_RECORD("lookup node");
   Paths::const_iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
