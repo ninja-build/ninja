@@ -23,6 +23,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace std;
+
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
     : Parser(state, file_reader),
@@ -188,22 +190,20 @@ bool ManifestParser::ParseDefault(string* err) {
 
   do {
     string path = eval.Evaluate(env_);
-    string path_err;
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     uint64_t slash_bits;  // Unused because this only does lookup.
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
-    if (!state_->AddDefault(path, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
+    std::string default_err;
+    if (!state_->AddDefault(path, &default_err))
+      return lexer_.Error(default_err, err);
 
     eval.Clear();
     if (!lexer_.ReadPath(&eval, err))
       return false;
   } while (!eval.empty());
 
-  if (!ExpectToken(Lexer::NEWLINE, err))
-    return false;
-
-  return true;
+  return ExpectToken(Lexer::NEWLINE, err);
 }
 
 bool ManifestParser::ParseEdge(string* err) {
@@ -318,21 +318,20 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->outputs_.reserve(outs.size());
   for (size_t i = 0, e = outs.size(); i != e; ++i) {
     string path = outs[i].Evaluate(env);
-    string path_err;
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     if (!state_->AddOut(edge, path, slash_bits)) {
       if (options_.dupe_edge_action_ == kDupeEdgeActionError) {
-        lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
-                     err);
+        lexer_.Error("multiple rules generate " + path, err);
         return false;
       } else {
         if (!quiet_) {
-          Warning("multiple rules generate %s. "
-                  "builds involving this target will not be correct; "
-                  "continuing anyway [-w dupbuild=warn]",
-                  path.c_str());
+          Warning(
+              "multiple rules generate %s. builds involving this target will "
+              "not be correct; continuing anyway",
+              path.c_str());
         }
         if (e - i <= static_cast<size_t>(implicit_outs))
           --implicit_outs;
@@ -351,10 +350,10 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(env);
-    string path_err;
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     state_->AddIn(edge, path, slash_bits);
   }
   edge->implicit_deps_ = implicit;
@@ -385,8 +384,7 @@ bool ManifestParser::ParseEdge(string* err) {
   string dyndep = edge->GetUnescapedDyndep();
   if (!dyndep.empty()) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(&dyndep, &slash_bits, err))
-      return false;
+    CanonicalizePath(&dyndep, &slash_bits);
     edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
     edge->dyndep_->set_dyndep_pending(true);
     vector<Node*>::iterator dgi =

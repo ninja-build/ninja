@@ -28,6 +28,8 @@
 #include "state.h"
 #include "util.h"
 
+using namespace std;
+
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
 }
@@ -513,7 +515,7 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
 }
 
 struct matches {
-  matches(std::vector<StringPiece>::iterator i) : i_(i) {}
+  explicit matches(std::vector<StringPiece>::iterator i) : i_(i) {}
 
   bool operator()(const Node* node) const {
     StringPiece opath = StringPiece(node->path());
@@ -560,11 +562,8 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   uint64_t unused;
   std::vector<StringPiece>::iterator primary_out = depfile.outs_.begin();
-  if (!CanonicalizePath(const_cast<char*>(primary_out->str_),
-                        &primary_out->len_, &unused, err)) {
-    *err = path + ": " + *err;
-    return false;
-  }
+  CanonicalizePath(const_cast<char*>(primary_out->str_), &primary_out->len_,
+                   &unused);
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
@@ -586,18 +585,20 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     }
   }
 
+  return ProcessDepfileDeps(edge, &depfile.ins_, err);
+}
+
+bool ImplicitDepLoader::ProcessDepfileDeps(
+    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, depfile.ins_.size());
+      PreallocateSpace(edge, depfile_ins->size());
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+  for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
+       i != depfile_ins->end(); ++i, ++implicit_dep) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                          err))
-      return false;
-
+    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
@@ -647,6 +648,7 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
     return;
 
   Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  phony_edge->generated_by_dep_loader_ = true;
   node->set_in_edge(phony_edge);
   phony_edge->outputs_.push_back(node);
 

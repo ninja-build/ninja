@@ -22,6 +22,8 @@
 #include "state.h"
 #include "test.h"
 
+using namespace std;
+
 struct DyndepParserTest : public testing::Test {
   void AssertParse(const char* input) {
     DyndepParser parser(&state_, &fs_, &dyndep_file_);

@@ -15,10 +15,11 @@
 #include "build_log.h"
 
 #include <algorithm>
-using namespace std;
 
 #include <stdlib.h>
 #include <time.h>
+
+using namespace std;
 
 int random(int low, int high) {
   return int(low + (rand() / double(RAND_MAX)) * (high - low) + 0.5);
@@ -26,9 +27,10 @@ int random(int low, int high) {
 
 void RandomCommand(char** s) {
   int len = random(5, 100);
-  *s = new char[len];
+  *s = new char[len+1];
   for (int i = 0; i < len; ++i)
     (*s)[i] = (char)random(32, 127);
+  (*s)[len] = '\0';
 }
 
 int main() {

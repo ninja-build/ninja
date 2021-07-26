@@ -26,6 +26,8 @@
 #include <unistd.h>
 #endif
 
+using namespace std;
+
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
@@ -110,7 +112,7 @@ int main() {
   {
     // Read once to warm up disk cache.
     BuildLog log;
-    if (!log.Load(kTestFilename, &err)) {
+    if (log.Load(kTestFilename, &err) == LOAD_ERROR) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
@@ -119,7 +121,7 @@ int main() {
   for (int i = 0; i < kNumRepetitions; ++i) {
     int64_t start = GetTimeMillis();
     BuildLog log;
-    if (!log.Load(kTestFilename, &err)) {
+    if (log.Load(kTestFilename, &err) == LOAD_ERROR) {
       fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
       return 1;
     }
@@ -146,4 +148,3 @@ int main() {
 
   return 0;
 }
-

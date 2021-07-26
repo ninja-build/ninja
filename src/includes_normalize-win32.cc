@@ -24,6 +24,8 @@
 
 #include <windows.h>
 
+using namespace std;
+
 namespace {
 
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
@@ -189,8 +191,7 @@ bool IncludesNormalize::Normalize(const string& input,
   }
   strncpy(copy, input.c_str(), input.size() + 1);
   uint64_t slash_bits;
-  if (!CanonicalizePath(copy, &len, &slash_bits, err))
-    return false;
+  CanonicalizePath(copy, &len, &slash_bits);
   StringPiece partially_fixed(copy, len);
   string abs_input = AbsPath(partially_fixed, err);
   if (!err->empty())

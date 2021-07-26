@@ -1,0 +1,17 @@
+---
+Checks: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-inconsistent-declaration-parameter-name,
+  ,readability-non-const-parameter,
+  ,readability-redundant-string-cstr,
+  ,readability-redundant-string-init,
+  ,readability-simplify-boolean-expr,
+'
+WarningsAsErrors: '
+  ,readability-avoid-const-params-in-decls,
+  ,readability-inconsistent-declaration-parameter-name,
+  ,readability-non-const-parameter,
+  ,readability-redundant-string-cstr,
+  ,readability-redundant-string-init,
+  ,readability-simplify-boolean-expr,
+'

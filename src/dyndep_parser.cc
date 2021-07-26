@@ -22,6 +22,8 @@
 #include "util.h"
 #include "version.h"
 
+using namespace std;
+
 DyndepParser::DyndepParser(State* state, FileReader* file_reader,
                            DyndepFile* dyndep_file)
     : Parser(state, file_reader)
@@ -113,10 +115,10 @@ bool DyndepParser::ParseEdge(string* err) {
       return lexer_.Error("expected path", err);
 
     string path = out0.Evaluate(&env_);
-    string path_err;
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* node = state_->LookupNode(path);
     if (!node || !node->in_edge())
       return lexer_.Error("no build statement exists for '" + path + "'", err);
@@ -200,10 +202,10 @@ bool DyndepParser::ParseEdge(string* err) {
   dyndeps->implicit_inputs_.reserve(ins.size());
   for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
     string path = i->Evaluate(&env_);
-    string path_err;
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);
     dyndeps->implicit_inputs_.push_back(n);
   }
@@ -211,10 +213,11 @@ bool DyndepParser::ParseEdge(string* err) {
   dyndeps->implicit_outputs_.reserve(outs.size());
   for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
     string path = i->Evaluate(&env_);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
     string path_err;
     uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
+    CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);
     dyndeps->implicit_outputs_.push_back(n);
   }

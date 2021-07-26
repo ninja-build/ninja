@@ -1,5 +1,19 @@
 #!/usr/bin/python
 
+# Copyright 2011 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Python module for generating .ninja files.
 
 Note that this is emphatically not a required piece of Ninja; it's
@@ -60,7 +74,7 @@ class Writer(object):
             self.variable('deps', deps, indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
-              variables=None, implicit_outputs=None, pool=None):
+              variables=None, implicit_outputs=None, pool=None, dyndep=None):
         outputs = as_list(outputs)
         out_outputs = [escape_path(x) for x in outputs]
         all_inputs = [escape_path(x) for x in as_list(inputs)]
@@ -83,6 +97,8 @@ class Writer(object):
                                      ' '.join([rule] + all_inputs)))
         if pool is not None:
             self._line('  pool = %s' % pool)
+        if dyndep is not None:
+            self._line('  dyndep = %s' % dyndep)
 
         if variables:
             if isinstance(variables, dict):

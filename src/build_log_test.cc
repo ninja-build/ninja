@@ -27,6 +27,8 @@
 #endif
 #include <cassert>
 
+using namespace std;
+
 namespace {
 
 const char kTestFilename[] = "BuildLogTest-tempfile";
@@ -252,7 +254,7 @@ TEST_F(BuildLogTest, Restat) {
   ASSERT_EQ(3, e->mtime);
 
   TestDiskInterface testDiskInterface;
-  char out2[] = { 'o', 'u', 't', '2' };
+  char out2[] = { 'o', 'u', 't', '2', 0 };
   char* filter2[] = { out2 };
   EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 1, filter2, &err));
   ASSERT_EQ("", err);

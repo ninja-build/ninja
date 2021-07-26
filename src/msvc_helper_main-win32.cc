@@ -24,6 +24,8 @@
 
 #include "getopt.h"
 
+using namespace std;
+
 namespace {
 
 void Usage() {

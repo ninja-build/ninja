@@ -18,6 +18,8 @@
 
 #include "util.h"
 
+using namespace std;
+
 namespace {
 
 string Replace(const string& input, const string& find, const string& replace) {

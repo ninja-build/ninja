@@ -21,6 +21,8 @@
 #include "state.h"
 #include "test.h"
 
+using namespace std;
+
 struct ParserTest : public testing::Test {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, &fs_);
@@ -363,7 +365,7 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
+  EXPECT_EQ("input:5: multiple rules generate out1\n", err);
 }
 
 TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
@@ -380,8 +382,7 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("sub.ninja:5: multiple rules generate out1 [-w dupbuild=err]\n",
-            err);
+  EXPECT_EQ("sub.ninja:5: multiple rules generate out1\n", err);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceIgnored) {

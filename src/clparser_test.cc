@@ -17,6 +17,8 @@
 #include "test.h"
 #include "util.h"
 
+using namespace std;
+
 TEST(CLParserTest, ShowIncludes) {
   ASSERT_EQ("", CLParser::FilterShowIncludes("", ""));
 
@@ -66,6 +68,17 @@ TEST(CLParserTest, ParseFilenameFilter) {
       "cl: warning\r\n",
       "", &output, &err));
   ASSERT_EQ("cl: warning\n", output);
+}
+
+TEST(CLParserTest, NoFilenameFilterAfterShowIncludes) {
+  CLParser parser;
+  string output, err;
+  ASSERT_TRUE(parser.Parse(
+      "foo.cc\r\n"
+      "Note: including file: foo.h\r\n"
+      "something something foo.cc\r\n",
+      "", &output, &err));
+  ASSERT_EQ("something something foo.cc\n", output);
 }
 
 TEST(CLParserTest, ParseSystemInclude) {

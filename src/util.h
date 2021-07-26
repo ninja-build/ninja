@@ -21,9 +21,10 @@
 #include <stdint.h>
 #endif
 
+#include <stdarg.h>
+
 #include <string>
 #include <vector>
-using namespace std;
 
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
@@ -50,36 +51,41 @@ NORETURN void Fatal(const char* msg, ...);
 
 /// Log a warning message.
 void Warning(const char* msg, ...);
+void Warning(const char* msg, va_list ap);
 
 /// Log an error message.
 void Error(const char* msg, ...);
+void Error(const char* msg, va_list ap);
+
+/// Log an informational message.
+void Info(const char* msg, ...);
+void Info(const char* msg, va_list ap);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
 /// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err);
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      string* err);
+void CanonicalizePath(std::string* path, uint64_t* slash_bits);
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits);
 
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
 /// Appends the string directly to |result| without modification if we can
 /// determine that it contains no problematic characters.
-void GetShellEscapedString(const string& input, string* result);
-void GetWin32EscapedString(const string& input, string* result);
+void GetShellEscapedString(const std::string& input, std::string* result);
+void GetWin32EscapedString(const std::string& input, std::string* result);
 
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const string& path, string* contents, string* err);
+int ReadFile(const std::string& path, std::string* contents, std::string* err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
 
 /// Given a misspelled string and a list of correct spellings, returns
 /// the closest match or NULL if there is no close enough match.
-const char* SpellcheckStringV(const string& text,
-                              const vector<const char*>& words);
+const char* SpellcheckStringV(const std::string& text,
+                              const std::vector<const char*>& words);
 
 /// Like SpellcheckStringV, but takes a NULL-terminated list.
 const char* SpellcheckString(const char* text, ...);
@@ -87,7 +93,7 @@ const char* SpellcheckString(const char* text, ...);
 bool islatinalpha(int c);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
-string StripAnsiEscapeCodes(const string& in);
+std::string StripAnsiEscapeCodes(const std::string& in);
 
 /// @return the number of processors on the machine.  Useful for an initial
 /// guess for how many jobs to run in parallel.  @return 0 on error.
@@ -99,10 +105,10 @@ double GetLoadAverage();
 
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.
-string ElideMiddle(const string& str, size_t width);
+std::string ElideMiddle(const std::string& str, size_t width);
 
 /// Truncates a file to the given size.
-bool Truncate(const string& path, size_t size, string* err);
+bool Truncate(const std::string& path, size_t size, std::string* err);
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -116,7 +122,7 @@ bool Truncate(const string& path, size_t size, string* err);
 
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
-string GetLastErrorString();
+std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);

@@ -20,6 +20,8 @@
 #include "dyndep.h"
 #include "graph.h"
 
+using namespace std;
+
 void GraphViz::AddTarget(Node* node) {
   if (visited_nodes_.find(node) != visited_nodes_.end())
     return;

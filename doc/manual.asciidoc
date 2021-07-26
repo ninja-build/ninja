@@ -284,6 +284,21 @@ _Available since Ninja 1.2._
 `deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
 target, show just the target's dependencies. _Available since Ninja 1.4._
 
+`missingdeps`:: given a list of targets, look for targets that depend on
+a generated file, but do not have a properly (possibly transitive) dependency
+on the generator.  Such targets may cause build flakiness on clean builds.
++
+The broken targets can be found assuming deps log / depfile dependency
+information is correct.  Any target that depends on a generated file (output
+of a generator-target) implicitly, but does not have an explicit or order-only
+dependency path to the generator-target, is considered broken.
++
+The tool's findings can be verified by trying to build the listed targets in
+a clean outdir without buidling any other targets.  The build should fail for
+each of them with a missing include error or equivalent pointing to the
+generated file.
+_Available since Ninja 1.11._
+
 `recompact`:: recompact the `.ninja_deps` file. _Available since Ninja 1.4._
 
 `restat`:: updates all recorded file modification timestamps in the `.ninja_log`
@@ -292,6 +307,22 @@ file. _Available since Ninja 1.10._
 `rules`:: output the list of all rules (eventually with their description
 if they have one).  It can be used to know which rule name to pass to
 +ninja -t targets rule _name_+ or +ninja -t compdb+.
+
+`wincodepage`:: Available on Windows hosts (_since Ninja 1.11_).
+Prints the Windows code page whose encoding is expected in the build file.
+The output has the form:
++
+----
+Build file encoding: <codepage>
+----
++
+Additional lines may be added in future versions of Ninja.
++
+The `<codepage>` is one of:
+
+`UTF-8`::: Encode as UTF-8.
+
+`ANSI`::: Encode to the system-wide ANSI code page.
 
 Writing your own Ninja files
 ----------------------------
@@ -899,7 +930,7 @@ set environment variables.
 On Windows, commands are strings, so Ninja passes the `command` string
 directly to `CreateProcess`.  (In the common case of simply executing
 a compiler this means there is less overhead.)  Consequently the
-quoting rules are deterimined by the called program, which on Windows
+quoting rules are determined by the called program, which on Windows
 are usually provided by the C library.  If you need shell
 interpretation of the command (such as the use of `&&` to chain
 multiple commands), make the command execute the Windows shell by
@@ -935,7 +966,7 @@ There are three types of build dependencies which are subtly different.
 
 1. _Explicit dependencies_, as listed in a build line.  These are
    available as the `$in` variable in the rule.  Changes in these files
-   cause the output to be rebuilt; if these file are missing and
+   cause the output to be rebuilt; if these files are missing and
    Ninja doesn't know how to build them, the build is aborted.
 +
 This is the standard form of dependency to be used e.g. for the
@@ -949,8 +980,9 @@ source file of a compile command.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
-script, the script itself should be an implicit dependency, as
-changes to the script should cause the output to rebuild.
+script that reads a hardcoded file, the hardcoded file should 
+be an implicit dependency, as changes to the file should cause 
+the output to rebuild, even though it doesn't show up in the arguments.
 +
 Note that dependencies as loaded through depfiles have slightly different
 semantics, as described in the <<ref_rule,rule reference>>.

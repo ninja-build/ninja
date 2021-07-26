@@ -23,6 +23,7 @@
 #include "build_log.h"
 #include "disk_interface.h"
 
+#include <cassert>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,6 +40,8 @@
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 #define strtoll _strtoi64
 #endif
+
+using namespace std;
 
 // Implementation details:
 // Each run's log appends to the log file.
@@ -132,25 +135,9 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
       return false;
   }
 
-  log_file_ = fopen(path.c_str(), "ab");
-  if (!log_file_) {
-    *err = strerror(errno);
-    return false;
-  }
-  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
-  SetCloseOnExec(fileno(log_file_));
-
-  // Opening a file in append mode doesn't set the file pointer to the file's
-  // end on Windows. Do that explicitly.
-  fseek(log_file_, 0, SEEK_END);
-
-  if (ftell(log_file_) == 0) {
-    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
-      *err = strerror(errno);
-      return false;
-    }
-  }
-
+  assert(!log_file_);
+  log_file_path_ = path;  // we don't actually open the file right now, but will
+                          // do so on the first write attempt
   return true;
 }
 
@@ -174,6 +161,9 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->end_time = end_time;
     log_entry->mtime = mtime;
 
+    if (!OpenForWriteIfNeeded()) {
+      return false;
+    }
     if (log_file_) {
       if (!WriteEntry(log_file_, *log_entry))
         return false;
@@ -186,9 +176,35 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
 }
 
 void BuildLog::Close() {
+  OpenForWriteIfNeeded();  // create the file even if nothing has been recorded
   if (log_file_)
     fclose(log_file_);
   log_file_ = NULL;
+}
+
+bool BuildLog::OpenForWriteIfNeeded() {
+  if (log_file_ || log_file_path_.empty()) {
+    return true;
+  }
+  log_file_ = fopen(log_file_path_.c_str(), "ab");
+  if (!log_file_) {
+    return false;
+  }
+  if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
+    return false;
+  }
+  SetCloseOnExec(fileno(log_file_));
+
+  // Opening a file in append mode doesn't set the file pointer to the file's
+  // end on Windows. Do that explicitly.
+  fseek(log_file_, 0, SEEK_END);
+
+  if (ftell(log_file_) == 0) {
+    if (fprintf(log_file_, kFileSignature, kCurrentVersion) < 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 struct LineReader {

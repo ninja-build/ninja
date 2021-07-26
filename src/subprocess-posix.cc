@@ -18,16 +18,23 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
 
+#if defined(USE_PPOLL)
+#include <poll.h>
+#else
+#include <sys/select.h>
+#endif
+
 extern char** environ;
 
 #include "util.h"
+
+using namespace std;
 
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
@@ -146,6 +153,16 @@ ExitStatus Subprocess::Finish() {
   if (waitpid(pid_, &status, 0) < 0)
     Fatal("waitpid(%d): %s", pid_, strerror(errno));
   pid_ = -1;
+
+#ifdef _AIX
+  if (WIFEXITED(status) && WEXITSTATUS(status) & 0x80) {
+    // Map the shell's exit code used for signal failure (128 + signal) to the
+    // status code expected by AIX WIFSIGNALED and WTERMSIG macros which, unlike
+    // other systems, uses a different bit layout.
+    int signal = WEXITSTATUS(status) & 0x7f;
+    status = (signal << 16) | signal;
+  }
+#endif
 
   if (WIFEXITED(status)) {
     int exit = WEXITSTATUS(status);

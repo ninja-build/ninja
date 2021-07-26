@@ -19,12 +19,17 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        cmake -DCMAKE_BUILD_TYPE=Release -B build
+        cmake -Bbuild
+        cmake --build build --parallel --config Debug
         cmake --build build --parallel --config Release
 
-    - name: Test ninja
-      run: ctest -vv
-      working-directory: build
+    - name: Test ninja (Debug)
+      run: .\ninja_test.exe
+      working-directory: build/Debug
+
+    - name: Test ninja (Release)
+      run: .\ninja_test.exe
+      working-directory: build/Release
 
     - name: Create ninja archive
       shell: bash
