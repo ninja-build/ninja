@@ -48,6 +48,10 @@ int64_t TimerToMicros(int64_t dt) {
   // No conversion necessary.
   return dt;
 }
+
+double TimerToMicros(double dt) {
+  return dt;
+}
 #else
 int64_t LargeIntegerToInt64(const LARGE_INTEGER& i) {
   return ((int64_t)i.HighPart) << 32 | i.LowPart;
@@ -61,6 +65,19 @@ int64_t HighResTimer() {
 }
 
 int64_t TimerToMicros(int64_t dt) {
+  static int64_t ticks_per_sec = 0;
+  if (!ticks_per_sec) {
+    LARGE_INTEGER freq;
+    if (!QueryPerformanceFrequency(&freq))
+      Fatal("QueryPerformanceFrequency: %s", GetLastErrorString().c_str());
+    ticks_per_sec = LargeIntegerToInt64(freq);
+  }
+
+  // dt is in ticks.  We want microseconds.
+  return (dt * 1000000) / ticks_per_sec;
+}
+
+int64_t TimerToMicros(double dt) {
   static int64_t ticks_per_sec = 0;
   if (!ticks_per_sec) {
     LARGE_INTEGER freq;
@@ -87,7 +104,7 @@ ScopedMetric::~ScopedMetric() {
   if (!metric_)
     return;
   metric_->count++;
-  int64_t dt = TimerToMicros(HighResTimer() - start_);
+  int64_t dt = HighResTimer() - start_;
   metric_->sum += dt;
 }
 
@@ -112,15 +129,21 @@ void Metrics::Report() {
   for (vector<Metric*>::iterator i = metrics_.begin();
        i != metrics_.end(); ++i) {
     Metric* metric = *i;
-    double total = metric->sum / (double)1000;
-    double avg = metric->sum / (double)metric->count;
+    uint64_t micros = TimerToMicros(metric->sum);
+    double total = micros / (double)1000;
+    double avg = micros / (double)metric->count;
     printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", width, metric->name.c_str(),
            metric->count, avg, total);
   }
 }
 
-uint64_t Stopwatch::Now() const {
-  return TimerToMicros(HighResTimer());
+double Stopwatch::Elapsed() const {
+  // Convert to micros after converting to double to minimize error.
+  return 1e-6 * TimerToMicros(static_cast<double>(NowRaw() - started_));
+}
+
+uint64_t Stopwatch::NowRaw() const {
+  return HighResTimer();
 }
 
 int64_t GetTimeMillis() {
