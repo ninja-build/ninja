@@ -64,14 +64,17 @@ int64_t HighResTimer() {
   return LargeIntegerToInt64(counter);
 }
 
+int64_t GetFrequency() {
+  LARGE_INTEGER freq;
+  if (!QueryPerformanceFrequency(&freq))
+    Fatal("QueryPerformanceFrequency: %s", GetLastErrorString().c_str());
+  return LargeIntegerToInt64(freq);
+}
+
 int64_t TimerToMicros(int64_t dt) {
   static int64_t ticks_per_sec = 0;
-  if (!ticks_per_sec) {
-    LARGE_INTEGER freq;
-    if (!QueryPerformanceFrequency(&freq))
-      Fatal("QueryPerformanceFrequency: %s", GetLastErrorString().c_str());
-    ticks_per_sec = LargeIntegerToInt64(freq);
-  }
+  if (!ticks_per_sec)
+    ticks_per_sec = GetFrequency();
 
   // dt is in ticks.  We want microseconds.
   return (dt * 1000000) / ticks_per_sec;
@@ -79,12 +82,8 @@ int64_t TimerToMicros(int64_t dt) {
 
 int64_t TimerToMicros(double dt) {
   static int64_t ticks_per_sec = 0;
-  if (!ticks_per_sec) {
-    LARGE_INTEGER freq;
-    if (!QueryPerformanceFrequency(&freq))
-      Fatal("QueryPerformanceFrequency: %s", GetLastErrorString().c_str());
-    ticks_per_sec = LargeIntegerToInt64(freq);
-  }
+  if (!ticks_per_sec)
+    ticks_per_sec = GetFrequency();
 
   // dt is in ticks.  We want microseconds.
   return (dt * 1000000) / ticks_per_sec;
