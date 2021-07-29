@@ -18,13 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef _WIN32
-#include <sys/time.h>
-#else
-#include <windows.h>
-#endif
-
 #include <algorithm>
+#include <chrono>
 
 #include "util.h"
 
@@ -32,47 +27,53 @@ using namespace std;
 
 Metrics* g_metrics = NULL;
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace {
 
-#ifndef _WIN32
-/// Compute a platform-specific high-res timer value that fits into an int64.
-int64_t HighResTimer() {
-  timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
-    Fatal("gettimeofday: %s", strerror(errno));
-  return (int64_t)tv.tv_sec * 1000*1000 + tv.tv_usec;
-}
-
-/// Convert a delta of HighResTimer() values to microseconds.
-int64_t TimerToMicros(int64_t dt) {
-  // No conversion necessary.
-  return dt;
-}
-#else
+#ifdef _WIN32
 int64_t LargeIntegerToInt64(const LARGE_INTEGER& i) {
   return ((int64_t)i.HighPart) << 32 | i.LowPart;
 }
 
-int64_t HighResTimer() {
+int64_t HighResTimerQPC() {
   LARGE_INTEGER counter;
   if (!QueryPerformanceCounter(&counter))
     Fatal("QueryPerformanceCounter: %s", GetLastErrorString().c_str());
   return LargeIntegerToInt64(counter);
 }
+#endif
+
+int64_t HighResTimer() {
+  auto now = chrono::steady_clock::now();
+  return chrono::duration_cast<chrono::nanoseconds>(now.time_since_epoch()).count();
+}
+
+int64_t GetFrequency() {
+  auto den = std::chrono::steady_clock::period::den;
+  auto num = std::chrono::steady_clock::period::num;
+  return den / num;
+}
 
 int64_t TimerToMicros(int64_t dt) {
   static int64_t ticks_per_sec = 0;
-  if (!ticks_per_sec) {
-    LARGE_INTEGER freq;
-    if (!QueryPerformanceFrequency(&freq))
-      Fatal("QueryPerformanceFrequency: %s", GetLastErrorString().c_str());
-    ticks_per_sec = LargeIntegerToInt64(freq);
-  }
+  if (!ticks_per_sec)
+    ticks_per_sec = GetFrequency();
 
   // dt is in ticks.  We want microseconds.
   return (dt * 1000000) / ticks_per_sec;
 }
-#endif
+
+int64_t TimerToMicros(double dt) {
+  static int64_t ticks_per_sec = 0;
+  if (!ticks_per_sec)
+    ticks_per_sec = GetFrequency();
+
+  // dt is in ticks.  We want microseconds.
+  return (dt * 1000000) / ticks_per_sec;
+}
 
 }  // anonymous namespace
 
@@ -87,7 +88,7 @@ ScopedMetric::~ScopedMetric() {
   if (!metric_)
     return;
   metric_->count++;
-  int64_t dt = TimerToMicros(HighResTimer() - start_);
+  int64_t dt = HighResTimer() - start_;
   metric_->sum += dt;
 }
 
@@ -100,7 +101,29 @@ Metric* Metrics::NewMetric(const string& name) {
   return metric;
 }
 
+int64_t results[2];
+const int kIterations = 10000000;
+
 void Metrics::Report() {
+  {
+    Stopwatch watch;
+    watch.Restart();
+    for (int i = 0; i < kIterations; ++i) {
+      results[i & 1] = HighResTimer();
+    }
+    printf("%1.1f ms for %d calls to HighResTimer().\n", watch.Elapsed() * 1e3, kIterations);
+  }
+#ifdef _WIN32
+  {
+    Stopwatch watch;
+    watch.Restart();
+    for (int i = 0; i < kIterations; ++i) {
+      results[i & 1] = HighResTimerQPC();
+    }
+    printf("%1.1f ms for %d calls to HighResTimerQPC().\n", watch.Elapsed() * 1e3, kIterations);
+  }
+#endif
+
   int width = 0;
   for (vector<Metric*>::iterator i = metrics_.begin();
        i != metrics_.end(); ++i) {
@@ -112,15 +135,21 @@ void Metrics::Report() {
   for (vector<Metric*>::iterator i = metrics_.begin();
        i != metrics_.end(); ++i) {
     Metric* metric = *i;
-    double total = metric->sum / (double)1000;
-    double avg = metric->sum / (double)metric->count;
+    uint64_t micros = TimerToMicros(metric->sum);
+    double total = micros / (double)1000;
+    double avg = micros / (double)metric->count;
     printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", width, metric->name.c_str(),
            metric->count, avg, total);
   }
 }
 
-uint64_t Stopwatch::Now() const {
-  return TimerToMicros(HighResTimer());
+double Stopwatch::Elapsed() const {
+  // Convert to micros after converting to double to minimize error.
+  return 1e-6 * TimerToMicros(static_cast<double>(NowRaw() - started_));
+}
+
+uint64_t Stopwatch::NowRaw() const {
+  return HighResTimer();
 }
 
 int64_t GetTimeMillis() {
