@@ -48,7 +48,7 @@ int64_t HighResTimerQPC() {
 
 int64_t HighResTimer() {
   auto now = chrono::steady_clock::now();
-  return chrono::duration_cast<chrono::nanoseconds>(now.time_since_epoch()).count();
+  return chrono::duration_cast<chrono::steady_clock::duration>(now.time_since_epoch()).count();
 }
 
 int64_t GetFrequency() {
