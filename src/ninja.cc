@@ -41,6 +41,7 @@
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "json.h"
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "missing_deps.h"
@@ -136,11 +137,11 @@ struct NinjaMain : public BuildLogUser {
   int ToolWinCodePage(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
-  /// @return LOAD_ERROR on error.
+  /// @return false on error.
   bool OpenBuildLog(bool recompact_only = false);
 
   /// Open the deps log: load it, then open for writing.
-  /// @return LOAD_ERROR on error.
+  /// @return false on error.
   bool OpenDepsLog(bool recompact_only = false);
 
   /// Ensure the build directory exists, creating it if necessary.
@@ -217,6 +218,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version      print ninja version (\"%s\")\n"
 "  -v, --verbose  show all command lines while building\n"
+"  --quiet        don't show progress status, just command output\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -251,9 +253,12 @@ int GuessParallelism() {
 bool NinjaMain::RebuildManifest(const char* input_file, string* err,
                                 Status* status) {
   string path = input_file;
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, &slash_bits, err))
+  if (path.empty()) {
+    *err = "empty path";
     return false;
+  }
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  CanonicalizePath(&path, &slash_bits);
   Node* node = state_.LookupNode(path);
   if (!node)
     return false;
@@ -283,9 +288,12 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
-  uint64_t slash_bits;
-  if (!CanonicalizePath(&path, &slash_bits, err))
+  if (path.empty()) {
+    *err = "empty path";
     return NULL;
+  }
+  uint64_t slash_bits;
+  CanonicalizePath(&path, &slash_bits);
 
   // Special syntax: "foo.cc^" means "the first output of foo.cc".
   bool first_dependent = false;
@@ -298,15 +306,20 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   if (node) {
     if (first_dependent) {
       if (node->out_edges().empty()) {
-        *err = "'" + path + "' has no out edge";
-        return NULL;
+        Node* rev_deps = deps_log_.GetFirstReverseDepsNode(node);
+        if (!rev_deps) {
+          *err = "'" + path + "' has no out edge";
+          return NULL;
+        }
+        node = rev_deps;
+      } else {
+        Edge* edge = node->out_edges()[0];
+        if (edge->outputs_.empty()) {
+          edge->Dump();
+          Fatal("edge has no outputs");
+        }
+        node = edge->outputs_[0];
       }
-      Edge* edge = node->out_edges()[0];
-      if (edge->outputs_.empty()) {
-        edge->Dump();
-        Fatal("edge has no outputs");
-      }
-      node = edge->outputs_[0];
     }
     return node;
   } else {
@@ -766,15 +779,6 @@ int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
   return cleaner.CleanDead(build_log_.entries());
 }
 
-void EncodeJSONString(const char *str) {
-  while (*str) {
-    if (*str == '"' || *str == '\\')
-      putchar('\\');
-    putchar(*str);
-    str++;
-  }
-}
-
 enum EvaluateCommandMode {
   ECM_NORMAL,
   ECM_EXPAND_RSPFILE
@@ -807,13 +811,13 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
 void printCompdb(const char* const directory, const Edge* const edge,
                  const EvaluateCommandMode eval_mode) {
   printf("\n  {\n    \"directory\": \"");
-  EncodeJSONString(directory);
+  PrintJSONString(directory);
   printf("\",\n    \"command\": \"");
-  EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+  PrintJSONString(EvaluateCommandWithRspfile(edge, eval_mode));
   printf("\",\n    \"file\": \"");
-  EncodeJSONString(edge->inputs_[0]->path().c_str());
+  PrintJSONString(edge->inputs_[0]->path());
   printf("\",\n    \"output\": \"");
-  EncodeJSONString(edge->outputs_[0]->path().c_str());
+  PrintJSONString(edge->outputs_[0]->path());
   printf("\"\n  }");
 }
 
@@ -894,8 +898,8 @@ int NinjaMain::ToolRecompact(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  if (OpenBuildLog(/*recompact_only=*/true) == LOAD_ERROR ||
-      OpenDepsLog(/*recompact_only=*/true) == LOAD_ERROR)
+  if (!OpenBuildLog(/*recompact_only=*/true) ||
+      !OpenDepsLog(/*recompact_only=*/true))
     return 1;
 
   return 0;
@@ -1307,11 +1311,12 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   config->parallelism = GuessParallelism();
 
-  enum { OPT_VERSION = 1 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
+    { "quiet", no_argument, NULL, OPT_QUIET },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1369,6 +1374,9 @@ int ReadFlags(int* argc, char*** argv,
       case 'v':
         config->verbosity = BuildConfig::VERBOSE;
         break;
+      case OPT_QUIET:
+        config->verbosity = BuildConfig::NO_STATUS_UPDATE;
+        break;
       case 'w':
         if (!WarningEnable(optarg, options))
           return 1;
@@ -1414,7 +1422,7 @@ NORETURN void real_main(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool)
+    if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
       status->Info("Entering directory `%s'", options.working_dir);
     if (ChangeCurrentWorkingDirectory(options.working_dir)) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));

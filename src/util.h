@@ -64,10 +64,8 @@ void Info(const char* msg, va_list ap);
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
 /// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits,
-                      std::string* err);
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      std::string* err);
+void CanonicalizePath(std::string* path, uint64_t* slash_bits);
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits);
 
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().

@@ -562,11 +562,8 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   uint64_t unused;
   std::vector<StringPiece>::iterator primary_out = depfile.outs_.begin();
-  if (!CanonicalizePath(const_cast<char*>(primary_out->str_),
-                        &primary_out->len_, &unused, err)) {
-    *err = path + ": " + *err;
-    return false;
-  }
+  CanonicalizePath(const_cast<char*>(primary_out->str_), &primary_out->len_,
+                   &unused);
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
@@ -601,10 +598,7 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i, ++implicit_dep) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                          err))
-      return false;
-
+    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
@@ -654,6 +648,7 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
     return;
 
   Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  phony_edge->generated_by_dep_loader_ = true;
   node->set_in_edge(phony_edge);
   phony_edge->outputs_.push_back(node);
 

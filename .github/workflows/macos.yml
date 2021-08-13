@@ -21,7 +21,6 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        sudo xcode-select -s /Applications/Xcode_12.2.app
         cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
         cmake --build build --config Release
 
