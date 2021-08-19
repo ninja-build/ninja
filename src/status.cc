@@ -215,6 +215,15 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
         break;
       }
 
+        // Roughly estimated remaining time in seconds.
+      case 'R': {
+        snprintf(buf, sizeof(buf), "%.1f",
+                 ((time_millis_ / 1e3) / finished_edges_) *
+                 (total_edges_ - finished_edges_));
+        out += buf;
+        break;
+      }
+
       default:
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
