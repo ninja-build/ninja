@@ -152,9 +152,9 @@ void Plan::EdgeWanted(const Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  set<Edge*>::iterator i = ready_.end();
-  for (list<Edge*>::iterator it = priority_list_.begin(),
-                             end = priority_list_.end();
+  std::set<Edge*>::iterator i = ready_.end();
+  for (std::list<Edge*>::iterator it = priority_list_.begin(),
+                                  end = priority_list_.end();
        it != end; ++it) {
     i = ready_.find(*it);
     if (i != ready_.end()) {
@@ -450,11 +450,11 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     return;
 
   METRIC_RECORD("ComputePriorityList");
-  set<Node*> dedup;
-  vector<Node*> deduped;
-  for (vector<Node*>::iterator it = targets_.begin(); it != targets_.end();
+  std::set<const Node*> dedup;
+  std::vector<const Node*> deduped;
+  for (std::vector<const Node*>::iterator it = targets_.begin(); it != targets_.end();
        ++it) {
-    pair<set<Node*>::iterator, bool> insert_result = dedup.insert(*it);
+    std::pair<std::set<const Node*>::iterator, bool> insert_result = dedup.insert(*it);
     if (!insert_result.second)
       continue;
     deduped.push_back(*it);
@@ -462,36 +462,23 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   targets_.swap(deduped);
 
 
-  vector<Edge*> edges;
-  map<Node*, int> num_out_edges;
-  for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
+  std::vector<Edge*> edges;
+  std::map<Node*, int> num_out_edges;
+  for (std::map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
        it != end; ++it) {
     if (it->second != kWantNothing)
       continue;
     Edge* e = it->first;
     edges.push_back(e);
-    //printf("in\n");
-    set<Node*> ins; // protect against #308; also sanity
+    std::set<Node*> ins; // protect against #308; also sanity
     for (size_t nit = 0; nit < e->inputs_.size(); ++nit) {
       Node* n = e->inputs_[nit];
       if (ins.count(n) == 0) {
-        //printf("%s %s\n", (*nit)->path().c_str(), e->rule().name().c_str());
         num_out_edges[n]++;
         ins.insert(n);
       }
     }
-    //printf("\n");
   }
-
-  if (false) {
-    for (map<Node*, int>::iterator it = num_out_edges.begin(),
-                                   end = num_out_edges.end();
-         it != end; ++it) {
-      printf("%s %d\n", it->first->path().c_str(), it->second);
-    }
-  }
-
-
 
   // this is total time if building all edges in serial, so this value is big
   // enough to ensure higher priority target initial critical time always bigger
@@ -507,7 +494,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   // c) A fixed cost if this type of edge hasn't run before (0 for phony target,
   //    1 for others)
   //
-  for (vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
+  for (std::vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
        total_time += (*it)->run_time_ms_, ++it) {
     Edge* edge = *it;
     if (edge->is_phony())
@@ -518,21 +505,8 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       edge->run_time_ms_ = 1;
       continue;
     }
-    int duration = entry->end_time - entry->start_time;  // XXX: + 1?
+    int duration = entry->end_time - entry->start_time;
     edge->run_time_ms_ = duration;
-  }
-
-
-  // Dump graph to stdout for debugging / prototyping.
-  if (false) {
-    for (vector<Edge*>::iterator it = edges.begin(), end = edges.end();
-         it != end; ++it) {
-      Edge* edge = *it;
-      Node* input = edge->inputs_[0];
-      Node* output = edge->outputs_[0];
-      printf("%s %s %d\n", input->path().c_str(), output->path().c_str(),
-             edge->run_time_ms_);
-    }
   }
 
   // 1. Use backflow algorithm to compute critical times for all nodes, starting
@@ -540,21 +514,21 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   // initial critical time to makes forward edgs of higher priority always
   // get higher critical time value
   // XXX: ignores pools
-  queue<Edge*> edgesQ;
+  std::queue<Edge*> edgesQ;
 
   // Makes sure that each edge is added to the queue just once. This is needed
   // for example if a binary is used to generate 50 source files, and all the
   // source file cxx lines are added. Without this, the edge generating that
   // binary would be added ot the queue 50 times.
-  set<Edge*> done;
+  std::set<Edge*> done;
 
-  for (vector<Node*>::reverse_iterator it = targets_.rbegin(),
-                                       end = targets_.rend();
+  for (std::vector<const Node*>::reverse_iterator it = targets_.rbegin(),
+                                                  end = targets_.rend();
        it != end; ++it) {
     if (Edge* in = (*it)->in_edge()) {
       uint64_t priority_weight = (it - targets_.rbegin()) * total_time;
       in->set_critical_time(
-          max(max<uint64_t>(in->run_time_ms_, priority_weight),
+          std::max(std::max<uint64_t>(in->run_time_ms_, priority_weight),
               in->critical_time()));
       if (done.count(in) == 0) {
         edgesQ.push(in);
@@ -566,17 +540,17 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     Edge* e = edgesQ.front(); edgesQ.pop();
     bool all_nodes_ready = true;
     uint64_t max_crit = 0;
-    for (vector<Node*>::iterator it = e->outputs_.begin(),
-                                 end = e->outputs_.end();
+    for (std::vector<Node*>::iterator it = e->outputs_.begin(),
+                                      end = e->outputs_.end();
          it != end; ++it) {
       if (num_out_edges[*it] > 0) {
         all_nodes_ready = false;
         continue;
       }
-      for (vector<Edge*>::const_iterator eit = (*it)->out_edges().begin(),
-                                         eend = (*it)->out_edges().end();
+      for (std::vector<Edge*>::const_iterator eit = (*it)->out_edges().begin(),
+                                              eend = (*it)->out_edges().end();
            eit != eend; ++eit) {
-        max_crit = max((*eit)->critical_time(), max_crit);
+        max_crit = std::max((*eit)->critical_time(), max_crit);
       }
     }
     if (!all_nodes_ready) {
@@ -585,10 +559,10 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       edgesQ.push(e);
       continue;
     }
-    e->set_critical_time(max(max_crit + e->run_time_ms_, e->critical_time()));
+    e->set_critical_time(std::max(max_crit + e->run_time_ms_, e->critical_time()));
 
-    for (vector<Node*>::iterator it = e->inputs_.begin(),
-                                 end = e->inputs_.end();
+    for (std::vector<Node*>::iterator it = e->inputs_.begin(),
+                                      end = e->inputs_.end();
          it != end; ++it) {
       num_out_edges[*it]--;
       if (Edge* in = (*it)->in_edge()) {
@@ -601,8 +575,8 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
   }
 
   // 2. Build priority list in decreasing order of critical times.
-  sort(edges.begin(), edges.end(), EdgeCom);
-  priority_list_ = list<Edge*>(edges.begin(), edges.end());
+  std::sort(edges.begin(), edges.end(), EdgeCom);
+  priority_list_.assign(edges.begin(), edges.end());
 }
 
 void Plan::Dump() const {

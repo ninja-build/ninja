@@ -125,8 +125,8 @@ private:
 
   Builder* builder_;
   /// user provided targets in build order, earlier one have higher priority
-  vector<Node*> targets_;
-  list<Edge*> priority_list_;
+  std::vector<const Node*> targets_;
+  std::list<Edge*> priority_list_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
