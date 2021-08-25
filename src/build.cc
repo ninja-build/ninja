@@ -492,7 +492,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       edge->run_time_ms_ = 1;
       continue;
     }
-    edge->run_time_ms_ = entry->end_time - entry->start_time;
+    const int64_t duration = entry->end_time - entry->start_time;
+    edge->run_time_ms_ = duration;
+    total_time += duration;
   }
 
   // Use backflow algorithm to compute critical times for all nodes, starting
