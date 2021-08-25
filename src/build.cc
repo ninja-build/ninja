@@ -77,8 +77,8 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 
 bool EdgeQueue::EdgePriorityCompare::operator()(const Edge* e1, const Edge* e2) const {
-  const uint64_t ct1 = e1->critical_time();
-  const uint64_t ct2 = e2->critical_time();
+  const int64_t ct1 = e1->critical_time();
+  const int64_t ct2 = e2->critical_time();
   if (ct1 != ct2) {
     return ct1 < ct2;
   }
@@ -464,28 +464,10 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
         targets_.end());
   }
 
-
-  std::vector<Edge*> edges;
-  std::map<Node*, int> num_out_edges;
-  for (std::map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
-       it != end; ++it) {
-    if (it->second != kWantNothing)
-      continue;
-    Edge* e = it->first;
-    edges.push_back(e);
-    std::set<Node*> ins; // protect against #308; also sanity
-    for (size_t nit = 0; nit < e->inputs_.size(); ++nit) {
-      Node* n = e->inputs_[nit];
-      if (ins.insert(n).second) {
-        num_out_edges[n]++;
-      }
-    }
-  }
-
   // this is total time if building all edges in serial, so this value is big
   // enough to ensure higher priority target initial critical time always bigger
   // than lower one
-  uint64_t total_time = 0;
+  int64_t total_time = 0;
   // Critical path scheduling.
   // 0. Assign costs to all edges, using:
   // a) The time the edge needed last time, if available.
@@ -496,11 +478,12 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // c) A fixed cost if this type of edge hasn't run before (0 for phony target,
   //    1 for others)
   //
-  for (std::vector<Edge*>::iterator it = edges.begin(), end = edges.end(); it != end;
-       total_time += (*it)->run_time_ms_, ++it) {
-    Edge* edge = *it;
-    if (edge->is_phony())
+  for (std::map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
+       it != end; ++it) {
+    Edge* edge = it->first;
+    if (edge->is_phony()) {
       continue;
+    }
     BuildLog::LogEntry* entry =
         build_log->LookupByOutput(edge->outputs_[0]->path());
     if (!entry) {
@@ -512,62 +495,44 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   }
 
   // Use backflow algorithm to compute critical times for all nodes, starting
-  // from the destination nodes. use priority_weight = total_time * N as
-  // initial critical time to makes forward edgs of higher priority always
-  // get higher critical time value
+  // from the destination nodes.
   // XXX: ignores pools
-  std::queue<Edge*> edgesQ;
-
-  // Makes sure that each edge is added to the queue just once. This is needed
-  // for example if a binary is used to generate 50 source files, and all the
-  // source file cxx lines are added. Without this, the edge generating that
-  // binary would be added ot the queue 50 times.
-  std::set<Edge*> done;
+  std::set<Edge*> active_edges;  // All edges in edgesQ (for uniqueness)
+  std::queue<Edge*> edgesQ;      // Queue, for breadth-first traversal
 
   for (std::vector<const Node*>::reverse_iterator it = targets_.rbegin(),
                                                   end = targets_.rend();
        it != end; ++it) {
     if (Edge* in = (*it)->in_edge()) {
-      uint64_t priority_weight = (it - targets_.rbegin()) * total_time;
+      // Use initial critical time: total_time * N. This means higher
+      // priority targets always get a higher critical time value
+      int64_t priority_weight = (it - targets_.rbegin()) * total_time;
       in->set_critical_time(
-          std::max(std::max<uint64_t>(in->run_time_ms_, priority_weight),
-              in->critical_time()));
-      if (done.insert(in).second) {
+          priority_weight +
+          std::max<int64_t>(in->run_time_ms_, in->critical_time()));
+      if (active_edges.insert(in).second) {
         edgesQ.push(in);
       }
     }
   }
+
   while (!edgesQ.empty()) {
-    Edge* e = edgesQ.front(); edgesQ.pop();
-    bool all_nodes_ready = true;
-    uint64_t max_crit = 0;
-    for (std::vector<Node*>::iterator it = e->outputs_.begin(),
-                                      end = e->outputs_.end();
-         it != end; ++it) {
-      if (num_out_edges[*it] > 0) {
-        all_nodes_ready = false;
-        continue;
-      }
-      for (std::vector<Edge*>::const_iterator eit = (*it)->out_edges().begin(),
-                                              eend = (*it)->out_edges().end();
-           eit != eend; ++eit) {
-        max_crit = std::max((*eit)->critical_time(), max_crit);
-      }
-    }
-    if (!all_nodes_ready) {
-      // To the back it goes.
-      // XXX: think about how often this can happen.
-      edgesQ.push(e);
-      continue;
-    }
-    e->set_critical_time(std::max(max_crit + e->run_time_ms_, e->critical_time()));
+    Edge* e = edgesQ.front();
+    edgesQ.pop();
+    active_edges.erase(e);
 
     for (std::vector<Node*>::iterator it = e->inputs_.begin(),
                                       end = e->inputs_.end();
          it != end; ++it) {
-      num_out_edges[*it]--;
-      if (Edge* in = (*it)->in_edge()) {
-        if (done.insert(in).second) {
+      Edge* in = (*it)->in_edge();
+      if (!in) {
+        continue;
+      }
+      // Only process edge if this node offers a higher critical time
+      const int64_t proposed_time = e->critical_time() + in->run_time_ms_;
+      if (proposed_time > in->critical_time()) {
+        in->set_critical_time(proposed_time);
+        if (active_edges.insert(in).second) {
           edgesQ.push(in);
         }
       }
@@ -725,7 +690,7 @@ bool Builder::AlreadyUpToDate() const {
 bool Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
 
-  plan_.ComputePriorityList(scan_.build_log());
+  plan_.ComputeCriticalTime(scan_.build_log());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;

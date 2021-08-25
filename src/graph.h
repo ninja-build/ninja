@@ -146,7 +146,7 @@ struct Edge {
 
   Edge()
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
-        id_(0), run_time_ms_(0), critical_time_(0), outputs_ready_(false),
+        id_(0), run_time_ms_(0), critical_time_(-1), outputs_ready_(false),
         deps_loaded_(false), deps_missing_(false),
         generated_by_dep_loader_(false), implicit_deps_(0),
         order_only_deps_(0), implicit_outs_(0) {}
@@ -172,8 +172,8 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
-  uint64_t critical_time() const { return critical_time_; }
-  void set_critical_time(uint64_t critical_time) { critical_time_ = critical_time; }
+  int64_t critical_time() const { return critical_time_; }
+  void set_critical_time(int64_t critical_time) { critical_time_ = critical_time; }
 
   const Rule* rule_;
   Pool* pool_;
@@ -184,7 +184,7 @@ struct Edge {
   VisitMark mark_;
   size_t id_;
   int run_time_ms_;
-  uint64_t critical_time_;
+  int64_t critical_time_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;
