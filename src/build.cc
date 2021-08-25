@@ -438,12 +438,15 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 
 namespace {
 
-struct SeenNodeBefore {
-  std::set<const Node*> *seen;
+template <typename T>
+struct SeenBefore {
+  std::set<const T*> *seen_;
 
-  bool operator() (const Node* node) {
-    // Return true if the node has been seen before
-    return !seen->insert(node).second;
+  SeenBefore(std::set<const T*>* seen) : seen_(seen) {}
+
+  bool operator() (const T* item) {
+    // Return true if the item has been seen before
+    return !seen_->insert(item).second;
   }
 };
 
@@ -458,8 +461,8 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // Remove duplicate targets
   {
     std::set<const Node*> seen;
-    targets_.erase(std::remove_if(targets_.begin(), targets_.end(),
-                                  SeenNodeBefore{ &seen }),
+    SeenBefore<Node> seen_before(&seen);
+    targets_.erase(std::remove_if(targets_.begin(), targets_.end(), seen_before),
                    targets_.end());
   }
 
@@ -489,15 +492,16 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       edge->run_time_ms_ = 1;
       continue;
     }
-    int duration = entry->end_time - entry->start_time;
-    edge->run_time_ms_ = duration;
+    edge->run_time_ms_ = entry->end_time - entry->start_time;
   }
 
   // Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes.
   // XXX: ignores pools
-  std::set<Edge*> active_edges;  // All edges in edgesQ (for uniqueness)
-  std::queue<Edge*> edgesQ;      // Queue, for breadth-first traversal
+  std::queue<Edge*> breadthFirstEdges;  // Queue, for breadth-first traversal
+  std::set<const Edge*> active_edges;   // Set of in breadthFirstEdges
+  SeenBefore<Edge> seen_edge(
+      &active_edges);  // Test for uniqueness in breadthFirstEdges
 
   for (std::vector<const Node*>::reverse_iterator it = targets_.rbegin(),
                                                   end = targets_.rend();
@@ -509,15 +513,15 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       in->set_critical_time(
           priority_weight +
           std::max<int64_t>(in->run_time_ms_, in->critical_time()));
-      if (active_edges.insert(in).second) {
-        edgesQ.push(in);
+      if (!seen_edge(in)) {
+        breadthFirstEdges.push(in);
       }
     }
   }
 
-  while (!edgesQ.empty()) {
-    Edge* e = edgesQ.front();
-    edgesQ.pop();
+  while (!breadthFirstEdges.empty()) {
+    Edge* e = breadthFirstEdges.front();
+    breadthFirstEdges.pop();
     active_edges.erase(e);
 
     for (std::vector<Node*>::iterator it = e->inputs_.begin(),
@@ -531,8 +535,8 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       const int64_t proposed_time = e->critical_time() + in->run_time_ms_;
       if (proposed_time > in->critical_time()) {
         in->set_critical_time(proposed_time);
-        if (active_edges.insert(in).second) {
-          edgesQ.push(in);
+        if (!seen_edge(in)) {
+          breadthFirstEdges.push(in);
         }
       }
     }

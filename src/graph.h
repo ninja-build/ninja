@@ -185,7 +185,7 @@ struct Edge {
   BindingEnv* env_;
   VisitMark mark_;
   size_t id_;
-  int run_time_ms_;
+  int64_t run_time_ms_;
   int64_t critical_time_;
   bool outputs_ready_;
   bool deps_loaded_;

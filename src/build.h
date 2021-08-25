@@ -44,14 +44,10 @@ class EdgeQueue {
   };
 
   std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare> queue_;
-  // Set to ensure no duplicate entries in ready_
-  EdgeSet set_;
 
  public:
   void push(Edge* edge) {
-    if (set_.insert(edge).second) {
-      queue_.push(edge);
-    }
+    queue_.push(edge);
   }
 
   template <typename It>
@@ -64,15 +60,11 @@ class EdgeQueue {
   Edge* pop() {
     Edge* ret = queue_.top();
     queue_.pop();
-    set_.erase(ret);
     return ret;
   }
 
   void clear() {
-    set_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
+    queue_ = std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare>();
   }
 
   size_t size() const { return queue_.size(); }
