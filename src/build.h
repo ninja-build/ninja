@@ -47,8 +47,7 @@ class EdgeQueue {
   // Set to ensure no duplicate entries in ready_
   EdgeSet set_;
 
-public:
-
+ public:
   void push(Edge* edge) {
     if (set_.insert(edge).second) {
       queue_.push(edge);
@@ -76,15 +75,10 @@ public:
     }
   }
 
-  size_t size() const {
-    return queue_.size();
-  }
+  size_t size() const { return queue_.size(); }
 
-  bool empty() const {
-    return queue_.empty();
-  }
+  bool empty() const { return queue_.empty(); }
 };
-
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.

@@ -450,8 +450,7 @@ struct SeenNodeBefore {
 }  // namespace
 
 void Plan::ComputeCriticalTime(BuildLog* build_log) {
-
-  //testcase have no build_log
+  // testcases have no build_log
   if (!build_log)
     return;
 
@@ -459,9 +458,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // Remove duplicate targets
   {
     std::set<const Node*> seen;
-    targets_.erase(
-        std::remove_if(targets_.begin(), targets_.end(), SeenNodeBefore{&seen}),
-        targets_.end());
+    targets_.erase(std::remove_if(targets_.begin(), targets_.end(),
+                                  SeenNodeBefore{ &seen }),
+                   targets_.end());
   }
 
   // this is total time if building all edges in serial, so this value is big

@@ -148,8 +148,8 @@ struct Edge {
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
         id_(0), run_time_ms_(0), critical_time_(-1), outputs_ready_(false),
         deps_loaded_(false), deps_missing_(false),
-        generated_by_dep_loader_(false), implicit_deps_(0),
-        order_only_deps_(0), implicit_outs_(0) {}
+        generated_by_dep_loader_(false), implicit_deps_(0), order_only_deps_(0),
+        implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -173,7 +173,9 @@ struct Edge {
   void Dump(const char* prefix="") const;
 
   int64_t critical_time() const { return critical_time_; }
-  void set_critical_time(int64_t critical_time) { critical_time_ = critical_time; }
+  void set_critical_time(int64_t critical_time) {
+    critical_time_ = critical_time;
+  }
 
   const Rule* rule_;
   Pool* pool_;
