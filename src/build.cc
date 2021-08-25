@@ -75,6 +75,16 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 }  // namespace
 
+
+bool EdgeQueue::EdgePriorityCompare::operator()(const Edge* e1, const Edge* e2) const {
+  const uint64_t ct1 = e1->critical_time();
+  const uint64_t ct2 = e2->critical_time();
+  if (ct1 != ct2) {
+    return ct1 < ct2;
+  }
+  return e1->id_ < e2->id_;
+}
+
 Plan::Plan(Builder* builder)
   : builder_(builder)
   , command_edges_(0)
@@ -152,21 +162,7 @@ void Plan::EdgeWanted(const Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  std::set<Edge*>::iterator i = ready_.end();
-  for (std::list<Edge*>::iterator it = priority_list_.begin(),
-                                  end = priority_list_.end();
-       it != end; ++it) {
-    i = ready_.find(*it);
-    if (i != ready_.end()) {
-      priority_list_.erase(it);
-      break;
-    }
-  }
-  if (i == ready_.end())
-    i = ready_.begin();
-  Edge* edge = *i;
-  ready_.erase(i);
-  return edge;
+  return ready_.pop();
 }
 
 void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
@@ -184,10 +180,12 @@ void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
   Pool* pool = edge->pool();
   if (pool->ShouldDelayEdge()) {
     pool->DelayEdge(edge);
-    pool->RetrieveReadyEdges(&ready_);
+    EdgeSet new_edges;
+    pool->RetrieveReadyEdges(&new_edges);
+    ready_.push(new_edges.begin(), new_edges.end());
   } else {
     pool->EdgeScheduled(*edge);
-    ready_.insert(edge);
+    ready_.push(edge);
   }
 }
 
@@ -199,7 +197,9 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
-  edge->pool()->RetrieveReadyEdges(&ready_);
+  EdgeSet new_edges;
+  edge->pool()->RetrieveReadyEdges(&new_edges);
+  ready_.push(new_edges.begin(), new_edges.end());
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)
@@ -437,29 +437,32 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 }
 
 namespace {
-bool EdgeCom(const Edge* lhs, const Edge* rhs) {
-  // Note: > to sort in decreasing order.
-  return lhs->critical_time() > rhs->critical_time();
-}
+
+struct SeenNodeBefore {
+  std::set<const Node*> *seen;
+
+  bool operator() (const Node* node) {
+    // Return true if the node has been seen before
+    return !seen->insert(node).second;
+  }
+};
+
 }  // namespace
 
-void Plan::ComputePriorityList(BuildLog* build_log) {
+void Plan::ComputeCriticalTime(BuildLog* build_log) {
 
   //testcase have no build_log
   if (!build_log)
     return;
 
   METRIC_RECORD("ComputePriorityList");
-  std::set<const Node*> dedup;
-  std::vector<const Node*> deduped;
-  for (std::vector<const Node*>::iterator it = targets_.begin(); it != targets_.end();
-       ++it) {
-    std::pair<std::set<const Node*>::iterator, bool> insert_result = dedup.insert(*it);
-    if (!insert_result.second)
-      continue;
-    deduped.push_back(*it);
+  // Remove duplicate targets
+  {
+    std::set<const Node*> seen;
+    targets_.erase(
+        std::remove_if(targets_.begin(), targets_.end(), SeenNodeBefore{&seen}),
+        targets_.end());
   }
-  targets_.swap(deduped);
 
 
   std::vector<Edge*> edges;
@@ -473,9 +476,8 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     std::set<Node*> ins; // protect against #308; also sanity
     for (size_t nit = 0; nit < e->inputs_.size(); ++nit) {
       Node* n = e->inputs_[nit];
-      if (ins.count(n) == 0) {
+      if (ins.insert(n).second) {
         num_out_edges[n]++;
-        ins.insert(n);
       }
     }
   }
@@ -509,7 +511,7 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
     edge->run_time_ms_ = duration;
   }
 
-  // 1. Use backflow algorithm to compute critical times for all nodes, starting
+  // Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes. use priority_weight = total_time * N as
   // initial critical time to makes forward edgs of higher priority always
   // get higher critical time value
@@ -530,9 +532,8 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
       in->set_critical_time(
           std::max(std::max<uint64_t>(in->run_time_ms_, priority_weight),
               in->critical_time()));
-      if (done.count(in) == 0) {
+      if (done.insert(in).second) {
         edgesQ.push(in);
-        done.insert(in);
       }
     }
   }
@@ -566,17 +567,12 @@ void Plan::ComputePriorityList(BuildLog* build_log) {
          it != end; ++it) {
       num_out_edges[*it]--;
       if (Edge* in = (*it)->in_edge()) {
-        if (done.count(in) == 0) {
+        if (done.insert(in).second) {
           edgesQ.push(in);
-          done.insert(in);
         }
       }
     }
   }
-
-  // 2. Build priority list in decreasing order of critical times.
-  std::sort(edges.begin(), edges.end(), EdgeCom);
-  priority_list_.assign(edges.begin(), edges.end());
 }
 
 void Plan::Dump() const {

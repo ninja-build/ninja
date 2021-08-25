@@ -16,7 +16,7 @@
 #define NINJA_BUILD_H_
 
 #include <cstdio>
-#include <list>
+#include <queue>
 #include <map>
 #include <memory>
 #include <queue>
@@ -35,6 +35,56 @@ struct Edge;
 struct Node;
 struct State;
 struct Status;
+
+
+// Set of ready edges, sorted by priority
+class EdgeQueue {
+  struct EdgePriorityCompare {
+    bool operator()(const Edge* e1, const Edge* e2) const;
+  };
+
+  std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare> queue_;
+  // Set to ensure no duplicate entries in ready_
+  EdgeSet set_;
+
+public:
+
+  void push(Edge* edge) {
+    if (set_.insert(edge).second) {
+      queue_.push(edge);
+    }
+  }
+
+  template <typename It>
+  void push(It first, It last) {
+    for (; first != last; ++first) {
+      push(*first);
+    }
+  }
+
+  Edge* pop() {
+    Edge* ret = queue_.top();
+    queue_.pop();
+    set_.erase(ret);
+    return ret;
+  }
+
+  void clear() {
+    set_.clear();
+    while (!queue_.empty()) {
+      queue_.pop();
+    }
+  }
+
+  size_t size() const {
+    return queue_.size();
+  }
+
+  bool empty() const {
+    return queue_.empty();
+  }
+};
+
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
@@ -76,7 +126,7 @@ struct Plan {
 
   /// Reset state.  Clears want and ready sets.
   void Reset();
-  void ComputePriorityList(BuildLog* build_log);
+  void ComputeCriticalTime(BuildLog* build_log);
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
@@ -121,12 +171,11 @@ private:
   /// we want for the edge.
   std::map<Edge*, Want> want_;
 
-  EdgeSet ready_;
+  EdgeQueue ready_;
 
   Builder* builder_;
   /// user provided targets in build order, earlier one have higher priority
   std::vector<const Node*> targets_;
-  std::list<Edge*> priority_list_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;
