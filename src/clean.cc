@@ -129,7 +129,16 @@ int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   PrintHeader();
   for (BuildLog::Entries::const_iterator i = entries.begin(); i != entries.end(); ++i) {
     Node* n = state_->LookupNode(i->first);
-    if (!n || !n->in_edge()) {
+    // Detecting stale outputs works as follows:
+    //
+    // - If it has no Node, it is not in the build graph, or the deps log
+    //   anymore, hence is stale.
+    //
+    // - If it isn't an output or input for any edge, it comes from a stale
+    //   entry in the deps log, but no longer referenced from the build
+    //   graph.
+    //
+    if (!n || (!n->in_edge() && n->out_edges().empty())) {
       Remove(i->first.AsString());
     }
   }
