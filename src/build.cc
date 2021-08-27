@@ -450,6 +450,67 @@ struct SeenBefore {
   }
 };
 
+// Assign run_time_ms_ for all wanted edges, and returns total time for all edges
+// For phony edges, 0 cost.
+// For edges with a build history, use the last build time.
+// For edges without history, use the 75th percentile time for edges with history.
+// Or, if there is no history at all just use 1
+int64_t AssignEdgeRuntime(BuildLog* build_log,
+                          const std::map<Edge*, Plan::Want>& want) {
+  bool missing_durations = false;
+  std::vector<int64_t> durations;
+  int64_t total_time = 0;
+
+  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
+                                                   end = want.end();
+       it != end; ++it) {
+    Edge* edge = it->first;
+    if (edge->is_phony()) {
+      continue;
+    }
+    BuildLog::LogEntry* entry =
+        build_log->LookupByOutput(edge->outputs_[0]->path());
+    if (!entry) {
+      missing_durations = true;
+      edge->run_time_ms_ = -1;  // -1 to mark as needing filled in
+      continue;
+    }
+    const int64_t duration = entry->end_time - entry->start_time;
+    edge->run_time_ms_ = duration;
+    total_time += duration;
+    durations.push_back(duration);
+  }
+
+  if (!missing_durations) {
+    return total_time;
+  }
+
+  // Heuristic: for unknown edges, take the 75th percentile time.
+  // This allows the known-slowest jobs to run first, but isn't so
+  // small that it is always the lowest priority. Which for slow jobs,
+  // might bottleneck the build.
+  int64_t p75_time = 1;
+  int64_t num_durations = static_cast<int64_t>(durations.size());
+  if (num_durations > 0) {
+    size_t p75_idx = (num_durations - 1) - num_durations / 4;
+    std::vector<int64_t>::iterator p75_it = durations.begin() + p75_idx;
+    std::nth_element(durations.begin(), p75_it, durations.end());
+    p75_time = *p75_it;
+  }
+
+  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
+                                                   end = want.end();
+       it != end; ++it) {
+    Edge* edge = it->first;
+    if (edge->run_time_ms_ >= 0) {
+      continue;
+    }
+    edge->run_time_ms_ = p75_time;
+    total_time += p75_time;
+  }
+  return total_time;
+}
+
 }  // namespace
 
 void Plan::ComputeCriticalTime(BuildLog* build_log) {
@@ -466,33 +527,10 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
                    targets_.end());
   }
 
-  // this is total time if building all edges in serial, so this value is big
-  // enough to ensure higher priority target initial critical time always bigger
-  // than lower one
-  int64_t total_time = 0;
-  // Critical path scheduling.
-  // 0. Assign costs to all edges, using:
-  // a) The time the edge needed last time, if available.
-  // b) A fixed cost if this type of edge hasn't run before (0 for
-  //    phony target, 1 for others)
-  // TODO: Find a better heuristic for edges without log entries
-  for (std::map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
-       it != end; ++it) {
-    Edge* edge = it->first;
-    if (edge->is_phony()) {
-      continue;
-    }
-    BuildLog::LogEntry* entry =
-        build_log->LookupByOutput(edge->outputs_[0]->path());
-    if (!entry) {
-      edge->run_time_ms_ = 1;
-      total_time += 1;
-      continue;
-    }
-    const int64_t duration = entry->end_time - entry->start_time;
-    edge->run_time_ms_ = duration;
-    total_time += duration;
-  }
+  // total time if building all edges in serial. This value is big
+  // enough to ensure higher priority target's initial critical time
+  // is always bigger than lower ones
+  int64_t total_time = AssignEdgeRuntime(build_log, want_);
 
   // Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes.
