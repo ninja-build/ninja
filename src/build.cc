@@ -440,7 +440,7 @@ namespace {
 
 template <typename T>
 struct SeenBefore {
-  std::set<const T*> *seen_;
+  std::set<const T*>* seen_;
 
   SeenBefore(std::set<const T*>* seen) : seen_(seen) {}
 
@@ -473,13 +473,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // Critical path scheduling.
   // 0. Assign costs to all edges, using:
   // a) The time the edge needed last time, if available.
-  // b) The average time this edge type needed, if this edge hasn't run before.
-  //    (not implemented .log entries is not grouped by rule type, and even
-  //    similar rule type may not have same name , for example two compile rule
-  //    with different compile flags)
-  // c) A fixed cost if this type of edge hasn't run before (0 for phony target,
-  //    1 for others)
-  //
+  // b) A fixed cost if this type of edge hasn't run before (0 for
+  //    phony target, 1 for others)
+  // TODO: Find a better heuristic for edges without log entries
   for (std::map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
        it != end; ++it) {
     Edge* edge = it->first;
@@ -490,6 +486,7 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
         build_log->LookupByOutput(edge->outputs_[0]->path());
     if (!entry) {
       edge->run_time_ms_ = 1;
+      total_time += 1;
       continue;
     }
     const int64_t duration = entry->end_time - entry->start_time;
