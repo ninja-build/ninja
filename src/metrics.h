@@ -32,7 +32,6 @@ struct Metric {
   int64_t sum;
 };
 
-
 /// A scoped object for recording a metric across the body of a function.
 /// Used by the METRIC_RECORD macro.
 struct ScopedMetric {

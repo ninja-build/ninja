@@ -32,16 +32,18 @@ namespace {
 /// Compute a platform-specific high-res timer value that fits into an int64.
 int64_t HighResTimer() {
   auto now = chrono::steady_clock::now();
-  return chrono::duration_cast<chrono::steady_clock::duration>(now.time_since_epoch()).count();
+  return chrono::duration_cast<chrono::steady_clock::duration>(
+             now.time_since_epoch())
+      .count();
 }
 
 constexpr int64_t GetFrequency() {
-  constexpr auto den = std::chrono::steady_clock::period::den;
-  constexpr auto num = std::chrono::steady_clock::period::num;
-
-  // If numerator isn't 1 then we lose precision and that will need to be assessed.
-  static_assert(num == 1, "Numerator must be 1");
-  return den / num;
+  // If numerator isn't 1 then we lose precision and that will need to be
+  // assessed.
+  static_assert(std::chrono::steady_clock::period::num == 1,
+                "Numerator must be 1");
+  return std::chrono::steady_clock::period::den /
+         std::chrono::steady_clock::period::num;
 }
 
 int64_t TimerToMicros(int64_t dt) {
@@ -56,7 +58,6 @@ int64_t TimerToMicros(double dt) {
 
 }  // anonymous namespace
 
-
 ScopedMetric::ScopedMetric(Metric* metric) {
   metric_ = metric;
   if (!metric_)
@@ -67,8 +68,8 @@ ScopedMetric::~ScopedMetric() {
   if (!metric_)
     return;
   metric_->count++;
-  // Leave in the timer's natural frequency to avoid paying the conversion cost on
-  // every measurement.
+  // Leave in the timer's natural frequency to avoid paying the conversion cost
+  // on every measurement.
   int64_t dt = HighResTimer() - start_;
   metric_->sum += dt;
 }
@@ -114,4 +115,3 @@ uint64_t Stopwatch::NowRaw() const {
 int64_t GetTimeMillis() {
   return TimerToMicros(HighResTimer()) / 1000;
 }
-
