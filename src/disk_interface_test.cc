@@ -219,6 +219,14 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 #endif
 }
 
+TEST_F(DiskInterfaceTest, RemoveDirectory) {
+  const char* kDirectoryName = "directory-to-remove";
+  EXPECT_TRUE(disk_.MakeDir(kDirectoryName));
+  EXPECT_EQ(0, disk_.RemoveFile(kDirectoryName));
+  EXPECT_EQ(1, disk_.RemoveFile(kDirectoryName));
+  EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
+}
+
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this, NULL) {}
