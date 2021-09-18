@@ -22,18 +22,24 @@
 #include "state.h"
 #include "util.h"
 #include "version.h"
+#include "disk_interface.h"
 
 using namespace std;
 
-ManifestParser::ManifestParser(State* state, FileReader* file_reader,
+ManifestParser::ManifestParser(State* state, DiskInterface* disk_interface,
                                ManifestParserOptions options)
-    : Parser(state, file_reader),
+    : Parser(state, disk_interface), disk_interface_(disk_interface),
       options_(options), quiet_(false) {
   env_ = &state->bindings_;
 }
 
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
+  paths_.push_back(filename);
+  if (disk_interface_)
+    mtimes_.push_back(disk_interface_->Stat(filename, err));
+  else
+    mtimes_.push_back(-1);
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -403,7 +409,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
+  ManifestParser subparser(state_, disk_interface_, options_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {
@@ -416,5 +422,16 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
+  paths_.insert(paths_.end(), subparser.paths_.begin(), subparser.paths_.end());
+  mtimes_.insert(mtimes_.end(), subparser.mtimes_.begin(), subparser.mtimes_.end());
+
   return true;
+}
+
+bool ManifestParser::OutOfDate() {
+  for (size_t i = 0; i < paths_.size(); i++) {
+    if (disk_interface_->Stat(paths_[i], NULL) != mtimes_[i])
+      return true;
+  }
+  return false;
 }
