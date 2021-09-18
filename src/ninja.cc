@@ -1504,7 +1504,7 @@ NORETURN void real_main(int argc, char** argv) {
         if (config.dry_run)
           exit(0);
         // Start the build over with the new manifest.
-        continue;
+        break;
       } else if (!err.empty()) {
         status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
         exit(1);
