@@ -73,9 +73,6 @@ struct Options {
   /// Directory to change into before running.
   const char* working_dir;
 
-  /// Tool to run rather than building.
-  const Tool* tool;
-
   /// Whether duplicate rules for one target should warn or print an error.
   bool dupe_edges_should_err;
 
@@ -1318,7 +1315,8 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
-              Options* options, BuildConfig* config) {
+              Options* options, BuildConfig* config, const Tool** tool) {
+  *tool = NULL;
   config->parallelism = GuessParallelism();
 
   enum { OPT_VERSION = 1, OPT_QUIET = 2 };
@@ -1331,7 +1329,7 @@ int ReadFlags(int* argc, char*** argv,
   };
 
   int opt;
-  while (!options->tool &&
+  while (!*tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h:p", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
@@ -1377,8 +1375,8 @@ int ReadFlags(int* argc, char*** argv,
         config->dry_run = true;
         break;
       case 't':
-        options->tool = ChooseTool(optarg);
-        if (!options->tool)
+        *tool = ChooseTool(optarg);
+        if (!*tool)
           return 0;
         break;
       case 'v':
@@ -1422,11 +1420,12 @@ NORETURN void real_main(int argc, char** argv) {
   Options options = {};
   options.input_file = "build.ninja";
   options.dupe_edges_should_err = true;
+  const Tool* tool = NULL;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
 
-  int exit_code = ReadFlags(&argc, &argv, &options, &config);
+  int exit_code = ReadFlags(&argc, &argv, &options, &config, &tool);
   if (exit_code >= 0)
     exit(exit_code);
 
@@ -1438,18 +1437,18 @@ NORETURN void real_main(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
+    if (!tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
       status->Info("Entering directory `%s'", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
 
-  if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
+  if (tool && tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
     NinjaMain ninja(ninja_command, config);
-    exit((ninja.*options.tool->func)(&options, argc, argv));
+    exit((ninja.*tool->func)(&options, argc, argv));
   }
 
   if (options.persistent)
@@ -1474,8 +1473,8 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
-      exit((ninja.*options.tool->func)(&options, argc, argv));
+    if (tool && tool->when == Tool::RUN_AFTER_LOAD)
+      exit((ninja.*tool->func)(&options, argc, argv));
 
     if (!ninja.EnsureBuildDirExists())
       exit(1);
@@ -1483,8 +1482,8 @@ NORETURN void real_main(int argc, char** argv) {
     if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
       exit(1);
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
-      exit((ninja.*options.tool->func)(&options, argc, argv));
+    if (tool && tool->when == Tool::RUN_AFTER_LOGS)
+      exit((ninja.*tool->func)(&options, argc, argv));
 
     for (;;) {
       if (options.persistent && cycle == 1) {
