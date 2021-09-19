@@ -86,6 +86,21 @@ struct Options {
   /// Whether the ninja process should remain alive after building to speed up
   /// subsequent builds.
   bool persistent;
+
+  bool operator==(const Options& o) {
+    if ((working_dir == NULL) ^ (o.working_dir == NULL))
+      return false;
+    return strcmp(input_file, o.input_file) == 0 &&
+        (working_dir == NULL || strcmp(working_dir, o.working_dir) == 0) &&
+        dupe_edges_should_err == o.dupe_edges_should_err &&
+        phony_cycle_should_err == o.phony_cycle_should_err &&
+        depfile_distinct_target_lines_should_err ==
+            o.depfile_distinct_target_lines_should_err &&
+        persistent == o.persistent;
+  }
+  bool operator!=(const Options& o) {
+    return !(*this == o);
+  }
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1316,8 +1331,10 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config, const Tool** tool) {
-  *tool = NULL;
+  options->input_file = "build.ninja";
+  options->dupe_edges_should_err = true;
   config->parallelism = GuessParallelism();
+  *tool = NULL;
 
   enum { OPT_VERSION = 1, OPT_QUIET = 2 };
   const option kLongOptions[] = {
@@ -1327,6 +1344,9 @@ int ReadFlags(int* argc, char*** argv,
     { "quiet", no_argument, NULL, OPT_QUIET },
     { NULL, 0, NULL, 0 }
   };
+
+  // Reset getopt state so repeated calls work.
+  optind = 1;
 
   int opt;
   while (!*tool &&
@@ -1416,10 +1436,9 @@ NORETURN void real_main(int argc, char** argv) {
 
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
+  Request request;
   BuildConfig config;
   Options options = {};
-  options.input_file = "build.ninja";
-  options.dupe_edges_should_err = true;
   const Tool* tool = NULL;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
@@ -1451,8 +1470,13 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*tool->func)(&options, argc, argv));
   }
 
-  if (options.persistent)
+  void (*send_or_exit)(int);
+  if (options.persistent) {
     RequestBuildFromServer(original_argc, original_argv);
+    send_or_exit = SendBuildResult;
+  } else {
+    send_or_exit = exit;
+  }
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
@@ -1474,7 +1498,7 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     if (tool && tool->when == Tool::RUN_AFTER_LOAD)
-      exit((ninja.*tool->func)(&options, argc, argv));
+      send_or_exit((ninja.*tool->func)(&options, argc, argv));
 
     if (!ninja.EnsureBuildDirExists())
       exit(1);
@@ -1483,11 +1507,23 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
 
     if (tool && tool->when == Tool::RUN_AFTER_LOGS)
-      exit((ninja.*tool->func)(&options, argc, argv));
+      send_or_exit((ninja.*tool->func)(&options, argc, argv));
 
     for (;;) {
       if (options.persistent && cycle == 1) {
-        WaitForBuildRequest(original_argc, original_argv);
+        WaitForBuildRequest(&request);
+
+        argc = request.args.size();
+        argv = request.args.data();
+        BuildConfig request_config;
+        Options request_options = {};
+        ReadFlags(&argc, &argv, &request_options, &request_config, &tool);
+
+        // Conservatively, only accept requests which have identical
+        // options to our original invocation. Reject and exit otherwise.
+        bool accepted = options == request_options && config == request_config;
+        AcceptRequest(accepted);
+
         // If anything changed while we were waiting, we need to reparse.
 #ifdef _WIN32
         ninja.disk_interface_.ClearStatCache();
@@ -1499,27 +1535,31 @@ NORETURN void real_main(int argc, char** argv) {
       // Attempt to rebuild the manifest before building anything else
       if (ninja.RebuildManifest(options.input_file, &err, status)) {
         // In dry_run mode the regeneration will succeed without changing the
-        // manifest forever. Better to return immediately.
-        if (config.dry_run)
-          exit(0);
+        // manifest forever. Better to end this request immediately.
+        if (config.dry_run) {
+          send_or_exit(0);
+          continue;
+        }
         // Start the build over with the new manifest.
         break;
       } else if (!err.empty()) {
         status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
-        exit(1);
-      }
-
-      int result = ninja.RunBuild(argc, argv, status);
-      if (g_metrics)
-        ninja.DumpMetrics();
-      if (options.persistent) {
-        SendBuildResult(result);
-        // Loop around and wait for the next build request without reparsing.
-        cycle = 1;
-        ninja.state_.Reset();
+        send_or_exit(1);
         continue;
       }
-      exit(result);
+
+      int result;
+      if (tool)
+        result = (ninja.*tool->func)(&options, argc, argv);
+      else
+        result = ninja.RunBuild(argc, argv, status);
+      if (g_metrics)
+        ninja.DumpMetrics();
+      send_or_exit(result);
+
+      // Loop around and wait for the next build request without reparsing.
+      cycle = 1;
+      ninja.state_.Reset();
     }
   }
 

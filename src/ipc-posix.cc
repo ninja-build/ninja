@@ -69,16 +69,11 @@ void ForwardSignalAndExit(int sig, siginfo_t*, void*) {
 }
 
 extern char** environ;
-/// Returns a string containing all of the state that can affect a build, such
-/// as ninja version and arguments. The server checks to make sure this
-/// matches the client before building.
-string GetStateString(int argc, char** argv) {
-  // Arguments
+/// Returns a string containing all of the "environmental" state that can affect
+/// a build, such as ninja version and environment variables. The server checks
+/// to make sure this matches the client before building.
+string GetEnvString() {
   string state;
-  for (int i = 0; i < argc; ++i) {
-    state += argv[i];
-    state += '\0';
-  }
   // Ninja version
   state += kNinjaVersion;
   state += '\0';
@@ -97,6 +92,18 @@ string GetStateString(int argc, char** argv) {
       stat(buffer.data(), &file) != -1)
     state.append((char*)&file.st_mtim, sizeof(file.st_mtim));
 #endif  // linux
+  return state;
+}
+
+string GetRequestString(int argc, char** argv) {
+  string state = GetEnvString();
+  int env_size = state.size();
+  state.insert(0, string((const char*)&env_size, sizeof(env_size)));
+  // Arguments
+  for (int i = 0; i < argc; ++i) {
+    state += argv[i];
+    state += '\0';
+  }
   return state;
 }
 
@@ -178,8 +185,8 @@ void SendBuildResult(int exit_code) {
   server_connection = -1;
 }
 
-void WaitForBuildRequest(int argc, char** argv) {
-  static const string state = GetStateString(argc, argv);
+void WaitForBuildRequest(Request* request) {
+  static const string env = GetEnvString();
   if (!IsBuildServer())
     Fatal("Tried to wait for build request when we are not a build server.");
   // Disconnect from any open console.
@@ -204,17 +211,37 @@ void WaitForBuildRequest(int argc, char** argv) {
     close(message.fds[i]);
   }
 
-  // Check compatibility of build state with that sent by the client. The
-  // state is a string and is compatible only if it is identical.
   vector<char> buffer(message.data);
   for (int read = 0; read < (int)buffer.size();)
     read += CHECK_ERRNO(
         recv(server_connection, buffer.data() + read, buffer.size() - read, 0));
-  int compatible = state == string(buffer.data(), buffer.size());
+
+  // Check compatibility of build environment with that sent by the client. The
+  // state is a string and is compatible only if it is identical.
+  size_t env_len = *(int*)buffer.data();
+  size_t env_start = sizeof(int);
+  size_t env_end = env_start + env_len;
+  if (env_end > buffer.size() || env != string(buffer.data() + env_start, env_len)) {
+    AcceptRequest(false);
+  }
+
+  // The rest of the message contains request args.
+  request->buf = string(buffer.data() + env_end, buffer.size() - env_end);
+  request->args.clear();
+  request->args.push_back(&request->buf[0]);
+  for (char* c = &request->buf[0];
+      c < &request->buf[0] + request->buf.size() - 1; ++c) {
+    if (*c == '\0') {
+      // We stop 1 character short of the end, so we know c+1 is valid.
+      request->args.push_back(c + 1);
+    }
+  }
+}
+
+void AcceptRequest(bool compatible) {
   send(server_connection, &compatible, sizeof(compatible), 0);
   if (!compatible)
     exit(1);
-
   // Send our PID to the client so it can forward us any signals that come in.
   int pid = getpid();
   send(server_connection, &pid, sizeof(pid), 0);
@@ -240,7 +267,7 @@ void ForkBuildServer() {
 void RequestBuildFromServer(int argc, char** argv) {
   if (IsBuildServer())
     return;
-  const string state = GetStateString(argc, argv);
+  const string state = GetRequestString(argc, argv);
   SendBuildRequestAndExit(state);
   ForkBuildServer();
   if (IsBuildServer())

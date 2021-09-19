@@ -15,10 +15,22 @@
 #ifndef NINJA_IPC_H_
 #define NINJA_IPC_H_
 
+#include <string>
+#include <vector>
+
 // ipc.h allows communication between a build server process and a build client
 // process. All IPC is done relative to the current working directory of the
 // process, so you can have different build servers running in different
 // directories.
+
+/// Storage for arguments passed by an IPC request.
+struct Request {
+  /// Raw buffer of arguments.
+  std::string buf;
+
+  /// A vector of pointers into buf, one for each arg.
+  std::vector<char*> args;
+};
 
 /// If this process is a build server, this function will return immediately.
 /// Otherwise it will exit the process when the build is complete and never
@@ -26,9 +38,13 @@
 /// started or forked.
 void RequestBuildFromServer(int argc, char **argv);
 
-/// Waits for a build client to connect to the server. Checks that the arguments
-/// and other relevant state match between server and client before returning.
-void WaitForBuildRequest(int argc, char **argv);
+/// Waits for a build client to connect to the server. Checks that environmental
+/// state matches between server and client before returning.
+void WaitForBuildRequest(Request* request);
+
+/// Reports to the client that the request can or cannot be serviced. Exits if
+/// compatible is false.
+void AcceptRequest(bool compatible);
 
 /// When a build server is done with a build, it must call this function to
 /// inform the client before calling WaitForBuildRequest again.
