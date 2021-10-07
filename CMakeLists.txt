@@ -5,6 +5,9 @@ include(CheckIPOSupported)
 
 project(ninja)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads)
+
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
@@ -151,7 +154,7 @@ endif()
 
 # Main executable is library plus main() function.
 add_executable(ninja src/ninja.cc)
-target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+target_link_libraries(ninja PRIVATE libninja libninja-re2c Threads::Threads)
 
 if(WIN32)
   target_sources(ninja PRIVATE windows/ninja.manifest)
@@ -211,7 +214,7 @@ if(BUILD_TESTING)
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
   endif()
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c Threads::Threads)
 
   foreach(perftest
     build_log_perftest
@@ -222,7 +225,7 @@ if(BUILD_TESTING)
     manifest_parser_perftest
   )
     add_executable(${perftest} src/${perftest}.cc)
-    target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+    target_link_libraries(${perftest} PRIVATE libninja libninja-re2c Threads::Threads)
   endforeach()
 
   if(CMAKE_SYSTEM_NAME STREQUAL "AIX" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
