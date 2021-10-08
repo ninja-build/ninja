@@ -16,7 +16,6 @@
 #define NINJA_BUILD_H_
 
 #include <cstdio>
-#include <queue>
 #include <map>
 #include <memory>
 #include <queue>
