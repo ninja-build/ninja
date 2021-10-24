@@ -227,7 +227,7 @@ def random_targets(num_targets, src_dir):
     gen = GenRandom(src_dir)
 
     # N-1 static libraries, and 1 executable depending on all of them.
-    targets = [Target(gen, LIB) for i in xrange(num_targets - 1)]
+    targets = [Target(gen, LIB) for i in range(num_targets - 1)]
     for i in range(len(targets)):
         targets[i].deps = [t for t in targets[0:i] if random.random() < 0.05]
 
