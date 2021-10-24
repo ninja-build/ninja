@@ -65,7 +65,7 @@ class GenRandom(object):
     def _n_unique_strings(self, n):
         seen = set([None])
         return [self._unique_string(seen, avg_options=3, p_suffix=0.4)
-                for _ in xrange(n)]
+                for _ in range(n)]
 
     def target_name(self):
         return self._unique_string(p_suffix=0, seen=self.seen_names)
@@ -73,7 +73,7 @@ class GenRandom(object):
     def path(self):
         return os.path.sep.join([
             self._unique_string(self.seen_names, avg_options=1, p_suffix=0)
-            for _ in xrange(1 + paretoint(0.6, alpha=4))])
+            for _ in range(1 + paretoint(0.6, alpha=4))])
 
     def src_obj_pairs(self, path, name):
         num_sources = paretoint(55, alpha=2) + 1
@@ -84,7 +84,7 @@ class GenRandom(object):
     def defines(self):
         return [
             '-DENABLE_' + self._unique_string(self.seen_defines).upper()
-            for _ in xrange(paretoint(20, alpha=3))]
+            for _ in range(paretoint(20, alpha=3))]
 
 
 LIB, EXE = 0, 1
