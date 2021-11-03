@@ -16,6 +16,7 @@ else()
 endif()
 
 # --- compiler flags
+
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -24,13 +25,8 @@ if(MSVC)
 else()
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)
-	if(flag_no_deprecated)
-		add_compile_options(-Wno-deprecated)
-	endif()
 	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
-	if(flag_color_diag)
-		add_compile_options(-fdiagnostics-color)
-	endif()
+  add_compile_options($<${flag_no_deprecated}:-Wno-deprecated> $<${flag_color_diag}:-fdiagnostics-color>)
 endif()
 
 # --- optional re2c
@@ -127,35 +123,29 @@ if(WIN32)
 		target_sources(libninja PRIVATE src/minidump-win32.cc)
 	endif()
 else()
-	target_sources(libninja PRIVATE src/subprocess-posix.cc)
-	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
-		target_sources(libninja PRIVATE src/getopt.c)
-	endif()
+	target_sources(libninja PRIVATE
+		src/subprocess-posix.cc
+	  $<$<IN_LIST:${CMAKE_SYSTEM_NAME},"OS400$<SEMICOLON>AIX">:src/getopt.c>
+	)
 
 	# Needed for perfstat_cpu_total
-	if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
-		target_link_libraries(libninja PUBLIC "-lperfstat")
-	endif()
+	target_link_libraries(libninja PUBLIC $<$<STREQUAL:${CMAKE_SYSTEM_NAME},AIX>:-lperfstat>)
 endif()
 
 #Fixes GetActiveProcessorCount on MinGW
-if(MINGW)
-target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601 __USE_MINGW_ANSI_STDIO=1)
-endif()
+target_compile_definitions(libninja PRIVATE "$<$<BOOL:${MINGW}>:_WIN32_WINNT=0x0601;__USE_MINGW_ANSI_STDIO=1>")
 
-# On IBM i (identified as "OS400" for compatibility reasons) and AIX, this fixes missing
-# PRId64 (and others) at compile time in C++ sources
-if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
-	add_compile_definitions(__STDC_FORMAT_MACROS)
-endif()
+# IBM i (identified as "OS400" for compatibility reasons) and AIX
+# fixes missing PRId64 (and others) at compile time in C++ sources
+add_compile_definitions($<$<IN_LIST:${CMAKE_SYSTEM_NAME},"OS400$<SEMICOLON>AIX">:__STDC_FORMAT_MACROS>)
 
 # Main executable is library plus main() function.
-add_executable(ninja src/ninja.cc)
+add_executable(ninja
+	src/ninja.cc
+	$<$<BOOL:${WIN32}>:windows/ninja.manifest>
+)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
-if(WIN32)
-  target_sources(ninja PRIVATE windows/ninja.manifest)
-endif()
 
 # Adds browse mode into the ninja binary if it's supported by the host platform.
 if(platform_supports_ninja_browse)
@@ -207,10 +197,8 @@ if(BUILD_TESTING)
     src/subprocess_test.cc
     src/test.cc
     src/util_test.cc
-  )
-  if(WIN32)
-    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
-  endif()
+    "$<$<BOOL:${WIN32}>:src/includes_normalize_test.cc;src/msvc_helper_test.cc>"
+	)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
   foreach(perftest
