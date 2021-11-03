@@ -15,9 +15,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4-Linux-x86_64.sh
-        chmod +x cmake-3.16.4-Linux-x86_64.sh
-        ./cmake-3.16.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.4/cmake-3.15.4-Linux-x86_64.sh
+        chmod +x cmake-3.15.4-Linux-x86_64.sh
+        ./cmake-3.15.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-20.el7.x86_64.rpm
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-20.el7.x86_64.rpm
         rpm -U --quiet p7zip-16.02-20.el7.x86_64.rpm
