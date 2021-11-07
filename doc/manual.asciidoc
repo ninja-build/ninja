@@ -304,9 +304,9 @@ _Available since Ninja 1.11._
 `restat`:: updates all recorded file modification timestamps in the `.ninja_log`
 file. _Available since Ninja 1.10._
 
-`rules`:: output the list of all rules (eventually with their description
-if they have one).  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+ or +ninja -t compdb+.
+`rules`:: output the list of all rules. It can be used to know which rule name
+to pass to +ninja -t targets rule _name_+ or +ninja -t compdb+. Adding the `-d`
+flag also prints the description of the rules.
 
 `wincodepage`:: Available on Windows hosts (_since Ninja 1.11_).
 Prints the Windows code page whose encoding is expected in the build file.
