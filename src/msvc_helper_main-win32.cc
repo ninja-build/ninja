@@ -115,7 +115,7 @@ int MSVCHelperMain(int argc, char** argv) {
     PushPathIntoEnvironment(env);
   }
 
-  char* command = GetCommandLineA();
+  char* command = GetCommandLine();
   command = strstr(command, " -- ");
   if (!command) {
     Fatal("expected command line to end with \" -- command args\"");
