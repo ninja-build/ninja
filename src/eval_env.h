@@ -55,7 +55,7 @@ private:
   TokenList parsed_;
 };
 
-/// An invokable build command and associated metadata (description, etc.).
+/// An invocable build command and associated metadata (description, etc.).
 struct Rule {
   explicit Rule(const std::string& name) : name_(name) {}
 
