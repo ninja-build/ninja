@@ -48,7 +48,7 @@ bool IsPathSeparator(char c) {
 }
 
 // Return true if paths a and b are on the same windows drive.
-// Return false if this funcation cannot check
+// Return false if this function cannot check
 // whether or not on the same windows drive.
 bool SameDriveFast(StringPiece a, StringPiece b) {
   if (a.size() < 3 || b.size() < 3) {
