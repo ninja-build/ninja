@@ -17,7 +17,7 @@ endif()
 
 # --- compiler flags
 if(MSVC)
-	option(BUILD_UNICODE "Build with Unicode support. This enables long path support on windows." OFF)
+	option(BUILD_UNICODE "Build with Unicode support. This enables long path support on windows." ON)
 
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})

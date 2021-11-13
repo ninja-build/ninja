@@ -76,8 +76,8 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
     return true;
   }
 
-  TCHAR a_absolute[_MAX_PATH];
-  TCHAR b_absolute[_MAX_PATH];
+  TCHAR a_absolute[PATH_MAX];
+  TCHAR b_absolute[PATH_MAX];
   if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
     return false;
   }
