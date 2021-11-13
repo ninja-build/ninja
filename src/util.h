@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "file_path.h"
+
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
 #else
@@ -117,7 +119,24 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
-#define PATH_MAX _MAX_PATH
+
+#ifdef UNICODE
+#define t_snprintf _snwprintf
+#define t_splitpath _wsplitpath
+#define t_stricmp _wcsicmp
+#define t_unlink _wunlink
+#define t_fopen(path, mode) _wfopen(path, TEXT(mode))
+#define t_chdir _wchdir
+#define t_getcwd _wgetcwd
+#else
+#define t_snprintf snprintf
+#define t_splitpath _splitpath
+#define t_stricmp _stricmp
+#define t_unlink _unlink
+#define t_fopen fopen
+#define t_chdir _chdir
+#define t_getcwd _getcwd
+#endif
 #endif
 
 #ifdef _WIN32

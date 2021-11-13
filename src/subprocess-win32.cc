@@ -39,9 +39,9 @@ Subprocess::~Subprocess() {
 }
 
 HANDLE Subprocess::SetupPipe(HANDLE ioport) {
-  char pipe_name[100];
-  snprintf(pipe_name, sizeof(pipe_name),
-           "\\\\.\\pipe\\ninja_pid%lu_sp%p", GetCurrentProcessId(), this);
+  TCHAR pipe_name[100];
+  t_snprintf(pipe_name, sizeof(pipe_name),
+           TEXT("\\\\.\\pipe\\ninja_pid%lu_sp%p"), GetCurrentProcessId(), this);
 
   pipe_ = ::CreateNamedPipe(pipe_name,
                              PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
@@ -83,13 +83,13 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   security_attributes.bInheritHandle = TRUE;
   // Must be inheritable so subprocesses can dup to children.
   HANDLE nul =
-      CreateFile("NUL", GENERIC_READ,
+      CreateFile(TEXT("NUL"), GENERIC_READ,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   &security_attributes, OPEN_EXISTING, 0, NULL);
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
-  STARTUPINFOA startup_info;
+  STARTUPINFO startup_info;
   memset(&startup_info, 0, sizeof(startup_info));
   startup_info.cb = sizeof(STARTUPINFO);
   if (!use_console_) {
@@ -109,7 +109,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
 
   // Do not prepend 'cmd /c' on Windows, this breaks command
   // lines greater than 8,191 chars.
-  if (!CreateProcess(NULL, (char*)command.c_str(), NULL, NULL,
+  if (!CreateProcess(NULL, (TCHAR*)ToPathWidth(command).c_str(), NULL, NULL,
                       /* inherit handles */ TRUE, process_flags,
                       NULL, NULL,
                       &startup_info, &process_info)) {

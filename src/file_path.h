@@ -36,16 +36,6 @@ typedef char TCHAR, *PTCHAR;
 #endif /* !_TCHAR_DEFINED */
 
 #ifdef UNICODE
-//#define fopen(path, mode) _wfopen(path, TEXT(mode))
-//#define _strlen wcslen
-//#define system _wsystem
-//#define strerror _wcserror
-//#define rename _wrename
-#else
-#define t_strlen strlen
-#endif
-
-#ifdef UNICODE
 typedef std::wstring file_string_t;
 #else
 typedef std::string file_string_t;
@@ -68,19 +58,19 @@ inline std::wstring WidenPath(const std::wstring& path) {
 }
 
 #ifdef UNICODE
-inline file_string_t ToPathWidth(std::string path) {
+inline std::wstring ToPathWidth(const std::string& path) {
   return WidenPath(path);
 }
 
-inline file_string_t ToPathWidth(std::wstring path) {
+inline std::wstring ToPathWidth(const std::wstring& path) {
   return path;
 }
 #else
-inline file_string_t ToPathWidth(std::string path) {
+inline std::string ToPathWidth(const std::string& path) {
   return path;
 }
 
-inline file_string_t ToPathWidth(std::wstring path) {
+inline std::string ToPathWidth(const std::wstring& path) {
   return NarrowPath(path);
 }
 #endif
@@ -124,37 +114,5 @@ struct file_string : public file_string_t {
     return this->compare(ToPathWidth(r)) == 0;
   }
 };
-
-file_string operator+(const file_string_t& lhs, const std::string& rhs) {
-  return lhs + rhs;
-}
-
-file_string operator+(const file_string_t& lhs, const std::wstring& rhs) {
-  return lhs + rhs;
-}
-
-file_string operator+(const char* lhs, const file_string& rhs) {
-  return lhs + rhs;
-}
-
-file_string operator+(const wchar_t* lhs, const std::wstring& rhs) {
-  return lhs + rhs;
-}
-
-bool operator==(const file_string_t& lhs, const std::string& rhs) {
-  return lhs == rhs;
-}
-
-bool operator==(const file_string_t& lhs, const std::wstring& rhs) {
-  return lhs == rhs;
-}
-
-bool operator==(const char* lhs, const file_string& rhs) {
-  return lhs == rhs;
-}
-
-bool operator==(const wchar_t* lhs, const std::wstring& rhs) {
-  return lhs == rhs;
-}
 
 #endif  // NINJA_FILE_PATH_H_

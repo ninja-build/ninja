@@ -50,27 +50,27 @@ void PushPathIntoEnvironment(const string& env_block) {
   }
 }
 
-void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
-  string depfile_path = string(object_path) + ".d";
-  FILE* depfile = fopen(depfile_path.c_str(), "w");
+void WriteDepFileOrDie(const TCHAR* object_path, const CLParser& parse) {
+  file_string depfile_path = file_string(object_path) + TEXT(".d");
+  FILE* depfile = t_fopen(ToPathWidth(depfile_path).c_str(), "w");
   if (!depfile) {
-    unlink(object_path);
+    t_unlink(object_path);
     Fatal("opening %s: %s", depfile_path.c_str(),
           GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
-    unlink(object_path);
+    t_unlink(object_path);
     fclose(depfile);
-    unlink(depfile_path.c_str());
+    t_unlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
   const set<string>& headers = parse.includes_;
   for (set<string>::const_iterator i = headers.begin();
        i != headers.end(); ++i) {
     if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
-      unlink(object_path);
+      t_unlink(object_path);
       fclose(depfile);
-      unlink(depfile_path.c_str());
+      t_unlink(depfile_path.c_str());
       Fatal("writing %s", depfile_path.c_str());
     }
   }
@@ -115,7 +115,7 @@ int MSVCHelperMain(int argc, char** argv) {
     PushPathIntoEnvironment(env);
   }
 
-  char* command = GetCommandLine();
+  char* command = GetCommandLineA();
   command = strstr(command, " -- ");
   if (!command) {
     Fatal("expected command line to end with \" -- command args\"");
@@ -133,7 +133,7 @@ int MSVCHelperMain(int argc, char** argv) {
     string err;
     if (!parser.Parse(output, deps_prefix, &output, &err))
       Fatal("%s\n", err.c_str());
-    WriteDepFileOrDie(output_filename, parser);
+    WriteDepFileOrDie(ToPathWidth(output_filename).c_str(), parser);
   }
 
   if (output.empty())
