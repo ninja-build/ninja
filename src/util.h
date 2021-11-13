@@ -128,6 +128,7 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_fopen(path, mode) _wfopen(path, TEXT(mode))
 #define t_chdir _wchdir
 #define t_getcwd _wgetcwd
+#define PATH_MAX 2048
 #else
 #define t_snprintf snprintf
 #define t_splitpath _splitpath
@@ -136,7 +137,10 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_fopen fopen
 #define t_chdir _chdir
 #define t_getcwd _getcwd
+#define PATH_MAX _MAX_PATH
 #endif
+#else
+#define PATH_MAX _MAX_PATH
 #endif
 
 #ifdef _WIN32

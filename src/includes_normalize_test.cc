@@ -27,8 +27,8 @@ using namespace std;
 namespace {
 
 string GetCurDir() {
-  char buf[_MAX_PATH];
-  _getcwd(buf, sizeof(buf));
+  TCHAR buf[PATH_MAX];
+  t_getcwd(buf, sizeof(buf));
   vector<StringPiece> parts = SplitStringPiece(buf, '\\');
   return parts[parts.size() - 1].AsString();
 }
@@ -116,30 +116,30 @@ TEST(IncludesNormalize, LongInvalidPath) {
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
+  TCHAR kExactlyMaxPath[PATH_MAX + 1];
   ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
 
   int cwd_len = strlen(kExactlyMaxPath);
-  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
+  ASSERT_LE(cwd_len + 3 + 1, PATH_MAX)
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';
   kExactlyMaxPath[cwd_len + 2] = '\\';
 
   kExactlyMaxPath[cwd_len + 3] = 'a';
 
-  for (int i = cwd_len + 4; i < _MAX_PATH; ++i) {
-    if (i > cwd_len + 4 && i < _MAX_PATH - 1 && i % 10 == 0)
+  for (int i = cwd_len + 4; i < PATH_MAX; ++i) {
+    if (i > cwd_len + 4 && i < PATH_MAX - 1 && i % 10 == 0)
       kExactlyMaxPath[i] = '\\';
     else
       kExactlyMaxPath[i] = 'a';
   }
 
-  kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+  kExactlyMaxPath[PATH_MAX] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), PATH_MAX);
 
   string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
-  // Make sure a path that's exactly _MAX_PATH long is canonicalized.
+  // Make sure a path that's exactly PATH_MAX long is canonicalized.
   EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
             NormalizeAndCheckNoError(kExactlyMaxPath));
 }
@@ -153,17 +153,17 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
-  for (int i = 0; i < _MAX_PATH; ++i) {
-    if (i < _MAX_PATH - 1 && i % 10 == 4)
+  char kExactlyMaxPath[PATH_MAX + 1];
+  for (int i = 0; i < PATH_MAX; ++i) {
+    if (i < PATH_MAX - 1 && i % 10 == 4)
       kExactlyMaxPath[i] = '\\';
     else
       kExactlyMaxPath[i] = 'a';
   }
-  kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+  kExactlyMaxPath[PATH_MAX] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), PATH_MAX);
 
-  // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
+  // Make sure a path that's exactly PATH_MAX long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
   EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
 }
