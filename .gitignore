@@ -43,3 +43,5 @@
 /.clangd/
 /compile_commands.json
 /.cache/
+/.vs
+/out/

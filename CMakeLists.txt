@@ -17,10 +17,16 @@ endif()
 
 # --- compiler flags
 if(MSVC)
+	option(BUILD_UNICODE "Build with Unicode support. This enables long path support on windows." OFF)
+
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 	add_compile_options(/W4 /wd4100 /wd4267 /wd4706 /wd4702 /wd4244 /GR- /Zc:__cplusplus)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+
+	if(BUILD_UNICODE)
+		add_compile_definitions(UNICODE _UNICODE)
+	endif()
 else()
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-Wno-deprecated flag_no_deprecated)

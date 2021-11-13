@@ -186,7 +186,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (log_file_ || log_file_path_.empty()) {
     return true;
   }
-  log_file_ = fopen(log_file_path_.c_str(), "ab");
+  log_file_ = t_fopen(ToPathWidth(log_file_path_).c_str(), "ab");
   if (!log_file_) {
     return false;
   }
@@ -260,7 +260,7 @@ struct LineReader {
 
 LoadStatus BuildLog::Load(const string& path, string* err) {
   METRIC_RECORD(".ninja_log load");
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = t_fopen(ToPathWidth(path).c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -283,7 +283,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
         *err = ("build log version invalid, perhaps due to being too old; "
                 "starting over");
         fclose(file);
-        unlink(path.c_str());
+        t_unlink(ToPathWidth(path).c_str());
         // Don't report this as a failure.  An empty build log will cause
         // us to rebuild the outputs anyway.
         return LOAD_SUCCESS;
@@ -393,7 +393,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
 
   Close();
   string temp_path = path + ".recompact";
-  FILE* f = fopen(temp_path.c_str(), "wb");
+  FILE* f = t_fopen(ToPathWidth(temp_path).c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
     return false;
@@ -423,7 +423,7 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     entries_.erase(dead_outputs[i]);
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if (t_unlink(ToPathWidth(path).c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }
@@ -444,7 +444,7 @@ bool BuildLog::Restat(const StringPiece path,
 
   Close();
   std::string temp_path = path.AsString() + ".restat";
-  FILE* f = fopen(temp_path.c_str(), "wb");
+  FILE* f = t_fopen(ToPathWidth(temp_path).c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
     return false;
@@ -480,7 +480,7 @@ bool BuildLog::Restat(const StringPiece path,
   }
 
   fclose(f);
-  if (unlink(path.str_) < 0) {
+  if (t_unlink(ToPathWidth(path.str_).c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

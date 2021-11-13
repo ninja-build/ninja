@@ -28,9 +28,9 @@ using namespace std;
 
 namespace {
 
-bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
+bool InternalGetFullPathName(const StringPiece& file_name, TCHAR* buffer,
                              size_t buffer_length, string *err) {
-  DWORD result_size = GetFullPathName(file_name.AsString().c_str(),
+  DWORD result_size = GetFullPathName(ToPathWidth(file_name.AsString()).c_str(),
                                        buffer_length, buffer, NULL);
   if (result_size == 0) {
     *err = "GetFullPathName(" + file_name.AsString() + "): " +
@@ -76,19 +76,19 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
     return true;
   }
 
-  char a_absolute[_MAX_PATH];
-  char b_absolute[_MAX_PATH];
+  TCHAR a_absolute[_MAX_PATH];
+  TCHAR b_absolute[_MAX_PATH];
   if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
     return false;
   }
   if (!InternalGetFullPathName(b, b_absolute, sizeof(b_absolute), err)) {
     return false;
   }
-  char a_drive[_MAX_DIR];
-  char b_drive[_MAX_DIR];
-  _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
-  _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
-  return _stricmp(a_drive, b_drive) == 0;
+  TCHAR a_drive[_MAX_DIR];
+  TCHAR b_drive[_MAX_DIR];
+  t_splitpath(a_absolute, a_drive, NULL, NULL, NULL);
+  t_splitpath(b_absolute, b_drive, NULL, NULL, NULL);
+  return t_stricmp(a_drive, b_drive) == 0;
 }
 
 // Check path |s| is FullPath style returned by GetFullPathName.
@@ -146,14 +146,14 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
     return result;
   }
 
-  char result[_MAX_PATH];
+  TCHAR result[_MAX_PATH];
   if (!InternalGetFullPathName(s, result, sizeof(result), err)) {
     return "";
   }
-  for (char* c = result; *c; ++c)
+  for (TCHAR* c = result; *c; ++c)
     if (*c == '\\')
       *c = '/';
-  return result;
+  return NarrowPath(result);
 }
 
 string IncludesNormalize::Relativize(

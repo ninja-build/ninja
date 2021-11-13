@@ -901,13 +901,13 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<char> cwd;
-  char* success = NULL;
+  vector<TCHAR> cwd;
+  TCHAR* success = NULL;
 
   do {
     cwd.resize(cwd.size() + 1024);
     errno = 0;
-    success = getcwd(&cwd[0], cwd.size());
+    success = t_getcwd(&cwd[0], cwd.size());
   } while (!success && errno == ERANGE);
   if (!success) {
     Error("cannot determine working directory: %s", strerror(errno));
@@ -923,7 +923,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
       if (!first) {
         putchar(',');
       }
-      printCompdb(&cwd[0], *e, eval_mode);
+      printCompdb(NarrowPath(&cwd[0]).c_str(), *e, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
@@ -931,7 +931,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
           if (!first) {
             putchar(',');
           }
-          printCompdb(&cwd[0], *e, eval_mode);
+          printCompdb(NarrowPath(&cwd[0]).c_str(), *e, eval_mode);
           first = false;
         }
       }
@@ -1474,7 +1474,7 @@ NORETURN void real_main(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
       status->Info("Entering directory `%s'", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
+    if (t_chdir(ToPathWidth(options.working_dir).c_str()) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }

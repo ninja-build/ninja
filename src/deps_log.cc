@@ -152,7 +152,7 @@ void DepsLog::Close() {
 LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = t_fopen(ToPathWidth(path).c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -175,7 +175,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
     else
       *err = "bad deps log signature or version; starting over";
     fclose(f);
-    unlink(path.c_str());
+    t_unlink(ToPathWidth(path).c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
     return LOAD_SUCCESS;
@@ -316,7 +316,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
   // left-over file from a previous recompaction attempt that crashed somehow.
-  unlink(temp_path.c_str());
+  t_unlink(ToPathWidth(temp_path).c_str());
 
   DepsLog new_log;
   if (!new_log.OpenForWrite(temp_path, err))
@@ -348,7 +348,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  if (unlink(path.c_str()) < 0) {
+  if (t_unlink(ToPathWidth(path).c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }
@@ -420,7 +420,7 @@ bool DepsLog::OpenForWriteIfNeeded() {
   if (file_path_.empty()) {
     return true;
   }
-  file_ = fopen(file_path_.c_str(), "ab");
+  file_ = t_fopen(ToPathWidth(file_path_).c_str(), "ab");
   if (!file_) {
     return false;
   }

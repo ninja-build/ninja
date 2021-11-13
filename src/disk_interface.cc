@@ -75,7 +75,7 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesEx(ToPathWidth(path).c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
@@ -104,8 +104,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExW((dir + "\\*").c_str(), level, &ffd,
+  WIN32_FIND_DATA ffd;
+  HANDLE find_handle = FindFirstFileEx(ToPathWidth((dir + "\\*")).c_str(), level, &ffd,
                                         FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
@@ -116,14 +116,14 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
+    file_string lowername = ffd.cFileName;
     if (lowername == "..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(lowername,
+    stamps->insert(make_pair(NarrowPath(lowername),
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
   } while (FindNextFile(find_handle, &ffd));
   FindClose(find_handle);
@@ -221,7 +221,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE* fp = fopen(path.c_str(), "w");
+  FILE* fp = t_fopen(ToPathWidth(path).c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
@@ -267,7 +267,8 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
-  DWORD attributes = GetFileAttributes(path.c_str());
+  const file_string pathT = ToPathWidth(path);
+  DWORD attributes = GetFileAttributes(pathT.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
@@ -278,7 +279,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
     // Skip error checking.  If this fails, accept whatever happens below.
-    SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
+    SetFileAttributes(pathT.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
     // remove() deletes both files and directories. On Windows we have to 
@@ -286,7 +287,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases
     // https://github.com/ninja-build/ninja/issues/828
-    if (!RemoveDirectory(path.c_str())) {
+    if (!RemoveDirectory(pathT.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -296,7 +297,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
       return -1;
     }
   } else {
-    if (!DeleteFile(path.c_str())) {
+    if (!DeleteFile(pathT.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;

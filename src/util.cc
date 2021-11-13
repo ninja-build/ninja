@@ -332,12 +332,12 @@ void GetWin32EscapedString(const string& input, string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(const string& path, string* contents, string* err) {
+int ReadFile(const std::string& path, string* contents, string* err) {
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+  HANDLE f = ::CreateFile(ToPathWidth(path).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
