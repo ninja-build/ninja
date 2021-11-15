@@ -2,7 +2,9 @@ name: macOS
 
 on:
   pull_request:
+    paths: "!**.yml"
   push:
+    paths: "!**.yml"
   release:
     types: published
 
