@@ -5,7 +5,7 @@ include(CheckIPOSupported)
 include(CMakeDependentOption)
 
 project(ninja
-	LANGUAGES CXX
+	LANGUAGES C CXX
 	DESCRIPTION "Ninja is a small build system with a focus on speed."
 	HOMEPAGE_URL "https://ninja-build.org/"
 	VERSION 1.10.2
