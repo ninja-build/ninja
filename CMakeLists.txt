@@ -2,12 +2,16 @@ cmake_minimum_required(VERSION 3.15)
 
 include(CheckSymbolExists)
 include(CheckIPOSupported)
+include(CMakeDependentOption)
 
 project(ninja
 	LANGUAGES CXX
 	DESCRIPTION "Ninja is a small build system with a focus on speed."
 	HOMEPAGE_URL "https://ninja-build.org/"
+	VERSION 1.10.2
 )
+
+cmake_dependent_option(create_msi "Create .msi installer" OFF WIN32 OFF)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -239,3 +243,26 @@ if(BUILD_TESTING)
 endif()
 
 install(TARGETS ninja TYPE RUNTIME)
+
+# --- CPack package configuration
+
+set(CPACK_SOURCE_GENERATOR ZIP)
+set(CPACK_GENERATOR ZIP)
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING")
+if(create_msi)
+	set(CPACK_GENERATOR WIX)
+	configure_file(COPYING COPYING.txt COPYONLY)
+	set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_BINARY_DIR}/COPYING.txt")
+endif()
+set(CPACK_PACKAGE_VENDOR "Ninja build team")
+set(CPACK_PACKAGE_CONTACT "Jan Hasse")
+
+set(CPACK_RESOURCE_FILE_README "${PROJECT_SOURCE_DIR}/README.md")
+set(CPACK_OUTPUT_FILE_PREFIX "${PROJECT_BINARY_DIR}/package")
+set(CPACK_PACKAGE_DIRECTORY ${PROJECT_BINARY_DIR})
+string(TOLOWER ${CMAKE_SYSTEM_NAME} _sys)
+set(CPACK_PACKAGE_FILE_NAME "ninja-${_sys}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "ninja-${PROJECT_VERSION}")
+set(CPACK_SOURCE_IGNORE_FILES "\.git/;\.vscode/;${PROJECT_BINARY_DIR}/")
+
+include(CPack)
