@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.15)
 include(CheckSymbolExists)
 include(CheckIPOSupported)
 
-project(ninja)
+project(ninja
+	LANGUAGES CXX
+	DESCRIPTION "Ninja is a small build system with a focus on speed."
+	HOMEPAGE_URL "https://ninja-build.org/"
+)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -234,4 +238,4 @@ if(BUILD_TESTING)
   add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
-install(TARGETS ninja DESTINATION bin)
+install(TARGETS ninja TYPE RUNTIME)
