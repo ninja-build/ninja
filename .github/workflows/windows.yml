@@ -7,6 +7,7 @@ on:
     types: published
 
 jobs:
+
   build:
     runs-on: windows-latest
 
@@ -39,10 +40,11 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: ninja-binary-archives
         path: artifact
+        if-no-files-found: error
 
     - name: Upload release asset
       if: github.event.action == 'published'
@@ -54,3 +56,27 @@ jobs:
         asset_path: ./artifact/ninja-win.zip
         asset_name: ninja-win.zip
         asset_content_type: application/zip
+
+
+  MSI:
+    runs-on: windows-latest
+
+    steps:
+    # needs: build
+    - uses: actions/checkout@v2
+
+    - name: CMake configure
+      run: cmake -Bbuild -DBUILD_TESTING:BOOL=off -Dcreate_msi:BOOL=on
+
+    - name: CMake build
+      run: cmake --build build --parallel --config Release
+
+    - name: Create .msi package
+      run: cpack --config build/CPackConfig.cmake
+
+    - name: Upload .msi package
+      uses: actions/upload-artifact@v2
+      with:
+        name: msi-package
+        path: build/package/ninja-windows.msi
+        if-no-files-found: error
