@@ -198,7 +198,8 @@ if(BUILD_TESTING)
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
   endif()
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c gtest)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c gtest Threads::Threads)
 
   foreach(perftest
     build_log_perftest
