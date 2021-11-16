@@ -13,15 +13,18 @@ jobs:
       image: centos:7
     steps:
     - uses: actions/checkout@v2
+    - uses: codespell-project/actions-codespell@master
+      with:
+        ignore_words_list: fo,wee
     - name: Install dependencies
       run: |
         curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4-Linux-x86_64.sh
         chmod +x cmake-3.16.4-Linux-x86_64.sh
         ./cmake-3.16.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
-        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-10.el7.x86_64.rpm
-        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-10.el7.x86_64.rpm
-        rpm -U --quiet p7zip-16.02-10.el7.x86_64.rpm
-        rpm -U --quiet p7zip-plugins-16.02-10.el7.x86_64.rpm
+        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-20.el7.x86_64.rpm
+        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-20.el7.x86_64.rpm
+        rpm -U --quiet p7zip-16.02-20.el7.x86_64.rpm
+        rpm -U --quiet p7zip-plugins-16.02-20.el7.x86_64.rpm
         yum install -y make gcc-c++ libasan clang-analyzer
 
     - name: Build debug ninja
@@ -123,3 +126,24 @@ jobs:
     - name: clang-tidy
       run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
       working-directory: build-clang
+
+  build-with-python:
+    runs-on: [ubuntu-latest]
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      matrix:
+        image: ['ubuntu:14.04', 'ubuntu:16.04', 'ubuntu:18.04']
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        apt update
+        apt install -y g++ python3
+    - name: ${{ matrix.image }}
+      run: |
+        python3 configure.py --bootstrap
+        ./ninja all
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        python3 misc/ninja_syntax_test.py
+        ./misc/output_test.py

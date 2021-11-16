@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macOS-latest
+    runs-on: macos-11.0
 
     steps:
     - uses: actions/checkout@v2
@@ -21,18 +21,18 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        CXXFLAGS=-std=c++11 cmake -DCMAKE_BUILD_TYPE=Release -B build
-        cmake --build build --parallel --config Release
+        CXXFLAGS=-std=c++11 cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+        cmake --build build --config Release
 
     - name: Test ninja
-      run: ctest -vv
+      run: ctest -C Release -vv
       working-directory: build
 
     - name: Create ninja archive
       shell: bash
       run: |
         mkdir artifact
-        7z a artifact/ninja-mac.zip ./build/ninja
+        7z a artifact/ninja-mac.zip ./build/Release/ninja
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact

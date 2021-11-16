@@ -48,7 +48,7 @@ bool IsPathSeparator(char c) {
 }
 
 // Return true if paths a and b are on the same windows drive.
-// Return false if this funcation cannot check
+// Return false if this function cannot check
 // whether or not on the same windows drive.
 bool SameDriveFast(StringPiece a, StringPiece b) {
   if (a.size() < 3 || b.size() < 3) {
@@ -191,8 +191,7 @@ bool IncludesNormalize::Normalize(const string& input,
   }
   strncpy(copy, input.c_str(), input.size() + 1);
   uint64_t slash_bits;
-  if (!CanonicalizePath(copy, &len, &slash_bits, err))
-    return false;
+  CanonicalizePath(copy, &len, &slash_bits);
   StringPiece partially_fixed(copy, len);
   string abs_input = AbsPath(partially_fixed, err);
   if (!err->empty())

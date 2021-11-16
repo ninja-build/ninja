@@ -295,6 +295,19 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   return deps_[node->id()];
 }
 
+Node* DepsLog::GetFirstReverseDepsNode(Node* node) {
+  for (size_t id = 0; id < deps_.size(); ++id) {
+    Deps* deps = deps_[id];
+    if (!deps)
+      continue;
+    for (int i = 0; i < deps->node_count; ++i) {
+      if (deps->nodes[i] == node)
+        return nodes_[id];
+    }
+  }
+  return NULL;
+}
+
 bool DepsLog::Recompact(const string& path, string* err) {
   METRIC_RECORD(".ninja_deps recompact");
 

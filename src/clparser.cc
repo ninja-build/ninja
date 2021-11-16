@@ -83,6 +83,7 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
   // Loop over all lines in the output to process them.
   assert(&output != filtered_output);
   size_t start = 0;
+  bool seen_show_includes = false;
 #ifdef _WIN32
   IncludesNormalize normalizer(".");
 #endif
@@ -95,6 +96,7 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
 
     string include = FilterShowIncludes(line, deps_prefix);
     if (!include.empty()) {
+      seen_show_includes = true;
       string normalized;
 #ifdef _WIN32
       if (!normalizer.Normalize(include, &normalized, err))
@@ -103,12 +105,11 @@ bool CLParser::Parse(const string& output, const string& deps_prefix,
       // TODO: should this make the path relative to cwd?
       normalized = include;
       uint64_t slash_bits;
-      if (!CanonicalizePath(&normalized, &slash_bits, err))
-        return false;
+      CanonicalizePath(&normalized, &slash_bits);
 #endif
       if (!IsSystemInclude(normalized))
         includes_.insert(normalized);
-    } else if (FilterInputFilename(line)) {
+    } else if (!seen_show_includes && FilterInputFilename(line)) {
       // Drop it.
       // TODO: if we support compiling multiple output files in a single
       // cl.exe invocation, we should stash the filename.

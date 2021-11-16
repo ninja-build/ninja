@@ -51,8 +51,11 @@
 #include <sys/sysinfo.h>
 #endif
 
+#if defined(__FreeBSD__)
+#include <sys/cpuset.h>
+#endif
+
 #include "edit_distance.h"
-#include "metrics.h"
 
 using namespace std;
 
@@ -74,34 +77,52 @@ void Fatal(const char* msg, ...) {
 #endif
 }
 
+void Warning(const char* msg, va_list ap) {
+  fprintf(stderr, "ninja: warning: ");
+  vfprintf(stderr, msg, ap);
+  fprintf(stderr, "\n");
+}
+
 void Warning(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: warning: ");
   va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
+  Warning(msg, ap);
   va_end(ap);
+}
+
+void Error(const char* msg, va_list ap) {
+  fprintf(stderr, "ninja: error: ");
+  vfprintf(stderr, msg, ap);
   fprintf(stderr, "\n");
 }
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: error: ");
   va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
+  Error(msg, ap);
   va_end(ap);
-  fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
-  METRIC_RECORD("canonicalize str");
+void Info(const char* msg, va_list ap) {
+  fprintf(stdout, "ninja: ");
+  vfprintf(stdout, msg, ap);
+  fprintf(stdout, "\n");
+}
+
+void Info(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Info(msg, ap);
+  va_end(ap);
+}
+
+void CanonicalizePath(string* path, uint64_t* slash_bits) {
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
     str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, slash_bits, err))
-    return false;
+  CanonicalizePath(str, &len, slash_bits);
   path->resize(len);
-  return true;
 }
 
 static bool IsPathSeparator(char c) {
@@ -112,14 +133,11 @@ static bool IsPathSeparator(char c) {
 #endif
 }
 
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      string* err) {
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
-  METRIC_RECORD("canonicalize path");
   if (*len == 0) {
-    *err = "empty path";
-    return false;
+    return;
   }
 
   const int kMaxPathComponents = 60;
@@ -209,7 +227,6 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
 #else
   *slash_bits = 0;
 #endif
-  return true;
 }
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
@@ -483,12 +500,48 @@ string StripAnsiEscapeCodes(const string& in) {
 
 int GetProcessorCount() {
 #ifdef _WIN32
+#ifndef _WIN64
+  // Need to use GetLogicalProcessorInformationEx to get real core count on
+  // machines with >64 cores. See https://stackoverflow.com/a/31209344/21475
+  DWORD len = 0;
+  if (!GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &len)
+        && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+    std::vector<char> buf(len);
+    int cores = 0;
+    if (GetLogicalProcessorInformationEx(RelationProcessorCore,
+          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data()), &len)) {
+      for (DWORD i = 0; i < len; ) {
+        auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data() + i);
+        if (info->Relationship == RelationProcessorCore &&
+            info->Processor.GroupCount == 1) {
+          for (KAFFINITY core_mask = info->Processor.GroupMask[0].Mask;
+               core_mask; core_mask >>= 1) {
+            cores += (core_mask & 1);
+          }
+        }
+        i += info->Size;
+      }
+      if (cores != 0) {
+        return cores;
+      }
+    }
+  }
+#endif
   return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
-#ifdef CPU_COUNT
   // The number of exposed processors might not represent the actual number of
   // processors threads can run on. This happens when a CPU set limitation is
   // active, see https://github.com/ninja-build/ninja/issues/1278
+#if defined(__FreeBSD__)
+  cpuset_t mask;
+  CPU_ZERO(&mask);
+  if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(mask),
+    &mask) == 0) {
+    return CPU_COUNT(&mask);
+  }
+#elif defined(CPU_COUNT)
   cpu_set_t set;
   if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
     return CPU_COUNT(&set);
@@ -584,6 +637,10 @@ double GetLoadAverage() {
   if (sysinfo(&si) != 0)
     return -0.0f;
   return 1.0 / (1 << SI_LOAD_SHIFT) * si.loads[0];
+}
+#elif defined(__HAIKU__)
+double GetLoadAverage() {
+    return -0.0f;
 }
 #else
 double GetLoadAverage() {

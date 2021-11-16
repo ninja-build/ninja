@@ -31,7 +31,19 @@
 using namespace std;
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  METRIC_RECORD("node stat");
+  mtime_ = disk_interface->Stat(path_, err);
+  if (mtime_ == -1) {
+    return false;
+  }
+  exists_ = (mtime_ != 0) ? ExistenceStatusExists : ExistenceStatusMissing;
+  return true;
+}
+
+void Node::UpdatePhonyMtime(TimeStamp mtime) {
+  if (!exists()) {
+    mtime_ = std::max(mtime_, mtime);
+  }
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, string* err) {
@@ -237,6 +249,14 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
               output->path().c_str());
       return true;
     }
+
+    // Update the mtime with the newest input. Dependents can thus call mtime()
+    // on the fake node and get the latest mtime of the dependencies
+    if (most_recent_input) {
+      output->UpdatePhonyMtime(most_recent_input->mtime());
+    }
+
+    // Phony edges are clean, nothing to do
     return false;
   }
 
@@ -487,7 +507,7 @@ string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
 void Node::Dump(const char* prefix) const {
   printf("%s <%s 0x%p> mtime: %" PRId64 "%s, (:%s), ",
          prefix, path().c_str(), this,
-         mtime(), mtime() ? "" : " (:missing)",
+         mtime(), exists() ? "" : " (:missing)",
          dirty() ? " dirty" : " clean");
   if (in_edge()) {
     in_edge()->Dump("in-edge: ");
@@ -515,7 +535,7 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
 }
 
 struct matches {
-  matches(std::vector<StringPiece>::iterator i) : i_(i) {}
+  explicit matches(std::vector<StringPiece>::iterator i) : i_(i) {}
 
   bool operator()(const Node* node) const {
     StringPiece opath = StringPiece(node->path());
@@ -562,11 +582,8 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   uint64_t unused;
   std::vector<StringPiece>::iterator primary_out = depfile.outs_.begin();
-  if (!CanonicalizePath(const_cast<char*>(primary_out->str_),
-                        &primary_out->len_, &unused, err)) {
-    *err = path + ": " + *err;
-    return false;
-  }
+  CanonicalizePath(const_cast<char*>(primary_out->str_), &primary_out->len_,
+                   &unused);
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
@@ -588,18 +605,20 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     }
   }
 
+  return ProcessDepfileDeps(edge, &depfile.ins_, err);
+}
+
+bool ImplicitDepLoader::ProcessDepfileDeps(
+    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, depfile.ins_.size());
+      PreallocateSpace(edge, depfile_ins->size());
 
   // Add all its in-edges.
-  for (vector<StringPiece>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
+  for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
+       i != depfile_ins->end(); ++i, ++implicit_dep) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                          err))
-      return false;
-
+    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
@@ -649,6 +668,7 @@ void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
     return;
 
   Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
+  phony_edge->generated_by_dep_loader_ = true;
   node->set_in_edge(phony_edge);
   phony_edge->outputs_.push_back(node);
 

@@ -511,6 +511,37 @@ TEST_F(GraphTest, DyndepLoadTrivial) {
   EXPECT_FALSE(edge->GetBindingBool("restat"));
 }
 
+TEST_F(GraphTest, DyndepLoadImplicit) {
+  AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out1: r in || dd\n"
+"  dyndep = dd\n"
+"build out2: r in\n"
+  );
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build out1: dyndep | out2\n"
+  );
+
+  string err;
+  ASSERT_TRUE(GetNode("dd")->dyndep_pending());
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_EQ("", err);
+  EXPECT_FALSE(GetNode("dd")->dyndep_pending());
+
+  Edge* edge = GetNode("out1")->in_edge();
+  ASSERT_EQ(1u, edge->outputs_.size());
+  EXPECT_EQ("out1", edge->outputs_[0]->path());
+  ASSERT_EQ(3u, edge->inputs_.size());
+  EXPECT_EQ("in", edge->inputs_[0]->path());
+  EXPECT_EQ("out2", edge->inputs_[1]->path());
+  EXPECT_EQ("dd", edge->inputs_[2]->path());
+  EXPECT_EQ(1u, edge->implicit_deps_);
+  EXPECT_EQ(1u, edge->order_only_deps_);
+  EXPECT_FALSE(edge->GetBindingBool("restat"));
+}
+
 TEST_F(GraphTest, DyndepLoadMissingFile) {
   AssertParse(&state_,
 "rule r\n"
@@ -857,4 +888,41 @@ TEST_F(GraphTest, DyndepFileCircular) {
   EXPECT_EQ("dd", edge->inputs_[2]->path());
   EXPECT_EQ(1u, edge->implicit_deps_);
   EXPECT_EQ(1u, edge->order_only_deps_);
+}
+
+// Check that phony's dependencies' mtimes are propagated.
+TEST_F(GraphTest, PhonyDepsMtimes) {
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+" command = touch $out\n"
+"build in_ph: phony in1\n"
+"build out1: touch in_ph\n"
+));
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  Node* out1 = GetNode("out1");
+  Node* in1  = GetNode("in1");
+
+  EXPECT_TRUE(scan_.RecomputeDirty(out1, &err));
+  EXPECT_TRUE(!out1->dirty());
+
+  // Get the mtime of out1
+  ASSERT_TRUE(in1->Stat(&fs_, &err));
+  ASSERT_TRUE(out1->Stat(&fs_, &err));
+  TimeStamp out1Mtime1 = out1->mtime();
+  TimeStamp in1Mtime1 = in1->mtime();
+
+  // Touch in1. This should cause out1 to be dirty
+  state_.Reset();
+  fs_.Tick();
+  fs_.Create("in1", "");
+
+  ASSERT_TRUE(in1->Stat(&fs_, &err));
+  EXPECT_GT(in1->mtime(), in1Mtime1);
+
+  EXPECT_TRUE(scan_.RecomputeDirty(out1, &err));
+  EXPECT_GT(in1->mtime(), in1Mtime1);
+  EXPECT_EQ(out1->mtime(), out1Mtime1);
+  EXPECT_TRUE(out1->dirty());
 }
