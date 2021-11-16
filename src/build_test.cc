@@ -1229,6 +1229,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
 ));
 
   // Set up test.
+  builder_.command_runner_.release(); // BuildTest owns the CommandRunner
   builder_.command_runner_.reset(&command_runner_);
 
   fs_.Create("blank", "");  // a "real" file
