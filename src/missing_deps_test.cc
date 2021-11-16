@@ -33,7 +33,7 @@ struct MissingDependencyScannerTest : public testing::Test {
         scanner_(&delegate_, &deps_log_, &state_, &filesystem_) {
     std::string err;
     deps_log_.OpenForWrite(kTestDepsLogFilename, &err);
-    ASSERT_EQ("", err);
+    EXPECT_EQ("", err);
   }
 
   MissingDependencyScanner& scanner() { return scanner_; }
@@ -159,4 +159,3 @@ TEST_F(MissingDependencyScannerTest, CycleInGraph) {
   std::vector<Node*> nodes = state_.RootNodes(&err);
   ASSERT_NE("", err);
 }
-
