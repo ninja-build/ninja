@@ -1,0 +1,29 @@
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION @NINJA_VERSION_MAJOR@,@NINJA_VERSION_MINOR@,@NINJA_VERSION_PATCH@
+PRODUCTVERSION @NINJA_VERSION_MAJOR@,@NINJA_VERSION_MINOR@,@NINJA_VERSION_PATCH@
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_DLL
+FILESUBTYPE 0
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "040904B0"
+        {
+            VALUE "CompanyName", "ninja-build"
+            VALUE "FileDescription", "@NINJA_DESCRIPTION@"
+            VALUE "FileVersion", "@NINJA_VERSION@"
+            VALUE "OriginalFilename", "ninja.exe"
+            VALUE "ProductName", "ninja"
+            VALUE "ProductVersion", "@NINJA_VERSION@"
+            VALUE "LegalCopyright", "Apache License 2.0, 2013-@NINJA_CURRENT_YEAR@"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x409, 1200
+    }
+}

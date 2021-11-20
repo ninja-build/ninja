@@ -3,7 +3,18 @@ cmake_minimum_required(VERSION 3.15)
 include(CheckSymbolExists)
 include(CheckIPOSupported)
 
-project(ninja)
+# Parse version info from C++ source code
+file(READ src/version.cc version_cc)
+if (version_cc MATCHES "kNinjaVersion = \"([0-9.]+)\.git\"")
+	set(kNinjaVersion ${CMAKE_MATCH_1})
+else()
+	message(FATAL_ERROR "Couldn't parse version!")
+endif()
+
+project(NINJA
+	VERSION ${kNinjaVersion}
+	DESCRIPTION "a small build system with a focus on speed"
+)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -152,7 +163,7 @@ add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
 if(WIN32)
-  target_sources(ninja PRIVATE windows/ninja.manifest)
+	add_subdirectory(windows)
 endif()
 
 # Adds browse mode into the ninja binary if it's supported by the host platform.
