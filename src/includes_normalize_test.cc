@@ -28,7 +28,7 @@ namespace {
 
 string GetCurDir() {
   TCHAR buf[PATH_MAX];
-  t_getcwd(buf, _countof(buf));
+  getcwd(buf, _countof(buf));
   string narrowPath = NarrowPath(buf);
   vector<StringPiece> parts = SplitStringPiece(narrowPath, '\\');
   return parts[parts.size() - 1].AsString();
@@ -123,7 +123,7 @@ TEST(IncludesNormalize, LongInvalidPath) {
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
   TCHAR kExactlyMaxPath[PATH_MAX + 1];
-  ASSERT_NE(t_getcwd(kExactlyMaxPath, _countof(kExactlyMaxPath)), NULL);
+  ASSERT_NE(getcwd(kExactlyMaxPath, _countof(kExactlyMaxPath)), NULL);
 
   int cwd_len = t_strlen(kExactlyMaxPath);
   ASSERT_LE(cwd_len + 3 + 1, PATH_MAX)

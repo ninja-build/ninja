@@ -82,6 +82,10 @@ struct file_string : public file_string_t {
   file_string(const char* path) : file_string_t(ToPathWidth(path)) {}
   file_string(const wchar_t* path) : file_string_t(ToPathWidth(path)) {}
 
+  operator std::string() const { return NarrowPath(*this); }
+  operator std::wstring() const { return WidenPath(*this); }
+  operator const TCHAR*() const { return c_str(); }
+
   file_string file_string::operator+(const std::string& r) {
     return this->append(ToPathWidth(r));
   }

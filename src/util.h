@@ -17,6 +17,7 @@
 
 #ifdef _WIN32
 #include "win32port.h"
+#include <io.h>
 #else
 #include <stdint.h>
 #endif
@@ -115,37 +116,41 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
-#define unlink _unlink
-#define chdir _chdir
 #define strtoull _strtoui64
-#define getcwd _getcwd
 
 #ifdef UNICODE
+#define unlink _wunlink
+#define fopen(path, mode) _wfopen(path, TEXT(mode))
+#define chdir _wchdir
+#define getcwd _wgetcwd
+#define mkdir _wmkdir
+
 #define t_snprintf _snwprintf
 #define t_splitpath _wsplitpath
 #define t_stricmp _wcsicmp
-#define t_unlink _wunlink
-#define t_fopen(path, mode) _wfopen(path, TEXT(mode))
-#define t_chdir _wchdir
-#define t_getcwd _wgetcwd
 #define t_strlen wcslen
-#define t_mkdir _wmkdir
 
 #define PATH_MAX 2048
 #else
+#define unlink _unlink
+#define fopen(path, mode) fopen(path, TEXT(mode))
+#define chdir _chdir
+#define getcwd _getcwd
+#define mkdir _mkdir
+
 #define t_snprintf snprintf
 #define t_splitpath _splitpath
 #define t_stricmp _stricmp
-#define t_unlink _unlink
-#define t_fopen fopen
-#define t_chdir _chdir
-#define t_getcwd _getcwd
 #define t_strlen strlen
-#define t_mkdir _mkdir
 
 #define PATH_MAX _MAX_PATH
 #endif
 #else
+#define t_snprintf snprintf
+#define t_splitpath _splitpath
+#define t_stricmp _stricmp
+#define t_strlen strlen
+
 #define PATH_MAX _MAX_PATH
 #endif
 

@@ -946,7 +946,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   do {
     cwd.resize(cwd.size() + PATH_MAX);
     errno = 0;
-    success = t_getcwd(&cwd[0], cwd.size());
+    success = getcwd(&cwd[0], cwd.size());
   } while (!success && errno == ERANGE);
   if (!success) {
     Error("cannot determine working directory: %s", strerror(errno));
@@ -1532,7 +1532,7 @@ NORETURN void real_main(int argc, char** argv) {
     // can be piped into a file without this string showing up.
     if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
       status->Info("Entering directory `%s'", options.working_dir);
-    if (t_chdir(ToPathWidth(options.working_dir).c_str()) < 0) {
+    if (chdir(ToPathWidth(options.working_dir).c_str()) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
     }
   }
