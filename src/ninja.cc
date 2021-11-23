@@ -1497,7 +1497,7 @@ NORETURN void real_main(int argc, char** argv) {
     exit(result);
   }
 
-  status->Error("manifest '%s' still dirty after %d tries",
+  status->Error("manifest '%s' still dirty after %d tries, perhaps system time is not set",
       options.input_file, kCycleLimit);
   exit(1);
 }
