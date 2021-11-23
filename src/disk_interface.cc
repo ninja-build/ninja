@@ -162,9 +162,9 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+  if (!path.empty() && path[0] != '\\' && path.size() > PATH_MAX) {
     ostringstream err_stream;
-    err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
+    err_stream << "Stat(" << path << "): Filename longer than " << PATH_MAX
                << " characters";
     *err = err_stream.str();
     return -1;
