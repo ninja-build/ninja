@@ -154,6 +154,10 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #ifndef PATH_MAX
 #define PATH_MAX _MAX_PATH
 #endif
+
+#ifndef _MAX_DIR
+#define _MAX_DIR 256
+#endif
 #endif
 
 #ifdef _WIN32
