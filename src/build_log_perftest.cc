@@ -144,7 +144,7 @@ int main() {
   printf("min %dms  max %dms  avg %.1fms\n",
          min, max, total / times.size());
 
-  unlink(kTestFilename);
+  unlink(ToPathWidth(kTestFilename).c_str());
 
   return 0;
 }

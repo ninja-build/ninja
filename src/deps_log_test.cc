@@ -32,10 +32,10 @@ const char kTestFilename[] = "DepsLogTest-tempfile";
 struct DepsLogTest : public testing::Test {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
-    unlink(kTestFilename);
+    unlink(ToPathWidth(kTestFilename).c_str());
   }
   virtual void TearDown() {
-    unlink(kTestFilename);
+    unlink(ToPathWidth(kTestFilename).c_str());
   }
 };
 
@@ -335,7 +335,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
   };
   for (size_t i = 0; i < sizeof(kInvalidHeaders) / sizeof(kInvalidHeaders[0]);
        ++i) {
-    FILE* deps_log = fopen(kTestFilename, "wb");
+    FILE* deps_log = fopen(ToPathWidth(kTestFilename).c_str(), "wb");
     ASSERT_TRUE(deps_log != NULL);
     ASSERT_EQ(
         strlen(kInvalidHeaders[i]),

@@ -31,15 +31,15 @@ using namespace std;
 
 namespace {
 
-const char kTestFilename[] = "BuildLogTest-tempfile";
+const file_string kTestFilename(TEXT("BuildLogTest-tempfile"));
 
 struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
-    unlink(kTestFilename);
+    unlink(kTestFilename.c_str());
   }
   virtual void TearDown() {
-    unlink(kTestFilename);
+    unlink(kTestFilename.c_str());
   }
   virtual bool IsPathDead(StringPiece s) const { return false; }
 };
@@ -135,7 +135,7 @@ TEST_F(BuildLogTest, Truncate) {
   }
 
   struct stat statbuf;
-  ASSERT_EQ(0, stat(kTestFilename, &statbuf));
+  ASSERT_EQ(0, stat(NarrowPath(kTestFilename).c_str(), &statbuf));
   ASSERT_GT(statbuf.st_size, 0);
 
   // For all possible truncations of the input file, assert that we don't
@@ -256,12 +256,13 @@ TEST_F(BuildLogTest, Restat) {
   TestDiskInterface testDiskInterface;
   char out2[] = { 'o', 'u', 't', '2', 0 };
   char* filter2[] = { out2 };
-  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 1, filter2, &err));
+  EXPECT_TRUE(log.Restat(NarrowPath(kTestFilename), testDiskInterface, 1, filter2, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
 
-  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, NULL, &err));
+  EXPECT_TRUE(
+      log.Restat(NarrowPath(kTestFilename), testDiskInterface, 0, NULL, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(4, e->mtime);

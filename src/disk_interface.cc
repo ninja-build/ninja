@@ -56,7 +56,7 @@ string DirName(const string& path) {
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return t_mkdir(ToPathWidth(path).c_str());
+  return mkdir(ToPathWidth(path).c_str());
 #else
   return mkdir(path.c_str(), 0777);
 #endif
@@ -221,7 +221,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE* fp = t_fopen(ToPathWidth(path).c_str(), "w");
+  FILE* fp = fopen(ToPathWidth(path).c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));

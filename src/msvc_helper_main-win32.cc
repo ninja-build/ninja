@@ -52,25 +52,25 @@ void PushPathIntoEnvironment(const string& env_block) {
 
 void WriteDepFileOrDie(const TCHAR* object_path, const CLParser& parse) {
   file_string depfile_path = file_string(object_path) + TEXT(".d");
-  FILE* depfile = t_fopen(ToPathWidth(depfile_path).c_str(), "w");
+  FILE* depfile = fopen(ToPathWidth(depfile_path).c_str(), "w");
   if (!depfile) {
-    t_unlink(object_path);
+    unlink(object_path);
     Fatal("opening %s: %s", depfile_path.c_str(),
           GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
-    t_unlink(object_path);
+    unlink(object_path);
     fclose(depfile);
-    t_unlink(depfile_path.c_str());
+    unlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
   const set<string>& headers = parse.includes_;
   for (set<string>::const_iterator i = headers.begin();
        i != headers.end(); ++i) {
     if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
-      t_unlink(object_path);
+      unlink(object_path);
       fclose(depfile);
-      t_unlink(depfile_path.c_str());
+      unlink(depfile_path.c_str());
       Fatal("writing %s", depfile_path.c_str());
     }
   }

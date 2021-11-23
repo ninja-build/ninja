@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (chdir(kManifestDir) < 0)
+  if (chdir(ToPathWidth(kManifestDir).c_str()) < 0)
     Fatal("chdir: %s", strerror(errno));
 
   const int kNumRepetitions = 5;

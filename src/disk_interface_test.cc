@@ -38,7 +38,7 @@ struct DiskInterfaceTest : public testing::Test {
   }
 
   bool Touch(const char* path) {
-    FILE *f = fopen(path, "w");
+    FILE *f = fopen(ToPathWidth(path).c_str(), "w");
     if (!f)
       return false;
     return fclose(f) == 0;
@@ -178,7 +178,7 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   err.clear();
 
   const char* kTestFile = "testfile";
-  FILE* f = fopen(kTestFile, "wb");
+  FILE* f = fopen(ToPathWidth(kTestFile).c_str(), "wb");
   ASSERT_TRUE(f);
   const char* kTestContent = "test content\nok";
   fprintf(f, "%s", kTestContent);
@@ -193,13 +193,13 @@ TEST_F(DiskInterfaceTest, ReadFile) {
 TEST_F(DiskInterfaceTest, MakeDirs) {
   string path = "path/with/double//slash/";
   EXPECT_TRUE(disk_.MakeDirs(path));
-  FILE* f = fopen((path + "a_file").c_str(), "w");
+  FILE* f = fopen(ToPathWidth((path + "a_file")).c_str(), "w");
   EXPECT_TRUE(f);
   EXPECT_EQ(0, fclose(f));
 #ifdef _WIN32
   string path2 = "another\\with\\back\\\\slashes\\";
   EXPECT_TRUE(disk_.MakeDirs(path2.c_str()));
-  FILE* f2 = fopen((path2 + "a_file").c_str(), "w");
+  FILE* f2 = fopen(ToPathWidth((path2 + "a_file")).c_str(), "w");
   EXPECT_TRUE(f2);
   EXPECT_EQ(0, fclose(f2));
 #endif
