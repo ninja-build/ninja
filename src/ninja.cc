@@ -944,7 +944,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   TCHAR* success = NULL;
 
   do {
-    cwd.resize(cwd.size() + 1024);
+    cwd.resize(cwd.size() + PATH_MAX);
     errno = 0;
     success = t_getcwd(&cwd[0], cwd.size());
   } while (!success && errno == ERANGE);

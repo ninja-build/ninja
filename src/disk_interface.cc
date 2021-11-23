@@ -56,7 +56,7 @@ string DirName(const string& path) {
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  return t_mkdir(ToPathWidth(path).c_str());
 #else
   return mkdir(path.c_str(), 0777);
 #endif
