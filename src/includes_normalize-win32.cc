@@ -78,10 +78,10 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
 
   TCHAR a_absolute[PATH_MAX];
   TCHAR b_absolute[PATH_MAX];
-  if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
+  if (!InternalGetFullPathName(a, a_absolute, _countof(a_absolute), err)) {
     return false;
   }
-  if (!InternalGetFullPathName(b, b_absolute, sizeof(b_absolute), err)) {
+  if (!InternalGetFullPathName(b, b_absolute, _countof(b_absolute), err)) {
     return false;
   }
   TCHAR a_drive[_MAX_DIR];
@@ -146,13 +146,13 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
     return result;
   }
 
-  TCHAR result[_MAX_PATH];
-  if (!InternalGetFullPathName(s, result, sizeof(result), err)) {
+  TCHAR result[PATH_MAX];
+  if (!InternalGetFullPathName(s, result, _countof(result), err)) {
     return "";
   }
   for (TCHAR* c = result; *c; ++c)
-    if (*c == '\\')
-      *c = '/';
+    if (*c == TEXT('\\'))
+      *c = TEXT('/');
   return NarrowPath(result);
 }
 
@@ -183,9 +183,9 @@ string IncludesNormalize::Relativize(
 
 bool IncludesNormalize::Normalize(const string& input,
                                   string* result, string* err) const {
-  char copy[_MAX_PATH + 1];
+  char copy[PATH_MAX + 1];
   size_t len = input.size();
-  if (len > _MAX_PATH) {
+  if (len > PATH_MAX) {
     *err = "path too long";
     return false;
   }

@@ -56,7 +56,7 @@ char* mkdtemp(char* name_template) {
     return NULL;
   }
 
-  err = _mkdir(name_template);
+  err = t_mkdir(ToPathWidth(name_template).c_str());
   if (err < 0) {
     perror("mkdir");
     return NULL;

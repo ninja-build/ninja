@@ -28,8 +28,9 @@ namespace {
 
 string GetCurDir() {
   TCHAR buf[PATH_MAX];
-  t_getcwd(buf, sizeof(buf));
-  vector<StringPiece> parts = SplitStringPiece(buf, '\\');
+  t_getcwd(buf, _countof(buf));
+  string narrowPath = NarrowPath(buf);
+  vector<StringPiece> parts = SplitStringPiece(narrowPath, '\\');
   return parts[parts.size() - 1].AsString();
 }
 
@@ -106,20 +107,25 @@ TEST(IncludesNormalize, LongInvalidPath) {
       "pdb (for example, mspdb110.dll) could not be found on your path. This "
       "is usually a configuration error. Compilation will continue using /Z7 "
       "instead of /Zi, but expect a similar error when you link your program.";
+
+  string longInputString(kLongInputString);
+  while (longInputString.size() <= PATH_MAX) {
+    longInputString += kLongInputString;
+  }
+
   // Too long, won't be canonicalized. Ensure doesn't crash.
   string result, err;
   IncludesNormalize normalizer(".");
-  EXPECT_FALSE(
-      normalizer.Normalize(kLongInputString, &result, &err));
+  EXPECT_FALSE(normalizer.Normalize(longInputString, &result, &err));
   EXPECT_EQ("path too long", err);
 
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
   TCHAR kExactlyMaxPath[PATH_MAX + 1];
-  ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
+  ASSERT_NE(t_getcwd(kExactlyMaxPath, _countof(kExactlyMaxPath)), NULL);
 
-  int cwd_len = strlen(kExactlyMaxPath);
+  int cwd_len = t_strlen(kExactlyMaxPath);
   ASSERT_LE(cwd_len + 3 + 1, PATH_MAX)
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';
@@ -135,13 +141,13 @@ TEST(IncludesNormalize, LongInvalidPath) {
   }
 
   kExactlyMaxPath[PATH_MAX] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), PATH_MAX);
+  EXPECT_EQ(t_strlen(kExactlyMaxPath), PATH_MAX);
 
-  string forward_slashes(kExactlyMaxPath);
+  file_string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly PATH_MAX long is canonicalized.
-  EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
-            NormalizeAndCheckNoError(kExactlyMaxPath));
+  EXPECT_EQ(NarrowPath(forward_slashes.substr(cwd_len + 1)),
+            NormalizeAndCheckNoError(NarrowPath(kExactlyMaxPath)));
 }
 
 TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
@@ -165,5 +171,10 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
 
   // Make sure a path that's exactly PATH_MAX long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
+
+#ifdef UNICODE
+  EXPECT_TRUE(err.find("path too long") != string::npos);
+#else
   EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+#endif
 }
