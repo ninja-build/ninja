@@ -151,7 +151,9 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_stricmp _stricmp
 #define t_strlen strlen
 
+#ifndef PATH_MAX
 #define PATH_MAX _MAX_PATH
+#endif
 #endif
 
 #ifdef _WIN32
