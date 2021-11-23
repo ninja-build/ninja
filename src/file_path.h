@@ -82,40 +82,40 @@ struct file_string : public file_string_t {
   file_string(const char* path) : file_string_t(ToPathWidth(path)) {}
   file_string(const wchar_t* path) : file_string_t(ToPathWidth(path)) {}
 
+  operator const TCHAR*() const { return c_str(); }
+
 #ifdef UNICODE
   operator std::string() const { return NarrowPath(*this); }
 #endif
-  operator const TCHAR*() const { return c_str(); }
-
-  file_string file_string::operator+(const std::string& r) {
+  file_string operator+(const std::string& r) {
     return this->append(ToPathWidth(r));
   }
 
-  file_string file_string::operator+(const std::wstring& r) {
+  file_string operator+(const std::wstring& r) {
     return this->append(ToPathWidth(r));
   }
 
-  file_string file_string::operator+(const char* r) {
+  file_string operator+(const char* r) {
     return this->append(ToPathWidth(r));
   }
 
-  file_string file_string::operator+(const wchar_t* r) {
+  file_string operator+(const wchar_t* r) {
     return this->append(ToPathWidth(r));
   }
 
-  bool file_string::operator==(const std::string& r) {
+  bool operator==(const std::string& r) {
     return this->compare(ToPathWidth(r)) == 0;
   }
 
-  bool file_string::operator==(const std::wstring& r) {
+  bool operator==(const std::wstring& r) {
     return this->compare(ToPathWidth(r)) == 0;
   }
 
-  bool file_string::operator==(const char* r) {
+  bool operator==(const char* r) {
     return this->compare(ToPathWidth(r)) == 0;
   }
 
-  bool file_string::operator==(const wchar_t* r) {
+  bool operator==(const wchar_t* r) {
     return this->compare(ToPathWidth(r)) == 0;
   }
 };
