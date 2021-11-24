@@ -294,7 +294,7 @@ of a generator-target) implicitly, but does not have an explicit or order-only
 dependency path to the generator-target, is considered broken.
 +
 The tool's findings can be verified by trying to build the listed targets in
-a clean outdir without buidling any other targets.  The build should fail for
+a clean outdir without building any other targets.  The build should fail for
 each of them with a missing include error or equivalent pointing to the
 generated file.
 _Available since Ninja 1.11._
@@ -304,9 +304,9 @@ _Available since Ninja 1.11._
 `restat`:: updates all recorded file modification timestamps in the `.ninja_log`
 file. _Available since Ninja 1.10._
 
-`rules`:: output the list of all rules (eventually with their description
-if they have one).  It can be used to know which rule name to pass to
-+ninja -t targets rule _name_+ or +ninja -t compdb+.
+`rules`:: output the list of all rules. It can be used to know which rule name
+to pass to +ninja -t targets rule _name_+ or +ninja -t compdb+. Adding the `-d`
+flag also prints the description of the rules.
 
 `wincodepage`:: Available on Windows hosts (_since Ninja 1.11_).
 Prints the Windows code page whose encoding is expected in the build file.
