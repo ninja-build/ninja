@@ -223,6 +223,8 @@ parser.add_option('--with-python', metavar='EXE',
 parser.add_option('--force-pselect', action='store_true',
                   help='ppoll() is used by default where available, '
                        'but some platforms may need to use pselect instead',)
+parser.add_option('--link-with', metavar='LIB',
+                  help='Link Ninja executable with additional library LIB.')
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -390,6 +392,9 @@ if platform.supports_ppoll() and not options.force_pselect:
     cflags.append('-DUSE_PPOLL')
 if platform.supports_ninja_browse():
     cflags.append('-DNINJA_HAVE_BROWSE')
+
+if options.link_with:
+  libs.append(options.link_with)
 
 # Search for generated headers relative to build dir.
 cflags.append('-I.')

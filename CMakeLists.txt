@@ -151,6 +151,15 @@ endif()
 add_executable(ninja src/ninja.cc)
 target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
+# Define NINJA_EXTRA_LINK_LIBRARY to add new link-time libraries
+# to the final ninja executable. This can be used to link a custom
+# allocator to speed up the tool.
+if(NINJA_EXTRA_LINK_LIBRARY)
+  add_library(extra_link STATIC IMPORTED)
+  set_property(TARGET extra_link PROPERTY IMPORTED_LOCATION "${NINJA_EXTRA_LINK_LIBRARY}")
+  target_link_libraries(ninja PRIVATE extra_link)
+endif()
+
 if(WIN32)
   target_sources(ninja PRIVATE windows/ninja.manifest)
 endif()
