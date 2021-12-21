@@ -259,7 +259,7 @@ output files are out of date.
 
 `inputs`:: given a list of targets, print a list of all inputs which are used
 to rebuild those targets.
-_Available since Ninja 1.10._
+_Available since Ninja 1.11._
 
 `clean`:: remove built files. By default it removes all built files
 except for those created by the generator.  Adding the `-g` flag also
