@@ -141,6 +141,12 @@ bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
   return true;
 }
 
+void State::AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits) {
+  Node* node = GetNode(path, slash_bits);
+  edge->validations_.push_back(node);
+  node->AddValidationOutEdge(edge);
+}
+
 bool State::AddDefault(StringPiece path, string* err) {
   Node* node = LookupNode(path);
   if (!node) {

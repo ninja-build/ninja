@@ -748,6 +748,8 @@ A file is a series of declarations.  A declaration can be one of:
    Order-only dependencies may be tacked on the end with +||
    _dependency1_ _dependency2_+.  (See <<ref_dependencies,the reference on
    dependency types>>.)
+   Validations may be taked on the end with +|@ _validation1_ _validation2_+.
+   (See <<validations,the reference on validations>>.)
 +
 Implicit outputs _(available since Ninja 1.7)_ may be added before
 the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
@@ -1005,6 +1007,31 @@ express the implicit dependency.)
 
 File paths are compared as is, which means that an absolute path and a
 relative path, pointing to the same file, are considered different by Ninja.
+
+[[validations]]
+Validations
+~~~~~~~~~~~
+Validations listed on the build line cause the specified files to be
+added to the top level of the build graph (as if they were specified
+on the Ninja command line) whenever the build line is a transitive
+dependency of one of the targets specified on the command line or a
+default target.
+
+Validations are added to the build graph regardless of whether the output
+files of the build statement are dirty are not, and the dirty state of
+the build statement that outputs the file being used as a validation
+has no effect on the dirty state of the build statement that requested it.
+
+A build edge can list another build edge as a validation even if the second
+edge depends on the first.
+
+Validations are designed to handle rules that perform error checking but
+don't produce any artifacts needed by the build, for example static
+analysis tools.  Marking the static analysis rule as an implicit input
+of the main build rule of the source files or of the rules that depend
+on the main build rule would slow down the critical path of the build,
+but using a validation would allow the build to proceed in parallel with
+the static analysis rule once the main build rule is complete.
 
 Variable expansion
 ~~~~~~~~~~~~~~~~~~
