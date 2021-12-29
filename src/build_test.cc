@@ -2355,7 +2355,7 @@ struct BuildWithDepsLogTest : public BuildTest {
   void* builder_;
 };
 
-/// Run a straightforwad build where the deps log is used.
+/// Run a straightforward build where the deps log is used.
 TEST_F(BuildWithDepsLogTest, Straightforward) {
   string err;
   // Note: in1 was created by the superclass SetUp().
