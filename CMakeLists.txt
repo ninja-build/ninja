@@ -177,7 +177,7 @@ if(platform_supports_ninja_browse)
 		PROPERTIES
 			OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/build/browse_py.h"
 			INCLUDE_DIRECTORIES "${PROJECT_BINARY_DIR}"
-			COMPILE_DEFINITIONS NINJA_PYTHON="python"
+			COMPILE_DEFINITIONS NINJA_PYTHON="python3"
 	)
 endif()
 
