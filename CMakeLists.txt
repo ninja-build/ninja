@@ -32,6 +32,7 @@ else()
 		add_compile_options(-fdiagnostics-color)
 	endif()
 endif()
+add_compile_definitions(NINJA_PYTHON="python")
 
 # --- optional re2c
 find_program(RE2C re2c)
@@ -177,7 +178,6 @@ if(platform_supports_ninja_browse)
 		PROPERTIES
 			OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/build/browse_py.h"
 			INCLUDE_DIRECTORIES "${PROJECT_BINARY_DIR}"
-			COMPILE_DEFINITIONS NINJA_PYTHON="python"
 	)
 endif()
 
