@@ -1,0 +1,23 @@
+# Use like:
+#
+#     ninja -f misc/explain.ninja -d explain
+#     ninja -f misc/explain.ninja -d explain
+#     touch input1
+#     ninja -f misc/explain.ninja -d explain
+#     touch input2
+#     ninja -f misc/explain.ninja -d explain
+
+build .FORCE: phony
+rule create_if_non_exist
+  command = [ -e $out ] || touch $out
+  restat = true
+
+rule write
+  command = echo "Writing!" > $out
+
+build input1 : create_if_non_exist .FORCE
+build input2 : create_if_non_exist .FORCE
+build mid1 : write input1
+build mid2 : write mid1
+build output : write mid2 input2
+default output
