@@ -30,7 +30,6 @@ struct Status {
   virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, bool success,
                                  const std::string& output) = 0;
-  virtual void BuildLoadDyndeps() = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
 

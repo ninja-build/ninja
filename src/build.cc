@@ -1057,8 +1057,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 }
 
 bool Builder::LoadDyndeps(Node* node, string* err) {
-  status_->BuildLoadDyndeps();
-
   // Load the dyndep information provided by this node.
   DyndepFile ddf;
   if (!scan_.LoadDyndeps(node, &ddf, err))

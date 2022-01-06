@@ -91,7 +91,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     if (!node->StatIfNecessary(disk_interface_, err))
       return false;
     if (!node->exists())
-      EXPLAIN("%s has no in-edge and is missing", node->path().c_str());
+      EXPLAIN(node, "%s has no in-edge and is missing", node->path().c_str());
     node->set_dirty(!node->exists());
     return true;
   }
@@ -182,7 +182,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       // If a regular input is dirty (or missing), we're dirty.
       // Otherwise consider mtime.
       if ((*i)->dirty()) {
-        EXPLAIN("%s is dirty", (*i)->path().c_str());
+        EXPLAIN(node, "%s is dirty", (*i)->path().c_str());
         dirty = true;
       } else {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
@@ -282,7 +282,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
     if (edge->inputs_.empty() && !output->exists()) {
-      EXPLAIN("output %s of phony edge with no inputs doesn't exist",
+      EXPLAIN(output, "output %s of phony edge with no inputs doesn't exist",
               output->path().c_str());
       return true;
     }
@@ -299,7 +299,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
 
   // Dirty if we're missing the output.
   if (!output->exists()) {
-    EXPLAIN("output %s doesn't exist", output->path().c_str());
+    EXPLAIN(output, "output %s doesn't exist", output->path().c_str());
     return true;
   }
 
@@ -319,7 +319,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
 
   // Dirty if the output is older than the input.
   if (!used_restat && most_recent_input && output->mtime() < most_recent_input->mtime()) {
-    EXPLAIN("output %s older than most recent input %s "
+    EXPLAIN(output, "output %s older than most recent input %s "
             "(%" PRId64 " vs %" PRId64 ")",
             output->path().c_str(),
             most_recent_input->path().c_str(),
@@ -335,7 +335,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
         // May also be dirty due to the command changing since the last build.
         // But if this is a generator rule, the command changing does not make us
         // dirty.
-        EXPLAIN("command line changed for %s", output->path().c_str());
+        EXPLAIN(output, "command line changed for %s", output->path().c_str());
         return true;
       }
       if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
@@ -345,14 +345,16 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
         // exited with an error or was interrupted. If this was a restat rule,
         // then we only check the recorded mtime against the most recent input
         // mtime and ignore the actual output's mtime above.
-        EXPLAIN("recorded mtime of %s older than most recent input %s (%" PRId64 " vs %" PRId64 ")",
+        EXPLAIN(output,
+                "recorded mtime of %s older than most recent input %s (%" PRId64 " vs %" PRId64 ")",
                 output->path().c_str(), most_recent_input->path().c_str(),
                 entry->mtime, most_recent_input->mtime());
         return true;
       }
     }
     if (!entry && !generator) {
-      EXPLAIN("command line not found in log for %s", output->path().c_str());
+      EXPLAIN(output, "command line not found in log for %s",
+              output->path().c_str());
       return true;
     }
   }
@@ -666,8 +668,9 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
   // On a missing depfile: return false and empty *err.
+  Node* first_output = edge->outputs_[0];
   if (content.empty()) {
-    EXPLAIN("depfile '%s' is missing", path.c_str());
+    EXPLAIN(first_output, "depfile '%s' is missing", path.c_str());
     return false;
   }
 
@@ -692,11 +695,11 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
-  Node* first_output = edge->outputs_[0];
   StringPiece opath = StringPiece(first_output->path());
   if (opath != *primary_out) {
-    EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
-            first_output->path().c_str(), primary_out->AsString().c_str());
+    EXPLAIN(first_output, "expected depfile '%s' to mention '%s', got '%s'",
+            path.c_str(), first_output->path().c_str(),
+            primary_out->AsString().c_str());
     return false;
   }
 
@@ -737,13 +740,14 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
-    EXPLAIN("deps for '%s' are missing", output->path().c_str());
+    EXPLAIN(output, "deps for '%s' are missing", output->path().c_str());
     return false;
   }
 
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
-    EXPLAIN("stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
+    EXPLAIN(output,
+            "stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
             output->path().c_str(), deps->mtime, output->mtime());
     return false;
   }
