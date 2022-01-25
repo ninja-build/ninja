@@ -44,8 +44,18 @@ cmake --build build-cmake
 The `ninja` binary will now be inside the `build-cmake` directory (you can
 choose any other name you like).
 
+### Unit tests
+
 To run the unit tests:
+
+#### Linux
 
 ```
 ./build-cmake/ninja_test
+```
+
+#### Windows
+
+```
+".\build-cmake\Debug\ninja_test.exe"
 ```
