@@ -127,6 +127,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolMSVC(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
+  int ToolInputs(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
@@ -702,7 +703,7 @@ void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
 }
 
 int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
-  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // The commands tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "commands".
   ++argc;
   --argv;
@@ -739,6 +740,35 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   EdgeSet seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands((*in)->in_edge(), &seen, mode);
+
+  return 0;
+}
+
+void PrintInputs(Edge* edge, set<Edge*>* seen) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in)
+    PrintInputs((*in)->in_edge(), seen);
+
+  if (!edge->is_phony())
+    puts(edge->GetBinding("in_newline").c_str());
+}
+
+int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  set<Edge*> seen;
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintInputs((*in)->in_edge(), &seen);
 
   return 0;
 }
@@ -1021,6 +1051,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
+    { "inputs", "list all inputs required to rebuild given targets",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolInputs},
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
     { "missingdeps", "check deps log dependencies on generated files",
