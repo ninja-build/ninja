@@ -16,6 +16,7 @@
 #define NINJA_STATE_H_
 
 #include <map>
+#include <queue>
 #include <set>
 #include <string>
 #include <vector>
@@ -75,16 +76,26 @@ struct Pool {
   int current_use_;
   int depth_;
 
+  // Comparison struct used to ensure edges with the lowest weight, then
+  // the lowest id appear first.
   struct WeightedEdgeCmp {
     bool operator()(const Edge* a, const Edge* b) const {
-      if (!a) return b;
-      if (!b) return false;
       int weight_diff = a->weight() - b->weight();
       return ((weight_diff < 0) || (weight_diff == 0 && EdgeCmp()(a, b)));
     }
   };
 
-  typedef std::set<Edge*, WeightedEdgeCmp> DelayedEdges;
+  // Comparison struct for the reverse condition, since std::priority_queue
+  // implements a maximal-value queue, while a minimal-value one is needed.
+  struct ReversedWeightedEdgeCmp {
+    bool operator()(const Edge* a, const Edge* b) const {
+      return !WeightedEdgeCmp()(a, b);
+    }
+  };
+
+  typedef std::priority_queue<Edge*, std::vector<Edge*>,
+                              ReversedWeightedEdgeCmp>
+      DelayedEdges;
   DelayedEdges delayed_;
 };
 

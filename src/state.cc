@@ -35,29 +35,35 @@ void Pool::EdgeFinished(const Edge& edge) {
 
 void Pool::DelayEdge(Edge* edge) {
   assert(depth_ != 0);
-  delayed_.insert(edge);
+  delayed_.push(edge);
 }
 
 void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
-  DelayedEdges::iterator it = delayed_.begin();
-  while (it != delayed_.end()) {
-    Edge* edge = *it;
+  while (!delayed_.empty()) {
+    Edge* edge = delayed_.top();
     if (current_use_ + edge->weight() > depth_)
       break;
+    delayed_.pop();
     ready_queue->insert(edge);
+
+    // IMPORTANT: edge duplicates are unfortunately possible,
+    // so detect and remove them right away.
+    // See https://github.com/ninja-build/ninja/issues/308
+    // and https://github.com/ninja-build/ninja/pull/521
+    while (!delayed_.empty() && delayed_.top() == edge)
+      delayed_.pop();
+
     EdgeScheduled(*edge);
-    ++it;
   }
-  delayed_.erase(delayed_.begin(), it);
 }
 
 void Pool::Dump() const {
   printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
-  for (DelayedEdges::const_iterator it = delayed_.begin();
-       it != delayed_.end(); ++it)
-  {
+  DelayedEdges edges = delayed_;
+  while (!edges.empty()) {
     printf("\t");
-    (*it)->Dump();
+    edges.top()->Dump();
+    edges.pop();
   }
 }
 
