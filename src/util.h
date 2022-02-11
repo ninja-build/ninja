@@ -131,7 +131,7 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_strlen wcslen
 
 #define PATH_MAX 2048
-#else
+#else // !UNICODE
 #define unlink _unlink
 #define fopen(path, mode) fopen(path, TEXT(mode))
 #define chdir _chdir
@@ -144,8 +144,8 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_strlen strlen
 
 #define PATH_MAX _MAX_PATH
-#endif
-#else
+#endif // !UNICODE
+#else // !_MSC_VER
 #define t_snprintf snprintf
 #define t_splitpath _splitpath
 #define t_stricmp _stricmp
@@ -158,7 +158,7 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #ifndef _MAX_DIR
 #define _MAX_DIR 256
 #endif
-#endif
+#endif // !_MSC_VER
 
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.

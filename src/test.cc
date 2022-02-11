@@ -68,7 +68,7 @@ char* mkdtemp(char* name_template) {
 
 string GetSystemTempDir() {
 #ifdef _WIN32
-  char buf[1024];
+  char buf[MAX_PATH + 1];
   if (!GetTempPathA(sizeof(buf), buf))
     return "";
   return buf;
