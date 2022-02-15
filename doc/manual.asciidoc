@@ -312,6 +312,37 @@ file. _Available since Ninja 1.10._
 to pass to +ninja -t targets rule _name_+ or +ninja -t compdb+. Adding the `-d`
 flag also prints the description of the rules.
 
+`msvc`:: Available on Windows hosts only.
+Helper tool to invoke the `cl.exe` compiler with a pre-defined set of
+environment variables, as in:
++
+----
+ninja -t msvc -e ENVFILE -- cl.exe <arguments>
+----
++
+Where `ENVFILE` is a binary file that contains an environment block suitable
+for CreateProcessA() on Windows (i.e. a series of zero-terminated strings that
+look like NAME=VALUE, followed by an extra zero terminator). Note that this uses
+the local codepage encoding.
+
+This tool also supports a deprecated way of parsing the compiler's output when
+the `/showIncludes` flag is used, and generating a GCC-compatible depfile from it.
++
+---
+ninja -t msvc -o DEPFILE [-p STRING] -- cl.exe /showIncludes <arguments>
+---
++
+
+When using this option, `-p STRING` can be used to pass the localized line prefix
+that `cl.exe` uses to output dependency information. For English-speaking regions
+this is `"Note: including file: "` without the double quotes, but will be different
+for other regions.
+
+Note that Ninja supports this natively now, with the use of `deps = msvc` and
+`msvc_deps_prefix` in Ninja files. Native support also avoids launching an extra
+tool process each time the compiler must be called, which can speed up builds
+noticeably on Windows.
+
 `wincodepage`:: Available on Windows hosts (_since Ninja 1.11_).
 Prints the Windows code page whose encoding is expected in the build file.
 The output has the form:
