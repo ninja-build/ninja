@@ -965,6 +965,16 @@ TEST_F(ParserTest, OrderOnly) {
   ASSERT_TRUE(edge->is_order_only(1));
 }
 
+TEST_F(ParserTest, Validations) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build foo: cat bar |@ baz\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(edge->validations_.size(), 1);
+  EXPECT_EQ(edge->validations_[0]->path(), "baz");
+}
+
 TEST_F(ParserTest, ImplicitOutput) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"

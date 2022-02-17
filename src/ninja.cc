@@ -127,6 +127,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolMSVC(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
+  int ToolInputs(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
@@ -404,6 +405,13 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
           label = "|| ";
         printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
       }
+      if (!edge->validations_.empty()) {
+        printf("  validations:\n");
+        for (std::vector<Node*>::iterator validation = edge->validations_.begin();
+             validation != edge->validations_.end(); ++validation) {
+          printf("    %s\n", (*validation)->path().c_str());
+        }
+      }
     }
     printf("  outputs:\n");
     for (vector<Edge*>::const_iterator edge = node->out_edges().begin();
@@ -411,6 +419,17 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
       for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
            out != (*edge)->outputs_.end(); ++out) {
         printf("    %s\n", (*out)->path().c_str());
+      }
+    }
+    const std::vector<Edge*> validation_edges = node->validation_out_edges();
+    if (!validation_edges.empty()) {
+      printf("  validation for:\n");
+      for (std::vector<Edge*>::const_iterator edge = validation_edges.begin();
+           edge != validation_edges.end(); ++edge) {
+        for (vector<Node*>::iterator out = (*edge)->outputs_.begin();
+             out != (*edge)->outputs_.end(); ++out) {
+          printf("    %s\n", (*out)->path().c_str());
+        }
       }
     }
   }
@@ -684,7 +703,7 @@ void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
 }
 
 int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
-  // The clean tool uses getopt, and expects argv[0] to contain the name of
+  // The commands tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "commands".
   ++argc;
   --argv;
@@ -721,6 +740,35 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   EdgeSet seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
     PrintCommands((*in)->in_edge(), &seen, mode);
+
+  return 0;
+}
+
+void PrintInputs(Edge* edge, set<Edge*>* seen) {
+  if (!edge)
+    return;
+  if (!seen->insert(edge).second)
+    return;
+
+  for (vector<Node*>::iterator in = edge->inputs_.begin();
+       in != edge->inputs_.end(); ++in)
+    PrintInputs((*in)->in_edge(), seen);
+
+  if (!edge->is_phony())
+    puts(edge->GetBinding("in_newline").c_str());
+}
+
+int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
+  vector<Node*> nodes;
+  string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  set<Edge*> seen;
+  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
+    PrintInputs((*in)->in_edge(), &seen);
 
   return 0;
 }
@@ -1003,6 +1051,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
+    { "inputs", "list all inputs required to rebuild given targets",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolInputs},
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
     { "missingdeps", "check deps log dependencies on generated files",
@@ -1436,6 +1486,17 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
+#ifdef WIN32
+  // It'd be nice to use line buffering but MSDN says: "For some systems,
+  // [_IOLBF] provides line buffering. However, for Win32, the behavior is the
+  //  same as _IOFBF - Full Buffering."
+  // Buffering used to be disabled in the LinePrinter constructor but that
+  // now disables it too early and breaks -t deps performance (see issue #2018)
+  // so we disable it here instead, but only when not running a tool.
+  if (!options.tool)
+    setvbuf(stdout, NULL, _IONBF, 0);
+#endif
+
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
@@ -1486,7 +1547,7 @@ NORETURN void real_main(int argc, char** argv) {
     exit(result);
   }
 
-  status->Error("manifest '%s' still dirty after %d tries",
+  status->Error("manifest '%s' still dirty after %d tries, perhaps system time is not set",
       options.input_file, kCycleLimit);
   exit(1);
 }

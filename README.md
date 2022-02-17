@@ -37,7 +37,7 @@ to build Ninja with itself.
 ### CMake
 
 ```
-cmake -Bbuild-cmake -H.
+cmake -Bbuild-cmake
 cmake --build build-cmake
 ```
 

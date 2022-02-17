@@ -384,8 +384,21 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
     Node* n = *i;
 
     // Check if this dependent node is now dirty.  Also checks for new cycles.
-    if (!scan->RecomputeDirty(n, err))
+    std::vector<Node*> validation_nodes;
+    if (!scan->RecomputeDirty(n, &validation_nodes, err))
       return false;
+
+    // Add any validation nodes found during RecomputeDirty as new top level
+    // targets.
+    for (std::vector<Node*>::iterator v = validation_nodes.begin();
+         v != validation_nodes.end(); ++v) {
+      if (Edge* in_edge = (*v)->in_edge()) {
+        if (!in_edge->outputs_ready() &&
+            !AddTarget(*v, err)) {
+          return false;
+        }
+      }
+    }
     if (!n->dirty())
       continue;
 
@@ -553,16 +566,28 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* target, string* err) {
-  if (!scan_.RecomputeDirty(target, err))
+  std::vector<Node*> validation_nodes;
+  if (!scan_.RecomputeDirty(target, &validation_nodes, err))
     return false;
 
-  if (Edge* in_edge = target->in_edge()) {
-    if (in_edge->outputs_ready())
-      return true;  // Nothing to do.
+  Edge* in_edge = target->in_edge();
+  if (!in_edge || !in_edge->outputs_ready()) {
+    if (!plan_.AddTarget(target, err)) {
+      return false;
+    }
   }
 
-  if (!plan_.AddTarget(target, err))
-    return false;
+  // Also add any validation nodes found during RecomputeDirty as top level
+  // targets.
+  for (std::vector<Node*>::iterator n = validation_nodes.begin();
+       n != validation_nodes.end(); ++n) {
+    if (Edge* validation_in_edge = (*n)->in_edge()) {
+      if (!validation_in_edge->outputs_ready() &&
+          !plan_.AddTarget(*n, err)) {
+        return false;
+      }
+    }
+  }
 
   return true;
 }
