@@ -1486,17 +1486,6 @@ NORETURN void real_main(int argc, char** argv) {
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
-#ifdef WIN32
-  // It'd be nice to use line buffering but MSDN says: "For some systems,
-  // [_IOLBF] provides line buffering. However, for Win32, the behavior is the
-  //  same as _IOFBF - Full Buffering."
-  // Buffering used to be disabled in the LinePrinter constructor but that
-  // now disables it too early and breaks -t deps performance (see issue #2018)
-  // so we disable it here instead, but only when not running a tool.
-  if (!options.tool)
-    setvbuf(stdout, NULL, _IONBF, 0);
-#endif
-
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
