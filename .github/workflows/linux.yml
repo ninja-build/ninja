@@ -123,6 +123,16 @@ jobs:
       run: pytest-3 --color=yes ../..
       working-directory: build-clang/Release
 
+    - name: Configure (GCC_C++11)
+      run: CXXFLAGS=-std=c++11 cmake -Bbuild-gcc-c++11 -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
+    - name: Build (GCC_C++11, Debug)
+      run: cmake --build build-gcc-c++11 --config Debug
+    - name: Unit tests (GCC_C++11, Debug)
+      run: ./build-gcc-c++11/Debug/ninja_test
+    - name: Python tests (GCC_C++11, Debug)
+      run: pytest-3 --color=yes ../..
+      working-directory: build-gcc-c++11/Debug
+
     - name: clang-tidy
       run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
       working-directory: build-clang

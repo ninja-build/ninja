@@ -15,8 +15,11 @@ Generally it's the
 a few additions:
 
 * Any code merged into the Ninja codebase which will be part of the main
-  executable must compile as C++03. You may use C++11 features in a test or an
-  unimportant tool if you guard your code with `#if __cplusplus >= 201103L`.
+  executable *must* compile as C++03 as well as C++11. And any C++11 specific
+  code path there *must* be guarded in the code with `#if __cplusplus >= 201103L.
+  New Ninja features *must* *not* depend on the language standard used to
+  build the source code. This last restriction does not apply to tests and
+  unimportant tools.
 * We have used `using namespace std;` a lot in the past. For new contributions,
   please try to avoid relying on it and instead whenever possible use `std::`.
   However, please do not change existing code simply to add `std::` unless your
