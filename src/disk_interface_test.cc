@@ -219,6 +219,14 @@ TEST_F(DiskInterfaceTest, RemoveFile) {
 #endif
 }
 
+TEST_F(DiskInterfaceTest, RemoveDirectory) {
+  const char* kDirectoryName = "directory-to-remove";
+  EXPECT_TRUE(disk_.MakeDir(kDirectoryName));
+  EXPECT_EQ(0, disk_.RemoveFile(kDirectoryName));
+  EXPECT_EQ(1, disk_.RemoveFile(kDirectoryName));
+  EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
+}
+
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this, NULL) {}
@@ -264,7 +272,7 @@ TEST_F(StatTest, Simple) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out, NULL);
+  scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_EQ(2u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_EQ("in",  stats_[1]);
@@ -280,7 +288,7 @@ TEST_F(StatTest, TwoStep) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out, NULL);
+  scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
   ASSERT_TRUE(GetNode("out")->dirty());
@@ -300,7 +308,7 @@ TEST_F(StatTest, Tree) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out, NULL);
+  scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
   ASSERT_EQ("mid1", stats_[1]);
   ASSERT_TRUE(GetNode("mid1")->dirty());
@@ -321,7 +329,7 @@ TEST_F(StatTest, Middle) {
   EXPECT_TRUE(out->Stat(this, &err));
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
-  scan_.RecomputeDirty(out, NULL);
+  scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_FALSE(GetNode("in")->dirty());
   ASSERT_TRUE(GetNode("mid")->dirty());
   ASSERT_TRUE(GetNode("out")->dirty());

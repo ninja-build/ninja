@@ -39,7 +39,7 @@ if(RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
 	function(re2c IN OUT)
 		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
-			COMMAND ${RE2C} -b -i --no-generation-date -o ${OUT} ${IN}
+			COMMAND ${RE2C} -b -i --no-generation-date --no-version -o ${OUT} ${IN}
 		)
 	endfunction()
 	re2c(${PROJECT_SOURCE_DIR}/src/depfile_parser.in.cc ${PROJECT_BINARY_DIR}/depfile_parser.cc)
@@ -122,10 +122,8 @@ if(WIN32)
 		src/msvc_helper-win32.cc
 		src/msvc_helper_main-win32.cc
 		src/getopt.c
+		src/minidump-win32.cc
 	)
-	if(MSVC)
-		target_sources(libninja PRIVATE src/minidump-win32.cc)
-	endif()
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")

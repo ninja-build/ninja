@@ -19,7 +19,6 @@
 
 #include "edit_distance.h"
 #include "graph.h"
-#include "metrics.h"
 #include "util.h"
 
 using namespace std;
@@ -104,7 +103,6 @@ Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
 }
 
 Node* State::LookupNode(StringPiece path) const {
-  METRIC_RECORD("lookup node");
   Paths::const_iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
@@ -141,6 +139,12 @@ bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
   edge->outputs_.push_back(node);
   node->set_in_edge(edge);
   return true;
+}
+
+void State::AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits) {
+  Node* node = GetNode(path, slash_bits);
+  edge->validations_.push_back(node);
+  node->AddValidationOutEdge(edge);
 }
 
 bool State::AddDefault(StringPiece path, string* err) {
