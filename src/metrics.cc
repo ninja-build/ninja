@@ -14,12 +14,22 @@
 
 #include "metrics.h"
 
+#if __cplusplus >= 201103L
+// C++ 11 is not available on older Linux build machines.
+#define USE_CHRONO
+#endif
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <algorithm>
+
+#if defined(USE_CHRONO)
 #include <chrono>
+#else
+#include <sys/time.h>
+#endif
 
 #include "util.h"
 
@@ -31,12 +41,20 @@ namespace {
 
 /// Compute a platform-specific high-res timer value that fits into an int64.
 int64_t HighResTimer() {
+#if defined(USE_CHRONO)
   auto now = chrono::steady_clock::now();
   return chrono::duration_cast<chrono::steady_clock::duration>(
              now.time_since_epoch())
       .count();
+#else
+  timeval tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    Fatal("gettimeofday: %s", strerror(errno));
+  return (int64_t)tv.tv_sec * 1000*1000 + tv.tv_usec;
+#endif
 }
 
+#if defined(USE_CHRONO)
 constexpr int64_t GetFrequency() {
   // If numerator isn't 1 then we lose precision and that will need to be
   // assessed.
@@ -45,15 +63,26 @@ constexpr int64_t GetFrequency() {
   return std::chrono::steady_clock::period::den /
          std::chrono::steady_clock::period::num;
 }
+#endif
 
 int64_t TimerToMicros(int64_t dt) {
+#if defined(USE_CHRONO)
   // dt is in ticks.  We want microseconds.
   return (dt * 1000000) / GetFrequency();
+#else
+  // No conversion necessary.
+  return dt;
+#endif
 }
 
 int64_t TimerToMicros(double dt) {
+#if defined(USE_CHRONO)
   // dt is in ticks.  We want microseconds.
   return (dt * 1000000) / GetFrequency();
+#else
+  // No conversion necessary.
+  return dt;
+#endif
 }
 
 }  // anonymous namespace
