@@ -16,7 +16,6 @@ else()
 endif()
 
 # --- compiler flags
-target_compile_features(ninja PUBLIC cxx_std_11)
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -137,6 +136,8 @@ else()
 		target_link_libraries(libninja PUBLIC "-lperfstat")
 	endif()
 endif()
+
+target_compile_features(libninja PUBLIC cxx_std_11)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
