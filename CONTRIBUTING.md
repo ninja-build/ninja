@@ -15,8 +15,8 @@ Generally it's the
 a few additions:
 
 * Any code merged into the Ninja codebase which will be part of the main
-  executable must compile as C++03. You may use C++11 features in a test or an
-  unimportant tool if you guard your code with `#if __cplusplus >= 201103L`.
+  executable must compile as C++11. You may use C++14 features in a test or an
+  unimportant tool if you guard your code with `#if __cplusplus >= 201402L`.
 * We have used `using namespace std;` a lot in the past. For new contributions,
   please try to avoid relying on it and instead whenever possible use `std::`.
   However, please do not change existing code simply to add `std::` unless your

@@ -19,9 +19,7 @@
 #include <set>
 #include <string>
 
-#if __cplusplus >= 201103L
 #include <unordered_map>
-#endif
 
 struct DepsLog;
 struct DiskInterface;
@@ -68,13 +66,8 @@ struct MissingDependencyScanner {
   int missing_dep_path_count_;
 
  private:
-#if __cplusplus >= 201103L
   using InnerAdjacencyMap = std::unordered_map<Edge*, bool>;
   using AdjacencyMap = std::unordered_map<Edge*, InnerAdjacencyMap>;
-#else
-  typedef std::map<Edge*, bool> InnerAdjacencyMap;
-  typedef std::map<Edge*, InnerAdjacencyMap> AdjacencyMap;
-#endif
   AdjacencyMap adjacency_map_;
 };
 
