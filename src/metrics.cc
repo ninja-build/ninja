@@ -28,6 +28,7 @@
 #if defined(USE_CHRONO)
 #include <chrono>
 #else
+#error
 #include <sys/time.h>
 #endif
 
