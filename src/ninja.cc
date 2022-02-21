@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <algorithm>
 #include <cstdlib>
 
 #ifdef _WIN32
@@ -744,7 +746,8 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-void PrintInputs(Edge* edge, set<Edge*>* seen) {
+void CollectInputs(Edge* edge, std::set<Edge*>* seen,
+                   std::vector<std::string>* result) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -752,13 +755,41 @@ void PrintInputs(Edge* edge, set<Edge*>* seen) {
 
   for (vector<Node*>::iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in)
-    PrintInputs((*in)->in_edge(), seen);
+    CollectInputs((*in)->in_edge(), seen, result);
 
-  if (!edge->is_phony())
-    puts(edge->GetBinding("in_newline").c_str());
+  if (!edge->is_phony()) {
+    edge->CollectInputs(true, result);
+  }
 }
 
 int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
+  // The inputs tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "inputs".
+  argc++;
+  argv--;
+  optind = 1;
+  int opt;
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { NULL, 0, NULL, 0 } };
+  while ((opt = getopt_long(argc, argv, "h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case 'h':
+    default:
+      // clang-format off
+      printf(
+"Usage '-t inputs [options] [targets]\n"
+"\n"
+"List all inputs used for a set of targets. Note that this includes\n"
+"explicit, implicit and order-only inputs, but not validation ones.\n\n"
+"Options:\n"
+"  -h, --help   Print this message.\n");
+      // clang-format on
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -766,9 +797,17 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  set<Edge*> seen;
+  std::set<Edge*> seen;
+  std::vector<std::string> result;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintInputs((*in)->in_edge(), &seen);
+    CollectInputs((*in)->in_edge(), &seen, &result);
+
+  // Make output deterministic by sorting then removing duplicates.
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+
+  for (size_t n = 0; n < result.size(); ++n)
+    puts(result[n].c_str());
 
   return 0;
 }
