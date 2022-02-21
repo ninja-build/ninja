@@ -232,4 +232,4 @@ if(BUILD_TESTING)
   add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
-install(TARGETS ninja DESTINATION bin)
+install(TARGETS ninja)
