@@ -83,12 +83,15 @@ class Platform(object):
     def is_msvc(self):
         return self._platform == 'msvc'
 
-    def msvc_needs_fs(self):
-        popen = subprocess.Popen(['cl', '/nologo', '/help'],
+    def msvc_tool_has_flag(self, tool, flag):
+        popen = subprocess.Popen([tool, '/nologo', '/help'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
-        return b'/FS' in out
+        if sys.version_info >= (3, 0):
+          return flag in out.decode('utf-8')
+        else:
+          return bytes(flag) in out
 
     def is_windows(self):
         return self.is_mingw() or self.is_msvc()
@@ -269,11 +272,17 @@ if configure_env:
     n.variable('configure_env', config_str + '$ ')
 n.newline()
 
-CXX = configure_env.get('CXX', 'c++')
-objext = '.o'
 if platform.is_msvc():
-    CXX = 'cl'
-    objext = '.obj'
+  objext = '.obj'
+  default_ar = 'link'
+  default_cxx = 'cl'
+else:
+  objext = '.o'
+  default_ar = 'ar'
+  default_cxx = 'c++'
+
+AR = configure_env.get('AR', default_ar)
+CXX = configure_env.get('CXX', default_cxx)
 
 def src(filename):
     return os.path.join('$root', 'src', filename)
@@ -300,10 +309,7 @@ if root == os.getcwd():
 n.variable('root', root)
 n.variable('builddir', 'build')
 n.variable('cxx', CXX)
-if platform.is_msvc():
-    n.variable('ar', 'link')
-else:
-    n.variable('ar', configure_env.get('AR', 'ar'))
+n.variable('ar', AR)
 
 if platform.is_msvc():
     cflags = ['/showIncludes',
@@ -326,7 +332,7 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
-    if platform.msvc_needs_fs():
+    if platform.msvc_tool_has_flag(CXX, '/FS'):
         cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
     if not options.debug:
@@ -432,8 +438,12 @@ else:
 n.newline()
 
 if host.is_msvc():
+    # NOTE: The clang-cl tool `llvm-lib` does not support /ltcg
+    ltcg_option = ''
+    if platform.msvc_tool_has_flag(AR, '/ltcg'):
+      ltcg_option = '/ltcg '
     n.rule('ar',
-           command='lib /nologo /ltcg /out:$out $in',
+           command='$ar /nologo %s/out:$out $in' % ltcg_option,
            description='LIB $out')
 elif host.is_mingw():
     n.rule('ar',
