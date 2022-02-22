@@ -72,7 +72,6 @@ inline std::wstring ToPathWidth(const std::wstring& path) {
 inline std::string ToPathWidth(const std::string& path) {
   return path;
 }
-}
 #endif
 
 struct file_string : public file_string_t {
