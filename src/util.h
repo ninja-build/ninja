@@ -131,7 +131,11 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define t_stricmp _wcsicmp
 #define t_strlen wcslen
 
+#ifndef PATH_MAX
+
 #define PATH_MAX 2048
+
+#endif
 #else // !UNICODE
 #define unlink _unlink
 #define fopen(path, mode) fopen(path, TEXT(mode))
