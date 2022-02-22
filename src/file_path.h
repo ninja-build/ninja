@@ -72,9 +72,6 @@ inline std::wstring ToPathWidth(const std::wstring& path) {
 inline std::string ToPathWidth(const std::string& path) {
   return path;
 }
-
-inline std::string ToPathWidth(const std::wstring& path) {
-  return NarrowPath(path);
 }
 #endif
 
