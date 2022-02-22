@@ -182,4 +182,12 @@ struct ScopedTempDir {
   std::string temp_dir_name_;
 };
 
+inline std::string NarrowPathNoVerify(const std::wstring& path) {
+  return std::string(path.begin(), path.end());
+}
+
+inline std::string NarrowPathNoVerify(const std::string& path) {
+  return path;
+}
+
 #endif // NINJA_TEST_H_

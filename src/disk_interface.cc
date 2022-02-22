@@ -123,8 +123,15 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       continue;
     }
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(NarrowPath(lowername),
-                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
+
+    std::string narrowPath;
+    std::string narrowErr;
+    if (!NarrowPath(lowername, &narrowPath, &narrowErr)) {
+      Warning(narrowErr.c_str());
+      continue;
+    }
+    stamps->insert(
+        make_pair(narrowPath, TimeStampFromFileTime(ffd.ftLastWriteTime)));
   } while (FindNextFile(find_handle, &ffd));
   FindClose(find_handle);
   return true;

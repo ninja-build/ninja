@@ -107,6 +107,7 @@ add_library(libninja OBJECT
 	src/disk_interface.cc
 	src/edit_distance.cc
 	src/eval_env.cc
+	src/file_path.cc
 	src/graph.cc
 	src/graphviz.cc
 	src/json.cc
