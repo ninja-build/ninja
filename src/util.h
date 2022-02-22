@@ -113,10 +113,11 @@ std::string ElideMiddle(const std::string& str, size_t width);
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 #define snprintf _snprintf
 #define fileno _fileno
 #define strtoull _strtoui64
+
 
 #ifdef UNICODE
 #define unlink _wunlink

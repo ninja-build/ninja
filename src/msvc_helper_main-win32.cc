@@ -51,18 +51,30 @@ void PushPathIntoEnvironment(const string& env_block) {
 }
 
 void WriteDepFileOrDie(const TCHAR* object_path, const CLParser& parse) {
+#ifdef UNICODE
+  const char writeFormat[] = "%ls: ";
+  const char writeFailedFormat[] = "writing %ls";
+  const char openFailedFormat[] = "opening %ls: %s";
+#else
+  const char writeFormat[] = "%s: ";
+  const char writeFailedFormat[] = "writing %s";
+  const char openFailedFormat[] = "opening %s: %s";
+#endif
+
+
   file_string depfile_path = file_string(object_path) + TEXT(".d");
   FILE* depfile = fopen(ToPathWidth(depfile_path).c_str(), "w");
   if (!depfile) {
     unlink(object_path);
-    Fatal("opening %s: %s", depfile_path.c_str(),
+    Fatal(openFailedFormat, depfile_path.c_str(),
           GetLastErrorString().c_str());
   }
-  if (fprintf(depfile, "%s: ", object_path) < 0) {
+
+  if (fprintf(depfile, writeFormat, object_path) < 0) {
     unlink(object_path);
     fclose(depfile);
     unlink(depfile_path.c_str());
-    Fatal("writing %s", depfile_path.c_str());
+    Fatal(writeFailedFormat, depfile_path.c_str());
   }
   const set<string>& headers = parse.includes_;
   for (set<string>::const_iterator i = headers.begin();
