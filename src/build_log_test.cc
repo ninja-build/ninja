@@ -51,14 +51,14 @@ TEST_F(BuildLogTest, WriteRead) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
+  EXPECT_TRUE(log1.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
   ASSERT_EQ("", err);
   log1.RecordCommand(state_.edges_[0], 15, 18);
   log1.RecordCommand(state_.edges_[1], 20, 25);
   log1.Close();
 
   BuildLog log2;
-  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  EXPECT_TRUE(log2.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
 
   ASSERT_EQ(2u, log1.entries().size());
@@ -79,23 +79,23 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
   BuildLog log;
   string contents, err;
 
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
+  EXPECT_TRUE(log.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
-  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ(0, ReadFile(NarrowPathNoVerify(kTestFilename), &contents, &err));
   ASSERT_EQ("", err);
   if (contents.size() >= kVersionPos)
     contents[kVersionPos] = 'X';
   EXPECT_EQ(kExpectedVersion, contents);
 
   // Opening the file anew shouldn't add a second version string.
-  EXPECT_TRUE(log.OpenForWrite(kTestFilename, *this, &err));
+  EXPECT_TRUE(log.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
   ASSERT_EQ("", err);
   log.Close();
 
   contents.clear();
-  ASSERT_EQ(0, ReadFile(kTestFilename, &contents, &err));
+  ASSERT_EQ(0, ReadFile(NarrowPathNoVerify(kTestFilename), &contents, &err));
   ASSERT_EQ("", err);
   if (contents.size() >= kVersionPos)
     contents[kVersionPos] = 'X';
@@ -111,7 +111,7 @@ TEST_F(BuildLogTest, DoubleEntry) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out");
@@ -127,7 +127,8 @@ TEST_F(BuildLogTest, Truncate) {
   {
     BuildLog log1;
     string err;
-    EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
+    EXPECT_TRUE(
+        log1.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
     ASSERT_EQ("", err);
     log1.RecordCommand(state_.edges_[0], 15, 18);
     log1.RecordCommand(state_.edges_[1], 20, 25);
@@ -135,7 +136,7 @@ TEST_F(BuildLogTest, Truncate) {
   }
 
   struct stat statbuf;
-  ASSERT_EQ(0, stat(NarrowPath(kTestFilename).c_str(), &statbuf));
+  ASSERT_EQ(0, stat(NarrowPathNoVerify(kTestFilename).c_str(), &statbuf));
   ASSERT_GT(statbuf.st_size, 0);
 
   // For all possible truncations of the input file, assert that we don't
@@ -143,17 +144,20 @@ TEST_F(BuildLogTest, Truncate) {
   for (off_t size = statbuf.st_size; size > 0; --size) {
     BuildLog log2;
     string err;
-    EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
+    EXPECT_TRUE(
+        log2.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
     ASSERT_EQ("", err);
     log2.RecordCommand(state_.edges_[0], 15, 18);
     log2.RecordCommand(state_.edges_[1], 20, 25);
     log2.Close();
 
-    ASSERT_TRUE(Truncate(kTestFilename, size, &err));
+    ASSERT_TRUE(Truncate(NarrowPathNoVerify(kTestFilename), size, &err));
 
     BuildLog log3;
     err.clear();
-    ASSERT_TRUE(log3.Load(kTestFilename, &err) == LOAD_SUCCESS || !err.empty());
+    ASSERT_TRUE(log3.Load(NarrowPathNoVerify(kTestFilename), &err) ==
+                    LOAD_SUCCESS ||
+                !err.empty());
   }
 }
 
@@ -165,7 +169,7 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_NE(err.find("version"), string::npos);
 }
 
@@ -177,7 +181,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out with space");
@@ -201,7 +205,7 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out");
@@ -248,7 +252,7 @@ TEST_F(BuildLogTest, Restat) {
   fclose(f);
   std::string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
   BuildLog::LogEntry* e = log.LookupByOutput("out");
   ASSERT_EQ(3, e->mtime);
@@ -256,13 +260,13 @@ TEST_F(BuildLogTest, Restat) {
   TestDiskInterface testDiskInterface;
   char out2[] = { 'o', 'u', 't', '2', 0 };
   char* filter2[] = { out2 };
-  EXPECT_TRUE(log.Restat(NarrowPath(kTestFilename), testDiskInterface, 1, filter2, &err));
+  EXPECT_TRUE(log.Restat(NarrowPathNoVerify(kTestFilename), testDiskInterface, 1, filter2, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
 
   EXPECT_TRUE(
-      log.Restat(NarrowPath(kTestFilename), testDiskInterface, 0, NULL, &err));
+      log.Restat(NarrowPathNoVerify(kTestFilename), testDiskInterface, 0, NULL, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(4, e->mtime);
@@ -282,7 +286,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
 
   string err;
   BuildLog log;
-  EXPECT_TRUE(log.Load(kTestFilename, &err));
+  EXPECT_TRUE(log.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out");
@@ -327,7 +331,8 @@ TEST_F(BuildLogRecompactTest, Recompact) {
 
   BuildLog log1;
   string err;
-  EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
+  EXPECT_TRUE(
+      log1.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
   ASSERT_EQ("", err);
   // Record the same edge several times, to trigger recompaction
   // the next time the log is opened.
@@ -338,18 +343,19 @@ TEST_F(BuildLogRecompactTest, Recompact) {
 
   // Load...
   BuildLog log2;
-  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  EXPECT_TRUE(log2.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, log2.entries().size());
   ASSERT_TRUE(log2.LookupByOutput("out"));
   ASSERT_TRUE(log2.LookupByOutput("out2"));
   // ...and force a recompaction.
-  EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
+  EXPECT_TRUE(
+      log2.OpenForWrite(NarrowPathNoVerify(kTestFilename), *this, &err));
   log2.Close();
 
   // "out2" is dead, it should've been removed.
   BuildLog log3;
-  EXPECT_TRUE(log2.Load(kTestFilename, &err));
+  EXPECT_TRUE(log2.Load(NarrowPathNoVerify(kTestFilename), &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, log2.entries().size());
   ASSERT_TRUE(log2.LookupByOutput("out"));

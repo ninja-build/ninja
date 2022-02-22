@@ -153,7 +153,12 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
   for (TCHAR* c = result; *c; ++c)
     if (*c == TEXT('\\'))
       *c = TEXT('/');
-  return NarrowPath(result);
+
+  std::string narrowPath;
+  if (!NarrowPath(result, &narrowPath, err)) {
+    return "";
+  }
+  return narrowPath;
 }
 
 string IncludesNormalize::Relativize(

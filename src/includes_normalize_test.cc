@@ -29,7 +29,7 @@ namespace {
 string GetCurDir() {
   TCHAR buf[PATH_MAX];
   getcwd(buf, _countof(buf));
-  string narrowPath = NarrowPath(buf);
+  string narrowPath = NarrowPathNoVerify(buf);
   vector<StringPiece> parts = SplitStringPiece(narrowPath, '\\');
   return parts[parts.size() - 1].AsString();
 }
@@ -146,8 +146,8 @@ TEST(IncludesNormalize, LongInvalidPath) {
   file_string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly PATH_MAX long is canonicalized.
-  EXPECT_EQ(NarrowPath(forward_slashes.substr(cwd_len + 1)),
-            NormalizeAndCheckNoError(NarrowPath(kExactlyMaxPath)));
+  EXPECT_EQ(NarrowPathNoVerify(forward_slashes.substr(cwd_len + 1)),
+            NormalizeAndCheckNoError(NarrowPathNoVerify(kExactlyMaxPath)));
 }
 
 TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {

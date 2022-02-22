@@ -41,12 +41,15 @@ typedef std::wstring file_string_t;
 typedef std::string file_string_t;
 #endif
 
-inline std::string NarrowPath(const std::wstring& path) {
-  return std::string(path.begin(), path.end());
-}
+#ifdef UNICODE
 
-inline std::string NarrowPath(const std::string& path) {
-  return path;
+bool NarrowPath(const std::wstring& path, std::string* narrowPath, std::string* err);
+
+#endif
+
+inline bool NarrowPath(const std::string& path, std::string* narrowPath, std::string* err) {
+  *narrowPath = path;
+  return true;
 }
 
 inline std::wstring WidenPath(const std::string& path) {
@@ -84,9 +87,6 @@ struct file_string : public file_string_t {
 
   operator const TCHAR*() const { return c_str(); }
 
-#ifdef UNICODE
-  operator std::string() const { return NarrowPath(*this); }
-#endif
   file_string operator+(const std::string& r) {
     return this->append(ToPathWidth(r));
   }

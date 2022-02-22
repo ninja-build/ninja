@@ -940,16 +940,23 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<TCHAR> cwd;
+  vector<TCHAR> cwdChars;
   TCHAR* success = NULL;
 
   do {
-    cwd.resize(cwd.size() + PATH_MAX);
+    cwdChars.resize(cwdChars.size() + PATH_MAX);
     errno = 0;
-    success = getcwd(&cwd[0], cwd.size());
+    success = getcwd(&cwdChars[0], cwdChars.size());
   } while (!success && errno == ERANGE);
   if (!success) {
     Error("cannot determine working directory: %s", strerror(errno));
+    return 1;
+  }
+
+  std::string cwd;
+  std::string err;
+  if (!NarrowPath(cwdChars.data(), &cwd, &err)) {
+    Error(("Failed to determine working directory: " + err).c_str());
     return 1;
   }
 
@@ -962,7 +969,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
       if (!first) {
         putchar(',');
       }
-      printCompdb(NarrowPath(&cwd[0]).c_str(), *e, eval_mode);
+      printCompdb(cwd.c_str(), *e, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
@@ -970,7 +977,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
           if (!first) {
             putchar(',');
           }
-          printCompdb(NarrowPath(&cwd[0]).c_str(), *e, eval_mode);
+          printCompdb(cwd.c_str(), *e, eval_mode);
           first = false;
         }
       }
