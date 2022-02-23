@@ -350,7 +350,8 @@ int ReadFile(const string& path, string* contents, string* err) {
     if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
       err->assign(GetLastErrorString());
       contents->clear();
-      return -1;
+      ::CloseHandle(f);
+      return -EIO;
     }
     if (len == 0)
       break;
