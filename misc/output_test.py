@@ -19,35 +19,56 @@ default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
+class BuildDir:
+    def __init__(self, build_ninja: str):
+        self.build_ninja = build_ninja
+        self.d = None
+
+    def __enter__(self):
+        self.d = tempfile.TemporaryDirectory()
+        with open(os.path.join(self.d.name, 'build.ninja'), 'w') as f:
+            f.write(self.build_ninja)
+            f.flush()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.d.cleanup()
+
+    def run(
+        self,
+        flags: str = '',
+        pipe: bool = False,
+        env: Dict[str, str] = default_env,
+    ) -> str:
+        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
+        try:
+            if pipe:
+                output = subprocess.check_output(
+                    [ninja_cmd], shell=True, cwd=self.d.name, env=env)
+            elif platform.system() == 'Darwin':
+                output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
+                                                 cwd=self.d.name, env=env)
+            else:
+                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
+                                                 cwd=self.d.name, env=env)
+        except subprocess.CalledProcessError as err:
+            sys.stdout.buffer.write(err.output)
+            raise err
+        final_output = ''
+        for line in output.decode('utf-8').splitlines(True):
+            if len(line) > 0 and line[-1] == '\r':
+                continue
+            final_output += line.replace('\r', '')
+        return final_output
+
 def run(
     build_ninja: str,
     flags: str = '',
     pipe: bool = False,
     env: Dict[str, str] = default_env,
 ) -> str:
-    with tempfile.TemporaryDirectory() as d:
-        with open(os.path.join(d, 'build.ninja'), 'w') as f:
-            f.write(build_ninja)
-            f.flush()
-        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
-        try:
-            if pipe:
-                output = subprocess.check_output([ninja_cmd], shell=True, cwd=d, env=env)
-            elif platform.system() == 'Darwin':
-                output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
-                                                 cwd=d, env=env)
-            else:
-                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
-                                                 cwd=d, env=env)
-        except subprocess.CalledProcessError as err:
-            sys.stdout.buffer.write(err.output)
-            raise err
-    final_output = ''
-    for line in output.decode('utf-8').splitlines(True):
-        if len(line) > 0 and line[-1] == '\r':
-            continue
-        final_output += line.replace('\r', '')
-    return final_output
+    with BuildDir(build_ninja) as b:
+        return b.run(flags, pipe, env)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
