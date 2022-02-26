@@ -20,12 +20,23 @@ if 'CLICOLOR_FORCE' in default_env:
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
-def run(build_ninja, flags='', pipe=False, env=default_env):
-    with tempfile.TemporaryDirectory() as d:
-        os.chdir(d)
+class BuildDir:
+    def __init__(self, build_ninja):
+        self.build_ninja = build_ninja
+        self.d = None
+
+    def __enter__(self):
+        self.d = tempfile.TemporaryDirectory()
+        os.chdir(self.d.name)
         with open('build.ninja', 'w') as f:
-            f.write(build_ninja)
+            f.write(self.build_ninja)
             f.flush()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.d.cleanup()
+
+    def run(self, flags='', pipe=False, env=default_env):
         ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
         try:
             if pipe:
@@ -39,12 +50,16 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
         except subprocess.CalledProcessError as err:
             sys.stdout.buffer.write(err.output)
             raise err
-    final_output = ''
-    for line in output.decode('utf-8').splitlines(True):
-        if len(line) > 0 and line[-1] == '\r':
-            continue
-        final_output += line.replace('\r', '')
-    return final_output
+        final_output = ''
+        for line in output.decode('utf-8').splitlines(True):
+            if len(line) > 0 and line[-1] == '\r':
+                continue
+            final_output += line.replace('\r', '')
+        return final_output
+
+def run(build_ninja, flags='', pipe=False, env=default_env):
+    with BuildDir(build_ninja) as b:
+        return b.run(flags, pipe, env)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
