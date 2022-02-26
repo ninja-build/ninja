@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from textwrap import dedent
 from typing import Dict
 
 default_env = dict(os.environ)
@@ -21,7 +22,7 @@ NINJA_PATH = os.path.abspath('./ninja')
 
 class BuildDir:
     def __init__(self, build_ninja: str):
-        self.build_ninja = build_ninja
+        self.build_ninja = dedent(build_ninja)
         self.d = None
 
     def __enter__(self):
@@ -212,6 +213,35 @@ out1
 out2
 ''')
 
+    def test_explain_output(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule create_if_non_exist
+              command = [ -e $out ] || touch $out
+              restat = true
+            rule write
+              command = cp $in $out
+            build input : create_if_non_exist .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # The explain output is shown just before the relevant build:
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                ninja explain: input is dirty
+                [2/3] cp input mid
+                ninja explain: mid is dirty
+                [3/3] cp mid output
+                '''))
+            # Don't print "ninja explain: XXX is dirty" for inputs that are
+            # pruned from the graph by an earlier restat.
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                '''))
 
 if __name__ == '__main__':
     unittest.main()
