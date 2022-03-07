@@ -206,6 +206,14 @@ struct Edge {
     critical_time_ = critical_time;
   }
 
+  // Run time in ms for this edge's command.
+  // Taken from the build log if present, or estimated otherwise.
+  // Default initialized to 0.
+  int64_t run_time_ms() const { return run_time_ms_; }
+  void set_run_time_ms(int64_t run_time_ms) {
+    run_time_ms_ = run_time_ms;
+  }
+
   const Rule* rule_;
   Pool* pool_;
   std::vector<Node*> inputs_;

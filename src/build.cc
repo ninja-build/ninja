@@ -452,7 +452,7 @@ struct SeenBefore {
   }
 };
 
-// Assign run_time_ms_ for all wanted edges, and returns total time for all edges
+// Assign run_time_ms for all wanted edges, and returns total time for all edges
 // For phony edges, 0 cost.
 // For edges with a build history, use the last build time.
 // For edges without history, use the 75th percentile time for edges with history.
@@ -462,6 +462,7 @@ int64_t AssignEdgeRuntime(BuildLog* build_log,
   bool missing_durations = false;
   std::vector<int64_t> durations;
   int64_t total_time = 0;
+  const int64_t kUnknownRunTime = -1; // marker value for the two loops below.
 
   for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
                                                    end = want.end();
@@ -474,11 +475,11 @@ int64_t AssignEdgeRuntime(BuildLog* build_log,
         build_log->LookupByOutput(edge->outputs_[0]->path());
     if (!entry) {
       missing_durations = true;
-      edge->run_time_ms_ = -1;  // -1 to mark as needing filled in
+      edge->set_run_time_ms(kUnknownRunTime);  // mark as needing filled in
       continue;
     }
     const int64_t duration = entry->end_time - entry->start_time;
-    edge->run_time_ms_ = duration;
+    edge->set_run_time_ms(duration);
     total_time += duration;
     durations.push_back(duration);
   }
@@ -504,10 +505,10 @@ int64_t AssignEdgeRuntime(BuildLog* build_log,
                                                    end = want.end();
        it != end; ++it) {
     Edge* edge = it->first;
-    if (edge->run_time_ms_ >= 0) {
+    if (edge->run_time_ms() != kUnknownRunTime) {
       continue;
     }
-    edge->run_time_ms_ = p75_time;
+    edge->set_run_time_ms(p75_time);
     total_time += p75_time;
   }
   return total_time;
@@ -542,16 +543,15 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   SeenBefore<Edge> seen_edge(
       &active_edges);  // Test for uniqueness in work_queue
 
-  for (std::vector<const Node*>::reverse_iterator it = targets_.rbegin(),
-                                                  end = targets_.rend();
-       it != end; ++it) {
-    if (Edge* in = (*it)->in_edge()) {
-      // Use initial critical time: total_time * N. This means higher
-      // priority targets always get a higher critical time value
-      int64_t priority_weight = (it - targets_.rbegin()) * total_time;
+  for (size_t i = 0; i < targets_.size(); ++i) {
+    const Node* target = targets_[i];
+    if (Edge* in = target->in_edge()) {
+      // Add a bias to ensure that targets that appear first in |targets_| have a larger critical time than
+      // those that follow them. E.g. for 3 targets: [2*total_time, total_time, 0].
+      int64_t priority_weight = (targets_.size() - i - 1) * total_time;
       in->set_critical_time(
           priority_weight +
-          std::max<int64_t>(in->run_time_ms_, in->critical_time()));
+          std::max<int64_t>(in->run_time_ms(), in->critical_time()));
       if (!seen_edge(in)) {
         work_queue.push(in);
       }
@@ -571,7 +571,7 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
         continue;
       }
       // Only process edge if this node offers a higher critical time
-      const int64_t proposed_time = e->critical_time() + in->run_time_ms_;
+      const int64_t proposed_time = e->critical_time() + in->run_time_ms();
       if (proposed_time > in->critical_time()) {
         in->set_critical_time(proposed_time);
         if (!seen_edge(in)) {
