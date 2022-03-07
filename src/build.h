@@ -34,7 +34,6 @@ struct Node;
 struct State;
 struct Status;
 
-
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
 struct Plan {

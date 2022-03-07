@@ -75,7 +75,6 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 }  // namespace
 
-
 Plan::Plan(Builder* builder)
   : builder_(builder)
   , command_edges_(0)
