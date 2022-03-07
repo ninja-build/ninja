@@ -173,9 +173,7 @@ void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
   Pool* pool = edge->pool();
   if (pool->ShouldDelayEdge()) {
     pool->DelayEdge(edge);
-    EdgeSet new_edges;
-    pool->RetrieveReadyEdges(&new_edges);
-    ready_.push_multiple(new_edges.begin(), new_edges.end());
+    pool->RetrieveReadyEdges(&ready_);
   } else {
     pool->EdgeScheduled(*edge);
     ready_.push(edge);
@@ -190,9 +188,7 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
-  EdgeSet new_edges;
-  edge->pool()->RetrieveReadyEdges(&new_edges);
-  ready_.push_multiple(new_edges.begin(), new_edges.end());
+  edge->pool()->RetrieveReadyEdges(&ready_);
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)
@@ -541,10 +537,10 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes.
   // XXX: ignores pools
-  std::queue<Edge*> breadthFirstEdges;  // Queue, for breadth-first traversal
-  std::set<const Edge*> active_edges;   // Set of in breadthFirstEdges
+  std::queue<Edge*> work_queue;        // Queue, for breadth-first traversal
+  std::set<const Edge*> active_edges;  // Set of edges in work_queue
   SeenBefore<Edge> seen_edge(
-      &active_edges);  // Test for uniqueness in breadthFirstEdges
+      &active_edges);  // Test for uniqueness in work_queue
 
   for (std::vector<const Node*>::reverse_iterator it = targets_.rbegin(),
                                                   end = targets_.rend();
@@ -557,14 +553,14 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
           priority_weight +
           std::max<int64_t>(in->run_time_ms_, in->critical_time()));
       if (!seen_edge(in)) {
-        breadthFirstEdges.push(in);
+        work_queue.push(in);
       }
     }
   }
 
-  while (!breadthFirstEdges.empty()) {
-    Edge* e = breadthFirstEdges.front();
-    breadthFirstEdges.pop();
+  while (!work_queue.empty()) {
+    Edge* e = work_queue.front();
+    work_queue.pop();
     active_edges.erase(e);
 
     for (std::vector<Node*>::iterator it = e->inputs_.begin(),
@@ -579,7 +575,7 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       if (proposed_time > in->critical_time()) {
         in->set_critical_time(proposed_time);
         if (!seen_edge(in)) {
-          breadthFirstEdges.push(in);
+          work_queue.push(in);
         }
       }
     }

@@ -197,7 +197,7 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
-  // Critical time is the estimated exection time in ms of the edges
+  // Critical time is the estimated execution time in ms of the edges
   // forming the longest time-weighted path to the target output.
   // This quantity is used as a priority during build scheduling.
   // NOTE: Defaults to -1 as a marker smaller than any valid time
@@ -376,7 +376,13 @@ struct DependencyScan {
   DyndepLoader dyndep_loader_;
 };
 
-// Prioritize edges by largest critical time first
+// Implements a less comarison for edges by priority, where highest
+// priority is defined lexicographically first by largest critical
+// time, then lowest ID.
+//
+// Including ID means that wherever the critical times are the same,
+// the edges are executed in ascending ID order which was historically
+// how all tasks were scheduled.
 struct EdgePriorityCompare {
   bool operator()(const Edge* e1, const Edge* e2) const {
     const int64_t ct1 = e1->critical_time();
@@ -388,19 +394,14 @@ struct EdgePriorityCompare {
   }
 };
 
-// Set of ready edges, sorted by priority
-class EdgeQueue:
+// A priority queue holding non-owning Edge pointers. top() will
+// return the edge with the largest critical time, and lowest ID if
+// more than one edge has the same critical time.
+class EdgePriorityQueue:
   public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare>{
 public:
   void clear() {
     c.clear();
-  }
-
-  template <typename It>
-  void push_multiple(It first, It last) {
-    for (; first != last; ++first) {
-      push(*first);
-    }
   }
 };
 

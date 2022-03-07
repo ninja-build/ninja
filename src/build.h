@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "depfile_parser.h"
-#include "graph.h"  // XXX needed for DependencyScan; should rearrange.
+#include "graph.h"
 #include "exit_status.h"
 #include "util.h"  // int64_t
 
@@ -120,7 +120,7 @@ private:
   /// we want for the edge.
   std::map<Edge*, Want> want_;
 
-  EdgeQueue ready_;
+  EdgePriorityQueue ready_;
 
   Builder* builder_;
   /// user provided targets in build order, earlier one have higher priority

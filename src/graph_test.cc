@@ -968,7 +968,7 @@ TEST_F(GraphTest, EdgeQueuePriority) {
     edges[i]->set_critical_time(i * 10);
   }
 
-  EdgeQueue queue;
+  EdgePriorityQueue queue;
   for (int i = 0; i < n_edges; ++i) {
     queue.push(edges[i]);
   }

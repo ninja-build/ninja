@@ -38,13 +38,13 @@ void Pool::DelayEdge(Edge* edge) {
   delayed_.insert(edge);
 }
 
-void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
+void Pool::RetrieveReadyEdges(EdgePriorityQueue* ready_queue) {
   DelayedEdges::iterator it = delayed_.begin();
   while (it != delayed_.end()) {
     Edge* edge = *it;
     if (current_use_ + edge->weight() > depth_)
       break;
-    ready_queue->insert(edge);
+    ready_queue->push(edge);
     EdgeScheduled(*edge);
     ++it;
   }

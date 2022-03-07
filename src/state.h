@@ -62,7 +62,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(EdgeSet* ready_queue);
+  void RetrieveReadyEdges(EdgePriorityQueue* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
