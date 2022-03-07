@@ -152,7 +152,7 @@ TEST_F(MissingDependencyScannerTest, CycleInGraph) {
   CreateInitialState();
   CreateGraphDependencyBetween("compiled_object", "generated_header");
   CreateGraphDependencyBetween("generated_header", "compiled_object");
-  // The missing-deps tool doesn't deal with cycles in the graph, beacuse
+  // The missing-deps tool doesn't deal with cycles in the graph, because
   // there will be an error loading the graph before we get to the tool.
   // This test is to illustrate that.
   std::string err;

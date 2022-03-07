@@ -107,6 +107,7 @@ struct State {
 
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
+  void AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, std::string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the

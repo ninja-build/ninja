@@ -207,7 +207,7 @@ bool ManifestParser::ParseDefault(string* err) {
 }
 
 bool ManifestParser::ParseEdge(string* err) {
-  vector<EvalString> ins, outs;
+  vector<EvalString> ins, outs, validations;
 
   {
     EvalString out;
@@ -288,6 +288,18 @@ bool ManifestParser::ParseEdge(string* err) {
     }
   }
 
+  // Add all validations, counting how many as we go.
+  if (lexer_.PeekToken(Lexer::PIPEAT)) {
+    for (;;) {
+      EvalString validation;
+      if (!lexer_.ReadPath(&validation, err))
+        return false;
+      if (validation.empty())
+        break;
+      validations.push_back(validation);
+    }
+  }
+
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
@@ -338,6 +350,7 @@ bool ManifestParser::ParseEdge(string* err) {
       }
     }
   }
+
   if (edge->outputs_.empty()) {
     // All outputs of the edge are already created by other edges. Don't add
     // this edge.  Do this check before input nodes are connected to the edge.
@@ -358,6 +371,17 @@ bool ManifestParser::ParseEdge(string* err) {
   }
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
+
+  edge->validations_.reserve(validations.size());
+  for (std::vector<EvalString>::iterator v = validations.begin();
+      v != validations.end(); ++v) {
+    string path = v->Evaluate(env);
+    if (path.empty())
+      return lexer_.Error("empty path", err);
+    uint64_t slash_bits;
+    CanonicalizePath(&path, &slash_bits);
+    state_->AddValidation(edge, path, slash_bits);
+  }
 
   if (options_.phony_cycle_action_ == kPhonyCycleActionWarn &&
       edge->maybe_phonycycle_diagnostic()) {

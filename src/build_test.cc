@@ -897,6 +897,14 @@ TEST_F(BuildTest, MissingTarget) {
   EXPECT_EQ("unknown target: 'meow'", err);
 }
 
+TEST_F(BuildTest, MissingInputTarget) {
+  // Target is a missing input file
+  string err;
+  Dirty("in1");
+  EXPECT_FALSE(builder_.AddTarget("in1", &err));
+  EXPECT_EQ("'in1' missing and no known rule to make it", err);
+}
+
 TEST_F(BuildTest, MakeDirs) {
   string err;
 
@@ -1181,6 +1189,152 @@ TEST_F(BuildTest, PhonySelfReference) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
+
+// There are 6 different cases for phony rules:
+//
+// 1. output edge does not exist, inputs are not real
+// 2. output edge does not exist, no inputs
+// 3. output edge does not exist, inputs are real, newest mtime is M
+// 4. output edge is real, inputs are not real
+// 5. output edge is real, no inputs
+// 6. output edge is real, inputs are real, newest mtime is M
+//
+// Expected results :
+// 1. Edge is marked as clean, mtime is newest mtime of dependents.
+//     Touching inputs will cause dependents to rebuild.
+// 2. Edge is marked as dirty, causing dependent edges to always rebuild
+// 3. Edge is marked as clean, mtime is newest mtime of dependents.
+//     Touching inputs will cause dependents to rebuild.
+// 4. Edge is marked as clean, mtime is newest mtime of dependents.
+//     Touching inputs will cause dependents to rebuild.
+// 5. Edge is marked as dirty, causing dependent edges to always rebuild
+// 6. Edge is marked as clean, mtime is newest mtime of dependents.
+//     Touching inputs will cause dependents to rebuild.
+void TestPhonyUseCase(BuildTest* t, int i) {
+  State& state_ = t->state_;
+  Builder& builder_ = t->builder_;
+  FakeCommandRunner& command_runner_ = t->command_runner_;
+  VirtualFileSystem& fs_ = t->fs_;
+
+  string err;
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+" command = touch $out\n"
+"build notreal: phony blank\n"
+"build phony1: phony notreal\n"
+"build phony2: phony\n"
+"build phony3: phony blank\n"
+"build phony4: phony notreal\n"
+"build phony5: phony\n"
+"build phony6: phony blank\n"
+"\n"
+"build test1: touch phony1\n"
+"build test2: touch phony2\n"
+"build test3: touch phony3\n"
+"build test4: touch phony4\n"
+"build test5: touch phony5\n"
+"build test6: touch phony6\n"
+));
+
+  // Set up test.
+  builder_.command_runner_.release(); // BuildTest owns the CommandRunner
+  builder_.command_runner_.reset(&command_runner_);
+
+  fs_.Create("blank", "");  // a "real" file
+  EXPECT_TRUE(builder_.AddTarget("test1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("test2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("test3", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("test4", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("test5", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AddTarget("test6", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.Build(&err));
+  ASSERT_EQ("", err);
+
+  string ci;
+  ci += static_cast<char>('0' + i);
+
+  // Tests 1, 3, 4, and 6 should rebuild when the input is updated.
+  if (i != 2 && i != 5) {
+    Node* testNode  = t->GetNode("test" + ci);
+    Node* phonyNode = t->GetNode("phony" + ci);
+    Node* inputNode = t->GetNode("blank");
+
+    state_.Reset();
+    TimeStamp startTime = fs_.now_;
+
+    // Build number 1
+    EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
+    ASSERT_EQ("", err);
+    if (!builder_.AlreadyUpToDate())
+      EXPECT_TRUE(builder_.Build(&err));
+    ASSERT_EQ("", err);
+
+    // Touch the input file
+    state_.Reset();
+    command_runner_.commands_ran_.clear();
+    fs_.Tick();
+    fs_.Create("blank", "");  // a "real" file
+    EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
+    ASSERT_EQ("", err);
+
+    // Second build, expect testN edge to be rebuilt
+    // and phonyN node's mtime to be updated.
+    EXPECT_FALSE(builder_.AlreadyUpToDate());
+    EXPECT_TRUE(builder_.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+    EXPECT_EQ(string("touch test") + ci, command_runner_.commands_ran_[0]);
+    EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+    TimeStamp inputTime = inputNode->mtime();
+
+    EXPECT_FALSE(phonyNode->exists());
+    EXPECT_FALSE(phonyNode->dirty());
+
+    EXPECT_GT(phonyNode->mtime(), startTime);
+    EXPECT_EQ(phonyNode->mtime(), inputTime);
+    ASSERT_TRUE(testNode->Stat(&fs_, &err));
+    EXPECT_TRUE(testNode->exists());
+    EXPECT_GT(testNode->mtime(), startTime);
+  } else {
+    // Tests 2 and 5: Expect dependents to always rebuild.
+
+    state_.Reset();
+    command_runner_.commands_ran_.clear();
+    fs_.Tick();
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
+    ASSERT_EQ("", err);
+    EXPECT_FALSE(builder_.AlreadyUpToDate());
+    EXPECT_TRUE(builder_.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+    EXPECT_EQ("touch test" + ci, command_runner_.commands_ran_[0]);
+
+    state_.Reset();
+    command_runner_.commands_ran_.clear();
+    EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
+    ASSERT_EQ("", err);
+    EXPECT_FALSE(builder_.AlreadyUpToDate());
+    EXPECT_TRUE(builder_.Build(&err));
+    ASSERT_EQ("", err);
+    ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+    EXPECT_EQ("touch test" + ci, command_runner_.commands_ran_[0]);
+  }
+}
+
+TEST_F(BuildTest, PhonyUseCase1) { TestPhonyUseCase(this, 1); }
+TEST_F(BuildTest, PhonyUseCase2) { TestPhonyUseCase(this, 2); }
+TEST_F(BuildTest, PhonyUseCase3) { TestPhonyUseCase(this, 3); }
+TEST_F(BuildTest, PhonyUseCase4) { TestPhonyUseCase(this, 4); }
+TEST_F(BuildTest, PhonyUseCase5) { TestPhonyUseCase(this, 5); }
+TEST_F(BuildTest, PhonyUseCase6) { TestPhonyUseCase(this, 6); }
 
 TEST_F(BuildTest, Fail) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
@@ -2201,7 +2355,7 @@ struct BuildWithDepsLogTest : public BuildTest {
   void* builder_;
 };
 
-/// Run a straightforwad build where the deps log is used.
+/// Run a straightforward build where the deps log is used.
 TEST_F(BuildWithDepsLogTest, Straightforward) {
   string err;
   // Note: in1 was created by the superclass SetUp().
@@ -3083,6 +3237,67 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewInput) {
   EXPECT_EQ("touch out", command_runner_.commands_ran_[2]);
 }
 
+TEST_F(BuildTest, DyndepBuildDiscoverNewInputWithValidation) {
+  // Verify that a dyndep file cannot contain the |@ validation
+  // syntax.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"rule cp\n"
+"  command = cp $in $out\n"
+"build dd: cp dd-in\n"
+"build out: touch || dd\n"
+"  dyndep = dd\n"
+));
+  fs_.Create("dd-in",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep |@ validation\n"
+);
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_FALSE(builder_.Build(&err));
+
+  string err_first_line = err.substr(0, err.find("\n"));
+  EXPECT_EQ("dd:2: expected newline, got '|@'", err_first_line);
+}
+
+TEST_F(BuildTest, DyndepBuildDiscoverNewInputWithTransitiveValidation) {
+  // Verify that a dyndep file can be built and loaded to discover
+  // a new input to an edge that has a validation edge.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"rule cp\n"
+"  command = cp $in $out\n"
+"build dd: cp dd-in\n"
+"build in: touch |@ validation\n"
+"build validation: touch in out\n"
+"build out: touch || dd\n"
+"  dyndep = dd\n"
+  ));
+  fs_.Create("dd-in",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep | in\n"
+);
+  fs_.Tick();
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  ASSERT_EQ(4u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("touch in", command_runner_.commands_ran_[1]);
+  EXPECT_EQ("touch out", command_runner_.commands_ran_[2]);
+  EXPECT_EQ("touch validation", command_runner_.commands_ran_[3]);
+}
+
 TEST_F(BuildTest, DyndepBuildDiscoverImplicitConnection) {
   // Verify that a dyndep file can be built and loaded to discover
   // that one edge has an implicit output that is also an implicit
@@ -3525,4 +3740,248 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   EXPECT_EQ("touch in", command_runner_.commands_ran_[2]);
   EXPECT_EQ("touch tmp", command_runner_.commands_ran_[3]);
   EXPECT_EQ("touch out", command_runner_.commands_ran_[4]);
+}
+
+TEST_F(BuildTest, Validation) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "build out: cat in |@ validate\n"
+    "build validate: cat in2\n"));
+
+  fs_.Create("in", "");
+  fs_.Create("in2", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Test touching "in" only rebuilds "out" ("validate" doesn't depend on
+  // "out").
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
+
+  // Test touching "in2" only rebuilds "validate" ("out" doesn't depend on
+  // "validate").
+  fs_.Tick();
+  fs_.Create("in2", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in2 > validate", command_runner_.commands_ran_[0]);
+}
+
+TEST_F(BuildTest, ValidationDependsOnOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "build out: cat in |@ validate\n"
+    "build validate: cat in2 | out\n"));
+
+  fs_.Create("in", "");
+  fs_.Create("in2", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Test touching "in" rebuilds "out" and "validate".
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Test touching "in2" only rebuilds "validate" ("out" doesn't depend on
+  // "validate").
+  fs_.Tick();
+  fs_.Create("in2", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in2 > validate", command_runner_.commands_ran_[0]);
+}
+
+TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
+  const char* manifest =
+      "build out: cat in |@ validate\n"
+      "build validate: cat in2 | out\n"
+      "build out2: cat in3\n"
+      "  deps = gcc\n"
+      "  depfile = out2.d\n";
+
+  string err;
+
+  {
+    fs_.Create("in", "");
+    fs_.Create("in2", "");
+    fs_.Create("in3", "");
+    fs_.Create("out2.d", "out: out");
+
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    ASSERT_EQ("", err);
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // On the first build, only the out2 command is run.
+    ASSERT_EQ(command_runner_.commands_ran_.size(), 1);
+    EXPECT_EQ("cat in3 > out2", command_runner_.commands_ran_[0]);
+
+    // The deps file should have been removed.
+    EXPECT_EQ(0, fs_.Stat("out2.d", &err));
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+
+  fs_.Tick();
+  command_runner_.commands_ran_.clear();
+
+  {
+    fs_.Create("in2", "");
+    fs_.Create("in3", "");
+
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    builder.command_runner_.reset(&command_runner_);
+
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    ASSERT_EQ("", err);
+
+    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ("", err);
+
+    // The out and validate actions should have been run as well as out2.
+    ASSERT_EQ(command_runner_.commands_ran_.size(), 3);
+    // out has to run first, as both out2 and validate depend on it.
+    EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
+
+    deps_log.Close();
+    builder.command_runner_.release();
+  }
+}
+
+TEST_F(BuildTest, ValidationCircular) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "build out: cat in |@ out2\n"
+    "build out2: cat in2 |@ out\n"));
+
+  fs_.Create("in", "");
+  fs_.Create("in2", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
+
+  // Test touching "in" rebuilds "out".
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
+
+  // Test touching "in2" rebuilds "out2".
+  fs_.Tick();
+  fs_.Create("in2", "");
+
+  err.clear();
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cat in2 > out2", command_runner_.commands_ran_[0]);
+}
+
+TEST_F(BuildTest, ValidationWithCircularDependency) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "build out: cat in |@ validate\n"
+    "build validate: cat validate_in | out\n"
+    "build validate_in: cat validate\n"));
+
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_FALSE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("dependency cycle: validate -> validate_in -> validate", err);
 }

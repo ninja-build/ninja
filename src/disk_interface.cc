@@ -180,12 +180,13 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     dir = path;
   }
 
-  transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
+  string dir_lowercase = dir;
+  transform(dir.begin(), dir.end(), dir_lowercase.begin(), ::tolower);
   transform(base.begin(), base.end(), base.begin(), ::tolower);
 
-  Cache::iterator ci = cache_.find(dir);
+  Cache::iterator ci = cache_.find(dir_lowercase);
   if (ci == cache_.end()) {
-    ci = cache_.insert(make_pair(dir, DirCache())).first;
+    ci = cache_.insert(make_pair(dir_lowercase, DirCache())).first;
     if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
@@ -279,14 +280,31 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // Skip error checking.  If this fails, accept whatever happens below.
     SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
-  if (!DeleteFile(path.c_str())) {
-    DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
-      return 1;
+  if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+    // remove() deletes both files and directories. On Windows we have to 
+    // select the correct function (DeleteFile will yield Permission Denied when
+    // used on a directory)
+    // This fixes the behavior of ninja -t clean in some cases
+    // https://github.com/ninja-build/ninja/issues/828
+    if (!RemoveDirectory(path.c_str())) {
+      DWORD win_err = GetLastError();
+      if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
+        return 1;
+      }
+      // Report remove(), not RemoveDirectory(), for cross-platform consistency.
+      Error("remove(%s): %s", path.c_str(), GetLastErrorString().c_str());
+      return -1;
     }
-    // Report as remove(), not DeleteFile(), for cross-platform consistency.
-    Error("remove(%s): %s", path.c_str(), GetLastErrorString().c_str());
-    return -1;
+  } else {
+    if (!DeleteFile(path.c_str())) {
+      DWORD win_err = GetLastError();
+      if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
+        return 1;
+      }
+      // Report as remove(), not DeleteFile(), for cross-platform consistency.
+      Error("remove(%s): %s", path.c_str(), GetLastErrorString().c_str());
+      return -1;
+    }
   }
 #else
   if (remove(path.c_str()) < 0) {

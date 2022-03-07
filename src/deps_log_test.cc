@@ -390,7 +390,7 @@ TEST_F(DepsLogTest, Truncated) {
     DepsLog log;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
     if (!err.empty()) {
-      // At some point the log will be so short as to be unparseable.
+      // At some point the log will be so short as to be unparsable.
       break;
     }
 

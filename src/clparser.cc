@@ -72,7 +72,8 @@ bool CLParser::FilterInputFilename(string line) {
   return EndsWith(line, ".c") ||
       EndsWith(line, ".cc") ||
       EndsWith(line, ".cxx") ||
-      EndsWith(line, ".cpp");
+      EndsWith(line, ".cpp") ||
+      EndsWith(line, ".c++");
 }
 
 // static
