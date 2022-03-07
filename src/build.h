@@ -18,7 +18,6 @@
 #include <cstdio>
 #include <map>
 #include <memory>
-#include <queue>
 #include <string>
 #include <vector>
 
@@ -35,41 +34,6 @@ struct Node;
 struct State;
 struct Status;
 
-
-// Set of ready edges, sorted by priority
-class EdgeQueue {
-  struct EdgePriorityCompare {
-    bool operator()(const Edge* e1, const Edge* e2) const;
-  };
-
-  std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare> queue_;
-
- public:
-  void push(Edge* edge) {
-    queue_.push(edge);
-  }
-
-  template <typename It>
-  void push(It first, It last) {
-    for (; first != last; ++first) {
-      push(*first);
-    }
-  }
-
-  Edge* pop() {
-    Edge* ret = queue_.top();
-    queue_.pop();
-    return ret;
-  }
-
-  void clear() {
-    queue_ = std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare>();
-  }
-
-  size_t size() const { return queue_.size(); }
-
-  bool empty() const { return queue_.empty(); }
-};
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.

@@ -76,15 +76,6 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 }  // namespace
 
 
-bool EdgeQueue::EdgePriorityCompare::operator()(const Edge* e1, const Edge* e2) const {
-  const int64_t ct1 = e1->critical_time();
-  const int64_t ct2 = e2->critical_time();
-  if (ct1 != ct2) {
-    return ct1 < ct2;
-  }
-  return e1->id_ < e2->id_;
-}
-
 Plan::Plan(Builder* builder)
   : builder_(builder)
   , command_edges_(0)
@@ -162,7 +153,10 @@ void Plan::EdgeWanted(const Edge* edge) {
 Edge* Plan::FindWork() {
   if (ready_.empty())
     return NULL;
-  return ready_.pop();
+
+  Edge* work = ready_.top();
+  ready_.pop();
+  return work;
 }
 
 void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
@@ -182,7 +176,7 @@ void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
     pool->DelayEdge(edge);
     EdgeSet new_edges;
     pool->RetrieveReadyEdges(&new_edges);
-    ready_.push(new_edges.begin(), new_edges.end());
+    ready_.push_multiple(new_edges.begin(), new_edges.end());
   } else {
     pool->EdgeScheduled(*edge);
     ready_.push(edge);
@@ -199,7 +193,7 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
     edge->pool()->EdgeFinished(*edge);
   EdgeSet new_edges;
   edge->pool()->RetrieveReadyEdges(&new_edges);
-  ready_.push(new_edges.begin(), new_edges.end());
+  ready_.push_multiple(new_edges.begin(), new_edges.end());
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)

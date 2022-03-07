@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "dyndep.h"
 #include "eval_env.h"
@@ -172,6 +173,10 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
+  // Critical time is the estimated exection time in ms of the edges
+  // forming the longest time-weighted path to the target output.
+  // This quantity is used as a priority during build scheduling.
+  // NOTE: Defaults to -1 as a marker smaller than any valid time
   int64_t critical_time() const { return critical_time_; }
   void set_critical_time(int64_t critical_time) {
     critical_time_ = critical_time;
@@ -341,6 +346,34 @@ struct DependencyScan {
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
+};
+
+// Prioritize edges by largest critical time first
+struct EdgePriorityCompare {
+  bool operator()(const Edge* e1, const Edge* e2) const {
+    const int64_t ct1 = e1->critical_time();
+    const int64_t ct2 = e2->critical_time();
+    if (ct1 != ct2) {
+      return ct1 < ct2;
+    }
+    return e1->id_ < e2->id_;
+  }
+};
+
+// Set of ready edges, sorted by priority
+class EdgeQueue:
+  public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare>{
+public:
+  void clear() {
+    c.clear();
+  }
+
+  template <typename It>
+  void push_multiple(It first, It last) {
+    for (; first != last; ++first) {
+      push(*first);
+    }
+  }
 };
 
 #endif  // NINJA_GRAPH_H_
