@@ -384,7 +384,7 @@ struct EdgePriorityCompare {
     if (ct1 != ct2) {
       return ct1 < ct2;
     }
-    return e1->id_ < e2->id_;
+    return e1->id_ > e2->id_;
   }
 };
 
