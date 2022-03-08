@@ -74,7 +74,9 @@ struct Plan {
 
   /// Reset state.  Clears want and ready sets.
   void Reset();
-  void ComputeCriticalTime(BuildLog* build_log);
+
+  // After all targets have been added, prepares the ready queue for find work.
+  void PrepareQueue(BuildLog* build_log);
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
@@ -95,10 +97,15 @@ struct Plan {
   };
 
 private:
+  void ComputeCriticalTime(BuildLog* build_log);
   bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
   void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
   bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
                     std::set<Edge*>* dyndep_walk);
+
+  // Add edges that kWantToStart into the ready queue
+  // Must be called after ComputeCriticalTime and before FindWork
+  void ScheduleInitialEdges();
 
   /// Update plan with knowledge that the given node is up to date.
   /// If the node is a dyndep binding on any of its dependents, this

@@ -124,8 +124,6 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
   if (node->dirty() && want == kWantNothing) {
     want = kWantToStart;
     EdgeWanted(edge);
-    if (!dyndep_walk && edge->AllInputsReady())
-      ScheduleWork(want_ins.first);
   }
 
   if (dyndep_walk)
@@ -514,14 +512,27 @@ int64_t AssignEdgeRuntime(BuildLog* build_log,
   return total_time;
 }
 
+int64_t AssignDefaultEdgeRuntime(std::map<Edge*, Plan::Want> &want) {
+  int64_t total_time = 0;
+
+  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
+           end = want.end();
+       it != end; ++it) {
+    Edge* edge = it->first;
+    if (edge->is_phony()) {
+      continue;
+    }
+
+    edge->set_run_time_ms(1);
+    ++total_time;
+  }
+  return total_time;
+}
+
 }  // namespace
 
 void Plan::ComputeCriticalTime(BuildLog* build_log) {
-  // testcases have no build_log
-  if (!build_log)
-    return;
-
-  METRIC_RECORD("ComputePriorityList");
+  METRIC_RECORD("ComputeCriticalTime");
   // Remove duplicate targets
   {
     std::set<const Node*> seen;
@@ -533,7 +544,10 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // total time if building all edges in serial. This value is big
   // enough to ensure higher priority target's initial critical time
   // is always bigger than lower ones
-  int64_t total_time = AssignEdgeRuntime(build_log, want_);
+  const int64_t total_time = build_log ?
+      AssignEdgeRuntime(build_log, want_) :
+      AssignDefaultEdgeRuntime(want_);  // Plan tests have no build_log
+
 
   // Use backflow algorithm to compute critical times for all nodes, starting
   // from the destination nodes.
@@ -580,6 +594,42 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       }
     }
   }
+}
+
+void Plan::ScheduleInitialEdges() {
+  // Add ready edges to queue.
+  assert(ready_.empty());
+  std::set<Pool*> pools;
+
+  for (std::map<Edge*, Plan::Want>::iterator it = want_.begin(),
+           end = want_.end(); it != end; ++it) {
+    Edge* edge = it->first;
+    Plan::Want want = it->second;
+    if (!(want == kWantToStart && edge->AllInputsReady())) {
+      continue;
+    }
+
+    Pool* pool = edge->pool();
+    if (pool->ShouldDelayEdge()) {
+      pool->DelayEdge(edge);
+      pools.insert(pool);
+    } else {
+      ScheduleWork(it);
+    }
+  }
+
+  // Call RetrieveReadyEdges only once at the end so higher priority
+  // edges are retrieved first, not the ones that happen to be first
+  // in the want_ map.
+  for (std::set<Pool*>::iterator it=pools.begin(),
+           end = pools.end(); it != end; ++it) {
+    (*it)->RetrieveReadyEdges(&ready_);
+  }
+}
+
+void Plan::PrepareQueue(BuildLog* build_log) {
+  ComputeCriticalTime(build_log);
+  ScheduleInitialEdges();
 }
 
 void Plan::Dump() const {
@@ -743,8 +793,7 @@ bool Builder::AlreadyUpToDate() const {
 
 bool Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
-
-  plan_.ComputeCriticalTime(scan_.build_log());
+  plan_.PrepareQueue(scan_.build_log());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
