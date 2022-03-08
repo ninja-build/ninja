@@ -553,9 +553,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   // from the destination nodes.
   // XXX: ignores pools
   std::queue<Edge*> work_queue;        // Queue, for breadth-first traversal
-  std::set<const Edge*> active_edges;  // Set of edges in work_queue
-  SeenBefore<Edge> seen_edge(
-      &active_edges);  // Test for uniqueness in work_queue
+  // The set of edges currently in work_queue, to avoid duplicates.
+  std::set<const Edge*> active_edges;
+  SeenBefore<Edge> seen_edge(&active_edges);
 
   for (size_t i = 0; i < targets_.size(); ++i) {
     const Node* target = targets_[i];
@@ -575,6 +575,8 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   while (!work_queue.empty()) {
     Edge* e = work_queue.front();
     work_queue.pop();
+    // If the critical time of any dependent edges is updated, this
+    // edge may need to be processed again. So re-allow insertion.
     active_edges.erase(e);
 
     for (std::vector<Node*>::iterator it = e->inputs_.begin(),
