@@ -965,7 +965,7 @@ TEST_F(GraphTest, EdgeQueuePriority) {
 
   // Output is largest critical time to smallest
   for (int i = 0; i < n_edges; ++i) {
-    edges[i]->set_critical_time(i * 10);
+    edges[i]->set_critical_time_ms(i * 10);
   }
 
   EdgePriorityQueue queue;
@@ -982,7 +982,7 @@ TEST_F(GraphTest, EdgeQueuePriority) {
 
   // When there is ambiguity, the lowest edge id comes first
   for (int i = 0; i < n_edges; ++i) {
-    edges[i]->set_critical_time(0);
+    edges[i]->set_critical_time_ms(0);
   }
 
   queue.push(edges[1]);

@@ -171,7 +171,7 @@ struct Edge {
 
   Edge()
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
-        id_(0), run_time_ms_(0), critical_time_(-1), outputs_ready_(false),
+        id_(0), run_time_ms_(0), critical_time_ms_(-1), outputs_ready_(false),
         deps_loaded_(false), deps_missing_(false),
         generated_by_dep_loader_(false), implicit_deps_(0), order_only_deps_(0),
         implicit_outs_(0) {}
@@ -201,9 +201,9 @@ struct Edge {
   // forming the longest time-weighted path to the target output.
   // This quantity is used as a priority during build scheduling.
   // NOTE: Defaults to -1 as a marker smaller than any valid time
-  int64_t critical_time() const { return critical_time_; }
-  void set_critical_time(int64_t critical_time) {
-    critical_time_ = critical_time;
+  int64_t critical_time_ms() const { return critical_time_ms_; }
+  void set_critical_time_ms(int64_t critical_time_ms) {
+    critical_time_ms_ = critical_time_ms;
   }
 
   // Run time in ms for this edge's command.
@@ -224,7 +224,7 @@ struct Edge {
   VisitMark mark_;
   size_t id_;
   int64_t run_time_ms_;
-  int64_t critical_time_;
+  int64_t critical_time_ms_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;
@@ -393,8 +393,8 @@ struct DependencyScan {
 // how all tasks were scheduled.
 struct EdgePriorityLess {
   bool operator()(const Edge* e1, const Edge* e2) const {
-    const int64_t ct1 = e1->critical_time();
-    const int64_t ct2 = e2->critical_time();
+    const int64_t ct1 = e1->critical_time_ms();
+    const int64_t ct2 = e2->critical_time_ms();
     if (ct1 != ct2) {
       return ct1 < ct2;
     }

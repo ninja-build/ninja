@@ -563,9 +563,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       // Add a bias to ensure that targets that appear first in |targets_| have a larger critical time than
       // those that follow them. E.g. for 3 targets: [2*total_time, total_time, 0].
       int64_t priority_weight = (targets_.size() - i - 1) * total_time;
-      in->set_critical_time(
+      in->set_critical_time_ms(
           priority_weight +
-          std::max<int64_t>(in->run_time_ms(), in->critical_time()));
+          std::max<int64_t>(in->run_time_ms(), in->critical_time_ms()));
       if (!seen_edge(in)) {
         work_queue.push(in);
       }
@@ -585,9 +585,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
         continue;
       }
       // Only process edge if this node offers a higher critical time
-      const int64_t proposed_time = e->critical_time() + in->run_time_ms();
-      if (proposed_time > in->critical_time()) {
-        in->set_critical_time(proposed_time);
+      const int64_t proposed_time = e->critical_time_ms() + in->run_time_ms();
+      if (proposed_time > in->critical_time_ms()) {
+        in->set_critical_time_ms(proposed_time);
         if (!seen_edge(in)) {
           work_queue.push(in);
         }

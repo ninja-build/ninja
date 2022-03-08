@@ -491,11 +491,11 @@ TEST_F(PlanTest, PriorityWithoutBuildLog) {
   BuildLog log;
   PrepareForTarget("out", &log);
 
-  EXPECT_EQ(GetNode("out")->in_edge()->critical_time(), 1);
-  EXPECT_EQ(GetNode("a0")->in_edge()->critical_time(), 2);
-  EXPECT_EQ(GetNode("b0")->in_edge()->critical_time(), 2);
-  EXPECT_EQ(GetNode("c0")->in_edge()->critical_time(), 2);
-  EXPECT_EQ(GetNode("a1")->in_edge()->critical_time(), 3);
+  EXPECT_EQ(GetNode("out")->in_edge()->critical_time_ms(), 1);
+  EXPECT_EQ(GetNode("a0")->in_edge()->critical_time_ms(), 2);
+  EXPECT_EQ(GetNode("b0")->in_edge()->critical_time_ms(), 2);
+  EXPECT_EQ(GetNode("c0")->in_edge()->critical_time_ms(), 2);
+  EXPECT_EQ(GetNode("a1")->in_edge()->critical_time_ms(), 3);
 
   const int n_edges = 5;
   const char *expected_order[n_edges] = {
@@ -548,11 +548,11 @@ TEST_F(PlanTest, PriorityWithBuildLog) {
 
   PrepareForTarget("out", &log);
 
-  EXPECT_EQ(GetNode("out")->in_edge()->critical_time(), 100);
-  EXPECT_EQ(GetNode("a0")->in_edge()->critical_time(), 110);
-  EXPECT_EQ(GetNode("b0")->in_edge()->critical_time(), 120);
-  EXPECT_EQ(GetNode("c0")->in_edge()->critical_time(), 150);
-  EXPECT_EQ(GetNode("a1")->in_edge()->critical_time(), 130);
+  EXPECT_EQ(GetNode("out")->in_edge()->critical_time_ms(), 100);
+  EXPECT_EQ(GetNode("a0")->in_edge()->critical_time_ms(), 110);
+  EXPECT_EQ(GetNode("b0")->in_edge()->critical_time_ms(), 120);
+  EXPECT_EQ(GetNode("c0")->in_edge()->critical_time_ms(), 150);
+  EXPECT_EQ(GetNode("a1")->in_edge()->critical_time_ms(), 130);
 
   const int n_edges = 5;
   const char *expected_order[n_edges] = {
