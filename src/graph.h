@@ -384,14 +384,14 @@ struct DependencyScan {
   DyndepLoader dyndep_loader_;
 };
 
-// Implements a less comarison for edges by priority, where highest
+// Implements a less comparison for edges by priority, where highest
 // priority is defined lexicographically first by largest critical
 // time, then lowest ID.
 //
 // Including ID means that wherever the critical times are the same,
 // the edges are executed in ascending ID order which was historically
 // how all tasks were scheduled.
-struct EdgePriorityCompare {
+struct EdgePriorityLess {
   bool operator()(const Edge* e1, const Edge* e2) const {
     const int64_t ct1 = e1->critical_time();
     const int64_t ct2 = e2->critical_time();
@@ -402,11 +402,18 @@ struct EdgePriorityCompare {
   }
 };
 
+// Reverse of EdgePriorityLess, e.g. to sort by highest priority first
+struct EdgePriorityGreater {
+  bool operator()(const Edge* e1, const Edge* e2) const {
+    return EdgePriorityLess()(e2, e1);
+  }
+};
+
 // A priority queue holding non-owning Edge pointers. top() will
 // return the edge with the largest critical time, and lowest ID if
 // more than one edge has the same critical time.
 class EdgePriorityQueue:
-  public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityCompare>{
+  public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityLess>{
 public:
   void clear() {
     c.clear();

@@ -80,7 +80,10 @@ struct Pool {
       if (!a) return b;
       if (!b) return false;
       int weight_diff = a->weight() - b->weight();
-      return ((weight_diff < 0) || (weight_diff == 0 && EdgeCmp()(a, b)));
+      if (weight_diff != 0) {
+        return weight_diff < 0;
+      }
+      return EdgePriorityGreater()(a, b);
     }
   };
 
