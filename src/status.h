@@ -88,7 +88,7 @@ struct StatusPrinter : Status {
   }
 
   struct SlidingRateInfo {
-    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
+    explicit SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
     double rate() { return rate_; }
 
