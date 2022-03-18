@@ -403,15 +403,28 @@ string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
     int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
+    // In debug builds, de-referencing a past-the-end iterator in expressions
+    // like '&some_vector[0]' or '&(*some_vector.begin())' results in a runtime
+    // error with recent debug libstdc++ versions. To work-around this, use
+    // data() in C++11 and above, or do an explicit check for C++03.
 #if __cplusplus >= 201103L
     return MakePathList(edge_->inputs_.data(), explicit_deps_count,
-#else
-    return MakePathList(&edge_->inputs_[0], explicit_deps_count,
-#endif
                         var == "in" ? ' ' : '\n');
+#else
+    if (explicit_deps_count == 0)
+      return std::string();
+    return MakePathList(&edge_->inputs_[0], explicit_deps_count,
+                        var == "in" ? ' ' : '\n');
+#endif
   } else if (var == "out") {
     int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
+#if __cplusplus >= 201103L
+    return MakePathList(edge_->outputs_.data(), explicit_outs_count, ' ');
+#else
+    if (explicit_outs_count == 0)
+      return std::string();
     return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
+#endif
   }
 
   if (recursive_) {
