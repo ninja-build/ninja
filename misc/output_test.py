@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from textwrap import dedent
 
 default_env = dict(os.environ)
 if 'NINJA_STATUS' in default_env:
@@ -20,12 +21,23 @@ if 'CLICOLOR_FORCE' in default_env:
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
-def run(build_ninja, flags='', pipe=False, env=default_env):
-    with tempfile.TemporaryDirectory() as d:
-        os.chdir(d)
+class BuildDir:
+    def __init__(self, build_ninja):
+        self.build_ninja = dedent(build_ninja)
+        self.d = None
+
+    def __enter__(self):
+        self.d = tempfile.TemporaryDirectory()
+        os.chdir(self.d.name)
         with open('build.ninja', 'w') as f:
-            f.write(build_ninja)
+            f.write(self.build_ninja)
             f.flush()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.d.cleanup()
+
+    def run(self, flags='', pipe=False, env=default_env):
         ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
         try:
             if pipe:
@@ -39,12 +51,16 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
         except subprocess.CalledProcessError as err:
             sys.stdout.buffer.write(err.output)
             raise err
-    final_output = ''
-    for line in output.decode('utf-8').splitlines(True):
-        if len(line) > 0 and line[-1] == '\r':
-            continue
-        final_output += line.replace('\r', '')
-    return final_output
+        final_output = ''
+        for line in output.decode('utf-8').splitlines(True):
+            if len(line) > 0 and line[-1] == '\r':
+                continue
+            final_output += line.replace('\r', '')
+        return final_output
+
+def run(build_ninja, flags='', pipe=False, env=default_env):
+    with BuildDir(build_ninja) as b:
+        return b.run(flags, pipe, env)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
@@ -133,6 +149,36 @@ red
     def test_entering_directory_on_stdout(self):
         output = run(Output.BUILD_SIMPLE_ECHO, flags='-C$PWD', pipe=True)
         self.assertEqual(output.splitlines()[0][:25], "ninja: Entering directory")
+
+    def test_explain_output(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule create_if_non_exist
+              command = [ -e $out ] || touch $out
+              restat = true
+            rule write
+              command = cp $in $out
+            build input : create_if_non_exist .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # The explain output is shown just before the relevant build:
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                ninja explain: input is dirty
+                [2/3] cp input mid
+                ninja explain: mid is dirty
+                [3/3] cp mid output
+                '''))
+            # Don't print "ninja explain: XXX is dirty" for inputs that are
+            # pruned from the graph by an earlier restat.
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                '''))
 
 if __name__ == '__main__':
     unittest.main()
