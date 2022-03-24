@@ -1,0 +1,103 @@
+name: Analyzers
+
+on:
+  pull_request:
+  push:
+  release:
+    types: published
+
+jobs:
+  analyze-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        tool: [clang-analyzer, iwyu, CodeQL]
+        config: [Release, Debug]
+
+    # Speed the build up
+    env:
+      CMAKE_C_COMPILER_LAUNCHER:   ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: analyzers-linux-${{ matrix.config }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build clang clang-tidy clang-tools iwyu cmake
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v1
+      if: ${{ matrix.tool == 'CodeQL' }}
+      with:
+        languages: cpp
+
+    - name: Configure
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE
+
+    # Must build so that src/build/browse.py.h is generated
+    - name: Build
+      run: |
+        cmake --build build --parallel
+
+    - name: Perform CodeQL Analysis
+      if: ${{ matrix.tool == 'CodeQL' }}
+      uses: github/codeql-action/analyze@v1
+
+    # Implicitly requires build/compile_commands.json to exist
+    - name: Run Clang Analyzer
+      if: ${{ matrix.tool == 'clang-analyzer' }}
+      run: |
+        wget https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-11.0.1/clang-tools-extra/clang-tidy/tool/run-clang-tidy.py
+        chmod +x run-clang-tidy.py
+        ./run-clang-tidy.py -j $(nproc) -p build
+
+    # Implicitly requires build/compile_commands.json to exist
+    - name: Run IWYU
+      if: ${{ matrix.tool == 'iwyu' }}
+      run: |
+        wget https://raw.githubusercontent.com/include-what-you-use/include-what-you-use/clang_11/iwyu_tool.py
+        chmod +x iwyu_tool.py 
+        ./iwyu_tool.py -j $(nproc) -p build
+
+  analyze-windows:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        tool: [msvc-code-analysis]
+        config: [Release, Debug]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Configure
+      run: |
+        cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }}
+
+    - name: Initialize MSVC Code Analysis
+      uses: microsoft/msvc-code-analysis-action@v0.1.0
+      # Provide a unique ID to access the sarif output path
+      id: run-analysis
+      with:
+        cmakeBuildDirectory: build
+        buildConfiguration: ${{ matrix.config }}
+        # Ruleset file that will determine what checks will be run
+        ruleset: NativeRecommendedRules.ruleset
+
+      # Upload SARIF file to GitHub Code Scanning Alerts
+    - name: Upload SARIF to GitHub
+      uses: github/codeql-action/upload-sarif@v1
+      with:
+        sarif_file: ${{ steps.run-analysis.outputs.sarif }}

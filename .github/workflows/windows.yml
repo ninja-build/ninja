@@ -7,32 +7,61 @@ on:
     types: published
 
 jobs:
-  build:
-    runs-on: windows-latest
+  BuildAndTest:
+    strategy:
+      matrix:
+        image: [windows-2019, windows-2022]
+        config: [Release, Debug]
+
+    runs-on: ${{ matrix.image }}
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: windows-${{ matrix.image }}-${{ matrix.config }}
 
     - name: Install dependencies
       run: choco install re2c
 
-    - name: Build ninja
-      shell: bash
+    - name: Configure
       run: |
-        cmake -Bbuild
-        cmake --build build --parallel --config Debug
-        cmake --build build --parallel --config Release
+        cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-    - name: Test ninja (Debug)
-      run: .\ninja_test.exe
-      working-directory: build/Debug
+    - name: Build
+      run: |
+        cmake --build build --parallel --config ${{ matrix.config }}
 
-    - name: Test ninja (Release)
-      run: .\ninja_test.exe
-      working-directory: build/Release
+    - name: Test
+      working-directory: build
+      run: |
+        ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}
+
+  Release:
+    runs-on: windows-latest
+    if: github.event.action == 'published'
+    needs: BuildAndTest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: choco install re2c
+
+    - name: Configure ninja
+      run: |
+        cmake -B build -DCMAKE_CONFIGURATION_TYPES=Release
+
+    - name: Build ninja
+      run: |
+        cmake --build build --parallel --config Release --target ninja
 
     - name: Create ninja archive
-      shell: bash
       run: |
         mkdir artifact
         7z a artifact/ninja-win.zip ./build/Release/ninja.exe
@@ -45,7 +74,6 @@ jobs:
         path: artifact
 
     - name: Upload release asset
-      if: github.event.action == 'published'
       uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

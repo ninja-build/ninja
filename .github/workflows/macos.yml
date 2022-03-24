@@ -7,29 +7,65 @@ on:
     types: published
 
 jobs:
-  build:
-    runs-on: macos-11.0
+  BuildAndTest:
+    strategy:
+      matrix:
+        image: [macos-10.15, macos-11]
+        config: [Release, Debug]
+
+    runs-on: ${{ matrix.image }}
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: macos-${{ matrix.image }}-${{ matrix.config }}
+
+    - name: Install dependencies
+      run: brew install re2c cmake
+
+    - name: Configure ninja
+      env:
+        MACOSX_DEPLOYMENT_TARGET: 10.12
+      run: |
+        cmake -Bbuild -GXcode -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 
+
+    - name: Build ninja
+      run: |
+        cmake --build build --parallel --config ${{ matrix.config }}
+
+    - name: Test ninja
+      working-directory: build
+      run: |
+        ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}
+
+  Release:
+    runs-on: macos-latest
+    if: github.event.action == 'published'
+    needs: BuildAndTest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
 
     - name: Install dependencies
       run: brew install re2c p7zip cmake
 
-    - name: Build ninja
-      shell: bash
+    - name: Configure
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
-        cmake --build build --config Release
+        cmake -B build -GXcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_CONFIGURATION_TYPES=Release
 
-    - name: Test ninja
-      run: ctest -C Release -vv
-      working-directory: build
+    - name: Build
+      run: |
+        cmake --build build --parallel --config Release
 
-    - name: Create ninja archive
-      shell: bash
+    - name: Create archive
       run: |
         mkdir artifact
         7z a artifact/ninja-mac.zip ./build/Release/ninja
@@ -42,7 +78,6 @@ jobs:
         path: artifact
 
     - name: Upload release asset
-      if: github.event.action == 'published'
       uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

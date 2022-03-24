@@ -7,54 +7,205 @@ on:
     types: published
 
 jobs:
-  build:
-    runs-on: [ubuntu-latest]
+  CentOS_CMake:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        config: [Release, Debug]
+
     container:
       image: centos:7
+
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
     - uses: codespell-project/actions-codespell@master
       with:
         ignore_words_list: fo,wee
+
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4-Linux-x86_64.sh
-        chmod +x cmake-3.16.4-Linux-x86_64.sh
-        ./cmake-3.16.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
+        chmod +x cmake-3.16.8-Linux-x86_64.sh
+        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        yum install -y make gcc-c++ libasan
+
+    - name: Configure
+      env:
+        CFLAGS:   ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address' || '' }}
+        CXXFLAGS: ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address' || '' }}
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }} -B build
+
+    - name: Build
+      run: |
+        cmake --build build --parallel
+
+    - name: Test
+      working-directory: build
+      run: |
+        ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}
+
+
+  CentOS_Python:
+    runs-on: ubuntu-latest
+
+    container:
+      image: centos:7
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
+        chmod +x cmake-3.16.8-Linux-x86_64.sh
+        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        yum install -y make gcc-c++ python3
+
+    - name: Bootstrap
+      run: |
+        python3 configure.py --bootstrap
+
+    - name: Build
+      run: |
+        ./ninja all
+
+    - name: Test
+      run: |
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        python3 misc/ninja_syntax_test.py
+        ./misc/output_test.py
+
+
+  Ubuntu_CMake:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: ['ubuntu:16.04', 'ubuntu:18.04', 'ubuntu:20.04']
+        compiler: [gcc, clang]
+        config: [Release, Debug]
+
+    container:
+      image: ${{ matrix.image }}
+
+    env:
+      CC:  ${{ matrix.compiler == 'gcc' && 'gcc' || 'clang'   }}
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        apt update
+        apt install -y ninja-build clang re2c python3-pip
+        pip3 install cmake==3.16.*
+
+    - name: Mkdir build
+      run: |
+        mkdir build
+
+    - name: Configure
+      working-directory: build
+      run: |
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+
+    - name: Build
+      run: |
+        cmake --build build --parallel
+
+    - name: Test
+      working-directory: build
+      run: |
+        ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}
+        python3 ../misc/ninja_syntax_test.py
+        ../misc/output_test.py
+
+
+  Ubuntu_Python:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: ['ubuntu:16.04', 'ubuntu:18.04', 'ubuntu:20.04']
+
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        apt update
+        apt install -y g++ python3
+
+    - name: Bootstrap
+      run: |
+        python3 configure.py --bootstrap
+
+    - name: Build
+      run: |
+        ./ninja all
+
+    - name: Test
+      run: |
+        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+        python3 misc/ninja_syntax_test.py
+        ./misc/output_test.py
+
+
+  Release:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'published'
+    needs: [CentOS_CMake, CentOS_Python, Ubuntu_CMake, Ubuntu_Python]
+
+    container:
+      image: centos:7
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
+        chmod +x cmake-3.16.8-Linux-x86_64.sh
+        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-20.el7.x86_64.rpm
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-20.el7.x86_64.rpm
         rpm -U --quiet p7zip-16.02-20.el7.x86_64.rpm
         rpm -U --quiet p7zip-plugins-16.02-20.el7.x86_64.rpm
-        yum install -y make gcc-c++ libasan clang-analyzer
+        yum install -y make gcc-c++
 
-    - name: Build debug ninja
-      shell: bash
-      env:
-        CFLAGS: -fstack-protector-all -fsanitize=address
-        CXXFLAGS: -fstack-protector-all -fsanitize=address
+    - name: Configure
       run: |
-        scan-build -o scanlogs cmake -DCMAKE_BUILD_TYPE=Debug -B debug-build
-        scan-build -o scanlogs cmake --build debug-build --parallel --config Debug
+        cmake -DCMAKE_BUILD_TYPE=Release -B build
 
-    - name: Test debug ninja
-      run: ./ninja_test
-      working-directory: debug-build
-
-    - name: Build release ninja
-      shell: bash
+    - name: Build
       run: |
-        cmake -DCMAKE_BUILD_TYPE=Release -B release-build
-        cmake --build release-build --parallel --config Release
-        strip release-build/ninja
+        cmake --build build --parallel
 
-    - name: Test release ninja
-      run: ./ninja_test
-      working-directory: release-build
+    - name: Strip
+      run: |
+        strip build/ninja
 
-    - name: Create ninja archive
+    - name: Create archive
       run: |
         mkdir artifact
-        7z a artifact/ninja-linux.zip ./release-build/ninja
+        7z a artifact/ninja-linux.zip ./build/ninja
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
@@ -64,7 +215,6 @@ jobs:
         path: artifact
 
     - name: Upload release asset
-      if: github.event.action == 'published'
       uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -74,76 +224,3 @@ jobs:
         asset_name: ninja-linux.zip
         asset_content_type: application/zip
 
-  test:
-    runs-on: [ubuntu-latest]
-    container:
-      image: ubuntu:20.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: |
-        apt update
-        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang
-        pip3 install cmake==3.17.*
-    - name: Configure (GCC)
-      run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
-
-    - name: Build (GCC, Debug)
-      run: cmake --build build-gcc --config Debug
-    - name: Unit tests (GCC, Debug)
-      run: ./build-gcc/Debug/ninja_test
-    - name: Python tests (GCC, Debug)
-      run: pytest-3 --color=yes ../..
-      working-directory: build-gcc/Debug
-
-    - name: Build (GCC, Release)
-      run: cmake --build build-gcc --config Release
-    - name: Unit tests (GCC, Release)
-      run: ./build-gcc/Release/ninja_test
-    - name: Python tests (GCC, Release)
-      run: pytest-3 --color=yes ../..
-      working-directory: build-gcc/Release
-
-    - name: Configure (Clang)
-      run: CC=clang CXX=clang++ cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config' -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-
-    - name: Build (Clang, Debug)
-      run: cmake --build build-clang --config Debug
-    - name: Unit tests (Clang, Debug)
-      run: ./build-clang/Debug/ninja_test
-    - name: Python tests (Clang, Debug)
-      run: pytest-3 --color=yes ../..
-      working-directory: build-clang/Debug
-
-    - name: Build (Clang, Release)
-      run: cmake --build build-clang --config Release
-    - name: Unit tests (Clang, Release)
-      run: ./build-clang/Release/ninja_test
-    - name: Python tests (Clang, Release)
-      run: pytest-3 --color=yes ../..
-      working-directory: build-clang/Release
-
-    - name: clang-tidy
-      run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
-      working-directory: build-clang
-
-  build-with-python:
-    runs-on: [ubuntu-latest]
-    container:
-      image: ${{ matrix.image }}
-    strategy:
-      matrix:
-        image: ['ubuntu:14.04', 'ubuntu:16.04', 'ubuntu:18.04']
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: |
-        apt update
-        apt install -y g++ python3
-    - name: ${{ matrix.image }}
-      run: |
-        python3 configure.py --bootstrap
-        ./ninja all
-        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
-        python3 misc/ninja_syntax_test.py
-        ./misc/output_test.py
