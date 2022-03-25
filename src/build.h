@@ -172,6 +172,20 @@ struct BuildConfig {
   /// means that we do not have any limit.
   double max_load_average;
   DepfileParserOptions depfile_parser_options;
+
+  bool operator==(const BuildConfig& o) {
+    return verbosity == o.verbosity &&
+        dry_run == o.dry_run &&
+        parallelism == o.parallelism &&
+        failures_allowed == o.failures_allowed &&
+        // Doubles should bitwise match when we parse the same string with
+        // the same parser.
+        max_load_average == o.max_load_average &&
+        depfile_parser_options == o.depfile_parser_options;
+  }
+  bool operator!=(const BuildConfig& o) {
+    return !(*this == o);
+  }
 };
 
 /// Builder wraps the build process: starting commands, updating status.

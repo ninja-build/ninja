@@ -22,6 +22,10 @@
 
 struct DepfileParserOptions {
   DepfileParserOptions() {}
+
+  bool operator==(const DepfileParserOptions&) {
+    return true;
+  }
 };
 
 /// Parser for the dependency information emitted by gcc's -M flags.
