@@ -138,7 +138,9 @@ else()
 	endif()
 endif()
 
-target_compile_features(libninja PUBLIC cxx_std_11)
+if(CMAKE_CXX_STANDARD_DEFAULT EQUAL 98)
+  target_compile_features(libninja PUBLIC cxx_std_11)
+endif()
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
