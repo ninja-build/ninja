@@ -729,7 +729,6 @@ void BuildTest::Dirty(const string& path) {
 }
 
 TEST_F(BuildTest, NoWork) {
-  string err;
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
@@ -742,20 +741,6 @@ TEST_F(BuildTest, OneStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
-}
-
-TEST_F(BuildTest, OneStep2) {
-  // Given a target with one dirty input,
-  // we should rebuild the target.
-  Dirty("cat1");
-  string err;
-  EXPECT_TRUE(builder_.AddTarget("cat1", &err));
-  ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
