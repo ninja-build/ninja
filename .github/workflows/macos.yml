@@ -27,17 +27,20 @@ jobs:
     - name: Install dependencies
       run: brew install re2c cmake
 
-    - name: Configure ninja
+    - name: Configure
       env:
+        CFLAGS:   ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address,bounds,enum,pointer-compare,pointer-subtract -fsanitize-address-use-after-scope' || '' }}
+        CXXFLAGS: ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address,bounds,enum,pointer-compare,pointer-subtract -fsanitize-address-use-after-scope' || '' }}
+        LDFLAGS:  ${{ matrix.config == 'Debug' && '-fsanitize=address,bounds,enum,pointer-compare,pointer-subtract' || '' }}
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
         cmake -Bbuild -GXcode -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 
 
-    - name: Build ninja
+    - name: Build
       run: |
         cmake --build build --parallel --config ${{ matrix.config }}
 
-    - name: Test ninja
+    - name: Test
       working-directory: build
       run: |
         ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}

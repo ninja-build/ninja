@@ -37,6 +37,7 @@ jobs:
       env:
         CFLAGS:   ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address' || '' }}
         CXXFLAGS: ${{ matrix.config == 'Debug' && '-fstack-protector-all -fsanitize=address' || '' }}
+        LDFLAGS:  ${{ matrix.config == 'Debug' && '-fsanitize=address' || '' }}
       run: |
         cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }} -B build
 

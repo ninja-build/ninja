@@ -28,6 +28,9 @@ jobs:
       run: choco install re2c
 
     - name: Configure
+      env:
+        CFLAGS:   ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
+        CXXLAGS:  ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
       run: |
         cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
