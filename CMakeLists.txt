@@ -20,10 +20,22 @@ endif()
 # --- compiler flags
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+	# CMake defaults to enabling runtime type information, and there's no way to
+	# disable it except for a string replace on the CMAKE_CXX_FLAGS variable.
 	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+	# CMake defaults to adding an exception handling flag to the compile options,
+	# and there's no way to turn that off other than a REGEX REPLACE, just like
+	# the /GR flag above.
+	string(REGEX REPLACE "/EH[A-Za-z0-9]*" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+	# And now disable all forms of exception handling, and runtime type info.
+	add_compile_options(/EHa- /EHs- /EHc- /EHr- /GR-)
+
 	# Note that these settings are separately specified in configure.py, and
 	# these lists should be kept in sync.
-	add_compile_options(/W4 /wd4100 /wd4267 /wd4706 /wd4702 /wd4244 /GR- /Zc:__cplusplus)
+	add_compile_options(/W4 /wd4100 /wd4267 /wd4706 /wd4702 /wd4244 /Zc:__cplusplus)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else()
 	include(CheckCXXCompilerFlag)
@@ -34,6 +46,14 @@ else()
 	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
 	if(flag_color_diag)
 		add_compile_options(-fdiagnostics-color)
+	endif()
+	check_cxx_compiler_flag(-fno-exceptions flag_no_exceptions)
+	if(flag_no_exceptions)
+		add_compile_options(-fno-exceptions)
+	endif()
+	check_cxx_compiler_flag(-fno-rtti flag_no_rtti)
+	if(flag_no_rtti)
+		add_compile_options(-fno-rtti)
 	endif()
 endif()
 
