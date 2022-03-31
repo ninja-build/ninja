@@ -28,9 +28,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
-        chmod +x cmake-3.16.8-Linux-x86_64.sh
-        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.7/cmake-3.15.7-Linux-x86_64.sh
+        chmod +x cmake-3.15.7-Linux-x86_64.sh
+        ./cmake-3.15.7-Linux-x86_64.sh --skip-license --prefix=/usr/local
         yum install -y make gcc-c++ libasan
 
     - name: Configure
@@ -63,9 +63,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
-        chmod +x cmake-3.16.8-Linux-x86_64.sh
-        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.7/cmake-3.15.7-Linux-x86_64.sh
+        chmod +x cmake-3.15.7-Linux-x86_64.sh
+        ./cmake-3.15.7-Linux-x86_64.sh --skip-license --prefix=/usr/local
         yum install -y make gcc-c++ python3
 
     - name: Bootstrap
@@ -107,8 +107,8 @@ jobs:
     - name: Install dependencies
       run: |
         apt update
-        apt install -y ninja-build clang re2c python3-pip
-        pip3 install cmake==3.16.*
+        apt install -y make clang re2c python3-pip
+        pip3 install cmake==3.15.*
 
     - name: Mkdir build
       run: |
@@ -181,9 +181,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.8/cmake-3.16.8-Linux-x86_64.sh
-        chmod +x cmake-3.16.8-Linux-x86_64.sh
-        ./cmake-3.16.8-Linux-x86_64.sh --skip-license --prefix=/usr/local
+        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.7/cmake-3.15.7-Linux-x86_64.sh
+        chmod +x cmake-3.15.7-Linux-x86_64.sh
+        ./cmake-3.15.7-Linux-x86_64.sh --skip-license --prefix=/usr/local
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-20.el7.x86_64.rpm
         curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-20.el7.x86_64.rpm
         rpm -U --quiet p7zip-16.02-20.el7.x86_64.rpm
