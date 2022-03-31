@@ -9,6 +9,7 @@ on:
 jobs:
   BuildAndTest:
     strategy:
+      fail-fast: false
       matrix:
         image: [windows-2019, windows-2022]
         config: [Release, Debug]

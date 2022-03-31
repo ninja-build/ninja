@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         tool: [clang-analyzer, iwyu, CodeQL]
         config: [Release, Debug]
@@ -73,6 +74,7 @@ jobs:
     runs-on: windows-latest
 
     strategy:
+      fail-fast: false
       matrix:
         tool: [msvc-code-analysis]
         config: [Release, Debug]

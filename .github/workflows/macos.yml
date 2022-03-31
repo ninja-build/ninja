@@ -9,6 +9,7 @@ on:
 jobs:
   BuildAndTest:
     strategy:
+      fail-fast: false
       matrix:
         image: [macos-10.15, macos-11]
         config: [Release, Debug]
