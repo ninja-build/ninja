@@ -90,7 +90,7 @@ function(check_platform_supports_browse_mode RESULT)
 
 endfunction()
 
-set(NINJA_PYTHON "python" CACHE STRING "Python interpreter to use for the browse tool")
+set(NINJA_PYTHON "python3" CACHE STRING "Python interpreter to use for the browse tool")
 
 check_platform_supports_browse_mode(platform_supports_ninja_browse)
 
