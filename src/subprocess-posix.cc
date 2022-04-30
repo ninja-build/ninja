@@ -38,6 +38,12 @@ using namespace std;
 
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
+  char* shell_path;
+  shell_path = getenv ("NINJA_SHELL");
+  if (shell_path!=NULL)
+    shell=std::string(shell_path);
+  else
+    shell=std::string("/bin/sh");
 }
 
 Subprocess::~Subprocess() {
@@ -117,8 +123,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (err != 0)
     Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
-  const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
-  err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
+  const char* spawned_args[] = { shell.c_str(), "-c", command.c_str(), NULL };
+  err = posix_spawn(&pid_, shell.c_str(), &action, &attr,
         const_cast<char**>(spawned_args), environ);
   if (err != 0)
     Fatal("posix_spawn: %s", strerror(err));
