@@ -71,6 +71,8 @@ struct Options {
   /// Build file to load.
   const char* input_file;
 
+  const char* param_file;
+
   /// Directory to change into before running.
   const char* working_dir;
 
@@ -225,6 +227,7 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
+"  -p FILE  specify parameters file for nj3 template file\n"
 "\n"
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
@@ -1428,7 +1431,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:hp:", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1490,6 +1493,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'C':
         options->working_dir = optarg;
+        break;
+      case 'p':
+        options->param_file = optarg;
         break;
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
@@ -1558,7 +1564,13 @@ NORETURN void real_main(int argc, char** argv) {
     }
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
-    if (!parser.Load(options.input_file, &err)) {
+    string param_file;
+    if (options.param_file == NULL) {
+      param_file = "";
+    } else {
+      param_file = string(options.param_file);
+    }
+    if (!parser.Load(options.input_file, param_file, &err)) {
       status->Error("%s", err.c_str());
       exit(1);
     }

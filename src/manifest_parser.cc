@@ -32,7 +32,7 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
   env_ = &state->bindings_;
 }
 
-bool ManifestParser::Parse(const string& filename, const string& input,
+bool ManifestParser::Parse(const string& filename, const string& param_filename, const string& input,
                            string* err) {
   lexer_.Start(filename, input);
 
@@ -70,11 +70,11 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       break;
     }
     case Lexer::INCLUDE:
-      if (!ParseFileInclude(false, err))
+      if (!ParseFileInclude(false, param_filename, err))
         return false;
       break;
     case Lexer::SUBNINJA:
-      if (!ParseFileInclude(true, err))
+      if (!ParseFileInclude(true, param_filename, err))
         return false;
       break;
     case Lexer::ERROR: {
@@ -421,7 +421,7 @@ bool ManifestParser::ParseEdge(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
+bool ManifestParser::ParseFileInclude(bool new_scope, const string& param_filename, string* err) {
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
@@ -434,7 +434,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     subparser.env_ = env_;
   }
 
-  if (!subparser.Load(path, err, &lexer_))
+  if (!subparser.Load(path, param_filename, err, &lexer_))
     return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))

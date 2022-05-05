@@ -46,13 +46,13 @@ struct ManifestParser : public Parser {
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     quiet_ = true;
-    return Parse("input", input, err);
+    return Parse("input", "", input, err);
   }
 
 private:
   /// Parse a file, given its contents as a string.
-  bool Parse(const std::string& filename, const std::string& input,
-             std::string* err);
+  bool Parse(const std::string& filename, const std::string& param_filename,
+             const std::string& input, std::string* err);
 
   /// Parse various statement types.
   bool ParsePool(std::string* err);
@@ -62,7 +62,7 @@ private:
   bool ParseDefault(std::string* err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(bool new_scope, std::string* err);
+  bool ParseFileInclude(bool new_scope, const std::string& param_filename, std::string* err);
 
   BindingEnv* env_;
   ManifestParserOptions options_;

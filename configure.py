@@ -333,11 +333,12 @@ if platform.is_msvc():
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
-    cflags = ['-g', '-Wall', '-Wextra',
+    cflags = ['-g', '-Wall', '-Wextra', '-Wno-reorder',
               '-Wno-deprecated',
               '-Wno-missing-field-initializers',
               '-Wno-unused-parameter',
               '-fno-rtti',
+              '-std=c++11',
               '-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
@@ -393,6 +394,7 @@ if platform.supports_ninja_browse():
 
 # Search for generated headers relative to build dir.
 cflags.append('-I.')
+cflags.append('-I./src/thirdparty/')
 
 def shell_escape(str):
     """Escape str such that it's interpreted as a single argument by

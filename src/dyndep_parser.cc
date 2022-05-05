@@ -30,7 +30,7 @@ DyndepParser::DyndepParser(State* state, FileReader* file_reader,
     , dyndep_file_(dyndep_file) {
 }
 
-bool DyndepParser::Parse(const string& filename, const string& input,
+bool DyndepParser::Parse(const string& filename, const string& param_filename, const string& input,
                          string* err) {
   lexer_.Start(filename, input);
 

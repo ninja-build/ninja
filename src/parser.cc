@@ -16,10 +16,21 @@
 
 #include "disk_interface.h"
 #include "metrics.h"
+#include "util.h"
+
+#include <string.h>
+#include "thirdparty/inja/inja.hpp"
 
 using namespace std;
 
-bool Parser::Load(const string& filename, string* err, Lexer* parent) {
+void registerCallbacks(inja::Environment& env) {
+  env.add_void_callback("warning", 1, [](inja::Arguments& args) {
+    Warning(args.at(0)->get<string>().c_str());
+  });
+  return;
+}
+
+bool Parser::Load(const string& filename, const std::string& param_filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
@@ -38,7 +49,25 @@ bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   // it is, and C++11 demands that too), so add an explicit nul byte.
   contents.resize(contents.size() + 1);
 
-  return Parse(filename, contents, err);
+  // render template if specified
+  if (param_filename.compare("") != 0) {
+    string json_contents;
+    if (file_reader_->ReadFile(param_filename, &json_contents, &read_err) !=
+        FileReader::Okay) {
+      *err = "loading '" + param_filename + "': " + read_err;
+      if (parent)
+        parent->Error(string(*err), err);
+      return false;
+    }
+
+    inja::Environment env;
+    registerCallbacks(env);
+
+    inja::json data = inja::json::parse(json_contents);
+    contents = env.render(contents, data);
+  }
+
+  return Parse(filename, param_filename, contents, err);
 }
 
 bool Parser::ExpectToken(Lexer::Token expected, string* err) {
