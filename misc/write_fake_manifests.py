@@ -115,7 +115,7 @@ def write_target_ninja(ninja, target, src_dir):
 
     ninja.variable('defines', target.defines)
     ninja.variable('includes', '-I' + src_dir)
-    ninja.variable('cflags', ['-Wall', '-fno-rtti', '-fno-exceptions'])
+    ninja.variable('cflags', ['-Wall', '-fno-rtti']) #, '-fno-exceptions'])
     ninja.newline()
 
     for src, obj in target.src_obj_pairs:

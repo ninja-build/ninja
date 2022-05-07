@@ -14,12 +14,13 @@
 
 #include "parser.h"
 
+#include <string.h>
+#include <exception>
+
 #include "disk_interface.h"
 #include "metrics.h"
-#include "util.h"
-
-#include <string.h>
 #include "thirdparty/inja/inja.hpp"
+#include "util.h"
 
 using namespace std;
 
@@ -30,7 +31,8 @@ void registerCallbacks(inja::Environment& env) {
   return;
 }
 
-bool Parser::Load(const string& filename, const std::string& param_filename, string* err, Lexer* parent) {
+bool Parser::Load(const string& filename, const std::string& param_filename,
+                  string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
@@ -63,8 +65,15 @@ bool Parser::Load(const string& filename, const std::string& param_filename, str
     inja::Environment env;
     registerCallbacks(env);
 
-    inja::json data = inja::json::parse(json_contents);
-    contents = env.render(contents, data);
+    try {
+      inja::json data = inja::json::parse(json_contents);
+      contents = env.render(contents, data);
+    } catch (exception& e) {
+      *err = e.what();
+      if (parent)
+        parent->Error(string(*err), err);
+      return false;
+    }
   }
 
   return Parse(filename, param_filename, contents, err);

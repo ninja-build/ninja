@@ -339,7 +339,7 @@ else:
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-std=c++11',
-              '-fno-exceptions',
+              #'-fno-exceptions',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
