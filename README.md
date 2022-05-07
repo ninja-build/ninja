@@ -19,6 +19,39 @@ copied to appropriate locations.
 If you're interested in making changes to Ninja, read
 [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
+## Template Support
+
+[inja](https://github.com/pantor/inja) support is added to support template in ninja files.
+You can directly use it in your ninja file and current ninja behaviors does not change.
+
+Example:
+build.ninja file
+```
+cflags = -Wall
+
+rule cc
+  command = gcc $cflags -c $in -o $out
+
+build {{ target }}: cc {{ file }}
+
+{{ warning("this is a test") }}
+```
+
+build.json file
+```json
+{
+    "file": "foo.c"
+    "target": "foo.o"
+}
+
+```
+
+Compile command:
+```bash
+ninja -p build.json
+```
+
+
 ## Building Ninja itself
 
 You can either build Ninja via the custom generator script written in Python or
