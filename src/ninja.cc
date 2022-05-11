@@ -1123,6 +1123,7 @@ const Tool* ChooseTool(const string& tool_name) {
 
   if (tool_name == "list") {
     printf("ninja subtools:\n");
+    printf("%11s  %s\n", "list", "list subtools");
     for (const Tool* tool = &kTools[0]; tool->name; ++tool) {
       if (tool->desc)
         printf("%11s  %s\n", tool->name, tool->desc);
@@ -1153,6 +1154,7 @@ const Tool* ChooseTool(const string& tool_name) {
 bool DebugEnable(const string& name) {
   if (name == "list") {
     printf("debugging modes:\n"
+"  list         list modes\n"
 "  stats        print operation counts/timing info\n"
 "  explain      explain what caused a command to execute\n"
 "  keepdepfile  don't delete depfiles after they're read by ninja\n"
