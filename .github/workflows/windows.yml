@@ -13,27 +13,34 @@ jobs:
       matrix:
         image: [windows-2019, windows-2022]
         config: [Release, Debug]
+        compiler: [msvc, clangcl]
 
     runs-on: ${{ matrix.image }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
     - uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: windows-${{ matrix.image }}-${{ matrix.config }}
+        key: windows-${{ matrix.image }}-${{ matrix.config }}-${{ matrix.compiler }}
 
     - name: Install dependencies
       run: choco install re2c
 
-    - name: Configure
+    - name: Configure (MSVC)
+      if: ${{ matrix.compiler == 'msvc' }}
       env:
         CFLAGS:   ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
         CXXLAGS:  ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
       run: |
         cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+    - name: Configure (ClangCL)
+      if: ${{ matrix.compiler == 'clangcl' }}
+      run: |
+        cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -TClangCL -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
     - name: Build
       run: |
@@ -50,7 +57,7 @@ jobs:
     needs: BuildAndTest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -72,13 +79,13 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

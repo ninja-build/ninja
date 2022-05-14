@@ -19,7 +19,7 @@ jobs:
       image: centos:7
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -59,7 +59,7 @@ jobs:
       image: centos:7
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -103,7 +103,7 @@ jobs:
       CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -146,7 +146,7 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -179,7 +179,7 @@ jobs:
       image: centos:7
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -213,13 +213,13 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

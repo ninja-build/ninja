@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [macos-10.15, macos-11]
+        image: [macos-10.15, macos-11, macos-12]
         config: [Release, Debug]
 
     runs-on: ${{ matrix.image }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -35,7 +35,7 @@ jobs:
         LDFLAGS:  ${{ matrix.config == 'Debug' && '-fsanitize=address,bounds,enum,pointer-compare,pointer-subtract' || '' }}
         MACOSX_DEPLOYMENT_TARGET: 10.12
       run: |
-        cmake -Bbuild -GXcode -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 
+        cmake -Bbuild -GXcode -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
     - name: Build
       run: |
@@ -52,7 +52,7 @@ jobs:
     needs: BuildAndTest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -76,13 +76,13 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

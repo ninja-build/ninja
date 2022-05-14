@@ -16,13 +16,17 @@ jobs:
         tool: [clang-analyzer, iwyu, CodeQL]
         config: [Release, Debug]
 
+    permissions:
+      # required for all workflows
+      security-events: write
+
     # Speed the build up
     env:
       CMAKE_C_COMPILER_LAUNCHER:   ccache
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
@@ -36,7 +40,7 @@ jobs:
         sudo apt install -y ninja-build clang clang-tidy clang-tools iwyu cmake
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+      uses: github/codeql-action/init@v2
       if: ${{ matrix.tool == 'CodeQL' }}
       with:
         languages: cpp
@@ -45,14 +49,14 @@ jobs:
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE
 
-    # Must build so that src/build/browse.py.h is generated
+    # Must build so that src/build/browse.py.h is generated, as well as CodeQL analysis
     - name: Build
       run: |
         cmake --build build --parallel
 
     - name: Perform CodeQL Analysis
       if: ${{ matrix.tool == 'CodeQL' }}
-      uses: github/codeql-action/analyze@v1
+      uses: github/codeql-action/analyze@v2
 
     # Implicitly requires build/compile_commands.json to exist
     - name: Run Clang Analyzer
@@ -67,7 +71,7 @@ jobs:
       if: ${{ matrix.tool == 'iwyu' }}
       run: |
         wget https://raw.githubusercontent.com/include-what-you-use/include-what-you-use/clang_11/iwyu_tool.py
-        chmod +x iwyu_tool.py 
+        chmod +x iwyu_tool.py
         ./iwyu_tool.py -j $(nproc) -p build
 
   analyze-windows:
@@ -79,8 +83,12 @@ jobs:
         tool: [msvc-code-analysis]
         config: [Release, Debug]
 
+    permissions:
+      # required for all workflows
+      security-events: write
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 1
 
