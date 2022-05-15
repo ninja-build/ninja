@@ -1046,6 +1046,9 @@ relative path, pointing to the same file, are considered different by Ninja.
 [[validations]]
 Validations
 ~~~~~~~~~~~
+
+_Available since Ninja 1.11._
+
 Validations listed on the build line cause the specified files to be
 added to the top level of the build graph (as if they were specified
 on the Ninja command line) whenever the build line is a transitive
