@@ -390,7 +390,7 @@ TEST_F(DepsLogTest, Truncated) {
     DepsLog log;
     EXPECT_TRUE(log.Load(kTestFilename, &state, &err));
     if (!err.empty()) {
-      // At some point the log will be so short as to be unparseable.
+      // At some point the log will be so short as to be unparsable.
       break;
     }
 
@@ -476,6 +476,33 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
     DepsLog::Deps* deps = log.GetDeps(state.GetNode("out2.o", 0));
     ASSERT_TRUE(deps);
   }
+}
+
+TEST_F(DepsLogTest, ReverseDepsNodes) {
+  State state;
+  DepsLog log;
+  string err;
+  EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+  ASSERT_EQ("", err);
+
+  vector<Node*> deps;
+  deps.push_back(state.GetNode("foo.h", 0));
+  deps.push_back(state.GetNode("bar.h", 0));
+  log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
+
+  deps.clear();
+  deps.push_back(state.GetNode("foo.h", 0));
+  deps.push_back(state.GetNode("bar2.h", 0));
+  log.RecordDeps(state.GetNode("out2.o", 0), 2, deps);
+
+  log.Close();
+
+  Node* rev_deps = log.GetFirstReverseDepsNode(state.GetNode("foo.h", 0));
+  EXPECT_TRUE(rev_deps == state.GetNode("out.o", 0) ||
+              rev_deps == state.GetNode("out2.o", 0));
+
+  rev_deps = log.GetFirstReverseDepsNode(state.GetNode("bar.h", 0));
+  EXPECT_TRUE(rev_deps == state.GetNode("out.o", 0));
 }
 
 }  // anonymous namespace

@@ -365,7 +365,7 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:5: multiple rules generate out1 [-w dupbuild=err]\n", err);
+  EXPECT_EQ("input:5: multiple rules generate out1\n", err);
 }
 
 TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
@@ -382,8 +382,7 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
   ManifestParser parser(&state, &fs_, parser_opts);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("sub.ninja:5: multiple rules generate out1 [-w dupbuild=err]\n",
-            err);
+  EXPECT_EQ("sub.ninja:5: multiple rules generate out1\n", err);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceIgnored) {
@@ -964,6 +963,16 @@ TEST_F(ParserTest, OrderOnly) {
 
   Edge* edge = state.LookupNode("foo")->in_edge();
   ASSERT_TRUE(edge->is_order_only(1));
+}
+
+TEST_F(ParserTest, Validations) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"rule cat\n  command = cat $in > $out\n"
+"build foo: cat bar |@ baz\n"));
+
+  Edge* edge = state.LookupNode("foo")->in_edge();
+  ASSERT_EQ(edge->validations_.size(), 1);
+  EXPECT_EQ(edge->validations_[0]->path(), "baz");
 }
 
 TEST_F(ParserTest, ImplicitOutput) {

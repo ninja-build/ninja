@@ -21,6 +21,8 @@
 #include <stdint.h>
 #endif
 
+#include <stdarg.h>
+
 #include <string>
 #include <vector>
 
@@ -49,17 +51,21 @@ NORETURN void Fatal(const char* msg, ...);
 
 /// Log a warning message.
 void Warning(const char* msg, ...);
+void Warning(const char* msg, va_list ap);
 
 /// Log an error message.
 void Error(const char* msg, ...);
+void Error(const char* msg, va_list ap);
+
+/// Log an informational message.
+void Info(const char* msg, ...);
+void Info(const char* msg, va_list ap);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
 /// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits,
-                      std::string* err);
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      std::string* err);
+void CanonicalizePath(std::string* path, uint64_t* slash_bits);
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits);
 
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().

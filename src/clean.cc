@@ -129,7 +129,16 @@ int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   PrintHeader();
   for (BuildLog::Entries::const_iterator i = entries.begin(); i != entries.end(); ++i) {
     Node* n = state_->LookupNode(i->first);
-    if (!n || !n->in_edge()) {
+    // Detecting stale outputs works as follows:
+    //
+    // - If it has no Node, it is not in the build graph, or the deps log
+    //   anymore, hence is stale.
+    //
+    // - If it isn't an output or input for any edge, it comes from a stale
+    //   entry in the deps log, but no longer referenced from the build
+    //   graph.
+    //
+    if (!n || (!n->in_edge() && n->out_edges().empty())) {
       Remove(i->first.AsString());
     }
   }
@@ -189,21 +198,21 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
     string target_name = targets[i];
-    uint64_t slash_bits;
-    string err;
-    if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
-      Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
+    if (target_name.empty()) {
+      Error("failed to canonicalize '': empty path");
       status_ = 1;
+      continue;
+    }
+    uint64_t slash_bits;
+    CanonicalizePath(&target_name, &slash_bits);
+    Node* target = state_->LookupNode(target_name);
+    if (target) {
+      if (IsVerbose())
+        printf("Target %s\n", target_name.c_str());
+      DoCleanTarget(target);
     } else {
-      Node* target = state_->LookupNode(target_name);
-      if (target) {
-        if (IsVerbose())
-          printf("Target %s\n", target_name.c_str());
-        DoCleanTarget(target);
-      } else {
-        Error("unknown target '%s'", target_name.c_str());
-        status_ = 1;
-      }
+      Error("unknown target '%s'", target_name.c_str());
+      status_ = 1;
     }
   }
   PrintFooter();

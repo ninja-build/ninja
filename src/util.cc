@@ -49,10 +49,16 @@
 #include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
+#include <fstream>
+#include <map>
+#include "string_piece_util.h"
+#endif
+
+#if defined(__FreeBSD__)
+#include <sys/cpuset.h>
 #endif
 
 #include "edit_distance.h"
-#include "metrics.h"
 
 using namespace std;
 
@@ -74,34 +80,52 @@ void Fatal(const char* msg, ...) {
 #endif
 }
 
+void Warning(const char* msg, va_list ap) {
+  fprintf(stderr, "ninja: warning: ");
+  vfprintf(stderr, msg, ap);
+  fprintf(stderr, "\n");
+}
+
 void Warning(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: warning: ");
   va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
+  Warning(msg, ap);
   va_end(ap);
+}
+
+void Error(const char* msg, va_list ap) {
+  fprintf(stderr, "ninja: error: ");
+  vfprintf(stderr, msg, ap);
   fprintf(stderr, "\n");
 }
 
 void Error(const char* msg, ...) {
   va_list ap;
-  fprintf(stderr, "ninja: error: ");
   va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
+  Error(msg, ap);
   va_end(ap);
-  fprintf(stderr, "\n");
 }
 
-bool CanonicalizePath(string* path, uint64_t* slash_bits, string* err) {
-  METRIC_RECORD("canonicalize str");
+void Info(const char* msg, va_list ap) {
+  fprintf(stdout, "ninja: ");
+  vfprintf(stdout, msg, ap);
+  fprintf(stdout, "\n");
+}
+
+void Info(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Info(msg, ap);
+  va_end(ap);
+}
+
+void CanonicalizePath(string* path, uint64_t* slash_bits) {
   size_t len = path->size();
   char* str = 0;
   if (len > 0)
     str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, slash_bits, err))
-    return false;
+  CanonicalizePath(str, &len, slash_bits);
   path->resize(len);
-  return true;
 }
 
 static bool IsPathSeparator(char c) {
@@ -112,14 +136,11 @@ static bool IsPathSeparator(char c) {
 #endif
 }
 
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      string* err) {
+void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
-  METRIC_RECORD("canonicalize path");
   if (*len == 0) {
-    *err = "empty path";
-    return false;
+    return;
   }
 
   const int kMaxPathComponents = 60;
@@ -209,7 +230,6 @@ bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
 #else
   *slash_bits = 0;
 #endif
-  return true;
 }
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
@@ -333,7 +353,8 @@ int ReadFile(const string& path, string* contents, string* err) {
     if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
       err->assign(GetLastErrorString());
       contents->clear();
-      return -1;
+      ::CloseHandle(f);
+      return -EIO;
     }
     if (len == 0)
       break;
@@ -481,20 +502,226 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
+#if defined(linux) || defined(__GLIBC__)
+std::pair<int64_t, bool> readCount(const std::string& path) {
+  std::ifstream file(path.c_str());
+  if (!file.is_open())
+    return std::make_pair(0, false);
+  int64_t n = 0;
+  file >> n;
+  if (file.good())
+    return std::make_pair(n, true);
+  return std::make_pair(0, false);
+}
+
+struct MountPoint {
+  int mountId;
+  int parentId;
+  StringPiece deviceId;
+  StringPiece root;
+  StringPiece mountPoint;
+  vector<StringPiece> options;
+  vector<StringPiece> optionalFields;
+  StringPiece fsType;
+  StringPiece mountSource;
+  vector<StringPiece> superOptions;
+  bool parse(const string& line) {
+    vector<StringPiece> pieces = SplitStringPiece(line, ' ');
+    if (pieces.size() < 10)
+      return false;
+    size_t optionalStart = 0;
+    for (size_t i = 6; i < pieces.size(); i++) {
+      if (pieces[i] == "-") {
+        optionalStart = i + 1;
+        break;
+      }
+    }
+    if (optionalStart == 0)
+      return false;
+    if (optionalStart + 3 != pieces.size())
+      return false;
+    mountId = atoi(pieces[0].AsString().c_str());
+    parentId = atoi(pieces[1].AsString().c_str());
+    deviceId = pieces[2];
+    root = pieces[3];
+    mountPoint = pieces[4];
+    options = SplitStringPiece(pieces[5], ',');
+    optionalFields =
+        vector<StringPiece>(&pieces[6], &pieces[optionalStart - 1]);
+    fsType = pieces[optionalStart];
+    mountSource = pieces[optionalStart + 1];
+    superOptions = SplitStringPiece(pieces[optionalStart + 2], ',');
+    return true;
+  }
+  string translate(string& path) const {
+    // path must be sub dir of root
+    if (path.compare(0, root.len_, root.str_, root.len_) != 0) {
+      return string();
+    }
+    path.erase(0, root.len_);
+    if (path == ".." || (path.length() > 2 && path.compare(0, 3, "../") == 0)) {
+      return string();
+    }
+    return mountPoint.AsString() + "/" + path;
+  }
+};
+
+struct CGroupSubSys {
+  int id;
+  string name;
+  vector<string> subsystems;
+  bool parse(string& line) {
+    size_t first = line.find(':');
+    if (first == string::npos)
+      return false;
+    line[first] = '\0';
+    size_t second = line.find(':', first + 1);
+    if (second == string::npos)
+      return false;
+    line[second] = '\0';
+    id = atoi(line.c_str());
+    name = line.substr(second + 1);
+    vector<StringPiece> pieces =
+        SplitStringPiece(StringPiece(line.c_str() + first + 1), ',');
+    for (size_t i = 0; i < pieces.size(); i++) {
+      subsystems.push_back(pieces[i].AsString());
+    }
+    return true;
+  }
+};
+
+map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
+  map<string, string> cgroups;
+  ifstream mountinfo("/proc/self/mountinfo");
+  if (!mountinfo.is_open())
+    return cgroups;
+  while (!mountinfo.eof()) {
+    string line;
+    getline(mountinfo, line);
+    MountPoint mp;
+    if (!mp.parse(line))
+      continue;
+    if (mp.fsType != "cgroup")
+      continue;
+    for (size_t i = 0; i < mp.superOptions.size(); i++) {
+      string opt = mp.superOptions[i].AsString();
+      map<string, CGroupSubSys>::iterator subsys = subsystems.find(opt);
+      if (subsys == subsystems.end())
+        continue;
+      string newPath = mp.translate(subsys->second.name);
+      if (!newPath.empty())
+        cgroups.insert(make_pair(opt, newPath));
+    }
+  }
+  return cgroups;
+}
+
+map<string, CGroupSubSys> ParseSelfCGroup() {
+  map<string, CGroupSubSys> cgroups;
+  ifstream cgroup("/proc/self/cgroup");
+  if (!cgroup.is_open())
+    return cgroups;
+  string line;
+  while (!cgroup.eof()) {
+    getline(cgroup, line);
+    CGroupSubSys subsys;
+    if (!subsys.parse(line))
+      continue;
+    for (size_t i = 0; i < subsys.subsystems.size(); i++) {
+      cgroups.insert(make_pair(subsys.subsystems[i], subsys));
+    }
+  }
+  return cgroups;
+}
+
+int ParseCPUFromCGroup() {
+  map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
+  map<string, string> cgroups = ParseMountInfo(subsystems);
+  map<string, string>::iterator cpu = cgroups.find("cpu");
+  if (cpu == cgroups.end())
+    return -1;
+  std::pair<int64_t, bool> quota = readCount(cpu->second + "/cpu.cfs_quota_us");
+  if (!quota.second || quota.first == -1)
+    return -1;
+  std::pair<int64_t, bool> period =
+      readCount(cpu->second + "/cpu.cfs_period_us");
+  if (!period.second)
+    return -1;
+  return quota.first / period.first;
+}
+#endif
+
 int GetProcessorCount() {
 #ifdef _WIN32
-  return GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+  DWORD cpuCount = 0;
+#ifndef _WIN64
+  // Need to use GetLogicalProcessorInformationEx to get real core count on
+  // machines with >64 cores. See https://stackoverflow.com/a/31209344/21475
+  DWORD len = 0;
+  if (!GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &len)
+        && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+    std::vector<char> buf(len);
+    int cores = 0;
+    if (GetLogicalProcessorInformationEx(RelationProcessorCore,
+          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data()), &len)) {
+      for (DWORD i = 0; i < len; ) {
+        auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            buf.data() + i);
+        if (info->Relationship == RelationProcessorCore &&
+            info->Processor.GroupCount == 1) {
+          for (KAFFINITY core_mask = info->Processor.GroupMask[0].Mask;
+               core_mask; core_mask >>= 1) {
+            cores += (core_mask & 1);
+          }
+        }
+        i += info->Size;
+      }
+      if (cores != 0) {
+        cpuCount = cores;
+      }
+    }
+  }
+#endif
+  if (cpuCount == 0) {
+    cpuCount = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+  }
+  JOBOBJECT_CPU_RATE_CONTROL_INFORMATION info;
+  // reference:
+  // https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_cpu_rate_control_information
+  if (QueryInformationJobObject(NULL, JobObjectCpuRateControlInformation, &info,
+                                sizeof(info), NULL)) {
+    if (info.ControlFlags & (JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
+                             JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP)) {
+      return cpuCount * info.CpuRate / 10000;
+    }
+  }
+  return cpuCount;
 #else
-#ifdef CPU_COUNT
+  int cgroupCount = -1;
+  int schedCount = -1;
+#if defined(linux) || defined(__GLIBC__)
+  cgroupCount = ParseCPUFromCGroup();
+#endif
   // The number of exposed processors might not represent the actual number of
   // processors threads can run on. This happens when a CPU set limitation is
   // active, see https://github.com/ninja-build/ninja/issues/1278
+#if defined(__FreeBSD__)
+  cpuset_t mask;
+  CPU_ZERO(&mask);
+  if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(mask),
+    &mask) == 0) {
+    return CPU_COUNT(&mask);
+  }
+#elif defined(CPU_COUNT)
   cpu_set_t set;
   if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
-    return CPU_COUNT(&set);
+    schedCount = CPU_COUNT(&set);
   }
 #endif
-  return sysconf(_SC_NPROCESSORS_ONLN);
+  if (cgroupCount >= 0 && schedCount >= 0) return std::min(cgroupCount, schedCount);
+  if (cgroupCount < 0 && schedCount < 0) return sysconf(_SC_NPROCESSORS_ONLN);
+  return std::max(cgroupCount, schedCount);
 #endif
 }
 
@@ -584,6 +811,10 @@ double GetLoadAverage() {
   if (sysinfo(&si) != 0)
     return -0.0f;
   return 1.0 / (1 << SI_LOAD_SHIFT) * si.loads[0];
+}
+#elif defined(__HAIKU__)
+double GetLoadAverage() {
+    return -0.0f;
 }
 #else
 double GetLoadAverage() {

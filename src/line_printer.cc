@@ -37,14 +37,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifndef _WIN32
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
-  // Disable output buffer.  It'd be nice to use line buffering but
-  // MSDN says: "For some systems, [_IOLBF] provides line
-  // buffering. However, for Win32, the behavior is the same as _IOFBF
-  // - Full Buffering."
   if (term && string(term) == "dumb") {
     smart_terminal_ = false;
   } else {
-    setvbuf(stdout, NULL, _IONBF, 0);
     console_ = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
@@ -87,22 +82,27 @@ void LinePrinter::Print(string to_print, LineType type) {
     GetConsoleScreenBufferInfo(console_, &csbi);
 
     to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
-    // We don't want to have the cursor spamming back and forth, so instead of
-    // printf use WriteConsoleOutput which updates the contents of the buffer,
-    // but doesn't move the cursor position.
-    COORD buf_size = { csbi.dwSize.X, 1 };
-    COORD zero_zero = { 0, 0 };
-    SMALL_RECT target = {
-      csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
-      static_cast<SHORT>(csbi.dwCursorPosition.X + csbi.dwSize.X - 1),
-      csbi.dwCursorPosition.Y
-    };
-    vector<CHAR_INFO> char_data(csbi.dwSize.X);
-    for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
-      char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
-      char_data[i].Attributes = csbi.wAttributes;
+    if (supports_color_) {  // this means ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                            // succeeded
+      printf("%s\x1B[K", to_print.c_str());  // Clear to end of line.
+      fflush(stdout);
+    } else {
+      // We don't want to have the cursor spamming back and forth, so instead of
+      // printf use WriteConsoleOutput which updates the contents of the buffer,
+      // but doesn't move the cursor position.
+      COORD buf_size = { csbi.dwSize.X, 1 };
+      COORD zero_zero = { 0, 0 };
+      SMALL_RECT target = { csbi.dwCursorPosition.X, csbi.dwCursorPosition.Y,
+                            static_cast<SHORT>(csbi.dwCursorPosition.X +
+                                               csbi.dwSize.X - 1),
+                            csbi.dwCursorPosition.Y };
+      vector<CHAR_INFO> char_data(csbi.dwSize.X);
+      for (size_t i = 0; i < static_cast<size_t>(csbi.dwSize.X); ++i) {
+        char_data[i].Char.AsciiChar = i < to_print.size() ? to_print[i] : ' ';
+        char_data[i].Attributes = csbi.wAttributes;
+      }
+      WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
     }
-    WriteConsoleOutput(console_, &char_data[0], buf_size, zero_zero, &target);
 #else
     // Limit output to width of the terminal if provided so we don't cause
     // line-wrapping.

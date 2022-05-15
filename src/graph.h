@@ -15,6 +15,8 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
+#include <algorithm>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,7 @@ struct Node {
       : path_(path),
         slash_bits_(slash_bits),
         mtime_(-1),
+        exists_(ExistenceStatusUnknown),
         dirty_(false),
         dyndep_pending_(false),
         in_edge_(NULL),
@@ -46,6 +49,9 @@ struct Node {
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
+
+  /// If the file doesn't exist, set the mtime_ from its dependencies
+  void UpdatePhonyMtime(TimeStamp mtime);
 
   /// Return false on error.
   bool StatIfNecessary(DiskInterface* disk_interface, std::string* err) {
@@ -57,20 +63,24 @@ struct Node {
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
     mtime_ = -1;
+    exists_ = ExistenceStatusUnknown;
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    if (mtime_ == -1) {
+      mtime_ = 0;
+    }
+    exists_ = ExistenceStatusMissing;
   }
 
   bool exists() const {
-    return mtime_ != 0;
+    return exists_ == ExistenceStatusExists;
   }
 
   bool status_known() const {
-    return mtime_ != -1;
+    return exists_ != ExistenceStatusUnknown;
   }
 
   const std::string& path() const { return path_; }
@@ -98,7 +108,9 @@ struct Node {
   void set_id(int id) { id_ = id; }
 
   const std::vector<Edge*>& out_edges() const { return out_edges_; }
+  const std::vector<Edge*>& validation_out_edges() const { return validation_out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
+  void AddValidationOutEdge(Edge* edge) { validation_out_edges_.push_back(edge); }
 
   void Dump(const char* prefix="") const;
 
@@ -112,8 +124,18 @@ private:
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
+  ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
   TimeStamp mtime_;
+
+  enum ExistenceStatus {
+    /// The file hasn't been examined.
+    ExistenceStatusUnknown,
+    /// The file doesn't exist. mtime_ will be the latest mtime of its dependencies.
+    ExistenceStatusMissing,
+    /// The path is an actual file. mtime_ will be the file's mtime.
+    ExistenceStatusExists
+  };
+  ExistenceStatus exists_;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
@@ -131,6 +153,9 @@ private:
   /// All Edges that use this Node as an input.
   std::vector<Edge*> out_edges_;
 
+  /// All Edges that use this Node as a validation.
+  std::vector<Edge*> validation_out_edges_;
+
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_;
 };
@@ -143,10 +168,11 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL),
-           mark_(VisitNone), outputs_ready_(false), deps_loaded_(false),
-           deps_missing_(false), implicit_deps_(0), order_only_deps_(0),
-           implicit_outs_(0) {}
+  Edge()
+      : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
+        id_(0), outputs_ready_(false), deps_loaded_(false),
+        deps_missing_(false), generated_by_dep_loader_(false),
+        implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -169,16 +195,22 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
+  // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
+  void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
+
   const Rule* rule_;
   Pool* pool_;
   std::vector<Node*> inputs_;
   std::vector<Node*> outputs_;
+  std::vector<Node*> validations_;
   Node* dyndep_;
   BindingEnv* env_;
   VisitMark mark_;
+  size_t id_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;
+  bool generated_by_dep_loader_;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }
@@ -218,6 +250,13 @@ struct Edge {
   bool maybe_phonycycle_diagnostic() const;
 };
 
+struct EdgeCmp {
+  bool operator()(const Edge* a, const Edge* b) const {
+    return a->id_ < b->id_;
+  }
+};
+
+typedef std::set<Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
@@ -237,7 +276,13 @@ struct ImplicitDepLoader {
     return deps_log_;
   }
 
- private:
+ protected:
+  /// Process loaded implicit dependencies for \a edge and update the graph
+  /// @return false on error (without filling \a err if info is just missing)
+  virtual bool ProcessDepfileDeps(Edge* edge,
+                                  std::vector<StringPiece>* depfile_ins,
+                                  std::string* err);
+
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
@@ -273,12 +318,14 @@ struct DependencyScan {
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options),
         dyndep_loader_(state, disk_interface) {}
 
-  /// Update the |dirty_| state of the given node by inspecting its input edge.
+  /// Update the |dirty_| state of the given nodes by transitively inspecting
+  /// their input edges.
   /// Examine inputs, outputs, and command lines to judge whether an edge
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
+  /// Appends any validation nodes found to the nodes parameter.
   /// Returns false on failure.
-  bool RecomputeDirty(Node* node, std::string* err);
+  bool RecomputeDirty(Node* node, std::vector<Node*>* validation_nodes, std::string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
@@ -304,7 +351,8 @@ struct DependencyScan {
   bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
  private:
-  bool RecomputeDirty(Node* node, std::vector<Node*>* stack, std::string* err);
+  bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
+                          std::vector<Node*>* validation_nodes, std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.

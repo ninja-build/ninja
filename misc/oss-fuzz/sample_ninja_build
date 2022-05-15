@@ -1,0 +1,14 @@
+# build.ninja
+cc     = clang
+cflags = -Weverything
+
+rule compile
+  command = $cc $cflags -c $in -o $out
+
+rule link
+  command = $cc $in -o $out
+
+build hello.o: compile hello.c
+build hello: link hello.o
+
+default hello

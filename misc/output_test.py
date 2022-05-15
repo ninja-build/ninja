@@ -48,6 +48,15 @@ def run(build_ninja, flags='', pipe=False, env=default_env):
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
+    BUILD_SIMPLE_ECHO = '\n'.join((
+        'rule echo',
+        '  command = printf "do thing"',
+        '  description = echo $out',
+        '',
+        'build a: echo',
+        '',
+    ))
+
     def test_issue_1418(self):
         self.assertEqual(run(
 '''rule echo
@@ -110,6 +119,38 @@ red
 
     def test_status(self):
         self.assertEqual(run(''), 'ninja: no work to do.\n')
+        self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
+
+    def test_ninja_status_default(self):
+        'Do we show the default status by default?'
+        self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1/1] echo a\x1b[K\ndo thing\n')
+
+    def test_ninja_status_quiet(self):
+        'Do we suppress the status information when --quiet is specified?'
+        output = run(Output.BUILD_SIMPLE_ECHO, flags='--quiet')
+        self.assertEqual(output, 'do thing\n')
+
+    def test_entering_directory_on_stdout(self):
+        output = run(Output.BUILD_SIMPLE_ECHO, flags='-C$PWD', pipe=True)
+        self.assertEqual(output.splitlines()[0][:25], "ninja: Entering directory")
+
+    def test_tool_inputs(self):
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out2 : cat in2 out1
+build out3 : cat out2 out1 | implicit || order_only
+'''
+        self.assertEqual(run(plan, flags='-t inputs out3'),
+'''implicit
+in1
+in2
+order_only
+out1
+out2
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

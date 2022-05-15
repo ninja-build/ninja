@@ -12,30 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_GRAPHVIZ_H_
-#define NINJA_GRAPHVIZ_H_
+#include "status.h"
 
-#include <set>
+#include "test.h"
 
-#include "dyndep.h"
-#include "graph.h"
+TEST(StatusTest, StatusFormatElapsed) {
+  BuildConfig config;
+  StatusPrinter status(config);
 
-struct DiskInterface;
-struct Node;
-struct Edge;
-struct State;
+  status.BuildStarted();
+  // Before any task is done, the elapsed time must be zero.
+  EXPECT_EQ("[%/e0.000]",
+            status.FormatProgressStatus("[%%/e%e]", 0));
+}
 
-/// Runs the process of creating GraphViz .dot file output.
-struct GraphViz {
-  GraphViz(State* state, DiskInterface* disk_interface)
-      : dyndep_loader_(state, disk_interface) {}
-  void Start();
-  void AddTarget(Node* node);
-  void Finish();
+TEST(StatusTest, StatusFormatReplacePlaceholder) {
+  BuildConfig config;
+  StatusPrinter status(config);
 
-  DyndepLoader dyndep_loader_;
-  std::set<Node*> visited_nodes_;
-  EdgeSet visited_edges_;
-};
-
-#endif  // NINJA_GRAPHVIZ_H_
+  EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
+            status.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));
+}

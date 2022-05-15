@@ -84,7 +84,7 @@ class Platform(object):
         return self._platform == 'msvc'
 
     def msvc_needs_fs(self):
-        popen = subprocess.Popen(['cl', '/nologo', '/?'],
+        popen = subprocess.Popen(['cl', '/nologo', '/help'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
@@ -479,7 +479,7 @@ def has_re2c():
         return False
 if has_re2c():
     n.rule('re2c',
-           command='re2c -b -i --no-generation-date -o $out $in',
+           command='re2c -b -i --no-generation-date --no-version -o $out $in',
            description='RE2C $out')
     # Generate the .cc files in the source directory so we can check them in.
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
@@ -507,12 +507,15 @@ for name in ['build',
              'eval_env',
              'graph',
              'graphviz',
+             'json',
              'lexer',
              'line_printer',
              'manifest_parser',
              'metrics',
+             'missing_deps',
              'parser',
              'state',
+             'status',
              'string_piece_util',
              'util',
              'version']:
@@ -575,10 +578,13 @@ for name in ['build_log_test',
              'disk_interface_test',
              'edit_distance_test',
              'graph_test',
+             'json_test',
              'lexer_test',
              'manifest_parser_test',
+             'missing_deps_test',
              'ninja_test',
              'state_test',
+             'status_test',
              'string_piece_util_test',
              'subprocess_test',
              'test',
