@@ -494,6 +494,10 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
       : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
         builder_(&state_, config_, NULL, log, &fs_, &status_, 0) {}
 
+  explicit BuildTest(const BuildConfig& config)
+      : config_(config), command_runner_(&fs_), status_(config_),
+        builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0) {}
+
   virtual void SetUp() {
     StateTestWithBuiltinRules::SetUp();
 
@@ -1446,6 +1450,12 @@ struct BuildWithLogTest : public BuildTest {
   BuildWithLogTest() {
     builder_.SetBuildLog(&build_log_);
   }
+  
+  explicit BuildWithLogTest(const BuildConfig& config)
+      : BuildTest(config)
+  {
+    builder_.SetBuildLog(&build_log_);
+  }
 
   BuildLog build_log_;
 };
@@ -1598,6 +1608,93 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
   EXPECT_TRUE(builder_.Build(&err));
   EXPECT_EQ("", err);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
+struct BuildWithModifiedOutputDirtyAndLogTest : public BuildWithLogTest {
+  BuildWithModifiedOutputDirtyAndLogTest() : BuildWithLogTest(MakeConfig()) {
+  }
+
+  BuildConfig MakeConfig() {
+    BuildConfig config;
+    config.verbosity = BuildConfig::QUIET;
+    config.modified_output_is_dirty = true;
+    return config;
+  }
+};
+
+TEST_F(BuildWithModifiedOutputDirtyAndLogTest, RebuildIfOutputIsModified) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat in\n"));
+
+  string err;
+
+  fs_.Create("in", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  fs_.Tick();
+
+  fs_.WriteFile("out", "");
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
+
+TEST_F(BuildWithModifiedOutputDirtyAndLogTest, DoNotRebuildMultipleOutputEdgeWithRestat) {
+  string err;
+
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse(&state_,
+                  "rule true\n"
+                  "  command = true $in\n"
+                  "  restat = 1\n"
+                  "build out | out.bis: true in\n"));
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+  fs_.Create("out.bis", "");
+  fs_.Tick();
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  state_.Reset();
+  command_runner_.commands_ran_.clear();
+
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  state_.Reset();
+  command_runner_.commands_ran_.clear();
+
+  // In this situation 'out.bis' should have been restat, its mtime
+  // will be older than 'in'. 'out' will have its mtime more
+  // recent than 'in'. We wanna check than ninja will not try to
+  // rebuild anything it this tricky situation.
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  EXPECT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+  EXPECT_EQ(0u, command_runner_.commands_ran_.size());
 }
 
 TEST_F(BuildWithLogTest, RestatTest) {

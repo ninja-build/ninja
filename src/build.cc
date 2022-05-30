@@ -517,7 +517,8 @@ Builder::Builder(State* state, const BuildConfig& config,
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
-            &config_.depfile_parser_options) {
+            &config_.depfile_parser_options,
+            config.modified_output_is_dirty) {
 }
 
 Builder::~Builder() {
@@ -818,7 +819,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
 
-      output_mtime = restat_mtime;
+      if (restat_mtime > output_mtime)
+        output_mtime = restat_mtime;
     }
   }
 
