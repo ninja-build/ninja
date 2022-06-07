@@ -672,6 +672,7 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
       }
     }
     printf("\n");
+    fflush(stdout);
   }
   return 0;
 }

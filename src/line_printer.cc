@@ -118,6 +118,7 @@ void LinePrinter::Print(string to_print, LineType type) {
     have_blank_line_ = false;
   } else {
     printf("%s\n", to_print.c_str());
+    fflush(stdout);
   }
 }
 
