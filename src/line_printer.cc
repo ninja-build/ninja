@@ -59,7 +59,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #endif
   if (!supports_color_) {
     const char* clicolor_force = getenv("CLICOLOR_FORCE");
-    supports_color_ = clicolor_force && string(clicolor_force) != "0";
+    supports_color_ = clicolor_force && std::string(clicolor_force) != "0";
   }
 }
 
