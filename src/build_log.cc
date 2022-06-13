@@ -149,11 +149,15 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
-    LogEntry* log_entry;
+    LogEntryPtr log_entry;
     if (i != entries_.end()) {
       log_entry = i->second;
     } else {
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+      log_entry = std::make_shared<LogEntry>(path);
+#else
       log_entry = new LogEntry(path);
+#endif
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
     }
     log_entry->command_hash = command_hash;
@@ -330,12 +334,16 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     start = end + 1;
     end = line_end;
 
-    LogEntry* entry;
+    LogEntryPtr entry;
     Entries::iterator i = entries_.find(output);
     if (i != entries_.end()) {
       entry = i->second;
     } else {
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+      entry = std::make_shared<LogEntry>(output);
+#else
       entry = new LogEntry(output);
+#endif
       entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
@@ -374,11 +382,11 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntryPtr BuildLog::LookupByOutput(const string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
     return i->second;
-  return NULL;
+  return NINJA_NULLPTR;
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {

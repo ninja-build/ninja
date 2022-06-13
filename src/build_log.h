@@ -15,6 +15,16 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+#define NINJA_NULLPTR nullptr
+#else
+#define NINJA_NULLPTR NULL
+#endif
+
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+#include <memory>
+#endif
+
 #include <string>
 #include <stdio.h>
 
@@ -76,8 +86,14 @@ struct BuildLog {
              int start_time, int end_time, TimeStamp mtime);
   };
 
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+  typedef std::shared_ptr<LogEntry> LogEntryPtr;
+#else
+  typedef LogEntry* LogEntryPtr;
+#endif
+
   /// Lookup a previously-run command by its output path.
-  LogEntry* LookupByOutput(const std::string& path);
+  LogEntryPtr LookupByOutput(const std::string& path);
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);
@@ -90,7 +106,7 @@ struct BuildLog {
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  typedef ExternalStringHashMap<LogEntryPtr>::Type Entries;
   const Entries& entries() const { return entries_; }
 
  private:
