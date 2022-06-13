@@ -180,6 +180,10 @@ void BuildLog::Close() {
   if (log_file_)
     fclose(log_file_);
   log_file_ = NULL;
+
+  for (Entries::iterator e = entries_.begin(); e != entries_.end(); ++e) {
+    delete e->second; // LogEntry*
+  }
 }
 
 bool BuildLog::OpenForWriteIfNeeded() {
