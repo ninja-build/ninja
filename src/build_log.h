@@ -85,14 +85,12 @@ struct BuildLog {
 
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
   using LogEntryPtr = std::shared_ptr<LogEntry>;
-  using LogEntryPtrRef = LogEntryPtr&;
 #else
   typedef LogEntry* LogEntryPtr;
-  typedef LogEntryPtr LogEntryPtrRef;
 #endif
 
   /// Lookup a previously-run command by its output path.
-  LogEntryPtrRef LookupByOutput(const std::string& path);
+  LogEntryPtr LookupByOutput(const std::string& path);
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);

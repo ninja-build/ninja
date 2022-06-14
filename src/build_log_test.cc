@@ -63,9 +63,9 @@ TEST_F(BuildLogTest, WriteRead) {
 
   ASSERT_EQ(2u, log1.entries().size());
   ASSERT_EQ(2u, log2.entries().size());
-  BuildLog::LogEntryPtrRef e1 = log1.LookupByOutput("out");
+  const BuildLog::LogEntryPtr& e1 = log1.LookupByOutput("out");
   ASSERT_TRUE(e1);
-  BuildLog::LogEntryPtrRef e2 = log2.LookupByOutput("out");
+  const BuildLog::LogEntryPtr& e2 = log2.LookupByOutput("out");
   ASSERT_TRUE(e2);
   ASSERT_TRUE(*e1 == *e2);
   ASSERT_EQ(15, e1->start_time);
@@ -114,7 +114,7 @@ TEST_F(BuildLogTest, DoubleEntry) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  BuildLog::LogEntryPtrRef e = log.LookupByOutput("out");
+  const BuildLog::LogEntryPtr& e = log.LookupByOutput("out");
   ASSERT_TRUE(e);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command def", e->command_hash));
 }
@@ -180,7 +180,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  BuildLog::LogEntryPtrRef e = log.LookupByOutput("out with space");
+  const BuildLog::LogEntryPtr& e = log.LookupByOutput("out with space");
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
@@ -204,19 +204,19 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  BuildLog::LogEntryPtrRef e = log.LookupByOutput("out");
-  ASSERT_TRUE(e);
-  ASSERT_EQ(123, e->start_time);
-  ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(456, e->mtime);
-  ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
+  const BuildLog::LogEntryPtr& e1 = log.LookupByOutput("out");
+  ASSERT_TRUE(e1);
+  ASSERT_EQ(123, e1->start_time);
+  ASSERT_EQ(456, e1->end_time);
+  ASSERT_EQ(456, e1->mtime);
+  ASSERT_NO_FATAL_FAILURE(AssertHash("command", e1->command_hash));
 
-  e = log.LookupByOutput("out2");
-  ASSERT_TRUE(e);
-  ASSERT_EQ(456, e->start_time);
-  ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
-  ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
+  const BuildLog::LogEntryPtr& e2 = log.LookupByOutput("out2");
+  ASSERT_TRUE(e2);
+  ASSERT_EQ(456, e2->start_time);
+  ASSERT_EQ(789, e2->end_time);
+  ASSERT_EQ(789, e2->mtime);
+  ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e2->command_hash));
 }
 
 struct TestDiskInterface : public DiskInterface {
@@ -250,21 +250,21 @@ TEST_F(BuildLogTest, Restat) {
   BuildLog log;
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
-  BuildLog::LogEntryPtrRef e = log.LookupByOutput("out");
-  ASSERT_EQ(3, e->mtime);
+  const BuildLog::LogEntryPtr& e1 = log.LookupByOutput("out");
+  ASSERT_EQ(3, e1->mtime);
 
   TestDiskInterface testDiskInterface;
   char out2[] = { 'o', 'u', 't', '2', 0 };
   char* filter2[] = { out2 };
   EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 1, filter2, &err));
   ASSERT_EQ("", err);
-  e = log.LookupByOutput("out");
-  ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
+  const BuildLog::LogEntryPtr& e2 = log.LookupByOutput("out");
+  ASSERT_EQ(3, e2->mtime); // unchanged, since the filter doesn't match
 
   EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, NULL, &err));
   ASSERT_EQ("", err);
-  e = log.LookupByOutput("out");
-  ASSERT_EQ(4, e->mtime);
+  const BuildLog::LogEntryPtr& e3 = log.LookupByOutput("out");
+  ASSERT_EQ(4, e3->mtime);
 }
 
 TEST_F(BuildLogTest, VeryLongInputLine) {
@@ -284,15 +284,15 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
 
-  BuildLog::LogEntryPtrRef e = log.LookupByOutput("out");
-  ASSERT_EQ(NINJA_NULLPTR, e);
+  const BuildLog::LogEntryPtr& e1 = log.LookupByOutput("out");
+  ASSERT_EQ(NINJA_NULLPTR, e1);
 
-  e = log.LookupByOutput("out2");
-  ASSERT_TRUE(e);
-  ASSERT_EQ(456, e->start_time);
-  ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
-  ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
+  const BuildLog::LogEntryPtr& e2 = log.LookupByOutput("out2");
+  ASSERT_TRUE(e2);
+  ASSERT_EQ(456, e2->start_time);
+  ASSERT_EQ(789, e2->end_time);
+  ASSERT_EQ(789, e2->mtime);
+  ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e2->command_hash));
 }
 
 TEST_F(BuildLogTest, MultiTargetEdge) {
@@ -303,9 +303,9 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
   log.RecordCommand(state_.edges_[0], 21, 22);
 
   ASSERT_EQ(2u, log.entries().size());
-  BuildLog::LogEntryPtrRef e1 = log.LookupByOutput("out");
+  const BuildLog::LogEntryPtr& e1 = log.LookupByOutput("out");
   ASSERT_TRUE(e1);
-  BuildLog::LogEntryPtrRef e2 = log.LookupByOutput("out.d");
+  const BuildLog::LogEntryPtr& e2 = log.LookupByOutput("out.d");
   ASSERT_TRUE(e2);
   ASSERT_EQ("out", e1->output);
   ASSERT_EQ("out.d", e2->output);

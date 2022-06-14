@@ -382,7 +382,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntryPtrRef BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntryPtr BuildLog::LookupByOutput(const string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
     return i->second;
