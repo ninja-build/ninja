@@ -21,10 +21,7 @@
 #define NINJA_NULLPTR NULL
 #endif
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #include <memory>
-#endif
-
 #include <string>
 #include <stdio.h>
 
@@ -87,13 +84,15 @@ struct BuildLog {
   };
 
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-  typedef std::shared_ptr<LogEntry> LogEntryPtr;
+  using LogEntryPtr = std::shared_ptr<LogEntry>;
+  using LogEntryPtrRef = LogEntryPtr&;
 #else
   typedef LogEntry* LogEntryPtr;
+  typedef LogEntryPtr LogEntryPtrRef;
 #endif
 
   /// Lookup a previously-run command by its output path.
-  LogEntryPtr LookupByOutput(const std::string& path);
+  LogEntryPtrRef LookupByOutput(const std::string& path);
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);
