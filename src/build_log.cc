@@ -350,11 +350,11 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
 #endif
     } else {
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-      std::unique_ptr<LogEntry> e(new LogEntry(path));
+      std::unique_ptr<LogEntry> e(new LogEntry(output));
       entry = e.get();
       entries_.emplace(e->output, std::move(e));
 #else
-      entry = new LogEntry(path);
+      entry = new LogEntry(output);
       entries_.insert(Entries::value_type(entry->output, entry));
 #endif
       ++unique_entry_count;
