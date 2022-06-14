@@ -18,7 +18,6 @@
 #include <deque>
 #include <assert.h>
 #include <stdio.h>
-#include <memory>
 
 #include "build_log.h"
 #include "debug_flags.h"
@@ -305,7 +304,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     return true;
   }
 
-  BuildLog::LogEntry* entry = NULL;
+  BuildLog::LogEntry* entry = 0;
 
   // If this is a restat rule, we may have cleaned the output in a
   // previous run and stored the command start time in the build log.
