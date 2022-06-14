@@ -305,7 +305,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     return true;
   }
 
-  BuildLog::LogEntryPtr entry = NINJA_NULLPTR;
+  BuildLog::LogEntry* entry = NINJA_NULLPTR;
 
   // If this is a restat rule, we may have cleaned the output in a
   // previous run and stored the command start time in the build log.

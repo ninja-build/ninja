@@ -149,16 +149,22 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
        out != edge->outputs_.end(); ++out) {
     const string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
-    LogEntryPtr log_entry;
+    LogEntry* log_entry;
     if (i != entries_.end()) {
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+      log_entry = i->second.get();
+#else
       log_entry = i->second;
+#endif
     } else {
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-      log_entry = std::make_shared<LogEntry>(path);
+      std::unique_ptr<LogEntry> e(new LogEntry(path));
+      log_entry = e.get();
+      entries_.emplace(e->output, std::move(e));
 #else
       log_entry = new LogEntry(path);
-#endif
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
+#endif
     }
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
@@ -334,17 +340,23 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     start = end + 1;
     end = line_end;
 
-    LogEntryPtr entry;
+    LogEntry* entry;
     Entries::iterator i = entries_.find(output);
     if (i != entries_.end()) {
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+      entry = i->second.get();
+#else
       entry = i->second;
+#endif
     } else {
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-      entry = std::make_shared<LogEntry>(output);
+      std::unique_ptr<LogEntry> e(new LogEntry(path));
+      entry = e.get();
+      entries_.emplace(e->output, std::move(e));
 #else
-      entry = new LogEntry(output);
-#endif
+      entry = new LogEntry(path);
       entries_.insert(Entries::value_type(entry->output, entry));
+#endif
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -382,10 +394,14 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntryPtr BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+    return i->second.get();
+#else
     return i->second;
+#endif
   return NINJA_NULLPTR;
 }
 

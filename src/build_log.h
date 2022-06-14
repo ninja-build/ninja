@@ -83,14 +83,8 @@ struct BuildLog {
              int start_time, int end_time, TimeStamp mtime);
   };
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-  using LogEntryPtr = std::shared_ptr<LogEntry>;
-#else
-  typedef LogEntry* LogEntryPtr;
-#endif
-
   /// Lookup a previously-run command by its output path.
-  LogEntryPtr LookupByOutput(const std::string& path);
+  LogEntry* LookupByOutput(const std::string& path);
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);
@@ -103,7 +97,11 @@ struct BuildLog {
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntryPtr>::Type Entries;
+  #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+    using Entries = ExternalStringHashMap<std::unique_ptr<LogEntry>>::Type;
+  #else
+    typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  #endif
   const Entries& entries() const { return entries_; }
 
  private:
