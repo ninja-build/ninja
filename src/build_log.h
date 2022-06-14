@@ -15,12 +15,6 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-#define NINJA_NULLPTR nullptr
-#else
-#define NINJA_NULLPTR NULL
-#endif
-
 #include <memory>
 #include <string>
 #include <stdio.h>

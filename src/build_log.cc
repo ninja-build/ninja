@@ -402,7 +402,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
 #else
     return i->second;
 #endif
-  return NINJA_NULLPTR;
+  return NULL;
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
