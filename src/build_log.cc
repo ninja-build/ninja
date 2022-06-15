@@ -160,7 +160,7 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
       std::unique_ptr<LogEntry> e(new LogEntry(path));
       log_entry = e.get();
-      entries_.emplace(e->output, std::move(e));
+      entries_.emplace(log_entry->output, std::move(e));
 #else
       log_entry = new LogEntry(path);
       entries_.insert(Entries::value_type(log_entry->output, log_entry));
@@ -352,7 +352,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
       std::unique_ptr<LogEntry> e(new LogEntry(output));
       entry = e.get();
-      entries_.emplace(e->output, std::move(e));
+      entries_.emplace(entry->output, std::move(e));
 #else
       entry = new LogEntry(output);
       entries_.insert(Entries::value_type(entry->output, entry));
