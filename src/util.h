@@ -51,17 +51,17 @@ NORETURN void Fatal(const char* msg, ...);
 #endif
 
 /// Whether C++11 features are enabled or not.
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
-#  define NINJA_CPP11 true
-#else
-#  define NINJA_CPP11 false
-#endif
+#define NINJA_CPP11 __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
 
+#if defined(__cpp_lib_to_address)
+using std::to_address
+#else
 template <typename T>
 T* to_address(T* ptr) { return ptr; }
-#if NINJA_CPP11
+#  if NINJA_CPP11
 template <typename T>
 decltype(auto) to_address(const std::unique_ptr<T>& ptr) { return ptr.get(); }
+#  endif
 #endif
 
 /// Log a warning message.
