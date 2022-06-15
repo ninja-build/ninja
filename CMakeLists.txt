@@ -6,6 +6,7 @@ include(CheckIPOSupported)
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 
 project(ninja)
+include(GNUInstallDirs)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -51,7 +52,11 @@ else()
 	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
-target_include_directories(libninja-re2c PRIVATE src)
+target_include_directories(libninja-re2c PUBLIC include/ninja)
+add_library(libninja-re2c_static STATIC $<TARGET_OBJECTS:libninja-re2c>)
+set_target_properties(libninja-re2c_static PROPERTIES OUTPUT_NAME libninja-re2c)
+# add_library(libninja-re2c_shared SHARED $<TARGET_OBJECTS:libninja-re2c>)
+# set_target_properties(libninja-re2c_shared PROPERTIES OUTPUT_NAME libninja-re2c)
 
 # --- Check for 'browse' mode support
 function(check_platform_supports_browse_mode RESULT)
@@ -117,6 +122,22 @@ add_library(libninja OBJECT
 	src/util.cc
 	src/version.cc
 )
+target_include_directories(libninja PUBLIC include/ninja)
+add_library(libninja_static STATIC $<TARGET_OBJECTS:libninja>)
+set_target_properties(libninja_static PROPERTIES OUTPUT_NAME libninja)
+# add_library(libninja_shared SHARED $<TARGET_OBJECTS:libninja>)
+# set_target_properties(libninja_shared PROPERTIES OUTPUT_NAME libninja)
+
+set_target_properties(
+	libninja-re2c_static
+	# libninja-re2c_shared
+	libninja_static
+	# libninja_shared
+	PROPERTIES
+		PREFIX ""
+		# POSITION_INDEPENDENT_CODE 1
+)
+
 if(WIN32)
 	target_sources(libninja PRIVATE
 		src/subprocess-win32.cc
@@ -189,55 +210,73 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-  # Tests all build into ninja_test executable.
-  add_executable(ninja_test
-    src/build_log_test.cc
-    src/build_test.cc
-    src/clean_test.cc
-    src/clparser_test.cc
-    src/depfile_parser_test.cc
-    src/deps_log_test.cc
-    src/disk_interface_test.cc
-    src/dyndep_parser_test.cc
-    src/edit_distance_test.cc
-    src/graph_test.cc
-    src/json_test.cc
-    src/lexer_test.cc
-    src/manifest_parser_test.cc
-    src/missing_deps_test.cc
-    src/ninja_test.cc
-    src/state_test.cc
-    src/string_piece_util_test.cc
-    src/subprocess_test.cc
-    src/test.cc
-    src/util_test.cc
-  )
-  if(WIN32)
-    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
-  endif()
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+	# Tests all build into ninja_test executable.
+	add_executable(ninja_test
+		src/build_log_test.cc
+		src/build_test.cc
+		src/clean_test.cc
+		src/clparser_test.cc
+		src/depfile_parser_test.cc
+		src/deps_log_test.cc
+		src/disk_interface_test.cc
+		src/dyndep_parser_test.cc
+		src/edit_distance_test.cc
+		src/graph_test.cc
+		src/json_test.cc
+		src/lexer_test.cc
+		src/manifest_parser_test.cc
+		src/missing_deps_test.cc
+		src/ninja_test.cc
+		src/state_test.cc
+		src/string_piece_util_test.cc
+		src/subprocess_test.cc
+		src/test.cc
+		src/util_test.cc
+	)
+	if(WIN32)
+		target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+	endif()
+	target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
-  foreach(perftest
-    build_log_perftest
-    canon_perftest
-    clparser_perftest
-    depfile_parser_perftest
-    hash_collision_bench
-    manifest_parser_perftest
-  )
-    add_executable(${perftest} src/${perftest}.cc)
-    target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
-  endforeach()
+	foreach(perftest
+		build_log_perftest
+		canon_perftest
+		clparser_perftest
+		depfile_parser_perftest
+		hash_collision_bench
+		manifest_parser_perftest
+	)
+		add_executable(${perftest} src/${perftest}.cc)
+		target_link_libraries(${perftest} PRIVATE libninja libninja-re2c)
+	endforeach()
 
-  if(CMAKE_SYSTEM_NAME STREQUAL "AIX" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-    # These tests require more memory than will fit in the standard AIX shared stack/heap (256M)
-    target_link_options(hash_collision_bench PRIVATE "-Wl,-bmaxdata:0x80000000")
-    target_link_options(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
-  endif()
+	if(CMAKE_SYSTEM_NAME STREQUAL "AIX" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+		# These tests require more memory than will fit in the standard AIX shared stack/heap (256M)
+		target_link_options(hash_collision_bench PRIVATE "-Wl,-bmaxdata:0x80000000")
+		target_link_options(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
+	endif()
 
-  add_test(NAME NinjaTest COMMAND ninja_test)
+	add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
+install(
+	DIRECTORY include/
+	PUBLIC_HEADER
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+	FILES_MATCHING PATTERN "*.h"
+)
+install(
+	TARGETS
+		libninja-re2c_static
+		libninja_static
+		# libninja-re2c_shared
+		# libninja_shared
+	ARCHIVE DESTINATION lib
+	LIBRARY DESTINATION lib
+)
 if(NINJA_BUILD_BINARY)
-	install(TARGETS ninja)
+	install(
+		TARGETS ninja
+		RUNTIME DESTINATION bin
+	)
 endif()
