@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "build_log.h"
-
 #include <algorithm>
+#include <cstdlib>
+#include <ctime>
 
-#include <stdlib.h>
-#include <time.h>
+#include "build_log.h"
 
 using namespace std;
 

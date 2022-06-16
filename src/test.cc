@@ -16,12 +16,11 @@
 #include <direct.h>  // Has to be before util.h is included.
 #endif
 
-#include "test.h"
-
 #include <algorithm>
+#include <cerrno>
+#include <cstdlib>
 
-#include <errno.h>
-#include <stdlib.h>
+#include "test.h"
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>

@@ -16,7 +16,8 @@
 #define NINJA_MAP_H_
 
 #include <algorithm>
-#include <string.h>
+#include <cstring>
+
 #include "string_piece.h"
 #include "util.h"
 

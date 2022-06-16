@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "subprocess.h"
-
-#include <sys/select.h>
-#include <assert.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/wait.h>
 #include <spawn.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <cassert>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+
+#include "subprocess.h"
 
 #if defined(USE_PPOLL)
 #include <poll.h>

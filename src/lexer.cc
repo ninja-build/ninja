@@ -15,7 +15,7 @@
 
 #include "lexer.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "eval_env.h"
 #include "util.h"

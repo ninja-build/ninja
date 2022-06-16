@@ -15,12 +15,11 @@
 // Tests manifest parser performance.  Expects to be run in ninja's root
 // directory.
 
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <numeric>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include "getopt.h"

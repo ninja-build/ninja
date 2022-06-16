@@ -22,7 +22,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <signal.h>
+#include <csignal>
 #endif
 
 // ppoll() exists on FreeBSD, but only on newer versions.

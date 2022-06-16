@@ -15,10 +15,9 @@
 #ifndef NINJA_DEPS_LOG_H_
 #define NINJA_DEPS_LOG_H_
 
+#include <cstdio>
 #include <string>
 #include <vector>
-
-#include <stdio.h>
 
 #include "load_status.h"
 #include "timestamp.h"

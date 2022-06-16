@@ -15,8 +15,8 @@
 #include "clparser.h"
 
 #include <algorithm>
-#include <assert.h>
-#include <string.h>
+#include <cassert>
+#include <cstring>
 
 #include "metrics.h"
 #include "string_piece_util.h"

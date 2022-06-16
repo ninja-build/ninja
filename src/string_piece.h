@@ -15,9 +15,8 @@
 #ifndef NINJA_STRINGPIECE_H_
 #define NINJA_STRINGPIECE_H_
 
+#include <cstring>
 #include <string>
-
-#include <string.h>
 
 /// StringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of std::strings

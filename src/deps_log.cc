@@ -14,10 +14,10 @@
 
 #include "deps_log.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
+#include <cassert>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 #ifndef _WIN32
 #include <unistd.h>
 #elif defined(_MSC_VER) && (_MSC_VER < 1900)

@@ -15,7 +15,7 @@
 #ifndef NINJA_EXPLAIN_H_
 #define NINJA_EXPLAIN_H_
 
-#include <stdio.h>
+#include <cstdio>
 
 #define EXPLAIN(fmt, ...) {                                             \
   if (g_explaining)                                                     \

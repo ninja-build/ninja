@@ -15,8 +15,8 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
+#include <cstdio>
 #include <string>
-#include <stdio.h>
 
 #include "hash_map.h"
 #include "load_status.h"

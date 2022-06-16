@@ -14,8 +14,8 @@
 
 #include "status.h"
 
-#include <stdarg.h>
-#include <stdlib.h>
+#include <cstdarg>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include <fcntl.h>

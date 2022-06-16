@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include "getopt.h"

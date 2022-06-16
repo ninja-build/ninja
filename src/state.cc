@@ -14,8 +14,8 @@
 
 #include "state.h"
 
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 
 #include "edit_distance.h"
 #include "graph.h"

@@ -15,7 +15,7 @@
 #ifndef NINJA_LINE_PRINTER_H_
 #define NINJA_LINE_PRINTER_H_
 
-#include <stddef.h>
+#include <cstddef>
 #include <string>
 
 /// Prints lines of text, possibly overprinting previously printed lines

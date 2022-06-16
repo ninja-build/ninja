@@ -14,8 +14,7 @@
 
 #include "missing_deps.h"
 
-#include <string.h>
-
+#include <cstring>
 #include <iostream>
 
 #include "depfile_parser.h"
