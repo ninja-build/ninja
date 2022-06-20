@@ -532,7 +532,7 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   if (argc == 0) {
     for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
          ni != deps_log_.nodes().end(); ++ni) {
-      if (deps_log_.IsDepsEntryLiveFor(*ni))
+      if (DepsLog::IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
     }
   } else {

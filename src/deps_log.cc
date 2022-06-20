@@ -361,7 +361,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   return true;
 }
 
-bool DepsLog::IsDepsEntryLiveFor(Node* node) {
+bool DepsLog::IsDepsEntryLiveFor(const Node* node) {
   // Skip entries that don't have in-edges or whose edges don't have a
   // "deps" attribute. They were in the deps log from previous builds, but
   // the the files they were for were removed from the build and their deps
