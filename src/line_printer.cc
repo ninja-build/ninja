@@ -35,7 +35,7 @@ using namespace std;
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  smart_terminal_ = isatty(0) && isatty(1) && term && string(term) != "dumb";
 #else
   if (term && string(term) == "dumb") {
     smart_terminal_ = false;
