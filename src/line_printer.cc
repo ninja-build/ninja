@@ -37,8 +37,8 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifndef _WIN32
   smart_terminal_ = isatty(1) && term && string(term) != "dumb";
 #else
-  if (term && string(term) == "dumb") {
-    smart_terminal_ = false;
+  if (term) {
+    smart_terminal_ = string(term) != "dumb";
   } else {
     console_ = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -52,7 +52,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
-  if (supports_color_) {
+  if (supports_color_ && (!term || string(term) == "dumb")) {
     DWORD mode;
     if (GetConsoleMode(console_, &mode)) {
       if (!SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
