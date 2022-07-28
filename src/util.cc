@@ -647,6 +647,8 @@ int ParseCPUFromCGroup() {
       readCount(cpu->second + "/cpu.cfs_period_us");
   if (!period.second)
     return -1;
+  if (period.first == 0)
+    return -1;
   return quota.first / period.first;
 }
 #endif
