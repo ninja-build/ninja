@@ -305,6 +305,8 @@ if platform.is_msvc():
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
+# Note that build settings are separately specified in CMakeLists.txt and
+# these lists should be kept in sync.
 if platform.is_msvc():
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
@@ -320,6 +322,7 @@ if platform.is_msvc():
               # Disable warnings about ignored typedef in DbgHelp.h
               '/wd4091',
               '/GR-',  # Disable RTTI.
+              '/Zc:__cplusplus',
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
@@ -339,6 +342,7 @@ else:
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
+              '-std=c++11',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
