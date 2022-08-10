@@ -174,7 +174,7 @@ struct Edge {
         id_(0), outputs_ready_(false), deps_loaded_(false),
         deps_missing_(false), generated_by_dep_loader_(false),
         command_start_time_(0), implicit_deps_(0), order_only_deps_(0),
-        run_time_ms_(0), critical_time_ms_(-1), implicit_outs_(0) {}
+        critical_path_weight_(-1), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -200,21 +200,13 @@ struct Edge {
   // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
   void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
 
-  // Critical time is the estimated execution time in ms of the edges
-  // forming the longest time-weighted path to the target output.
-  // This quantity is used as a priority during build scheduling.
-  // NOTE: Defaults to -1 as a marker smaller than any valid time
-  int64_t critical_time_ms() const { return critical_time_ms_; }
-  void set_critical_time_ms(int64_t critical_time_ms) {
-    critical_time_ms_ = critical_time_ms;
-  }
-
-  // Run time in ms for this edge's command.
-  // Taken from the build log if present, or estimated otherwise.
-  // Default initialized to 0.
-  int64_t run_time_ms() const { return run_time_ms_; }
-  void set_run_time_ms(int64_t run_time_ms) {
-    run_time_ms_ = run_time_ms;
+  // critical_path_weight is the priority during build scheduling. The
+  // "critical path" between this edge's inputs and any target node is
+  // the path which maximises the sum oof weights along that path.
+  // NOTE: Defaults to -1 as a marker smaller than any valid weight
+  int64_t critical_path_weight() const { return critical_path_weight_; }
+  void set_critical_path_weight(int64_t critical_path_weight) {
+    critical_path_weight_ = critical_path_weight;
   }
 
   const Rule* rule_;
@@ -226,8 +218,7 @@ struct Edge {
   BindingEnv* env_;
   VisitMark mark_;
   size_t id_;
-  int64_t run_time_ms_;
-  int64_t critical_time_ms_;
+  int64_t critical_path_weight_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;
@@ -392,15 +383,15 @@ struct DependencyScan {
 // priority is defined lexicographically first by largest critical
 // time, then lowest ID.
 //
-// Including ID means that wherever the critical times are the same,
-// the edges are executed in ascending ID order which was historically
-// how all tasks were scheduled.
+// Including ID means that wherever the critical path weights are the
+// same, the edges are executed in ascending ID order which was
+// historically how all tasks were scheduled.
 struct EdgePriorityLess {
   bool operator()(const Edge* e1, const Edge* e2) const {
-    const int64_t ct1 = e1->critical_time_ms();
-    const int64_t ct2 = e2->critical_time_ms();
-    if (ct1 != ct2) {
-      return ct1 < ct2;
+    const int64_t cw1 = e1->critical_path_weight();
+    const int64_t cw2 = e2->critical_path_weight();
+    if (cw1 != cw2) {
+      return cw1 < cw2;
     }
     return e1->id_ > e2->id_;
   }
@@ -414,8 +405,8 @@ struct EdgePriorityGreater {
 };
 
 // A priority queue holding non-owning Edge pointers. top() will
-// return the edge with the largest critical time, and lowest ID if
-// more than one edge has the same critical time.
+// return the edge with the largest critical path weight, and lowest
+// ID if more than one edge has the same critical path weight.
 class EdgePriorityQueue:
   public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityLess>{
 public:

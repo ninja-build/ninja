@@ -450,89 +450,16 @@ struct SeenBefore {
   }
 };
 
-// Assign run_time_ms for all wanted edges, and returns total time for all edges
-// For phony edges, 0 cost.
-// For edges with a build history, use the last build time.
-// For edges without history, use the 75th percentile time for edges with history.
-// Or, if there is no history at all just use 1
-int64_t AssignEdgeRuntime(BuildLog* build_log,
-                          const std::map<Edge*, Plan::Want>& want) {
-  bool missing_durations = false;
-  std::vector<int64_t> durations;
-  int64_t total_time = 0;
-  const int64_t kUnknownRunTime = -1; // marker value for the two loops below.
-
-  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
-                                                   end = want.end();
-       it != end; ++it) {
-    Edge* edge = it->first;
-    if (edge->is_phony()) {
-      continue;
-    }
-    BuildLog::LogEntry* entry =
-        build_log->LookupByOutput(edge->outputs_[0]->path());
-    if (!entry) {
-      missing_durations = true;
-      edge->set_run_time_ms(kUnknownRunTime);  // mark as needing filled in
-      continue;
-    }
-    const int64_t duration = entry->end_time - entry->start_time;
-    edge->set_run_time_ms(duration);
-    total_time += duration;
-    durations.push_back(duration);
-  }
-
-  if (!missing_durations) {
-    return total_time;
-  }
-
-  // Heuristic: for unknown edges, take the 75th percentile time.
-  // This allows the known-slowest jobs to run first, but isn't so
-  // small that it is always the lowest priority. Which for slow jobs,
-  // might bottleneck the build.
-  int64_t p75_time = 1;
-  int64_t num_durations = static_cast<int64_t>(durations.size());
-  if (num_durations > 0) {
-    size_t p75_idx = (num_durations - 1) - num_durations / 4;
-    std::vector<int64_t>::iterator p75_it = durations.begin() + p75_idx;
-    std::nth_element(durations.begin(), p75_it, durations.end());
-    p75_time = *p75_it;
-  }
-
-  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
-                                                   end = want.end();
-       it != end; ++it) {
-    Edge* edge = it->first;
-    if (edge->run_time_ms() != kUnknownRunTime) {
-      continue;
-    }
-    edge->set_run_time_ms(p75_time);
-    total_time += p75_time;
-  }
-  return total_time;
-}
-
-int64_t AssignDefaultEdgeRuntime(std::map<Edge*, Plan::Want> &want) {
-  int64_t total_time = 0;
-
-  for (std::map<Edge*, Plan::Want>::const_iterator it = want.begin(),
-           end = want.end();
-       it != end; ++it) {
-    Edge* edge = it->first;
-    if (edge->is_phony()) {
-      continue;
-    }
-
-    edge->set_run_time_ms(1);
-    ++total_time;
-  }
-  return total_time;
+// Heuristic for edge priority weighting.
+// Phony edges are free (0 cost), all other edges are weighted equally.
+int64_t EdgeWeightHeuristic(Edge *edge) {
+  return edge->is_phony() ? 0 : 1;
 }
 
 }  // namespace
 
-void Plan::ComputeCriticalTime(BuildLog* build_log) {
-  METRIC_RECORD("ComputeCriticalTime");
+void Plan::ComputeCriticalPath() {
+  METRIC_RECORD("ComputeCriticalPath");
   // Remove duplicate targets
   {
     std::set<const Node*> seen;
@@ -541,16 +468,8 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
                    targets_.end());
   }
 
-  // total time if building all edges in serial. This value is big
-  // enough to ensure higher priority target's initial critical time
-  // is always bigger than lower ones
-  const int64_t total_time = build_log ?
-      AssignEdgeRuntime(build_log, want_) :
-      AssignDefaultEdgeRuntime(want_);  // Plan tests have no build_log
-
-
-  // Use backflow algorithm to compute critical times for all nodes, starting
-  // from the destination nodes.
+  // Use backflow algorithm to compute the critical path for all
+  // nodes, starting from the destination nodes.
   // XXX: ignores pools
   std::queue<Edge*> work_queue;        // Queue, for breadth-first traversal
   // The set of edges currently in work_queue, to avoid duplicates.
@@ -560,12 +479,9 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   for (size_t i = 0; i < targets_.size(); ++i) {
     const Node* target = targets_[i];
     if (Edge* in = target->in_edge()) {
-      // Add a bias to ensure that targets that appear first in |targets_| have a larger critical time than
-      // those that follow them. E.g. for 3 targets: [2*total_time, total_time, 0].
-      int64_t priority_weight = (targets_.size() - i - 1) * total_time;
-      in->set_critical_time_ms(
-          priority_weight +
-          std::max<int64_t>(in->run_time_ms(), in->critical_time_ms()));
+      int64_t edge_weight = EdgeWeightHeuristic(in);
+      in->set_critical_path_weight(
+          std::max<int64_t>(edge_weight, in->critical_path_weight()));
       if (!seen_edge(in)) {
         work_queue.push(in);
       }
@@ -575,7 +491,7 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
   while (!work_queue.empty()) {
     Edge* e = work_queue.front();
     work_queue.pop();
-    // If the critical time of any dependent edges is updated, this
+    // If the critical path of any dependent edges is updated, this
     // edge may need to be processed again. So re-allow insertion.
     active_edges.erase(e);
 
@@ -586,10 +502,11 @@ void Plan::ComputeCriticalTime(BuildLog* build_log) {
       if (!in) {
         continue;
       }
-      // Only process edge if this node offers a higher critical time
-      const int64_t proposed_time = e->critical_time_ms() + in->run_time_ms();
-      if (proposed_time > in->critical_time_ms()) {
-        in->set_critical_time_ms(proposed_time);
+      // Only process edge if this node offers a higher weighted path
+      const int64_t edge_weight = EdgeWeightHeuristic(in);
+      const int64_t proposed_weight = e->critical_path_weight() + edge_weight;
+      if (proposed_weight > in->critical_path_weight()) {
+        in->set_critical_path_weight(proposed_weight);
         if (!seen_edge(in)) {
           work_queue.push(in);
         }
@@ -629,8 +546,8 @@ void Plan::ScheduleInitialEdges() {
   }
 }
 
-void Plan::PrepareQueue(BuildLog* build_log) {
-  ComputeCriticalTime(build_log);
+void Plan::PrepareQueue() {
+  ComputeCriticalPath();
   ScheduleInitialEdges();
 }
 
@@ -803,7 +720,7 @@ bool Builder::AlreadyUpToDate() const {
 
 bool Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
-  plan_.PrepareQueue(scan_.build_log());
+  plan_.PrepareQueue();
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
   int pending_commands = 0;
