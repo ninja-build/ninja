@@ -69,7 +69,7 @@ class Platform(object):
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
               'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
-              'dragonfly']
+              'dragonfly', 'os400']
 
     def platform(self):
         return self._platform
@@ -100,7 +100,7 @@ class Platform(object):
         return self._platform == 'aix'
 
     def is_os400_pase(self):
-        return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
+        return self._platform == 'os400'
 
     def uses_usr_local(self):
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
@@ -365,7 +365,7 @@ else:
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
         ldflags.append('-L/usr/local/lib')
-    if platform.is_aix():
+    if platform.is_aix() or platform.is_os400_pase():
         # printf formats for int64_t, uint64_t; large file support
         cflags.append('-D__STDC_FORMAT_MACROS')
         cflags.append('-D_LARGE_FILES')
@@ -378,7 +378,7 @@ if platform.is_mingw():
     ldflags.append('-static')
 elif platform.is_solaris():
     cflags.remove('-fvisibility=hidden')
-elif platform.is_aix():
+elif platform.is_aix() or platform.is_os400_pase():
     cflags.remove('-fvisibility=hidden')
 elif platform.is_msvc():
     pass
@@ -443,6 +443,10 @@ elif host.is_mingw():
     n.rule('ar',
            command='$ar crs $out $in',
            description='AR $out')
+elif host.is_os400_pase():
+    n.rule('ar',
+           command='rm -f $out && $ar -X64 crs $out $in',
+           description='AR $out')
 else:
     n.rule('ar',
            command='rm -f $out && $ar crs $out $in',
@@ -452,6 +456,11 @@ n.newline()
 if platform.is_msvc():
     n.rule('link',
         command='$cxx $in $libs /nologo /link $ldflags /out:$out',
+        description='LINK $out')
+elif platform.is_os400_pase():
+    #This is to fix the in-use error when link.
+    n.rule('link',
+        command='rm -f $out &&$cxx $ldflags -o $out $in $libs',
         description='LINK $out')
 else:
     n.rule('link',
@@ -535,7 +544,7 @@ if platform.is_windows():
     objs += cc('getopt')
 else:
     objs += cxx('subprocess-posix')
-if platform.is_aix():
+if platform.is_aix() or platform.is_os400_pase():
     objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
