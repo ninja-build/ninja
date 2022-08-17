@@ -19,7 +19,7 @@ a few additions:
   However, please do not change existing code simply to add `std::` unless your
   contribution already needs to change that line of code anyway.
 * All source files should have the Google Inc. license header.
-* Use `///` for [Doxygen](http://www.doxygen.nl/) (use `\a` to refer to
+* Use `///` for [Doxygen](https://www.doxygen.nl/) (use `\a` to refer to
   arguments).
 * It's not necessary to document each argument, especially when they're
   relatively self-evident (e.g. in

@@ -11,7 +11,7 @@ executables) and orchestrates building them, _quickly_.
 
 Ninja joins a sea of other build systems.  Its distinguishing goal is
 to be fast.  It is born from
-http://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
+https://neugierig.org/software/chromium/notes/2011/02/ninja.html[my
 work on the Chromium browser project], which has over 30,000 source
 files and whose other build systems (including one built from custom
 non-recursive Makefiles) would take ten seconds to start building
@@ -147,7 +147,7 @@ edit-compile cycle time of your project already then Ninja won't help.
 
 There are many other build systems that are more user-friendly or
 featureful than Ninja itself.  For some recommendations: the Ninja
-author found http://gittup.org/tup/[the tup build system] influential
+author found https://gittup.org/tup/[the tup build system] influential
 in Ninja's design, and thinks https://github.com/apenwarr/redo[redo]'s
 design is quite clever.
 
@@ -281,7 +281,7 @@ build file. _Available since Ninja 1.10._
 `compdb`:: given a list of rules, each of which is expected to be a
 C family language compiler rule whose first input is the name of the
 source file, prints on standard output a compilation database in the
-http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
+https://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
 by the Clang tooling interface.
 _Available since Ninja 1.2._
 
@@ -675,7 +675,7 @@ Ninja supports this processing in two forms.
 
 2. `deps = msvc` specifies that the tool outputs header dependencies
    in the form produced by Visual Studio's compiler's
-   http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
+   https://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
    flag].  Briefly, this means the tool outputs specially-formatted lines
    to its stdout.  Ninja then filters these lines from the displayed
    output.  No `depfile` attribute is necessary, but the localized string
@@ -1022,8 +1022,8 @@ source file of a compile command.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
-script that reads a hardcoded file, the hardcoded file should 
-be an implicit dependency, as changes to the file should cause 
+script that reads a hardcoded file, the hardcoded file should
+be an implicit dependency, as changes to the file should cause
 the output to rebuild, even though it doesn't show up in the arguments.
 +
 Note that dependencies as loaded through depfiles have slightly different
