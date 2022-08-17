@@ -14,7 +14,7 @@ pre {
     padding: 1ex;
     background: #eee;
     border: solid 1px #ddd;
-    min-width: 0;
+    min-width: min-content;
     font-size: 90%;
 }
 code {

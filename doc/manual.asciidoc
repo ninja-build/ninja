@@ -533,7 +533,7 @@ To create a rule that never rebuilds, use a build rule without any input:
 rule touch
   command = touch $out
 build file_that_always_exists.dummy: touch
-build dummy_target_to_follow_a_pattern: phony file_that_always_exists.dummy
+build dummy_target: phony file_that_always_exists.dummy
 ----------------
 
 
@@ -736,8 +736,8 @@ rule cc
 build foo.exe: link input.obj
 
 # A build statement can be exempted from its rule's pool by setting an
-# empty pool. This effectively puts the build statement back into the default
-# pool, which has infinite depth.
+# empty pool. This effectively puts the build statement back into the
+# default pool, which has infinite depth.
 build other.exe: link input.obj
   pool =
 
