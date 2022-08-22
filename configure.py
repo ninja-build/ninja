@@ -493,16 +493,27 @@ else:
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
-n.comment('Core source files all build into ninja library.')
 cxxvariables = []
 if platform.is_msvc():
     cxxvariables = [('pdb', 'ninja.pdb')]
+
+n.comment('Generate a library for `ninja-re2c`.')
+re2c_objs = []
+for name in ['depfile_parser', 'lexer']:
+    re2c_objs += cxx(name, variables=cxxvariables)
+if platform.is_msvc():
+    n.build(built('ninja-re2c.lib'), 'ar', re2c_objs)
+else:
+    n.build(built('libninja-re2c.a'), 'ar', re2c_objs)
+n.newline()
+
+n.comment('Core source files all build into ninja library.')
+objs.extend(re2c_objs)
 for name in ['build',
              'build_log',
              'clean',
              'clparser',
              'debug_flags',
-             'depfile_parser',
              'deps_log',
              'disk_interface',
              'dyndep',
@@ -512,7 +523,6 @@ for name in ['build',
              'graph',
              'graphviz',
              'json',
-             'lexer',
              'line_printer',
              'manifest_parser',
              'metrics',
