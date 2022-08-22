@@ -312,6 +312,8 @@ def search_system_path(file_name):
     if os.path.exists(path):
       return path
 
+# Note that build settings are separately specified in CMakeLists.txt and
+# these lists should be kept in sync.
 if platform.is_msvc():
     if not search_system_path('cl.exe'):
         raise Exception('cl.exe not found. Run again from the Developer Command Prompt for VS')
@@ -329,6 +331,7 @@ if platform.is_msvc():
               # Disable warnings about ignored typedef in DbgHelp.h
               '/wd4091',
               '/GR-',  # Disable RTTI.
+              '/Zc:__cplusplus',
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
@@ -348,6 +351,7 @@ else:
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
+              '-std=c++11',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
@@ -498,16 +502,27 @@ else:
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
-n.comment('Core source files all build into ninja library.')
 cxxvariables = []
 if platform.is_msvc():
     cxxvariables = [('pdb', 'ninja.pdb')]
+
+n.comment('Generate a library for `ninja-re2c`.')
+re2c_objs = []
+for name in ['depfile_parser', 'lexer']:
+    re2c_objs += cxx(name, variables=cxxvariables)
+if platform.is_msvc():
+    n.build(built('ninja-re2c.lib'), 'ar', re2c_objs)
+else:
+    n.build(built('libninja-re2c.a'), 'ar', re2c_objs)
+n.newline()
+
+n.comment('Core source files all build into ninja library.')
+objs.extend(re2c_objs)
 for name in ['build',
              'build_log',
              'clean',
              'clparser',
              'debug_flags',
-             'depfile_parser',
              'deps_log',
              'disk_interface',
              'dyndep',
@@ -517,7 +532,6 @@ for name in ['build',
              'graph',
              'graphviz',
              'json',
-             'lexer',
              'line_printer',
              'manifest_parser',
              'metrics',
