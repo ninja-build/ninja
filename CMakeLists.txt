@@ -5,7 +5,7 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 
-project(ninja)
+project(ninja CXX)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -128,10 +128,18 @@ if(WIN32)
 		src/getopt.c
 		src/minidump-win32.cc
 	)
+	# Build getopt.c, which can be compiled as either C or C++, as C++
+	# so that build environments which lack a C compiler, but have a C++
+	# compiler may build ninja.
+	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
+		# Build getopt.c, which can be compiled as either C or C++, as C++
+		# so that build environments which lack a C compiler, but have a C++
+		# compiler may build ninja.
+		set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 	endif()
 
 	# Needed for perfstat_cpu_total
