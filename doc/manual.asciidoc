@@ -1,6 +1,6 @@
 The Ninja build system
 ======================
-v1.11.0, Nov 2020
+v1.11.1, Aug 2022
 
 
 Introduction
