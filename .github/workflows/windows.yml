@@ -14,6 +14,7 @@ jobs:
         image: [windows-2019, windows-2022]
         config: [Release, Debug]
         compiler: [msvc, clangcl]
+        arch: [x64, ARM64]
 
     runs-on: ${{ matrix.image }}
 
@@ -35,18 +36,19 @@ jobs:
         CFLAGS:   ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
         CXXLAGS:  ${{ matrix.config == 'Debug' && '/fsanitize=address' || '' }}
       run: |
-        cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake -B build -A ${{ matrix.arch }} -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
     - name: Configure (ClangCL)
       if: ${{ matrix.compiler == 'clangcl' }}
       run: |
-        cmake -B build -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -TClangCL -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake -B build -A ${{ matrix.arch }} -TClangCL -DCMAKE_CONFIGURATION_TYPES=${{ matrix.config }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
     - name: Build
       run: |
         cmake --build build --parallel --config ${{ matrix.config }}
 
     - name: Test
+      if: ${{ matrix.arch == 'X64' }} # Can't test ARM64 on a x86_64 machine.
       working-directory: build
       run: |
         ctest --schedule-random --progress --output-on-failure --parallel --no-tests error --build-config ${{ matrix.config }}
