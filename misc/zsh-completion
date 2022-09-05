@@ -68,7 +68,8 @@ _arguments \
   '-l+[Do not start new jobs if the load average is greater than N]:number of jobs' \
   '-k+[Keep going until N jobs fail (default=1)]:number of jobs' \
   '-n[Dry run (do not run commands but act like they succeeded)]' \
-  '(-v --verbose)'{-v,--verbose}'[Show all command lines while building]' \
+  '(-v --verbose --quiet)'{-v,--verbose}'[Show all command lines while building]' \
+  "(-v --verbose --quiet)--quiet[Don't show progress status, just command output]" \
   '-d+[Enable debugging (use -d list to list modes)]:modes:_ninja-modes' \
   '-t+[Run a subtool (use -t list to list subtools)]:tools:_ninja-tools' \
   '*::targets:_ninja-targets'
