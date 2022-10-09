@@ -18,6 +18,8 @@
 #include <deque>
 #include <assert.h>
 #include <stdio.h>
+#include <utility>
+#include <unordered_map>
 
 #include "build_log.h"
 #include "debug_flags.h"
@@ -384,7 +386,7 @@ struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
   EdgeEnv(const Edge* const edge, const EscapeKind escape)
-      : edge_(edge), escape_in_out_(escape), recursive_(false) {}
+      : edge_(edge), escape_in_out_(escape), recursive_(0) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
@@ -392,10 +394,10 @@ struct EdgeEnv : public Env {
   std::string MakePathList(const Node* const* span, size_t size, char sep) const;
 
  private:
-  vector<string> lookups_;
+  unordered_map<string, int> lookups_;
   const Edge* const edge_;
   EscapeKind escape_in_out_;
-  bool recursive_;
+  int recursive_;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {
@@ -409,12 +411,11 @@ string EdgeEnv::LookupVariable(const string& var) {
     return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
   }
 
-  if (recursive_) {
-    vector<string>::const_iterator it;
-    if ((it = find(lookups_.begin(), lookups_.end(), var)) != lookups_.end()) {
+  if (recursive_ != 0 ) {
+    unordered_map<string, int>::iterator it = lookups_.find(var);
+    if (it != lookups_.end() && it->second != recursive_) {
       string cycle;
-      for (; it != lookups_.end(); ++it)
-        cycle.append(*it + " -> ");
+      cycle.append(it->first + " -> ");
       cycle.append(var);
       Fatal(("cycle in rule variables: " + cycle).c_str());
     }
@@ -422,13 +423,19 @@ string EdgeEnv::LookupVariable(const string& var) {
 
   // See notes on BindingEnv::LookupWithFallback.
   const EvalString* eval = edge_->rule_->GetBinding(var);
-  if (recursive_ && eval)
-    lookups_.push_back(var);
+  if (recursive_ != 0 && eval) {
+    unordered_map<string, int>::iterator it = lookups_.find(var);
+    if (it == lookups_.end()) {
+      lookups_.insert(make_pair(var, recursive_));
+    }
+  }
 
   // In practice, variables defined on rules never use another rule variable.
   // For performance, only start checking for cycles after the first lookup.
-  recursive_ = true;
-  return edge_->env_->LookupWithFallback(var, eval, this);
+  recursive_++;
+  string val = edge_->env_->LookupWithFallback(var, eval, this);
+  recursive_--;
+  return val;
 }
 
 std::string EdgeEnv::MakePathList(const Node* const* const span,
