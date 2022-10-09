@@ -195,8 +195,13 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   DirCache::iterator di = ci->second.find(base);
   return di != ci->second.end() ? di->second : 0;
 #else
+#ifdef __USE_LARGEFILE64
+  struct stat64 st;
+  if (stat64(path.c_str(), &st) < 0) {
+#else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
+#endif
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
     *err = "stat(" + path + "): " + strerror(errno);
