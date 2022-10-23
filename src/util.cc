@@ -369,8 +369,13 @@ int ReadFile(const string& path, string* contents, string* err) {
     return -errno;
   }
 
+#ifdef __USE_LARGEFILE64
+  struct stat64 st;
+  if (fstat64(fileno(f), &st) < 0) {
+#else
   struct stat st;
   if (fstat(fileno(f), &st) < 0) {
+#endif
     err->assign(strerror(errno));
     fclose(f);
     return -errno;

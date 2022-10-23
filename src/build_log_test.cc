@@ -133,9 +133,13 @@ TEST_F(BuildLogTest, Truncate) {
     log1.RecordCommand(state_.edges_[1], 20, 25);
     log1.Close();
   }
-
+#ifdef __USE_LARGEFILE64
+  struct stat64 statbuf;
+  ASSERT_EQ(0, stat64(kTestFilename, &statbuf));
+#else
   struct stat statbuf;
   ASSERT_EQ(0, stat(kTestFilename, &statbuf));
+#endif
   ASSERT_GT(statbuf.st_size, 0);
 
   // For all possible truncations of the input file, assert that we don't
