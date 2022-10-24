@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.15)
 include(CheckSymbolExists)
 include(CheckIPOSupported)
 
-project(ninja)
+option(NINJA_BUILD_BINARY "Build ninja binary" ON)
+
+project(ninja CXX)
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -126,10 +128,18 @@ if(WIN32)
 		src/getopt.c
 		src/minidump-win32.cc
 	)
+	# Build getopt.c, which can be compiled as either C or C++, as C++
+	# so that build environments which lack a C compiler, but have a C++
+	# compiler may build ninja.
+	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
+		# Build getopt.c, which can be compiled as either C or C++, as C++
+		# so that build environments which lack a C compiler, but have a C++
+		# compiler may build ninja.
+		set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 	endif()
 
 	# Needed for perfstat_cpu_total
@@ -152,11 +162,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 endif()
 
 # Main executable is library plus main() function.
-add_executable(ninja src/ninja.cc)
-target_link_libraries(ninja PRIVATE libninja libninja-re2c)
+if(NINJA_BUILD_BINARY)
+	add_executable(ninja src/ninja.cc)
+	target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
-if(WIN32)
-  target_sources(ninja PRIVATE windows/ninja.manifest)
+	if(WIN32)
+		target_sources(ninja PRIVATE windows/ninja.manifest)
+	endif()
 endif()
 
 # Adds browse mode into the ninja binary if it's supported by the host platform.
@@ -175,8 +187,10 @@ if(platform_supports_ninja_browse)
 		VERBATIM
 	)
 
-	target_compile_definitions(ninja PRIVATE NINJA_HAVE_BROWSE)
-	target_sources(ninja PRIVATE src/browse.cc)
+	if(NINJA_BUILD_BINARY)
+		target_compile_definitions(ninja PRIVATE NINJA_HAVE_BROWSE)
+		target_sources(ninja PRIVATE src/browse.cc)
+	endif()
 	set_source_files_properties(src/browse.cc
 		PROPERTIES
 			OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/build/browse_py.h"
@@ -236,4 +250,6 @@ if(BUILD_TESTING)
   add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
-install(TARGETS ninja DESTINATION bin)
+if(NINJA_BUILD_BINARY)
+	install(TARGETS ninja)
+endif()

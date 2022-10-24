@@ -305,9 +305,18 @@ if platform.is_msvc():
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
+def search_system_path(file_name):
+  """Find a file in the system path."""
+  for dir in os.environ['path'].split(';'):
+    path = os.path.join(dir, file_name)
+    if os.path.exists(path):
+      return path
+
 # Note that build settings are separately specified in CMakeLists.txt and
 # these lists should be kept in sync.
 if platform.is_msvc():
+    if not search_system_path('cl.exe'):
+        raise Exception('cl.exe not found. Run again from the Developer Command Prompt for VS')
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
               '/Zi',  # Create pdb with debug info.
@@ -478,7 +487,7 @@ n.comment('the depfile parser and ninja lexers are generated using re2c.')
 def has_re2c():
     try:
         proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
-        return int(proc.communicate()[0], 10) >= 1103
+        return int(proc.communicate()[0], 10) >= 1503
     except OSError:
         return False
 if has_re2c():
@@ -489,20 +498,31 @@ if has_re2c():
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
-    print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
+    print("warning: A compatible version of re2c (>= 0.15.3) was not found; "
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
 
-n.comment('Core source files all build into ninja library.')
 cxxvariables = []
 if platform.is_msvc():
     cxxvariables = [('pdb', 'ninja.pdb')]
+
+n.comment('Generate a library for `ninja-re2c`.')
+re2c_objs = []
+for name in ['depfile_parser', 'lexer']:
+    re2c_objs += cxx(name, variables=cxxvariables)
+if platform.is_msvc():
+    n.build(built('ninja-re2c.lib'), 'ar', re2c_objs)
+else:
+    n.build(built('libninja-re2c.a'), 'ar', re2c_objs)
+n.newline()
+
+n.comment('Core source files all build into ninja library.')
+objs.extend(re2c_objs)
 for name in ['build',
              'build_log',
              'clean',
              'clparser',
              'debug_flags',
-             'depfile_parser',
              'deps_log',
              'disk_interface',
              'dyndep',
@@ -512,7 +532,6 @@ for name in ['build',
              'graph',
              'graphviz',
              'json',
-             'lexer',
              'line_printer',
              'manifest_parser',
              'metrics',
