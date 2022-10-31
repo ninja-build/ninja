@@ -54,3 +54,43 @@ jobs:
         asset_path: ./artifact/ninja-win.zip
         asset_name: ninja-win.zip
         asset_content_type: application/zip
+
+  build-arm64:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: choco install re2c
+
+    - name: Build ninja
+      shell: bash
+      run: |
+        cmake -Bbuild -A arm64
+        cmake --build build --parallel --config Debug
+        cmake --build build --parallel --config Release
+
+    - name: Create ninja archive
+      shell: bash
+      run: |
+        mkdir artifact
+        7z a artifact/ninja-winarm64.zip ./build/Release/ninja.exe
+
+    # Upload ninja binary archive as an artifact
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: ninja-binary-archives
+        path: artifact
+
+    - name: Upload release asset
+      if: github.event.action == 'published'
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifact/ninja-winarm64.zip
+        asset_name: ninja-winarm64.zip
+        asset_content_type: application/zip
