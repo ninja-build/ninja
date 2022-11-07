@@ -22,6 +22,8 @@
 #else
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #endif
 
 #include <stdio.h>
@@ -47,6 +49,8 @@ static char _env_buffer[MAX_PATH + 1];
 #define ENVIRONMENT_INIT(v) setenv("MAKEFLAGS", v, true)
 
 #define ENVIRONMENT_GET()   getenv("MAKEFLAGS")
+
+#define FIFO_NAME "ninja-test-tokenpool-fifo"
 #endif
 
 namespace {
@@ -76,9 +80,22 @@ struct TokenPoolTest : public testing::Test {
     semaphore_name_ = SEMAPHORE_NAME;
     if ((semaphore_ = CreateSemaphore(0, 0, 2, SEMAPHORE_NAME)) == NULL)
 #else
+    if (mkfifo(FIFO_NAME, 0600) < 0) {
+      ASSERT_TRUE(false);
+    }
+
     if (pipe(fds_) < 0)
 #endif
       ASSERT_TRUE(false);
+  }
+
+  void GetPool(bool ignore_jobserver) {
+    if ((tokens_ = TokenPool::Get()) != NULL) {
+      if (!tokens_->SetupClient(ignore_jobserver, false, load_avg_)) {
+        delete tokens_;
+        tokens_ = NULL;
+      }
+    }
   }
 
   void CreatePool(const char* format, bool ignore_jobserver = false) {
@@ -92,17 +109,29 @@ struct TokenPoolTest : public testing::Test {
       );
       ENVIRONMENT_INIT(buf_);
     }
-    if ((tokens_ = TokenPool::Get()) != NULL) {
-      if (!tokens_->SetupClient(ignore_jobserver, false, load_avg_)) {
-        delete tokens_;
-        tokens_ = NULL;
-      }
-    }
+    GetPool(ignore_jobserver);
   }
 
   void CreateDefaultPool() {
     CreatePool(AUTH_FORMAT("--jobserver-auth"));
   }
+
+#ifndef _WIN32
+  void CreateFifoPool() {
+    // close simple pipe fds...
+    close(fds_[0]);
+    close(fds_[1]);
+
+    // ... and open named pipe instead
+    if ((fds_[0] = open(FIFO_NAME, O_RDONLY|O_NONBLOCK)) < 0)
+      ASSERT_TRUE(false);
+    if ((fds_[1] = open(FIFO_NAME, O_WRONLY)) < 0)
+      ASSERT_TRUE(false);
+
+    ENVIRONMENT_INIT("foo --jobserver-auth=fifo:" FIFO_NAME " bar");
+    GetPool(false);
+  }
+#endif
 
   void CreateMaster(int parallelism) {
     if ((tokens_ = TokenPool::Get()) != NULL) {
@@ -157,6 +186,7 @@ struct TokenPoolTest : public testing::Test {
 #else
     close(fds_[0]);
     close(fds_[1]);
+    unlink(FIFO_NAME);
 #endif
     ENVIRONMENT_CLEAR();
   }
@@ -228,6 +258,15 @@ TEST_F(TokenPoolTest, MonitorFD) {
 
   EXPECT_EQ(fds_[0], tokens_->GetMonitorFd());
 }
+
+TEST_F(TokenPoolTest, MonitorFDFifo) {
+  CreateFifoPool();
+
+  ASSERT_NE(NULL, tokens_);
+  EXPECT_EQ(kLoadAverageDefault, load_avg_);
+
+  EXPECT_NE(-1, tokens_->GetMonitorFd());
+}
 #endif
 
 TEST_F(TokenPoolTest, ImplicitToken) {
@@ -288,6 +327,42 @@ TEST_F(TokenPoolTest, TwoTokens) {
   // implicit token
   EXPECT_TRUE(tokens_->Acquire());
 }
+
+#ifndef _WIN32
+TEST_F(TokenPoolTest, TwoTokensFifo) {
+  CreateFifoPool();
+
+  ASSERT_NE(NULL, tokens_);
+  EXPECT_EQ(kLoadAverageDefault, load_avg_);
+
+  // implicit token
+  EXPECT_TRUE(tokens_->Acquire());
+  tokens_->Reserve();
+  EXPECT_FALSE(tokens_->Acquire());
+
+  // jobserver offers 2nd token
+  char test_tokens[1] = { random() };
+  ASSERT_EQ(1u, write(fds_[1], test_tokens, sizeof(test_tokens)));
+  EXPECT_TRUE(tokens_->Acquire());
+  tokens_->Reserve();
+  EXPECT_FALSE(tokens_->Acquire());
+
+  // release 2nd token
+  tokens_->Release();
+  EXPECT_TRUE(tokens_->Acquire());
+
+  // release implicit token - must return 2nd token back to jobserver
+  tokens_->Release();
+  EXPECT_TRUE(tokens_->Acquire());
+
+  // there must be one token available
+  EXPECT_EQ(1u, read(fds_[0], buf_, sizeof(buf_)));
+  EXPECT_EQ(test_tokens[0], buf_[0]);
+
+  // implicit token
+  EXPECT_TRUE(tokens_->Acquire());
+}
+#endif
 
 TEST_F(TokenPoolTest, Clear) {
   CreateDefaultPool();

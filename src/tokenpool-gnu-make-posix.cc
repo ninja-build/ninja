@@ -45,6 +45,7 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
  private:
   int rfd_;
   int wfd_;
+  bool closeFds_;
 
   struct sigaction old_act_;
   bool restore_;
@@ -63,14 +64,19 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
   static void CloseDupRfd(int signum);
 
   bool CheckFd(int fd);
+  bool CheckFifo(const char* fifo);
   bool SetAlarmHandler();
 };
 
-GNUmakeTokenPoolPosix::GNUmakeTokenPoolPosix() : rfd_(-1), wfd_(-1), restore_(false) {
+GNUmakeTokenPoolPosix::GNUmakeTokenPoolPosix() : rfd_(-1), wfd_(-1), closeFds_(false), restore_(false) {
 }
 
 GNUmakeTokenPoolPosix::~GNUmakeTokenPoolPosix() {
   Clear();
+  if (closeFds_) {
+    close(wfd_);
+    close(rfd_);
+  }
   if (restore_)
     sigaction(SIGALRM, &old_act_, NULL);
 }
@@ -80,6 +86,36 @@ bool GNUmakeTokenPoolPosix::CheckFd(int fd) {
     return false;
   int ret = fcntl(fd, F_GETFD);
   return ret >= 0;
+}
+
+bool GNUmakeTokenPoolPosix::CheckFifo(const char* fifo) {
+  // remove possible junk from end of fifo name
+  char *filename = strdup(fifo);
+  char *end;
+  if ((end = strchr(filename, ' ')) != NULL) {
+    *end = '\0';
+  }
+
+  int rfd = open(filename, O_RDONLY);
+  if (rfd < 0) {
+    free(filename);
+    return false;
+  }
+
+  int wfd = open(filename, O_WRONLY);
+  if (wfd < 0) {
+    close(rfd);
+    free(filename);
+    return false;
+  }
+
+  free(filename);
+
+  rfd_ = rfd;
+  wfd_ = wfd;
+  closeFds_ = true;
+
+  return true;
 }
 
 int GNUmakeTokenPoolPosix::dup_rfd_ = -1;
@@ -102,6 +138,13 @@ bool GNUmakeTokenPoolPosix::SetAlarmHandler() {
 }
 
 bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
+  // check for jobserver-fifo style
+  const char* fifo;
+  if (((fifo = strstr(jobserver, "=fifo:")) != NULL) &&
+      CheckFifo(fifo + 6))
+    return SetAlarmHandler();
+
+  // check for legacy simple pipe style
   int rfd = -1;
   int wfd = -1;
   if ((sscanf(jobserver, "%*[^=]=%d,%d", &rfd, &wfd) == 2) &&
@@ -113,6 +156,7 @@ bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
     return true;
   }
 
+  // some jobserver style we don't support
   return false;
 }
 
