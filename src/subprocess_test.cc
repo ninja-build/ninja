@@ -150,7 +150,8 @@ TEST_F(SubprocessTest, Console) {
   // Skip test if we don't have the console ourselves.
   if (isatty(0) && isatty(1) && isatty(2)) {
     Subprocess* subproc =
-        subprocs_.Add("test -t 0 -a -t 1 -a -t 2", /*use_console=*/true);
+        subprocs_.Add("test -t 0 -a -t 1 -a -t 2", /*priority=*/INT_MIN,
+                      /*use_console=*/true);
     ASSERT_NE((Subprocess*)0, subproc);
 
     while (!subproc->Done()) {
@@ -159,6 +160,20 @@ TEST_F(SubprocessTest, Console) {
 
     EXPECT_EQ(ExitSuccess, subproc->Finish());
   }
+}
+
+TEST_F(SubprocessTest, Priority) {
+  // Field 19 of the stat file is the nice level according to:
+  // https://www.kernel.org/doc/html/latest/filesystems/proc.html
+  Subprocess* subproc =
+      subprocs_.Add("cat /proc/self/stat | cut -d' ' -f19", /*priority=*/10);
+  ASSERT_NE((Subprocess*)0, subproc);
+
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+
+  EXPECT_EQ("10\n", subproc->GetOutput());
 }
 
 #endif

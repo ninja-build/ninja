@@ -606,7 +606,8 @@ size_t RealCommandRunner::CanRunMore() const {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command, edge->use_console());
+  Subprocess* subproc =
+      subprocs_.Add(command, config_.subprocess_priority, edge->use_console());
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));

@@ -214,29 +214,41 @@ struct Tool {
 
 /// Print usage information.
 void Usage(const BuildConfig& config) {
-  fprintf(stderr,
-"usage: ninja [options] [targets...]\n"
-"\n"
-"if targets are unspecified, builds the 'default' target (see manual).\n"
-"\n"
-"options:\n"
-"  --version      print ninja version (\"%s\")\n"
-"  -v, --verbose  show all command lines while building\n"
-"  --quiet        don't show progress status, just command output\n"
-"\n"
-"  -C DIR   change to DIR before doing anything else\n"
-"  -f FILE  specify input build file [default=build.ninja]\n"
-"\n"
-"  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
-"  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
-"  -l N     do not start new jobs if the load average is greater than N\n"
-"  -n       dry run (don't run commands but act like they succeeded)\n"
-"\n"
-"  -d MODE  enable debugging (use '-d list' to list modes)\n"
-"  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
-"    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
-          kNinjaVersion, config.parallelism);
+  fprintf(
+      stderr,
+      "usage: ninja [options] [targets...]\n"
+      "\n"
+      "if targets are unspecified, builds the 'default' target (see manual).\n"
+      "\n"
+      "options:\n"
+      "  --version      print ninja version (\"%s\")\n"
+      "  -v, --verbose  show all command lines while building\n"
+      "  --quiet        don't show progress status, just command output\n"
+      "\n"
+      "  -C DIR         change to DIR before doing anything else\n"
+      "  -f FILE        specify input build file [default=build.ninja]\n"
+      "\n"
+      "  -j N           run N jobs in parallel (0 means infinity) [default=%d "
+      "on this system]\n"
+      "  -k N           keep going until N jobs fail (0 means infinity) "
+      "[default=1]\n"
+      "  -l N           do not start new jobs if the load average is greater "
+      "than N\n"
+      "  -n             dry run (don't run commands but act like they "
+      "succeeded)\n"
+      "  -p PRIORITY    set the priority/niceness of spawned processes\n"
+      "                 the range of possible values is platform dependent:\n"
+      "                 - POSIX: In -20..19 range, and -20..20 on some "
+      "systems, see 'man setpriority'n"
+      "                 - Windows: between -20 (highest priority) and 20 "
+      "(lowest priority)\n"
+      "\n"
+      "  -d MODE        enable debugging (use '-d list' to list modes)\n"
+      "  -t TOOL        run a subtool (use '-t list' to list subtools)\n"
+      "                 terminates toplevel options; further flags are passed "
+      "to the tool\n"
+      "  -w FLAG        adjust warnings (use '-w list' to list warnings)\n",
+      kNinjaVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -1447,7 +1459,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:p:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1492,6 +1504,15 @@ int ReadFlags(int* argc, char*** argv,
       case 'n':
         config->dry_run = true;
         break;
+      case 'p': {
+        char* end;
+        int value = strtol(optarg, &end, 10);
+        if (*end != 0)
+          Fatal("-p parameter not numeric: did you mean -p 0?");
+
+        config->subprocess_priority = value;
+        break;
+      }
       case 't':
         options->tool = ChooseTool(optarg);
         if (!options->tool)

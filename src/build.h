@@ -15,6 +15,7 @@
 #ifndef NINJA_BUILD_H_
 #define NINJA_BUILD_H_
 
+#include <climits>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -22,8 +23,8 @@
 #include <vector>
 
 #include "depfile_parser.h"
-#include "graph.h"
 #include "exit_status.h"
+#include "graph.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -165,8 +166,9 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  failures_allowed(1), max_load_average(-0.0f) {}
+  BuildConfig()
+      : verbosity(NORMAL), dry_run(false), parallelism(1), failures_allowed(1),
+        subprocess_priority(INT_MIN), max_load_average(-0.0f) {}
 
   enum Verbosity {
     QUIET,  // No output -- used when testing.
@@ -178,6 +180,7 @@ struct BuildConfig {
   bool dry_run;
   int parallelism;
   int failures_allowed;
+  int subprocess_priority;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
   double max_load_average;
