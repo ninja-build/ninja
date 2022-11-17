@@ -23,6 +23,9 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <limits.h>
 
 #if defined(USE_PPOLL)
 #include <poll.h>
@@ -48,7 +51,8 @@ Subprocess::~Subprocess() {
     Finish();
 }
 
-bool Subprocess::Start(SubprocessSet* set, const string& command) {
+bool Subprocess::Start(SubprocessSet* set, const string& command,
+                       int priority) {
   int output_pipe[2];
   if (pipe(output_pipe) < 0)
     Fatal("pipe: %s", strerror(errno));
@@ -122,6 +126,12 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
         const_cast<char**>(spawned_args), environ);
   if (err != 0)
     Fatal("posix_spawn: %s", strerror(err));
+
+  if(priority != INT_MIN) {
+    err = setpriority(PRIO_PROCESS, pid_, priority);
+    if(err != 0)
+      Fatal("setpriority: %s", strerror(errno));
+  }
 
   err = posix_spawnattr_destroy(&attr);
   if (err != 0)
@@ -238,9 +248,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
+Subprocess *SubprocessSet::Add(const string& command, int priority, bool use_console) {
   Subprocess *subprocess = new Subprocess(use_console);
-  if (!subprocess->Start(this, command)) {
+  if (!subprocess->Start(this, command, priority)) {
     delete subprocess;
     return 0;
   }
