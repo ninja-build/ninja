@@ -445,5 +445,10 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
+  for (std::string& included_file : subparser.included_files_)
+  {
+    included_files_.push_back(std::move(included_file));
+  }
+
   return true;
 }
