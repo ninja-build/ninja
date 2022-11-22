@@ -26,9 +26,9 @@
 using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
-                               ManifestParserOptions options)
+                               ManifestParserOptions options, const std::vector<std::string>& included_files)
     : Parser(state, file_reader),
-      options_(options), quiet_(false) {
+      options_(options), quiet_(false), included_files_(included_files) {
   env_ = &state->bindings_;
 }
 
@@ -427,7 +427,12 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
+  if (std::find(included_files_.cbegin(), included_files_.cend(), path) != included_files_.cend())
+    return true;
+
+  included_files_.push_back(path);
+
+  ManifestParser subparser(state_, file_reader_, options_, included_files_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {
