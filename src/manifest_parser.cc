@@ -447,7 +447,10 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
   for (std::string& included_file : subparser.included_files_)
   {
-    included_files_.push_back(std::move(included_file));
+    if (std::find(included_files_.cbegin(), included_files_.cend(), included_file) == included_files_.cend())
+    {
+      included_files_.push_back(std::move(included_file));
+    }
   }
 
   return true;
