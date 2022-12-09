@@ -65,6 +65,17 @@ TEST_F(DiskInterfaceTest, StatMissingFile) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(DiskInterfaceTest, StatMissingFileWithCache) {
+  disk_.AllowStatCache(true);
+  string err;
+
+  // On Windows, the errno for FindFirstFileExA, which is used when the stat
+  // cache is enabled, is different when the directory name is not a directory.
+  ASSERT_TRUE(Touch("notadir"));
+  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ("", err);
+}
+
 TEST_F(DiskInterfaceTest, StatBadPath) {
   string err;
 #ifdef _WIN32
