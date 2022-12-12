@@ -90,12 +90,7 @@ function(check_platform_supports_browse_mode RESULT)
 
 endfunction()
 
-option(USE_PYTHON3 "Use python3 command to run browse.py" OFF)
-if(USE_PYTHON3)
-    set(NINJA_PYTHON python3)
-else()
-    set(NINJA_PYTHON python)
-endif()
+set(NINJA_PYTHON "python" CACHE STRING "Python interpreter to use for the browse tool")
 
 check_platform_supports_browse_mode(platform_supports_ninja_browse)
 
