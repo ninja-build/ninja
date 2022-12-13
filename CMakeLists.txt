@@ -90,6 +90,8 @@ function(check_platform_supports_browse_mode RESULT)
 
 endfunction()
 
+set(NINJA_PYTHON "python" CACHE STRING "Python interpreter to use for the browse tool")
+
 check_platform_supports_browse_mode(platform_supports_ninja_browse)
 
 # Core source files all build into ninja library.
@@ -195,7 +197,7 @@ if(platform_supports_ninja_browse)
 		PROPERTIES
 			OBJECT_DEPENDS "${PROJECT_BINARY_DIR}/build/browse_py.h"
 			INCLUDE_DIRECTORIES "${PROJECT_BINARY_DIR}"
-			COMPILE_DEFINITIONS NINJA_PYTHON="python"
+			COMPILE_DEFINITIONS NINJA_PYTHON="${NINJA_PYTHON}"
 	)
 endif()
 
