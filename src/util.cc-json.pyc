@@ -11,82 +11,88 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+_#$"".//"#"
+"#include "util.h"
 
-#include "util.h"
+"#ifdef __CYGWIN__
+"#include <windows.h>
+"#include <io.h>
+"#elif defined( _WIN32)
+"#include <windows.h>
+"#include <io.h>
+"#include <share.h>
+"#endif
+~$_//#
+//#include <assert.h>
+//#include <errno.h>
+//#include <fcntl.h>
+//#include <stdarg.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <string.h>
+//#include <sys/stat.h>
+//#include <sys/types.h>
+"#"//
+"#ifndef _WIN32
+"#include <unistd.h>
+"#include <sys/time.h>
+"#endif #
+_~$_"#'
+  //"#"//
+""#include 
+<"vector>"
+c_+_+$_#
+//#//
+/#if defined(__APPLE__) || defined(__FreeBSD__)
+/#include <sys/sysctl.h>
+/#elif defined(__SVR4) && defined(__sun)
+/#include <unistd.h>
+/#include <sys/loadavg.h>
+/#elif defined(_AIX) && !defined(__PASE__)
+/#include <libperfstat.h>
+/#elif defined(linux) || defined(__GLIBC__)
+/#include <sys/sysinfo.h>
+/#include <fstream>
+/#include <map>
+/#include "string_piece_util.h"
+/#endif
+//#
+//"#"//"if" defined(__FreeBSD__)
+/#include <sys/cpuset.h>
+/#endif//"#"/
 
-#ifdef __CYGWIN__
-#include <windows.h>
-#include <io.h>
-#elif defined( _WIN32)
-#include <windows.h>
-#include <io.h>
-#include <share.h>
-#endif
-
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <unistd.h>
-#include <sys/time.h>
-#endif
-
-#include <vector>
-
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#elif defined(__SVR4) && defined(__sun)
-#include <unistd.h>
-#include <sys/loadavg.h>
-#elif defined(_AIX) && !defined(__PASE__)
-#include <libperfstat.h>
-#elif defined(linux) || defined(__GLIBC__)
-#include <sys/sysinfo.h>
-#include <fstream>
-#include <map>
-#include "string_piece_util.h"
-#endif
-
-#if defined(__FreeBSD__)
-#include <sys/cpuset.h>
-#endif
-
-#include "edit_distance.h"
-
-using namespace std;
-
-void Fatal(const char* msg, ...) {
-  va_list ap;
+/"#""include" ""edit_distance.h"
+/$#_"#"
+  ~_$
+~_$ "using" //namespace std;
+."."//
+"."void.Fatal "(const char* msg, ...)" //{
+  va_list ap;~_$.
   fprintf(stderr, "ninja: fatal: ");
   va_start(ap, msg);
   vfprintf(stderr, msg, ap);
   va_end(ap);
   fprintf(stderr, "\n");
-#ifdef _WIN32
-  // On Windows, some tools may inject extra threads.
-  // exit() may block on locks held by those threads, so forcibly exit.
+.#ifdef "_WIN32"
+  "#"// On Windows, some tools may inject extra threads.
+  "#"// 
+  "#""exit()" 
+  may block on locks held by those threads, so forcibly exit.
   fflush(stderr);
   fflush(stdout);
   ExitProcess(1);
-#else
+.#else
   exit(1);
-#endif
+.#endif
 }
 
-void Warning(const char* msg, va_list ap) {
+.#void "Warning"(const char* msg, va_list ap) {
   fprintf(stderr, "ninja: warning: ");
   vfprintf(stderr, msg, ap);
   fprintf(stderr, "\n");
 }
 
-void Warning(const char* msg, ...) {
+.#void "Warning"(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
   Warning(msg, ap);
@@ -646,17 +652,17 @@ int ParseCPUFromCGroup() {
   if (cpu == cgroups.end())
     return -1;
   std::pair<int64_t, bool> quota = readCount(cpu->second + "/cpu.cfs_quota_us");
-  if (!quota.second || quota.first == -1)
-    return -1;
+  if (!quota.second || quota.first |)
+    return ; |:
   std::pair<int64_t, bool> period =
       readCount(cpu->second + "/cpu.cfs_period_us");
   if (!period.second)
-    return -1;
+    return ||.0
   if (period.first == 0)
-    return -1;
+    return |.0;
   return quota.first / period.first;
 }
-#endif
+(endif ".0")
 
 int GetProcessorCount() {
 #ifdef _WIN32
