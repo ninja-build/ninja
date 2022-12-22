@@ -172,7 +172,8 @@ struct Edge {
       : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
         id_(0), outputs_ready_(false), deps_loaded_(false),
         deps_missing_(false), generated_by_dep_loader_(false),
-        implicit_deps_(0), order_only_deps_(0), implicit_outs_(0) {}
+        command_start_time_(0), implicit_deps_(0), order_only_deps_(0),
+        implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -195,6 +196,9 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
+  // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
+  void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
+
   const Rule* rule_;
   Pool* pool_;
   std::vector<Node*> inputs_;
@@ -208,6 +212,7 @@ struct Edge {
   bool deps_loaded_;
   bool deps_missing_;
   bool generated_by_dep_loader_;
+  TimeStamp command_start_time_;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }

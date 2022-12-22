@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <algorithm>
 #include <cstdlib>
 
 #ifdef _WIN32
@@ -52,7 +54,7 @@
 
 using namespace std;
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
 
@@ -449,7 +451,7 @@ int NinjaMain::ToolBrowse(const Options*, int, char**) {
 }
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 int NinjaMain::ToolMSVC(const Options* options, int argc, char* argv[]) {
   // Reset getopt: push one argument onto the front of argv, reset optind.
   argc++;
@@ -530,7 +532,7 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   if (argc == 0) {
     for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
          ni != deps_log_.nodes().end(); ++ni) {
-      if (deps_log_.IsDepsEntryLiveFor(*ni))
+      if (DepsLog::IsDepsEntryLiveFor(*ni))
         nodes.push_back(*ni);
     }
   } else {
@@ -744,7 +746,8 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-void PrintInputs(Edge* edge, set<Edge*>* seen) {
+void CollectInputs(Edge* edge, std::set<Edge*>* seen,
+                   std::vector<std::string>* result) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -752,13 +755,41 @@ void PrintInputs(Edge* edge, set<Edge*>* seen) {
 
   for (vector<Node*>::iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in)
-    PrintInputs((*in)->in_edge(), seen);
+    CollectInputs((*in)->in_edge(), seen, result);
 
-  if (!edge->is_phony())
-    puts(edge->GetBinding("in_newline").c_str());
+  if (!edge->is_phony()) {
+    edge->CollectInputs(true, result);
+  }
 }
 
 int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
+  // The inputs tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "inputs".
+  argc++;
+  argv--;
+  optind = 1;
+  int opt;
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { NULL, 0, NULL, 0 } };
+  while ((opt = getopt_long(argc, argv, "h", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case 'h':
+    default:
+      // clang-format off
+      printf(
+"Usage '-t inputs [options] [targets]\n"
+"\n"
+"List all inputs used for a set of targets. Note that this includes\n"
+"explicit, implicit and order-only inputs, but not validation ones.\n\n"
+"Options:\n"
+"  -h, --help   Print this message.\n");
+      // clang-format on
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -766,9 +797,17 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  set<Edge*> seen;
+  std::set<Edge*> seen;
+  std::vector<std::string> result;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintInputs((*in)->in_edge(), &seen);
+    CollectInputs((*in)->in_edge(), &seen, &result);
+
+  // Make output deterministic by sorting then removing duplicates.
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+
+  for (size_t n = 0; n < result.size(); ++n)
+    puts(result[n].c_str());
 
   return 0;
 }
@@ -1043,8 +1082,8 @@ const Tool* ChooseTool(const string& tool_name) {
   static const Tool kTools[] = {
     { "browse", "browse dependency graph in a web browser",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolBrowse },
-#if defined(_MSC_VER)
-    { "msvc", "build helper for MSVC cl.exe (EXPERIMENTAL)",
+#ifdef _WIN32
+    { "msvc", "build helper for MSVC cl.exe (DEPRECATED)",
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolMSVC },
 #endif
     { "clean", "clean built files",
@@ -1355,11 +1394,28 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 #endif  // _MSC_VER
 
+class DeferGuessParallelism {
+ public:
+  bool needGuess;
+  BuildConfig* config;
+
+  DeferGuessParallelism(BuildConfig* config)
+      : needGuess(true), config(config) {}
+
+  void Refresh() {
+    if (needGuess) {
+      needGuess = false;
+      config->parallelism = GuessParallelism();
+    }
+  }
+  ~DeferGuessParallelism() { Refresh(); }
+};
+
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
-  config->parallelism = GuessParallelism();
+  DeferGuessParallelism deferGuessParallelism(config);
 
   enum { OPT_VERSION = 1, OPT_QUIET = 2 };
   const option kLongOptions[] = {
@@ -1391,6 +1447,7 @@ int ReadFlags(int* argc, char*** argv,
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
         config->parallelism = value > 0 ? value : INT_MAX;
+        deferGuessParallelism.needGuess = false;
         break;
       }
       case 'k': {
@@ -1439,6 +1496,7 @@ int ReadFlags(int* argc, char*** argv,
         return 0;
       case 'h':
       default:
+        deferGuessParallelism.Refresh();
         Usage(*config);
         return 1;
     }

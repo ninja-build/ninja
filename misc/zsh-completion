@@ -16,7 +16,7 @@
 # Add the following to your .zshrc to tab-complete ninja targets
 #   fpath=(path/to/ninja/misc/zsh-completion $fpath)
 
-__get_targets() {
+(( $+functions[_ninja-get-targets] )) || _ninja-get-targets() {
   dir="."
   if [ -n "${opt_args[-C]}" ];
   then
@@ -31,42 +31,45 @@ __get_targets() {
   eval ${targets_command} 2>/dev/null | cut -d: -f1
 }
 
-__get_tools() {
-  ninja -t list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2
+(( $+functions[_ninja-get-tools] )) || _ninja-get-tools() {
+  # remove the first line; remove the leading spaces; replace spaces with colon
+  ninja -t list 2> /dev/null | sed -e '1d;s/^ *//;s/ \+/:/'
 }
 
-__get_modes() {
-  ninja -d list 2>/dev/null | while read -r a b; do echo $a; done | tail -n +2 | sed '$d'
+(( $+functions[_ninja-get-modes] )) || _ninja-get-modes() {
+  # remove the first line; remove the last line; remove the leading spaces; replace spaces with colon
+  ninja -d list 2> /dev/null | sed -e '1d;$d;s/^ *//;s/ \+/:/'
 }
 
-__modes() {
+(( $+functions[_ninja-modes] )) || _ninja-modes() {
   local -a modes
-  modes=(${(fo)"$(__get_modes)"})
+  modes=(${(fo)"$(_ninja-get-modes)"})
   _describe 'modes' modes
 }
 
-__tools() {
+(( $+functions[_ninja-tools] )) || _ninja-tools() {
   local -a tools
-  tools=(${(fo)"$(__get_tools)"})
+  tools=(${(fo)"$(_ninja-get-tools)"})
   _describe 'tools' tools
 }
 
-__targets() {
+(( $+functions[_ninja-targets] )) || _ninja-targets() {
   local -a targets
-  targets=(${(fo)"$(__get_targets)"})
+  targets=(${(fo)"$(_ninja-get-targets)"})
   _describe 'targets' targets
 }
 
 _arguments \
-  {-h,--help}'[Show help]' \
-  '--version[Print ninja version]' \
+  '(- *)'{-h,--help}'[Show help]' \
+  '(- *)--version[Print ninja version]' \
   '-C+[Change to directory before doing anything else]:directories:_directories' \
   '-f+[Specify input build file (default=build.ninja)]:files:_files' \
   '-j+[Run N jobs in parallel (default=number of CPUs available)]:number of jobs' \
   '-l+[Do not start new jobs if the load average is greater than N]:number of jobs' \
   '-k+[Keep going until N jobs fail (default=1)]:number of jobs' \
   '-n[Dry run (do not run commands but act like they succeeded)]' \
-  '-v[Show all command lines while building]' \
-  '-d+[Enable debugging (use -d list to list modes)]:modes:__modes' \
-  '-t+[Run a subtool (use -t list to list subtools)]:tools:__tools' \
-  '*::targets:__targets'
+  '(-v --verbose --quiet)'{-v,--verbose}'[Show all command lines while building]' \
+  "(-v --verbose --quiet)--quiet[Don't show progress status, just command output]" \
+  '-d+[Enable debugging (use -d list to list modes)]:modes:_ninja-modes' \
+  '-t+[Run a subtool (use -t list to list subtools)]:tools:_ninja-tools' \
+  '*::targets:_ninja-targets'
