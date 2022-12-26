@@ -1546,10 +1546,12 @@ NORETURN void real_main(int argc, char** argv) {
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
+  bool missing_bootstrap = true;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
     ManifestParserOptions parser_opts;
+    parser_opts.bootstrap = missing_bootstrap && cycle < kCycleLimit / 2;
     if (options.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
     }
@@ -1572,8 +1574,9 @@ NORETURN void real_main(int argc, char** argv) {
     if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
       exit(1);
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
+    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS) {
       exit((ninja.*options.tool->func)(&options, argc, argv));
+    }
 
     // Attempt to rebuild the manifest before building anything else
     if (ninja.RebuildManifest(options.input_file, &err, status)) {
@@ -1586,6 +1589,11 @@ NORETURN void real_main(int argc, char** argv) {
     } else if (!err.empty()) {
       status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
+    }
+
+    missing_bootstrap = parser.MissingBootstrap();
+    if (missing_bootstrap) {
+        continue;
     }
 
     int result = ninja.RunBuild(argc, argv, status);

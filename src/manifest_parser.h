@@ -36,6 +36,7 @@ struct ManifestParserOptions {
         phony_cycle_action_(kPhonyCycleActionWarn) {}
   DupeEdgeAction dupe_edge_action_;
   PhonyCycleAction phony_cycle_action_;
+  bool bootstrap = false;
 };
 
 /// Parses .ninja files.

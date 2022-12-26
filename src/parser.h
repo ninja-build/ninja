@@ -24,11 +24,18 @@ struct State;
 
 /// Base class for parsers.
 struct Parser {
-  Parser(State* state, FileReader* file_reader)
-      : state_(state), file_reader_(file_reader) {}
+  Parser(State* state, FileReader* file_reader, bool bootstrap = false)
+      : state_(state), file_reader_(file_reader), bootstrap_(bootstrap), missing_bootstrap_(false) {}
 
   /// Load and parse a file.
   bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
+
+  /// Test and clear whether any include or subninja files were missing during bootstrap.
+  bool MissingBootstrap() {
+    bool missed_bootstrap = missing_bootstrap_;
+    missing_bootstrap_ = false;
+    return missed_bootstrap;
+  }
 
 protected:
   /// If the next token is not \a expected, produce an error string
@@ -38,6 +45,8 @@ protected:
   State* state_;
   FileReader* file_reader_;
   Lexer lexer_;
+  bool bootstrap_;
+  bool missing_bootstrap_;
 
 private:
   /// Parse a file, given its contents as a string.

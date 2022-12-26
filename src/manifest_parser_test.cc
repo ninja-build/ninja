@@ -898,6 +898,7 @@ TEST_F(ParserTest, MissingSubNinja) {
             "subninja foo.ninja\n"
             "                  ^ near here"
             , err);
+  EXPECT_FALSE(parser.MissingBootstrap());
 }
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
@@ -944,6 +945,17 @@ TEST_F(ParserTest, BrokenInclude) {
             "build\n"
             "     ^ near here"
             , err);
+}
+
+TEST_F(ParserTest, BootstrapInclude) {
+  ManifestParserOptions parser_opts;
+  parser_opts.bootstrap = true;
+  ManifestParser parser(&state, &fs_, parser_opts);
+  string err;
+  EXPECT_TRUE(parser.ParseTest("include bootstrap.ninja\n", &err));
+  EXPECT_TRUE(parser.MissingBootstrap());
+  EXPECT_FALSE(parser.MissingBootstrap());
+  EXPECT_EQ("", err);
 }
 
 TEST_F(ParserTest, Implicit) {
