@@ -27,7 +27,7 @@ using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
-    : Parser(state, file_reader, options.bootstrap),
+    : Parser(state, file_reader, options.allow_missing_loads),
       options_(options), quiet_(false) {
   env_ = &state->bindings_;
 }
@@ -437,8 +437,11 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
   if (!subparser.Load(path, err, &lexer_))
     return false;
 
-  if (subparser.missing_bootstrap_)
-    missing_bootstrap_ = true;
+  if (subparser.any_missing_loads_)
+    any_missing_loads_ = true;
+
+  std::move(subparser.loaded_files_.begin(), subparser.loaded_files_.end(),
+    std::back_inserter(loaded_files_));
 
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;

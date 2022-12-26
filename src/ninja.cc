@@ -154,7 +154,8 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err, Status* status);
+  bool RebuildManifest(std::vector<std::string> &loaded_files, string* err,
+                       Status* status);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -253,40 +254,44 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err,
-                                Status* status) {
-  string path = input_file;
-  if (path.empty()) {
-    *err = "empty path";
-    return false;
-  }
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  CanonicalizePath(&path, &slash_bits);
-  Node* node = state_.LookupNode(path);
-  if (!node)
-    return false;
-
+bool NinjaMain::RebuildManifest(std::vector<std::string> &loaded_files,
+                                string* err, Status* status) {
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
-  if (!builder.AddTarget(node, err))
-    return false;
+  bool did_build = false;
+  for (auto &path : loaded_files) {
+    if (path.empty()) {
+      *err = "empty path";
+      return false;
+    }
+    uint64_t slash_bits;  // Unused because this path is only used for lookup.
+    CanonicalizePath(&path, &slash_bits);
+    Node* node = state_.LookupNode(path);
+    if (!node)
+      continue;
 
-  if (builder.AlreadyUpToDate())
-    return false;  // Not an error, but we didn't rebuild.
+    if (!builder.AddTarget(node, err))
+      continue;
 
-  if (!builder.Build(err))
-    return false;
+    if (builder.AlreadyUpToDate())
+      continue;  // Not an error, but we didn't rebuild.
 
-  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
-  // by a restat).
-  if (!node->dirty()) {
-    // Reset the state to prevent problems like
-    // https://github.com/ninja-build/ninja/issues/874
-    state_.Reset();
-    return false;
+    if (!builder.Build(err))
+      continue;
+
+    // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+    // by a restat).
+    if (!node->dirty()) {
+      // Reset the state to prevent problems like
+      // https://github.com/ninja-build/ninja/issues/874
+      state_.Reset();
+      continue;
+    }
+
+    did_build = true;
   }
 
-  return true;
+  return did_build;
 }
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
@@ -1546,12 +1551,12 @@ NORETURN void real_main(int argc, char** argv) {
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
-  bool missing_bootstrap = true;
+  bool allow_missing_loads = true;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
     ManifestParserOptions parser_opts;
-    parser_opts.bootstrap = missing_bootstrap && cycle < kCycleLimit / 2;
+    parser_opts.allow_missing_loads = allow_missing_loads && cycle < kCycleLimit;
     if (options.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
     }
@@ -1579,7 +1584,7 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err, status)) {
+    if (ninja.RebuildManifest(parser.LoadedFiles(), &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -1591,8 +1596,9 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    missing_bootstrap = parser.MissingBootstrap();
-    if (missing_bootstrap) {
+    if (parser.AnyMissingLoads()) {
+        // Start the build over to report an error when loading missing files.
+        allow_missing_loads = false;
         continue;
     }
 

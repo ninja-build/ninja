@@ -1113,10 +1113,10 @@ scope, but it won't affect values of the variables in the parent.
 To include another `.ninja` file in the current scope, much like a C
 `#include` statement, use `include` instead of `subninja`.
 
-In either case, either the file must exist, or, it must be listed as an explicit
-(typically order-only) dependency of `build.ninja`.  This allows `ninja` to not
-only update the file before it is used, but also create it if it is missing,
-that is, bootstrapping the `ninja` build files in a clean working directory.
+If there is a build statement for the loaded file, then `ninja` will update it
+if needed (similarly to updating the main input file). Moreover, `ninja` will
+be able to create the loaded file if it is missing, allowing for bootstrapping
+the build files in a clean development directory by simply typing `ninja`.
 
 Variable declarations indented in a `build` block are scoped to the
 `build` block.  The full lookup order for a variable expanded in a

@@ -16,6 +16,7 @@
 #define NINJA_PARSER_H_
 
 #include <string>
+#include <vector>
 
 #include "lexer.h"
 
@@ -24,17 +25,20 @@ struct State;
 
 /// Base class for parsers.
 struct Parser {
-  Parser(State* state, FileReader* file_reader, bool bootstrap = false)
-      : state_(state), file_reader_(file_reader), bootstrap_(bootstrap), missing_bootstrap_(false) {}
+  Parser(State* state, FileReader* file_reader, bool allow_missing_loads = false)
+      : state_(state), file_reader_(file_reader), allow_missing_loads_(allow_missing_loads) {}
 
   /// Load and parse a file.
   bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
 
-  /// Test and clear whether any include or subninja files were missing during bootstrap.
-  bool MissingBootstrap() {
-    bool missed_bootstrap = missing_bootstrap_;
-    missing_bootstrap_ = false;
-    return missed_bootstrap;
+  /// Vector of all files that were loaded.
+  std::vector<std::string> &LoadedFiles() {
+    return loaded_files_;
+  }
+
+  /// Test whether any loaded files were missing.
+  bool AnyMissingLoads() {
+    return any_missing_loads_;
   }
 
 protected:
@@ -45,8 +49,9 @@ protected:
   State* state_;
   FileReader* file_reader_;
   Lexer lexer_;
-  bool bootstrap_;
-  bool missing_bootstrap_;
+  std::vector<std::string> loaded_files_;
+  bool allow_missing_loads_;
+  bool any_missing_loads_ = false;
 
 private:
   /// Parse a file, given its contents as a string.
