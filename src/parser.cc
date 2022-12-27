@@ -23,9 +23,6 @@ bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   string contents;
   string read_err;
-  if (allow_missing_loads_) {
-    loaded_files_.push_back(filename);
-  }
   if (file_reader_->ReadFile(filename, &contents, &read_err) !=
       FileReader::Okay) {
     if (allow_missing_loads_) {

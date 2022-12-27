@@ -49,7 +49,6 @@
 #include "missing_deps.h"
 #include "state.h"
 #include "status.h"
-#include "util.h"
 #include "version.h"
 
 using namespace std;
@@ -154,7 +153,7 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(std::vector<std::string> &loaded_files, string* err,
+  bool RebuildManifest(std::map<std::string, bool> &loaded_files, string* err,
                        Status* status);
 
   /// Build the targets listed on the command line.
@@ -254,18 +253,17 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(std::vector<std::string> &loaded_files,
+bool NinjaMain::RebuildManifest(std::map<std::string, bool> &loaded_files,
                                 string* err, Status* status) {
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
   bool did_build = false;
-  for (auto &path : loaded_files) {
+  for (auto &pair : loaded_files) {
+    const std::string& path = pair.first;
     if (path.empty()) {
       *err = "empty path";
       return false;
     }
-    uint64_t slash_bits;  // Unused because this path is only used for lookup.
-    CanonicalizePath(&path, &slash_bits);
     Node* node = state_.LookupNode(path);
     if (!node)
       continue;
@@ -1563,7 +1561,9 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+    std::map<std::string, bool> loaded_files;
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
+                          parser_opts, &loaded_files);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -1584,7 +1584,7 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(parser.LoadedFiles(), &err, status)) {
+    if (ninja.RebuildManifest(loaded_files, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
