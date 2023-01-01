@@ -26,7 +26,7 @@ using namespace std;
 struct ParserTest : public testing::Test {
   void AssertParse(const char* input) {
     ManifestParser parser(&state, &fs_, ManifestParserOptions(),
-                          &loaded_files_);
+                          NULL, &loaded_files_);
     string err;
     EXPECT_TRUE(parser.ParseTest(input, &err));
     ASSERT_EQ("", err);
@@ -900,7 +900,7 @@ TEST_F(ParserTest, MissingSubNinja) {
             "subninja foo.ninja\n"
             "                  ^ near here"
             , err);
-  EXPECT_FALSE(parser.AnyMissingLoads());
+  EXPECT_FALSE(parser.AnySkippedLoads());
 }
 
 TEST_F(ParserTest, DuplicateRuleInDifferentSubninjas) {
@@ -961,27 +961,30 @@ TEST_F(ParserTest, BrokenInclude) {
             , err);
 }
 
-TEST_F(ParserTest, AllowedMissingInclude) {
+TEST_F(ParserTest, SkipInclude) {
   ManifestParserOptions parser_opts;
-  parser_opts.allow_missing_loads = true;
+  std::set<std::string> built_files;
   std::map<std::string, bool> loaded_files;
-  ManifestParser parser(&state, &fs_, parser_opts, &loaded_files);
+  ManifestParser parser(&state, &fs_, parser_opts, &built_files, &loaded_files);
   string err;
   EXPECT_TRUE(parser.ParseTest("include missing.ninja\n", &err));
-  EXPECT_TRUE(parser.AnyMissingLoads());
+  EXPECT_TRUE(parser.AnySkippedLoads());
+  EXPECT_FALSE(parser.AnySkippedLoads());
   EXPECT_EQ(loaded_files.size(), 1);
   EXPECT_FALSE(loaded_files["missing.ninja"]);
   EXPECT_EQ("", err);
 }
 
-TEST_F(ParserTest, AllowedMissingSubninja) {
+TEST_F(ParserTest, SkipSubninja) {
   ManifestParserOptions parser_opts;
-  parser_opts.allow_missing_loads = true;
+  std::set<std::string> built_files;
   std::map<std::string, bool> loaded_files;
-  ManifestParser parser(&state, &fs_, parser_opts, &loaded_files);
+  ManifestParser parser(&state, &fs_, parser_opts, &built_files,
+                        &loaded_files);
   string err;
   EXPECT_TRUE(parser.ParseTest("subninja missing.ninja\n", &err));
-  EXPECT_TRUE(parser.AnyMissingLoads());
+  EXPECT_TRUE(parser.AnySkippedLoads());
+  EXPECT_FALSE(parser.AnySkippedLoads());
   EXPECT_EQ(loaded_files.size(), 1);
   EXPECT_TRUE(loaded_files["missing.ninja"]);
   EXPECT_EQ("", err);
@@ -990,8 +993,10 @@ TEST_F(ParserTest, AllowedMissingSubninja) {
 TEST_F(ParserTest, IncludeAndSubninja) {
   fs_.Create("include.ninja", "rule cat\n"
                               "  command = cat\n");
+  std::set<std::string> built_files;
   std::map<std::string, bool> loaded_files;
-  ManifestParser parser(&state, &fs_, ManifestParserOptions(), &loaded_files);
+  ManifestParser parser(&state, &fs_, ManifestParserOptions(), &built_files,
+                        &loaded_files);
   string err;
   EXPECT_FALSE(parser.ParseTest("include include.ninja\n"
                                 "subninja include.ninja\n",
@@ -1006,8 +1011,10 @@ TEST_F(ParserTest, IncludeAndSubninja) {
 TEST_F(ParserTest, SubninjaAndInclude) {
   fs_.Create("include.ninja", "rule cat\n"
                               "  command = cat\n");
+  std::set<std::string> built_files;
   std::map<std::string, bool> loaded_files;
-  ManifestParser parser(&state, &fs_, ManifestParserOptions(), &loaded_files);
+  ManifestParser parser(&state, &fs_, ManifestParserOptions(), &built_files,
+                        &loaded_files);
   string err;
   EXPECT_FALSE(parser.ParseTest("subninja include.ninja\n"
                                 "include include.ninja\n",

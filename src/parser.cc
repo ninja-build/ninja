@@ -25,15 +25,12 @@ bool Parser::Load(const string& filename, string* err, Lexer* parent) {
   string read_err;
   if (file_reader_->ReadFile(filename, &contents, &read_err) !=
       FileReader::Okay) {
-    if (allow_missing_loads_) {
-        any_missing_loads_ = true;
-        return true;
-    }
     *err = "loading '" + filename + "': " + read_err;
     if (parent)
       parent->Error(string(*err), err);
     return false;
   }
+
   return Parse(filename, contents, err);
 }
 

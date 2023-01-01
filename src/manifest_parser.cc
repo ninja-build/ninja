@@ -27,9 +27,11 @@ using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options,
+                               std::set<std::string> *built_files,
                                std::map<std::string, bool> *loaded_files)
-    : Parser(state, file_reader, options.allow_missing_loads),
-      options_(options), loaded_files_(loaded_files), quiet_(false) {
+    : Parser(state, file_reader),
+      options_(options), built_files_(built_files), loaded_files_(loaded_files),
+      any_skipped_loads_(false), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -452,7 +454,12 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     loaded_files_->insert({ path, new_scope });
   }
 
-  ManifestParser subparser(state_, file_reader_, options_, loaded_files_);
+  if (built_files_ and built_files_->find(path) == built_files_->end()) {
+    any_skipped_loads_ = true;
+    return true;
+  }
+
+  ManifestParser subparser(state_, file_reader_, options_, built_files_, loaded_files_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {
@@ -461,9 +468,6 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
 
   if (!subparser.Load(path, err, &lexer_))
     return false;
-
-  if (subparser.any_missing_loads_)
-    any_missing_loads_ = true;
 
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;

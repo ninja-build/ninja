@@ -153,7 +153,8 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(std::map<std::string, bool> &loaded_files, string* err,
+  bool RebuildManifest(std::set<std::string> &built_files,
+                       std::map<std::string, bool> &loaded_files, string* err,
                        Status* status);
 
   /// Build the targets listed on the command line.
@@ -253,17 +254,21 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(std::map<std::string, bool> &loaded_files,
+bool NinjaMain::RebuildManifest(std::set<std::string> &built_files,
+                                std::map<std::string, bool> &loaded_files,
                                 string* err, Status* status) {
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
   bool did_build = false;
   for (auto &pair : loaded_files) {
     const std::string& path = pair.first;
+    built_files.insert(path);
+
     if (path.empty()) {
       *err = "empty path";
       return false;
     }
+
     Node* node = state_.LookupNode(path);
     if (!node)
       continue;
@@ -1549,12 +1554,11 @@ NORETURN void real_main(int argc, char** argv) {
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
-  bool allow_missing_loads = true;
+  std::set<std::string> built_files;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
     ManifestParserOptions parser_opts;
-    parser_opts.allow_missing_loads = allow_missing_loads && cycle < kCycleLimit;
     if (options.dupe_edges_should_err) {
       parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
     }
@@ -1563,7 +1567,7 @@ NORETURN void real_main(int argc, char** argv) {
     }
     std::map<std::string, bool> loaded_files;
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
-                          parser_opts, &loaded_files);
+                          parser_opts, &built_files, &loaded_files);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -1584,7 +1588,7 @@ NORETURN void real_main(int argc, char** argv) {
     }
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(loaded_files, &err, status)) {
+    if (ninja.RebuildManifest(built_files, loaded_files, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -1596,9 +1600,7 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
-    if (parser.AnyMissingLoads()) {
-        // Start the build over to report an error when loading missing files.
-        allow_missing_loads = false;
+    if (parser.AnySkippedLoads()) {
         continue;
     }
 
