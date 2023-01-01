@@ -454,7 +454,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     loaded_files_->insert({ path, new_scope });
   }
 
-  if (built_files_ and built_files_->find(path) == built_files_->end()) {
+  if (built_files_ && built_files_->find(path) == built_files_->end()) {
     any_skipped_loads_ = true;
     return true;
   }
