@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2001 Google Inc. All Rights Reserved.
 #
@@ -18,8 +18,6 @@
 
 Projects that use ninja themselves should either write a similar script
 or use a meta-build system that supports Ninja output."""
-
-from __future__ import print_function
 
 from optparse import OptionParser
 import os
