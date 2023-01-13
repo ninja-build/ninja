@@ -16,10 +16,11 @@ jobs:
     - name: Install dependencies
       run: choco install re2c
 
+    - name: Configure ninja
+      run: cmake -Bbuild
+
     - name: Build ninja
-      shell: bash
       run: |
-        cmake -Bbuild
         cmake --build build --parallel --config Debug
         cmake --build build --parallel --config Release
 
