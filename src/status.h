@@ -36,26 +36,26 @@ struct Status {
   virtual void Warning(const char* msg, ...) = 0;
   virtual void Error(const char* msg, ...) = 0;
 
-  virtual ~Status() { }
+  virtual ~Status() = default;
 };
 
 /// Implementation of the Status interface that prints the status as
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
-  virtual void PlanHasTotalEdges(int total);
-  virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
-  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                 bool success, const std::string& output);
-  virtual void BuildLoadDyndeps();
-  virtual void BuildStarted();
-  virtual void BuildFinished();
+  void PlanHasTotalEdges(int total) override;
+  void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis) override;
+  void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
+                         bool success, const std::string& output) override;
+  void BuildLoadDyndeps() override;
+  void BuildStarted() override;
+  void BuildFinished() override;
 
-  virtual void Info(const char* msg, ...);
-  virtual void Warning(const char* msg, ...);
-  virtual void Error(const char* msg, ...);
+  void Info(const char* msg, ...) override;
+  void Warning(const char* msg, ...) override;
+  void Error(const char* msg, ...) override;
 
-  virtual ~StatusPrinter() { }
+  ~StatusPrinter() = default;
 
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available

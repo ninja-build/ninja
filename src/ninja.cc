@@ -163,7 +163,7 @@ struct NinjaMain : public BuildLogUser {
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
 
-  virtual bool IsPathDead(StringPiece s) const {
+  bool IsPathDead(StringPiece s) const override {
     Node* n = state_.LookupNode(s);
     if (n && n->in_edge())
       return false;

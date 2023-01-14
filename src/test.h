@@ -50,7 +50,7 @@ extern testing::Test* g_current_test;
 #define TEST_F_(x, y, name)                                           \
   struct y : public x {                                               \
     static testing::Test* Create() { return g_current_test = new y; } \
-    virtual void Run();                                               \
+    void Run() override;                                              \
   };                                                                  \
   struct Register##y {                                                \
     Register##y() { RegisterTest(y::Create, name); }                  \
@@ -144,12 +144,12 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual bool MakeDir(const std::string& path);
-  virtual Status ReadFile(const std::string& path, std::string* contents,
-                          std::string* err);
-  virtual int RemoveFile(const std::string& path);
+  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  bool WriteFile(const std::string& path, const std::string& contents) override;
+  bool MakeDir(const std::string& path) override;
+  Status ReadFile(const std::string& path, std::string* contents,
+                  std::string* err) override;
+  int RemoveFile(const std::string& path) override;
 
   /// An entry for a single in-memory file.
   struct Entry {

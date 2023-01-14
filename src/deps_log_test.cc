@@ -30,11 +30,11 @@ namespace {
 const char kTestFilename[] = "DepsLogTest-tempfile";
 
 struct DepsLogTest : public testing::Test {
-  virtual void SetUp() {
+  void SetUp() override {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     unlink(kTestFilename);
   }
 };

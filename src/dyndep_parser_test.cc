@@ -32,7 +32,7 @@ struct DyndepParserTest : public testing::Test {
     ASSERT_EQ("", err);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     ::AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out\n"

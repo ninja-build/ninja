@@ -34,14 +34,14 @@ namespace {
 const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
-  virtual void SetUp() {
+  void SetUp() override {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     unlink(kTestFilename);
   }
-  virtual bool IsPathDead(StringPiece s) const { return false; }
+  bool IsPathDead(StringPiece s) const override { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -224,22 +224,22 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
 }
 
 struct TestDiskInterface : public DiskInterface {
-  virtual TimeStamp Stat(const string& path, string* err) const {
+  TimeStamp Stat(const string& path, string* err) const override {
     return 4;
   }
-  virtual bool WriteFile(const string& path, const string& contents) {
+  bool WriteFile(const string& path, const string& contents) override {
     assert(false);
     return true;
   }
-  virtual bool MakeDir(const string& path) {
+  bool MakeDir(const string& path) override {
     assert(false);
     return false;
   }
-  virtual Status ReadFile(const string& path, string* contents, string* err) {
+  Status ReadFile(const string& path, string* contents, string* err) override {
     assert(false);
     return NotFound;
   }
-  virtual int RemoveFile(const string& path) {
+  int RemoveFile(const string& path) override {
     assert(false);
     return 0;
   }
@@ -320,7 +320,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 }
 
 struct BuildLogRecompactTest : public BuildLogTest {
-  virtual bool IsPathDead(StringPiece s) const { return s == "out2"; }
+  bool IsPathDead(StringPiece s) const override { return s == "out2"; }
 };
 
 TEST_F(BuildLogRecompactTest, Recompact) {

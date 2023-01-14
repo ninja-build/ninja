@@ -25,7 +25,7 @@ struct Rule;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
-  virtual ~Env() {}
+  virtual ~Env() = default;
   virtual std::string LookupVariable(const std::string& var) = 0;
 };
 
@@ -82,8 +82,8 @@ struct BindingEnv : public Env {
   BindingEnv() : parent_(NULL) {}
   explicit BindingEnv(BindingEnv* parent) : parent_(parent) {}
 
-  virtual ~BindingEnv() {}
-  virtual std::string LookupVariable(const std::string& var);
+  ~BindingEnv() override = default;
+  std::string LookupVariable(const std::string& var) override;
 
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const std::string& rule_name);

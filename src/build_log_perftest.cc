@@ -31,7 +31,7 @@ using namespace std;
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
-  virtual bool IsPathDead(StringPiece) const { return false; }
+  bool IsPathDead(StringPiece) const override { return false; }
 };
 
 bool WriteTestData(string* err) {

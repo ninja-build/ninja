@@ -385,7 +385,7 @@ struct EdgeEnv : public Env {
 
   EdgeEnv(const Edge* const edge, const EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
-  virtual string LookupVariable(const string& var);
+  string LookupVariable(const string& var) override;
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.

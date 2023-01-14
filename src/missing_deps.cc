@@ -39,9 +39,9 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
         dep_nodes_output_(dep_nodes_output) {}
 
  protected:
-  virtual bool ProcessDepfileDeps(Edge* edge,
-                                  std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+  bool ProcessDepfileDeps(Edge* edge,
+                          std::vector<StringPiece>* depfile_ins,
+                          std::string* err) override;
 
  private:
   std::vector<Node*>* dep_nodes_output_;
