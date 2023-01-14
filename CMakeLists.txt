@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 include(CheckSymbolExists)
 include(CheckIPOSupported)
 
+set(CMAKE_CXX_STANDARD 11)
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 
 project(ninja CXX)
@@ -149,8 +150,6 @@ else()
 		target_link_libraries(libninja PUBLIC "-lperfstat")
 	endif()
 endif()
-
-target_compile_features(libninja PUBLIC cxx_std_11)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
