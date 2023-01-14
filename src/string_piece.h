@@ -25,7 +25,7 @@
 struct StringPiece {
   typedef const char* const_iterator;
 
-  StringPiece() : str_(NULL), len_(0) {}
+  StringPiece() = default;
 
   /// The constructors intentionally allow for implicit conversions.
   StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}
@@ -63,8 +63,8 @@ struct StringPiece {
     return len_;
   }
 
-  const char* str_;
-  size_t len_;
+  const char* str_ = nullptr;
+  size_t len_ = 0;
 };
 
 #endif  // NINJA_STRINGPIECE_H_

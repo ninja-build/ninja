@@ -69,19 +69,19 @@ struct Tool;
 /// Command-line options.
 struct Options {
   /// Build file to load.
-  const char* input_file;
+  const char* input_file = nullptr;
 
   /// Directory to change into before running.
-  const char* working_dir;
+  const char* working_dir = nullptr;
 
   /// Tool to run rather than building.
-  const Tool* tool;
+  const Tool* tool = nullptr;
 
   /// Whether duplicate rules for one target should warn or print an error.
-  bool dupe_edges_should_err;
+  bool dupe_edges_should_err = false;
 
   /// Whether phony cycles should warn or print an error.
-  bool phony_cycle_should_err;
+  bool phony_cycle_should_err = false;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1397,11 +1397,11 @@ int ExceptionFilter(unsigned int code, struct _EXCEPTION_POINTERS *ep) {
 
 class DeferGuessParallelism {
  public:
-  bool needGuess;
+  bool needGuess = true;
   BuildConfig* config;
 
   DeferGuessParallelism(BuildConfig* config)
-      : needGuess(true), config(config) {}
+      : config(config) {}
 
   void Refresh() {
     if (needGuess) {
@@ -1512,7 +1512,7 @@ NORETURN void real_main(int argc, char** argv) {
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
   BuildConfig config;
-  Options options = {};
+  Options options;
   options.input_file = "build.ninja";
   options.dupe_edges_should_err = true;
 

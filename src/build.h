@@ -124,25 +124,24 @@ private:
   Builder* builder_;
 
   /// Total number of edges that have commands (not phony).
-  int command_edges_;
+  int command_edges_ = 0;
 
   /// Total remaining number of wanted edges.
-  int wanted_edges_;
+  int wanted_edges_ = 0;
 };
 
 /// CommandRunner is an interface that wraps running the build
 /// subcommands.  This allows tests to abstract out running commands.
 /// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
-  virtual ~CommandRunner() {}
+  virtual ~CommandRunner() = default;
   virtual bool CanRunMore() const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
   struct Result {
-    Result() : edge(NULL) {}
-    Edge* edge;
-    ExitStatus status;
+    Edge* edge = nullptr;
+    ExitStatus status = ExitSuccess;
     std::string output;
     bool success() const { return status == ExitSuccess; }
   };
@@ -155,22 +154,19 @@ struct CommandRunner {
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  failures_allowed(1), max_load_average(-0.0f) {}
-
   enum Verbosity {
     QUIET,  // No output -- used when testing.
     NO_STATUS_UPDATE,  // just regular output but suppress status update
     NORMAL,  // regular output and status update
     VERBOSE
   };
-  Verbosity verbosity;
-  bool dry_run;
-  int parallelism;
-  int failures_allowed;
+  Verbosity verbosity = NORMAL;
+  bool dry_run = false;
+  int parallelism = 1;
+  int failures_allowed = 1;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
-  double max_load_average;
+  double max_load_average = -0.0f;
   DepfileParserOptions depfile_parser_options;
 };
 

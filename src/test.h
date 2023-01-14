@@ -28,11 +28,10 @@
 // sstream, which slows down building ninja_test almost 20%.
 namespace testing {
 class Test {
-  bool failed_;
-  int assertion_failures_;
+  bool failed_ = false;
+  int assertion_failures_ = 0;
  public:
-  Test() : failed_(false), assertion_failures_(0) {}
-  virtual ~Test() {}
+  virtual ~Test() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
   virtual void Run() = 0;
@@ -132,8 +131,6 @@ void VerifyGraph(const State& state);
 /// of disk state.  It also logs file accesses and directory creations
 /// so it can be used by tests to verify disk access patterns.
 struct VirtualFileSystem : public DiskInterface {
-  VirtualFileSystem() : now_(1) {}
-
   /// "Create" a file with contents.
   void Create(const std::string& path, const std::string& contents);
 
@@ -166,7 +163,7 @@ struct VirtualFileSystem : public DiskInterface {
   std::set<std::string> files_created_;
 
   /// A simple fake timestamp for file operations.
-  int now_;
+  int now_ = 1;
 };
 
 struct ScopedTempDir {

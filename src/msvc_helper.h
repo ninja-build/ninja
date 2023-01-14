@@ -18,8 +18,6 @@ std::string EscapeForDepfile(const std::string& path);
 
 /// Wraps a synchronous execution of a CL subprocess.
 struct CLWrapper {
-  CLWrapper() : env_block_(NULL) {}
-
   /// Set the environment block (as suitable for CreateProcess) to be used
   /// by Run().
   void SetEnvBlock(void* env_block) { env_block_ = env_block; }
@@ -28,5 +26,5 @@ struct CLWrapper {
   /// Crashes (calls Fatal()) on error.
   int Run(const std::string& command, std::string* output);
 
-  void* env_block_;
+  void* env_block_ = nullptr;
 };

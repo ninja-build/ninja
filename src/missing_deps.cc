@@ -61,7 +61,7 @@ bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
 
 }  // namespace
 
-MissingDependencyScannerDelegate::~MissingDependencyScannerDelegate() {}
+MissingDependencyScannerDelegate::~MissingDependencyScannerDelegate() = default;
 
 void MissingDependencyPrinter::OnMissingDep(Node* node, const std::string& path,
                                             const Rule& generator) {
@@ -73,7 +73,7 @@ MissingDependencyScanner::MissingDependencyScanner(
     MissingDependencyScannerDelegate* delegate, DepsLog* deps_log, State* state,
     DiskInterface* disk_interface)
     : delegate_(delegate), deps_log_(deps_log), state_(state),
-      disk_interface_(disk_interface), missing_dep_path_count_(0) {}
+      disk_interface_(disk_interface) {}
 
 void MissingDependencyScanner::ProcessNode(Node* node) {
   if (!node)

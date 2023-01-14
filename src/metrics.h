@@ -64,15 +64,13 @@ int64_t GetTimeMillis();
 /// in seconds since Restart() was called.
 struct Stopwatch {
  public:
-  Stopwatch() : started_(0) {}
-
   /// Seconds since Restart() call.
   double Elapsed() const;
 
   void Restart() { started_ = NowRaw(); }
 
  private:
-  uint64_t started_;
+  uint64_t started_ = 0;
   // Return the current time using the native frequency of the high resolution
   // timer.
   uint64_t NowRaw() const;

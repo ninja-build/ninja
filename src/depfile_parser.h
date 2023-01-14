@@ -21,7 +21,6 @@
 #include "string_piece.h"
 
 struct DepfileParserOptions {
-  DepfileParserOptions() {}
 };
 
 /// Parser for the dependency information emitted by gcc's -M flags.

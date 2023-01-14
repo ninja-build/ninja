@@ -470,7 +470,7 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
 /// Fake implementation of CommandRunner, useful for tests.
 struct FakeCommandRunner : public CommandRunner {
   explicit FakeCommandRunner(VirtualFileSystem* fs) :
-      max_active_edges_(1), fs_(fs) {}
+      fs_(fs) {}
 
   // CommandRunner impl
   virtual bool CanRunMore() const;
@@ -481,7 +481,7 @@ struct FakeCommandRunner : public CommandRunner {
 
   vector<string> commands_ran_;
   vector<Edge*> active_edges_;
-  size_t max_active_edges_;
+  size_t max_active_edges_ = 1;
   VirtualFileSystem* fs_;
 };
 
@@ -2440,8 +2440,6 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
 /// builder_ it sets up, because we want pristine objects for
 /// each build.
 struct BuildWithDepsLogTest : public BuildTest {
-  BuildWithDepsLogTest() {}
-
   virtual void SetUp() {
     BuildTest::SetUp();
 

@@ -384,7 +384,7 @@ struct EdgeEnv : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
   EdgeEnv(const Edge* const edge, const EscapeKind escape)
-      : edge_(edge), escape_in_out_(escape), recursive_(false) {}
+      : edge_(edge), escape_in_out_(escape) {}
   virtual string LookupVariable(const string& var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
@@ -395,7 +395,7 @@ struct EdgeEnv : public Env {
   vector<string> lookups_;
   const Edge* const edge_;
   EscapeKind escape_in_out_;
-  bool recursive_;
+  bool recursive_ = false;
 };
 
 string EdgeEnv::LookupVariable(const string& var) {

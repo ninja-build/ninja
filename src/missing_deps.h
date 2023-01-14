@@ -63,7 +63,7 @@ struct MissingDependencyScanner {
   std::set<Node*> nodes_missing_deps_;
   std::set<Node*> generated_nodes_;
   std::set<const Rule*> generator_rules_;
-  int missing_dep_path_count_;
+  int missing_dep_path_count_ = 0;
 
  private:
   using InnerAdjacencyMap = std::unordered_map<Edge*, bool>;

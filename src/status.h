@@ -88,7 +88,7 @@ struct StatusPrinter : Status {
   }
 
   struct SlidingRateInfo {
-    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
+    SlidingRateInfo(int n) : N(n) {}
 
     double rate() { return rate_; }
 
@@ -105,10 +105,10 @@ struct StatusPrinter : Status {
     }
 
   private:
-    double rate_;
+    double rate_ = -1.0;
     const size_t N;
     std::queue<double> times_;
-    int last_update_;
+    int last_update_ = -1;
   };
 
   mutable SlidingRateInfo current_rate_;

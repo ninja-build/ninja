@@ -23,7 +23,7 @@
 /// Interface for reading files from disk.  See DiskInterface for details.
 /// This base offers the minimum interface needed just to read files.
 struct FileReader {
-  virtual ~FileReader() {}
+  virtual ~FileReader() = default;
 
   /// Result of ReadFile.
   enum Status {
@@ -69,11 +69,6 @@ struct DiskInterface: public FileReader {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface()
-#ifdef _WIN32
-                      : use_cache_(false)
-#endif
-                      {}
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const std::string& path, std::string* err) const;
   virtual bool MakeDir(const std::string& path);
@@ -88,7 +83,7 @@ struct RealDiskInterface : public DiskInterface {
  private:
 #ifdef _WIN32
   /// Whether stat information can be cached.
-  bool use_cache_;
+  bool use_cache_ = false;
 
   typedef std::map<std::string, TimeStamp> DirCache;
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache

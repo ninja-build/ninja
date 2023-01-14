@@ -77,8 +77,6 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 Plan::Plan(Builder* builder)
   : builder_(builder)
-  , command_edges_(0)
-  , wanted_edges_(0)
 {}
 
 void Plan::Reset() {

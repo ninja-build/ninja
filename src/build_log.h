@@ -99,9 +99,9 @@ struct BuildLog {
   bool OpenForWriteIfNeeded();
 
   Entries entries_;
-  FILE* log_file_;
+  FILE* log_file_ = nullptr;
   std::string log_file_path_;
-  bool needs_recompaction_;
+  bool needs_recompaction_ = false;
 };
 
 #endif // NINJA_BUILD_LOG_H_
