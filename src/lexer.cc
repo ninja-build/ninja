@@ -672,9 +672,9 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 		if (yych <= '\n') goto yy69;
 		goto yy70;
 	} else {
-		if (yych <= ' ') goto yy69;
-		if (yych <= '$') goto yy71;
-		goto yy69;
+		if (yych <= ' ') goto yy71;
+		if (yych <= '$') goto yy72;
+		goto yy71;
 	}
 yy67:
 	++p;
@@ -694,24 +694,29 @@ yy68:
 yy69:
 	++p;
 	{
+      if (path)
+        p = start;
+      break;
+    }
+yy70:
+	yych = *++p;
+	if (yych == '\n') goto yy69;
+	{
+      eval->AddText(StringPiece(start, 1));
+      continue;
+    }
+yy71:
+	++p;
+	{
       if (path) {
         p = start;
         break;
       } else {
-        if (*start == '\n')
-          break;
         eval->AddText(StringPiece(start, 1));
         continue;
       }
     }
-yy70:
-	yych = *++p;
-	if (yych == '\n') goto yy72;
-	{
-      last_token_ = start;
-      return Error(DescribeLastError(), err);
-    }
-yy71:
+yy72:
 	yych = *++p;
 	if (yybm[0+yych] & 64) {
 		goto yy79;
@@ -719,31 +724,20 @@ yy71:
 	if (yych <= '#') {
 		if (yych <= '\f') {
 			if (yych == '\n') goto yy75;
-			goto yy73;
 		} else {
 			if (yych <= '\r') goto yy76;
 			if (yych == ' ') goto yy77;
-			goto yy73;
 		}
 	} else {
 		if (yych <= ':') {
 			if (yych <= '$') goto yy78;
-			if (yych <= '/') goto yy73;
-			goto yy80;
+			if (yych >= '0') goto yy80;
 		} else {
 			if (yych <= '`') goto yy73;
 			if (yych <= '{') goto yy81;
 			if (yych <= '|') goto yy82;
-			goto yy73;
 		}
 	}
-yy72:
-	++p;
-	{
-      if (path)
-        p = start;
-      break;
-    }
 yy73:
 	++p;
 yy74:
