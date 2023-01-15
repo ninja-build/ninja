@@ -831,6 +831,9 @@ paths, where a space would otherwise separate filenames.  See below.)
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
 would otherwise terminate the list of outputs.)
 
+`$|`:: a newline.  (This becomes a literal newline in the variable
+assignment.)
+
 `$$`:: a literal `$`.
 
 A `build` or `default` statement is first parsed as a space-separated

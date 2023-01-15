@@ -259,6 +259,10 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
       eval->AddText(StringPiece(":", 1));
       continue;
     }
+    "$|" {
+      eval->AddText(StringPiece("\n", 1));
+      continue;
+    }
     "$". {
       last_token_ = start;
       return Error("bad $-escape (literal $ must be written as $$)", err);

@@ -30,12 +30,12 @@ TEST(Lexer, ReadVarValue) {
 }
 
 TEST(Lexer, ReadEvalStringEscapes) {
-  Lexer lexer("$ $$ab c$: $\ncde\n");
+  Lexer lexer("$ $$ab c$: $\ncd$|e\n");
   EvalString eval;
   string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("[ $ab c: cde]",
+  EXPECT_EQ("[ $ab c: cd\ne]",
             eval.Serialize());
 }
 
