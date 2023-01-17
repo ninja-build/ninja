@@ -53,8 +53,8 @@ using namespace std;
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kOldestSupportedVersion = 6;
+const int kCurrentVersion = 6;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
