@@ -1311,9 +1311,9 @@ void NinjaMain::DumpMetrics() {
   g_metrics->Report();
 
   printf("\n");
-  int count = (int)state_.paths_.size();
-  int buckets = (int)state_.paths_.bucket_count();
-  printf("path->node hash load %.2f (%d entries / %d buckets)\n",
+  size_t count = state_.paths_.size();
+  size_t buckets = state_.paths_.bucket_count();
+  printf("path->node hash load %.2f (%zu entries / %zu buckets)\n",
          count / (double) buckets, count, buckets);
 }
 

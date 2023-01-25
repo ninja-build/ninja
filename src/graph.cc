@@ -400,12 +400,12 @@ struct EdgeEnv : public Env {
 
 string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
-    int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
+    size_t explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
     return MakePathList(edge_->inputs_.data(), explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
-    int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
+    size_t explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
     return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
   }
 
