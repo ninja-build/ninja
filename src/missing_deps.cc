@@ -49,11 +49,10 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
 
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
     Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
-  for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
-       i != depfile_ins->end(); ++i) {
+  for (auto & depfile_in : *depfile_ins) {
     uint64_t slash_bits;
-    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-    Node* node = state_->GetNode(*i, slash_bits);
+    CanonicalizePath(const_cast<char*>(depfile_in.str_), &depfile_in.len_, &slash_bits);
+    Node* node = state_->GetNode(depfile_in, slash_bits);
     dep_nodes_output_->push_back(node);
   }
   return true;
@@ -84,9 +83,8 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
   if (!seen_.insert(node).second)
     return;
 
-  for (std::vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    ProcessNode(*in);
+  for (auto & input : edge->inputs_) {
+    ProcessNode(input);
   }
 
   std::string deps_type = edge->GetBinding("deps");
@@ -126,23 +124,21 @@ void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
     }
   }
   std::vector<Edge*> missing_deps;
-  for (std::set<Edge*>::iterator de = deplog_edges.begin();
-       de != deplog_edges.end(); ++de) {
-    if (!PathExistsBetween(*de, edge)) {
-      missing_deps.push_back(*de);
+  for (auto deplog_edge : deplog_edges) {
+    if (!PathExistsBetween(deplog_edge, edge)) {
+      missing_deps.push_back(deplog_edge);
     }
   }
 
   if (!missing_deps.empty()) {
     std::set<std::string> missing_deps_rule_names;
-    for (std::vector<Edge*>::iterator ne = missing_deps.begin();
-         ne != missing_deps.end(); ++ne) {
+    for (auto & missing_dep : missing_deps) {
       for (int i = 0; i < dep_nodes_count; ++i) {
-        if (dep_nodes[i]->in_edge() == *ne) {
+        if (dep_nodes[i]->in_edge() == missing_dep) {
           generated_nodes_.insert(dep_nodes[i]);
-          generator_rules_.insert(&(*ne)->rule());
-          missing_deps_rule_names.insert((*ne)->rule().name());
-          delegate_->OnMissingDep(node, dep_nodes[i]->path(), (*ne)->rule());
+          generator_rules_.insert(&missing_dep->rule());
+          missing_deps_rule_names.insert(missing_dep->rule().name());
+          delegate_->OnMissingDep(node, dep_nodes[i]->path(), missing_dep->rule());
         }
       }
     }
@@ -180,8 +176,8 @@ bool MissingDependencyScanner::PathExistsBetween(Edge* from, Edge* to) {
     it = adjacency_map_.insert(std::make_pair(from, InnerAdjacencyMap())).first;
   }
   bool found = false;
-  for (size_t i = 0; i < to->inputs_.size(); ++i) {
-    Edge* e = to->inputs_[i]->in_edge();
+  for (auto & input : to->inputs_) {
+    Edge* e = input->in_edge();
     if (e && (e == from || PathExistsBetween(from, e))) {
       found = true;
       break;

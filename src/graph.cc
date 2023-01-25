@@ -139,9 +139,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   }
 
   // Load output mtimes so we can compare them to the most recent input below.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
+  for (auto & output : edge->outputs_) {
+    if (!output->StatIfNecessary(disk_interface_, err))
       return false;
   }
 
@@ -200,10 +199,9 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       return false;
 
   // Finally, visit each output and update their dirty state if necessary.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
+  for (auto & output : edge->outputs_) {
     if (dirty)
-      (*o)->MarkDirty();
+      output->MarkDirty();
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
@@ -400,12 +398,12 @@ struct EdgeEnv : public Env {
 
 string EdgeEnv::LookupVariable(const string& var) {
   if (var == "in" || var == "in_newline") {
-    int explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
+    size_t explicit_deps_count = edge_->inputs_.size() - edge_->implicit_deps_ -
       edge_->order_only_deps_;
     return MakePathList(edge_->inputs_.data(), explicit_deps_count,
                         var == "in" ? ' ' : '\n');
   } else if (var == "out") {
-    int explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
+    size_t explicit_outs_count = edge_->outputs_.size() - edge_->implicit_outs_;
     return MakePathList(&edge_->outputs_[0], explicit_outs_count, ' ');
   }
 
@@ -453,9 +451,8 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
 
 void Edge::CollectInputs(bool shell_escape,
                          std::vector<std::string>* out) const {
-  for (std::vector<Node*>::const_iterator it = inputs_.begin();
-       it != inputs_.end(); ++it) {
-    std::string path = (*it)->PathDecanonicalized();
+  for (auto input : inputs_) {
+    std::string path = input->PathDecanonicalized();
     if (shell_escape) {
       std::string unescaped;
       unescaped.swap(path);

@@ -72,9 +72,8 @@ void GraphViz::AddTarget(Node* node) {
     }
   }
 
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    AddTarget(*in);
+  for (auto & input : edge->inputs_) {
+    AddTarget(input);
   }
 }
 

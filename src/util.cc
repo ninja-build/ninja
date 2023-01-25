@@ -260,15 +260,15 @@ static inline bool IsKnownWin32SafeCharacter(char ch) {
 }
 
 static inline bool StringNeedsShellEscaping(const string& input) {
-  for (size_t i = 0; i < input.size(); ++i) {
-    if (!IsKnownShellSafeCharacter(input[i])) return true;
+  for (char i : input) {
+    if (!IsKnownShellSafeCharacter(i)) return true;
   }
   return false;
 }
 
 static inline bool StringNeedsWin32Escaping(const string& input) {
-  for (size_t i = 0; i < input.size(); ++i) {
-    if (!IsKnownWin32SafeCharacter(input[i])) return true;
+  for (char i : input) {
+    if (!IsKnownWin32SafeCharacter(i)) return true;
   }
   return false;
 }
