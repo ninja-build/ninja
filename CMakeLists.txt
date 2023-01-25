@@ -4,6 +4,7 @@ include(CheckSymbolExists)
 include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
+option(BUILD_TESTING "Build ninja tests" ON)
 
 project(ninja CXX)
 
@@ -198,7 +199,7 @@ if(platform_supports_ninja_browse)
 	)
 endif()
 
-include(CTest)
+enable_testing()
 if(BUILD_TESTING)
   # Tests all build into ninja_test executable.
   add_executable(ninja_test
@@ -228,7 +229,7 @@ if(BUILD_TESTING)
   endif()
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
-  foreach(perftest
+  foreach(perftest IN ITEMS
     build_log_perftest
     canon_perftest
     clparser_perftest
