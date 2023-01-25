@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-12
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install dependencies
       run: brew install re2c p7zip cmake
@@ -25,7 +25,7 @@ jobs:
         cmake --build build --config Release
 
     - name: Test ninja
-      run: ctest -C Release -vv
+      run: ctest -C Release --verbose
       working-directory: build
 
     - name: Create ninja archive
@@ -36,14 +36,14 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
       if: github.event.action == 'published'
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
