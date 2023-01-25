@@ -146,8 +146,10 @@ bool ManifestParser::ParseRule(string* err) {
   while (lexer_.PeekToken(Lexer::INDENT)) {
     string key;
     EvalString value;
-    if (!ParseLet(&key, &value, err))
+    if (!ParseLet(&key, &value, err)) {
+      delete rule;
       return false;
+    }
 
     if (Rule::IsReservedBinding(key)) {
       rule->AddBinding(key, value);
@@ -309,8 +311,10 @@ bool ManifestParser::ParseEdge(string* err) {
   while (has_indent_token) {
     string key;
     EvalString val;
-    if (!ParseLet(&key, &val, err))
+    if (!ParseLet(&key, &val, err)) {
+      delete env;
       return false;
+    }
 
     env->AddBinding(key, val.Evaluate(env_));
     has_indent_token = lexer_.PeekToken(Lexer::INDENT);
