@@ -13,7 +13,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: ['win32', 'x64', 'arm64']
+        include:
+        - arch: 'win32'
+          suffix: 'x86'
+        - arch: 'x64'
+          suffix: ''
+        - arch: 'arm64'
+          suffix: 'arm64'
 
     steps:
     - uses: actions/checkout@v2
@@ -42,7 +48,7 @@ jobs:
       shell: bash
       run: |
         mkdir artifact
-        7z a artifact/ninja-win-${{ matrix.arch }}.zip ./build/Release/ninja.exe
+        7z a artifact/ninja-win${{ matrix.suffix }}.zip ./build/Release/ninja.exe
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
@@ -58,6 +64,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifact/ninja-win-${{ matrix.arch }}.zip
-        asset_name: ninja-win-${{ matrix.arch }}.zip
+        asset_path: ./artifact/ninja-win${{ matrix.suffix }}.zip
+        asset_name: ninja-win${{ matrix.suffix }}.zip
         asset_content_type: application/zip
