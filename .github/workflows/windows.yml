@@ -14,8 +14,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - arch: 'win32'
-          suffix: 'x86'
         - arch: 'x64'
           suffix: ''
         - arch: 'arm64'
