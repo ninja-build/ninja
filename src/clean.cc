@@ -46,10 +46,11 @@ void Cleaner::RemoveAllPending() {
     });
   for (vector<string>::iterator file = pending_.begin();
          file != pending_.end(); ++file) {
-    if (FileExists(*file)) {
+    int ret = RemoveFile(*file);
+    if (ret == 0)
       Report(*file);
-      RemoveFile(*file);
-    }
+    else if (ret == -1)
+      status_ = 1;
   }
 }
 
