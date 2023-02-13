@@ -344,14 +344,9 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->mtime = mtime;
-    if (log_version >= 5) {
-      char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
-      *end = c;
-    } else {
-      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
-                                                              end - start));
-    }
+    char c = *end; *end = '\0';
+    entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
+    *end = c;
   }
   fclose(file);
 
