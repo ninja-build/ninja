@@ -279,9 +279,11 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     if (!log_version) {
       sscanf(line_start, kFileSignature, &log_version);
 
-      if (log_version < kOldestSupportedVersion) {
-        *err = ("build log version invalid, perhaps due to being too old; "
-                "starting over");
+      if (log_version < kOldestSupportedVersion ||
+          log_version > kCurrentVersion) {
+        *err =
+            ("build log version invalid, perhaps due to being too old or "
+             "too new; starting over");
         fclose(file);
         unlink(path.c_str());
         // Don't report this as a failure.  An empty build log will cause
