@@ -117,7 +117,7 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (err != 0)
     Fatal("posix_spawnattr_setflags: %s", strerror(err));
 
-  const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), NULL };
+  const char* spawned_args[] = { "/bin/sh", "-c", command.c_str(), nullptr };
   err = posix_spawn(&pid_, "/bin/sh", &action, &attr,
         const_cast<char**>(spawned_args), environ);
   if (err != 0)
@@ -228,13 +228,13 @@ SubprocessSet::SubprocessSet() {
 SubprocessSet::~SubprocessSet() {
   Clear();
 
-  if (sigaction(SIGINT, &old_int_act_, 0) < 0)
+  if (sigaction(SIGINT, &old_int_act_, nullptr) < 0)
     Fatal("sigaction: %s", strerror(errno));
-  if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
+  if (sigaction(SIGTERM, &old_term_act_, nullptr) < 0)
     Fatal("sigaction: %s", strerror(errno));
-  if (sigaction(SIGHUP, &old_hup_act_, 0) < 0)
+  if (sigaction(SIGHUP, &old_hup_act_, nullptr) < 0)
     Fatal("sigaction: %s", strerror(errno));
-  if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
+  if (sigprocmask(SIG_SETMASK, &old_mask_, nullptr) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
@@ -242,7 +242,7 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
   Subprocess *subprocess = new Subprocess(use_console);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
-    return 0;
+    return nullptr;
   }
   running_.push_back(subprocess);
   return subprocess;
@@ -264,7 +264,7 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = 0;
-  int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  int ret = ppoll(&fds.front(), nfds, nullptr, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
@@ -315,7 +315,7 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = 0;
-  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
+  int ret = pselect(nfds, &set, nullptr, nullptr, nullptr, &old_mask_);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
@@ -348,7 +348,7 @@ bool SubprocessSet::DoWork() {
 
 Subprocess* SubprocessSet::NextFinished() {
   if (finished_.empty())
-    return NULL;
+    return nullptr;
   Subprocess* subproc = finished_.front();
   finished_.pop();
   return subproc;

@@ -54,6 +54,7 @@ else()
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
+target_compile_features(libninja-re2c PRIVATE cxx_std_11)
 
 # --- Check for 'browse' mode support
 function(check_platform_supports_browse_mode RESULT)
@@ -230,6 +231,7 @@ if(BUILD_TESTING)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
   endif()
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  target_compile_features(ninja_test PRIVATE cxx_std_11)
 
   foreach(perftest
     build_log_perftest

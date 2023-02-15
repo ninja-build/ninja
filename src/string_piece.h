@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include <string.h>
+#include <cstring>
 
 /// StringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of std::strings
@@ -25,7 +25,7 @@
 struct StringPiece {
   typedef const char* const_iterator;
 
-  StringPiece() : str_(NULL), len_(0) {}
+  StringPiece() : str_(nullptr), len_(0) {}
 
   /// The constructors intentionally allow for implicit conversions.
   StringPiece(const std::string& str) : str_(str.data()), len_(str.size()) {}

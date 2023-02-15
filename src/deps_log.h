@@ -66,7 +66,7 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog {
-  DepsLog() : needs_recompaction_(false), file_(NULL) {}
+  DepsLog() : needs_recompaction_(false), file_(nullptr) {}
   ~DepsLog();
 
   // Writing (build-time) interface.

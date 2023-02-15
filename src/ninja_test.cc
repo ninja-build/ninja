@@ -94,15 +94,15 @@ bool TestMatchesFilter(const char* test, const char* filter) {
 bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
   enum { OPT_GTEST_FILTER = 1 };
   const option kLongOptions[] = {
-    { "gtest_filter", required_argument, NULL, OPT_GTEST_FILTER },
-    { NULL, 0, NULL, 0 }
+    { "gtest_filter", required_argument, nullptr, OPT_GTEST_FILTER },
+    { nullptr, 0, nullptr, 0 }
   };
 
   int opt;
-  while ((opt = getopt_long(*argc, *argv, "h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(*argc, *argv, "h", kLongOptions, nullptr)) != -1) {
     switch (opt) {
     case OPT_GTEST_FILTER:
-      if (strchr(optarg, '?') == NULL && strchr(optarg, ':') == NULL) {
+      if (strchr(optarg, '?') == nullptr && strchr(optarg, ':') == nullptr) {
         *test_filter = optarg;
         break;
       }  // else fall through.

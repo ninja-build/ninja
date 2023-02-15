@@ -89,7 +89,7 @@ void Plan::Reset() {
 }
 
 bool Plan::AddTarget(const Node* target, string* err) {
-  return AddSubTarget(target, NULL, err, NULL);
+  return AddSubTarget(target, nullptr, err, nullptr);
 }
 
 bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
@@ -150,7 +150,7 @@ void Plan::EdgeWanted(const Edge* edge) {
 
 Edge* Plan::FindWork() {
   if (ready_.empty())
-    return NULL;
+    return nullptr;
   EdgeSet::iterator e = ready_.begin();
   Edge* edge = *e;
   ready_.erase(e);
@@ -271,7 +271,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 #endif
     if (find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
       // Recompute most_recent_input.
-      Node* most_recent_input = NULL;
+      Node* most_recent_input = nullptr;
       for (vector<Node*>::iterator i = begin; i != end; ++i) {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime())
           most_recent_input = *i;
@@ -493,7 +493,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 
 bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
+  while ((subproc = subprocs_.NextFinished()) == nullptr) {
     bool interrupted = subprocs_.DoWork();
     if (interrupted)
       return false;
@@ -566,10 +566,10 @@ Node* Builder::AddTarget(const string& name, string* err) {
   Node* node = state_->LookupNode(name);
   if (!node) {
     *err = "unknown target: '" + name + "'";
-    return NULL;
+    return nullptr;
   }
   if (!AddTarget(node, err))
-    return NULL;
+    return nullptr;
   return node;
 }
 

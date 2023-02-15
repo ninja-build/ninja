@@ -64,7 +64,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
-      char* yymarker = NULL;
+      char* yymarker = nullptr;
       
     {
       unsigned char yych;
