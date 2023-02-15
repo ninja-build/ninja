@@ -106,7 +106,7 @@ bool DyndepParser::ParseLet(string* key, EvalString* value, string* err) {
 bool DyndepParser::ParseEdge(string* err) {
   // Parse one explicit output.  We expect it to already have an edge.
   // We will record its dynamically-discovered dependency information.
-  Dyndeps* dyndeps = NULL;
+  Dyndeps* dyndeps = nullptr;
   {
     EvalString out0;
     if (!lexer_.ReadPath(&out0, err))

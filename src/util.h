@@ -83,11 +83,11 @@ int ReadFile(const std::string& path, std::string* contents, std::string* err);
 void SetCloseOnExec(int fd);
 
 /// Given a misspelled string and a list of correct spellings, returns
-/// the closest match or NULL if there is no close enough match.
+/// the closest match or nullptr if there is no close enough match.
 const char* SpellcheckStringV(const std::string& text,
                               const std::vector<const char*>& words);
 
-/// Like SpellcheckStringV, but takes a NULL-terminated list.
+/// Like SpellcheckStringV, but takes a nullptr-terminated list.
 const char* SpellcheckString(const char* text, ...);
 
 bool islatinalpha(int c);
@@ -125,7 +125,7 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
-NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+NORETURN void Win32Fatal(const char* function, const char* hint = nullptr);
 #endif
 
 #endif  // NINJA_UTIL_H_

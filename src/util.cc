@@ -121,7 +121,7 @@ void Info(const char* msg, ...) {
 
 void CanonicalizePath(string* path, uint64_t* slash_bits) {
   size_t len = path->size();
-  char* str = 0;
+  char* str = nullptr;
   if (len > 0)
     str = &(*path)[0];
   CanonicalizePath(str, &len, slash_bits);
@@ -340,8 +340,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
     return -ENOENT;
@@ -350,7 +350,7 @@ int ReadFile(const string& path, string* contents, string* err) {
   for (;;) {
     DWORD len;
     char buf[64 << 10];
-    if (!::ReadFile(f, buf, sizeof(buf), &len, NULL)) {
+    if (!::ReadFile(f, buf, sizeof(buf), &len, nullptr)) {
       err->assign(GetLastErrorString());
       contents->clear();
       ::CloseHandle(f);
@@ -424,7 +424,7 @@ const char* SpellcheckStringV(const string& text,
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
-  const char* result = NULL;
+  const char* result = nullptr;
   for (vector<const char*>::const_iterator i = words.begin();
        i != words.end(); ++i) {
     int distance = EditDistance(*i, text, kAllowReplacements,
@@ -459,12 +459,12 @@ string GetLastErrorString() {
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
+        nullptr,
         err,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         (char*)&msg_buf,
         0,
-        NULL);
+        nullptr);
   string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
@@ -696,8 +696,8 @@ int GetProcessorCount() {
   JOBOBJECT_CPU_RATE_CONTROL_INFORMATION info;
   // reference:
   // https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_cpu_rate_control_information
-  if (QueryInformationJobObject(NULL, JobObjectCpuRateControlInformation, &info,
-                                sizeof(info), NULL)) {
+  if (QueryInformationJobObject(nullptr, JobObjectCpuRateControlInformation, &info,
+                                sizeof(info), nullptr)) {
     if (info.ControlFlags & (JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
                              JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP)) {
       return cpuCount * info.CpuRate / 10000;
@@ -805,7 +805,7 @@ double GetLoadAverage() {
 #elif defined(_AIX)
 double GetLoadAverage() {
   perfstat_cpu_total_t cpu_stats;
-  if (perfstat_cpu_total(NULL, &cpu_stats, sizeof(cpu_stats), 1) < 0) {
+  if (perfstat_cpu_total(nullptr, &cpu_stats, sizeof(cpu_stats), 1) < 0) {
     return -0.0f;
   }
 

@@ -28,7 +28,7 @@ struct Parser {
       : state_(state), file_reader_(file_reader) {}
 
   /// Load and parse a file.
-  bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
+  bool Load(const std::string& filename, std::string* err, Lexer* parent = nullptr);
 
 protected:
   /// If the next token is not \a expected, produce an error string

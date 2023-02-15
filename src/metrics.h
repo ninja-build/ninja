@@ -82,7 +82,7 @@ struct Stopwatch {
 /// of a function to get timing stats recorded for each call of the function.
 #define METRIC_RECORD(name)                                             \
   static Metric* metrics_h_metric =                                     \
-      g_metrics ? g_metrics->NewMetric(name) : NULL;                    \
+      g_metrics ? g_metrics->NewMetric(name) : nullptr;                    \
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
 extern Metrics* g_metrics;

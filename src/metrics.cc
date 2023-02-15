@@ -25,7 +25,7 @@
 
 using namespace std;
 
-Metrics* g_metrics = NULL;
+Metrics* g_metrics = nullptr;
 
 namespace {
 
