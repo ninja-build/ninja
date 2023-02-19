@@ -135,7 +135,17 @@ struct TokenPoolTest : public testing::Test {
 
   void CreateMaster(int parallelism) {
     if ((tokens_ = TokenPool::Get()) != NULL) {
-      if (!tokens_->SetupMaster(false, parallelism, load_avg_)) {
+      if (!tokens_->SetupMaster(
+        false,
+        parallelism,
+        load_avg_,
+#ifdef _WIN32
+        NULL
+#else
+        // @TODO test "fifo" style
+        "pipe"
+#endif
+      )) {
         delete tokens_;
         tokens_ = NULL;
       }

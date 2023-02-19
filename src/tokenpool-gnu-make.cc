@@ -73,13 +73,14 @@ bool GNUmakeTokenPool::SetupClient(bool ignore,
 
 bool GNUmakeTokenPool::SetupMaster(bool verbose,
                                    int parallelism,
-                                   double max_load_average) {
+                                   double max_load_average,
+                                   const char* style) {
   // no need to set up token pool for serial builds
   if (parallelism == 1)
     return false;
 
   string auth;
-  if (CreatePool(parallelism, &auth)) {
+  if (CreatePool(parallelism, style, &auth)) {
     string value = "--jobserver-auth=" + auth;
     if (max_load_average > 0.0f) {
       char buffer[32];

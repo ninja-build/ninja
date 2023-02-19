@@ -44,7 +44,8 @@ struct TestTokenPool : public TokenPool {
                    double& max_load_average) { return false; }
   bool SetupMaster(bool verbose,
                    int parallelism,
-                   double max_load_average)  { return false; }
+                   double max_load_average,
+                   const char* style)  { return false; }
 
 #ifdef _WIN32
   bool _token_available;

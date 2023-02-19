@@ -37,7 +37,9 @@ struct GNUmakeTokenPoolWin32 : public GNUmakeTokenPool {
   virtual const char* GetEnv(const char* name);
   virtual bool SetEnv(const char* name, const char* value);
   virtual bool ParseAuth(const char* jobserver);
-  virtual bool CreatePool(int parallelism, std::string* auth);
+  virtual bool CreatePool(int parallelism,
+                          const char* style,
+                          std::string* auth);
   virtual bool AcquireToken();
   virtual bool ReturnToken();
 
@@ -147,7 +149,13 @@ bool GNUmakeTokenPoolWin32::ParseAuth(const char* jobserver) {
   return false;
 }
 
-bool GNUmakeTokenPoolWin32::CreatePool(int parallelism, std::string* auth) {
+bool GNUmakeTokenPoolWin32::CreatePool(int parallelism,
+                                       const char* style,
+                                       std::string* auth) {
+  // there is only one supported style on Windows: sem(aphores)
+  if (style != NULL && strcmp(style, "sem") != 0)
+    Win32Fatal("CreatePool", "unsupported tokenpool style");
+
   char buffer[100];
   snprintf(buffer, sizeof(buffer), "gmake_semaphore_%d", _getpid());
 

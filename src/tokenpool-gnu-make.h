@@ -30,13 +30,16 @@ struct GNUmakeTokenPool : public TokenPool {
                            double& max_load_average);
   virtual bool SetupMaster(bool verbose,
                            int parallelism,
-                           double max_load_average);
+                           double max_load_average,
+                           const char* style);
 
   // platform specific implementation
   virtual const char* GetEnv(const char* name) = 0;
   virtual bool SetEnv(const char* name, const char* value) = 0;
   virtual bool ParseAuth(const char* jobserver) = 0;
-  virtual bool CreatePool(int parallelism, std::string* auth) = 0;
+  virtual bool CreatePool(int parallelism,
+                          const char* style,
+                          std::string* auth) = 0;
   virtual bool AcquireToken() = 0;
   virtual bool ReturnToken() = 0;
 

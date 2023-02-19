@@ -30,7 +30,8 @@ struct TokenPool {
                            double& max_load_average) = 0;
   virtual bool SetupMaster(bool verbose,
                            int parallelism,
-                           double max_load_average) = 0;
+                           double max_load_average,
+                           const char* style) = 0;
 
 #ifdef _WIN32
   virtual void WaitForTokenAvailability(HANDLE ioport) = 0;

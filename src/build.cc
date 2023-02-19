@@ -477,7 +477,8 @@ RealCommandRunner::RealCommandRunner(const BuildConfig& config) : config_(config
     bool setup_ok = config_.tokenpool_master ?
       tokens_->SetupMaster(config_.verbosity == BuildConfig::VERBOSE,
                            config_.parallelism,
-                           max_load_average_) :
+                           max_load_average_,
+                           config_.tokenpool_master_style) :
       tokens_->SetupClient(config_.parallelism_from_cmdline,
                            config_.verbosity == BuildConfig::VERBOSE,
                            max_load_average_);

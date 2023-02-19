@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <stack>
 
+#include "util.h"
+
 // TokenPool implementation for GNU make jobserver - POSIX implementation
 // (http://make.mad-scientist.net/papers/jobserver-implementation/)
 struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
@@ -38,7 +40,9 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
     return setenv(name, value, 1) == 0;
   };
   virtual bool ParseAuth(const char* jobserver);
-  virtual bool CreatePool(int parallelism, std::string* auth);
+  virtual bool CreatePool(int parallelism,
+                          const char* style,
+                          std::string* auth);
   virtual bool AcquireToken();
   virtual bool ReturnToken();
 
@@ -160,32 +164,43 @@ bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
   return false;
 }
 
-bool GNUmakeTokenPoolPosix::CreatePool(int parallelism, std::string* auth) {
-  // create jobserver pipe
-  int fds[2];
-  if (pipe(fds) < 0)
+bool GNUmakeTokenPoolPosix::CreatePool(int parallelism,
+                                       const char* style,
+                                       std::string* auth) {
+  if (style == NULL || strcmp(style, "fifo") == 0) {
+    // TBD...
     return false;
-
-  // add N tokens to pipe
-  const char token = '+'; // see make/posixos.c
-  while (parallelism--) {
-    if (write(fds[1], &token, 1) < 1) {
-      close(fds[1]);
-      close(fds[0]);
-      return false;
-    }
   }
 
-  // initialize file descriptors for this instance
-  rfd_ = fds[0];
-  wfd_ = fds[1];
+  if (strcmp(style, "pipe") == 0) {
+    // create jobserver pipe
+    int fds[2];
+    if (pipe(fds) < 0)
+      return false;
 
-  // generate auth parameter for child processes
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%d,%d", rfd_, wfd_);
-  *auth = buffer;
+    // add N tokens to pipe
+    const char token = '+'; // see make/posixos.c
+    while (parallelism--) {
+      if (write(fds[1], &token, 1) < 1) {
+        close(fds[1]);
+        close(fds[0]);
+        return false;
+      }
+    }
 
-  return true;
+    // initialize file descriptors for this instance
+    rfd_ = fds[0];
+    wfd_ = fds[1];
+
+    // generate auth parameter for child processes
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%d,%d", rfd_, wfd_);
+    *auth = buffer;
+
+    return true;
+  }
+
+  Fatal("unsupported tokenpool style '%s'", style);
 }
 
 bool GNUmakeTokenPoolPosix::AcquireToken() {

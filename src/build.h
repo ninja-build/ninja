@@ -163,7 +163,7 @@ struct CommandRunner {
 struct BuildConfig {
   BuildConfig() : verbosity(NORMAL), dry_run(false),
                   parallelism(1), parallelism_from_cmdline(false),
-                  tokenpool_master(false),
+                  tokenpool_master(false), tokenpool_master_style(NULL),
                   failures_allowed(1), max_load_average(-0.0f) {}
 
   enum Verbosity {
@@ -177,6 +177,7 @@ struct BuildConfig {
   int parallelism;
   bool parallelism_from_cmdline;
   bool tokenpool_master;
+  const char* tokenpool_master_style;
   int failures_allowed;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
