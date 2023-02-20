@@ -133,18 +133,13 @@ struct TokenPoolTest : public testing::Test {
   }
 #endif
 
-  void CreateMaster(int parallelism) {
+  void CreateMaster(int parallelism, const char *style = NULL) {
     if ((tokens_ = TokenPool::Get()) != NULL) {
       if (!tokens_->SetupMaster(
         false,
         parallelism,
         load_avg_,
-#ifdef _WIN32
-        NULL
-#else
-        // @TODO test "fifo" style
-        "pipe"
-#endif
+        style
       )) {
         delete tokens_;
         tokens_ = NULL;
@@ -152,7 +147,7 @@ struct TokenPoolTest : public testing::Test {
     }
   }
 
-  void CheckTokens(const char *env, unsigned int tokens) {
+  void CheckTokens(const char *env, unsigned int tokens, const char *style = NULL) {
 #ifdef _WIN32
     ASSERT_EQ(env, strstr(env, "--jobserver-auth=gmake_semaphore_"));
     char *name   = (char *) strchr(env, '=') + 1; // in _env_buffer
@@ -174,10 +169,20 @@ struct TokenPoolTest : public testing::Test {
 
     CloseHandle(semaphore);
 #else
-    int rfd = -1, wfd = -1;
-    ASSERT_EQ(2u, sscanf(env, "%*[^=]=%d,%d", &rfd, &wfd));
+    int rfd = -1;
+    if (style) {
+      // pipe style
+      int wfd = -1;
+      ASSERT_EQ(2u, sscanf(env, "%*[^=]=%d,%d", &rfd, &wfd));
+      EXPECT_NE(-1, wfd);
+    } else {
+      // default style (fifo)
+      char fifoName[strlen(env) + 1];
+      ASSERT_EQ(1u, sscanf(env, "%*[^=]=fifo:%s", fifoName));
+      rfd = open(fifoName, O_RDONLY);
+    }
+
     EXPECT_NE(-1, rfd);
-    EXPECT_NE(-1, wfd);
 
     int flags = fcntl(rfd, F_GETFL, 0);
     ASSERT_NE(-1, flags);
@@ -185,6 +190,11 @@ struct TokenPoolTest : public testing::Test {
 
     EXPECT_EQ(tokens, read(rfd, buf_, sizeof(buf_)));
     EXPECT_EQ(-1,     read(rfd, buf_, sizeof(buf_))); // EWOULDBLOCK
+
+    if (!style) {
+      // close fifo read side
+      ASSERT_EQ(0, close(rfd));
+    }
 #endif
   }
 
@@ -455,3 +465,20 @@ TEST_F(TokenPoolTest, MasterWithLoadAvg) {
 
   CheckTokens(env, 3);
 }
+
+#ifndef _WIN32
+TEST_F(TokenPoolTest, MasterWithPipeStyle) {
+  // kLoadAverageDefault <= 0.0f -> no load averaging
+  CreateMaster(4, "pipe");
+
+  ASSERT_NE(NULL, tokens_);
+
+  const char *env = ENVIRONMENT_GET();
+  ASSERT_NE(NULL, env);
+
+  EXPECT_EQ(env,  strstr(env, "--jobserver-auth="));
+  EXPECT_EQ(NULL, strstr(env, " -l"));
+
+  CheckTokens(env, 4, "pipe");
+}
+#endif

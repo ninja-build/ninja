@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,6 +52,7 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
   int rfd_;
   int wfd_;
   bool closeFds_;
+  std::string fifoName_;
 
   struct sigaction old_act_;
   bool restore_;
@@ -69,6 +72,9 @@ struct GNUmakeTokenPoolPosix : public GNUmakeTokenPool {
 
   bool CheckFd(int fd);
   bool CheckFifo(const char* fifo);
+  bool CreateFifo(int parallelism, std::string* auth);
+  bool CreatePipe(int parallelism, std::string* auth);
+  bool CreateTokens(int parallelism, int rfd, int wfd);
   bool SetAlarmHandler();
 };
 
@@ -81,6 +87,8 @@ GNUmakeTokenPoolPosix::~GNUmakeTokenPoolPosix() {
     close(wfd_);
     close(rfd_);
   }
+  if (fifoName_.length() > 0)
+    unlink(fifoName_.c_str());
   if (restore_)
     sigaction(SIGALRM, &old_act_, NULL);
 }
@@ -118,6 +126,88 @@ bool GNUmakeTokenPoolPosix::CheckFifo(const char* fifo) {
   rfd_ = rfd;
   wfd_ = wfd;
   closeFds_ = true;
+
+  return true;
+}
+
+bool GNUmakeTokenPoolPosix::CreateFifo(int parallelism,
+                                       std::string* auth) {
+  const char* tmpdir = getenv("TMPDIR");
+  char pid[32];
+  snprintf(pid, sizeof(pid), "%d", getpid());
+
+  // template copied from make/posixos.c
+  std::string fifoName = tmpdir ? tmpdir : "/tmp";
+  fifoName += "/GMfifo";
+  fifoName += pid;
+
+  // create jobserver named FIFO
+  const char* fifoNameCStr = fifoName.c_str();
+  if (mkfifo(fifoNameCStr, 0600) < 0)
+    return false;
+
+  int rfd;
+  if ((rfd = open(fifoNameCStr, O_RDONLY|O_NONBLOCK)) < 0) {
+    unlink(fifoNameCStr);
+    return false;
+  }
+
+  int wfd;
+  if ((wfd = open(fifoNameCStr, O_WRONLY)) < 0) {
+    close(rfd);
+    unlink(fifoNameCStr);
+    return false;
+  }
+
+  if (!CreateTokens(parallelism, rfd, wfd)) {
+    unlink(fifoNameCStr);
+    return false;
+  }
+
+  // initialize FIFO name for this instance
+  closeFds_ = true;
+  fifoName_ = fifoName;
+
+  // generate auth parameter for child processes
+  *auth = "fifo:" + fifoName;
+
+  return true;
+}
+
+bool GNUmakeTokenPoolPosix::CreatePipe(int parallelism,
+                                       std::string* auth) {
+  // create jobserver pipe
+  int fds[2];
+  if (pipe(fds) < 0)
+    return false;
+
+  if (!CreateTokens(parallelism, fds[0], fds[1]))
+    return false;
+
+  // generate auth parameter for child processes
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%d,%d", rfd_, wfd_);
+  *auth = buffer;
+
+  return true;
+}
+
+bool GNUmakeTokenPoolPosix::CreateTokens(int parallelism,
+                                         int rfd,
+                                         int wfd) {
+  // add N tokens to pipe
+  const char token = '+'; // see make/posixos.c
+  while (parallelism--) {
+    if (write(wfd, &token, 1) < 1) {
+      close(wfd);
+      close(rfd);
+      return false;
+    }
+  }
+
+  // initialize file descriptors for this instance
+  rfd_ = rfd;
+  wfd_ = wfd;
 
   return true;
 }
@@ -167,38 +257,11 @@ bool GNUmakeTokenPoolPosix::ParseAuth(const char* jobserver) {
 bool GNUmakeTokenPoolPosix::CreatePool(int parallelism,
                                        const char* style,
                                        std::string* auth) {
-  if (style == NULL || strcmp(style, "fifo") == 0) {
-    // TBD...
-    return false;
-  }
+  if (style == NULL || strcmp(style, "fifo") == 0)
+    return CreateFifo(parallelism, auth);
 
-  if (strcmp(style, "pipe") == 0) {
-    // create jobserver pipe
-    int fds[2];
-    if (pipe(fds) < 0)
-      return false;
-
-    // add N tokens to pipe
-    const char token = '+'; // see make/posixos.c
-    while (parallelism--) {
-      if (write(fds[1], &token, 1) < 1) {
-        close(fds[1]);
-        close(fds[0]);
-        return false;
-      }
-    }
-
-    // initialize file descriptors for this instance
-    rfd_ = fds[0];
-    wfd_ = fds[1];
-
-    // generate auth parameter for child processes
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d,%d", rfd_, wfd_);
-    *auth = buffer;
-
-    return true;
-  }
+  if (strcmp(style, "pipe") == 0)
+    return CreatePipe(parallelism, auth);
 
   Fatal("unsupported tokenpool style '%s'", style);
 }
