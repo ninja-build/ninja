@@ -19,6 +19,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <functional>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
@@ -675,6 +681,17 @@ bool Builder::Build(string* err) {
       }
 
       if (!result.success()) {
+        if (config_.failfast_mode){
+          Warning("at least one subcommand failed and failfast mode activated. Sending Ctrl+C (SIGINT) to itself.");
+#ifdef _WIN32
+          if(! GenerateConsoleCtrlEvent(CTRL_C_EVENT,
+                                        GetCurrentProcessId())
+            Win32Fatal("GenerateConsoleCtrlEvent");
+#else
+          kill(getpid(), SIGINT);
+#endif
+        }
+
         if (failures_allowed)
           failures_allowed--;
       }
