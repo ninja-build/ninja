@@ -1022,8 +1022,8 @@ source file of a compile command.
 +
 This is for expressing dependencies that don't show up on the
 command line of the command; for example, for a rule that runs a
-script that reads a hardcoded file, the hardcoded file should 
-be an implicit dependency, as changes to the file should cause 
+script that reads a hardcoded file, the hardcoded file should
+be an implicit dependency, as changes to the file should cause
 the output to rebuild, even though it doesn't show up in the arguments.
 +
 Note that dependencies as loaded through depfiles have slightly different
@@ -1207,6 +1207,7 @@ as follows:
 ----
 rule f95
   command = f95 -o $out -c $in
+  restat = 1
 rule fscan
   command = fscan -o $out $in
 
@@ -1232,7 +1233,8 @@ build bar.o: dyndep |  foo.mod
 Ninja will load this file to add `foo.mod` as an implicit output of
 `foo.o` and implicit input of `bar.o`.  This ensures that the Fortran
 sources are always compiled in the proper order and recompiled when
-needed.
+needed. The `restat = 1` is needed because
+https://github.com/ninja-build/ninja/pull/2275[the fortran compiler does not update the timestamp of the module files if they already exist].
 
 Tarball Extraction
 ^^^^^^^^^^^^^^^^^^
