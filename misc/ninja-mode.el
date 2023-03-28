@@ -28,7 +28,7 @@
                                 "pool" "default")
                               'words))
      . font-lock-keyword-face)
-    ("\\([[:alnum:]_]+\\) =" 1 font-lock-variable-name-face)
+    ("^[[:space:]]*\\([[:alnum:]_]+\\)[[:space:]]*=" 1 font-lock-variable-name-face)
     ;; Variable expansion.
     ("$[[:alnum:]_]+" . font-lock-variable-name-face)
     ("${[[:alnum:]._]+}" . font-lock-variable-name-face)
