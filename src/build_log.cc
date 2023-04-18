@@ -53,8 +53,8 @@ using namespace std;
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kOldestSupportedVersion = 6;
+const int kCurrentVersion = 6;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
@@ -279,9 +279,16 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     if (!log_version) {
       sscanf(line_start, kFileSignature, &log_version);
 
+      bool invalid_log_version = false;
       if (log_version < kOldestSupportedVersion) {
-        *err = ("build log version invalid, perhaps due to being too old; "
-                "starting over");
+        invalid_log_version = true;
+        *err = "build log version is too old; starting over";
+
+      } else if (log_version > kCurrentVersion) {
+        invalid_log_version = true;
+        *err = "build log version is too new; starting over";
+      }
+      if (invalid_log_version) {
         fclose(file);
         unlink(path.c_str());
         // Don't report this as a failure.  An empty build log will cause
@@ -344,14 +351,9 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->mtime = mtime;
-    if (log_version >= 5) {
-      char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
-      *end = c;
-    } else {
-      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
-                                                              end - start));
-    }
+    char c = *end; *end = '\0';
+    entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
+    *end = c;
   }
   fclose(file);
 
