@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "dyndep.h"
 #include "eval_env.h"
@@ -168,6 +169,8 @@ struct Edge {
   std::string GetUnescapedDyndep() const;
   /// Like GetBinding("rspfile"), but without shell escaping.
   std::string GetUnescapedRspfile() const;
+  /// Like GetBinding("notifyfile"), but without shell escaping.
+  std::string GetUnescapedNotifyfile() const;
 
   void Dump(const char* prefix="") const;
 
@@ -187,6 +190,13 @@ struct Edge {
   Pool* pool() const { return pool_; }
   int weight() const { return 1; }
   bool outputs_ready() const { return outputs_ready_; }
+
+  // Some output paths might be ready before the whole edge is ready.
+  std::vector<StringPiece> outputs_paths_ready_;
+  bool outputs_ready(const StringPiece& path) const {
+    return outputs_ready_ ||
+           std::find(outputs_paths_ready_.begin(), outputs_paths_ready_.end(), path) != outputs_paths_ready_.end();
+  }
 
   // There are three types of inputs.
   // 1) explicit deps, which show up as $in on the command line;

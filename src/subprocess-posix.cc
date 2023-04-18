@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <spawn.h>
 
 #if defined(USE_PPOLL)
@@ -36,13 +37,17 @@ extern char** environ;
 
 using namespace std;
 
-Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
-                                           use_console_(use_console) {
-}
+Subprocess::Subprocess(bool use_console, const std::string& notify_file)
+    : notify_file_(notify_file), notify_pos_(0),
+      fd_(-1), notify_fd_(-1), pid_(-1), use_console_(use_console) {}
 
 Subprocess::~Subprocess() {
   if (fd_ >= 0)
     close(fd_);
+  if (notify_fd_ >= 0) {
+    close(notify_fd_);
+    unlink(notify_file_.c_str());
+  }
   // Reap child if forgotten.
   if (pid_ != -1)
     Finish();
@@ -60,6 +65,15 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
     Fatal("pipe: %s", strerror(EMFILE));
 #endif  // !USE_PPOLL
   SetCloseOnExec(fd_);
+
+  if (!notify_file_.empty()) {
+    unlink(notify_file_.c_str());
+    if (mkfifo(notify_file_.c_str(), 0666) < 0)
+      Fatal("mkfifo: %s", strerror(errno));
+    notify_fd_ = open(notify_file_.c_str(), O_RDONLY | O_NONBLOCK);
+    if (notify_fd_ < 0)
+      Fatal("open notify file: %s", strerror(errno));
+  }
 
   posix_spawn_file_actions_t action;
   int err = posix_spawn_file_actions_init(&action);
@@ -147,6 +161,19 @@ void Subprocess::OnPipeReady() {
   }
 }
 
+bool Subprocess::OnNotifyReady() {
+  char buf[4 << 10];
+  ssize_t len = read(notify_fd_, buf, sizeof(buf));
+  if (len > 0) {
+    notify_buf_.append(buf, len);
+  } else {
+    close(notify_fd_);
+    unlink(notify_file_.c_str());
+    notify_fd_ = -1;
+  }
+  return notify_buf_.find('\n', notify_pos_) != std::string::npos;
+}
+
 ExitStatus Subprocess::Finish() {
   assert(pid_ != -1);
   int status;
@@ -182,6 +209,17 @@ bool Subprocess::Done() const {
 
 const string& Subprocess::GetOutput() const {
   return buf_;
+}
+
+const std::vector<StringPiece> Subprocess::GetNotifyPaths() {
+  std::vector<StringPiece> paths;
+  size_t found;
+  while ((found = notify_buf_.find('\n', notify_pos_)) != std::string::npos) {
+    paths.push_back(
+        StringPiece(notify_buf_.data() + notify_pos_, found - notify_pos_));
+    notify_pos_ = found + 1;
+  }
+  return paths;
 }
 
 int SubprocessSet::interrupted_;
@@ -238,8 +276,9 @@ SubprocessSet::~SubprocessSet() {
     Fatal("sigprocmask: %s", strerror(errno));
 }
 
-Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
-  Subprocess *subprocess = new Subprocess(use_console);
+Subprocess* SubprocessSet::Add(const string& command, bool use_console,
+                               const std::string& notify_file) {
+  Subprocess* subprocess = new Subprocess(use_console, notify_file);
   if (!subprocess->Start(this, command)) {
     delete subprocess;
     return 0;
@@ -256,11 +295,17 @@ bool SubprocessSet::DoWork() {
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
     int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
-    pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
-    fds.push_back(pfd);
-    ++nfds;
+    if (fd >= 0) {
+      pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
+      fds.push_back(pfd);
+      ++nfds;
+    }
+    fd = (*i)->notify_fd_;
+    if (fd >= 0) {
+      pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
+      fds.push_back(pfd);
+      ++nfds;
+    }
   }
 
   interrupted_ = 0;
@@ -280,16 +325,29 @@ bool SubprocessSet::DoWork() {
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
+    bool pipe_ready = false;
+    bool notify_ready = false;
     int fd = (*i)->fd_;
-    if (fd < 0)
-      continue;
-    assert(fd == fds[cur_nfd].fd);
-    if (fds[cur_nfd++].revents) {
+    if (fd >= 0) {
+      assert(fd == fds[cur_nfd].fd);
+      pipe_ready = fds[cur_nfd++].revents != 0;
+    }
+    fd = (*i)->notify_fd_;
+    if (fd >= 0) {
+      assert(fd == fds[cur_nfd].fd);
+      notify_ready = fds[cur_nfd++].revents != 0;
+    }
+    if (pipe_ready) {
       (*i)->OnPipeReady();
       if ((*i)->Done()) {
         finished_.push(*i);
         i = running_.erase(i);
         continue;
+      }
+    }
+    if (notify_ready) {
+      if ((*i)->OnNotifyReady()) {
+        finished_.push(*i);
       }
     }
     ++i;
@@ -311,6 +369,12 @@ bool SubprocessSet::DoWork() {
       FD_SET(fd, &set);
       if (nfds < fd+1)
         nfds = fd+1;
+    }
+    fd = (*i)->notify_fd_;
+    if (fd > 0) {
+      FD_SET(fd, &set);
+      if (nfds < fd + 1)
+        nfds = fd + 1;
     }
   }
 
@@ -337,6 +401,12 @@ bool SubprocessSet::DoWork() {
         finished_.push(*i);
         i = running_.erase(i);
         continue;
+      }
+    }
+    fd = (*i)->notify_fd_;
+    if (fd >= 0 && FD_ISSET(fd, &set)) {
+      if ((*i)->OnNotifyReady()) {
+        finished_.push(*i);
       }
     }
     ++i;

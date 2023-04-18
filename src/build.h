@@ -80,17 +80,18 @@ struct Plan {
   /// by information loaded from a dyndep file.
   bool DyndepsLoaded(DependencyScan* scan, const Node* node,
                      const DyndepFile& ddf, std::string* err);
-private:
-  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
-  void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
-  bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
-                    std::set<Edge*>* dyndep_walk);
 
   /// Update plan with knowledge that the given node is up to date.
   /// If the node is a dyndep binding on any of its dependents, this
   /// loads dynamic dependencies from the node's path.
   /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
   bool NodeFinished(Node* node, std::string* err);
+
+private:
+  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
+  void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
+  bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
+                    std::set<Edge*>* dyndep_walk);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -144,6 +145,7 @@ struct CommandRunner {
     Edge* edge;
     ExitStatus status;
     std::string output;
+    std::vector<StringPiece> notify;
     bool success() const { return status == ExitSuccess; }
   };
   /// Wait for a command to complete, or return false if interrupted.

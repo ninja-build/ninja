@@ -470,7 +470,8 @@ bool RealCommandRunner::CanRunMore() const {
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
   string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command, edge->use_console());
+  Subprocess* subproc = subprocs_.Add(command, edge->use_console(),
+                                      edge->GetUnescapedNotifyfile());
   if (!subproc)
     return false;
   subproc_to_edge_.insert(make_pair(subproc, edge));
@@ -486,11 +487,17 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
       return false;
   }
 
+  map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.find(subproc);
+  result->edge = e->second;
+
+  if (!subproc->Done()) {
+    result->notify = subproc->GetNotifyPaths();
+    return true;
+  }
+
   result->status = subproc->Finish();
   result->output = subproc->GetOutput();
 
-  map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.find(subproc);
-  result->edge = e->second;
   subproc_to_edge_.erase(e);
 
   delete subproc;
@@ -632,6 +639,24 @@ bool Builder::Build(string* err) {
         status_->BuildFinished();
         *err = "interrupted by user";
         return false;
+      }
+
+      if (!result.notify.empty()) {
+        // Command is not finished, but some outputs are already finished
+        for (const StringPiece& path : result.notify) {
+          for (vector<Node*>::iterator o = result.edge->outputs_.begin();
+               o != result.edge->outputs_.end(); ++o) {
+            StringPiece opath((*o)->path());
+            if (opath == path) {
+              result.edge->outputs_paths_ready_.push_back(opath);
+              if (!plan_.NodeFinished(*o, err)) {
+                return false;
+              }
+              break;
+            }
+          }
+        }
+        continue;
       }
 
       --pending_commands;

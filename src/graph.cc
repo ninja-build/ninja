@@ -316,7 +316,7 @@ bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
 bool Edge::AllInputsReady() const {
   for (vector<Node*>::const_iterator i = inputs_.begin();
        i != inputs_.end(); ++i) {
-    if ((*i)->in_edge() && !(*i)->in_edge()->outputs_ready())
+    if ((*i)->in_edge() && !(*i)->in_edge()->outputs_ready((*i)->path()))
       return false;
   }
   return true;
@@ -430,6 +430,11 @@ string Edge::GetUnescapedDyndep() const {
 std::string Edge::GetUnescapedRspfile() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("rspfile");
+}
+
+std::string Edge::GetUnescapedNotifyfile() const {
+  EdgeEnv env(this, EdgeEnv::kDoNotEscape);
+  return env.LookupVariable("notifyfile");
 }
 
 void Edge::Dump(const char* prefix) const {

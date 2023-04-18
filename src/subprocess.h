@@ -34,6 +34,7 @@
 #endif
 
 #include "exit_status.h"
+#include "string_piece.h"
 
 /// Subprocess wraps a single async subprocess.  It is entirely
 /// passive: it expects the caller to notify it when its fds are ready
@@ -49,13 +50,18 @@ struct Subprocess {
   bool Done() const;
 
   const std::string& GetOutput() const;
+  const std::vector<StringPiece> GetNotifyPaths();
 
  private:
-  Subprocess(bool use_console);
+  Subprocess(bool use_console, const std::string& notify_file);
   bool Start(struct SubprocessSet* set, const std::string& command);
   void OnPipeReady();
+  bool OnNotifyReady();
 
   std::string buf_;
+  std::string notify_file_;
+  std::string notify_buf_;
+  size_t notify_pos_;
 
 #ifdef _WIN32
   /// Set up pipe_ as the parent-side pipe of the subprocess; return the
@@ -69,6 +75,7 @@ struct Subprocess {
   bool is_reading_;
 #else
   int fd_;
+  int notify_fd_;
   pid_t pid_;
 #endif
   bool use_console_;
@@ -83,7 +90,8 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const std::string& command, bool use_console = false);
+  Subprocess* Add(const std::string& command, bool use_console = false,
+                  const std::string& notify_file = "");
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
