@@ -324,20 +324,19 @@ Where `ENVFILE` is a binary file that contains an environment block suitable
 for CreateProcessA() on Windows (i.e. a series of zero-terminated strings that
 look like NAME=VALUE, followed by an extra zero terminator). Note that this uses
 the local codepage encoding.
-
++
 This tool also supports a deprecated way of parsing the compiler's output when
-the `/showIncludes` flag is used, and generating a GCC-compatible depfile from it.
+the `/showIncludes` flag is used, and generating a GCC-compatible depfile from it:
 +
----
+----
 ninja -t msvc -o DEPFILE [-p STRING] -- cl.exe /showIncludes <arguments>
----
+----
 +
-
 When using this option, `-p STRING` can be used to pass the localized line prefix
 that `cl.exe` uses to output dependency information. For English-speaking regions
 this is `"Note: including file: "` without the double quotes, but will be different
 for other regions.
-
++
 Note that Ninja supports this natively now, with the use of `deps = msvc` and
 `msvc_deps_prefix` in Ninja files. Native support also avoids launching an extra
 tool process each time the compiler must be called, which can speed up builds
