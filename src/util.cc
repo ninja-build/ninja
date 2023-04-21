@@ -340,7 +340,8 @@ int ReadFile(const string& path, string* contents, string* err) {
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
   err->clear();
-  HANDLE f = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+  std::wstring wpath = ::toWide(path);
+  HANDLE f = ::CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (f == INVALID_HANDLE_VALUE) {
     err->assign(GetLastErrorString());
@@ -476,6 +477,13 @@ void Win32Fatal(const char* function, const char* hint) {
   } else {
     Fatal("%s: %s", function, GetLastErrorString().c_str());
   }
+}
+
+std::wstring toWide(const string& s) {
+  int wchars_num = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, NULL, 0);
+  std::wstring w(wchars_num, ' ');
+  MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, (LPWSTR)w.data(), w.size());
+  return w;
 }
 #endif
 

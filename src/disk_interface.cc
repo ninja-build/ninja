@@ -25,7 +25,7 @@
 #ifdef _WIN32
 #include <sstream>
 #include <windows.h>
-#include <direct.h>  // _mkdir
+#include <fileapi.h>
 #else
 #include <unistd.h>
 #endif
@@ -56,7 +56,8 @@ string DirName(const string& path) {
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  std::wstring wpath = ::toWide(path);
+  return CreateDirectoryW((LPCWSTR)wpath.c_str(), NULL) ? 0 : -1;
 #else
   return mkdir(path.c_str(), 0777);
 #endif
@@ -75,7 +76,8 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
 
 TimeStamp StatSingleFile(const string& path, string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  std::wstring wpath = ::toWide(path);
+  if (!GetFileAttributesExW(wpath.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
@@ -227,6 +229,33 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
+#ifdef _WIN32
+  std::wstring wpath = ::toWide(path);
+  HANDLE h = CreateFileW(wpath.c_str(), (GENERIC_READ | GENERIC_WRITE), 0, NULL,
+                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE) {
+    Error("WriteFile(%s): Unable to create file. %s", path.c_str(),
+          GetLastErrorString().c_str());
+    return false;
+  }
+  DWORD written = 0;
+  bool result = ::WriteFile(h, (LPCVOID)contents.data(), contents.length(),
+                            &written, NULL);
+  if (!result || written != contents.length()) {
+    Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(),
+          GetLastErrorString().c_str());
+    CloseHandle(h);
+    return false;
+  }
+
+  if (!CloseHandle(h)) {
+    Error("WriteFile(%s): Unable to close the file. %s", path.c_str(),
+          GetLastErrorString().c_str());
+    return false;
+  }
+
+  return true;
+#else
   FILE* fp = fopen(path.c_str(), "w");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
@@ -248,13 +277,20 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
   }
 
   return true;
+#endif
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
   if (::MakeDir(path) < 0) {
+#if _WIN32
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+      return true;
+    }
+#else
     if (errno == EEXIST) {
       return true;
     }
+#endif
     Error("mkdir(%s): %s", path.c_str(), strerror(errno));
     return false;
   }
@@ -273,7 +309,8 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
-  DWORD attributes = GetFileAttributesA(path.c_str());
+  std::wstring wpath = ::toWide(path);
+  DWORD attributes = GetFileAttributesW(wpath.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
@@ -284,7 +321,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
     // Skip error checking.  If this fails, accept whatever happens below.
-    SetFileAttributesA(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
+    SetFileAttributesW(wpath.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
     // remove() deletes both files and directories. On Windows we have to 
@@ -292,7 +329,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases
     // https://github.com/ninja-build/ninja/issues/828
-    if (!RemoveDirectoryA(path.c_str())) {
+    if (!RemoveDirectoryW(wpath.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -302,7 +339,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
       return -1;
     }
   } else {
-    if (!DeleteFileA(path.c_str())) {
+    if (!DeleteFileW(wpath.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
