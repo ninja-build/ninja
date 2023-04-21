@@ -4,6 +4,7 @@ include(CheckSymbolExists)
 include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
+option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
 
 project(ninja CXX)
 
@@ -34,6 +35,16 @@ else()
 	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
 	if(flag_color_diag)
 		add_compile_options(-fdiagnostics-color)
+	endif()
+
+	if(NOT NINJA_FORCE_PSELECT)
+		# Check whether ppoll() is usable on the target platform.
+		# Set -DUSE_PPOLL=1 if this is the case.
+		include(CheckSymbolExists)
+		check_symbol_exists(ppoll poll.h HAVE_PPOLL)
+		if(HAVE_PPOLL)
+			add_compile_definitions(USE_PPOLL=1)
+		endif()
 	endif()
 endif()
 
