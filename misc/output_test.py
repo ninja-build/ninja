@@ -164,6 +164,15 @@ out1
 out2
 ''')
 
+    def test_issue_2008(self):
+        self.assertEqual(run(
+'''rule my_rule
+  command = echo foo
+build foo: my_rule /
+'''),
+'''[1/1] echo foo\x1b[K
+foo
+''')
 
 if __name__ == '__main__':
     unittest.main()

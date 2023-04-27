@@ -169,6 +169,8 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
 #endif
   }
 
+  const char* dst_start = dst;
+
   while (src < end) {
     if (*src == '.') {
       if (src + 1 == end || IsPathSeparator(src[1])) {
@@ -178,14 +180,14 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
       } else if (src[1] == '.' && (src + 2 == end || IsPathSeparator(src[2]))) {
         // '..' component.  Back up if possible.
         if (component_count > 0) {
-          dst = components[component_count - 1];
+          dst = components[--component_count];
           src += 3;
-          --component_count;
-        } else {
-          *dst++ = *src++;
-          *dst++ = *src++;
-          *dst++ = *src++;
+          continue;
         }
+        *dst++ = *src++;
+        *dst++ = *src++;
+        if (src != end)
+          *dst++ = *src++;
         continue;
       }
     }
@@ -195,22 +197,77 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
       continue;
     }
 
-    if (component_count == kMaxPathComponents)
-      Fatal("path has too many components : %s", path);
     components[component_count] = dst;
-    ++component_count;
+    if (++component_count > kMaxPathComponents)
+      Fatal("path has too many components : %s", path);
 
-    while (src != end && !IsPathSeparator(*src))
+      // Do no compile regular loop code with GCC (see note below).
+#if !(defined(__GNUC__) && !defined(__clang__))
+    for (;;) {
       *dst++ = *src++;
-    *dst++ = *src++;  // Copy '/' or final \0 character as well.
+      if (src == end)
+        break;
+      if (IsPathSeparator(*src)) {
+        *dst++ = *src++;  // Copy final path separator if any.
+        break;
+      }
+    }
+#else  // GCC (but not Clang)
+    // The following code path is used with GCC because the above loop
+    // works well with `gcc-11 -O2`, but results in disastrous code with
+    // `gcc-11 -O3`, for some unknown reason. Comparisons of canon_perftest
+    // results (minimal times of 5 runs each):
+    //
+    //   compiler              regular      unrolled
+    //
+    //   clang-13 -O2            114ms        114ms
+    //   clang-13 -O3            110ms        110ms
+    //   gcc-11 -O2              126ms        110ms
+    //   gcc-11 -O3              275ms !!     110ms
+    //
+    // Manual unroll of tight loop here.
+    for (;;) {
+      *dst++ = *src++;
+      if (src == end)
+        goto END_LOOP;
+      if (IsPathSeparator(*src))
+        goto COPY_PATH_SEPARATOR;
+
+      *dst++ = *src++;
+      if (src == end)
+        goto END_LOOP;
+      if (IsPathSeparator(*src))
+        goto COPY_PATH_SEPARATOR;
+
+      *dst++ = *src++;
+      if (src == end)
+        goto END_LOOP;
+      if (IsPathSeparator(*src))
+        goto COPY_PATH_SEPARATOR;
+
+      *dst++ = *src++;
+      if (src == end)
+        goto END_LOOP;
+      if (IsPathSeparator(*src))
+        goto COPY_PATH_SEPARATOR;
+    }
+  COPY_PATH_SEPARATOR:
+    if (src != end && IsPathSeparator(*src))
+      *dst++ = *src++;
+  END_LOOP:;
+#endif  // GCC (but not Clang)
   }
 
-  if (dst == start) {
+  // Remove trailing path separator if any, but keep the
+  // initial path separator(s) if there was one (or two on Windows).
+  if (dst > dst_start && IsPathSeparator(dst[-1]))
+    dst--;
+
+  // If all component were removed, e.g. 'foo/..', default to '.'
+  if (dst == start)
     *dst++ = '.';
-    *dst++ = '\0';
-  }
 
-  *len = dst - start - 1;
+  *len = dst - start;
 #ifdef _WIN32
   uint64_t bits = 0;
   uint64_t bits_mask = 1;

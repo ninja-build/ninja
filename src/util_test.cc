@@ -91,11 +91,11 @@ TEST(CanonicalizePath, PathSamples) {
 
   path = "/";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 
   path = "/foo/..";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 
   path = ".";
   CanonicalizePath(&path);
@@ -171,7 +171,7 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = "\\";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 }
 
 TEST(CanonicalizePath, SlashTracking) {
@@ -353,11 +353,11 @@ TEST(CanonicalizePath, NotNullTerminated) {
   EXPECT_EQ(strlen("foo"), len);
   EXPECT_EQ("foo/. bar/.", string(path));
 
-  path = "foo/../file bar/.";
-  len = strlen("foo/../file");
+  path = "fooxyz/../file bar/.";
+  len = strlen("fooxzy/../file");
   CanonicalizePath(&path[0], &len, &unused);
   EXPECT_EQ(strlen("file"), len);
-  EXPECT_EQ("file ./file bar/.", string(path));
+  EXPECT_EQ("fileyz/../file bar/.", string(path));
 }
 
 TEST(PathEscaping, TortureTest) {
