@@ -190,13 +190,13 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 
         // Overall finished edges per second.
       case 'o':
-        SnprintfRate(finished_edges_ / (time_millis_ / 1e3), buf, "%.1f");
+        SnprintfRate(finished_edges_ / (time_millis / 1e3), buf, "%.1f");
         out += buf;
         break;
 
         // Current rate, average over the last '-j' jobs.
       case 'c':
-        current_rate_.UpdateRate(finished_edges_, time_millis_);
+        current_rate_.UpdateRate(finished_edges_, time_millis);
         SnprintfRate(current_rate_.rate(), buf, "%.1f");
         out += buf;
         break;
@@ -210,7 +210,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
       }
 
       case 'e': {
-        snprintf(buf, sizeof(buf), "%.3f", time_millis_ / 1e3);
+        snprintf(buf, sizeof(buf), "%.3f", time_millis / 1e3);
         out += buf;
         break;
       }
