@@ -70,6 +70,7 @@ struct Subprocess {
 #else
   int fd_;
   pid_t pid_;
+  std::string shell;
 #endif
   bool use_console_;
 
