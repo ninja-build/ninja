@@ -103,6 +103,10 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
+/// @return percentage of time tasks are waiting for CPU.
+/// A negative value is returned for unsupported platforms.
+double GetCPUWaitRatio(size_t subproc_number, int parallelism);
+
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.
 std::string ElideMiddle(const std::string& str, size_t width);

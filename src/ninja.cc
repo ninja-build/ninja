@@ -228,7 +228,13 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
-"  -l N     do not start new jobs if the load average is greater than N\n"
+"  -l N     do not start new jobs if system load is greater than N;\n"
+"           if N is positive,\n"
+"             then compare against system load average (absolute value);\n"
+"           if N is negative,\n"
+"             then compare against process stalled time (percentage);\n"
+"             e.g., -l-10 will not start new jobs if existing processes\n"
+"             spend, on average, 10%% of their time waiting for CPU slice;\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "\n"
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
@@ -1161,6 +1167,7 @@ bool DebugEnable(const string& name) {
 #ifdef _WIN32
 "  nostatcache  don't batch stat() calls per directory and cache them\n"
 #endif
+"  syslimits    print notes when parallelism is limited by system pressure\n"
 "multiple modes can be enabled via -d FOO -d BAR\n");
     return false;
   } else if (name == "stats") {
@@ -1178,11 +1185,14 @@ bool DebugEnable(const string& name) {
   } else if (name == "nostatcache") {
     g_experimental_statcache = false;
     return true;
+  } else if (name == "syslimits") {
+    g_syslimits = true;
+    return true;
   } else {
     const char* suggestion =
         SpellcheckString(name.c_str(),
                          "stats", "explain", "keepdepfile", "keeprsp",
-                         "nostatcache", NULL);
+                         "nostatcache", "syslimits", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",
             name.c_str(), suggestion);

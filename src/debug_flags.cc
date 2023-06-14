@@ -14,6 +14,8 @@
 
 bool g_explaining = false;
 
+bool g_syslimits = false;
+
 bool g_keep_depfile = false;
 
 bool g_keep_rsp = false;
