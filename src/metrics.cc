@@ -48,12 +48,17 @@ constexpr int64_t GetFrequency() {
 
 int64_t TimerToMicros(int64_t dt) {
   // dt is in ticks.  We want microseconds.
-  return (dt * 1000000) / GetFrequency();
+  return chrono::duration_cast<chrono::microseconds>(
+             std::chrono::steady_clock::duration{ dt })
+      .count();
 }
 
 int64_t TimerToMicros(double dt) {
   // dt is in ticks.  We want microseconds.
-  return (dt * 1000000) / GetFrequency();
+  using DoubleSteadyClock =
+      std::chrono::duration<double, std::chrono::steady_clock::period>;
+  return chrono::duration_cast<chrono::microseconds>(DoubleSteadyClock{ dt })
+      .count();
 }
 
 }  // anonymous namespace
