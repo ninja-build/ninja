@@ -727,7 +727,11 @@ int GetProcessorCount() {
   }
 #endif
   if (cgroupCount >= 0 && schedCount >= 0) return std::min(cgroupCount, schedCount);
+#if defined(__MVS__)
+  if (cgroupCount < 0 && schedCount < 0) return 4;
+#elif defined(CPU_COUNT)
   if (cgroupCount < 0 && schedCount < 0) return sysconf(_SC_NPROCESSORS_ONLN);
+#endif
   return std::max(cgroupCount, schedCount);
 #endif
 }
@@ -797,6 +801,10 @@ double GetLoadAverage() {
   }
 
   return posix_compatible_load;
+}
+#elif defined(__MVS__)
+double GetLoadAverage() {
+  return -0.0f;
 }
 #elif defined(__PASE__)
 double GetLoadAverage() {
