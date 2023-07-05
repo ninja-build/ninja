@@ -1,0 +1,35 @@
+# Default to EBCDIC unless otherwise specified
+*                zos-working-tree-encoding=ibm-1047 git-encoding=iso8859-1
+
+# The git attributes and ignore files MUST be ASCII
+.gitattributes   zos-working-tree-encoding=iso8859-1 git-encoding=iso8859-1
+.gitignore       zos-working-tree-encoding=iso8859-1 git-encoding=iso8859-1
+
+# The following files in git should be binary
+*.png binary
+*.zip binary
+*.odt binary
+*.doc binary
+*.ppt binary
+*.jpg binary
+*.mix binary
+*.gif binary
+*.pfx binary
+*.sfx binary
+*.ser binary
+*.crl binary
+*.kdb binary
+*.rdb binary
+*.sth binary
+*.exe binary
+*.dll binary
+*.jar binary
+*.tar binary
+*.gz binary
+*.csv binary
+*.psd binary
+*.swf binary
+*.mov binary
+*.fla binary
+*.bin binary
+*.res binary
