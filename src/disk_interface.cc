@@ -218,6 +218,8 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 #elif defined(__APPLE__)
   return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
           st.st_mtimespec.tv_nsec);
+#elif defined(__MVS__)
+  return (int64_t)st.st_mtime * 1000000000LL; // + st.st_ctimemsec * 1000; // TODO
 #elif defined(st_mtime) // A macro, so we're likely on modern POSIX.
   return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
 #else
