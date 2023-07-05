@@ -28,6 +28,10 @@
 #elif defined(_AIX)
 #include "getopt.h"
 #include <unistd.h>
+#elif (__MVS__)
+#include "getopt.h"
+#include <le/stdio.h>
+#include <unistd.h>
 #else
 #include <getopt.h>
 #include <unistd.h>

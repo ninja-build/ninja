@@ -62,12 +62,14 @@ class Platform(object):
             self._platform = 'os400'
         elif self._platform.startswith('dragonfly'):
             self._platform = 'dragonfly'
+        elif self._platform.startswith('zos'):
+            self._platform = 'zos'
 
     @staticmethod
     def known_platforms():
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
               'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
-              'dragonfly']
+              'dragonfly', 'zos']
 
     def platform(self):
         return self._platform
@@ -96,6 +98,9 @@ class Platform(object):
 
     def is_aix(self):
         return self._platform == 'aix'
+    
+    def is_zos(self):
+        return self._platform == 'zos'
 
     def is_os400_pase(self):
         return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
@@ -376,7 +381,10 @@ else:
         # printf formats for int64_t, uint64_t; large file support
         cflags.append('-D__STDC_FORMAT_MACROS')
         cflags.append('-D_LARGE_FILES')
-
+    if platform.is_zos():
+        cflags += ['-D_POSIX_SOURCE', '-D_POSIX_C_SOURCE=200112L', '-D_XOPEN_SOURCE_EXTENDED=1', '-D_UNIX03_THREADS']
+        cflags.remove('-pipe')
+        cflags.remove('-std=c++11')
 
 libs = []
 
@@ -553,6 +561,8 @@ if platform.is_windows():
 else:
     objs += cxx('subprocess-posix')
 if platform.is_aix():
+    objs += cc('getopt')
+if platform.is_zos():
     objs += cc('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
