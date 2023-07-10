@@ -684,9 +684,10 @@ bool Builder::Build(string* err) {
         if (config_.failfast_mode){
           Warning("at least one subcommand failed and failfast mode activated. Sending Ctrl+C (SIGINT) to itself.");
 #ifdef _WIN32
-          if(! GenerateConsoleCtrlEvent(CTRL_C_EVENT,
-                                        GetCurrentProcessId())
+          if(!GenerateConsoleCtrlEvent(CTRL_C_EVENT,
+                                        GetCurrentProcessId())){
             Win32Fatal("GenerateConsoleCtrlEvent");
+          }
 #else
           kill(getpid(), SIGINT);
 #endif
