@@ -126,6 +126,9 @@ std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+
+/// Converts utf-8 std::string to wide char wstring
+std::wstring toWide(const std::string& s);
 #endif
 
 #endif  // NINJA_UTIL_H_
