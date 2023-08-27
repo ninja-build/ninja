@@ -882,7 +882,7 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
     return command;
 
   size_t index = command.find(rspfile);
-  if (index == 0 || index == string::npos || command[index - 1] != '@')
+  if (index == 0 || index == string::npos || ( command[index - 1] != '@' && command.find("--option-file=") != index - 14 && command.find("-f ") != index - 3 ))
     return command;
 
   string rspfile_content = edge->GetBinding("rspfile_content");
@@ -892,7 +892,12 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
     rspfile_content.replace(newline_index, 1, 1, ' ');
     ++newline_index;
   }
-  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  if (command[index - 1] == '@')
+    command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  else if (command.find("-f ") == index - 3)
+    command.replace(index - 3, rspfile.length() + 3, rspfile_content);
+  else
+    command.replace(index - 14, rspfile.length() + 14, rspfile_content);
   return command;
 }
 
