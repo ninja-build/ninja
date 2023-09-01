@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2011 Google Inc. All Rights Reserved.
 #
@@ -16,8 +16,6 @@
 
 """measure the runtime of a command by repeatedly running it.
 """
-
-from __future__ import print_function
 
 import time
 import subprocess

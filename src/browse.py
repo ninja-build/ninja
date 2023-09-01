@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2001 Google Inc. All Rights Reserved.
 #
@@ -19,8 +19,6 @@
 This script is inlined into the final executable and spawned by
 it when needed.
 """
-
-from __future__ import print_function
 
 try:
     import http.server as httpserver

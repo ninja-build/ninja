@@ -24,7 +24,7 @@ Where other build systems are high-level languages, Ninja aims to be
 an assembler.
 
 Build systems get slow when they need to make decisions.  When you are
-in a edit-compile cycle you want it to be as fast as possible -- you
+in an edit-compile cycle you want it to be as fast as possible -- you
 want the build system to do the minimum work necessary to figure out
 what needs to be built immediately.
 
@@ -222,14 +222,14 @@ found useful during Ninja's development.  The current tools are:
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
 file focuses the view on that file, showing inputs and outputs.  This
-feature requires a Python installation. By default port 8000 is used
+feature requires a Python installation. By default, port 8000 is used
 and a web browser will be opened. This can be changed as follows:
 +
 ----
 ninja -t browse --port=8000 --no-browser mytarget
 ----
 +
-`graph`:: output a file in the syntax used by `graphviz`, a automatic
+`graph`:: output a file in the syntax used by `graphviz`, an automatic
 graph layout tool.  Use it like:
 +
 ----
@@ -261,7 +261,7 @@ output files are out of date.
 rebuild those targets.
 _Available since Ninja 1.11._
 
-`clean`:: remove built files. By default it removes all built files
+`clean`:: remove built files. By default, it removes all built files
 except for those created by the generator.  Adding the `-g` flag also
 removes built files created by the generator (see <<ref_rule,the rule
 reference for the +generator+ attribute>>).  Additional arguments are
@@ -324,20 +324,19 @@ Where `ENVFILE` is a binary file that contains an environment block suitable
 for CreateProcessA() on Windows (i.e. a series of zero-terminated strings that
 look like NAME=VALUE, followed by an extra zero terminator). Note that this uses
 the local codepage encoding.
-
++
 This tool also supports a deprecated way of parsing the compiler's output when
-the `/showIncludes` flag is used, and generating a GCC-compatible depfile from it.
+the `/showIncludes` flag is used, and generating a GCC-compatible depfile from it:
 +
----
+----
 ninja -t msvc -o DEPFILE [-p STRING] -- cl.exe /showIncludes <arguments>
----
+----
 +
-
 When using this option, `-p STRING` can be used to pass the localized line prefix
 that `cl.exe` uses to output dependency information. For English-speaking regions
 this is `"Note: including file: "` without the double quotes, but will be different
 for other regions.
-
++
 Note that Ninja supports this natively now, with the use of `deps = msvc` and
 `msvc_deps_prefix` in Ninja files. Native support also avoids launching an extra
 tool process each time the compiler must be called, which can speed up builds
@@ -674,14 +673,14 @@ Ninja supports this processing in two forms.
    as a temporary).
 
 2. `deps = msvc` specifies that the tool outputs header dependencies
-   in the form produced by Visual Studio's compiler's
+   in the form produced by the Visual Studio compiler's
    http://msdn.microsoft.com/en-us/library/hdkef6tk(v=vs.90).aspx[`/showIncludes`
    flag].  Briefly, this means the tool outputs specially-formatted lines
    to its stdout.  Ninja then filters these lines from the displayed
    output.  No `depfile` attribute is necessary, but the localized string
-   in front of the the header file path. For instance
+   in front of the header file path should be globally defined. For instance,
    `msvc_deps_prefix = Note: including file:`
-   for a English Visual Studio (the default). Should be globally defined.
+   for an English Visual Studio (the default).
 +
 ----
 msvc_deps_prefix = Note: including file:
@@ -964,14 +963,14 @@ Fundamentally, command lines behave differently on Unixes and Windows.
 
 On Unixes, commands are arrays of arguments.  The Ninja `command`
 variable is passed directly to `sh -c`, which is then responsible for
-interpreting that string into an argv array.  Therefore the quoting
+interpreting that string into an argv array.  Therefore, the quoting
 rules are those of the shell, and you can use all the normal shell
 operators, like `&&` to chain multiple commands, or `VAR=value cmd` to
 set environment variables.
 
 On Windows, commands are strings, so Ninja passes the `command` string
 directly to `CreateProcess`.  (In the common case of simply executing
-a compiler this means there is less overhead.)  Consequently the
+a compiler this means there is less overhead.)  Consequently, the
 quoting rules are determined by the called program, which on Windows
 are usually provided by the C library.  If you need shell
 interpretation of the command (such as the use of `&&` to chain
@@ -1064,7 +1063,7 @@ A build edge can list another build edge as a validation even if the second
 edge depends on the first.
 
 Validations are designed to handle rules that perform error checking but
-don't produce any artifacts needed by the build, for example static
+don't produce any artifacts needed by the build, for example, static
 analysis tools.  Marking the static analysis rule as an implicit input
 of the main build rule of the source files or of the rules that depend
 on the main build rule would slow down the critical path of the build,

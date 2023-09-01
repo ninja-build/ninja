@@ -7,7 +7,7 @@ See [the manual](https://ninja-build.org/manual.html) or
 `doc/manual.asciidoc` included in the distribution for background
 and more details.
 
-Binaries for Linux, Mac, and Windows are available at
+Binaries for Linux, Mac and Windows are available on
   [GitHub](https://github.com/ninja-build/ninja/releases).
 Run `./ninja -h` for Ninja help.
 

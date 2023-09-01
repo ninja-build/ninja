@@ -104,9 +104,11 @@ TEST_F(BuildLogTest, FirstWriteAddsSignature) {
 
 TEST_F(BuildLogTest, DoubleEntry) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v4\n");
-  fprintf(f, "0\t1\t2\tout\tcommand abc\n");
-  fprintf(f, "3\t4\t5\tout\tcommand def\n");
+  fprintf(f, "# ninja log v6\n");
+  fprintf(f, "0\t1\t2\tout\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command abc"));
+  fprintf(f, "0\t1\t2\tout\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command def"));
   fclose(f);
 
   string err;
@@ -173,10 +175,11 @@ TEST_F(BuildLogTest, ObsoleteOldVersion) {
   ASSERT_NE(err.find("version"), string::npos);
 }
 
-TEST_F(BuildLogTest, SpacesInOutputV4) {
+TEST_F(BuildLogTest, SpacesInOutput) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v4\n");
-  fprintf(f, "123\t456\t456\tout with space\tcommand\n");
+  fprintf(f, "# ninja log v6\n");
+  fprintf(f, "123\t456\t456\tout with space\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command"));
   fclose(f);
 
   string err;
@@ -197,10 +200,12 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   // build log on Windows. This shouldn't crash, and the second version header
   // should be ignored.
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v4\n");
-  fprintf(f, "123\t456\t456\tout\tcommand\n");
-  fprintf(f, "# ninja log v4\n");
-  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
+  fprintf(f, "# ninja log v6\n");
+  fprintf(f, "123\t456\t456\tout\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command"));
+  fprintf(f, "# ninja log v6\n");
+  fprintf(f, "456\t789\t789\tout2\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command2"));
   fclose(f);
 
   string err;
@@ -247,7 +252,7 @@ struct TestDiskInterface : public DiskInterface {
 
 TEST_F(BuildLogTest, Restat) {
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v4\n"
+  fprintf(f, "# ninja log v6\n"
              "1\t2\t3\tout\tcommand\n");
   fclose(f);
   std::string err;
@@ -275,12 +280,13 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   // Ninja's build log buffer is currently 256kB. Lines longer than that are
   // silently ignored, but don't affect parsing of other lines.
   FILE* f = fopen(kTestFilename, "wb");
-  fprintf(f, "# ninja log v4\n");
+  fprintf(f, "# ninja log v6\n");
   fprintf(f, "123\t456\t456\tout\tcommand start");
   for (size_t i = 0; i < (512 << 10) / strlen(" more_command"); ++i)
     fputs(" more_command", f);
   fprintf(f, "\n");
-  fprintf(f, "456\t789\t789\tout2\tcommand2\n");
+  fprintf(f, "456\t789\t789\tout2\t%" PRIx64 "\n",
+      BuildLog::LogEntry::HashCommand("command2"));
   fclose(f);
 
   string err;

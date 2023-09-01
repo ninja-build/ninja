@@ -4,6 +4,7 @@ include(CheckSymbolExists)
 include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
+option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
 
 project(ninja CXX)
 
@@ -34,6 +35,24 @@ else()
 	check_cxx_compiler_flag(-fdiagnostics-color flag_color_diag)
 	if(flag_color_diag)
 		add_compile_options(-fdiagnostics-color)
+	endif()
+
+	if(NOT NINJA_FORCE_PSELECT)
+		# Check whether ppoll() is usable on the target platform.
+		# Set -DUSE_PPOLL=1 if this is the case.
+		#
+		# NOTE: Use check_cxx_symbol_exists() instead of check_symbol_exists()
+		# because on Linux, <poll.h> only exposes the symbol when _GNU_SOURCE
+		# is defined.
+		#
+		# Both g++ and clang++ define the symbol by default, because the C++
+		# standard library headers require it, but *not* gcc and clang, which
+		# are used by check_symbol_exists().
+		include(CheckCXXSymbolExists)
+		check_cxx_symbol_exists(ppoll poll.h HAVE_PPOLL)
+		if(HAVE_PPOLL)
+			add_compile_definitions(USE_PPOLL=1)
+		endif()
 	endif()
 endif()
 
