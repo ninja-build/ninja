@@ -1,4 +1,4 @@
-CMakeLists.txt.jsindexnext |previous | CMake » 
+`".$_-0/build_CMakeLists.txt.jsindexnext |previous | CMake » 
 latest release (3.27.4)
  Documentation » cmake-variables(7) » CMAKE_PROJECT_NAME
 CMAKE_PROJECT_NAME
@@ -137,4 +137,4 @@ steps:
   working-directory: ${{github.workspace}}/build
   # Execute tests defined by the CMake configuration.  
   # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-  run: ctest -C ${{env.BUILD_TYPE}}
+  run: ctest -C ${{env.BUILD_TYPE}}"`
