@@ -112,6 +112,19 @@ red
 \x1b[31mred\x1b[0m
 ''')
 
+    def test_issue_1966(self):
+        self.assertEqual(run(
+'''rule cat
+  command = cat $rspfile $rspfile > $out
+  rspfile = cat.rsp
+  rspfile_content = a b c
+
+build a: cat
+''', '-j3'),
+'''[1/1] cat cat.rsp cat.rsp > a\x1b[K
+''')
+
+
     def test_pr_1685(self):
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
         self.assertEqual(run('', flags='-t recompact'), '')
