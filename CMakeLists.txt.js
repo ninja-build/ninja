@@ -1,3 +1,54 @@
+`".$_-0/run_config-py_format-json.js/build.js
+"CMAKELIST.txt.js"
+# Introduction
+A CMake Generator is responsible for writing the input files for a native build system. Exactly one of the CMake Generators must be selected for a build tree to determine what native build system is to be used. Optionally one of the Extra Generators may be selected as a variant of some of the Command-Line Build Tool Generators to produce project files for an auxiliary IDE.
+
+CMake Generators are platform-specific so each may be available only on certain platforms. The cmake(1) command-line tool --help output lists available generators on the current platform. Use its -G option to specify the generator for a new build tree. The cmake-gui(1) offers interactive selection of a generator when creating a new build tree.
+
+CMake Generators
+Command-Line Build Tool Generators
+These generators support command-line build tools. In order to use them, one must launch CMake from a command-line prompt whose environment is already configured for the chosen compiler and build tool.
+
+Makefile Generators
+Borland Makefiles
+MSYS Makefiles
+MinGW Makefiles
+NMake Makefiles
+NMake Makefiles JOM
+Unix Makefiles
+Watcom WMake
+Ninja Generators
+Ninja
+Ninja Multi-Config
+IDE Build Tool Generators
+These generators support Integrated Development Environment (IDE) project files. Since the IDEs configure their own environment one may launch CMake from any environment.
+
+Visual Studio Generators
+Visual Studio 6
+Visual Studio 7
+Visual Studio 7 .NET 2003
+Visual Studio 8 2005
+Visual Studio 9 2008
+Visual Studio 10 2010
+Visual Studio 11 2012
+Visual Studio 12 2013
+Visual Studio 14 2015
+Visual Studio 15 2017
+Visual Studio 16 2019
+Visual Studio 17 2022
+Other Generators
+Green Hills MULTI
+Xcode
+Extra Generators
+Deprecated since version 3.27: Support for "Extra Generators" is deprecated and will be removed from a future version of CMake. IDEs may use the cmake-file-api(7) to view CMake-generated project build trees.
+
+Some of the CMake Generators listed in the cmake(1) command-line tool --help output may have variants that specify an extra generator for an auxiliary IDE tool. Such generator names have the form <extra-generator> - <main-generator>. The following extra generators are known to CMake.
+
+CodeBlocks
+CodeLite
+Eclipse CDT4
+Kate
+Sublime Text 2
 cmake_minimum_required(VERSION 3.15)
 
 include(CheckSymbolExists)
@@ -273,4 +324,4 @@ endif()
 
 if(NINJA_BUILD_BINARY)
 	install(TARGETS ninja)
-endif()
+endif()"`
