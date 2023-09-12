@@ -1,4 +1,5 @@
-`".$_-0/config_build-ninja/build-ninja.js
+`".$_-0/config_build-ninja/build-ninja.js"
+.$_-0/run_ config-py_format-js-bootstrap_css.js
 # Ninja
 
 Ninja is a small build system with a focus on speed.
@@ -27,7 +28,7 @@ via CMake. For more details see
 [the wiki](https://github.com/ninja-build/ninja/wiki).
 
 ### Python
-```./configure.py --bootstrap.js```
+```./config-py_format-json-js-bootstrap_css.js```
 
 This will generate the `ninja` binary and a `build.ninja` file you can now use
 to build Ninja with itself.
@@ -68,17 +69,26 @@ jobs:
     ``steps:
     - uses: actions/checkout@v2
 ``
-    ``- name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+# name: Configure CMake
+# Configure CMake in a 
+  - 'build' 
+ - subdirectory
+-*"CMAKE_BUILD_TYPE"
+    *"required configuration"
+   *"generates"
+-*"amake.file"
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-``
-   ``- name: Build
-      # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}`
-``
-    `- name: Test
-      working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.  
+      run: cmake_github.workspace/build_CMAKE_BUILD_TYPE.js.env.BUILD_TYPE_java
+# name: Build
+-"*Build" your "program" with the given "configuration"
+-*".$_-0/run-build.js": 
+  - cmake_css.py-build.js
+ - github.workspace}}/build --config ${{env.BUILD_TYPE}}`
+# - name: Test
+  - -directory:
+ - github.workspace/
+-*"build"
+-*".js"
+# Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C ${{env.BUILD_TYPE}}"`
