@@ -17,6 +17,7 @@
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
+#include <direct.h>
 #endif
 
 #include "disk_interface.h"
@@ -95,6 +96,24 @@ TEST_F(DiskInterfaceTest, StatExistingFile) {
   EXPECT_GT(disk_.Stat("file", &err), 1);
   EXPECT_EQ("", err);
 }
+
+#ifdef _WIN32
+TEST_F(DiskInterfaceTest, StatExistingFileWithLongPath) {
+  string err;
+  char currentdir[32767];
+  _getcwd(currentdir, sizeof(currentdir));
+  const string filename = string(currentdir) +
+"\\filename_with_256_characters_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxx";
+  const string prefixed = "\\\\?\\" + filename;
+  ASSERT_TRUE(Touch(prefixed.c_str()));
+  EXPECT_GT(disk_.Stat(disk_.AreLongPathsEnabled() ?
+    filename : prefixed, &err), 1);
+  EXPECT_EQ("", err);
+}
+#endif
 
 TEST_F(DiskInterfaceTest, StatExistingDir) {
   string err;

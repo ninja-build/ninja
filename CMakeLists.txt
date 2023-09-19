@@ -246,7 +246,8 @@ if(BUILD_TESTING)
     src/util_test.cc
   )
   if(WIN32)
-    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
+      windows/ninja.manifest)
   endif()
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
 
