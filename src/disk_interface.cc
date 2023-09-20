@@ -23,10 +23,10 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
-#include <sstream>
-#include <windows.h>
 #include <direct.h>  // _mkdir
-#include <atlcore.h>
+#include <windows.h>
+
+#include <sstream>
 #else
 #include <unistd.h>
 #endif
@@ -162,10 +162,16 @@ RealDiskInterface::RealDiskInterface()
 #ifdef _WIN32
 : use_cache_(false), long_paths_enabled_(false) {
   setlocale(LC_ALL, "");
-  IFDYNAMICGETCACHEDFUNCTIONTYPEDEF(L"ntdll", BOOLEAN(WINAPI*)(),
-    "RtlAreLongPathsEnabled",
-    RtlAreLongPathsEnabled) {
-    long_paths_enabled_ = RtlAreLongPathsEnabled();
+
+  // Probe ntdll.dll for RtlAreLongPathsEnabled, and call it if it exists.
+  HINSTANCE ntdll_lib = ::GetModuleHandleW(L"ntdll");
+  if (ntdll_lib) {
+    typedef BOOLEAN(WINAPI FunctionType)();
+    auto* func_ptr = reinterpret_cast<FunctionType*>(
+        ::GetProcAddress(ntdll_lib, "RtlAreLongPathsEnabled"));
+    if (func_ptr) {
+      long_paths_enabled_ = (*func_ptr)();
+    }
   }
 }
 #else
