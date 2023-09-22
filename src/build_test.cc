@@ -84,7 +84,7 @@ TEST_F(PlanTest, Basic) {
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
-  ASSERT_EQ(0, edge);
+  ASSERT_NULL(edge);
 }
 
 // Test that two outputs from one rule can be handled as inputs to the next.
@@ -234,7 +234,7 @@ void PlanTest::TestPoolWithDepthOne(const char* test_case) {
 
   ASSERT_FALSE(plan_.more_to_do());
   edge = plan_.FindWork();
-  ASSERT_EQ(0, edge);
+  ASSERT_NULL(edge);
 }
 
 TEST_F(PlanTest, PoolWithDepthOne) {
@@ -464,7 +464,7 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
 
   ASSERT_TRUE(plan_.more_to_do()); // Jobs have failed
   edge = plan_.FindWork();
-  ASSERT_EQ(0, edge);
+  ASSERT_NULL(edge);
 }
 
 /// Fake implementation of CommandRunner, useful for tests.

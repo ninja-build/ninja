@@ -118,14 +118,31 @@ bool ReadFlags(int* argc, char*** argv, const char** test_filter) {
 
 }  // namespace
 
-bool testing::Test::Check(bool condition, const char* file, int line,
-                          const char* error) {
-  if (!condition) {
-    printer.PrintOnNewLine(
-        StringPrintf("*** Failure in %s:%d\n%s\n", file, line, error));
-    failed_ = true;
-  }
-  return condition;
+bool testing::Test::NullFailure(bool null_expected, const char* file, int line,
+                                const char* error, const char* value) {
+  printer.PrintOnNewLine(StringPrintf(
+      "*** Failure in %s:%d\n%s\nExpected: %s\nActual:   %s\n", file, line,
+      error, null_expected ? "nullptr" : "not nullptr", value));
+  failed_ = true;
+  return false;
+}
+
+bool testing::Test::BooleanFailure(bool expected, const char* file, int line,
+                          const char* error, const char* value) {
+  printer.PrintOnNewLine(
+      StringPrintf("*** Failure in %s:%d\n%s\nExpected: %s\nActual:   %s\n",
+                   file, line, error, expected ? "true" : "false", value));
+  failed_ = true;
+  return false;
+}
+
+bool testing::Test::BinopFailure(const char* file, int line,
+                                 const char* error, const char* first_value,
+                                 const char* second_value) {
+  printer.PrintOnNewLine(
+      StringPrintf("*** Failure in %s:%d\n%s\nLeft:  %s\nRight: %s\n", file, line, error, first_value, second_value));
+  failed_ = true;
+  return false;
 }
 
 int main(int argc, char **argv) {

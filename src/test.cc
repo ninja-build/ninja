@@ -82,6 +82,13 @@ string GetSystemTempDir() {
 
 }  // anonymous namespace
 
+
+::testing::AsString<void*, void>::AsString(const void* ptr) {
+  char temp[32];
+  ::snprintf(temp, sizeof(temp), "%p", ptr);
+  str_ = temp;
+}
+
 StateTestWithBuiltinRules::StateTestWithBuiltinRules() {
   AddCatRule(&state_);
 }
