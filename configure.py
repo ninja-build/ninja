@@ -22,7 +22,6 @@ or use a meta-build system that supports Ninja output."""
 from optparse import OptionParser
 import os
 import shlex
-import string
 import subprocess
 import sys
 
