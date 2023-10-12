@@ -2228,8 +2228,8 @@ TEST_F(BuildTest, FailedDepsParse) {
 }
 
 struct BuildWithQueryDepsLogTest : public BuildTest {
-  BuildWithQueryDepsLogTest() : BuildTest(&log_) {
-  }
+  BuildWithQueryDepsLogTest()
+      : BuildTest(&log_), deps_log_file_("ninja_deps") {}
 
   ~BuildWithQueryDepsLogTest() {
     log_.Close();
@@ -2241,12 +2241,13 @@ struct BuildWithQueryDepsLogTest : public BuildTest {
     temp_dir_.CreateAndEnter("BuildWithQueryDepsLogTest");
 
     std::string err;
-    ASSERT_TRUE(log_.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(log_.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
   }
 
   ScopedTempDir temp_dir_;
 
+  ScopedFilePath deps_log_file_;
   DepsLog log_;
 };
 
@@ -2440,7 +2441,8 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
 /// builder_ it sets up, because we want pristine objects for
 /// each build.
 struct BuildWithDepsLogTest : public BuildTest {
-  BuildWithDepsLogTest() {}
+  BuildWithDepsLogTest()
+      : build_log_file_("build_log"), deps_log_file_("ninja_deps") {}
 
   virtual void SetUp() {
     BuildTest::SetUp();
@@ -2453,6 +2455,8 @@ struct BuildWithDepsLogTest : public BuildTest {
   }
 
   ScopedTempDir temp_dir_;
+  ScopedFilePath build_log_file_;
+  ScopedFilePath deps_log_file_;
 
   /// Shadow parent class builder_ so we don't accidentally use it.
   void* builder_;
@@ -2466,6 +2470,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
       "build out: cat in1\n"
       "  deps = gcc\n"
       "  depfile = in1.d\n";
+
   {
     State state;
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
@@ -2473,7 +2478,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
 
     // Run the build once, everything should be ok.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -2503,8 +2508,8 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
 
     // Run the build again.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
@@ -2544,7 +2549,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
 
     // Run the build once, everything should be ok.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -2573,8 +2578,8 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
@@ -2638,12 +2643,12 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
   BuildLog build_log;
-  ASSERT_TRUE(build_log.Load("build_log", &err));
-  ASSERT_TRUE(build_log.OpenForWrite("build_log", *this, &err));
+  ASSERT_TRUE(build_log.Load(build_log_file_.path(), &err));
+  ASSERT_TRUE(build_log.OpenForWrite(build_log_file_.path(), *this, &err));
 
   DepsLog deps_log;
-  ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+  ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+  ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
   BuildLog::LogEntry* log_entry = NULL;
   {
@@ -2720,12 +2725,12 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
   BuildLog build_log;
-  ASSERT_TRUE(build_log.Load("build_log", &err));
-  ASSERT_TRUE(build_log.OpenForWrite("build_log", *this, &err));
+  ASSERT_TRUE(build_log.Load(build_log_file_.path(), &err));
+  ASSERT_TRUE(build_log.OpenForWrite(build_log_file_.path(), *this, &err));
 
   DepsLog deps_log;
-  ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+  ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+  ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
   {
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
@@ -2871,7 +2876,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
 
     // Run the build once, everything should be ok.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -2897,8 +2902,8 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
 
     // Run the build again.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
@@ -2930,7 +2935,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     // Run the build once, everything should be ok.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -2950,8 +2955,8 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -3001,7 +3006,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
@@ -3024,8 +3029,8 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
@@ -3047,8 +3052,8 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
@@ -3076,7 +3081,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
     // Run the build once, everything should be ok.
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -3098,8 +3103,8 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -3169,11 +3174,13 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   fs_.Create("out.d", "out: header.h");
   fs_.Create("header.h", "");
 
-  RebuildTarget("out", manifest, "build_log", "ninja_deps");
+  RebuildTarget("out", manifest, build_log_file_.c_str(),
+                deps_log_file_.c_str());
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // Sanity: this rebuild should be NOOP
-  RebuildTarget("out", manifest, "build_log", "ninja_deps");
+  RebuildTarget("out", manifest, build_log_file_.c_str(),
+                deps_log_file_.c_str());
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
 
   // Touch 'header.in', blank dependencies log (create a different one).
@@ -3182,12 +3189,14 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   fs_.Tick();
   fs_.Create("header.in", "");
 
+  ScopedFilePath deps2_file_("ninja_deps2");
+
   // (switch to a new blank deps_log "ninja_deps2")
-  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  RebuildTarget("out", manifest, build_log_file_.c_str(), deps2_file_.c_str());
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // Sanity: this build should be NOOP
-  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  RebuildTarget("out", manifest, build_log_file_.c_str(), deps2_file_.c_str());
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
 
   // Check that invalidating deps by target timestamp also works here
@@ -3195,11 +3204,11 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
   fs_.Tick();
   fs_.Create("header.in", "");
   fs_.Create("out", "");
-  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  RebuildTarget("out", manifest, build_log_file_.c_str(), deps2_file_.c_str());
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // And this build should be NOOP again
-  RebuildTarget("out", manifest, "build_log", "ninja_deps2");
+  RebuildTarget("out", manifest, build_log_file_.c_str(), deps2_file_.c_str());
   ASSERT_EQ(0u, command_runner_.commands_ran_.size());
 }
 
@@ -3216,7 +3225,10 @@ TEST_F(BuildTest, WrongOutputInDepfileCausesRebuild) {
   fs_.Create("header.h", "");
   fs_.Create("foo.o.d", "bar.o.d: header.h\n");
 
-  RebuildTarget("foo.o", manifest, "build_log", "ninja_deps");
+  ScopedFilePath build_log("build_log");
+  ScopedFilePath deps_file("ninja_deps");
+
+  RebuildTarget("foo.o", manifest, build_log.c_str(), deps_file.c_str());
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
@@ -4173,7 +4185,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
@@ -4208,8 +4220,8 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     DepsLog deps_log;
-    ASSERT_TRUE(deps_log.Load("ninja_deps", &state, &err));
-    ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
