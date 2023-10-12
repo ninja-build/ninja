@@ -215,11 +215,7 @@ struct Builder {
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
-#if __cplusplus < 201703L
-  std::auto_ptr<CommandRunner> command_runner_;
-#else
-  std::unique_ptr<CommandRunner> command_runner_;  // auto_ptr was removed in C++17.
-#endif
+  std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
 
  private:
@@ -234,6 +230,7 @@ struct Builder {
   /// Time the build started.
   int64_t start_time_millis_;
 
+  std::string lock_file_path_;
   DiskInterface* disk_interface_;
   DependencyScan scan_;
 

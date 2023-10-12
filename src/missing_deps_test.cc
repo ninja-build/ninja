@@ -36,6 +36,11 @@ struct MissingDependencyScannerTest : public testing::Test {
     EXPECT_EQ("", err);
   }
 
+  ~MissingDependencyScannerTest() {
+    // Remove test file.
+    deps_log_.Close();
+  }
+
   MissingDependencyScanner& scanner() { return scanner_; }
 
   void RecordDepsLogDep(const std::string& from, const std::string& to) {
@@ -79,6 +84,7 @@ struct MissingDependencyScannerTest : public testing::Test {
     ASSERT_EQ(1u, scanner().generator_rules_.count(rule));
   }
 
+  ScopedFilePath scoped_file_path_ = kTestDepsLogFilename;
   MissingDependencyTestDelegate delegate_;
   Rule generator_rule_;
   Rule compile_rule_;

@@ -112,6 +112,19 @@ red
 \x1b[31mred\x1b[0m
 ''')
 
+    def test_issue_1966(self):
+        self.assertEqual(run(
+'''rule cat
+  command = cat $rspfile $rspfile > $out
+  rspfile = cat.rsp
+  rspfile_content = a b c
+
+build a: cat
+''', '-j3'),
+'''[1/1] cat cat.rsp cat.rsp > a\x1b[K
+''')
+
+
     def test_pr_1685(self):
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
         self.assertEqual(run('', flags='-t recompact'), '')
@@ -133,6 +146,24 @@ red
     def test_entering_directory_on_stdout(self):
         output = run(Output.BUILD_SIMPLE_ECHO, flags='-C$PWD', pipe=True)
         self.assertEqual(output.splitlines()[0][:25], "ninja: Entering directory")
+
+    def test_tool_inputs(self):
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out2 : cat in2 out1
+build out3 : cat out2 out1 | implicit || order_only
+'''
+        self.assertEqual(run(plan, flags='-t inputs out3'),
+'''implicit
+in1
+in2
+order_only
+out1
+out2
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

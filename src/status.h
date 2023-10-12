@@ -92,14 +92,14 @@ struct StatusPrinter : Status {
 
     double rate() { return rate_; }
 
-    void UpdateRate(int update_hint, int64_t time_millis_) {
+    void UpdateRate(int update_hint, int64_t time_millis) {
       if (update_hint == last_update_)
         return;
       last_update_ = update_hint;
 
       if (times_.size() == N)
         times_.pop();
-      times_.push(time_millis_);
+      times_.push(time_millis);
       if (times_.back() != times_.front())
         rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }

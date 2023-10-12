@@ -384,8 +384,21 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
     Node* n = *i;
 
     // Check if this dependent node is now dirty.  Also checks for new cycles.
-    if (!scan->RecomputeDirty(n, err))
+    std::vector<Node*> validation_nodes;
+    if (!scan->RecomputeDirty(n, &validation_nodes, err))
       return false;
+
+    // Add any validation nodes found during RecomputeDirty as new top level
+    // targets.
+    for (std::vector<Node*>::iterator v = validation_nodes.begin();
+         v != validation_nodes.end(); ++v) {
+      if (Edge* in_edge = (*v)->in_edge()) {
+        if (!in_edge->outputs_ready() &&
+            !AddTarget(*v, err)) {
+          return false;
+        }
+      }
+    }
     if (!n->dirty())
       continue;
 
@@ -505,6 +518,10 @@ Builder::Builder(State* state, const BuildConfig& config,
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options) {
+  lock_file_path_ = ".ninja_lock";
+  string build_dir = state_->bindings_.LookupVariable("builddir");
+  if (!build_dir.empty())
+    lock_file_path_ = build_dir + "/" + lock_file_path_;
 }
 
 Builder::~Builder() {
@@ -539,6 +556,10 @@ void Builder::Cleanup() {
         disk_interface_->RemoveFile(depfile);
     }
   }
+
+  string err;
+  if (disk_interface_->Stat(lock_file_path_, &err) > 0)
+    disk_interface_->RemoveFile(lock_file_path_);
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -553,16 +574,28 @@ Node* Builder::AddTarget(const string& name, string* err) {
 }
 
 bool Builder::AddTarget(Node* target, string* err) {
-  if (!scan_.RecomputeDirty(target, err))
+  std::vector<Node*> validation_nodes;
+  if (!scan_.RecomputeDirty(target, &validation_nodes, err))
     return false;
 
-  if (Edge* in_edge = target->in_edge()) {
-    if (in_edge->outputs_ready())
-      return true;  // Nothing to do.
+  Edge* in_edge = target->in_edge();
+  if (!in_edge || !in_edge->outputs_ready()) {
+    if (!plan_.AddTarget(target, err)) {
+      return false;
+    }
   }
 
-  if (!plan_.AddTarget(target, err))
-    return false;
+  // Also add any validation nodes found during RecomputeDirty as top level
+  // targets.
+  for (std::vector<Node*>::iterator n = validation_nodes.begin();
+       n != validation_nodes.end(); ++n) {
+    if (Edge* validation_in_edge = (*n)->in_edge()) {
+      if (!validation_in_edge->outputs_ready() &&
+          !plan_.AddTarget(*n, err)) {
+        return false;
+      }
+    }
+  }
 
   return true;
 }
@@ -679,13 +712,24 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   status_->BuildEdgeStarted(edge, start_time_millis);
 
-  // Create directories necessary for outputs.
+  TimeStamp build_start = -1;
+
+  // Create directories necessary for outputs and remember the current
+  // filesystem mtime to record later
   // XXX: this will block; do we care?
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
+    if (build_start == -1) {
+      disk_interface_->WriteFile(lock_file_path_, "");
+      build_start = disk_interface_->Stat(lock_file_path_, err);
+      if (build_start == -1)
+        build_start = 0;
+    }
   }
+
+  edge->command_start_time_ = build_start;
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
@@ -745,55 +789,42 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   }
 
   // Restat the edge outputs
-  TimeStamp output_mtime = 0;
-  bool restat = edge->GetBindingBool("restat");
+  TimeStamp record_mtime = 0;
   if (!config_.dry_run) {
+    const bool restat = edge->GetBindingBool("restat");
+    const bool generator = edge->GetBindingBool("generator");
     bool node_cleaned = false;
+    record_mtime = edge->command_start_time_;
 
-    for (vector<Node*>::iterator o = edge->outputs_.begin();
-         o != edge->outputs_.end(); ++o) {
-      TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
-      if (new_mtime == -1)
-        return false;
-      if (new_mtime > output_mtime)
-        output_mtime = new_mtime;
-      if ((*o)->mtime() == new_mtime && restat) {
-        // The rule command did not change the output.  Propagate the clean
-        // state through the build graph.
-        // Note that this also applies to nonexistent outputs (mtime == 0).
-        if (!plan_.CleanNode(&scan_, *o, err))
+    // restat and generator rules must restat the outputs after the build
+    // has finished. if record_mtime == 0, then there was an error while
+    // attempting to touch/stat the temp file when the edge started and
+    // we should fall back to recording the outputs' current mtime in the
+    // log.
+    if (record_mtime == 0 || restat || generator) {
+      for (vector<Node*>::iterator o = edge->outputs_.begin();
+           o != edge->outputs_.end(); ++o) {
+        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
+        if (new_mtime == -1)
           return false;
-        node_cleaned = true;
+        if (new_mtime > record_mtime)
+          record_mtime = new_mtime;
+        if ((*o)->mtime() == new_mtime && restat) {
+          // The rule command did not change the output.  Propagate the clean
+          // state through the build graph.
+          // Note that this also applies to nonexistent outputs (mtime == 0).
+          if (!plan_.CleanNode(&scan_, *o, err))
+            return false;
+          node_cleaned = true;
+        }
       }
     }
-
     if (node_cleaned) {
-      TimeStamp restat_mtime = 0;
-      // If any output was cleaned, find the most recent mtime of any
-      // (existing) non-order-only input or the depfile.
-      for (vector<Node*>::iterator i = edge->inputs_.begin();
-           i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
-        TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
-        if (input_mtime == -1)
-          return false;
-        if (input_mtime > restat_mtime)
-          restat_mtime = input_mtime;
-      }
-
-      string depfile = edge->GetUnescapedDepfile();
-      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
-        TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
-        if (depfile_mtime == -1)
-          return false;
-        if (depfile_mtime > restat_mtime)
-          restat_mtime = depfile_mtime;
-      }
+      record_mtime = edge->command_start_time_;
 
       // The total number of edges in the plan may have changed as a result
       // of a restat.
       status_->PlanHasTotalEdges(plan_.command_edge_count());
-
-      output_mtime = restat_mtime;
     }
   }
 
@@ -807,7 +838,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, output_mtime)) {
+                                          end_time_millis, record_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }

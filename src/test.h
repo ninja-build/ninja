@@ -99,4 +99,31 @@ struct ScopedTempDir {
   std::string temp_dir_name_;
 };
 
+/// A class that records a file path and ensures that it is removed
+/// on destruction. This ensures that tests do not keep stale files in the
+/// current directory where they run, even in case of assertion failure.
+struct ScopedFilePath {
+  /// Constructor just records the file path.
+  ScopedFilePath(const std::string& path) : path_(path) {}
+  ScopedFilePath(const char* path) : path_(path) {}
+
+  /// Allow move operations.
+  ScopedFilePath(ScopedFilePath&&) noexcept;
+  ScopedFilePath& operator=(ScopedFilePath&&) noexcept;
+
+  /// Destructor destroys the file, unless Release() was called.
+  ~ScopedFilePath();
+
+  /// Release the file, the destructor will not remove the file.
+  void Release();
+
+  const char* c_str() const { return path_.c_str(); }
+  const std::string& path() const { return path_; }
+  bool released() const { return released_; }
+
+ private:
+  std::string path_;
+  bool released_ = false;
+};
+
 #endif // NINJA_TEST_H_

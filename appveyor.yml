@@ -8,7 +8,6 @@ environment:
   CHERE_INVOKING: 1 # Tell Bash to inherit the current working directory
   matrix:
     - MSYSTEM: MINGW64
-    - MSYSTEM: MSVC
     - MSYSTEM: LINUX
 
 matrix:
@@ -17,8 +16,6 @@ matrix:
       MSYSTEM: LINUX
     - image: Ubuntu1804
       MSYSTEM: MINGW64
-    - image: Ubuntu1804
-      MSYSTEM: MSVC
 
 for:
   -
@@ -31,20 +28,6 @@ for:
       ./configure.py --bootstrap --platform mingw 2>&1\n
       ./ninja all\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
-  -
-    matrix:
-      only:
-        - MSYSTEM: MSVC
-    build_script:
-    - cmd: >-
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
-
-        python configure.py --bootstrap
-
-        ninja.bootstrap.exe all
-
-        python misc/ninja_syntax_test.py
-
   - matrix:
       only:
         - image: Ubuntu1804
