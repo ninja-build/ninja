@@ -144,7 +144,6 @@ jobs:
       run: |
         python3 configure.py --bootstrap
         ./ninja all
-        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
         python3 misc/ninja_syntax_test.py
         ./misc/output_test.py
 
