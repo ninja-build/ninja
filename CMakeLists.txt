@@ -5,6 +5,7 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
+option(NINJA_USE_SYSTEM_RE2C "Use system re2c" ON)
 
 project(ninja CXX)
 
@@ -58,7 +59,7 @@ endif()
 
 # --- optional re2c
 find_program(RE2C re2c)
-if(RE2C)
+if(RE2C AND NINJA_USE_SYSTEM_RE2C)
 	# the depfile parser and ninja lexers are generated using re2c.
 	function(re2c IN OUT)
 		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
@@ -69,7 +70,7 @@ if(RE2C)
 	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
-	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
+	message(WARNING "re2c was not found/used; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)

@@ -42,7 +42,8 @@ cmake --build build-cmake
 ```
 
 The `ninja` binary will now be inside the `build-cmake` directory (you can
-choose any other name you like).
+choose any other name you like). You can use `-DNINJA_USE_SYSTEM_RE2C=OFF` to
+avoid using a lower version of re2c from the system.
 
 To run the unit tests:
 
