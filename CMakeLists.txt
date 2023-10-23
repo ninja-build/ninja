@@ -57,8 +57,11 @@ else()
 endif()
 
 # --- optional re2c
+set(RE2C_PROPER FALSE)
 find_program(RE2C re2c)
-if(RE2C)
+execute_process(COMMAND "${RE2C}" --vernum OUTPUT_VARIABLE RE2C_RAW_VERSION)
+math(EXPR RE2C_MAJOR_VERSION "${RE2C_RAW_VERSION} / 10000")
+if(RE2C AND ${RE2C_MAJOR_VERSION} GREATER 1)
 	# the depfile parser and ninja lexers are generated using re2c.
 	function(re2c IN OUT)
 		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
@@ -69,7 +72,7 @@ if(RE2C)
 	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
-	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
+	message(WARNING "re2c ${RE2C_MAJOR_VERSION} or later was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
