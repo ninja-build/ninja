@@ -1366,7 +1366,9 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
-    status->Info("no work to do.");
+    if (config_.verbosity != BuildConfig::NO_STATUS_UPDATE) {
+      status->Info("no work to do.");
+    }
     return 0;
   }
 

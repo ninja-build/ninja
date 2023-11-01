@@ -133,6 +133,7 @@ build a: cat
     def test_status(self):
         self.assertEqual(run(''), 'ninja: no work to do.\n')
         self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
+        self.assertEqual(run('', flags='--quiet'), '')
 
     def test_ninja_status_default(self):
         'Do we show the default status by default?'
