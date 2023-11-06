@@ -128,6 +128,7 @@ Node* State::SpellcheckNode(const string& path) {
 
 void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
   Node* node = GetNode(path, slash_bits);
+  node->set_generated_by_dep_loader(false);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
@@ -138,6 +139,7 @@ bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits) {
     return false;
   edge->outputs_.push_back(node);
   node->set_in_edge(edge);
+  node->set_generated_by_dep_loader(false);
   return true;
 }
 
@@ -145,6 +147,7 @@ void State::AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits) {
   Node* node = GetNode(path, slash_bits);
   edge->validations_.push_back(node);
   node->AddValidationOutEdge(edge);
+  node->set_generated_by_dep_loader(false);
 }
 
 bool State::AddDefault(StringPiece path, string* err) {

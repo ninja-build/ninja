@@ -14,8 +14,10 @@
 
 #include "manifest_parser.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <vector>
 
 #include "graph.h"
@@ -416,6 +418,7 @@ bool ManifestParser::ParseEdge(string* err) {
     if (dgi == edge->inputs_.end()) {
       return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
     }
+    assert(!edge->dyndep_->generated_by_dep_loader());
   }
 
   return true;
