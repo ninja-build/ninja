@@ -476,7 +476,7 @@ vector<Edge*> RealCommandRunner::GetActiveEdges() {
 }
 
 void RealCommandRunner::Abort() {
-  subprocs_.Clear();
+  subprocs_.Abort();
 }
 
 bool RealCommandRunner::CanRunMore() const {
@@ -682,15 +682,10 @@ bool Builder::Build(string* err) {
 
       if (!result.success()) {
         if (config_.failfast_mode){
-          Warning("at least one subcommand failed and failfast mode activated. Sending Ctrl+C (SIGINT) to itself.");
-#ifdef _WIN32
-          if(!GenerateConsoleCtrlEvent(CTRL_C_EVENT,
-                                        GetCurrentProcessId())){
-            Win32Fatal("GenerateConsoleCtrlEvent");
-          }
-#else
-          kill(getpid(), SIGINT);
-#endif
+	  Cleanup();
+	  status_->BuildFinished();
+	  *err = "at least one subcommand failed and failfast mode activated";
+	  return false;
         }
 
         if (failures_allowed)

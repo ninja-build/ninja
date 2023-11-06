@@ -87,6 +87,9 @@ struct SubprocessSet {
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
+  /// Forceful variant of Clear() that should interrupt children (even
+  //  though there was no external signal/interruption).
+  void Abort();
 
   std::vector<Subprocess*> running_;
   std::queue<Subprocess*> finished_;
