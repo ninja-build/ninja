@@ -231,6 +231,23 @@ if(BUILD_TESTING)
       URL_HASH SHA1=9c89be7df9c5e8cb0bc20b3c4b39bf7e82686770
     )
     FetchContent_MakeAvailable(googletest)
+
+    # Before googletest-1.11.0, the CMake files provided by the source archive
+    # did not define the GTest::gtest target, only the gtest one, so define
+    # an alias when needed to ensure the rest of this file works with all
+    # GoogleTest releases.
+    #
+    # Note that surprisingly, this is not needed when using GTEST_ROOT to
+    # point to a local installation, because this one contains CMake-generated
+    # files that contain the right target definition, and which will be
+    # picked up by the find_package(GTest) file above.
+    #
+    # This comment and the four lines below can be removed once Ninja only
+    # depends on release-1.11.0 or above.
+    if (NOT TARGET GTest::gtest)
+      message(STATUS "Defining GTest::gtest alias to work-around bug in older release.")
+      add_library(GTest::gtest ALIAS gtest)
+    endif()
   endif()
 
   # Tests all build into ninja_test executable.
@@ -261,7 +278,7 @@ if(BUILD_TESTING)
       windows/ninja.manifest)
   endif()
   find_package(Threads REQUIRED)
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c gtest Threads::Threads)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
 
   foreach(perftest
     build_log_perftest
