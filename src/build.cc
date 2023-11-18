@@ -95,15 +95,20 @@ bool Plan::AddTarget(const Node* target, string* err) {
 bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
                         set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
-  if (!edge) {  // Leaf node.
-    if (node->dirty()) {
-      string referenced;
-      if (dependent)
-        referenced = ", needed by '" + dependent->path() + "',";
-      *err = "'" + node->path() + "'" + referenced + " missing "
-             "and no known rule to make it";
-    }
-    return false;
+  if (!edge) {
+     // Leaf node, this can be either a regular input from the manifest
+     // (e.g. a source file), or an implicit input from a depfile or dyndep
+     // file. In the first case, a dirty flag means the file is missing,
+     // and the build should stop. In the second, do not do anything here
+     // since there is no producing edge to add to the plan.
+     if (node->dirty() && !node->generated_by_dep_loader()) {
+       string referenced;
+       if (dependent)
+         referenced = ", needed by '" + dependent->path() + "',";
+       *err = "'" + node->path() + "'" + referenced +
+              " missing and no known rule to make it";
+     }
+     return false;
   }
 
   if (edge->outputs_ready())
