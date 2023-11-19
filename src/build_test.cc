@@ -2978,7 +2978,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_EQ("", err);
 
     // Expect one new edge generating fo o.o, loading the depfile should
-    // note generate new edges.
+    // not generate new edges.
     ASSERT_EQ(1u, state.edges_.size());
     // Expect our edge to now have three inputs: foo.c and two headers.
     ASSERT_EQ(3u, edge->inputs_.size());
