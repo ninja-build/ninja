@@ -39,6 +39,21 @@ int Cleaner::RemoveFile(const string& path) {
   return disk_interface_->RemoveFile(path);
 }
 
+void Cleaner::RemoveAllPending() {
+  std::sort(pending_.begin(), pending_.end(), []
+    (const std::string& first, const std::string& second){
+        return first.size() > second.size();
+    });
+  for (vector<string>::iterator file = pending_.begin();
+         file != pending_.end(); ++file) {
+    int ret = RemoveFile(*file);
+    if (ret == 0)
+      Report(*file);
+    else if (ret == -1)
+      status_ = 1;
+  }
+}
+
 bool Cleaner::FileExists(const string& path) {
   string err;
   TimeStamp mtime = disk_interface_->Stat(path, &err);
@@ -60,11 +75,7 @@ void Cleaner::Remove(const string& path) {
       if (FileExists(path))
         Report(path);
     } else {
-      int ret = RemoveFile(path);
-      if (ret == 0)
-        Report(path);
-      else if (ret == -1)
-        status_ = 1;
+      pending_.push_back(path);
     }
   }
 }
@@ -120,6 +131,7 @@ int Cleaner::CleanAll(bool generator) {
 
     RemoveEdgeFiles(*e);
   }
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -142,6 +154,7 @@ int Cleaner::CleanDead(const BuildLog::Entries& entries) {
       Remove(i->first.AsString());
     }
   }
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -174,6 +187,7 @@ int Cleaner::CleanTarget(Node* target) {
   PrintHeader();
   LoadDyndeps();
   DoCleanTarget(target);
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -215,6 +229,7 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
       status_ = 1;
     }
   }
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -241,6 +256,7 @@ int Cleaner::CleanRule(const Rule* rule) {
   PrintHeader();
   LoadDyndeps();
   DoCleanRule(rule);
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -277,6 +293,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
       status_ = 1;
     }
   }
+  RemoveAllPending();
   PrintFooter();
   return status_;
 }
@@ -286,6 +303,7 @@ void Cleaner::Reset() {
   cleaned_files_count_ = 0;
   removed_.clear();
   cleaned_.clear();
+  pending_.clear();
 }
 
 void Cleaner::LoadDyndeps() {
