@@ -32,7 +32,6 @@
 using namespace std;
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  METRIC_RECORD("node stat");
   mtime_ = disk_interface->Stat(path_, err);
   if (mtime_ == -1) {
     return false;
