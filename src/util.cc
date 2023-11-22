@@ -461,7 +461,7 @@ string GetLastErrorString() {
         FORMAT_MESSAGE_IGNORE_INSERTS,
         NULL,
         err,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
         (char*)&msg_buf,
         0,
         NULL);
