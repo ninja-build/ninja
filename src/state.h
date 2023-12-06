@@ -109,7 +109,7 @@ struct State {
   /// ensures that the generated_by_dep_loader() flag for all these nodes
   /// is set to false, to indicate that they come from the input manifest.
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
-  bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
+  bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits, std::string* err);
   void AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, std::string* error);
 

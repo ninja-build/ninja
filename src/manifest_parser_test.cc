@@ -978,7 +978,7 @@ TEST_F(ParserTest, ImplicitOutputDupeError) {
   ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:4: multiple rules generate foo\n", err);
+  EXPECT_EQ("input:4: foo is defined as an output multiple times\n", err);
 }
 
 TEST_F(ParserTest, ImplicitOutputDupesError) {
@@ -989,7 +989,7 @@ TEST_F(ParserTest, ImplicitOutputDupesError) {
   ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:4: multiple rules generate foo\n", err);
+  EXPECT_EQ("input:4: foo is defined as an output multiple times\n", err);
 }
 
 TEST_F(ParserTest, NoExplicitOutput) {

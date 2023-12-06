@@ -336,8 +336,8 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    if (!state_->AddOut(edge, path, slash_bits)) {
-      lexer_.Error("multiple rules generate " + path, err);
+    if (!state_->AddOut(edge, path, slash_bits, err)) {
+      lexer_.Error(std::string(*err), err);
       return false;
     }
   }
