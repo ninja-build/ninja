@@ -330,29 +330,6 @@ TEST_F(ParserTest, CanonicalizePathsBackslashes) {
 }
 #endif
 
-TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputs) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-"rule cat\n"
-"  command = cat $in > $out\n"
-"build out1 out2: cat in1\n"
-"build out1: cat in2\n"
-"build final: cat out1\n"
-));
-  // AssertParse() checks that the generated build graph is self-consistent.
-  // That's all the checking that this test needs.
-}
-
-TEST_F(ParserTest, NoDeadPointerFromDuplicateEdge) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-"rule cat\n"
-"  command = cat $in > $out\n"
-"build out: cat in\n"
-"build out: cat in\n"
-));
-  // AssertParse() checks that the generated build graph is self-consistent.
-  // That's all the checking that this test needs.
-}
-
 TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   const char kInput[] =
 "rule cat\n"
@@ -360,9 +337,7 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
 "build out1 out2: cat in1\n"
 "build out1: cat in2\n"
 "build final: cat out1\n";
-  ManifestParserOptions parser_opts;
-  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-  ManifestParser parser(&state, &fs_, parser_opts);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("input:5: multiple rules generate out1\n", err);
@@ -377,9 +352,7 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
     "build final: cat out1\n");
   const char kInput[] =
     "subninja sub.ninja\n";
-  ManifestParserOptions parser_opts;
-  parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-  ManifestParser parser(&state, &fs_, parser_opts);
+  ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
   EXPECT_EQ("sub.ninja:5: multiple rules generate out1\n", err);
@@ -997,28 +970,26 @@ TEST_F(ParserTest, ImplicitOutputEmpty) {
   EXPECT_FALSE(edge->is_implicit_out(0));
 }
 
-TEST_F(ParserTest, ImplicitOutputDupe) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+TEST_F(ParserTest, ImplicitOutputDupeError) {
+  const char kInput[] =
 "rule cat\n"
 "  command = cat $in > $out\n"
-"build foo baz | foo baq foo: cat bar\n"));
-
-  Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 3);
-  EXPECT_FALSE(edge->is_implicit_out(0));
-  EXPECT_FALSE(edge->is_implicit_out(1));
-  EXPECT_TRUE(edge->is_implicit_out(2));
+"build foo baz | foo baq foo: cat bar\n";
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:4: foo is defined as an output multiple times\n", err);
 }
 
-TEST_F(ParserTest, ImplicitOutputDupes) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
+TEST_F(ParserTest, ImplicitOutputDupesError) {
+  const char kInput[] =
 "rule cat\n"
 "  command = cat $in > $out\n"
-"build foo foo foo | foo foo foo foo: cat bar\n"));
-
-  Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 1);
-  EXPECT_FALSE(edge->is_implicit_out(0));
+"build foo foo foo | foo foo foo foo: cat bar\n";
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:4: foo is defined as an output multiple times\n", err);
 }
 
 TEST_F(ParserTest, NoExplicitOutput) {
