@@ -252,6 +252,16 @@ if(BUILD_TESTING)
     if (NOT TARGET GTest::gtest)
       message(STATUS "Defining GTest::gtest alias to work-around bug in older release.")
       add_library(GTest::gtest ALIAS gtest)
+
+      # NOTE: gtest uninit some variables, gcc >= 1.11.3 may cause error on compile.
+      # Remove this comment and six lines below, once ninja deps gtest-1.11.0 or above.
+      if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "1.11.3")
+        check_cxx_compiler_flag(-Wno-maybe-uninitialized flag_no_maybe_uninit)
+        if (flag_no_maybe_uninit)
+          target_compile_options(gtest PRIVATE -Wno-maybe-uninitialized)
+        endif()
+      endif()
+
     endif()
   endif()
 
