@@ -89,13 +89,57 @@ TEST(CanonicalizePath, PathSamples) {
   EXPECT_EQ("/foo", path);
 #endif
 
+  path = "..";
+  CanonicalizePath(&path);
+  EXPECT_EQ("..", path);
+
+  path = "../";
+  CanonicalizePath(&path);
+  EXPECT_EQ("..", path);
+
+  path = "../foo";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../foo", path);
+
+  path = "../foo/";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../foo", path);
+
+  path = "../..";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../..", path);
+
+  path = "../../";
+  CanonicalizePath(&path);
+  EXPECT_EQ("../..", path);
+
+  path = "./../";
+  CanonicalizePath(&path);
+  EXPECT_EQ("..", path);
+
+  path = "/..";
+  CanonicalizePath(&path);
+  EXPECT_EQ("/..", path);
+
+  path = "/../";
+  CanonicalizePath(&path);
+  EXPECT_EQ("/..", path);
+
+  path = "/../..";
+  CanonicalizePath(&path);
+  EXPECT_EQ("/../..", path);
+
+  path = "/../../";
+  CanonicalizePath(&path);
+  EXPECT_EQ("/../..", path);
+
   path = "/";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 
   path = "/foo/..";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 
   path = ".";
   CanonicalizePath(&path);
@@ -171,7 +215,7 @@ TEST(CanonicalizePath, PathSamplesWindows) {
 
   path = "\\";
   CanonicalizePath(&path);
-  EXPECT_EQ("", path);
+  EXPECT_EQ("/", path);
 }
 
 TEST(CanonicalizePath, SlashTracking) {
@@ -321,8 +365,53 @@ TEST(CanonicalizePath, TooManyComponents) {
   EXPECT_EQ(58, std::count(path.begin(), path.end(), '\\'));
   CanonicalizePath(&path, &slash_bits);
   EXPECT_EQ(slash_bits, 0x3ffffffffffffff);
+
+  // More than 60 components is now completely ok too.
+  path =
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\"
+      "a\\a\\a\\a\\a\\a\\a\\a\\a\\x\\y.h";
+  EXPECT_EQ(218, std::count(path.begin(), path.end(), '\\'));
+  CanonicalizePath(&path, &slash_bits);
+  EXPECT_EQ(slash_bits, 0xffffffffffffffff);
 }
-#endif
+#else   // !_WIN32
+TEST(CanonicalizePath, TooManyComponents) {
+  string path;
+  uint64_t slash_bits;
+
+  // More than 60 components is now completely ok.
+  path =
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+      "a/a/a/a/a/a/a/a/a/x/y.h";
+  EXPECT_EQ(218, std::count(path.begin(), path.end(), '/'));
+  CanonicalizePath(&path, &slash_bits);
+  EXPECT_EQ(slash_bits, 0x0);
+}
+#endif  // !_WIN32
 
 TEST(CanonicalizePath, UpDir) {
   string path, err;
@@ -353,11 +442,13 @@ TEST(CanonicalizePath, NotNullTerminated) {
   EXPECT_EQ(strlen("foo"), len);
   EXPECT_EQ("foo/. bar/.", string(path));
 
+  // Verify that foo/..file gets canonicalized to 'file' without
+  // touching the rest of the string.
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
   CanonicalizePath(&path[0], &len, &unused);
   EXPECT_EQ(strlen("file"), len);
-  EXPECT_EQ("file ./file bar/.", string(path));
+  EXPECT_EQ("file../file bar/.", string(path));
 }
 
 TEST(PathEscaping, TortureTest) {
