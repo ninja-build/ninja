@@ -19,7 +19,10 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstdlib>
+#include <set>
+#include <sstream>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -932,6 +935,32 @@ void printCompdb(const char* const directory, const Edge* const edge,
   printf("\"\n  }");
 }
 
+struct DependentEdgeCollector {
+  bool CollectFrom(Node* node, std::vector<Edge*>* depend_edges) {
+    assert(node);
+    assert(depend_edges);
+
+    if (!visited_nodes_.insert(node).second)
+      return true;
+
+    Edge* edge = node->in_edge();
+    if (!edge || !visited_edges_.insert(edge).second)
+      return true;
+
+    depend_edges->push_back(edge);
+
+    for (Node* input_node : edge->inputs_)
+      if (!CollectFrom(input_node, depend_edges))
+        return false;
+
+    return true;
+  }
+
+ private:
+  std::set<Node*> visited_nodes_;
+  std::set<Edge*> visited_edges_;
+};
+
 int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
                                        char* argv[]) {
   // The compdb tool uses getopt, and expects argv[0] to contain the name of
@@ -943,11 +972,42 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
+  const option long_options[] = {
+      { "target", required_argument, nullptr, 't' },
+      { nullptr, 0, nullptr, 0 }
+  };
+
+  std::vector<Edge*> edges_to_process = state_.edges_;
+  while ((opt = getopt_long(argc, argv, "hx:", long_options, nullptr)) != -1) {
     switch(opt) {
       case 'x':
         eval_mode = ECM_EXPAND_RSPFILE;
         break;
+
+      case 't': {
+        std::istringstream iss(optarg);
+        std::string target;
+        std::vector<Edge*> user_interested_edges;
+        DependentEdgeCollector deps_edge_collector;
+
+        while (std::getline(iss, target, ',')) {
+          string err;
+          Node* node = CollectTarget(target.c_str(), &err);
+
+          if (!node) {
+            Error("%s", err.c_str());
+            return 1;
+          }
+          if (!deps_edge_collector.CollectFrom(node, &user_interested_edges)) {
+            return 1;
+          }
+        }
+        if (!user_interested_edges.empty()) {
+          edges_to_process = user_interested_edges;
+        }
+
+        break;
+      }
 
       case 'h':
       default:
@@ -955,7 +1015,8 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
             "usage: ninja -t compdb [options] [rules]\n"
             "\n"
             "options:\n"
-            "  -x     expand @rspfile style response file invocations\n"
+            "  -x                  expand @rspfile style response file invocations\n"
+            "  --target TARGETS    generate compilation database for given targets, separated by commas\n"
             );
         return 1;
     }
@@ -978,23 +1039,22 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   }
 
   putchar('[');
-  for (vector<Edge*>::iterator e = state_.edges_.begin();
-       e != state_.edges_.end(); ++e) {
-    if ((*e)->inputs_.empty())
+  for (Edge* e : edges_to_process) {
+    if (e->inputs_.empty())
       continue;
     if (argc == 0) {
       if (!first) {
         putchar(',');
       }
-      printCompdb(&cwd[0], *e, eval_mode);
+      printCompdb(&cwd[0], e, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
-        if ((*e)->rule_->name() == argv[i]) {
+        if (e->rule_->name() == argv[i]) {
           if (!first) {
             putchar(',');
           }
-          printCompdb(&cwd[0], *e, eval_mode);
+          printCompdb(&cwd[0], e, eval_mode);
           first = false;
         }
       }
