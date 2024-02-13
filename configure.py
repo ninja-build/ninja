@@ -276,6 +276,8 @@ objext = '.o'
 if platform.is_msvc():
     CXX = 'cl'
     objext = '.obj'
+if platform.is_zos():
+    CXX = 'ibm-clang++'
 
 def src(filename):
     return os.path.join('$root', 'src', filename)
@@ -382,8 +384,8 @@ else:
         cflags.append('-D_LARGE_FILES')
     if platform.is_zos():
         cflags += ['-D_POSIX_SOURCE', '-D_POSIX_C_SOURCE=200112L', '-D_XOPEN_SOURCE_EXTENDED=1', '-D_UNIX03_THREADS']
-        cflags.remove('-pipe')
-        cflags.remove('-std=c++11')
+        # cflags.remove('-pipe')
+        # cflags.remove('-std=c++11')
 
 libs = []
 
