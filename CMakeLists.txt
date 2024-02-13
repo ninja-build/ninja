@@ -57,8 +57,13 @@ else()
 endif()
 
 # --- optional re2c
+set(RE2C_MAJOR_VERSION 0)
 find_program(RE2C re2c)
 if(RE2C)
+	execute_process(COMMAND "${RE2C}" --vernum OUTPUT_VARIABLE RE2C_RAW_VERSION)
+	math(EXPR RE2C_MAJOR_VERSION "${RE2C_RAW_VERSION} / 10000")
+endif()
+if(${RE2C_MAJOR_VERSION} GREATER 1)
 	# the depfile parser and ninja lexers are generated using re2c.
 	function(re2c IN OUT)
 		add_custom_command(DEPENDS ${IN} OUTPUT ${OUT}
@@ -69,7 +74,7 @@ if(RE2C)
 	re2c(${PROJECT_SOURCE_DIR}/src/lexer.in.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 	add_library(libninja-re2c OBJECT ${PROJECT_BINARY_DIR}/depfile_parser.cc ${PROJECT_BINARY_DIR}/lexer.cc)
 else()
-	message(WARNING "re2c was not found; changes to src/*.in.cc will not affect your build.")
+	message(WARNING "re2c 2 or later was not found; changes to src/*.in.cc will not affect your build.")
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
@@ -222,6 +227,44 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  find_package(GTest)
+  if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+      URL_HASH SHA1=9c89be7df9c5e8cb0bc20b3c4b39bf7e82686770
+    )
+    FetchContent_MakeAvailable(googletest)
+
+    # Before googletest-1.11.0, the CMake files provided by the source archive
+    # did not define the GTest::gtest target, only the gtest one, so define
+    # an alias when needed to ensure the rest of this file works with all
+    # GoogleTest releases.
+    #
+    # Note that surprisingly, this is not needed when using GTEST_ROOT to
+    # point to a local installation, because this one contains CMake-generated
+    # files that contain the right target definition, and which will be
+    # picked up by the find_package(GTest) file above.
+    #
+    # This comment and the four lines below can be removed once Ninja only
+    # depends on release-1.11.0 or above.
+    if (NOT TARGET GTest::gtest)
+      message(STATUS "Defining GTest::gtest alias to work-around bug in older release.")
+      add_library(GTest::gtest ALIAS gtest)
+
+      # NOTE: gtest uninit some variables, gcc >= 1.11.3 may cause error on compile.
+      # Remove this comment and six lines below, once ninja deps gtest-1.11.0 or above.
+      if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "1.11.3")
+        check_cxx_compiler_flag(-Wno-maybe-uninitialized flag_no_maybe_uninit)
+        if (flag_no_maybe_uninit)
+          target_compile_options(gtest PRIVATE -Wno-maybe-uninitialized)
+        endif()
+      endif()
+
+    endif()
+  endif()
+
   # Tests all build into ninja_test executable.
   add_executable(ninja_test
     src/build_log_test.cc
@@ -246,9 +289,11 @@ if(BUILD_TESTING)
     src/util_test.cc
   )
   if(WIN32)
-    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc)
+    target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
+      windows/ninja.manifest)
   endif()
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
 
   foreach(perftest
     build_log_perftest

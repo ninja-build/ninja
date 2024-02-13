@@ -71,8 +71,13 @@ void RunBrowsePython(State* state, const char* ninja_command,
     close(pipefd[0]);
 
     // Write the script file into the stdin of the Python process.
-    ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
-    if (len < (ssize_t)sizeof(kBrowsePy))
+    // Only write n - 1 bytes, because Python 3.11 does not allow null
+    // bytes in source code anymore, so avoid writing the null string
+    // terminator.
+    // See https://github.com/python/cpython/issues/96670
+    auto kBrowsePyLength = sizeof(kBrowsePy) - 1;
+    ssize_t len = write(pipefd[1], kBrowsePy, kBrowsePyLength);
+    if (len < (ssize_t)kBrowsePyLength)
       perror("ninja: write");
     close(pipefd[1]);
     exit(0);

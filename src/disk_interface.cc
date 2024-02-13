@@ -23,9 +23,10 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
-#include <sstream>
-#include <windows.h>
 #include <direct.h>  // _mkdir
+#include <windows.h>
+
+#include <sstream>
 #else
 #include <unistd.h>
 #endif
@@ -157,13 +158,33 @@ bool DiskInterface::MakeDirs(const string& path) {
 }
 
 // RealDiskInterface -----------------------------------------------------------
+RealDiskInterface::RealDiskInterface() 
+#ifdef _WIN32
+: use_cache_(false), long_paths_enabled_(false) {
+  setlocale(LC_ALL, "");
+
+  // Probe ntdll.dll for RtlAreLongPathsEnabled, and call it if it exists.
+  HINSTANCE ntdll_lib = ::GetModuleHandleW(L"ntdll");
+  if (ntdll_lib) {
+    typedef BOOLEAN(WINAPI FunctionType)();
+    auto* func_ptr = reinterpret_cast<FunctionType*>(
+        ::GetProcAddress(ntdll_lib, "RtlAreLongPathsEnabled"));
+    if (func_ptr) {
+      long_paths_enabled_ = (*func_ptr)();
+    }
+  }
+}
+#else
+{}
+#endif
 
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+  if (!path.empty() && !AreLongPathsEnabled() && path[0] != '\\' &&
+      path.size() > MAX_PATH) {
     ostringstream err_stream;
     err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
                << " characters";
@@ -335,3 +356,9 @@ void RealDiskInterface::AllowStatCache(bool allow) {
     cache_.clear();
 #endif
 }
+
+#ifdef _WIN32
+bool RealDiskInterface::AreLongPathsEnabled(void) const {
+  return long_paths_enabled_;
+}
+#endif

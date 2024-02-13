@@ -21,8 +21,7 @@ or use a meta-build system that supports Ninja output."""
 
 from optparse import OptionParser
 import os
-import pipes
-import string
+import shlex
 import subprocess
 import sys
 
@@ -267,7 +266,7 @@ n.variable('configure_args', ' '.join(configure_args))
 env_keys = set(['CXX', 'AR', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS'])
 configure_env = dict((k, os.environ[k]) for k in os.environ if k in env_keys)
 if configure_env:
-    config_str = ' '.join([k + '=' + pipes.quote(configure_env[k])
+    config_str = ' '.join([k + '=' + shlex.quote(configure_env[k])
                            for k in configure_env])
     n.variable('configure_env', config_str + '$ ')
 n.newline()
@@ -592,44 +591,6 @@ if options.bootstrap:
     # through the bootstrap executor, but continue writing the
     # build.ninja file.
     n = ninja_writer
-
-n.comment('Tests all build into ninja_test executable.')
-
-objs = []
-if platform.is_msvc():
-    cxxvariables = [('pdb', 'ninja_test.pdb')]
-
-for name in ['build_log_test',
-             'build_test',
-             'clean_test',
-             'clparser_test',
-             'depfile_parser_test',
-             'deps_log_test',
-             'dyndep_parser_test',
-             'disk_interface_test',
-             'edit_distance_test',
-             'graph_test',
-             'json_test',
-             'lexer_test',
-             'manifest_parser_test',
-             'missing_deps_test',
-             'ninja_test',
-             'state_test',
-             'status_test',
-             'string_piece_util_test',
-             'subprocess_test',
-             'test',
-             'util_test']:
-    objs += cxx(name, variables=cxxvariables)
-if platform.is_windows():
-    for name in ['includes_normalize_test', 'msvc_helper_test']:
-        objs += cxx(name, variables=cxxvariables)
-
-ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
-                     variables=[('libs', libs)])
-n.newline()
-all_targets += ninja_test
-
 
 n.comment('Ancillary executables.')
 

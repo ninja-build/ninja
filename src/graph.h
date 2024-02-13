@@ -104,6 +104,14 @@ struct Node {
   Edge* in_edge() const { return in_edge_; }
   void set_in_edge(Edge* edge) { in_edge_ = edge; }
 
+  /// Indicates whether this node was generated from a depfile or dyndep file,
+  /// instead of being a regular input or output from the Ninja manifest.
+  bool generated_by_dep_loader() const { return generated_by_dep_loader_; }
+
+  void set_generated_by_dep_loader(bool value) {
+    generated_by_dep_loader_ = value;
+  }
+
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
@@ -145,6 +153,13 @@ private:
   /// Store whether dyndep information is expected from this node but
   /// has not yet been loaded.
   bool dyndep_pending_;
+
+  /// Set to true when this node comes from a depfile, a dyndep file or the
+  /// deps log. If it does not have a producing edge, the build should not
+  /// abort if it is missing (as for regular source inputs). By default
+  /// all nodes have this flag set to true, since the deps and build logs
+  /// can be loaded before the manifest.
+  bool generated_by_dep_loader_ = true;
 
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
@@ -296,11 +311,6 @@ struct ImplicitDepLoader {
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
   std::vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
-
-  /// If we don't have a edge that generates this input already,
-  /// create one; this makes us not abort if the input is missing,
-  /// but instead will rebuild in that circumstance.
-  void CreatePhonyInEdge(Node* node);
 
   State* state_;
   DiskInterface* disk_interface_;

@@ -85,6 +85,13 @@ struct Stopwatch {
       g_metrics ? g_metrics->NewMetric(name) : NULL;                    \
   ScopedMetric metrics_h_scoped(metrics_h_metric);
 
+/// A variant of METRIC_RECORD that doesn't record anything if |condition|
+/// is false.
+#define METRIC_RECORD_IF(name, condition)            \
+  static Metric* metrics_h_metric =                  \
+      g_metrics ? g_metrics->NewMetric(name) : NULL; \
+  ScopedMetric metrics_h_scoped((condition) ? metrics_h_metric : NULL);
+
 extern Metrics* g_metrics;
 
 #endif // NINJA_METRICS_H_

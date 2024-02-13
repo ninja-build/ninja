@@ -32,7 +32,6 @@
 using namespace std;
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  METRIC_RECORD("node stat");
   mtime_ = disk_interface->Stat(path_, err);
   if (mtime_ == -1) {
     return false;
@@ -728,7 +727,6 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
-    CreatePhonyInEdge(node);
   }
 
   return true;
@@ -756,7 +754,6 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
     Node* node = deps->nodes[i];
     *implicit_dep = node;
     node->AddOutEdge(edge);
-    CreatePhonyInEdge(node);
   }
   return true;
 }
@@ -767,22 +764,4 @@ vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
                        (size_t)count, 0);
   edge->implicit_deps_ += count;
   return edge->inputs_.end() - edge->order_only_deps_ - count;
-}
-
-void ImplicitDepLoader::CreatePhonyInEdge(Node* node) {
-  if (node->in_edge())
-    return;
-
-  Edge* phony_edge = state_->AddEdge(&State::kPhonyRule);
-  phony_edge->generated_by_dep_loader_ = true;
-  node->set_in_edge(phony_edge);
-  phony_edge->outputs_.push_back(node);
-
-  // RecomputeDirty might not be called for phony_edge if a previous call
-  // to RecomputeDirty had caused the file to be stat'ed.  Because previous
-  // invocations of RecomputeDirty would have seen this node without an
-  // input edge (and therefore ready), we have to set outputs_ready_ to true
-  // to avoid a potential stuck build.  If we do call RecomputeDirty for
-  // this node, it will simply set outputs_ready_ to the correct value.
-  phony_edge->outputs_ready_ = true;
 }

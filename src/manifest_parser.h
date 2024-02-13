@@ -31,11 +31,7 @@ enum PhonyCycleAction {
 };
 
 struct ManifestParserOptions {
-  ManifestParserOptions()
-      : dupe_edge_action_(kDupeEdgeActionWarn),
-        phony_cycle_action_(kPhonyCycleActionWarn) {}
-  DupeEdgeAction dupe_edge_action_;
-  PhonyCycleAction phony_cycle_action_;
+  PhonyCycleAction phony_cycle_action_ = kPhonyCycleActionWarn;
 };
 
 /// Parses .ninja files.

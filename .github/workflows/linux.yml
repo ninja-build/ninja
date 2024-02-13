@@ -58,7 +58,7 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
@@ -83,7 +83,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt update
-        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang
+        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang libgtest-dev
         pip3 install cmake==3.17.*
     - name: Configure (GCC)
       run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
@@ -144,7 +144,6 @@ jobs:
       run: |
         python3 configure.py --bootstrap
         ./ninja all
-        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
         python3 misc/ninja_syntax_test.py
         ./misc/output_test.py
 
@@ -192,7 +191,7 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
