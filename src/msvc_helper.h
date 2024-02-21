@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef MSVC_HELPER_H_
+#define MSVC_HELPER_H_
+
 #include <string>
 
 std::string EscapeForDepfile(const std::string& path);
@@ -30,3 +33,5 @@ struct CLWrapper {
 
   void* env_block_;
 };
+
+#endif  // MSVC_HELPER_H_
