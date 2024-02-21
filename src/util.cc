@@ -49,6 +49,7 @@
 #include <libperfstat.h>
 #elif defined(linux) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
+#include <cstdlib>
 #include <fstream>
 #include <map>
 #include "string_piece_util.h"
@@ -59,6 +60,7 @@
 #endif
 
 #include "edit_distance.h"
+#include "metrics.h"
 
 using namespace std;
 
@@ -909,6 +911,94 @@ double GetLoadAverage() {
   return loadavg[0];
 }
 #endif // _WIN32
+
+double GetCPUWaitRatio(size_t subproc_number, int parallelism) {
+#if defined(linux) || defined(__GLIBC__)
+  static double oncpu_ratio = 100.0f;
+  static uint64_t prev_stalled(0);
+  static int64_t prev_timestamp(0);
+
+  // We use kernel's PSI infrastructure to calculate amount of time
+  // we are waiting for CPU.  It would be great to just use 10-second
+  // average (avg10 below), but, unfortunately, that's too "slow"
+  // an average to provide satisfactory results.  Using avg10 we will
+  // oscillate too far into overloading and underloading the system.
+  // Instead, we use raw total stalled count and divide it by time
+  // elapsed since previous measurement.
+  //
+  // The "total" units are microseconds, but documentation does not say
+  // whether it's cumulative across all CPUs or not.  Apparently, it's
+  // not cumulative.  IIUC, on an 8-core system if we have 6 processes
+  // running at 100% and another 2 stalled at 100% -- then every second
+  // the "total" stalled count will be increased by 1000000 [microseconds].
+  // The count will be increased by the same 1000000 [microseconds] if all
+  // 8 processes are 100% stalled.
+
+  ifstream cpupressure("/sys/fs/cgroup/cpu.pressure", ifstream::in);
+  string token;
+  uint64_t stalled(0);
+  bool psi_ok(false);
+  while (cpupressure >> token) {
+    // Extract "total" from
+    // some avg10=0.01 avg60=4.76 avg300=6.17 total=11527181835
+    if (token == "some") {
+      cpupressure >> token; // avg10=
+      cpupressure >> token; // avg60=
+      cpupressure >> token; // avg300=
+      cpupressure >> token; // total=
+
+      // Parse total=NUM
+      token = token.substr(token.find("=") + 1);
+      stalled = (uint64_t) strtoull(token.c_str(), NULL, 10);
+      psi_ok = true;
+      break;
+    }
+  }
+
+  if (! psi_ok)
+    // Unsupported.
+    return -1.0f;
+
+  // We could use micro-second HighResTimer(), if we wanted to,
+  // but milliseconds provide good-enough granularity.
+  int64_t timestamp = GetTimeMillis();
+
+  if (prev_timestamp == 0) {
+    prev_timestamp = timestamp;
+    prev_stalled = stalled;
+    return 0.0f;
+  }
+
+  uint64_t stalled_ticks = stalled - prev_stalled;
+  uint64_t clock_ticks = 1000 * (timestamp - prev_timestamp);
+
+  if (stalled_ticks < clock_ticks) {
+    // Clock advanced, so update oncpu_ratio with latest measurements.
+    // Pass new measurements through a simple noise filter.
+    oncpu_ratio *= ((double) subproc_number
+		    / (subproc_number + 1));
+    oncpu_ratio += ((100.0f * (clock_ticks - stalled_ticks) / clock_ticks)
+		    / (subproc_number + 1));
+
+    if (0 < stalled_ticks) {
+      // Again, to reduce noise in oncpu_ratio we update prev_* values only
+      // we get a new "stalled" reading.
+      prev_timestamp = timestamp;
+      prev_stalled = stalled;
+    }
+  } else {
+    // Clock didn't advance, this usually happens during initial
+    // startup, when we start config_.parallelism tasks in rapid
+    // succession.  Slightly reduce oncpu_ratio to throttle startup
+    // of new processes until we get an updated measurement.
+    oncpu_ratio *= (double) parallelism / (parallelism + 1);
+  }
+
+  return 100.0f - oncpu_ratio;
+#else
+  return -1.0f;
+#endif
+}
 
 string ElideMiddle(const string& str, size_t width) {
   switch (width) {

@@ -480,10 +480,44 @@ void RealCommandRunner::Abort() {
 
 bool RealCommandRunner::CanRunMore() const {
   size_t subproc_number =
-      subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
-    && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
-        || GetLoadAverage() < config_.max_load_average);
+    subprocs_.running_.size() + subprocs_.finished_.size();
+
+  if ((int)subproc_number >= config_.parallelism)
+    return false;
+
+  if (subprocs_.running_.empty())
+    return true;
+
+  if (config_.max_load_average > 0.0f) {
+    double loadavg = GetLoadAverage();
+
+    if (loadavg < config_.max_load_average)
+      return true;
+
+    if (g_syslimits)
+      fprintf (stderr, "\nninja syslimits: loadavg %.0f >= %.0f\n",
+	       loadavg, config_.max_load_average);
+
+    return false;
+  } else if (config_.max_load_average < -0.1f) {
+    double wait_ratio = GetCPUWaitRatio(subproc_number, config_.parallelism);
+
+    if (wait_ratio < -0.1f) {
+      fprintf (stderr, "\nninja syslimits: system does not support PSI\n");
+      return false;
+    }
+
+    if (wait_ratio < -config_.max_load_average)
+      return true;
+
+    if (g_syslimits)
+      fprintf (stderr,
+	       "\nninja syslimits: wait_ratio %.0f >= %.0f; subprocs: %zu\n",
+	       wait_ratio, -config_.max_load_average, subproc_number);
+
+    return false;
+  } else
+    return true;
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
