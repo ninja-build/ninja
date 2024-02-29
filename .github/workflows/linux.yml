@@ -20,7 +20,7 @@ jobs:
       run: |
         dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
         dnf config-manager --set-enabled powertools
-        dnf install -y gtest-devel p7zip
+        dnf install -y gtest-devel p7zip p7zip-plugins
 
     - name: Build debug ninja
       shell: bash
