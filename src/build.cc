@@ -18,6 +18,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <climits>
+#include <stdint.h>
 #include <functional>
 
 #if defined(__SVR4) && defined(__sun)
@@ -46,7 +48,7 @@ struct DryRunCommandRunner : public CommandRunner {
   virtual ~DryRunCommandRunner() {}
 
   // Overridden from CommandRunner:
-  virtual bool CanRunMore() const;
+  virtual size_t CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
 
@@ -54,8 +56,8 @@ struct DryRunCommandRunner : public CommandRunner {
   queue<Edge*> finished_;
 };
 
-bool DryRunCommandRunner::CanRunMore() const {
-  return true;
+size_t DryRunCommandRunner::CanRunMore() const {
+  return SIZE_MAX;
 }
 
 bool DryRunCommandRunner::StartCommand(Edge* edge) {
@@ -569,7 +571,7 @@ void Plan::Dump() const {
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
   virtual ~RealCommandRunner() {}
-  virtual bool CanRunMore() const;
+  virtual size_t CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
@@ -592,12 +594,26 @@ void RealCommandRunner::Abort() {
   subprocs_.Clear();
 }
 
-bool RealCommandRunner::CanRunMore() const {
+size_t RealCommandRunner::CanRunMore() const {
   size_t subproc_number =
       subprocs_.running_.size() + subprocs_.finished_.size();
-  return (int)subproc_number < config_.parallelism
-    && ((subprocs_.running_.empty() || config_.max_load_average <= 0.0f)
-        || GetLoadAverage() < config_.max_load_average);
+
+  int64_t capacity = config_.parallelism - subproc_number;
+
+  if (config_.max_load_average > 0.0f) {
+    int load_capacity = config_.max_load_average - GetLoadAverage();
+    if (load_capacity < capacity)
+      capacity = load_capacity;
+  }
+
+  if (capacity < 0)
+    capacity = 0;
+
+  if (capacity == 0 && subprocs_.running_.empty())
+    // Ensure that we make progress.
+    capacity = 1;
+
+  return capacity;
 }
 
 bool RealCommandRunner::StartCommand(Edge* edge) {
@@ -749,8 +765,13 @@ bool Builder::Build(string* err) {
   // Second, we attempt to wait for / reap the next finished command.
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
-    if (failures_allowed && command_runner_->CanRunMore()) {
-      if (Edge* edge = plan_.FindWork()) {
+    if (failures_allowed) {
+      size_t capacity = command_runner_->CanRunMore();
+      while (capacity > 0) {
+        Edge* edge = plan_.FindWork();
+        if (!edge)
+          break;
+
         if (edge->GetBindingBool("generator")) {
           scan_.build_log()->Close();
         }
@@ -769,11 +790,19 @@ bool Builder::Build(string* err) {
           }
         } else {
           ++pending_commands;
-        }
 
-        // We made some progress; go back to the main loop.
-        continue;
+          --capacity;
+
+          // Re-evaluate capacity.
+          size_t current_capacity = command_runner_->CanRunMore();
+          if (current_capacity < capacity)
+            capacity = current_capacity;
+        }
       }
+
+       // We are finished with all work items and have no pending
+       // commands. Therefore, break out of the main loop.
+       if (pending_commands == 0 && !plan_.more_to_do()) break;
     }
 
     // See if we can reap any finished commands.
