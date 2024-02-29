@@ -977,3 +977,56 @@ TEST_F(GraphTest, PhonyDepsMtimes) {
   EXPECT_EQ(out1->mtime(), out1Mtime1);
   EXPECT_TRUE(out1->dirty());
 }
+
+// Test that EdgeQueue correctly prioritizes by critical time
+TEST_F(GraphTest, EdgeQueuePriority) {
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build out1: r in1\n"
+"build out2: r in2\n"
+"build out3: r in3\n"
+));
+
+  const int n_edges = 3;
+  Edge *(edges)[n_edges] = {
+    GetNode("out1")->in_edge(),
+    GetNode("out2")->in_edge(),
+    GetNode("out3")->in_edge(),
+  };
+
+  // Output is largest critical time to smallest
+  for (int i = 0; i < n_edges; ++i) {
+    edges[i]->set_critical_path_weight(i * 10);
+  }
+
+  EdgePriorityQueue queue;
+  for (int i = 0; i < n_edges; ++i) {
+    queue.push(edges[i]);
+  }
+
+  EXPECT_EQ(queue.size(), n_edges);
+  for (int i = 0; i < n_edges; ++i) {
+    EXPECT_EQ(queue.top(), edges[n_edges - 1 - i]);
+    queue.pop();
+  }
+  EXPECT_TRUE(queue.empty());
+
+  // When there is ambiguity, the lowest edge id comes first
+  for (int i = 0; i < n_edges; ++i) {
+    edges[i]->set_critical_path_weight(0);
+  }
+
+  queue.push(edges[1]);
+  queue.push(edges[2]);
+  queue.push(edges[0]);
+
+  for (int i = 0; i < n_edges; ++i) {
+    EXPECT_EQ(queue.top(), edges[i]);
+    queue.pop();
+  }
+  EXPECT_TRUE(queue.empty());
+}
+
+

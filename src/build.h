@@ -18,12 +18,11 @@
 #include <cstdio>
 #include <map>
 #include <memory>
-#include <queue>
 #include <string>
 #include <vector>
 
 #include "depfile_parser.h"
-#include "graph.h"  // XXX needed for DependencyScan; should rearrange.
+#include "graph.h"
 #include "exit_status.h"
 #include "util.h"  // int64_t
 
@@ -76,21 +75,13 @@ struct Plan {
   /// Reset state.  Clears want and ready sets.
   void Reset();
 
+  // After all targets have been added, prepares the ready queue for find work.
+  void PrepareQueue();
+
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
   bool DyndepsLoaded(DependencyScan* scan, const Node* node,
                      const DyndepFile& ddf, std::string* err);
-private:
-  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
-  void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
-  bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
-                    std::set<Edge*>* dyndep_walk);
-
-  /// Update plan with knowledge that the given node is up to date.
-  /// If the node is a dyndep binding on any of its dependents, this
-  /// loads dynamic dependencies from the node's path.
-  /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
-  bool NodeFinished(Node* node, std::string* err);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -104,6 +95,23 @@ private:
     /// for it to complete.
     kWantToFinish
   };
+
+private:
+  void ComputeCriticalPath();
+  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
+  void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
+  bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
+                    std::set<Edge*>* dyndep_walk);
+
+  // Add edges that kWantToStart into the ready queue
+  // Must be called after ComputeCriticalPath and before FindWork
+  void ScheduleInitialEdges();
+
+  /// Update plan with knowledge that the given node is up to date.
+  /// If the node is a dyndep binding on any of its dependents, this
+  /// loads dynamic dependencies from the node's path.
+  /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
+  bool NodeFinished(Node* node, std::string* err);
 
   void EdgeWanted(const Edge* edge);
   bool EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* err);
@@ -119,9 +127,11 @@ private:
   /// we want for the edge.
   std::map<Edge*, Want> want_;
 
-  EdgeSet ready_;
+  EdgePriorityQueue ready_;
 
   Builder* builder_;
+  /// user provided targets in build order, earlier one have higher priority
+  std::vector<const Node*> targets_;
 
   /// Total number of edges that have commands (not phony).
   int command_edges_;

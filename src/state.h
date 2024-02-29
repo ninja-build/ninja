@@ -62,7 +62,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(EdgeSet* ready_queue);
+  void RetrieveReadyEdges(EdgePriorityQueue* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
@@ -80,7 +80,10 @@ struct Pool {
       if (!a) return b;
       if (!b) return false;
       int weight_diff = a->weight() - b->weight();
-      return ((weight_diff < 0) || (weight_diff == 0 && EdgeCmp()(a, b)));
+      if (weight_diff != 0) {
+        return weight_diff < 0;
+      }
+      return EdgePriorityGreater()(a, b);
     }
   };
 

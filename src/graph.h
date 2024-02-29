@@ -19,6 +19,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "dyndep.h"
 #include "eval_env.h"
@@ -188,7 +189,7 @@ struct Edge {
         id_(0), outputs_ready_(false), deps_loaded_(false),
         deps_missing_(false), generated_by_dep_loader_(false),
         command_start_time_(0), implicit_deps_(0), order_only_deps_(0),
-        implicit_outs_(0) {}
+        critical_path_weight_(-1), implicit_outs_(0) {}
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -214,6 +215,15 @@ struct Edge {
   // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
   void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
 
+  // critical_path_weight is the priority during build scheduling. The
+  // "critical path" between this edge's inputs and any target node is
+  // the path which maximises the sum oof weights along that path.
+  // NOTE: Defaults to -1 as a marker smaller than any valid weight
+  int64_t critical_path_weight() const { return critical_path_weight_; }
+  void set_critical_path_weight(int64_t critical_path_weight) {
+    critical_path_weight_ = critical_path_weight;
+  }
+
   const Rule* rule_;
   Pool* pool_;
   std::vector<Node*> inputs_;
@@ -223,6 +233,7 @@ struct Edge {
   BindingEnv* env_;
   VisitMark mark_;
   size_t id_;
+  int64_t critical_path_weight_;
   bool outputs_ready_;
   bool deps_loaded_;
   bool deps_missing_;
@@ -376,6 +387,42 @@ struct DependencyScan {
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
+};
+
+// Implements a less comparison for edges by priority, where highest
+// priority is defined lexicographically first by largest critical
+// time, then lowest ID.
+//
+// Including ID means that wherever the critical path weights are the
+// same, the edges are executed in ascending ID order which was
+// historically how all tasks were scheduled.
+struct EdgePriorityLess {
+  bool operator()(const Edge* e1, const Edge* e2) const {
+    const int64_t cw1 = e1->critical_path_weight();
+    const int64_t cw2 = e2->critical_path_weight();
+    if (cw1 != cw2) {
+      return cw1 < cw2;
+    }
+    return e1->id_ > e2->id_;
+  }
+};
+
+// Reverse of EdgePriorityLess, e.g. to sort by highest priority first
+struct EdgePriorityGreater {
+  bool operator()(const Edge* e1, const Edge* e2) const {
+    return EdgePriorityLess()(e2, e1);
+  }
+};
+
+// A priority queue holding non-owning Edge pointers. top() will
+// return the edge with the largest critical path weight, and lowest
+// ID if more than one edge has the same critical path weight.
+class EdgePriorityQueue:
+  public std::priority_queue<Edge*, std::vector<Edge*>, EdgePriorityLess>{
+public:
+  void clear() {
+    c.clear();
+  }
 };
 
 #endif  // NINJA_GRAPH_H_
