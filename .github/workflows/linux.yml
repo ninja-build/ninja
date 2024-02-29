@@ -18,9 +18,9 @@ jobs:
         ignore_words_list: fo,wee
     - name: Install dependencies
       run: |
-        dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core
+        dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
         dnf config-manager --set-enabled powertools
-        dnf install -y gtest-devel
+        dnf install -y gtest-devel p7zip
 
     - name: Build debug ninja
       shell: bash
