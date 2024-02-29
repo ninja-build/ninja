@@ -70,11 +70,11 @@ build b: echo
 build c: echo
   delay = 1
 ''', '-j3'),
-'''[1/3] echo c\x1b[K
+'''[1*3/3] echo c\x1b[K
 c
-[2/3] echo b\x1b[K
+[2*2/3] echo b\x1b[K
 b
-[3/3] echo a\x1b[K
+[3*1/3] echo a\x1b[K
 a
 ''')
 
@@ -87,7 +87,7 @@ build a: echo
 '''
         # Only strip color when ninja's output is piped.
         self.assertEqual(run(print_red),
-'''[1/1] echo a\x1b[K
+'''[1*1/1] echo a\x1b[K
 \x1b[31mred\x1b[0m
 ''')
         self.assertEqual(run(print_red, pipe=True),
@@ -121,7 +121,7 @@ red
 
 build a: cat
 ''', '-j3'),
-'''[1/1] cat cat.rsp cat.rsp > a\x1b[K
+'''[0*1/1] cat cat.rsp cat.rsp > a\x1b[K
 ''')
 
 
@@ -137,7 +137,7 @@ build a: cat
 
     def test_ninja_status_default(self):
         'Do we show the default status by default?'
-        self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1/1] echo a\x1b[K\ndo thing\n')
+        self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1*1/1] echo a\x1b[K\ndo thing\n')
 
     def test_ninja_status_quiet(self):
         'Do we suppress the status information when --quiet is specified?'

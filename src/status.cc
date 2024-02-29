@@ -37,8 +37,12 @@ StatusPrinter::StatusPrinter(const BuildConfig& config)
     printer_.set_smart_terminal(false);
 
   progress_status_format_ = getenv("NINJA_STATUS");
-  if (!progress_status_format_)
-    progress_status_format_ = "[%f/%t] ";
+  if (!progress_status_format_) {
+    if (printer_.is_smart_terminal())
+      progress_status_format_ = "[%f*%r/%t] ";
+    else
+      progress_status_format_ = "[%f/%t] ";
+  }
 }
 
 void StatusPrinter::PlanHasTotalEdges(int total) {
@@ -50,6 +54,8 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
   ++started_edges_;
   ++running_edges_;
   time_millis_ = start_time_millis;
+  if (printer_.is_smart_terminal())
+    edges_.push_back(edge);
 
   if (edge->use_console() || printer_.is_smart_terminal())
     PrintStatus(edge, start_time_millis);
@@ -63,13 +69,20 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
   time_millis_ = end_time_millis;
   ++finished_edges_;
 
+  if (printer_.is_smart_terminal()) {
+    *std::find(edges_.begin(), edges_.end(), edge) = NULL;
+    while (!edges_.empty() && edges_.front() == NULL)
+      edges_.pop_front();
+  }
+
   if (edge->use_console())
     printer_.SetConsoleLocked(false);
 
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  if (!edge->use_console()
+      && (!printer_.is_smart_terminal() || !success || !output.empty()))
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -118,6 +131,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
+
+  if (printer_.is_smart_terminal() && !edges_.empty())
+    PrintStatus(edges_.front(), end_time_millis);
 }
 
 void StatusPrinter::BuildLoadDyndeps() {

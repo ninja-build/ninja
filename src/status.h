@@ -15,7 +15,9 @@
 #ifndef NINJA_STATUS_H_
 #define NINJA_STATUS_H_
 
+#include <deque>
 #include <map>
+#include <queue>
 #include <string>
 
 #include "build.h"
@@ -72,6 +74,7 @@ struct StatusPrinter : Status {
 
   int started_edges_, finished_edges_, total_edges_, running_edges_;
   int64_t time_millis_;
+  std::deque<const Edge*> edges_;
 
   /// Prints progress output.
   LinePrinter printer_;
