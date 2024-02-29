@@ -504,7 +504,7 @@ TEST_F(PlanTest, PriorityWithoutBuildLog) {
     "a1", "a0", "b0", "c0", "out"};
   for (int i = 0; i < n_edges; ++i) {
     Edge* edge = plan_.FindWork();
-    ASSERT_NE(edge, NULL);
+    ASSERT_TRUE(edge != nullptr);
     EXPECT_EQ(expected_order[i], edge->outputs_[0]->path());
 
     std::string err;
