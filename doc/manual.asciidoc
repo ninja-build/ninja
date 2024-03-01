@@ -1112,6 +1112,15 @@ scope, but it won't affect values of the variables in the parent.
 To include another `.ninja` file in the current scope, much like a C
 `#include` statement, use `include` instead of `subninja`.
 
+Loading the same file additional times has no effect (similar to the C
+`#pragma once` statement). However, one consistently use `include` or `subninja`
+when loading the same file.
+
+If there is a build statement for a loaded file, then `ninja` will update it
+if needed (similarly to updating the main input file). Moreover, `ninja` will
+be able to create the loaded file if it is missing, allowing for bootstrapping
+the build files in a clean development directory by simply typing `ninja`.
+
 Variable declarations indented in a `build` block are scoped to the
 `build` block.  The full lookup order for a variable expanded in a
 `build` block (or the `rule` is uses) is:

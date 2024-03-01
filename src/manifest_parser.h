@@ -15,6 +15,9 @@
 #ifndef NINJA_MANIFEST_PARSER_H_
 #define NINJA_MANIFEST_PARSER_H_
 
+#include <map>
+#include <set>
+
 #include "parser.h"
 
 struct BindingEnv;
@@ -37,12 +40,21 @@ struct ManifestParserOptions {
 /// Parses .ninja files.
 struct ManifestParser : public Parser {
   ManifestParser(State* state, FileReader* file_reader,
-                 ManifestParserOptions options = ManifestParserOptions());
+                 ManifestParserOptions options = ManifestParserOptions(),
+                 std::set<std::string> *built_files = NULL,
+                 std::map<std::string, bool> *loaded_files = NULL);
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     quiet_ = true;
     return Parse("input", input, err);
+  }
+
+  /// Test (and reset) whether any loads were skipped (since they were not built yet).
+  bool AnySkippedLoads() {
+    bool result = any_skipped_loads_;
+    any_skipped_loads_ = false;
+    return result;
   }
 
 private:
@@ -62,6 +74,9 @@ private:
 
   BindingEnv* env_;
   ManifestParserOptions options_;
+  std::set<std::string> *built_files_;
+  std::map<std::string, bool> *loaded_files_;
+  bool any_skipped_loads_;
   bool quiet_;
 };
 

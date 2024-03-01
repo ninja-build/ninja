@@ -28,9 +28,12 @@
 using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
-                               ManifestParserOptions options)
+                               ManifestParserOptions options,
+                               std::set<std::string> *built_files,
+                               std::map<std::string, bool> *loaded_files)
     : Parser(state, file_reader),
-      options_(options), quiet_(false) {
+      options_(options), built_files_(built_files), loaded_files_(loaded_files),
+      any_skipped_loads_(false), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -419,7 +422,36 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
+  uint64_t slash_bits;  // Unused because this path is only used for lookup.
+  CanonicalizePath(&path, &slash_bits);
+
+  if (loaded_files_) {
+    auto search = loaded_files_->find(path);
+    if (search != loaded_files_->end()) {
+      bool old_scope = search->second;
+      // Allow re-including a file ("#pragma once") as long as one is consistent.
+      if (new_scope == old_scope)
+        return true;
+
+      if (new_scope) {
+        *err = "include file was previously loaded as a subninja file: '";
+      } else {
+        *err = "subninja file was previously loaded as an include file: '";
+      }
+      *err += path + "'";
+      lexer_.Error(string(*err), err);
+      return false;
+    }
+
+    loaded_files_->insert({ path, new_scope });
+  }
+
+  if (built_files_ && built_files_->find(path) == built_files_->end()) {
+    any_skipped_loads_ = true;
+    return true;
+  }
+
+  ManifestParser subparser(state_, file_reader_, options_, built_files_, loaded_files_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {

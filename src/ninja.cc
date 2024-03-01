@@ -49,7 +49,6 @@
 #include "missing_deps.h"
 #include "state.h"
 #include "status.h"
-#include "util.h"
 #include "version.h"
 
 using namespace std;
@@ -151,7 +150,9 @@ struct NinjaMain : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, string* err, Status* status);
+  bool RebuildManifest(std::set<std::string> &built_files,
+                       std::map<std::string, bool> &loaded_files, string* err,
+                       Status* status);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -250,40 +251,47 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, string* err,
-                                Status* status) {
-  string path = input_file;
-  if (path.empty()) {
-    *err = "empty path";
-    return false;
-  }
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  CanonicalizePath(&path, &slash_bits);
-  Node* node = state_.LookupNode(path);
-  if (!node)
-    return false;
-
+bool NinjaMain::RebuildManifest(std::set<std::string> &built_files,
+                                std::map<std::string, bool> &loaded_files,
+                                string* err, Status* status) {
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
-  if (!builder.AddTarget(node, err))
-    return false;
+  bool did_build = false;
+  for (auto &pair : loaded_files) {
+    const std::string& path = pair.first;
+    built_files.insert(path);
 
-  if (builder.AlreadyUpToDate())
-    return false;  // Not an error, but we didn't rebuild.
+    if (path.empty()) {
+      *err = "empty path";
+      return false;
+    }
 
-  if (!builder.Build(err))
-    return false;
+    Node* node = state_.LookupNode(path);
+    if (!node)
+      continue;
 
-  // The manifest was only rebuilt if it is now dirty (it may have been cleaned
-  // by a restat).
-  if (!node->dirty()) {
-    // Reset the state to prevent problems like
-    // https://github.com/ninja-build/ninja/issues/874
-    state_.Reset();
-    return false;
+    if (!builder.AddTarget(node, err))
+      continue;
+
+    if (builder.AlreadyUpToDate())
+      continue;  // Not an error, but we didn't rebuild.
+
+    if (!builder.Build(err))
+      continue;
+
+    // The manifest was only rebuilt if it is now dirty (it may have been cleaned
+    // by a restat).
+    if (!node->dirty()) {
+      // Reset the state to prevent problems like
+      // https://github.com/ninja-build/ninja/issues/874
+      state_.Reset();
+      continue;
+    }
+
+    did_build = true;
   }
 
-  return true;
+  return did_build;
 }
 
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
@@ -1547,6 +1555,7 @@ NORETURN void real_main(int argc, char** argv) {
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
+  std::set<std::string> built_files;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
     NinjaMain ninja(ninja_command, config);
 
@@ -1554,7 +1563,9 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+    std::map<std::string, bool> loaded_files;
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_,
+                          parser_opts, &built_files, &loaded_files);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
@@ -1570,11 +1581,12 @@ NORETURN void real_main(int argc, char** argv) {
     if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
       exit(1);
 
-    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS)
+    if (options.tool && options.tool->when == Tool::RUN_AFTER_LOGS) {
       exit((ninja.*options.tool->func)(&options, argc, argv));
+    }
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err, status)) {
+    if (ninja.RebuildManifest(built_files, loaded_files, &err, status)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
@@ -1584,6 +1596,10 @@ NORETURN void real_main(int argc, char** argv) {
     } else if (!err.empty()) {
       status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
+    }
+
+    if (parser.AnySkippedLoads()) {
+        continue;
     }
 
     int result = ninja.RunBuild(argc, argv, status);
