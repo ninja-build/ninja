@@ -180,9 +180,9 @@ def as_list(input):
 def escape(string):
     """Escape a string such that it can be embedded into a Ninja file without
     further interpretation."""
-    assert '\n' not in string, 'Ninja syntax does not allow newlines'
-    # We only have one special metacharacter: '$'.
-    return string.replace('$', '$$')
+    # We only have one special metacharacter: '$', but newlines also
+    # need to be escaped so they don't end the string.
+    return string.replace('$', '$$').replace('\n', '$|')
 
 
 def expand(string, vars, local_vars={}):
