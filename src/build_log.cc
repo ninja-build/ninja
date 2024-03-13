@@ -291,9 +291,9 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
       if (invalid_log_version) {
         fclose(file);
         unlink(path.c_str());
-        // Don't report this as a failure.  An empty build log will cause
+        // Don't report this as a failure. A missing build log will cause
         // us to rebuild the outputs anyway.
-        return LOAD_SUCCESS;
+        return LOAD_NOT_FOUND;
       }
     }
 
