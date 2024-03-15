@@ -253,7 +253,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
     if (src[0] == '.') {
       if (component_len == 1)
         break;  // Ignore trailing '.' (e.g. 'foo/.' -> 'foo/')
-      if (src[1] == '.') {
+      if (component_len == 2 && src[1] == '.') {
         // Handle '..'. Back up if possible.
         if (component_count > 0) {
           while (--dst > dst0 && !IsPathSeparator(dst[-1])) {
