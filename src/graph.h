@@ -39,14 +39,7 @@ struct State;
 /// it's dirty, mtime, etc.
 struct Node {
   Node(const std::string& path, uint64_t slash_bits)
-      : path_(path),
-        slash_bits_(slash_bits),
-        mtime_(-1),
-        exists_(ExistenceStatusUnknown),
-        dirty_(false),
-        dyndep_pending_(false),
-        in_edge_(NULL),
-        id_(-1) {}
+      : path_(path), slash_bits_(slash_bits) {}
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
@@ -128,13 +121,13 @@ private:
 
   /// Set bits starting from lowest for backslashes that were normalized to
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
-  uint64_t slash_bits_;
+  uint64_t slash_bits_ = 0;
 
   /// Possible values of mtime_:
   ///   -1: file hasn't been examined
   ///   0:  we looked, and file doesn't exist
   ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
-  TimeStamp mtime_;
+  TimeStamp mtime_ = -1;
 
   enum ExistenceStatus {
     /// The file hasn't been examined.
@@ -144,16 +137,16 @@ private:
     /// The path is an actual file. mtime_ will be the file's mtime.
     ExistenceStatusExists
   };
-  ExistenceStatus exists_;
+  ExistenceStatus exists_ = ExistenceStatusUnknown;
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
   /// edges to build.
-  bool dirty_;
+  bool dirty_ = false;
 
   /// Store whether dyndep information is expected from this node but
   /// has not yet been loaded.
-  bool dyndep_pending_;
+  bool dyndep_pending_ = false;
 
   /// Set to true when this node comes from a depfile, a dyndep file or the
   /// deps log. If it does not have a producing edge, the build should not
@@ -164,7 +157,7 @@ private:
 
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
-  Edge* in_edge_;
+  Edge* in_edge_ = nullptr;
 
   /// All Edges that use this Node as an input.
   std::vector<Edge*> out_edges_;
@@ -173,7 +166,7 @@ private:
   std::vector<Edge*> validation_out_edges_;
 
   /// A dense integer id for the node, assigned and used by DepsLog.
-  int id_;
+  int id_ = -1;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
@@ -184,12 +177,7 @@ struct Edge {
     VisitDone
   };
 
-  Edge()
-      : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL), mark_(VisitNone),
-        id_(0), outputs_ready_(false), deps_loaded_(false),
-        deps_missing_(false), generated_by_dep_loader_(false),
-        command_start_time_(0), implicit_deps_(0), order_only_deps_(0),
-        critical_path_weight_(-1), implicit_outs_(0) {}
+  Edge() = default;
 
   /// Return true if all inputs' in-edges are ready.
   bool AllInputsReady() const;
@@ -224,21 +212,21 @@ struct Edge {
     critical_path_weight_ = critical_path_weight;
   }
 
-  const Rule* rule_;
-  Pool* pool_;
+  const Rule* rule_ = nullptr;
+  Pool* pool_ = nullptr;
   std::vector<Node*> inputs_;
   std::vector<Node*> outputs_;
   std::vector<Node*> validations_;
-  Node* dyndep_;
-  BindingEnv* env_;
-  VisitMark mark_;
-  size_t id_;
-  int64_t critical_path_weight_;
-  bool outputs_ready_;
-  bool deps_loaded_;
-  bool deps_missing_;
-  bool generated_by_dep_loader_;
-  TimeStamp command_start_time_;
+  Node* dyndep_ = nullptr;
+  BindingEnv* env_ = nullptr;
+  VisitMark mark_ = VisitNone;
+  size_t id_ = 0;
+  int64_t critical_path_weight_ = -1;
+  bool outputs_ready_ = false;
+  bool deps_loaded_ = false;
+  bool deps_missing_ = false;
+  bool generated_by_dep_loader_ = false;
+  TimeStamp command_start_time_ = 0;
 
   const Rule& rule() const { return *rule_; }
   Pool* pool() const { return pool_; }
@@ -253,8 +241,8 @@ struct Edge {
   //                     don't cause the target to rebuild.
   // These are stored in inputs_ in that order, and we keep counts of
   // #2 and #3 when we need to access the various subsets.
-  int implicit_deps_;
-  int order_only_deps_;
+  int implicit_deps_ = 0;
+  int order_only_deps_ = 0;
   bool is_implicit(size_t index) {
     return index >= inputs_.size() - order_only_deps_ - implicit_deps_ &&
         !is_order_only(index);
@@ -268,7 +256,7 @@ struct Edge {
   // 2) implicit outs, which the target generates but are not part of $out.
   // These are stored in outputs_ in that order, and we keep a count of
   // #2 to use when we need to access the various subsets.
-  int implicit_outs_;
+  int implicit_outs_ = 0;
   bool is_implicit_out(size_t index) const {
     return index >= outputs_.size() - implicit_outs_;
   }
