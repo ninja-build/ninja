@@ -378,3 +378,24 @@ TEST_F(DepfileParserTest, BuggyMP) {
                      "z:\n", &err));
   ASSERT_EQ("inputs may not also have inputs", err);
 }
+
+TEST_F(DepfileParserTest, EmptyFile) {
+  std::string err;
+  EXPECT_TRUE(Parse("", &err));
+  ASSERT_EQ(0u, parser_.outs_.size());
+  ASSERT_EQ(0u, parser_.ins_.size());
+}
+
+TEST_F(DepfileParserTest, EmptyLines) {
+  std::string err;
+  EXPECT_TRUE(Parse("\n\n", &err));
+  ASSERT_EQ(0u, parser_.outs_.size());
+  ASSERT_EQ(0u, parser_.ins_.size());
+}
+
+TEST_F(DepfileParserTest, MissingColon) {
+  // The file is not empty but is missing a colon separator.
+  std::string err;
+  EXPECT_FALSE(Parse("foo.o foo.c\n", &err));
+  EXPECT_EQ("expected ':' in depfile", err);
+}

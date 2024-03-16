@@ -53,6 +53,7 @@ bool DepfileParser::Parse(string* content, string* err) {
   bool have_target = false;
   bool parsing_targets = true;
   bool poisoned_input = false;
+  bool is_empty = true;
   while (in < end) {
     bool have_newline = false;
     // out: current output point (typically same as in, but can fall behind
@@ -171,6 +172,7 @@ bool DepfileParser::Parse(string* content, string* err) {
     }
 
     if (len > 0) {
+      is_empty = false;
       StringPiece piece = StringPiece(filename, len);
       // If we've seen this as an input before, skip it.
       std::vector<StringPiece>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
@@ -199,7 +201,7 @@ bool DepfileParser::Parse(string* content, string* err) {
       poisoned_input = false;
     }
   }
-  if (!have_target) {
+  if (!have_target && !is_empty) {
     *err = "expected ':' in depfile";
     return false;
   }
