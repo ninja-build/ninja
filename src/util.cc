@@ -540,6 +540,13 @@ string GetLastErrorString() {
         (char*)&msg_buf,
         0,
         NULL);
+
+  if (msg_buf == nullptr) {
+    char fallback_msg[128] = {0};
+    snprintf(fallback_msg, sizeof(fallback_msg), "GetLastError() = %d", err);
+    return fallback_msg;
+  }
+
   string msg = msg_buf;
   LocalFree(msg_buf);
   return msg;
