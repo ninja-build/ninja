@@ -13,29 +13,26 @@ import tempfile
 import unittest
 
 default_env = dict(os.environ)
-if 'NINJA_STATUS' in default_env:
-    del default_env['NINJA_STATUS']
-if 'CLICOLOR_FORCE' in default_env:
-    del default_env['CLICOLOR_FORCE']
+default_env.pop('NINJA_STATUS', None)
+default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
 def run(build_ninja, flags='', pipe=False, env=default_env):
     with tempfile.TemporaryDirectory() as d:
-        os.chdir(d)
-        with open('build.ninja', 'w') as f:
+        with open(os.path.join(d, 'build.ninja'), 'w') as f:
             f.write(build_ninja)
             f.flush()
         ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
         try:
             if pipe:
-                output = subprocess.check_output([ninja_cmd], shell=True, env=env)
+                output = subprocess.check_output([ninja_cmd], shell=True, cwd=d, env=env)
             elif platform.system() == 'Darwin':
                 output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
-                                                 env=env)
+                                                 cwd=d, env=env)
             else:
                 output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
-                                                 env=env)
+                                                 cwd=d, env=env)
         except subprocess.CalledProcessError as err:
             sys.stdout.buffer.write(err.output)
             raise err
