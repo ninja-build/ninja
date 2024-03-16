@@ -133,7 +133,7 @@ jobs:
       image: ${{ matrix.image }}
     strategy:
       matrix:
-        image: ['ubuntu:14.04', 'ubuntu:16.04', 'ubuntu:18.04']
+        image: ['ubuntu:20.04', 'ubuntu:22.04', 'ubuntu:24.04']
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
