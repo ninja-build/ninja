@@ -1,7 +1,7 @@
 version: 1.0.{build}
 image:
   - Visual Studio 2017
-  - Ubuntu1804
+  - Ubuntu2204
 
 environment:
   CLICOLOR_FORCE: 1
@@ -14,7 +14,7 @@ matrix:
   exclude:
     - image: Visual Studio 2017
       MSYSTEM: LINUX
-    - image: Ubuntu1804
+    - image: Ubuntu2204
       MSYSTEM: MINGW64
 
 for:
@@ -30,7 +30,7 @@ for:
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
   - matrix:
       only:
-        - image: Ubuntu1804
+        - image: Ubuntu2204
     build_script:
       - ./configure.py --bootstrap
       - ./ninja all
