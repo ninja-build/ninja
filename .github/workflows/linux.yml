@@ -12,7 +12,7 @@ jobs:
     container:
       image: centos:7
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: codespell-project/actions-codespell@master
       with:
         ignore_words_list: fo,wee
@@ -79,7 +79,7 @@ jobs:
     container:
       image: ubuntu:20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         apt update
@@ -135,7 +135,7 @@ jobs:
       matrix:
         image: ['ubuntu:20.04', 'ubuntu:22.04', 'ubuntu:24.04']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         apt update
@@ -151,7 +151,7 @@ jobs:
     name: Build Linux ARM64
     runs-on: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Build
       uses: uraimo/run-on-arch-action@v2
