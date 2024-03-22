@@ -127,6 +127,29 @@ build a: cat
         self.assertEqual(run('', flags='-t recompact'), '')
         self.assertEqual(run('', flags='-t restat'), '')
 
+    def test_issue_2048(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'build.ninja'), 'w'):
+                pass
+
+            with open(os.path.join(d, '.ninja_log'), 'w') as f:
+                f.write('# ninja log v4\n')
+
+            try:
+                output = subprocess.check_output([NINJA_PATH, '-t', 'recompact'],
+                                                 cwd=d,
+                                                 env=default_env,
+                                                 stderr=subprocess.STDOUT,
+                                                 text=True
+                                                 )
+
+                self.assertEqual(
+                    output.strip(),
+                    "ninja: warning: build log version is too old; starting over"
+                )
+            except subprocess.CalledProcessError as err:
+                self.fail("non-zero exit code with: " + err.output)
+
     def test_status(self):
         self.assertEqual(run(''), 'ninja: no work to do.\n')
         self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
