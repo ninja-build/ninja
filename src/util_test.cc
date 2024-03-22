@@ -152,6 +152,10 @@ TEST(CanonicalizePath, PathSamples) {
   path = "foo/..";
   CanonicalizePath(&path);
   EXPECT_EQ(".", path);
+
+  path = "foo/.._bar";
+  CanonicalizePath(&path);
+  EXPECT_EQ("foo/.._bar", path);
 }
 
 #ifdef _WIN32
