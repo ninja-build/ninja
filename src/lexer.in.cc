@@ -104,12 +104,9 @@ const char* Lexer::TokenErrorHint(Token expected) {
 
 string Lexer::DescribeLastError() {
   if (last_token_) {
-    switch (last_token_[0]) {
-    case '\t':
-      return "tabs are not allowed, use spaces";
-    }
+	return "lexing error <last token:"+string(last_token_)+">";
   }
-  return "lexing error";
+  return "lexing error (EOF?)";
 }
 
 void Lexer::UnreadToken() {
@@ -133,10 +130,10 @@ Lexer::Token Lexer::ReadToken() {
     simple_varname = [a-zA-Z0-9_-]+;
     varname = [a-zA-Z0-9_.-]+;
 
-    [ ]*"#"[^\000\n]*"\n" { continue; }
-    [ ]*"\r\n" { token = NEWLINE;  break; }
-    [ ]*"\n"   { token = NEWLINE;  break; }
-    [ ]+       { token = INDENT;   break; }
+    [ \t]*"#"[^\000\n]*"\n" { continue; }
+    [ \t]*"\r\n" { token = NEWLINE;  break; }
+    [ \t]*"\n"   { token = NEWLINE;  break; }
+    [ \t]+       { token = INDENT;   break; }
     "build"    { token = BUILD;    break; }
     "pool"     { token = POOL;     break; }
     "rule"     { token = RULE;     break; }
@@ -175,7 +172,7 @@ void Lexer::EatWhitespace() {
   for (;;) {
     ofs_ = p;
     /*!re2c
-    [ ]+    { continue; }
+    [ \t]+  { continue; }
     "$\r\n" { continue; }
     "$\n"   { continue; }
     nul     { break; }
@@ -241,10 +238,10 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
       eval->AddText(StringPiece(" ", 1));
       continue;
     }
-    "$\r\n"[ ]* {
+    "$\r\n"[ \t]* {
       continue;
     }
-    "$\n"[ ]* {
+    "$\n"[ \t]* {
       continue;
     }
     "${"varname"}" {

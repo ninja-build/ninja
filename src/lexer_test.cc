@@ -17,12 +17,20 @@
 #include "eval_env.h"
 #include "test.h"
 
-using namespace std;
+std::string tok(Lexer::Token t) {
+  const char *str = Lexer::TokenName(t);
+  if (!str)
+    return "TokenOutOfRange: " + std::to_string(t);
+  return str;
+}
+
+#define EXPECT_EQ_TOK(t1, t2) \
+  EXPECT_EQ(tok(t1), tok(t2))
 
 TEST(Lexer, ReadVarValue) {
   Lexer lexer("plain text $var $VaR ${x}\n");
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[plain text ][$var][ ][$VaR][ ][$x]",
@@ -32,7 +40,7 @@ TEST(Lexer, ReadVarValue) {
 TEST(Lexer, ReadEvalStringEscapes) {
   Lexer lexer("$ $$ab c$: $\ncde\n");
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[ $ab c: cde]",
@@ -41,7 +49,7 @@ TEST(Lexer, ReadEvalStringEscapes) {
 
 TEST(Lexer, ReadIdent) {
   Lexer lexer("foo baR baz_123 foo-bar");
-  string ident;
+  std::string ident;
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo", ident);
   EXPECT_TRUE(lexer.ReadIdent(&ident));
@@ -56,12 +64,12 @@ TEST(Lexer, ReadIdentCurlies) {
   // Verify that ReadIdent includes dots in the name,
   // but in an expansion $bar.dots stops at the dot.
   Lexer lexer("foo.dots $bar.dots ${bar.dots}\n");
-  string ident;
+  std::string ident;
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo.dots", ident);
 
   EvalString eval;
-  string err;
+  std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[$bar][.dots ][$bar.dots]",
@@ -71,7 +79,7 @@ TEST(Lexer, ReadIdentCurlies) {
 TEST(Lexer, Error) {
   Lexer lexer("foo$\nbad $");
   EvalString eval;
-  string err;
+  std::string err;
   ASSERT_FALSE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
             "bad $\n"
@@ -83,16 +91,28 @@ TEST(Lexer, CommentEOF) {
   // Verify we don't run off the end of the string when the EOF is
   // mid-comment.
   Lexer lexer("# foo");
-  Lexer::Token token = lexer.ReadToken();
-  EXPECT_EQ(Lexer::ERROR, token);
+  EXPECT_EQ_TOK(Lexer::ERROR, lexer.ReadToken());
 }
 
 TEST(Lexer, Tabs) {
-  // Verify we print a useful error on a disallowed character.
-  Lexer lexer("   \tfoobar");
-  Lexer::Token token = lexer.ReadToken();
-  EXPECT_EQ(Lexer::INDENT, token);
-  token = lexer.ReadToken();
-  EXPECT_EQ(Lexer::ERROR, token);
-  EXPECT_EQ("tabs are not allowed, use spaces", lexer.DescribeLastError());
+  Lexer lexer("rule foo\n"
+              "\tcommand = foobin $in");
+
+  EXPECT_EQ_TOK(Lexer::RULE, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::IDENT, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::NEWLINE, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::INDENT, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::IDENT, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::EQUALS, lexer.ReadToken());
+}
+
+TEST(Lexer, TabsInVars) {
+  Lexer lexer("cflags =\n"
+              "\t-std=c11");
+
+  EXPECT_EQ_TOK(Lexer::IDENT, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::EQUALS, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::NEWLINE, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::INDENT, lexer.ReadToken());
+  EXPECT_EQ_TOK(Lexer::IDENT, lexer.ReadToken());
 }
