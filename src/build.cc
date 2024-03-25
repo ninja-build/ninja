@@ -21,6 +21,12 @@
 #include <climits>
 #include <stdint.h>
 #include <functional>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
@@ -597,7 +603,7 @@ vector<Edge*> RealCommandRunner::GetActiveEdges() {
 }
 
 void RealCommandRunner::Abort() {
-  subprocs_.Clear();
+  subprocs_.Abort();
 }
 
 size_t RealCommandRunner::CanRunMore() const {
@@ -829,6 +835,13 @@ bool Builder::Build(string* err) {
       }
 
       if (!result.success()) {
+        if (config_.failfast_mode){
+	  Cleanup();
+	  status_->BuildFinished();
+	  *err = "at least one subcommand failed and failfast mode activated";
+	  return false;
+        }
+
         if (failures_allowed)
           failures_allowed--;
       }
