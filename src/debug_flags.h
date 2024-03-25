@@ -26,6 +26,8 @@ extern bool g_explaining;
 
 extern bool g_keep_depfile;
 
+extern bool g_keep_dynout;
+
 extern bool g_keep_rsp;
 
 extern bool g_experimental_statcache;

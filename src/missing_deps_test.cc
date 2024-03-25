@@ -45,7 +45,7 @@ struct MissingDependencyScannerTest : public testing::Test {
 
   void RecordDepsLogDep(const std::string& from, const std::string& to) {
     Node* node_deps[] = { state_.LookupNode(to) };
-    deps_log_.RecordDeps(state_.LookupNode(from), 0, 1, node_deps);
+    deps_log_.RecordDeps(state_.LookupNode(from), 0, 1, 0, node_deps);
   }
 
   void ProcessAllNodes() {

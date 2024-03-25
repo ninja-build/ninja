@@ -64,6 +64,7 @@ TEST_F(ParserTest, RuleAttributes) {
 "  command = a\n"
 "  depfile = a\n"
 "  deps = a\n"
+"  dynout = a\n"
 "  description = a\n"
 "  generator = a\n"
 "  restat = a\n"

@@ -14,6 +14,7 @@
 
 #include "clean.h"
 #include "build.h"
+#include "deps_log.h"
 
 #include "util.h"
 #include "test.h"
@@ -47,7 +48,8 @@ TEST_F(CleanTest, CleanAll) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -79,7 +81,8 @@ TEST_F(CleanTest, CleanAllDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -110,7 +113,8 @@ TEST_F(CleanTest, CleanTarget) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -142,7 +146,8 @@ TEST_F(CleanTest, CleanTargetDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -175,7 +180,8 @@ TEST_F(CleanTest, CleanRule) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -209,7 +215,8 @@ TEST_F(CleanTest, CleanRuleDryRun) {
   fs_.Create("out2", "");
 
   config_.dry_run = true;
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -239,7 +246,8 @@ TEST_F(CleanTest, CleanRuleGenerator) {
   fs_.Create("out1", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(1, cleaner.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
@@ -260,7 +268,8 @@ TEST_F(CleanTest, CleanDepFile) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -275,7 +284,8 @@ TEST_F(CleanTest, CleanDepFileOnCleanTarget) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -290,7 +300,8 @@ TEST_F(CleanTest, CleanDepFileOnCleanRule) {
   fs_.Create("out1", "");
   fs_.Create("out1.d", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanRule("cc"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -311,7 +322,8 @@ TEST_F(CleanTest, CleanDyndep) {
   fs_.Create("out", "");
   fs_.Create("out.imp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -333,7 +345,8 @@ TEST_F(CleanTest, CleanDyndepMissing) {
   fs_.Create("out", "");
   fs_.Create("out.imp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
 
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -356,7 +369,8 @@ TEST_F(CleanTest, CleanRspFile) {
   fs_.Create("out1", "");
   fs_.Create("cc1.rsp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_EQ(2u, fs_.files_removed_.size());
@@ -382,7 +396,8 @@ TEST_F(CleanTest, CleanRsp) {
   fs_.Create("in2", "");
   fs_.Create("out2", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   ASSERT_EQ(0, cleaner.cleaned_files_count());
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
@@ -407,7 +422,8 @@ TEST_F(CleanTest, CleanFailure) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
                                       "build dir: cat src1\n"));
   fs_.MakeDir("dir");
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_NE(0, cleaner.CleanAll());
 }
 
@@ -423,7 +439,8 @@ TEST_F(CleanTest, CleanPhony) {
   fs_.Create("t2", "");
 
   // Check that CleanAll does not remove "phony".
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
   EXPECT_LT(0, fs_.Stat("phony", &err));
@@ -454,7 +471,8 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   fs_.Create("out 1.d", "");
   fs_.Create("out 2.rsp", "");
 
-  Cleaner cleaner(&state_, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(4, cleaner.cleaned_files_count());
   EXPECT_EQ(4u, fs_.files_removed_.size());
@@ -509,7 +527,8 @@ TEST_F(CleanDeadTest, CleanDead) {
   ASSERT_TRUE(log2.LookupByOutput("out2"));
 
   // First use the manifest that describe how to build out1.
-  Cleaner cleaner1(&state, config_, &fs_);
+  DepsLog deps_log;
+  Cleaner cleaner1(&state, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner1.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner1.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
@@ -518,7 +537,7 @@ TEST_F(CleanDeadTest, CleanDead) {
   EXPECT_NE(0, fs_.Stat("out2", &err));
 
   // Then use the manifest that does not build out1 anymore.
-  Cleaner cleaner2(&state_, config_, &fs_);
+  Cleaner cleaner2(&state_, config_, &fs_, &deps_log);
   EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
   EXPECT_EQ(1, cleaner2.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
@@ -572,7 +591,8 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   ASSERT_TRUE(log2.LookupByOutput("out2"));
 
   // First use the manifest that describe how to build out1.
-  Cleaner cleaner1(&state, config_, &fs_);
+  DepsLog deps_log1;
+  Cleaner cleaner1(&state, config_, &fs_, &deps_log1);
   EXPECT_EQ(0, cleaner1.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner1.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
@@ -581,7 +601,8 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   EXPECT_NE(0, fs_.Stat("out2", &err));
 
   // Then use the manifest that does not build out1 anymore.
-  Cleaner cleaner2(&state_, config_, &fs_);
+  DepsLog deps_log2;
+  Cleaner cleaner2(&state_, config_, &fs_, &deps_log2);
   EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner2.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
@@ -598,4 +619,38 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   EXPECT_NE(0, fs_.Stat("out2", &err));
   log2.Close();
 }
+
+TEST_F(CleanTest, CleanDynamicOutputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp-plus-bis\n"
+"  command = cp $in $out && cp $in $out.bis\n"
+"  dynout = $out.dynout\n"
+"build out: cp-plus-bis in\n"
+));
+  fs_.Create("out", "");
+  fs_.Create("out.bis", "");
+
+  string err;
+  DepsLog deps_log;
+  ASSERT_TRUE(deps_log.OpenForWrite("ninja_deps", &err));
+  ASSERT_EQ("", err);
+  Node* out = state_.LookupNode("out");
+  std::vector<Node*> nodes;
+  Node* out_bis = state_.GetNode("out.bis", 0);
+  nodes.push_back(out_bis);
+  deps_log.RecordDeps(out, 0, nodes, 1);
+
+  Cleaner cleaner(&state_, config_, &fs_, &deps_log);
+  EXPECT_EQ(0, cleaner.CleanAll());
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+  EXPECT_EQ(2u, fs_.files_removed_.size());
+
+  EXPECT_EQ(0, fs_.Stat("out", &err));
+  EXPECT_EQ(0, fs_.Stat("out.bis", &err));
+
+  deps_log.Close();
+  RealDiskInterface disk_interface;
+  disk_interface.RemoveFile("ninja_deps");
+}
+
 }  // anonymous namespace

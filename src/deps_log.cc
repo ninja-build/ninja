@@ -35,7 +35,7 @@ using namespace std;
 // The version is stored as 4 bytes after the signature and also serves as a
 // byte order mark. Signature and version combined are 16 bytes long.
 const char kFileSignature[] = "# ninjadeps\n";
-const int kCurrentVersion = 4;
+const int kCurrentVersion = 5;
 
 // Record size is currently limited to less than the full 32 bit, due to
 // internal buffers having to have this size.
@@ -58,13 +58,13 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         const vector<Node*>& nodes) {
-  return RecordDeps(node, mtime, nodes.size(),
+                         const vector<Node*>& nodes, int outputs_count) {
+  return RecordDeps(node, mtime, nodes.size(), outputs_count,
                     nodes.empty() ? NULL : (Node**)&nodes.front());
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         int node_count, Node** nodes) {
+                         int node_count, int outputs_count, Node** nodes) {
   // Track whether there's any new data to be recorded.
   bool made_change = false;
 
@@ -116,6 +116,8 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   size |= 0x80000000;  // Deps record: set high bit.
   if (fwrite(&size, 4, 1, file_) < 1)
     return false;
+  if (fwrite(&outputs_count, 4, 1, file_) < 1)
+    return false;
   int id = node->id();
   if (fwrite(&id, 4, 1, file_) < 1)
     return false;
@@ -134,7 +136,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
     return false;
 
   // Update in-memory representation.
-  Deps* deps = new Deps(mtime, node_count);
+  Deps* deps = new Deps(mtime, node_count, outputs_count);
   for (int i = 0; i < node_count; ++i)
     deps->nodes[i] = nodes[i];
   UpdateDeps(node->id(), deps);
@@ -197,6 +199,15 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
     bool is_deps = (size >> 31) != 0;
     size = size & 0x7FFFFFFF;
 
+    int outputs_count = 0;
+    if (is_deps) {
+      if (fread(&outputs_count, 4, 1, f) < 1) {
+        if (!feof(f))
+          read_failed = true;
+        break;
+      }
+    }
+
     if (size > kMaxRecordSize || fread(buf, size, 1, f) < 1) {
       read_failed = true;
       break;
@@ -212,7 +223,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       deps_data += 3;
       int deps_count = (size / 4) - 3;
 
-      Deps* deps = new Deps(mtime, deps_count);
+      Deps* deps = new Deps(mtime, deps_count, outputs_count);
       for (int i = 0; i < deps_count; ++i) {
         assert(deps_data[i] < (int)nodes_.size());
         assert(nodes_[deps_data[i]]);
@@ -336,7 +347,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
       continue;
 
     if (!new_log.RecordDeps(nodes_[old_id], deps->mtime,
-                            deps->node_count, deps->nodes)) {
+                            deps->node_count, deps->outputs_count, deps->nodes)) {
       new_log.Close();
       return false;
     }
