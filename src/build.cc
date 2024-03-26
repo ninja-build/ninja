@@ -651,18 +651,19 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface, Status *status,
-                 int64_t start_time_millis)
-    : state_(state), config_(config), plan_(this), status_(status),
-      start_time_millis_(start_time_millis), disk_interface_(disk_interface),
-      scan_(state, build_log, deps_log, disk_interface,
-            &config_.depfile_parser_options) {
-  lock_file_path_ = ".ninja_lock";
-  string build_dir = state_->bindings_.LookupVariable("builddir");
-  if (!build_dir.empty())
-    lock_file_path_ = build_dir + "/" + lock_file_path_;
+Builder::Builder(State* const state, const BuildConfig& config,
+                 BuildLog* const build_log, DepsLog* const deps_log,
+                 DiskInterface* const disk_interface, Status* const status,
+                 const int64_t start_time_millis)
+    : state_{ state }, config_{ config }, plan_{ this }, status_{ status },
+      start_time_millis_{ start_time_millis }, lock_file_path_{ ".ninja_lock" },
+      disk_interface_{ disk_interface },
+      scan_{ state, build_log, deps_log, disk_interface,
+             &config_.depfile_parser_options } {
+  const auto build_dir = this->state_->bindings_.LookupVariable("builddir");
+  if (!build_dir.empty()) {
+    this->lock_file_path_ = build_dir + "/" + this->lock_file_path_;
+  }
 }
 
 Builder::~Builder() {

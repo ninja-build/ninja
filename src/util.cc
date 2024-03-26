@@ -917,21 +917,28 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-string ElideMiddle(const string& str, size_t width) {
-  switch (width) {
-      case 0: return "";
-      case 1: return ".";
-      case 2: return "..";
-      case 3: return "...";
+std::string ElideMiddle(const std::string& str, const std::size_t width) {
+  if (str.size() <= width) {
+    return str;
   }
-  const int kMargin = 3;  // Space for "...".
-  string result = str;
-  if (result.size() > width) {
-    size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
-      + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+
+  // Space for "...".
+  static constexpr auto kMargin = 3;
+  static constexpr char ellipsis[kMargin + 1] = "...";
+
+  if (width <= kMargin) {
+    return std::string{ ellipsis, width };
   }
+
+  const auto elide_size = (width - kMargin) / 2;
+
+  auto result = std::string{};
+  result.reserve(width);
+
+  result.append(str, 0, elide_size);
+  result.append(ellipsis, kMargin);
+  result.append(str, str.size() - elide_size, elide_size);
+
   return result;
 }
 
