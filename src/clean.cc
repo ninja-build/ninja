@@ -127,6 +127,7 @@ int Cleaner::CleanAll(bool generator) {
 int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   Reset();
   PrintHeader();
+  LoadDyndeps();
   for (BuildLog::Entries::const_iterator i = entries.begin(); i != entries.end(); ++i) {
     Node* n = state_->LookupNode(i->first);
     // Detecting stale outputs works as follows:
@@ -290,9 +291,10 @@ void Cleaner::Reset() {
 
 void Cleaner::LoadDyndeps() {
   // Load dyndep files that exist, before they are cleaned.
+  Node *dyndep;
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
-    if (Node* dyndep = (*e)->dyndep_) {
+    if ((dyndep = (*e)->dyndep_) && dyndep->dyndep_pending()) {
       // Capture and ignore errors loading the dyndep file.
       // We clean as much of the graph as we know.
       std::string err;
