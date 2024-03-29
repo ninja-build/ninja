@@ -127,6 +127,7 @@ int Cleaner::CleanAll(bool generator) {
 int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   Reset();
   PrintHeader();
+  LoadDyndeps();
   for (BuildLog::Entries::const_iterator i = entries.begin(); i != entries.end(); ++i) {
     Node* n = state_->LookupNode(i->first);
     // Detecting stale outputs works as follows:
