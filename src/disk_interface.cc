@@ -27,6 +27,7 @@
 #include <direct.h>  // _mkdir
 #include <windows.h>
 
+#include <cwctype>
 #include <sstream>
 #else
 #include <unistd.h>
