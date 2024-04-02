@@ -65,6 +65,14 @@ struct DiskInterface: public FileReader {
   /// Open new C standard i/o FILE instance for |path|.
   virtual FILE* OpenFile(const std::string& path, const char* mode) = 0;
 
+  /// Rename a file. Return true on success, or false/errno on failure.
+  /// NOTE: On Win32, this fails with EEXIST if the destination file already
+  /// exists (contrary to the Win32 documentation which states that the error
+  /// should be EACCES). On Posix, an existing file is always replaced
+  /// (unless trying to rename a file to an existing directory, or a
+  /// directory to a file or a non-empty one directory).
+  virtual bool RenameFile(const std::string& from, const std::string& to) = 0;
+
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
   bool MakeDirs(const std::string& path);
@@ -81,6 +89,7 @@ struct SystemDiskInterface : public DiskInterface {
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;
   FILE* OpenFile(const std::string& path, const char* mode) override;
+  bool RenameFile(const std::string& from, const std::string& to) override;
 
 #ifdef _WIN32
   /// Whether long paths are enabled.  Only has an effect on Windows.
@@ -105,6 +114,7 @@ struct NullDiskInterface : public DiskInterface {
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;
   FILE* OpenFile(const std::string& path, const char* mode) override;
+  bool RenameFile(const std::string& from, const std::string& to) override;
 };
 
 /// Implementation of SystemDiskInterface that speeds up Stat() calls by using

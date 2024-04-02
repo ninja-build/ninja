@@ -360,6 +360,56 @@ TEST_F(DiskInterfaceTest, OpenFile) {
   ASSERT_EQ(contents, expected);
 }
 
+TEST_F(DiskInterfaceTest, RenameFile) {
+  // Rename a simple file.
+  std::string kFileA = "a-file";
+  std::string kFileB = "b-file";
+
+  // NOTE: Do not put a newline in this string to avoid dealing
+  // with \r\n conversions on Win32.
+  std::string kContent = "something something";
+
+  ASSERT_TRUE(disk_.WriteFile(kFileA, kContent));
+  std::string err;
+  TimeStamp stamp_a = disk_.Stat(kFileA, &err);
+  ASSERT_GT(stamp_a, 0);
+
+  ASSERT_TRUE(disk_.RenameFile(kFileA, kFileB));
+  EXPECT_EQ(0, disk_.Stat(kFileA, &err));
+  EXPECT_EQ(err, "");
+
+  TimeStamp stamp_b = disk_.Stat(kFileB, &err);
+  ASSERT_GT(stamp_b, 0) << err;
+
+  // Due to limited granularity on certain filesystems, use >= instead of >
+  // in the comparison below.
+  ASSERT_GE(stamp_b, stamp_a);
+
+  std::string contents;
+  ASSERT_EQ(disk_.ReadFile(kFileB, &contents, &err), FileReader::Okay) << err;
+  ASSERT_EQ(contents, kContent);
+
+  // Now write something else to the first file, and rename
+  // the second one to the first. This should work on Posix, and
+  // fail with EEXIST on Win32!
+  ASSERT_TRUE(disk_.WriteFile(kFileA, "something else entirely"));
+  stamp_a = disk_.Stat(kFileA, &err);
+  ASSERT_GT(stamp_a, 0) << err;
+  ASSERT_GE(stamp_a, stamp_b) << err;  // see comment above.
+
+#ifdef _WIN32
+  ASSERT_FALSE(disk_.RenameFile(kFileB, kFileA));
+  EXPECT_EQ(errno, EEXIST);
+#else   // !_WIN32
+  ASSERT_TRUE(disk_.RenameFile(kFileB, kFileA)) << strerror(errno);
+  EXPECT_EQ(0, disk_.Stat(kFileB, &err)) << err;
+
+  contents.clear();
+  ASSERT_EQ(disk_.ReadFile(kFileA, &contents, &err), FileReader::Okay) << err;
+  ASSERT_EQ(contents, kContent);
+#endif  // !_WIN32
+}
+
 struct StatTest : public StateTestWithBuiltinRules, public NullDiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL) {}
 

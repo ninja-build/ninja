@@ -354,6 +354,17 @@ FILE* SystemDiskInterface::OpenFile(const std::string& path, const char* mode) {
 #endif  // !_WIN32
 }
 
+bool SystemDiskInterface::RenameFile(const std::string& from,
+                                     const std::string& to) {
+#ifdef _WIN32
+  std::wstring wide_from = UTF8ToWin32Unicode(from);
+  std::wstring wide_to = UTF8ToWin32Unicode(to);
+  return !_wrename(wide_from.c_str(), wide_to.c_str());
+#else   // !_WIN32
+  return !rename(from.c_str(), to.c_str());
+#endif  // !_WIN32
+}
+
 #ifdef _WIN32
 bool SystemDiskInterface::AreLongPathsEnabled(void) const {
   return long_paths_enabled_;
@@ -393,6 +404,14 @@ FILE* NullDiskInterface::OpenFile(const std::string& path, const char* mode) {
   (void)path;
   (void)mode;
   return nullptr;
+}
+
+bool NullDiskInterface::RenameFile(const std::string& from,
+                                   const std::string& to) {
+  assert(false);
+  (void)from;
+  (void)to;
+  return false;
 }
 
 void RealDiskInterface::AllowStatCache(bool allow) {
