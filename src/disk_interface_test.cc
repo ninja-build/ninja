@@ -258,6 +258,108 @@ TEST_F(DiskInterfaceTest, RemoveDirectory) {
   EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
 }
 
+TEST_F(DiskInterfaceTest, OpenFile) {
+  // Scoped FILE pointer, ensure instance is closed
+  // when test exits, even in case of failure.
+  struct ScopedFILE {
+    ScopedFILE(FILE* f) : f_(f) {}
+    ~ScopedFILE() { Close(); }
+
+    void Close() {
+      if (f_) {
+        fclose(f_);
+        f_ = nullptr;
+      }
+    }
+
+    FILE* get() const { return f_; }
+
+    explicit operator bool() const { return !!f_; }
+
+    FILE* f_;
+  };
+
+  const char kFileName[] = "file-to-open";
+  std::string kContent = "something to write to a file\n";
+
+  // disk_.WriteFile() opens the FILE instance in binary mode, which
+  // will not convert the final \n into \r\n on Windows. However,
+  // disk_.OpenFile() can write in text mode which will do the
+  // translation on this platform.
+  ASSERT_TRUE(disk_.WriteFile(kFileName, kContent));
+  std::string kExpected = "something to write to a file\n";
+#ifdef _WIN32
+  std::string kExpectedText = "something to write to a file\r\n";
+#else
+  std::string kExpectedText = "something to write to a file\n";
+#endif
+
+  std::string contents;
+  std::string err;
+  ASSERT_EQ(FileReader::Okay, disk_.ReadFile(kFileName, &contents, &err))
+      << err;
+  ASSERT_EQ(contents, kExpected);
+
+  // Read a file.
+  {
+    ScopedFILE f(disk_.OpenFile(kFileName, "rb"));
+    ASSERT_TRUE(f);
+    ASSERT_EQ(fseek(f.get(), 0, SEEK_END), 0) << strerror(errno);
+    long file_size_long = ftell(f.get());
+    ASSERT_GE(file_size_long, 0) << strerror(errno);
+
+    size_t file_size = static_cast<size_t>(file_size_long);
+    ASSERT_EQ(file_size, kExpected.size());
+    ASSERT_EQ(fseek(f.get(), 0, SEEK_SET), 0) << strerror(errno);
+
+    contents.clear();
+    contents.resize(file_size);
+    ASSERT_EQ(fread(const_cast<char*>(contents.data()), file_size, 1, f.get()),
+              1)
+        << strerror(errno);
+    ASSERT_EQ(contents, kExpected);
+  }
+
+  // Write a file opened file disk_.OpenFile() in binary mode, then verify its
+  // content.
+  const char kFileToWrite[] = "file-to-write";
+  {
+    ScopedFILE f(disk_.OpenFile(kFileToWrite, "wb"));
+    ASSERT_TRUE(f) << strerror(errno);
+    ASSERT_EQ(fwrite(kContent.data(), kContent.size(), 1, f.get()), 1);
+  }
+
+  contents.clear();
+  ASSERT_EQ(FileReader::Okay, disk_.ReadFile(kFileToWrite, &contents, &err))
+      << err;
+  ASSERT_EQ(contents, kContent);
+
+  // Write a file opened file disk_.OpenFile() in text mode, then verify its
+  // content.
+  {
+    ScopedFILE f(disk_.OpenFile(kFileToWrite, "wt"));
+    ASSERT_TRUE(f) << strerror(errno);
+    ASSERT_EQ(fwrite(kContent.data(), kContent.size(), 1, f.get()), 1);
+  }
+
+  contents.clear();
+  ASSERT_EQ(FileReader::Okay, disk_.ReadFile(kFileToWrite, &contents, &err))
+      << err;
+  ASSERT_EQ(contents, kExpectedText);
+
+  // Append to the same file, in text mode too.
+  {
+    ScopedFILE f(disk_.OpenFile(kFileToWrite, "at"));
+    ASSERT_TRUE(f) << strerror(errno);
+    ASSERT_EQ(fwrite(kContent.data(), kContent.size(), 1, f.get()), 1);
+  }
+  std::string expected = kExpectedText + kExpectedText;
+  contents.clear();
+  ASSERT_EQ(FileReader::Okay, disk_.ReadFile(kFileToWrite, &contents, &err))
+      << err;
+  ASSERT_EQ(contents, expected);
+}
+
 struct StatTest : public StateTestWithBuiltinRules, public NullDiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL) {}
 

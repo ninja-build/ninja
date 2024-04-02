@@ -68,6 +68,10 @@ struct VirtualFileSystem : public NullDiskInterface {
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;
 
+  // NOTE: This implementation does not support write or append mode!
+  // It will assert() in debug builds, and return NULL/EINVAL otherwise.
+  FILE* OpenFile(const std::string& path, const char* mode) override;
+
   /// An entry for a single in-memory file.
   struct Entry {
     int mtime;

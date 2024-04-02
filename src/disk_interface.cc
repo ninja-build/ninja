@@ -344,6 +344,16 @@ int SystemDiskInterface::RemoveFile(const string& path) {
   return 0;
 }
 
+FILE* SystemDiskInterface::OpenFile(const std::string& path, const char* mode) {
+#ifdef _WIN32
+  std::wstring wide_path = UTF8ToWin32Unicode(path);
+  std::wstring wide_mode = UTF8ToWin32Unicode(mode);
+  return _wfopen(wide_path.c_str(), wide_mode.c_str());
+#else   // !_WIN32
+  return fopen(path.c_str(), mode);
+#endif  // !_WIN32
+}
+
 #ifdef _WIN32
 bool SystemDiskInterface::AreLongPathsEnabled(void) const {
   return long_paths_enabled_;
@@ -376,6 +386,13 @@ FileReader::Status NullDiskInterface::ReadFile(const std::string& path,
 int NullDiskInterface::RemoveFile(const std::string& path) {
   assert(false);
   return 0;
+}
+
+FILE* NullDiskInterface::OpenFile(const std::string& path, const char* mode) {
+  assert(false);
+  (void)path;
+  (void)mode;
+  return nullptr;
 }
 
 void RealDiskInterface::AllowStatCache(bool allow) {

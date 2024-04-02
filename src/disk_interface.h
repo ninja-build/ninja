@@ -62,6 +62,9 @@ struct DiskInterface: public FileReader {
   ///          -1 if an error occurs.
   virtual int RemoveFile(const std::string& path) = 0;
 
+  /// Open new C standard i/o FILE instance for |path|.
+  virtual FILE* OpenFile(const std::string& path, const char* mode) = 0;
+
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
   bool MakeDirs(const std::string& path);
@@ -77,6 +80,7 @@ struct SystemDiskInterface : public DiskInterface {
   Status ReadFile(const std::string& path, std::string* contents,
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;
+  FILE* OpenFile(const std::string& path, const char* mode) override;
 
 #ifdef _WIN32
   /// Whether long paths are enabled.  Only has an effect on Windows.
@@ -100,6 +104,7 @@ struct NullDiskInterface : public DiskInterface {
   Status ReadFile(const std::string& path, std::string* contents,
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;
+  FILE* OpenFile(const std::string& path, const char* mode) override;
 };
 
 /// Implementation of SystemDiskInterface that speeds up Stat() calls by using
