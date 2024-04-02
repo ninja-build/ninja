@@ -39,32 +39,49 @@ using namespace std;
 
 namespace {
 
-string DirName(const string& path) {
+std::string DirName(const std::string& path) {
 #ifdef _WIN32
-  static const char kPathSeparators[] = "\\/";
-#else
-  static const char kPathSeparators[] = "/";
-#endif
-  static const char* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
-
-  string::size_type slash_pos = path.find_last_of(kPathSeparators);
-  if (slash_pos == string::npos)
-    return string();  // Nothing to do.
-  while (slash_pos > 0 &&
-         std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
-    --slash_pos;
-  return path.substr(0, slash_pos);
+  auto is_sep = [](char ch) -> bool { return ch == '/' || ch == '\\'; };
+#else   // !_WIN32
+  auto is_sep = [](char ch) -> bool { return ch == '/'; };
+#endif  // !_WIN32
+  size_t pos = path.size();
+  while (pos > 0 && !is_sep(path[pos - 1]))  // skip non-separators.
+    --pos;
+  while (pos > 0 && is_sep(path[pos - 1]))  // skip separators.
+    --pos;
+  return path.substr(0, pos);
 }
 
 int MakeDir(const string& path) {
 #ifdef _WIN32
-  return _mkdir(path.c_str());
+  return _wmkdir(UTF8ToWin32Unicode(path).c_str());
 #else
   return mkdir(path.c_str(), 0777);
 #endif
 }
 
 #ifdef _WIN32
+std::wstring Win32DirName(const std::wstring& path) {
+  auto is_sep = [](wchar_t ch) { return ch == L'/' || ch == L'\\'; };
+
+  size_t pos = path.size();
+  while (pos > 0 && !is_sep(path[pos - 1]))
+    --pos;
+
+  while (pos > 0 && is_sep(path[pos - 1]))
+    --pos;
+
+  return path.substr(0, pos);
+}
+
+std::wstring ToLowercase(const std::wstring& path) {
+  std::wstring result;
+  result.resize(path.size());
+  std::transform(path.begin(), path.end(), result.begin(), std::towlower);
+  return result;
+}
+
 TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   // FILETIME is in 100-nanosecond increments since the Windows epoch.
   // We don't much care about epoch correctness but we do want the
@@ -75,13 +92,14 @@ TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
   return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
 }
 
-TimeStamp StatSingleFile(const string& path, string* err) {
+TimeStamp StatSingleFile(const std::wstring& path, std::string* err) {
   WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
+  if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attrs)) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
+    *err = "GetFileAttributesEx(" + Win32UnicodeToUTF8(path) +
+           "): " + GetLastErrorString();
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -97,8 +115,9 @@ bool IsWindows7OrLater() {
       &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
 
-bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
-                       string* err) {
+bool StatAllFilesInDir(const std::wstring& dir,
+                       std::map<std::wstring, TimeStamp>* stamps,
+                       std::string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();
   // This is not in earlier SDKs.
@@ -106,8 +125,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       static_cast<FINDEX_INFO_LEVELS>(1);
   FINDEX_INFO_LEVELS level =
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
+  WIN32_FIND_DATAW ffd;
+  HANDLE find_handle = FindFirstFileExW((dir + L"\\*").c_str(), level, &ffd,
                                         FindExSearchNameMatch, NULL, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
@@ -115,20 +134,20 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND ||
         win_err == ERROR_DIRECTORY)
       return true;
-    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
+    *err = "FindFirstFileExW(" + Win32UnicodeToUTF8(dir) +
+           "): " + GetLastErrorString();
     return false;
   }
   do {
-    string lowername = ffd.cFileName;
-    if (lowername == "..") {
+    std::wstring lowername = ToLowercase(std::wstring(ffd.cFileName));
+    if (lowername == L"..") {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
-    transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
     stamps->insert(make_pair(lowername,
                              TimeStampFromFileTime(ffd.ftLastWriteTime)));
-  } while (FindNextFileA(find_handle, &ffd));
+  } while (FindNextFileW(find_handle, &ffd));
   FindClose(find_handle);
   return true;
 }
@@ -186,7 +205,7 @@ TimeStamp SystemDiskInterface::Stat(const string& path, string* err) const {
         "Stat(" + path + ": Filename longer than " + std::to_string(MAX_PATH);
     return -1;
   }
-  return StatSingleFile(path, err);
+  return StatSingleFile(UTF8ToWin32Unicode(path), err);
 #else
 #ifdef __USE_LARGEFILE64
   struct stat64 st;
@@ -220,7 +239,11 @@ TimeStamp SystemDiskInterface::Stat(const string& path, string* err) const {
 
 bool SystemDiskInterface::WriteFile(const string& path,
                                     const string& contents) {
+#ifdef _WIN32
+  FILE* fp = _wfopen(UTF8ToWin32Unicode(path).c_str(), L"wb");
+#else   // !_WIN32
   FILE* fp = fopen(path.c_str(), "wb");
+#endif  // !_WIN32
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
@@ -266,7 +289,8 @@ FileReader::Status SystemDiskInterface::ReadFile(const string& path,
 
 int SystemDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
-  DWORD attributes = GetFileAttributesA(path.c_str());
+  std::wstring native_path = UTF8ToWin32Unicode(path);
+  DWORD attributes = GetFileAttributesW(native_path.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
@@ -277,7 +301,8 @@ int SystemDiskInterface::RemoveFile(const string& path) {
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
     // Skip error checking.  If this fails, accept whatever happens below.
-    SetFileAttributesA(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
+    SetFileAttributesW(native_path.c_str(),
+                       attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
     // remove() deletes both files and directories. On Windows we have to
@@ -285,7 +310,7 @@ int SystemDiskInterface::RemoveFile(const string& path) {
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases
     // https://github.com/ninja-build/ninja/issues/828
-    if (!RemoveDirectoryA(path.c_str())) {
+    if (!RemoveDirectoryW(native_path.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -295,7 +320,7 @@ int SystemDiskInterface::RemoveFile(const string& path) {
       return -1;
     }
   } else {
-    if (!DeleteFileA(path.c_str())) {
+    if (!DeleteFileW(native_path.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -374,25 +399,25 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
         "Stat(" + path + ": Filename longer than " + std::to_string(MAX_PATH);
     return -1;
   }
+  std::wstring native_path = UTF8ToWin32Unicode(path);
   if (!use_cache_)
-    return StatSingleFile(path, err);
+    return StatSingleFile(native_path, err);
 
-  std::string dir = DirName(path);
-  std::string base(path.substr(dir.size() ? dir.size() + 1 : 0));
-  if (base == "..") {
+  std::wstring dir = Win32DirName(native_path);
+  std::wstring base(native_path.substr(dir.size() ? dir.size() + 1 : 0));
+  if (base == L"..") {
     // StatAllFilesInDir does not report any information for base = "..".
-    base = ".";
-    dir = path;
+    base = L".";
+    dir = native_path;
   }
 
-  std::string dir_lowercase = dir;
-  std::transform(dir.begin(), dir.end(), dir_lowercase.begin(), ::tolower);
-  std::transform(base.begin(), base.end(), base.begin(), ::tolower);
+  std::wstring dir_lowercase = ToLowercase(dir);
+  base = ToLowercase(base);
 
   Cache::iterator ci = cache_.find(dir_lowercase);
   if (ci == cache_.end()) {
-    ci = cache_.insert(make_pair(dir_lowercase, DirCache())).first;
-    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
+    ci = cache_.insert(std::make_pair(dir_lowercase, DirCache())).first;
+    if (!StatAllFilesInDir(dir.empty() ? L"." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
     }

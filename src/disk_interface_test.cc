@@ -171,7 +171,8 @@ TEST_F(DiskInterfaceTest, StatCache) {
   EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
   EXPECT_EQ("", err);
 
-#ifndef _MSC_VER // TODO: Investigate why. Also see https://github.com/ninja-build/ninja/pull/1423
+#ifndef _WIN32  // TODO: Investigate why. Also see
+                // https://github.com/ninja-build/ninja/pull/1423
   EXPECT_EQ(disk_.Stat("subdir", &err),
             disk_.Stat("subdir/.", &err));
   EXPECT_EQ("", err);
