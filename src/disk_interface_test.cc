@@ -257,28 +257,11 @@ TEST_F(DiskInterfaceTest, RemoveDirectory) {
   EXPECT_EQ(1, disk_.RemoveFile("does not exist"));
 }
 
-struct StatTest : public StateTestWithBuiltinRules,
-                  public DiskInterface {
+struct StatTest : public StateTestWithBuiltinRules, public NullDiskInterface {
   StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL) {}
 
   // DiskInterface implementation.
-  virtual TimeStamp Stat(const string& path, string* err) const;
-  virtual bool WriteFile(const string& path, const string& contents) {
-    assert(false);
-    return true;
-  }
-  virtual bool MakeDir(const string& path) {
-    assert(false);
-    return false;
-  }
-  virtual Status ReadFile(const string& path, string* contents, string* err) {
-    assert(false);
-    return NotFound;
-  }
-  virtual int RemoveFile(const string& path) {
-    assert(false);
-    return 0;
-  }
+  TimeStamp Stat(const string& path, string* err) const override;
 
   DependencyScan scan_;
   map<string, TimeStamp> mtimes_;

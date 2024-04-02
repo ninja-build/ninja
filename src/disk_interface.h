@@ -41,7 +41,7 @@ struct FileReader {
 /// Interface for accessing the disk.
 ///
 /// Abstract so it can be mocked out for tests.  The real implementation
-/// is RealDiskInterface.
+/// is SystemDiskInterface.
 struct DiskInterface: public FileReader {
   /// stat() a file, returning the mtime, or 0 if missing and -1 on
   /// other errors.
@@ -68,38 +68,61 @@ struct DiskInterface: public FileReader {
 };
 
 /// Implementation of DiskInterface that actually hits the disk.
-struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface();
-  virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool MakeDir(const std::string& path);
-  virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual Status ReadFile(const std::string& path, std::string* contents,
-                          std::string* err);
-  virtual int RemoveFile(const std::string& path);
-
-  /// Whether stat information can be cached.  Only has an effect on Windows.
-  void AllowStatCache(bool allow);
+struct SystemDiskInterface : public DiskInterface {
+  SystemDiskInterface();
+  virtual ~SystemDiskInterface() {}
+  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  bool MakeDir(const std::string& path) override;
+  bool WriteFile(const std::string& path, const std::string& contents) override;
+  Status ReadFile(const std::string& path, std::string* contents,
+                  std::string* err) override;
+  int RemoveFile(const std::string& path) override;
 
 #ifdef _WIN32
   /// Whether long paths are enabled.  Only has an effect on Windows.
   bool AreLongPathsEnabled() const;
 #endif
 
+ protected:
+#ifdef _WIN32
+  /// Whether long paths are enabled. Auto-detected by constructor.
+  bool long_paths_enabled_ = false;
+#endif
+};
+
+/// A null DiskInterface implementation that is only useful for tests.
+/// All functions do nothing except returning an error. Tests can sub-class
+/// this one to add their own method overrides.
+struct NullDiskInterface : public DiskInterface {
+  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  bool WriteFile(const std::string& path, const std::string& contents) override;
+  bool MakeDir(const std::string& path) override;
+  Status ReadFile(const std::string& path, std::string* contents,
+                  std::string* err) override;
+  int RemoveFile(const std::string& path) override;
+};
+
+/// Implementation of SystemDiskInterface that speeds up Stat() calls by using
+/// a small cache. Note: the cache is never flushed / updated!!
+struct RealDiskInterface : public SystemDiskInterface {
+  /// Whether stat information can be cached.  Only has an effect on Windows.
+  void AllowStatCache(bool allow);
+
+#ifdef _WIN32
+  TimeStamp Stat(const std::string& path, std::string* err) const override;
+#endif  // _WIN32
+
  private:
 #ifdef _WIN32
   /// Whether stat information can be cached.
-  bool use_cache_;
-
-  /// Whether long paths are enabled.
-  bool long_paths_enabled_;
+  bool use_cache_ = false;
 
   typedef std::map<std::string, TimeStamp> DirCache;
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
   // works out, come up with a better data structure.
   typedef std::map<std::string, DirCache> Cache;
   mutable Cache cache_;
-#endif
+#endif  // _WIN32
 };
 
 #endif  // NINJA_DISK_INTERFACE_H_

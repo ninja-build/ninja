@@ -228,26 +228,8 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
 
-struct TestDiskInterface : public DiskInterface {
-  virtual TimeStamp Stat(const string& path, string* err) const {
-    return 4;
-  }
-  virtual bool WriteFile(const string& path, const string& contents) {
-    assert(false);
-    return true;
-  }
-  virtual bool MakeDir(const string& path) {
-    assert(false);
-    return false;
-  }
-  virtual Status ReadFile(const string& path, string* contents, string* err) {
-    assert(false);
-    return NotFound;
-  }
-  virtual int RemoveFile(const string& path) {
-    assert(false);
-    return 0;
-  }
+struct TestDiskInterface : public NullDiskInterface {
+  TimeStamp Stat(const string& path, string* err) const override { return 4; }
 };
 
 TEST_F(BuildLogTest, Restat) {
