@@ -605,7 +605,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
     pbuild_log = &build_log;
   }
 
-  DepsLog deps_log, *pdeps_log = NULL;
+  DepsLog deps_log(disk_interface), *pdeps_log = NULL;
   if (deps_path) {
     ASSERT_TRUE(deps_log.Load(deps_path, pstate, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_path, &err));
@@ -2330,7 +2330,8 @@ struct BuildWithQueryDepsLogTest : public BuildTest {
   ScopedTempDir temp_dir_;
 
   ScopedFilePath deps_log_file_;
-  DepsLog log_;
+  SystemDiskInterface disk_interface_;
+  DepsLog log_{ disk_interface_ };
 };
 
 /// Test a MSVC-style deps log with multiple outputs.
@@ -2553,13 +2554,15 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
       "  deps = gcc\n"
       "  depfile = in1.d\n";
 
+  SystemDiskInterface disk_interface;
+
   {
     State state;
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -2589,7 +2592,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     fs_.Create("in2", "");
 
     // Run the build again.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
@@ -2620,6 +2623,9 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
       "build out: cat in1\n"
       "  deps = gcc\n"
       "  depfile = in1.d\n";
+
+  SystemDiskInterface disk_interface;
+
   {
     // Run an ordinary build that gathers dependencies.
     fs_.Create("in1", "");
@@ -2630,7 +2636,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -2659,7 +2665,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
@@ -2730,7 +2736,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   ASSERT_TRUE(build_log.OpenForWrite(build_log_file_.path(), *this, &err))
       << err;
 
-  DepsLog deps_log;
+  DepsLog deps_log(disk_interface);
   ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
   ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
@@ -2813,7 +2819,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   ASSERT_TRUE(build_log.Load(build_log_file_.path(), &err));
   ASSERT_TRUE(build_log.OpenForWrite(build_log_file_.path(), *this, &err));
 
-  DepsLog deps_log;
+  DepsLog deps_log(disk_interface);
   ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
   ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
@@ -2954,13 +2960,16 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
       "build out: cat in1\n"
       "  deps = gcc\n"
       "  depfile = in1.d\n";
+
+  SystemDiskInterface disk_interface;
+
   {
     State state;
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -2986,7 +2995,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     fs_.Create("header.in", "");
 
     // Run the build again.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
@@ -3014,12 +3023,14 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
   fs_.Create("foo.c", "");
 
+  SystemDiskInterface disk_interface;
+
   {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -3039,7 +3050,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
@@ -3091,7 +3102,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -3114,7 +3125,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
@@ -3137,7 +3148,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
@@ -3161,12 +3172,14 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
   fs_.Create("x/y/z/foo.c", "");
 
+  SystemDiskInterface disk_interface;
+
   {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
     // Run the build once, everything should be ok.
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -3188,7 +3201,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     State state;
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
@@ -4258,6 +4271,8 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
 
   string err;
 
+  SystemDiskInterface disk_interface;
+
   {
     fs_.Create("in", "");
     fs_.Create("in2", "");
@@ -4268,7 +4283,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
@@ -4303,7 +4318,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
     ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
 
-    DepsLog deps_log;
+    DepsLog deps_log(disk_interface);
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
