@@ -21,7 +21,7 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "graph.h"
-#include "status.h"
+#include "status_printer.h"
 #include "test.h"
 
 using namespace std;

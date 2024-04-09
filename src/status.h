@@ -15,11 +15,10 @@
 #ifndef NINJA_STATUS_H_
 #define NINJA_STATUS_H_
 
-#include <map>
 #include <string>
 
-#include "build.h"
-#include "line_printer.h"
+struct BuildConfig;
+struct Edge;
 
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.
@@ -40,109 +39,9 @@ struct Status {
   virtual void Error(const char* msg, ...) = 0;
 
   virtual ~Status() { }
-};
 
-/// Implementation of the Status interface that prints the status as
-/// human-readable strings to stdout
-struct StatusPrinter : Status {
-  explicit StatusPrinter(const BuildConfig& config);
-
-  /// Callbacks for the Plan to notify us about adding/removing Edge's.
-  virtual void EdgeAddedToPlan(const Edge* edge);
-  virtual void EdgeRemovedFromPlan(const Edge* edge);
-
-  virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
-  virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                 int64_t end_time_millis, bool success,
-                                 const std::string& output);
-  virtual void BuildLoadDyndeps();
-  virtual void BuildStarted();
-  virtual void BuildFinished();
-
-  virtual void Info(const char* msg, ...);
-  virtual void Warning(const char* msg, ...);
-  virtual void Error(const char* msg, ...);
-
-  virtual ~StatusPrinter() { }
-
-  /// Format the progress status string by replacing the placeholders.
-  /// See the user manual for more information about the available
-  /// placeholders.
-  /// @param progress_status_format The format of the progress status.
-  /// @param status The status of the edge.
-  std::string FormatProgressStatus(const char* progress_status_format,
-                                   int64_t time_millis) const;
-
- private:
-  void PrintStatus(const Edge* edge, int64_t time_millis);
-
-  const BuildConfig& config_;
-
-  int started_edges_, finished_edges_, total_edges_, running_edges_;
-
-  /// How much wall clock elapsed so far?
-  int64_t time_millis_ = 0;
-
-  /// How much cpu clock elapsed so far?
-  int64_t cpu_time_millis_ = 0;
-
-  /// What percentage of predicted total time have elapsed already?
-  double time_predicted_percentage_ = 0.0;
-
-  /// Out of all the edges, for how many do we know previous time?
-  int eta_predictable_edges_total_ = 0;
-  /// And how much time did they all take?
-  int64_t eta_predictable_cpu_time_total_millis_ = 0;
-
-  /// Out of all the non-finished edges, for how many do we know previous time?
-  int eta_predictable_edges_remaining_ = 0;
-  /// And how much time will they all take?
-  int64_t eta_predictable_cpu_time_remaining_millis_ = 0;
-
-  /// For how many edges we don't know the previous run time?
-  int eta_unpredictable_edges_remaining_ = 0;
-
-  void RecalculateProgressPrediction();
-
-  /// Prints progress output.
-  LinePrinter printer_;
-
-  /// The custom progress status format to use.
-  const char* progress_status_format_;
-
-  template<size_t S>
-  void SnprintfRate(double rate, char(&buf)[S], const char* format) const {
-    if (rate == -1)
-      snprintf(buf, S, "?");
-    else
-      snprintf(buf, S, format, rate);
-  }
-
-  struct SlidingRateInfo {
-    SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
-
-    double rate() { return rate_; }
-
-    void UpdateRate(int update_hint, int64_t time_millis) {
-      if (update_hint == last_update_)
-        return;
-      last_update_ = update_hint;
-
-      if (times_.size() == N)
-        times_.pop();
-      times_.push(time_millis);
-      if (times_.back() != times_.front())
-        rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
-    }
-
-  private:
-    double rate_;
-    const size_t N;
-    std::queue<double> times_;
-    int last_update_;
-  };
-
-  mutable SlidingRateInfo current_rate_;
+  /// creates the actual implementation
+  static Status* factory(const BuildConfig&);
 };
 
 #endif // NINJA_STATUS_H_

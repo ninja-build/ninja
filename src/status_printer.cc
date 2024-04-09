@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "status.h"
+#include "status_printer.h"
 
 #ifdef _WIN32
 #include "win32port.h"
@@ -31,9 +31,14 @@
 #include <io.h>
 #endif
 
+#include "build.h"
 #include "debug_flags.h"
 
 using namespace std;
+
+Status* Status::factory(const BuildConfig& config) {
+  return new StatusPrinter(config);
+}
 
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config), started_edges_(0), finished_edges_(0), total_edges_(0),

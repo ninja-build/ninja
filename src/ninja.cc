@@ -1540,7 +1540,7 @@ NORETURN void real_main(int argc, char** argv) {
   if (exit_code >= 0)
     exit(exit_code);
 
-  Status* status = new StatusPrinter(config);
+  Status* status = Status::factory(config);
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
