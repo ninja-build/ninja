@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from typing import Dict
 
 default_env = dict(os.environ)
 default_env.pop('NINJA_STATUS', None)
@@ -18,7 +19,12 @@ default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
-def run(build_ninja, flags='', pipe=False, env=default_env):
+def run(
+    build_ninja: str,
+    flags: str = '',
+    pipe: bool = False,
+    env: Dict[str, str] = default_env,
+) -> str:
     with tempfile.TemporaryDirectory() as d:
         with open(os.path.join(d, 'build.ninja'), 'w') as f:
             f.write(build_ninja)
@@ -54,7 +60,7 @@ class Output(unittest.TestCase):
         '',
     ))
 
-    def test_issue_1418(self):
+    def test_issue_1418(self) -> None:
         self.assertEqual(run(
 '''rule echo
   command = sleep $delay && echo $out
@@ -75,7 +81,7 @@ b
 a
 ''')
 
-    def test_issue_1214(self):
+    def test_issue_1214(self) -> None:
         print_red = '''rule echo
   command = printf '\x1b[31mred\x1b[0m'
   description = echo $out
@@ -109,7 +115,7 @@ red
 \x1b[31mred\x1b[0m
 ''')
 
-    def test_issue_1966(self):
+    def test_issue_1966(self) -> None:
         self.assertEqual(run(
 '''rule cat
   command = cat $rspfile $rspfile > $out
@@ -122,12 +128,12 @@ build a: cat
 ''')
 
 
-    def test_pr_1685(self):
+    def test_pr_1685(self) -> None:
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
         self.assertEqual(run('', flags='-t recompact'), '')
         self.assertEqual(run('', flags='-t restat'), '')
 
-    def test_issue_2048(self):
+    def test_issue_2048(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, 'build.ninja'), 'w'):
                 pass
@@ -150,25 +156,25 @@ build a: cat
             except subprocess.CalledProcessError as err:
                 self.fail("non-zero exit code with: " + err.output)
 
-    def test_status(self):
+    def test_status(self) -> None:
         self.assertEqual(run(''), 'ninja: no work to do.\n')
         self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
         self.assertEqual(run('', flags='--quiet'), '')
 
-    def test_ninja_status_default(self):
+    def test_ninja_status_default(self) -> None:
         'Do we show the default status by default?'
         self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1/1] echo a\x1b[K\ndo thing\n')
 
-    def test_ninja_status_quiet(self):
+    def test_ninja_status_quiet(self) -> None:
         'Do we suppress the status information when --quiet is specified?'
         output = run(Output.BUILD_SIMPLE_ECHO, flags='--quiet')
         self.assertEqual(output, 'do thing\n')
 
-    def test_entering_directory_on_stdout(self):
+    def test_entering_directory_on_stdout(self) -> None:
         output = run(Output.BUILD_SIMPLE_ECHO, flags='-C$PWD', pipe=True)
         self.assertEqual(output.splitlines()[0][:25], "ninja: Entering directory")
 
-    def test_tool_inputs(self):
+    def test_tool_inputs(self) -> None:
         plan = '''
 rule cat
   command = cat $in $out

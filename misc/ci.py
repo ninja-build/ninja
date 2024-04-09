@@ -12,7 +12,7 @@ ignores = [
 
 error_count = 0
 
-def error(path, msg):
+def error(path: str, msg: str) -> None:
 	global error_count
 	error_count += 1
 	print('\x1b[1;31m{}\x1b[0;31m{}\x1b[0m'.format(path, msg))
