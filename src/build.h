@@ -26,6 +26,7 @@
 #include "graph.h"
 #include "util.h"  // int64_t
 
+struct BuildConfig;
 struct BuildLog;
 struct Builder;
 struct DiskInterface;
