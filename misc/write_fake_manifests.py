@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Writes large manifest files, for manifest parser performance testing.
 

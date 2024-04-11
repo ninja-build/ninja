@@ -138,9 +138,13 @@ TEST_F(DepsLogTest, DoubleEntry) {
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
     log.Close();
-
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     file_size = (int)st.st_size;
     ASSERT_GT(file_size, 0);
   }
@@ -160,9 +164,13 @@ TEST_F(DepsLogTest, DoubleEntry) {
     deps.push_back(state.GetNode("bar.h", 0));
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
     log.Close();
-
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     int file_size_2 = (int)st.st_size;
     ASSERT_EQ(file_size, file_size_2);
   }
@@ -198,9 +206,13 @@ TEST_F(DepsLogTest, Recompact) {
     log.RecordDeps(state.GetNode("other_out.o", 0), 1, deps);
 
     log.Close();
-
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     file_size = (int)st.st_size;
     ASSERT_GT(file_size, 0);
   }
@@ -222,8 +234,13 @@ TEST_F(DepsLogTest, Recompact) {
     log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
     log.Close();
 
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     file_size_2 = (int)st.st_size;
     // The file should grow to record the new deps.
     ASSERT_GT(file_size_2, file_size);
@@ -273,8 +290,13 @@ TEST_F(DepsLogTest, Recompact) {
     ASSERT_EQ(other_out, log.nodes()[other_out->id()]);
 
     // The file should have shrunk a bit for the smaller deps.
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     file_size_3 = (int)st.st_size;
     ASSERT_LT(file_size_3, file_size_2);
   }
@@ -317,8 +339,13 @@ TEST_F(DepsLogTest, Recompact) {
     ASSERT_EQ(-1, state.LookupNode("baz.h")->id());
 
     // The file should have shrunk more.
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     int file_size_4 = (int)st.st_size;
     ASSERT_LT(file_size_4, file_size_3);
   }
@@ -374,8 +401,13 @@ TEST_F(DepsLogTest, Truncated) {
   }
 
   // Get the file size.
+#ifdef __USE_LARGEFILE64
+  struct stat64 st;
+  ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
   struct stat st;
   ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
 
   // Try reloading at truncated sizes.
   // Track how many nodes/deps were found; they should decrease with
@@ -434,8 +466,13 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
 
   // Shorten the file, corrupting the last record.
   {
+#ifdef __USE_LARGEFILE64
+    struct stat64 st;
+    ASSERT_EQ(0, stat64(kTestFilename, &st));
+#else
     struct stat st;
     ASSERT_EQ(0, stat(kTestFilename, &st));
+#endif
     string err;
     ASSERT_TRUE(Truncate(kTestFilename, st.st_size - 2, &err));
   }

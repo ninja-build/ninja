@@ -53,8 +53,8 @@ using namespace std;
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kOldestSupportedVersion = 4;
-const int kCurrentVersion = 5;
+const int kOldestSupportedVersion = 6;
+const int kCurrentVersion = 6;
 
 // 64bit MurmurHash2, by Austin Appleby
 #if defined(_MSC_VER)
@@ -116,9 +116,9 @@ BuildLog::LogEntry::LogEntry(const string& output)
   : output(output) {}
 
 BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp restat_mtime)
+  int start_time, int end_time, TimeStamp mtime)
   : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(restat_mtime)
+    start_time(start_time), end_time(end_time), mtime(mtime)
 {}
 
 BuildLog::BuildLog()
@@ -279,14 +279,21 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     if (!log_version) {
       sscanf(line_start, kFileSignature, &log_version);
 
+      bool invalid_log_version = false;
       if (log_version < kOldestSupportedVersion) {
-        *err = ("build log version invalid, perhaps due to being too old; "
-                "starting over");
+        invalid_log_version = true;
+        *err = "build log version is too old; starting over";
+
+      } else if (log_version > kCurrentVersion) {
+        invalid_log_version = true;
+        *err = "build log version is too new; starting over";
+      }
+      if (invalid_log_version) {
         fclose(file);
         unlink(path.c_str());
-        // Don't report this as a failure.  An empty build log will cause
+        // Don't report this as a failure. A missing build log will cause
         // us to rebuild the outputs anyway.
-        return LOAD_SUCCESS;
+        return LOAD_NOT_FOUND;
       }
     }
 
@@ -303,7 +310,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp restat_mtime = 0;
+    TimeStamp mtime = 0;
 
     start_time = atoi(start);
     start = end + 1;
@@ -319,7 +326,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = strtoll(start, NULL, 10);
+    mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -343,15 +350,10 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
 
     entry->start_time = start_time;
     entry->end_time = end_time;
-    entry->mtime = restat_mtime;
-    if (log_version >= 5) {
-      char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
-      *end = c;
-    } else {
-      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
-                                                              end - start));
-    }
+    entry->mtime = mtime;
+    char c = *end; *end = '\0';
+    entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
+    *end = c;
   }
   fclose(file);
 

@@ -23,9 +23,10 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
-#include <sstream>
-#include <windows.h>
 #include <direct.h>  // _mkdir
+#include <windows.h>
+
+#include <sstream>
 #else
 #include <unistd.h>
 #endif
@@ -110,7 +111,8 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
+    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND ||
+        win_err == ERROR_DIRECTORY)
       return true;
     *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
     return false;
@@ -156,13 +158,33 @@ bool DiskInterface::MakeDirs(const string& path) {
 }
 
 // RealDiskInterface -----------------------------------------------------------
+RealDiskInterface::RealDiskInterface() 
+#ifdef _WIN32
+: use_cache_(false), long_paths_enabled_(false) {
+  setlocale(LC_ALL, "");
+
+  // Probe ntdll.dll for RtlAreLongPathsEnabled, and call it if it exists.
+  HINSTANCE ntdll_lib = ::GetModuleHandleW(L"ntdll");
+  if (ntdll_lib) {
+    typedef BOOLEAN(WINAPI FunctionType)();
+    auto* func_ptr = reinterpret_cast<FunctionType*>(
+        ::GetProcAddress(ntdll_lib, "RtlAreLongPathsEnabled"));
+    if (func_ptr) {
+      long_paths_enabled_ = (*func_ptr)();
+    }
+  }
+}
+#else
+{}
+#endif
 
 TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
   // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
+  if (!path.empty() && !AreLongPathsEnabled() && path[0] != '\\' &&
+      path.size() > MAX_PATH) {
     ostringstream err_stream;
     err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
                << " characters";
@@ -195,8 +217,13 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   DirCache::iterator di = ci->second.find(base);
   return di != ci->second.end() ? di->second : 0;
 #else
+#ifdef __USE_LARGEFILE64
+  struct stat64 st;
+  if (stat64(path.c_str(), &st) < 0) {
+#else
   struct stat st;
   if (stat(path.c_str(), &st) < 0) {
+#endif
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
     *err = "stat(" + path + "): " + strerror(errno);
@@ -267,7 +294,7 @@ FileReader::Status RealDiskInterface::ReadFile(const string& path,
 
 int RealDiskInterface::RemoveFile(const string& path) {
 #ifdef _WIN32
-  DWORD attributes = GetFileAttributes(path.c_str());
+  DWORD attributes = GetFileAttributesA(path.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
@@ -278,7 +305,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // On Windows Ninja should behave the same:
     //   https://github.com/ninja-build/ninja/issues/1886
     // Skip error checking.  If this fails, accept whatever happens below.
-    SetFileAttributes(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
+    SetFileAttributesA(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
     // remove() deletes both files and directories. On Windows we have to 
@@ -286,7 +313,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases
     // https://github.com/ninja-build/ninja/issues/828
-    if (!RemoveDirectory(path.c_str())) {
+    if (!RemoveDirectoryA(path.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -296,7 +323,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
       return -1;
     }
   } else {
-    if (!DeleteFile(path.c_str())) {
+    if (!DeleteFileA(path.c_str())) {
       DWORD win_err = GetLastError();
       if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND) {
         return 1;
@@ -327,3 +354,9 @@ void RealDiskInterface::AllowStatCache(bool allow) {
     cache_.clear();
 #endif
 }
+
+#ifdef _WIN32
+bool RealDiskInterface::AreLongPathsEnabled(void) const {
+  return long_paths_enabled_;
+}
+#endif

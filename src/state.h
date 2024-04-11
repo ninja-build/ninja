@@ -62,7 +62,7 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(EdgeSet* ready_queue);
+  void RetrieveReadyEdges(EdgePriorityQueue* ready_queue);
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;
@@ -80,7 +80,10 @@ struct Pool {
       if (!a) return b;
       if (!b) return false;
       int weight_diff = a->weight() - b->weight();
-      return ((weight_diff < 0) || (weight_diff == 0 && EdgeCmp()(a, b)));
+      if (weight_diff != 0) {
+        return weight_diff < 0;
+      }
+      return EdgePriorityGreater()(a, b);
     }
   };
 
@@ -105,8 +108,11 @@ struct State {
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const std::string& path);
 
+  /// Add input / output / validation nodes to a given edge. This also
+  /// ensures that the generated_by_dep_loader() flag for all these nodes
+  /// is set to false, to indicate that they come from the input manifest.
   void AddIn(Edge* edge, StringPiece path, uint64_t slash_bits);
-  bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits);
+  bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits, std::string* err);
   void AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, std::string* error);
 

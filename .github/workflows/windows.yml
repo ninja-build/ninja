@@ -10,6 +10,15 @@ jobs:
   build:
     runs-on: windows-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - arch: 'x64'
+          suffix: ''
+        - arch: 'arm64'
+          suffix: 'arm64'
+
     steps:
     - uses: actions/checkout@v2
 
@@ -19,15 +28,17 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        cmake -Bbuild
+        cmake -Bbuild -A ${{ matrix.arch }}
         cmake --build build --parallel --config Debug
         cmake --build build --parallel --config Release
 
     - name: Test ninja (Debug)
+      if: matrix.arch != 'arm64'
       run: .\ninja_test.exe
       working-directory: build/Debug
 
     - name: Test ninja (Release)
+      if: matrix.arch != 'arm64'
       run: .\ninja_test.exe
       working-directory: build/Release
 
@@ -35,22 +46,22 @@ jobs:
       shell: bash
       run: |
         mkdir artifact
-        7z a artifact/ninja-win.zip ./build/Release/ninja.exe
+        7z a artifact/ninja-win${{ matrix.suffix }}.zip ./build/Release/ninja.exe
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
       if: github.event.action == 'published'
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifact/ninja-win.zip
-        asset_name: ninja-win.zip
+        asset_path: ./artifact/ninja-win${{ matrix.suffix }}.zip
+        asset_name: ninja-win${{ matrix.suffix }}.zip
         asset_content_type: application/zip

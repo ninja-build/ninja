@@ -19,16 +19,22 @@
 ;;; Commentary:
 
 ;; Simple emacs mode for editing .ninja files.
-;; Just some syntax highlighting for now.
 
 ;;; Code:
 
+(defcustom ninja-indent-offset 2
+  "*Amount of offset per level of indentation."
+  :type 'integer
+  :safe 'natnump
+  :group 'ninja)
+
+(defconst ninja-keywords-re
+  (concat "^" (regexp-opt '("rule" "build" "subninja" "include" "pool" "default")
+                          'words)))
+
 (defvar ninja-keywords
-  `((,(concat "^" (regexp-opt '("rule" "build" "subninja" "include"
-                                "pool" "default")
-                              'words))
-     . font-lock-keyword-face)
-    ("\\([[:alnum:]_]+\\) =" 1 font-lock-variable-name-face)
+  `((,ninja-keywords-re . font-lock-keyword-face)
+    ("^[[:space:]]*\\([[:alnum:]_]+\\)[[:space:]]*=" 1 font-lock-variable-name-face)
     ;; Variable expansion.
     ("$[[:alnum:]_]+" . font-lock-variable-name-face)
     ("${[[:alnum:]._]+}" . font-lock-variable-name-face)
@@ -69,11 +75,30 @@
             (unless (= line-end (1+ (buffer-size)))
               (put-text-property line-end (1+ line-end) 'syntax-table '(12)))))))))
 
+(defun ninja-compute-indentation ()
+  "Calculate indentation for the current line."
+  (save-excursion
+    (beginning-of-line)
+    (if (or (looking-at ninja-keywords-re)
+            (= (line-number-at-pos) 1))
+        0
+      (forward-line -1)
+      (if (looking-at ninja-keywords-re)
+          ninja-indent-offset
+        (current-indentation)))))
+
+(defun ninja-indent-line ()
+  "Indent the current line.  Uses previous indentation level if
+ available or `ninja-indent-offset'"
+  (interactive "*")
+  (indent-line-to (ninja-compute-indentation)))
+
 ;;;###autoload
 (define-derived-mode ninja-mode prog-mode "ninja"
   (set (make-local-variable 'comment-start) "#")
   (set (make-local-variable 'parse-sexp-lookup-properties) t)
   (set (make-local-variable 'syntax-propertize-function) #'ninja-syntax-propertize)
+  (set (make-local-variable 'indent-line-function) 'ninja-indent-line)
   (setq font-lock-defaults '(ninja-keywords)))
 
 ;; Run ninja-mode for files ending in .ninja.

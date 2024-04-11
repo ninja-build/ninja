@@ -58,14 +58,14 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ninja-binary-archives
         path: artifact
 
     - name: Upload release asset
       if: github.event.action == 'published'
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -83,7 +83,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt update
-        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang
+        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang libgtest-dev
         pip3 install cmake==3.17.*
     - name: Configure (GCC)
       run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
@@ -133,7 +133,7 @@ jobs:
       image: ${{ matrix.image }}
     strategy:
       matrix:
-        image: ['ubuntu:14.04', 'ubuntu:16.04', 'ubuntu:18.04']
+        image: ['ubuntu:20.04', 'ubuntu:22.04', 'ubuntu:24.04']
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
@@ -144,6 +144,65 @@ jobs:
       run: |
         python3 configure.py --bootstrap
         ./ninja all
-        ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
         python3 misc/ninja_syntax_test.py
         ./misc/output_test.py
+
+  build-aarch64:
+    name: Build Linux ARM64
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build
+      uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: aarch64
+        distro: ubuntu18.04
+        githubToken: ${{ github.token }}
+        dockerRunArgs: |
+          --volume "${PWD}:/ninja"
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y make gcc g++ libasan5 clang-tools curl p7zip-full file
+        run: |
+          set -x
+          cd /ninja
+
+          # INSTALL CMAKE
+          CMAKE_VERSION=3.23.4
+          curl -L -O https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-aarch64.sh
+          chmod +x cmake-${CMAKE_VERSION}-Linux-aarch64.sh
+          ./cmake-${CMAKE_VERSION}-Linux-aarch64.sh --skip-license --prefix=/usr/local
+
+          # BUILD
+          cmake -DCMAKE_BUILD_TYPE=Release -B release-build
+          cmake --build release-build --parallel --config Release
+          strip release-build/ninja
+          file release-build/ninja
+
+          # TEST
+          pushd release-build
+          ./ninja_test
+          popd
+
+          # CREATE ARCHIVE
+          mkdir artifact
+          7z a artifact/ninja-linux-aarch64.zip ./release-build/ninja
+
+    # Upload ninja binary archive as an artifact
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ninja-binary-archives
+        path: artifact
+
+    - name: Upload release asset
+      if: github.event.action == 'published'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifact/ninja-linux-aarch64.zip
+        asset_name: ninja-linux-aarch64.zip
+        asset_content_type: application/zip

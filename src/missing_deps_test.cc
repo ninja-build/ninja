@@ -33,7 +33,12 @@ struct MissingDependencyScannerTest : public testing::Test {
         scanner_(&delegate_, &deps_log_, &state_, &filesystem_) {
     std::string err;
     deps_log_.OpenForWrite(kTestDepsLogFilename, &err);
-    ASSERT_EQ("", err);
+    EXPECT_EQ("", err);
+  }
+
+  ~MissingDependencyScannerTest() {
+    // Remove test file.
+    deps_log_.Close();
   }
 
   MissingDependencyScanner& scanner() { return scanner_; }
@@ -59,9 +64,9 @@ struct MissingDependencyScannerTest : public testing::Test {
     compile_rule_.AddBinding("deps", deps_type);
     generator_rule_.AddBinding("deps", deps_type);
     Edge* header_edge = state_.AddEdge(&generator_rule_);
-    state_.AddOut(header_edge, "generated_header", 0);
+    state_.AddOut(header_edge, "generated_header", 0, nullptr);
     Edge* compile_edge = state_.AddEdge(&compile_rule_);
-    state_.AddOut(compile_edge, "compiled_object", 0);
+    state_.AddOut(compile_edge, "compiled_object", 0, nullptr);
   }
 
   void CreateGraphDependencyBetween(const char* from, const char* to) {
@@ -79,6 +84,7 @@ struct MissingDependencyScannerTest : public testing::Test {
     ASSERT_EQ(1u, scanner().generator_rules_.count(rule));
   }
 
+  ScopedFilePath scoped_file_path_ = kTestDepsLogFilename;
   MissingDependencyTestDelegate delegate_;
   Rule generator_rule_;
   Rule compile_rule_;
@@ -124,7 +130,7 @@ TEST_F(MissingDependencyScannerTest, MissingDepFixedIndirect) {
   CreateInitialState();
   // Adding an indirect dependency also fixes the issue
   Edge* intermediate_edge = state_.AddEdge(&generator_rule_);
-  state_.AddOut(intermediate_edge, "intermediate", 0);
+  state_.AddOut(intermediate_edge, "intermediate", 0, nullptr);
   CreateGraphDependencyBetween("compiled_object", "intermediate");
   CreateGraphDependencyBetween("intermediate", "generated_header");
   RecordDepsLogDep("compiled_object", "generated_header");
@@ -159,4 +165,3 @@ TEST_F(MissingDependencyScannerTest, CycleInGraph) {
   std::vector<Node*> nodes = state_.RootNodes(&err);
   ASSERT_NE("", err);
 }
-

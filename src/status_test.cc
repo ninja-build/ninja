@@ -22,8 +22,9 @@ TEST(StatusTest, StatusFormatElapsed) {
 
   status.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
-  EXPECT_EQ("[%/e0.000]",
-            status.FormatProgressStatus("[%%/e%e]", 0));
+  EXPECT_EQ("[%/e0.000]", status.FormatProgressStatus("[%%/e%e]", 0));
+  // Before any task is done, the elapsed time must be zero.
+  EXPECT_EQ("[%/e00:00]", status.FormatProgressStatus("[%%/e%w]", 0));
 }
 
 TEST(StatusTest, StatusFormatReplacePlaceholder) {

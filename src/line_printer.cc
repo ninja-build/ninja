@@ -46,10 +46,6 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   supports_color_ = smart_terminal_;
-  if (!supports_color_) {
-    const char* clicolor_force = getenv("CLICOLOR_FORCE");
-    supports_color_ = clicolor_force && string(clicolor_force) != "0";
-  }
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
@@ -61,6 +57,10 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
     }
   }
 #endif
+  if (!supports_color_) {
+    const char* clicolor_force = getenv("CLICOLOR_FORCE");
+    supports_color_ = clicolor_force && std::string(clicolor_force) != "0";
+  }
 }
 
 void LinePrinter::Print(string to_print, LineType type) {
@@ -118,6 +118,7 @@ void LinePrinter::Print(string to_print, LineType type) {
     have_blank_line_ = false;
   } else {
     printf("%s\n", to_print.c_str());
+    fflush(stdout);
   }
 }
 

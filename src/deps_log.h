@@ -97,7 +97,7 @@ struct DepsLog {
   /// past but are no longer part of the manifest.  This function returns if
   /// this is the case for a given node.  This function is slow, don't call
   /// it from code that runs on every build.
-  bool IsDepsEntryLiveFor(Node* node);
+  static bool IsDepsEntryLiveFor(const Node* node);
 
   /// Used for tests.
   const std::vector<Node*>& nodes() const { return nodes_; }

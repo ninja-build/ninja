@@ -1,15 +1,22 @@
+:root {
+    color-scheme: light dark;
+}
+
 body {
     margin: 5ex 10ex;
     max-width: 80ex;
     line-height: 1.5;
     font-family: sans-serif;
 }
+
 h1, h2, h3 {
     font-weight: normal;
 }
+
 pre, code {
     font-family: x, monospace;
 }
+
 pre {
     padding: 1ex;
     background: #eee;
@@ -17,13 +24,32 @@ pre {
     min-width: 0;
     font-size: 90%;
 }
+@media (prefers-color-scheme: dark) {
+  pre {
+    background: #333;
+    border: solid 1px #444;
+  }
+}
+
 code {
     color: #007;
 }
+@media (prefers-color-scheme: dark) {
+  code {
+    color: #a7cec8;
+  }
+}
+
 div.chapter {
     margin-top: 4em;
     border-top: solid 2px black;
 }
+@media (prefers-color-scheme: dark) {
+  div.chapter {
+    border-top: solid 2px white;
+  }
+}
+
 p {
     margin-top: 0;
 }

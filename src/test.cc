@@ -235,3 +235,29 @@ void ScopedTempDir::Cleanup() {
 
   temp_dir_name_.clear();
 }
+
+ScopedFilePath::ScopedFilePath(ScopedFilePath&& other) noexcept
+    : path_(std::move(other.path_)), released_(other.released_) {
+  other.released_ = true;
+}
+
+/// It would be nice to use '= default' here instead but some old compilers
+/// such as GCC from Ubuntu 16.06 will not compile it with "noexcept", so just
+/// write it manually.
+ScopedFilePath& ScopedFilePath::operator=(ScopedFilePath&& other) noexcept {
+  if (this != &other) {
+    this->~ScopedFilePath();
+    new (this) ScopedFilePath(std::move(other));
+  }
+  return *this;
+}
+
+ScopedFilePath::~ScopedFilePath() {
+  if (!released_) {
+    unlink(path_.c_str());
+  }
+}
+
+void ScopedFilePath::Release() {
+  released_ = true;
+}

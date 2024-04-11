@@ -7,7 +7,7 @@ See [the manual](https://ninja-build.org/manual.html) or
 `doc/manual.asciidoc` included in the distribution for background
 and more details.
 
-Binaries for Linux, Mac, and Windows are available at
+Binaries for Linux, Mac and Windows are available on
   [GitHub](https://github.com/ninja-build/ninja/releases).
 Run `./ninja -h` for Ninja help.
 
@@ -49,3 +49,39 @@ To run the unit tests:
 ```
 ./build-cmake/ninja_test
 ```
+
+## Generating documentation
+
+### Ninja Manual
+
+You must have `asciidoc` and `xsltproc` in your PATH, then do:
+
+```
+./configure.py
+ninja manual doc/manual.pdf
+```
+
+Which will generate `doc/manual.html`.
+
+To generate the PDF version of the manual, you must have `dblatext` in your PATH then do:
+
+```
+./configure.py    # only if you didn't do it previously.
+ninja doc/manual.pdf
+```
+
+Which will generate `doc/manual.pdf`.
+
+### Doxygen documentation
+
+If you have `doxygen` installed, you can build documentation extracted from C++
+declarations and comments to help you navigate the code. Note that Ninja is a standalone
+executable, not a library, so there is no public API, all details exposed here are
+internal.
+
+```
+./configure.py   # if needed
+ninja doxygen
+```
+
+Then open `doc/doxygen/html/index.html` in a browser to look at it.

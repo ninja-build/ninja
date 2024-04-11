@@ -24,10 +24,13 @@
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.
 struct Status {
-  virtual void PlanHasTotalEdges(int total) = 0;
-  virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis) = 0;
-  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                 bool success, const std::string& output) = 0;
+  virtual void EdgeAddedToPlan(const Edge* edge) = 0;
+  virtual void EdgeRemovedFromPlan(const Edge* edge) = 0;
+  virtual void BuildEdgeStarted(const Edge* edge,
+                                int64_t start_time_millis) = 0;
+  virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
+                                 int64_t end_time_millis, bool success,
+                                 const std::string& output) = 0;
   virtual void BuildLoadDyndeps() = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
@@ -43,10 +46,15 @@ struct Status {
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
-  virtual void PlanHasTotalEdges(int total);
+
+  /// Callbacks for the Plan to notify us about adding/removing Edge's.
+  virtual void EdgeAddedToPlan(const Edge* edge);
+  virtual void EdgeRemovedFromPlan(const Edge* edge);
+
   virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
-  virtual void BuildEdgeFinished(Edge* edge, int64_t end_time_millis,
-                                 bool success, const std::string& output);
+  virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
+                                 int64_t end_time_millis, bool success,
+                                 const std::string& output);
   virtual void BuildLoadDyndeps();
   virtual void BuildStarted();
   virtual void BuildFinished();
@@ -71,7 +79,30 @@ struct StatusPrinter : Status {
   const BuildConfig& config_;
 
   int started_edges_, finished_edges_, total_edges_, running_edges_;
-  int64_t time_millis_;
+
+  /// How much wall clock elapsed so far?
+  int64_t time_millis_ = 0;
+
+  /// How much cpu clock elapsed so far?
+  int64_t cpu_time_millis_ = 0;
+
+  /// What percentage of predicted total time have elapsed already?
+  double time_predicted_percentage_ = 0.0;
+
+  /// Out of all the edges, for how many do we know previous time?
+  int eta_predictable_edges_total_ = 0;
+  /// And how much time did they all take?
+  int64_t eta_predictable_cpu_time_total_millis_ = 0;
+
+  /// Out of all the non-finished edges, for how many do we know previous time?
+  int eta_predictable_edges_remaining_ = 0;
+  /// And how much time will they all take?
+  int64_t eta_predictable_cpu_time_remaining_millis_ = 0;
+
+  /// For how many edges we don't know the previous run time?
+  int eta_unpredictable_edges_remaining_ = 0;
+
+  void RecalculateProgressPrediction();
 
   /// Prints progress output.
   LinePrinter printer_;
@@ -92,14 +123,14 @@ struct StatusPrinter : Status {
 
     double rate() { return rate_; }
 
-    void UpdateRate(int update_hint, int64_t time_millis_) {
+    void UpdateRate(int update_hint, int64_t time_millis) {
       if (update_hint == last_update_)
         return;
       last_update_ = update_hint;
 
       if (times_.size() == N)
         times_.pop();
-      times_.push(time_millis_);
+      times_.push(time_millis);
       if (times_.back() != times_.front())
         rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef INCLUDES_NORMALIZE_H_
+#define INCLUDES_NORMALIZE_H_
+
 #include <string>
 #include <vector>
 
@@ -38,3 +41,5 @@ struct IncludesNormalize {
   std::string relative_to_;
   std::vector<StringPiece> split_relative_to_;
 };
+
+#endif  // INCLUDES_NORMALIZE_H_

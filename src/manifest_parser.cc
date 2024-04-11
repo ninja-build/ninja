@@ -14,8 +14,10 @@
 
 #include "manifest_parser.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <vector>
 
 #include "graph.h"
@@ -334,20 +336,9 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    if (!state_->AddOut(edge, path, slash_bits)) {
-      if (options_.dupe_edge_action_ == kDupeEdgeActionError) {
-        lexer_.Error("multiple rules generate " + path, err);
-        return false;
-      } else {
-        if (!quiet_) {
-          Warning(
-              "multiple rules generate %s. builds involving this target will "
-              "not be correct; continuing anyway",
-              path.c_str());
-        }
-        if (e - i <= static_cast<size_t>(implicit_outs))
-          --implicit_outs;
-      }
+    if (!state_->AddOut(edge, path, slash_bits, err)) {
+      lexer_.Error(std::string(*err), err);
+      return false;
     }
   }
 
@@ -416,6 +407,7 @@ bool ManifestParser::ParseEdge(string* err) {
     if (dgi == edge->inputs_.end()) {
       return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
     }
+    assert(!edge->dyndep_->generated_by_dep_loader());
   }
 
   return true;

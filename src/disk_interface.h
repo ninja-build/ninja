@@ -69,11 +69,7 @@ struct DiskInterface: public FileReader {
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
-  RealDiskInterface()
-#ifdef _WIN32
-                      : use_cache_(false)
-#endif
-                      {}
+  RealDiskInterface();
   virtual ~RealDiskInterface() {}
   virtual TimeStamp Stat(const std::string& path, std::string* err) const;
   virtual bool MakeDir(const std::string& path);
@@ -85,10 +81,18 @@ struct RealDiskInterface : public DiskInterface {
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);
 
+#ifdef _WIN32
+  /// Whether long paths are enabled.  Only has an effect on Windows.
+  bool AreLongPathsEnabled() const;
+#endif
+
  private:
 #ifdef _WIN32
   /// Whether stat information can be cached.
   bool use_cache_;
+
+  /// Whether long paths are enabled.
+  bool long_paths_enabled_;
 
   typedef std::map<std::string, TimeStamp> DirCache;
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
