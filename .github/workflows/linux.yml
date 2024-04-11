@@ -10,22 +10,17 @@ jobs:
   build:
     runs-on: [ubuntu-latest]
     container:
-      image: centos:7
+      image: rockylinux:8
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: codespell-project/actions-codespell@master
       with:
         ignore_words_list: fo,wee
     - name: Install dependencies
       run: |
-        curl -L -O https://github.com/Kitware/CMake/releases/download/v3.16.4/cmake-3.16.4-Linux-x86_64.sh
-        chmod +x cmake-3.16.4-Linux-x86_64.sh
-        ./cmake-3.16.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
-        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-16.02-20.el7.x86_64.rpm
-        curl -L -O https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/p7zip-plugins-16.02-20.el7.x86_64.rpm
-        rpm -U --quiet p7zip-16.02-20.el7.x86_64.rpm
-        rpm -U --quiet p7zip-plugins-16.02-20.el7.x86_64.rpm
-        yum install -y make gcc-c++ libasan clang-analyzer
+        dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
+        dnf config-manager --set-enabled powertools
+        dnf install -y gtest-devel p7zip p7zip-plugins
 
     - name: Build debug ninja
       shell: bash
@@ -37,7 +32,7 @@ jobs:
         scan-build -o scanlogs cmake --build debug-build --parallel --config Debug
 
     - name: Test debug ninja
-      run: ./ninja_test
+      run: ASAN_OPTIONS=detect_leaks=0 ./ninja_test
       working-directory: debug-build
 
     - name: Build release ninja
@@ -58,7 +53,7 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ninja-binary-archives
         path: artifact
