@@ -65,7 +65,7 @@ struct BuildLog {
     static uint64_t HashCommand(StringPiece command);
 
     // Used by tests.
-    bool operator==(const LogEntry& o) {
+    bool operator==(const LogEntry& o) const {
       return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
           mtime == o.mtime;
