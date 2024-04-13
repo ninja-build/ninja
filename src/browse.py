@@ -24,8 +24,8 @@ try:
     import http.server as httpserver
     import socketserver
 except ImportError:
-    import BaseHTTPServer as httpserver
-    import SocketServer as socketserver
+    import BaseHTTPServer as httpserver  # type: ignore # Name "httpserver" already defined
+    import SocketServer as socketserver  # type: ignore # Name "socketserver" already defined
 import argparse
 import os
 import socket
@@ -37,10 +37,11 @@ if sys.version_info >= (3, 2):
 else:
     from cgi import escape
 try:
-    from urllib.request import unquote
+    from urllib.request import unquote  # type: ignore # Module "urllib.request" has no attribute "unquote"
 except ImportError:
     from urllib2 import unquote
 from collections import namedtuple
+from typing import Tuple, Any
 
 Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
 
@@ -57,15 +58,15 @@ Node = namedtuple('Node', ['inputs', 'rule', 'target', 'outputs'])
 # This means there's no single view that shows you all inputs and outputs
 # of an edge.  But I think it's less confusing than alternatives.
 
-def match_strip(line, prefix):
+def match_strip(line: str, prefix: str) -> Tuple[bool, str]:
     if not line.startswith(prefix):
         return (False, line)
     return (True, line[len(prefix):])
 
-def html_escape(text):
+def html_escape(text: str) -> str:
     return escape(text, quote=True)
 
-def parse(text):
+def parse(text: str) -> Node:
     lines = iter(text.split('\n'))
 
     target = None
@@ -102,7 +103,7 @@ def parse(text):
 
     return Node(inputs, rule, target, outputs)
 
-def create_page(body):
+def create_page(body: str) -> str:
     return '''<!DOCTYPE html>
 <style>
 body {
@@ -130,7 +131,7 @@ tt {
 </style>
 ''' + body
 
-def generate_html(node):
+def generate_html(node: Node) -> str:
     document = ['<h1><tt>%s</tt></h1>' % html_escape(node.target)]
 
     if node.inputs:
@@ -156,14 +157,14 @@ def generate_html(node):
 
     return '\n'.join(document)
 
-def ninja_dump(target):
+def ninja_dump(target: str) -> Tuple[str, str, int]:
     cmd = [args.ninja_command, '-f', args.f, '-t', 'query', target]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             universal_newlines=True)
     return proc.communicate() + (proc.returncode,)
 
 class RequestHandler(httpserver.BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self) -> None:
         assert self.path[0] == '/'
         target = unquote(self.path[1:])
 
@@ -190,7 +191,7 @@ class RequestHandler(httpserver.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(create_page(page_body).encode('utf-8'))
 
-    def log_message(self, format, *args):
+    def log_message(self, format: str, *args: Any) -> None:
         pass  # Swallow console spam.
 
 parser = argparse.ArgumentParser(prog='ninja -t browse')

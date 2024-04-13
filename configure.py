@@ -24,15 +24,19 @@ import os
 import shlex
 import subprocess
 import sys
+from typing import Optional, Union, Dict, List, Any, TYPE_CHECKING
 
 sourcedir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(sourcedir, 'misc'))
-import ninja_syntax
+if TYPE_CHECKING:
+    import misc.ninja_syntax as ninja_syntax
+else:
+    import ninja_syntax
 
 
 class Platform(object):
     """Represents a host/target platform and its specific build attributes."""
-    def __init__(self, platform):
+    def __init__(self, platform: Optional[str]) -> None:
         self._platform = platform
         if self._platform is not None:
             return
@@ -63,55 +67,55 @@ class Platform(object):
             self._platform = 'dragonfly'
 
     @staticmethod
-    def known_platforms():
+    def known_platforms() -> List[str]:
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
               'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
               'dragonfly']
 
-    def platform(self):
-        return self._platform
+    def platform(self) -> str:
+        return self._platform  # type: ignore # Incompatible return value type
 
-    def is_linux(self):
+    def is_linux(self) -> bool:
         return self._platform == 'linux'
 
-    def is_mingw(self):
+    def is_mingw(self) -> bool:
         return self._platform == 'mingw'
 
-    def is_msvc(self):
+    def is_msvc(self) -> bool:
         return self._platform == 'msvc'
 
-    def msvc_needs_fs(self):
+    def msvc_needs_fs(self) -> bool:
         popen = subprocess.Popen(['cl', '/nologo', '/help'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
         out, err = popen.communicate()
         return b'/FS' in out
 
-    def is_windows(self):
+    def is_windows(self) -> bool:
         return self.is_mingw() or self.is_msvc()
 
-    def is_solaris(self):
+    def is_solaris(self) -> bool:
         return self._platform == 'solaris'
 
-    def is_aix(self):
+    def is_aix(self) -> bool:
         return self._platform == 'aix'
 
-    def is_os400_pase(self):
-        return self._platform == 'os400' or os.uname().sysname.startswith('OS400')
+    def is_os400_pase(self) -> bool:
+        return self._platform == 'os400' or os.uname().sysname.startswith('OS400')  # type: ignore # Module has no attribute "uname"
 
-    def uses_usr_local(self):
+    def uses_usr_local(self) -> bool:
         return self._platform in ('freebsd', 'openbsd', 'bitrig', 'dragonfly', 'netbsd')
 
-    def supports_ppoll(self):
+    def supports_ppoll(self) -> bool:
         return self._platform in ('freebsd', 'linux', 'openbsd', 'bitrig',
                                   'dragonfly')
 
-    def supports_ninja_browse(self):
+    def supports_ninja_browse(self) -> bool:
         return (not self.is_windows()
                 and not self.is_solaris()
                 and not self.is_aix())
 
-    def can_rebuild_in_place(self):
+    def can_rebuild_in_place(self) -> bool:
         return not (self.is_windows() or self.is_aix())
 
 class Bootstrap:
@@ -122,37 +126,43 @@ class Bootstrap:
     It also proxies all calls to an underlying ninja_syntax.Writer, to
     behave like non-bootstrap mode.
     """
-    def __init__(self, writer, verbose=False):
+    def __init__(self, writer: ninja_syntax.Writer, verbose: bool = False) -> None:
         self.writer = writer
         self.verbose = verbose
         # Map of variable name => expanded variable value.
-        self.vars = {}
+        self.vars: Dict[str, str] = {}
         # Map of rule name => dict of rule attributes.
-        self.rules = {
+        self.rules: Dict[str, Dict[str, Any]] = {
             'phony': {}
         }
 
-    def comment(self, text):
+    def comment(self, text: str) -> None:
         return self.writer.comment(text)
 
-    def newline(self):
+    def newline(self) -> None:
         return self.writer.newline()
 
-    def variable(self, key, val):
+    def variable(self, key: str, val: str) -> None:
         # In bootstrap mode, we have no ninja process to catch /showIncludes
         # output.
         self.vars[key] = self._expand(val).replace('/showIncludes', '')
         return self.writer.variable(key, val)
 
-    def rule(self, name, **kwargs):
+    def rule(self, name: str, **kwargs: Any) -> None:
         self.rules[name] = kwargs
         return self.writer.rule(name, **kwargs)
 
-    def build(self, outputs, rule, inputs=None, **kwargs):
+    def build(
+        self,
+        outputs: Union[str, List[str]],
+        rule: str,
+        inputs: Optional[Union[str, List[str]]] = None,
+        **kwargs: Any
+    ) -> List[str]:
         ruleattr = self.rules[rule]
         cmd = ruleattr.get('command')
         if cmd is None:  # A phony rule, for example.
-            return
+            return  # type: ignore # Return value expected
 
         # Implement just enough of Ninja variable expansion etc. to
         # make the bootstrap build work.
@@ -167,23 +177,23 @@ class Bootstrap:
 
         return self.writer.build(outputs, rule, inputs, **kwargs)
 
-    def default(self, paths):
+    def default(self, paths: Union[str, List[str]]) -> None:
         return self.writer.default(paths)
 
-    def _expand_paths(self, paths):
+    def _expand_paths(self, paths: Optional[Union[str, List[str]]]) -> str:
         """Expand $vars in an array of paths, e.g. from a 'build' block."""
         paths = ninja_syntax.as_list(paths)
         return ' '.join(map(self._shell_escape, (map(self._expand, paths))))
 
-    def _expand(self, str, local_vars={}):
+    def _expand(self, str: str, local_vars: Dict[str, str] = {}) -> str:
         """Expand $vars in a string."""
         return ninja_syntax.expand(str, self.vars, local_vars)
 
-    def _shell_escape(self, path):
+    def _shell_escape(self, path: str) -> str:
         """Quote paths containing spaces."""
         return '"%s"' % path if ' ' in path else path
 
-    def _run_command(self, cmdline):
+    def _run_command(self, cmdline: str) -> None:
         """Run a subcommand, quietly.  Prints the full command on error."""
         try:
             if self.verbose:
@@ -233,7 +243,7 @@ else:
 
 BUILD_FILENAME = 'build.ninja'
 ninja_writer = ninja_syntax.Writer(open(BUILD_FILENAME, 'w'))
-n = ninja_writer
+n: Union[ninja_syntax.Writer, Bootstrap] = ninja_writer
 
 if options.bootstrap:
     # Make the build directory.
@@ -244,7 +254,7 @@ if options.bootstrap:
     # Wrap ninja_writer with the Bootstrapper, which also executes the
     # commands.
     print('bootstrapping ninja...')
-    n = Bootstrap(n, verbose=options.verbose)
+    n = Bootstrap(n, verbose=options.verbose)  # type: ignore # Incompatible types in assignment
 
 n.comment('This file is used to build ninja itself.')
 n.comment('It is generated by ' + os.path.basename(__file__) + '.')
@@ -272,17 +282,17 @@ if platform.is_msvc():
     CXX = 'cl'
     objext = '.obj'
 
-def src(filename):
+def src(filename: str) -> str:
     return os.path.join('$root', 'src', filename)
-def built(filename):
+def built(filename: str) -> str:
     return os.path.join('$builddir', filename)
-def doc(filename):
+def doc(filename: str) -> str:
     return os.path.join('$root', 'doc', filename)
-def cc(name, **kwargs):
+def cc(name: str, **kwargs: Any) -> List[str]:
     return n.build(built(name + objext), 'cxx', src(name + '.c'), **kwargs)
-def cxx(name, **kwargs):
+def cxx(name: str, **kwargs: Any) -> List[str]:
     return n.build(built(name + objext), 'cxx', src(name + '.cc'), **kwargs)
-def binary(name):
+def binary(name: str) -> str:
     if platform.is_windows():
         exe = name + '.exe'
         n.build(name, 'phony', exe)
@@ -302,7 +312,7 @@ if platform.is_msvc():
 else:
     n.variable('ar', configure_env.get('AR', 'ar'))
 
-def search_system_path(file_name):
+def search_system_path(file_name: str) -> Optional[str]:  # type: ignore # Missing return statement
   """Find a file in the system path."""
   for dir in os.environ['path'].split(';'):
     path = os.path.join(dir, file_name)
@@ -404,7 +414,7 @@ if platform.supports_ninja_browse():
 # Search for generated headers relative to build dir.
 cflags.append('-I.')
 
-def shell_escape(str):
+def shell_escape(str: str) -> str:
     """Escape str such that it's interpreted as a single argument by
     the shell."""
 
@@ -481,7 +491,7 @@ if platform.supports_ninja_browse():
     n.newline()
 
 n.comment('the depfile parser and ninja lexers are generated using re2c.')
-def has_re2c():
+def has_re2c() -> bool:
     try:
         proc = subprocess.Popen(['re2c', '-V'], stdout=subprocess.PIPE)
         return int(proc.communicate()[0], 10) >= 1503
@@ -672,7 +682,7 @@ if host.is_linux():
 
 n.build('all', 'phony', all_targets)
 
-n.close()
+n.close()  # type: ignore # Item "Bootstrap" of "Writer | Bootstrap" has no attribute "close"
 print('wrote %s.' % BUILD_FILENAME)
 
 if options.bootstrap:

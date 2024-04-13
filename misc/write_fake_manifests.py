@@ -18,11 +18,12 @@ import contextlib
 import os
 import random
 import sys
+from typing import Generator, Optional, Tuple, List, Set
 
 import ninja_syntax
 
 
-def paretoint(avg, alpha):
+def paretoint(avg: float, alpha: float) -> int:
     """Returns a random integer that's avg on average, following a power law.
     alpha determines the shape of the power curve. alpha has to be larger
     than 1. The closer alpha is to 1, the higher the variation of the returned
@@ -31,7 +32,7 @@ def paretoint(avg, alpha):
 
 
 # Based on http://neugierig.org/software/chromium/class-name-generator.html
-def moar(avg_options, p_suffix):
+def moar(avg_options: float, p_suffix: float) -> str:
     kStart = ['render', 'web', 'browser', 'tab', 'content', 'extension', 'url',
               'file', 'sync', 'content', 'http', 'profile']
     kOption = ['view', 'host', 'holder', 'container', 'impl', 'ref',
@@ -50,38 +51,38 @@ def moar(avg_options, p_suffix):
 
 
 class GenRandom(object):
-    def __init__(self, src_dir):
-        self.seen_names = set([None])
-        self.seen_defines = set([None])
+    def __init__(self, src_dir: str) -> None:
+        self.seen_names: Set[Optional[str]] = set([None])
+        self.seen_defines: Set[Optional[str]] = set([None])
         self.src_dir = src_dir
 
-    def _unique_string(self, seen, avg_options=1.3, p_suffix=0.1):
+    def _unique_string(self, seen: Set[Optional[str]], avg_options: float = 1.3, p_suffix: float = 0.1) -> str:
         s = None
         while s in seen:
             s = moar(avg_options, p_suffix)
         seen.add(s)
-        return s
+        return s  # type: ignore # Incompatible return value type
 
-    def _n_unique_strings(self, n):
-        seen = set([None])
+    def _n_unique_strings(self, n: int) -> List[str]:
+        seen: Set[Optional[str]] = set([None])
         return [self._unique_string(seen, avg_options=3, p_suffix=0.4)
                 for _ in range(n)]
 
-    def target_name(self):
+    def target_name(self) -> str:
         return self._unique_string(p_suffix=0, seen=self.seen_names)
 
-    def path(self):
+    def path(self) -> str:
         return os.path.sep.join([
             self._unique_string(self.seen_names, avg_options=1, p_suffix=0)
             for _ in range(1 + paretoint(0.6, alpha=4))])
 
-    def src_obj_pairs(self, path, name):
+    def src_obj_pairs(self, path: str, name: str) -> List[Tuple[str, str]]:
         num_sources = paretoint(55, alpha=2) + 1
         return [(os.path.join(self.src_dir, path, s + '.cc'),
                  os.path.join('obj', path, '%s.%s.o' % (name, s)))
                 for s in self._n_unique_strings(num_sources)]
 
-    def defines(self):
+    def defines(self) -> List[str]:
         return [
             '-DENABLE_' + self._unique_string(self.seen_defines).upper()
             for _ in range(paretoint(20, alpha=3))]
@@ -89,7 +90,7 @@ class GenRandom(object):
 
 LIB, EXE = 0, 1
 class Target(object):
-    def __init__(self, gen, kind):
+    def __init__(self, gen: GenRandom, kind: int) -> None:
         self.name = gen.target_name()
         self.dir_path = gen.path()
         self.ninja_file_path = os.path.join(
@@ -100,12 +101,12 @@ class Target(object):
         elif kind == EXE:
             self.output = os.path.join(self.name)
         self.defines = gen.defines()
-        self.deps = []
+        self.deps: List[Target] = []
         self.kind = kind
         self.has_compile_depends = random.random() < 0.4
 
 
-def write_target_ninja(ninja, target, src_dir):
+def write_target_ninja(ninja: ninja_syntax.Writer, target: Target, src_dir: str) -> None:
     compile_depends = None
     if target.has_compile_depends:
       compile_depends = os.path.join(
@@ -133,7 +134,7 @@ def write_target_ninja(ninja, target, src_dir):
                 implicit=deps)
 
 
-def write_sources(target, root_dir):
+def write_sources(target: Target, root_dir: str) -> None:
     need_main = target.kind == EXE
 
     includes = []
@@ -174,7 +175,7 @@ def write_sources(target, root_dir):
                 f.write('int main(int argc, char **argv) {}\n')
                 need_main = False
 
-def write_master_ninja(master_ninja, targets):
+def write_master_ninja(master_ninja: ninja_syntax.Writer, targets: List[Target]) -> None:
     """Writes master build.ninja file, referencing all given subninjas."""
     master_ninja.variable('cxx', 'c++')
     master_ninja.variable('ld', '$cxx')
@@ -212,7 +213,7 @@ def write_master_ninja(master_ninja, targets):
 
 
 @contextlib.contextmanager
-def FileWriter(path):
+def FileWriter(path: str) -> Generator[ninja_syntax.Writer, None, None]:
     """Context manager for a ninja_syntax object writing to a file."""
     try:
         os.makedirs(os.path.dirname(path))
@@ -223,7 +224,7 @@ def FileWriter(path):
     f.close()
 
 
-def random_targets(num_targets, src_dir):
+def random_targets(num_targets: int, src_dir: str) -> List[Target]:
     gen = GenRandom(src_dir)
 
     # N-1 static libraries, and 1 executable depending on all of them.
@@ -238,7 +239,7 @@ def random_targets(num_targets, src_dir):
     return targets
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--sources', nargs="?", const="src",
         help='write sources to directory (relative to output directory)')
@@ -269,4 +270,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main())  # type: ignore # "main" does not return a value
