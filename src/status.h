@@ -26,7 +26,7 @@
 struct Status {
   virtual void EdgeAddedToPlan(const Edge* edge) = 0;
   virtual void EdgeRemovedFromPlan(const Edge* edge) = 0;
-  virtual void BuildEdgeStarted(const Edge* edge,
+  virtual void BuildEdgeStarted(Edge* edge,
                                 int64_t start_time_millis) = 0;
   virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, bool success,
@@ -51,7 +51,7 @@ struct StatusPrinter : Status {
   virtual void EdgeAddedToPlan(const Edge* edge);
   virtual void EdgeRemovedFromPlan(const Edge* edge);
 
-  virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
+  virtual void BuildEdgeStarted(Edge* edge, int64_t start_time_millis);
   virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, bool success,
                                  const std::string& output);
@@ -65,6 +65,12 @@ struct StatusPrinter : Status {
 
   virtual ~StatusPrinter() { }
 
+  enum EdgeStatus {
+    kEdgeStarted,
+    kEdgeFinishedWithoutOutput,
+    kEdgeFinishedWithOutput,
+  };
+
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available
   /// placeholders.
@@ -74,7 +80,7 @@ struct StatusPrinter : Status {
                                    int64_t time_millis) const;
 
  private:
-  void PrintStatus(const Edge* edge, int64_t time_millis);
+  void PrintStatus(Edge* edge, EdgeStatus status, int64_t time_millis);
 
   const BuildConfig& config_;
 
@@ -109,6 +115,9 @@ struct StatusPrinter : Status {
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
+
+  // Time the last terse update happened
+  int64_t terse_status_time_millis_;
 
   template<size_t S>
   void SnprintfRate(double rate, char(&buf)[S], const char* format) const {

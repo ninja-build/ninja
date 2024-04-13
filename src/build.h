@@ -171,6 +171,7 @@ struct BuildConfig {
   enum Verbosity {
     QUIET,  // No output -- used when testing.
     NO_STATUS_UPDATE,  // just regular output but suppress status update
+    TERSE,  // periodically print status update
     NORMAL,  // regular output and status update
     VERBOSE
   };
