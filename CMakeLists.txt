@@ -5,6 +5,7 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
+option(NINJA_V2 "Build nj binary (preview of Ninja 2.0)" OFF)
 
 project(ninja CXX)
 
@@ -330,4 +331,6 @@ if(NINJA_BUILD_BINARY)
 	install(TARGETS ninja)
 endif()
 
-add_subdirectory(v2)
+if(NINJA_V2)
+	add_subdirectory(v2)
+endif()
