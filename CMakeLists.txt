@@ -193,6 +193,7 @@ else()
 endif()
 
 target_compile_features(libninja PUBLIC cxx_std_11)
+target_compile_features(libninja-v1 PUBLIC cxx_std_11)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
