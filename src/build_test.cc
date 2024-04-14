@@ -1363,8 +1363,9 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     // Build number 1
     EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
     ASSERT_EQ("", err);
-    if (!builder_.AlreadyUpToDate())
+    if (!builder_.AlreadyUpToDate()) {
       EXPECT_TRUE(builder_.Build(&err));
+    }
     ASSERT_EQ("", err);
 
     // Touch the input file
