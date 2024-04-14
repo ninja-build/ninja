@@ -1,4 +1,4 @@
-find_package(Boost 1.84 REQUIRED)
+find_package(Boost 1.81 REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(nj
