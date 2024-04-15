@@ -227,6 +227,12 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+
+  # Can be removed if cmake min version is >=3.24
+  if (POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+  endif()
+
   find_package(GTest)
   if(NOT GTest_FOUND)
     include(FetchContent)
