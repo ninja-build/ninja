@@ -107,7 +107,7 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
   WIN32_FIND_DATAA ffd;
   HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
-                                        FindExSearchNameMatch, NULL, 0);
+                                        FindExSearchNameMatch, nullptr, 0);
 
   if (find_handle == INVALID_HANDLE_VALUE) {
     DWORD win_err = GetLastError();
@@ -158,7 +158,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 }
 
 // RealDiskInterface -----------------------------------------------------------
-RealDiskInterface::RealDiskInterface() 
+RealDiskInterface::RealDiskInterface()
 #ifdef _WIN32
 : use_cache_(false), long_paths_enabled_(false) {
   setlocale(LC_ALL, "");
@@ -249,7 +249,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
   FILE* fp = fopen(path.c_str(), "w");
-  if (fp == NULL) {
+  if (fp == nullptr) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
     return false;
@@ -308,7 +308,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     SetFileAttributesA(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
-    // remove() deletes both files and directories. On Windows we have to 
+    // remove() deletes both files and directories. On Windows we have to
     // select the correct function (DeleteFile will yield Permission Denied when
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases

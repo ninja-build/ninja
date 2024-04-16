@@ -155,7 +155,7 @@ private:
   /// can be loaded before the manifest.
   bool generated_by_dep_loader_ = true;
 
-  /// The Edge that produces this Node, or NULL when there is no
+  /// The Edge that produces this Node, or nullptr when there is no
   /// known edge to produce it.
   Edge* in_edge_ = nullptr;
 

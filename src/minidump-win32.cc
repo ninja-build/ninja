@@ -45,7 +45,7 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
   // Load DbgHelp.dll dynamically, as library is not present on all
   // Windows versions.
   HMODULE dbghelp = LoadLibraryA("dbghelp.dll");
-  if (dbghelp == NULL) {
+  if (dbghelp == nullptr) {
     Error("failed to create minidump: LoadLibrary('dbghelp.dll'): %s",
           GetLastErrorString().c_str());
     return;
@@ -53,15 +53,15 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
 
   MiniDumpWriteDumpFunc mini_dump_write_dump =
       (MiniDumpWriteDumpFunc)GetProcAddress(dbghelp, "MiniDumpWriteDump");
-  if (mini_dump_write_dump == NULL) {
+  if (mini_dump_write_dump == nullptr) {
     Error("failed to create minidump: GetProcAddress('MiniDumpWriteDump'): %s",
           GetLastErrorString().c_str());
     return;
   }
 
-  HANDLE hFile = CreateFileA(temp_file, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (hFile == NULL) {
+  HANDLE hFile = CreateFileA(temp_file, GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (hFile == nullptr) {
     Error("failed to create minidump: CreateFileA(%s): %s",
           temp_file, GetLastErrorString().c_str());
     return;

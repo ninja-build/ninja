@@ -80,16 +80,16 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
 }  // anonymous namespace
 
 int MSVCHelperMain(int argc, char** argv) {
-  const char* output_filename = NULL;
-  const char* envfile = NULL;
+  const char* output_filename = nullptr;
+  const char* envfile = nullptr;
 
   const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { NULL, 0, NULL, 0 }
+    { "help", no_argument, nullptr, 'h' },
+    { nullptr, 0, nullptr, 0 }
   };
   int opt;
   string deps_prefix;
-  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, nullptr)) != -1) {
     switch (opt) {
       case 'e':
         envfile = optarg;

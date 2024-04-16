@@ -363,7 +363,7 @@ TEST_F(DepsLogTest, InvalidHeader) {
   for (size_t i = 0; i < sizeof(kInvalidHeaders) / sizeof(kInvalidHeaders[0]);
        ++i) {
     FILE* deps_log = fopen(kTestFilename, "wb");
-    ASSERT_TRUE(deps_log != NULL);
+    ASSERT_TRUE(deps_log != nullptr);
     ASSERT_EQ(
         strlen(kInvalidHeaders[i]),
         fwrite(kInvalidHeaders[i], 1, strlen(kInvalidHeaders[i]), deps_log));
@@ -429,7 +429,7 @@ TEST_F(DepsLogTest, Truncated) {
     ASSERT_GE(node_count, (int)log.nodes().size());
     node_count = log.nodes().size();
 
-    // Count how many non-NULL deps entries there are.
+    // Count how many non-nullptr deps entries there are.
     int new_deps_count = 0;
     for (vector<DepsLog::Deps*>::const_iterator i = log.deps().begin();
          i != log.deps().end(); ++i) {
@@ -487,7 +487,7 @@ TEST_F(DepsLogTest, TruncatedRecovery) {
     err.clear();
 
     // The truncated entry should've been discarded.
-    EXPECT_EQ(NULL, log.GetDeps(state.GetNode("out2.o", 0)));
+    EXPECT_EQ(nullptr, log.GetDeps(state.GetNode("out2.o", 0)));
 
     EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
     ASSERT_EQ("", err);

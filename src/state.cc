@@ -72,14 +72,14 @@ State::State() {
 }
 
 void State::AddPool(Pool* pool) {
-  assert(LookupPool(pool->name()) == NULL);
+  assert(LookupPool(pool->name()) == nullptr);
   pools_[pool->name()] = pool;
 }
 
 Pool* State::LookupPool(const string& pool_name) {
   map<string, Pool*>::iterator i = pools_.find(pool_name);
   if (i == pools_.end())
-    return NULL;
+    return nullptr;
   return i->second;
 }
 
@@ -106,7 +106,7 @@ Node* State::LookupNode(StringPiece path) const {
   Paths::const_iterator i = paths_.find(path);
   if (i != paths_.end())
     return i->second;
-  return NULL;
+  return nullptr;
 }
 
 Node* State::SpellcheckNode(const string& path) {
@@ -114,7 +114,7 @@ Node* State::SpellcheckNode(const string& path) {
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
-  Node* result = NULL;
+  Node* result = nullptr;
   for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
     int distance = EditDistance(
         i->first, path, kAllowReplacements, kMaxValidEditDistance);

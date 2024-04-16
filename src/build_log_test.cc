@@ -270,7 +270,7 @@ TEST_F(BuildLogTest, Restat) {
   e = log.LookupByOutput("out");
   ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
 
-  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, NULL, &err));
+  EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, nullptr, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
   ASSERT_EQ(4, e->mtime);
@@ -295,7 +295,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out");
-  ASSERT_EQ(NULL, e);
+  ASSERT_EQ(nullptr, e);
 
   e = log.LookupByOutput("out2");
   ASSERT_TRUE(e);

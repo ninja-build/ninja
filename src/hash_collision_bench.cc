@@ -40,7 +40,7 @@ int main() {
   char** commands = new char*[N];
   pair<uint64_t, int>* hashes = new pair<uint64_t, int>[N];
 
-  srand((int)time(NULL));
+  srand((int)time(nullptr));
 
   for (int i = 0; i < N; ++i) {
     RandomCommand(&commands[i]);

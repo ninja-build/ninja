@@ -37,7 +37,7 @@ struct Status;
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
 struct Plan {
-  Plan(Builder* builder = NULL);
+  Plan(Builder* builder = nullptr);
 
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
@@ -45,7 +45,7 @@ struct Plan {
   bool AddTarget(const Node* target, std::string* err);
 
   // Pop a ready edge off the queue of edges to build.
-  // Returns NULL if there's no work to do.
+  // Returns nullptr if there's no work to do.
   Edge* FindWork();
 
   /// Returns true if there's more work to be done.
@@ -150,7 +150,7 @@ struct CommandRunner {
 
   /// The result of waiting for a command.
   struct Result {
-    Result() : edge(NULL) {}
+    Result() : edge(nullptr) {}
     Edge* edge;
     ExitStatus status;
     std::string output;
