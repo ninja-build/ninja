@@ -26,7 +26,6 @@ jobs:
       run: choco install re2c
 
     - name: Build ninja
-      shell: bash
       run: |
         cmake -Bbuild -A ${{ matrix.arch }}
         cmake --build build --parallel --config Debug
@@ -34,13 +33,11 @@ jobs:
 
     - name: Test ninja (Debug)
       if: matrix.arch != 'arm64'
-      run: .\ninja_test.exe
-      working-directory: build/Debug
+      run: ctest --test-dir build -C Debug -V
 
     - name: Test ninja (Release)
       if: matrix.arch != 'arm64'
-      run: .\ninja_test.exe
-      working-directory: build/Release
+      run: ctest --test-dir build -C Release -V
 
     - name: Create ninja archive
       shell: bash
