@@ -272,8 +272,10 @@ if(BUILD_TESTING)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
       windows/ninja.manifest)
 
-    # Silence warnings about using unlink rather than _unlink
-    target_compile_definitions(ninja_test PRIVATE _CRT_NONSTDC_NO_DEPRECATE)
+    if(MSVC)
+      # Silence warnings about using unlink rather than _unlink
+      target_compile_definitions(ninja_test PRIVATE _CRT_NONSTDC_NO_DEPRECATE)
+    endif()
   endif()
   find_package(Threads REQUIRED)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
