@@ -271,13 +271,12 @@ if(BUILD_TESTING)
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
       windows/ninja.manifest)
-  endif()
-  find_package(Threads REQUIRED)
-  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
-  if (MSVC)
+
     # Silence warnings about using unlink rather than _unlink
     target_compile_definitions(ninja_test PRIVATE _CRT_NONSTDC_NO_DEPRECATE)
   endif()
+  find_package(Threads REQUIRED)
+  target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
 
   foreach(perftest
     build_log_perftest
