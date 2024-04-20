@@ -8,3 +8,6 @@ add_executable(nj
 )
 target_link_libraries(nj PRIVATE libninja libninja-re2c Boost::headers Threads::Threads)
 target_compile_features(nj PUBLIC cxx_std_23)
+if(WIN32)
+  target_compile_definitions(nj PRIVATE _WIN32_WINNT=0x0601 BOOST_ALL_NO_LIB)
+endif()

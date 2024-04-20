@@ -8,6 +8,11 @@
 #include "../src/graph.h"
 #include "../src/metrics.h"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 extern boost::asio::io_context gContext;
 
 Status* Status::factory(const BuildConfig& config) {
