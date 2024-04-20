@@ -45,7 +45,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                       int64_t end_time_millis, bool success,
                                       const std::string& output) {
   ++finished_edges_;
-  int num_removed = running_edges_.erase(edge);
+  int num_removed [[maybe_unused]] = running_edges_.erase(edge);
   assert(num_removed == 1);
 
   if (edge->use_console()) {
