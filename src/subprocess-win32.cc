@@ -305,3 +305,7 @@ void SubprocessSet::Clear() {
     delete *i;
   running_.clear();
 }
+
+void SubprocessSet::Abort() {
+  Clear();
+}

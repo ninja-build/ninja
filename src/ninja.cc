@@ -229,6 +229,7 @@ void Usage(const BuildConfig& config) {
 "\n"
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
+"  -K       abort all jobs after first job fails; implies -k 1\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
 "  -n       dry run (don't run commands but act like they succeeded)\n"
 "\n"
@@ -1447,7 +1448,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:j:k:Kl:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1479,6 +1480,10 @@ int ReadFlags(int* argc, char*** argv,
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
         config->failures_allowed = value > 0 ? value : INT_MAX;
+        break;
+      }
+      case 'K': {
+        config->failfast_mode = true;
         break;
       }
       case 'l': {

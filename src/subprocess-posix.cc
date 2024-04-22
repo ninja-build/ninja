@@ -366,3 +366,8 @@ void SubprocessSet::Clear() {
     delete *i;
   running_.clear();
 }
+
+void SubprocessSet::Abort() {
+  SetInterruptedFlag(SIGINT);
+  Clear();
+}
