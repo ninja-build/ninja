@@ -191,6 +191,30 @@ out1
 out2
 ''')
 
+    def test_tabs_indent(self):
+        content = '''
+rule exec
+<TAB>command = $cmd
+
+var_hello = hell$
+<TAB>o
+
+build foo: exec
+<TAB>cmd = touch foo
+
+build bar: exec $
+<TAB>foo
+<TAB>cmd = touch bar
+
+build $var_hello: exec
+<TAB>cmd = touch $var_hello
+
+build baz: exec $
+<TAB>bar $var_hello
+<TAB>cmd = touch baz
+'''.replace('<TAB>', '\t')
+        run(content)
+
 
 if __name__ == '__main__':
     unittest.main()
