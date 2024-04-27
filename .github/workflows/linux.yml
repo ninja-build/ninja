@@ -7,6 +7,29 @@ on:
     types: published
 
 jobs:
+  fedora:
+    runs-on: [ubuntu-latest]
+    container:
+      image: fedora:40
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang
+    - name: Linting
+      run: misc/ci.py
+    - name: Configure with CMake
+      run: cmake -Bbuild -G"Ninja Multi-Config"
+    - name: Build debug ninja
+      run: ninja
+      working-directory: build
+    - name: Test debug ninja
+      run: build/Debug/ninja_test
+    - name: Build release ninja
+      run: ninja -f build-Release.ninja
+      working-directory: build
+    - name: Test release ninja
+      run: build/Release/ninja_test
+
   build:
     runs-on: [ubuntu-latest]
     container:
