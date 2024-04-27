@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: dnf install -y ninja-build cmake gtest-devel re2c clang
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang python3-GitPython
     - name: Linting
       run: misc/ci.py
     - name: Configure with CMake
