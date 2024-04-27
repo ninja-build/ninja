@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: dnf install -y ninja-build cmake gtest-devel re2c clang
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux
     - name: Linting
       run: misc/ci.py
     - name: Configure with CMake
@@ -23,12 +23,18 @@ jobs:
       run: ninja
       working-directory: build
     - name: Test debug ninja
-      run: build/Debug/ninja_test
+      working-directory: build/Debug
+      run: |
+        ./ninja_test
+        ../../misc/output_test.py
     - name: Build release ninja
       run: ninja -f build-Release.ninja
       working-directory: build
     - name: Test release ninja
-      run: build/Release/ninja_test
+      working-directory: build/Release
+      run: |
+        ./ninja_test
+        ../../misc/output_test.py
 
   build:
     runs-on: [ubuntu-latest]
