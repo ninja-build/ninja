@@ -928,9 +928,9 @@ string ElideMiddle(const string& str, size_t width) {
   string result = str;
   if (result.size() > width) {
     size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
-      + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+    result =
+        result.substr(0, elide_size) + "..." +
+        result.substr(result.size() - elide_size - ((width - kMargin) % 2));
   }
   return result;
 }

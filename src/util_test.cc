@@ -515,7 +515,11 @@ TEST(ElideMiddle, NothingToElide) {
 
 TEST(ElideMiddle, ElideInTheMiddle) {
   string input = "01234567890123456789";
-  string elided = ElideMiddle(input, 10);
-  EXPECT_EQ("012...789", elided);
+  EXPECT_EQ("...9", ElideMiddle(input, 4));
+  EXPECT_EQ("0...9", ElideMiddle(input, 5));
+  EXPECT_EQ("012...789", ElideMiddle(input, 9));
+  EXPECT_EQ("012...6789", ElideMiddle(input, 10));
+  EXPECT_EQ("0123...6789", ElideMiddle(input, 11));
   EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
+  EXPECT_EQ("01234567890123456789", ElideMiddle(input, 20));
 }
