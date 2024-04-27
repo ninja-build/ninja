@@ -158,7 +158,7 @@ bool DiskInterface::MakeDirs(const string& path) {
 }
 
 // RealDiskInterface -----------------------------------------------------------
-RealDiskInterface::RealDiskInterface() 
+RealDiskInterface::RealDiskInterface()
 #ifdef _WIN32
 : use_cache_(false), long_paths_enabled_(false) {
   setlocale(LC_ALL, "");
@@ -308,7 +308,7 @@ int RealDiskInterface::RemoveFile(const string& path) {
     SetFileAttributesA(path.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY);
   }
   if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
-    // remove() deletes both files and directories. On Windows we have to 
+    // remove() deletes both files and directories. On Windows we have to
     // select the correct function (DeleteFile will yield Permission Denied when
     // used on a directory)
     // This fixes the behavior of ninja -t clean in some cases

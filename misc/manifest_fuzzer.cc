@@ -27,15 +27,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	if (!fp)
 		return 0;
 	fwrite(data, size, 1, fp);
-	fclose(fp);	
-	
+	fclose(fp);
+
 	std::string err;
 	RealDiskInterface disk_interface;
 	State state;
 	ManifestParser parser(&state, &disk_interface);
-	
+
 	parser.Load("/tmp/build.ninja", &err);
-	
+
 	std::__fs::filesystem::remove_all("/tmp/build.ninja");
 	return 0;
 }
