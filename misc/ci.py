@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import git
 import os
 
 ignores = [
@@ -17,11 +16,16 @@ def error(path: str, msg: str) -> None:
 	error_count += 1
 	print('\x1b[1;31m{}\x1b[0;31m{}\x1b[0m'.format(path, msg))
 
-repo = git.Repo('.')
+try:
+	import git
+	repo = git.Repo('.')
+except:
+	repo = None
+
 for root, directory, filenames in os.walk('.'):
 	for filename in filenames:
 		path = os.path.join(root, filename)[2:]
-		if any([path.startswith(x) for x in ignores]) or repo.ignored(path):
+		if any([path.startswith(x) for x in ignores]) or (repo is not None and repo.ignored(path)):
 			continue
 		with open(path, 'rb') as file:
 			line_nr = 1
