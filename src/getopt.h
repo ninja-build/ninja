@@ -17,12 +17,12 @@ typedef struct GETOPT_LONG_OPTION_T
   int has_arg;                  /* one of the above macros */
   int *flag;                    /* determines if getopt_long() returns a
                                  * value for a long option; if it is
-                                 * non-NULL, 0 is returned as a function
+                                 * non-nullptr, 0 is returned as a function
                                  * value and the value of val is stored in
                                  * the area pointed to by flag.  Otherwise,
                                  * val is returned. */
   int val;                      /* determines the value to return if flag is
-                                 * NULL. */
+                                 * nullptr. */
 } GETOPT_LONG_OPTION_T;
 
 typedef GETOPT_LONG_OPTION_T option;

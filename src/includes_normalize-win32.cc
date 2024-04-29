@@ -31,7 +31,7 @@ namespace {
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
                              size_t buffer_length, string *err) {
   DWORD result_size = GetFullPathNameA(file_name.AsString().c_str(),
-                                       buffer_length, buffer, NULL);
+                                       buffer_length, buffer, nullptr);
   if (result_size == 0) {
     *err = "GetFullPathNameA(" + file_name.AsString() + "): " +
         GetLastErrorString();
@@ -86,8 +86,8 @@ bool SameDrive(StringPiece a, StringPiece b, string* err)  {
   }
   char a_drive[_MAX_DIR];
   char b_drive[_MAX_DIR];
-  _splitpath(a_absolute, a_drive, NULL, NULL, NULL);
-  _splitpath(b_absolute, b_drive, NULL, NULL, NULL);
+  _splitpath(a_absolute, a_drive, nullptr, nullptr, nullptr);
+  _splitpath(b_absolute, b_drive, nullptr, nullptr, nullptr);
   return _stricmp(a_drive, b_drive) == 0;
 }
 
