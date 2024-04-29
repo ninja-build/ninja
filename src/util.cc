@@ -939,7 +939,7 @@ string ElideMiddle(const string& str, size_t width) {
   std::sregex_iterator it(str.begin(), str.end(), ansi_escape);
   std::sregex_iterator end;
   while (it != end) {
-    escapes.push_back(std::make_pair(it->position() - added_len, it->str()));
+    escapes.emplace_back(it->position() - added_len, it->str());
     added_len += it->str().size();
     ++it;
   }
