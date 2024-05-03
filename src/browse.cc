@@ -59,7 +59,7 @@ void RunBrowsePython(State* state, const char* ninja_command,
           command.push_back(argv[i]);
       }
       command.push_back(NULL);
-      execvp(command[0], (char**)&command[0]);
+      execvp(command[0], const_cast<char**>(&command[0]));
       if (errno == ENOENT) {
         printf("ninja: %s is required for the browse tool\n", NINJA_PYTHON);
       } else {

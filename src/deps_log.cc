@@ -60,7 +60,7 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
   return RecordDeps(node, mtime, nodes.size(),
-                    nodes.empty() ? NULL : (Node**)&nodes.front());
+                    nodes.empty() ? NULL : const_cast<Node**>(&nodes.front()));
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,

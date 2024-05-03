@@ -68,7 +68,7 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
   const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
   const int r = 47;
   uint64_t h = seed ^ (len * m);
-  const unsigned char* data = (const unsigned char*)key;
+  const unsigned char* data = static_cast<const unsigned char*>(key);
   while (len >= 8) {
     uint64_t k;
     memcpy(&k, data, sizeof k);
@@ -230,7 +230,7 @@ struct LineReader {
       line_start_ = line_end_ + 1;
     }
 
-    line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+    line_end_ = static_cast<char*>(memchr(line_start_, '\n', buf_end_ - line_start_));
     if (!line_end_) {
       // No newline. Move rest of data to start of buffer, fill rest.
       size_t already_consumed = line_start_ - buf_;
@@ -240,7 +240,7 @@ struct LineReader {
       size_t read = fread(buf_ + size_rest, 1, sizeof(buf_) - size_rest, file_);
       buf_end_ = buf_ + size_rest + read;
       line_start_ = buf_;
-      line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+      line_end_ = static_cast<char*>(memchr(line_start_, '\n', buf_end_ - line_start_));
     }
 
     *line_start = line_start_;
@@ -304,7 +304,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     const char kFieldSeparator = '\t';
 
     char* start = line_start;
-    char* end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    char* end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
@@ -315,21 +315,21 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
     mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     string output = string(start, end - start);
