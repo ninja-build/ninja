@@ -36,7 +36,7 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ninja-binary-archives
         path: artifact
