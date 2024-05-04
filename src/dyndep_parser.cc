@@ -88,7 +88,6 @@ bool DyndepParser::ParseDyndepVersion(string* err) {
   if (major != 1 || minor != 0) {
     return lexer_.Error(
       string("unsupported 'ninja_dyndep_version = ") + version + "'", err);
-    return false;
   }
   return true;
 }
