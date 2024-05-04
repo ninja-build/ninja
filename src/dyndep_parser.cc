@@ -95,11 +95,7 @@ bool DyndepParser::ParseDyndepVersion(string* err) {
 bool DyndepParser::ParseLet(string* key, EvalString* value, string* err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
-  if (!ExpectToken(Lexer::EQUALS, err))
-    return false;
-  if (!lexer_.ReadVarValue(value, err))
-    return false;
-  return true;
+  return (ExpectToken(Lexer::EQUALS, err) && lexer_.ReadVarValue(value, err));
 }
 
 bool DyndepParser::ParseEdge(string* err) {
