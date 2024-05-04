@@ -214,7 +214,6 @@ bool DyndepParser::ParseEdge(string* err) {
     string path = i->Evaluate(&env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);
