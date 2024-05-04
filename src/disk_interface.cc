@@ -161,8 +161,6 @@ bool DiskInterface::MakeDirs(const string& path) {
 RealDiskInterface::RealDiskInterface() 
 #ifdef _WIN32
 : use_cache_(false), long_paths_enabled_(false) {
-  setlocale(LC_ALL, "");
-
   // Probe ntdll.dll for RtlAreLongPathsEnabled, and call it if it exists.
   HINSTANCE ntdll_lib = ::GetModuleHandleW(L"ntdll");
   if (ntdll_lib) {
