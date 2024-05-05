@@ -519,16 +519,14 @@ void Plan::ScheduleInitialEdges() {
            end = want_.end(); it != end; ++it) {
     Edge* edge = it->first;
     Plan::Want want = it->second;
-    if (!(want == kWantToStart && edge->AllInputsReady())) {
-      continue;
-    }
-
-    Pool* pool = edge->pool();
-    if (pool->ShouldDelayEdge()) {
-      pool->DelayEdge(edge);
-      pools.insert(pool);
-    } else {
-      ScheduleWork(it);
+    if (want == kWantToStart && edge->AllInputsReady()) {
+      Pool* pool = edge->pool();
+      if (pool->ShouldDelayEdge()) {
+        pool->DelayEdge(edge);
+        pools.insert(pool);
+      } else {
+        ScheduleWork(it);
+      }
     }
   }
 
