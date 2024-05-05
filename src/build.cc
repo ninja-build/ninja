@@ -848,7 +848,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   status_->BuildEdgeStarted(edge, start_time_millis);
 
-  TimeStamp build_start = -1;
+  TimeStamp build_start = config_.dry_run ? 0 : -1;
 
   // Create directories necessary for outputs and remember the current
   // filesystem mtime to record later
