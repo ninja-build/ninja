@@ -223,7 +223,10 @@ parser.add_option('--debug', action='store_true',
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
-parser.add_option('--with-gtest', metavar='PATH', help='ignored')
+parser.add_option('--gtest-source-dir', metavar='PATH',
+                  help='Path to GoogleTest source directory. If not provided ' +
+                       'GTEST_SOURCE_DIR will be probed in the environment. ' +
+                       'Tests will not be built without a value.')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -435,6 +438,7 @@ n.variable('cflags', ' '.join(shell_escape(flag) for flag in cflags))
 if 'LDFLAGS' in configure_env:
     ldflags.append(configure_env['LDFLAGS'])
 n.variable('ldflags', ' '.join(shell_escape(flag) for flag in ldflags))
+
 n.newline()
 
 if platform.is_msvc():
@@ -591,6 +595,83 @@ if options.bootstrap:
     # through the bootstrap executor, but continue writing the
     # build.ninja file.
     n = ninja_writer
+
+# Build the ninja_test executable only if the GTest source directory
+# is provided explicitly. Either from the environment with GTEST_SOURCE_DIR
+# or with the --gtest-source-dir command-line option.
+#
+# Do not try to look for an installed binary version, and link against it
+# because doing so properly is platform-specific (use the CMake build for
+# this).
+if options.gtest_source_dir:
+    gtest_src_dir = options.gtest_source_dir
+else:
+    gtest_src_dir = os.environ.get('GTEST_SOURCE_DIR')
+
+if gtest_src_dir:
+    # Verify GoogleTest source directory, and add its include directory
+    # to the global include search path (even for non-test sources) to
+    # keep the build plan generation simple.
+    gtest_all_cc = os.path.join(gtest_src_dir, 'googletest', 'src', 'gtest-all.cc')
+    if not os.path.exists(gtest_all_cc):
+        print('ERROR: Missing GoogleTest source file: %s' % gtest_all_cc)
+        sys.exit(1)
+
+    n.comment('Tests all build into ninja_test executable.')
+
+    # Test-specific version of cflags, must include the GoogleTest
+    # include directory. Also GoogleTest can only build with a C++14 compiler.
+    test_cflags = [f.replace('std=c++11', 'std=c++14') for f in cflags]
+    test_cflags.append('-I' + os.path.join(gtest_src_dir, 'googletest', 'include'))
+
+    test_variables = [('cflags', test_cflags)]
+    if platform.is_msvc():
+        test_variables += [('pdb', 'ninja_test.pdb')]
+
+    test_names = [
+        'build_log_test',
+        'build_test',
+        'clean_test',
+        'clparser_test',
+        'depfile_parser_test',
+        'deps_log_test',
+        'disk_interface_test',
+        'dyndep_parser_test',
+        'edit_distance_test',
+        'graph_test',
+        'json_test',
+        'lexer_test',
+        'manifest_parser_test',
+        'ninja_test',
+        'state_test',
+        'string_piece_util_test',
+        'subprocess_test',
+        'test',
+        'util_test',
+    ]
+    if platform.is_windows():
+        test_names += [
+            'includes_normalize_test',
+            'msvc_helper_test',
+        ]
+
+    objs = []
+    for name in test_names:
+        objs += cxx(name, variables=test_variables)
+
+    # Build GTest as a monolithic source file.
+    # This requires one extra include search path, so replace the
+    # value of 'cflags' in our list.
+    gtest_all_variables = test_variables[1:] + [
+      ('cflags', test_cflags + ['-I' + os.path.join(gtest_src_dir, 'googletest') ]),
+    ]
+    # Do not use cxx() directly to ensure the object file is under $builddir.
+    objs += n.build(built('gtest_all' + objext), 'cxx', gtest_all_cc, variables=gtest_all_variables)
+
+    ninja_test = n.build(binary('ninja_test'), 'link', objs, implicit=ninja_lib,
+                         variables=[('libs', libs)])
+    n.newline()
+    all_targets += ninja_test
 
 n.comment('Ancillary executables.')
 

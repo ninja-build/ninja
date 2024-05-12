@@ -34,6 +34,19 @@ via CMake. For more details see
 This will generate the `ninja` binary and a `build.ninja` file you can now use
 to build Ninja with itself.
 
+If you have a GoogleTest source directory, you can build the tests
+by passing its path with `--gtest-source-dir=PATH` option, or the
+`GTEST_SOURCE_DIR` environment variable, e.g.:
+
+```
+./configure.py --bootstrap --gtest-source-dir=/path/to/googletest
+./ninja all     # build ninja_test and other auxiliary binaries
+./ninja_test`   # run the unit-test suite.
+```
+
+Use the CMake build below if you want to use a preinstalled binary
+version of the library.
+
 ### CMake
 
 ```
