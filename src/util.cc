@@ -927,10 +927,15 @@ string ElideMiddle(const string& str, size_t width) {
   const int kMargin = 3;  // Space for "...".
   string result = str;
   if (result.size() > width) {
-    size_t elide_size = (width - kMargin) / 2;
-    result =
-        result.substr(0, elide_size) + "..." +
-        result.substr(result.size() - elide_size - ((width - kMargin) % 2));
+    // Keep |width- kMargin| visible characters from the input, divided into two spans, separated by "...".
+    size_t visible_size = width - kMargin;
+    size_t left_span_size = visible_size / 2;
+    size_t right_span_size = visible_size - left_span_size;
+
+    // Replace the middle gap in the input string with "..."
+    size_t gap_start = left_span_size;
+    size_t gap_end = result.size() - right_span_size;
+    result.replace(gap_start, gap_end - gap_start, "...");
   }
   return result;
 }
