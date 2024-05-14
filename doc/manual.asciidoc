@@ -861,7 +861,13 @@ one_word_with_no_space = foo$
 Other whitespace is only significant if it's at the beginning of a
 line.  If a line is indented more than the previous one, it's
 considered part of its parent's scope; if it is indented less than the
-previous one, it closes the previous scope.
+previous one, it closes the previous scope. Note that the physical line that is
+a line continuation is not considered as a separate line for the scope
+determination purposes.
+
+_Available since Ninja 1.13._
+Tab character can be used for indentation. Earlier Ninja versions allow only
+space character to be used for such purpose.
 
 [[ref_toplevel]]
 Top-level variables

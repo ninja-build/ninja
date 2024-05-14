@@ -105,12 +105,9 @@ const char* Lexer::TokenErrorHint(Token expected) {
 
 string Lexer::DescribeLastError() {
   if (last_token_) {
-    switch (last_token_[0]) {
-    case '\t':
-      return "tabs are not allowed, use spaces";
-    }
+	return "lexing error <last token:"+string(last_token_)+">";
   }
-  return "lexing error";
+  return "lexing error (EOF?)";
 }
 
 void Lexer::UnreadToken() {
@@ -130,7 +127,7 @@ Lexer::Token Lexer::ReadToken() {
 	unsigned int yyaccept = 0;
 	static const unsigned char yybm[] = {
 		  0, 128, 128, 128, 128, 128, 128, 128, 
-		128, 128,   0, 128, 128, 128, 128, 128, 
+		128, 160,   0, 128, 128, 128, 128, 128, 
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		128, 128, 128, 128, 128, 128, 128, 128, 
 		160, 128, 128, 128, 128, 128, 128, 128, 
@@ -164,16 +161,17 @@ Lexer::Token Lexer::ReadToken() {
 	};
 	yych = *p;
 	if (yybm[0+yych] & 32) {
-		goto yy9;
+		goto yy6;
 	}
 	if (yych <= '^') {
 		if (yych <= ',') {
 			if (yych <= '\f') {
 				if (yych <= 0x00) goto yy2;
-				if (yych == '\n') goto yy6;
+				if (yych <= 0x08) goto yy4;
+				if (yych <= '\n') goto yy9;
 				goto yy4;
 			} else {
-				if (yych <= '\r') goto yy8;
+				if (yych <= '\r') goto yy11;
 				if (yych == '#') goto yy12;
 				goto yy4;
 			}
@@ -228,31 +226,32 @@ yy4:
 yy5:
 	{ token = ERROR;    break; }
 yy6:
-	++p;
-	{ token = NEWLINE;  break; }
-yy8:
-	yych = *++p;
-	if (yych == '\n') goto yy28;
-	goto yy5;
-yy9:
 	yyaccept = 0;
 	yych = *(q = ++p);
 	if (yybm[0+yych] & 32) {
-		goto yy9;
+		goto yy6;
 	}
 	if (yych <= '\f') {
-		if (yych == '\n') goto yy6;
+		if (yych <= 0x08) goto yy8;
+		if (yych <= '\n') goto yy9;
 	} else {
-		if (yych <= '\r') goto yy30;
-		if (yych == '#') goto yy32;
+		if (yych <= '\r') goto yy28;
+		if (yych == '#') goto yy30;
 	}
-yy11:
+yy8:
 	{ token = INDENT;   break; }
+yy9:
+	++p;
+	{ token = NEWLINE;  break; }
+yy11:
+	yych = *++p;
+	if (yych == '\n') goto yy32;
+	goto yy5;
 yy12:
 	yyaccept = 1;
 	yych = *(q = ++p);
 	if (yych <= 0x00) goto yy5;
-	goto yy33;
+	goto yy31;
 yy13:
 	yych = *++p;
 yy14:
@@ -296,25 +295,27 @@ yy26:
 	if (yych == '|') goto yy44;
 	{ token = PIPE;     break; }
 yy28:
-	++p;
-	{ token = NEWLINE;  break; }
-yy30:
 	yych = *++p;
-	if (yych == '\n') goto yy28;
-yy31:
+	if (yych == '\n') goto yy32;
+yy29:
 	p = q;
 	if (yyaccept == 0) {
-		goto yy11;
+		goto yy8;
 	} else {
 		goto yy5;
 	}
-yy32:
+yy30:
 	yych = *++p;
-yy33:
+yy31:
 	if (yybm[0+yych] & 128) {
-		goto yy32;
+		goto yy30;
 	}
-	if (yych <= 0x00) goto yy31;
+	if (yych <= 0x00) goto yy29;
+	goto yy34;
+yy32:
+	++p;
+	{ token = NEWLINE;  break; }
+yy34:
 	++p;
 	{ continue; }
 yy36:
@@ -478,7 +479,7 @@ void Lexer::EatWhitespace() {
 	unsigned char yych;
 	static const unsigned char yybm[] = {
 		  0,   0,   0,   0,   0,   0,   0,   0, 
-		  0,   0,   0,   0,   0,   0,   0,   0, 
+		  0, 128,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0, 
 		128,   0,   0,   0,   0,   0,   0,   0, 
@@ -631,7 +632,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
 	unsigned char yych;
 	static const unsigned char yybm[] = {
 		  0,  16,  16,  16,  16,  16,  16,  16, 
-		 16,  16,   0,  16,  16,   0,  16,  16, 
+		 16,  48,   0,  16,  16,   0,  16,  16, 
 		 16,  16,  16,  16,  16,  16,  16,  16, 
 		 16,  16,  16,  16,  16,  16,  16,  16, 
 		 32,  16,  16,  16,   0,  16,  16,  16, 
@@ -797,6 +798,7 @@ yy127:
 	goto yy113;
 yy128:
 	yych = *++p;
+	if (yych == '\t') goto yy128;
 	if (yych == ' ') goto yy128;
 	{
       continue;
