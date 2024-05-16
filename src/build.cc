@@ -1022,7 +1022,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
       TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
       if (deps_mtime == -1)
         return false;
-      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
+      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes, 0)) {
         *err = std::string("Error writing to deps log: ") + strerror(errno);
         return false;
       }

@@ -763,8 +763,8 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   }
 
   vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, deps->node_count);
-  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
+      PreallocateSpace(edge, deps->node_count - deps->outputs_count);
+  for (int i = 0; i < (deps->node_count - deps->outputs_count); ++i, ++implicit_dep) {
     Node* node = deps->nodes[i];
     *implicit_dep = node;
     node->AddOutEdge(edge);
