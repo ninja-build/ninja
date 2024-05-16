@@ -17,7 +17,170 @@
 #include <assert.h>
 #include <string.h>
 
-#include <regex>
+// Convenience class used to iterate over the ANSI color sequences
+// of an input string. Note that this ignores non-color related
+// ANSI sequences. Usage is:
+//
+//  - Create instance, passing the input string to the constructor.
+//  - Loop over each sequence with:
+//
+//        AnsiColorSequenceIterator iter;
+//        while (iter.HasSequence()) {
+//          .. use iter.SequenceStart() and iter.SequenceEnd()
+//          iter.NextSequence();
+//        }
+//
+struct AnsiColorSequenceIterator {
+  // Constructor takes input string .
+  AnsiColorSequenceIterator(const std::string& input)
+      : input_(input.data()), input_end_(input_ + input.size()) {
+    FindNextSequenceFrom(input_);
+  }
+
+  // Return true if an ANSI sequence was found.
+  bool HasSequence() const { return cur_end_ != 0; }
+
+  // Start of the current sequence.
+  size_t SequenceStart() const { return cur_start_; }
+
+  // End of the current sequence (index of the first character
+  // following the sequence).
+  size_t SequenceEnd() const { return cur_end_; }
+
+  // Size of the current sequence in characters.
+  size_t SequenceSize() const { return cur_end_ - cur_start_; }
+
+  // Returns true if |input_index| belongs to the current sequence.
+  bool SequenceContains(size_t input_index) const {
+    return (input_index >= cur_start_ && input_index < cur_end_);
+  }
+
+  // Find the next sequence, if any, from the input.
+  // Returns false is there is no more sequence.
+  bool NextSequence() {
+    if (FindNextSequenceFrom(input_ + cur_end_))
+      return true;
+
+    cur_start_ = 0;
+    cur_end_ = 0;
+    return false;
+  }
+
+  // Reset iterator to start of input.
+  void Reset() {
+    cur_start_ = cur_end_ = 0;
+    FindNextSequenceFrom(input_);
+  }
+
+ private:
+  // Find the next sequence from the input, |from| being the starting position
+  // for the search, and must be in the [input_, input_end_] interval. On
+  // success, returns true after setting cur_start_ and cur_end_, on failure,
+  // return false.
+  bool FindNextSequenceFrom(const char* from) {
+    assert(from >= input_ && from <= input_end_);
+    auto* seq =
+        static_cast<const char*>(::memchr(from, '\x1b', input_end_ - from));
+    if (!seq)
+      return false;
+
+    // The smallest possible color sequence if '\x1c[0m` and has four
+    // characters.
+    if (seq + 4 > input_end_)
+      return false;
+
+    if (seq[1] != '[')
+      return FindNextSequenceFrom(seq + 1);
+
+    // Skip parameters (digits + ; separator)
+    auto is_parameter_char = [](char ch) -> bool {
+      return (ch >= '0' && ch <= '9') || ch == ';';
+    };
+
+    const char* end = seq + 2;
+    while (is_parameter_char(end[0])) {
+      if (++end == input_end_)
+        return false;  // Incomplete sequence (no command).
+    }
+
+    if (*end++ != 'm') {
+      // Not a color sequence. Restart the search after the first
+      // character following the [, in case this was a 3-char ANSI
+      // sequence (which is ignored here).
+      return FindNextSequenceFrom(seq + 3);
+    }
+
+    // Found it!
+    cur_start_ = seq - input_;
+    cur_end_ = end - input_;
+    return true;
+  }
+
+  size_t cur_start_ = 0;
+  size_t cur_end_ = 0;
+  const char* input_;
+  const char* input_end_;
+};
+
+// A class used to iterate over all characters of an input string,
+// and return its visible position in the terminal, and whether that
+// specific character is visible (or otherwise part of an ANSI color sequence).
+//
+// Example sequence and iterations, where 'ANSI' represents an ANSI Color
+// sequence, and | is used to express concatenation
+//
+//   |abcd|ANSI|efgh|ANSI|ijk|      input string
+//
+//                11 1111 111
+//    0123 4567 8901 2345 678       input indices
+//
+//                          1
+//    0123 4444 4567 8888 890       visible positions
+//
+//    TTTT FFFF TTTT FFFF TTT       is_visible
+//
+// Usage is:
+//
+//     VisibleInputCharsIterator iter(input);
+//     while (iter.HasChar()) {
+//       ... use iter.InputIndex() to get input index of current char.
+//       ... use iter.VisiblePosition() to get its visible position.
+//       ... use iter.IsVisible() to check whether the current char is visible.
+//
+//       NextChar();
+//     }
+//
+struct VisibleInputCharsIterator {
+  VisibleInputCharsIterator(const std::string& input)
+      : input_size_(input.size()), ansi_iter_(input) {}
+
+  // Return true if there is a character in the sequence.
+  bool HasChar() const { return input_index_ < input_size_; }
+
+  // Return current input index.
+  size_t InputIndex() const { return input_index_; }
+
+  // Return current visible position.
+  size_t VisiblePosition() const { return visible_pos_; }
+
+  // Return true if the current input character is visible
+  // (i.e. not part of an ANSI color sequence).
+  bool IsVisible() const { return !ansi_iter_.SequenceContains(input_index_); }
+
+  // Find next character from the input.
+  void NextChar() {
+    visible_pos_ += IsVisible();
+    if (++input_index_ == ansi_iter_.SequenceEnd()) {
+      ansi_iter_.NextSequence();
+    }
+  }
+
+ private:
+  size_t input_size_;
+  size_t input_index_ = 0;
+  size_t visible_pos_ = 0;
+  AnsiColorSequenceIterator ansi_iter_;
+};
 
 void ElideMiddleInPlace(std::string& str, size_t max_width) {
   if (str.size() <= max_width) {
@@ -47,51 +210,12 @@ void ElideMiddleInPlace(std::string& str, size_t max_width) {
     return;
   }
 
-  // An std::regex object to find ANSI color sequences from the input.
-  const static std::regex ansi_escape("\\x1b[^m]*m");
-
-  // Use a vector to map input string indices to a visible position
-  // on the terminal line. For example:
-  //
-  //   |abcd|ANSI|efgh|ANSI|ijk|      input string
-  //
-  //                11 1111 111
-  //    0123 4567 8901 2345 678       input indices
-  //
-  //                          1
-  //    0123 4444 4567 8888 890       visible positions
-  //
-  //    TTTT FFFF TTTT FFFF TTT       is_visible
-  struct CharInfo {
-    CharInfo(size_t pos, bool visible)
-        : visible_pos(pos), is_visible(visible) {}
-    size_t visible_pos : 31;
-    bool is_visible : 1;
-  };
-  std::vector<CharInfo> char_infos;
-  char_infos.reserve(str.size());
-
-  size_t visible_width = 0;
-  {
-    std::sregex_iterator it(str.begin(), str.end(), ansi_escape);
-    std::sregex_iterator it_end;
-    size_t input_index = 0;
-    for (; it != it_end; ++it) {
-      size_t span_start = it->position();
-      size_t span_end = span_start + it->length();
-      for (; input_index < span_start; ++input_index) {
-        char_infos.emplace_back(visible_width++, true);
-      }
-      for (; input_index < span_end; ++input_index) {
-        char_infos.emplace_back(visible_width, false);
-      }
-    }
-    for (; input_index < str.size(); ++input_index)
-      char_infos.emplace_back(visible_width++, true);
+  // Compute visible width.
+  size_t visible_width = str.size();
+  for (AnsiColorSequenceIterator ansi(str); ansi.HasSequence();
+       ansi.NextSequence()) {
+    visible_width -= ansi.SequenceSize();
   }
-
-  assert(char_infos.size() == str.size());
-  assert(visible_width < str.size());
 
   if (visible_width <= max_width)
     return;
@@ -112,41 +236,41 @@ void ElideMiddleInPlace(std::string& str, size_t max_width) {
   result.reserve(str.size());
 
   // Parse the input chars info to:
+  //
   // 1) Append any characters belonging to the left span (visible or not).
   //
-  // 2) Add the ellipsis ("..." truncrated to ellipsis_width).
+  // 2) Add the ellipsis ("..." truncated to ellipsis_width).
   //    Note that its color is inherited from the left span chars
   //    which will never end with an ANSI sequence.
   //
-  // 3) Append any ANSI sequence that appers inside the gap. This
-  //    ensures the characters aafter the intermediate appear with
+  // 3) Append any ANSI sequence that appears inside the gap. This
+  //    ensures the characters after the ellipsis appear with
   //    the right color,
   //
   // 4) Append any remaining characters (visible or not) to the result.
-  size_t input_index = 0;
-  auto char_it = char_infos.begin();
-  auto char_end = char_infos.end();
+  //
+  VisibleInputCharsIterator iter(str);
 
   // Step 1 - determine left span length in input chars.
-  for (; char_it != char_end; ++char_it, input_index++) {
-    if (char_it->visible_pos == visible_gap_start)
+  for (; iter.HasChar(); iter.NextChar()) {
+    if (iter.VisiblePosition() == visible_gap_start)
       break;
   }
-  result = str.substr(0, input_index);
+  result.append(str.begin(), str.begin() + iter.InputIndex());
 
   // Step 2 - Append the possibly-truncated ellipsis.
   result.append("...", ellipsis_width);
 
   // Step 3 - Append elided ANSI sequences to the result.
-  for (; char_it != char_end; ++char_it, input_index++) {
-    if (char_it->visible_pos == visible_gap_end)
+  for (; iter.HasChar(); iter.NextChar()) {
+    if (iter.VisiblePosition() == visible_gap_end)
       break;
-    if (!char_it->is_visible)
-      result.push_back(str[input_index]);
+    if (!iter.IsVisible())
+      result.push_back(str[iter.InputIndex()]);
   }
 
   // Step 4 - Append anything else.
-  result.append(str.begin() + input_index, str.end());
+  result.append(str.begin() + iter.InputIndex(), str.end());
 
   str = std::move(result);
 }
