@@ -131,6 +131,7 @@ add_library(libninja OBJECT
 	src/clparser.cc
 	src/dyndep.cc
 	src/dyndep_parser.cc
+	src/dynout_parser.cc
 	src/debug_flags.cc
 	src/deps_log.cc
 	src/disk_interface.cc
@@ -264,6 +265,7 @@ if(BUILD_TESTING)
     src/deps_log_test.cc
     src/disk_interface_test.cc
     src/dyndep_parser_test.cc
+    src/dynout_parser_test.cc
     src/edit_distance_test.cc
     src/explanations_test.cc
     src/graph_test.cc
