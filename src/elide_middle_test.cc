@@ -66,10 +66,10 @@ TEST(ElideMiddle, ElideAnsiEscapeCodes) {
             ElideMiddle("0" NOTHING "1234567890123456789", 10));
 
   input = "abcd" RED "efg" RESET "hlkmnopqrstuvwxyz";
-  EXPECT_EQ("", ElideMiddle(input, 0));
-  EXPECT_EQ(".", ElideMiddle(input, 1));
-  EXPECT_EQ("..", ElideMiddle(input, 2));
-  EXPECT_EQ("...", ElideMiddle(input, 3));
+  EXPECT_EQ("" RED RESET, ElideMiddle(input, 0));
+  EXPECT_EQ("." RED RESET, ElideMiddle(input, 1));
+  EXPECT_EQ(".." RED RESET, ElideMiddle(input, 2));
+  EXPECT_EQ("..." RED RESET, ElideMiddle(input, 3));
   EXPECT_EQ("..." RED RESET "z", ElideMiddle(input, 4));
   EXPECT_EQ("a..." RED RESET "z", ElideMiddle(input, 5));
   EXPECT_EQ("a..." RED RESET "yz", ElideMiddle(input, 6));
@@ -77,13 +77,13 @@ TEST(ElideMiddle, ElideAnsiEscapeCodes) {
   EXPECT_EQ("ab..." RED RESET "xyz", ElideMiddle(input, 8));
   EXPECT_EQ("abc..." RED RESET "xyz", ElideMiddle(input, 9));
   EXPECT_EQ("abc..." RED RESET "wxyz", ElideMiddle(input, 10));
-  EXPECT_EQ("abcd" RED "..." RESET "wxyz", ElideMiddle(input, 11));
-  EXPECT_EQ("abcd" RED "..." RESET "vwxyz", ElideMiddle(input, 12));
+  EXPECT_EQ("abcd..." RED RESET "wxyz", ElideMiddle(input, 11));
+  EXPECT_EQ("abcd..." RED RESET "vwxyz", ElideMiddle(input, 12));
 
   EXPECT_EQ("abcd" RED "ef..." RESET "uvwxyz", ElideMiddle(input, 15));
   EXPECT_EQ("abcd" RED "ef..." RESET "tuvwxyz", ElideMiddle(input, 16));
-  EXPECT_EQ("abcd" RED "efg" RESET "...tuvwxyz", ElideMiddle(input, 17));
-  EXPECT_EQ("abcd" RED "efg" RESET "...stuvwxyz", ElideMiddle(input, 18));
+  EXPECT_EQ("abcd" RED "efg..." RESET "tuvwxyz", ElideMiddle(input, 17));
+  EXPECT_EQ("abcd" RED "efg..." RESET "stuvwxyz", ElideMiddle(input, 18));
   EXPECT_EQ("abcd" RED "efg" RESET "h...stuvwxyz", ElideMiddle(input, 19));
 
   input = "abcdef" RED "A" RESET "BC";
