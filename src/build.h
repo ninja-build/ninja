@@ -233,6 +233,10 @@ struct Builder {
                    const std::string& deps_prefix,
                    std::vector<Node*>* deps_nodes, std::string* err);
 
+  bool ExtractDynouts(Edge* edge, const std::string& dynout_file,
+                      std::vector<Node*>* nodes, int* outputs_count,
+                      std::string* err);
+
   /// Map of running edge to time the edge started running.
   typedef std::map<const Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;

@@ -373,13 +373,14 @@ bool DepsLog::Recompact(const string& path, string* err) {
 }
 
 bool DepsLog::IsDepsEntryLiveFor(const Node* node) {
-  // Skip entries that don't have in-edges or whose edges don't have a
-  // "deps" attribute. They were in the deps log from previous builds, but
-  // the the files they were for were removed from the build and their deps
-  // entries are no longer needed.
+  // Skip entries that don't have in-edges or whose edges don't have a "deps" or
+  // "dynout" attribute. They were in the deps log from previous builds, but the
+  // the files they were for were removed from the build and their deps entries
+  // are no longer needed.
   // (Without the check for "deps", a chain of two or more nodes that each
   // had deps wouldn't be collected in a single recompaction.)
-  return node->in_edge() && !node->in_edge()->GetBinding("deps").empty();
+  return node->in_edge() && (!node->in_edge()->GetBinding("deps").empty() ||
+                             !node->in_edge()->GetBinding("dynout").empty());
 }
 
 bool DepsLog::UpdateDeps(int out_id, Deps* deps) {

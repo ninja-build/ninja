@@ -25,6 +25,7 @@
 
 struct DiskInterface;
 struct Edge;
+struct Node;
 
 /// Can answer questions about the manifest for the BuildLog.
 struct BuildLogUser {
@@ -49,7 +50,8 @@ struct BuildLog {
   bool OpenForWrite(const std::string& path, const BuildLogUser& user,
                     std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp mtime = 0);
+                     TimeStamp mtime = 0,
+                     const std::vector<Node*>& extra_outputs = {});
   void Close();
 
   /// Load the on-disk log.

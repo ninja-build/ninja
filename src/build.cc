@@ -34,6 +34,7 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "dynout_parser.h"
 #include "explanations.h"
 #include "graph.h"
 #include "metrics.h"
@@ -698,6 +699,7 @@ void Builder::Cleanup() {
     for (vector<Edge*>::iterator e = active_edges.begin();
          e != active_edges.end(); ++e) {
       string depfile = (*e)->GetUnescapedDepfile();
+      string dynout = (*e)->GetUnescapedDynout();
       for (vector<Node*>::iterator o = (*e)->outputs_.begin();
            o != (*e)->outputs_.end(); ++o) {
         // Only delete this output if it was actually modified.  This is
@@ -716,6 +718,8 @@ void Builder::Cleanup() {
       }
       if (!depfile.empty())
         disk_interface_->RemoveFile(depfile);
+      if (!dynout.empty())
+        disk_interface_->RemoveFile(dynout);
     }
   }
 
@@ -949,6 +953,18 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
+  int outputs_count = 0;
+  string extract_err;
+  std::string dynout_file = edge->GetUnescapedDynout();
+  if (!ExtractDynouts(edge, dynout_file, &deps_nodes, &outputs_count,
+                      &extract_err) &&
+      result->success()) {
+    if (!result->output.empty())
+      result->output.append("\n");
+    result->output.append(extract_err);
+    result->status = ExitFailure;
+  }
+
   int64_t start_time_millis, end_time_millis;
   RunningEdgeMap::iterator it = running_edges_.find(edge);
   start_time_millis = it->second;
@@ -1008,21 +1024,23 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, record_mtime)) {
+    std::vector<Node*> dynouts(deps_nodes.end() - outputs_count,
+                               deps_nodes.end());
+    if (!scan_.build_log()->RecordCommand(
+            edge, start_time_millis, end_time_millis, record_mtime, dynouts)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
   }
 
-  if (!deps_type.empty() && !config_.dry_run) {
+  if ((!deps_type.empty() || !dynout_file.empty()) && !config_.dry_run) {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
       TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
       if (deps_mtime == -1)
         return false;
-      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes, 0)) {
+      if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes, outputs_count)) {
         *err = std::string("Error writing to deps log: ") + strerror(errno);
         return false;
       }
@@ -1107,5 +1125,60 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
   if (!plan_.DyndepsLoaded(&scan_, node, ddf, err))
     return false;
 
+  return true;
+}
+
+bool Builder::ExtractDynouts(Edge* edge, const std::string& dynout_file,
+                             std::vector<Node*>* nodes, int* outputs_count,
+                             std::string* err) {
+  if (dynout_file.empty()) {
+    return true;
+  }
+
+  // Read depfile content.  Treat a missing depfile as empty.
+  std::string content;
+  switch (disk_interface_->ReadFile(dynout_file, &content, err)) {
+  case DiskInterface::Okay:
+    break;
+  case DiskInterface::NotFound:
+    if (err != NULL) {
+      err->clear();
+    }
+    break;
+  case DiskInterface::OtherError:
+    if (err != NULL) {
+      *err = "loading '" + dynout_file + "': " + *err;
+    }
+    return false;
+  }
+
+  std::vector<StringPiece> output_paths;
+  std::string parse_err;
+  if (!DynoutParser::Parse(content, output_paths, &parse_err)) {
+    if (err != NULL) {
+      *err = parse_err;
+    }
+    return false;
+  }
+
+  int start_size = nodes->size();
+
+  for (const StringPiece &p : output_paths) {
+    uint64_t slash_bits;
+    std::string canonical = p.AsString();
+    CanonicalizePath(&canonical, &slash_bits);
+    Node* new_node = state_->GetNode(canonical, slash_bits);
+    nodes->push_back(new_node);
+  }
+  *outputs_count = (int) nodes->size() - start_size;
+
+  if (!g_keep_dynout) {
+    if (disk_interface_->RemoveFile(dynout_file) < 0) {
+      if (err != NULL) {
+        *err = std::string("deleting dynout: ") + strerror(errno) + std::string("\n");
+      }
+      return false;
+    }
+  }
   return true;
 }

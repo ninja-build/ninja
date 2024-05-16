@@ -305,6 +305,91 @@ TEST_F(GraphTest, DepfileRemoved) {
   EXPECT_TRUE(GetNode("out.o")->dirty());
 }
 
+TEST_F(GraphTest, DynoutFileRemoved) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdynout\n"
+"  dynout = $out.dynout\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdynout ./foo.cc\n"));
+  fs_.Create("foo.cc", "");
+  fs_.Tick();
+  fs_.Create("out.o.dynout", "foo.bis");
+  fs_.Create("out.o", "");
+  fs_.Create("foo.bis", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+
+  state_.Reset();
+  fs_.RemoveFile("out.o.dynout");
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
+}
+
+TEST_F(GraphTest, DynamicOutputMissing) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdynout\n"
+"  dynout = $out.dynout\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdynout ./foo.cc\n"));
+  fs_.Create("foo.cc", "");
+  fs_.Tick();
+  fs_.Create("out.o.dynout", "foo.bis");
+  fs_.Create("out.o", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out.o")->dirty());
+
+  state_.Reset();
+  fs_.Create("foo.bis", "");
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out.o")->dirty());
+}
+
+// Outputs specified both in the build statement and the dynout file should
+// appear only once in the node outputs
+TEST_F(GraphTest, DynamicOutputOverlap) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule catdynout\n"
+"  dynout = $out.dynout\n"
+"  command = cat $in > $out\n"
+"build ./out.o: catdynout ./foo.cc\n"));
+  fs_.Create("foo.cc", "");
+  fs_.Tick();
+  fs_.Create("out.o.dynout", "out.o\nfoo.bis");
+  fs_.Create("out.o", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out.o"), NULL, &err));
+  ASSERT_EQ("", err);
+
+  Node* node = GetNode("foo.cc");
+  EXPECT_EQ(1, node->out_edges().size());
+  EXPECT_EQ(2, node->out_edges()[0]->outputs_.size());
+  EXPECT_EQ("out.o", node->out_edges()[0]->outputs_[0]->path());
+  EXPECT_EQ("foo.bis", node->out_edges()[0]->outputs_[1]->path());
+}
+
+TEST_F(GraphTest, CycleWithLengthZeroFromDynout) {
+  AssertParse(&state_,
+"rule dynoutrule\n"
+"   dynout = dynout.dynout\n"
+"   command = unused\n"
+"build a b: dynoutrule dep\n"
+  );
+  fs_.Create("dynout.dynout", "dep");
+
+  string err;
+  EXPECT_FALSE(scan_.RecomputeDirty(GetNode("b"), NULL, &err));
+  ASSERT_EQ("dependency cycle: dep -> dep", err);
+}
+
 // Check that rule-level variables are in scope for eval.
 TEST_F(GraphTest, RuleVariablesInScope) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

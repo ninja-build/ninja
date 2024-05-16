@@ -865,7 +865,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -877,7 +877,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
 }
 
 int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   return cleaner.CleanDead(build_log_.entries());
 }
 
@@ -1111,7 +1111,7 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolMSVC },
 #endif
     { "clean", "clean built files",
-      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "inputs", "list all inputs required to rebuild given targets",
@@ -1180,6 +1180,7 @@ bool DebugEnable(const string& name) {
 "  stats        print operation counts/timing info\n"
 "  explain      explain what caused a command to execute\n"
 "  keepdepfile  don't delete depfiles after they're read by ninja\n"
+"  keepdynout   don't delete dynout files after they're read by ninja\n"
 "  keeprsp      don't delete @response files on success\n"
 #ifdef _WIN32
 "  nostatcache  don't batch stat() calls per directory and cache them\n"
@@ -1195,6 +1196,9 @@ bool DebugEnable(const string& name) {
   } else if (name == "keepdepfile") {
     g_keep_depfile = true;
     return true;
+  } else if (name == "keepdynout") {
+    g_keep_dynout = true;
+    return true;
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
@@ -1204,7 +1208,7 @@ bool DebugEnable(const string& name) {
   } else {
     const char* suggestion =
         SpellcheckString(name.c_str(),
-                         "stats", "explain", "keepdepfile", "keeprsp",
+                         "stats", "explain", "keepdepfile", "keepdynout", "keeprsp",
                          "nostatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",

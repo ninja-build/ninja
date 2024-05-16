@@ -365,4 +365,29 @@ TEST_F(BuildLogRecompactTest, Recompact) {
   ASSERT_FALSE(log2.LookupByOutput("out2"));
 }
 
+// Make sure the build log can record extra outputs not part of the edge (e.g.
+// from a dynout file).
+TEST_F(BuildLogTest, ExtraOutputs) {
+  AssertParse(&state_,
+"build out: cat mid\n");
+
+  BuildLog log;
+
+  // The build log must handle overlap between the extra outputs and the edge
+  // outputs, and only record each output once
+  Node *out_node = state_.LookupNode("out");
+  ASSERT_TRUE(out_node);
+  Node *second_out = state_.GetNode("out.bis", 0);
+  std::vector<Node*> extra_outputs = { out_node, second_out };
+
+  log.RecordCommand(state_.edges_[0], 15, 18, 0, extra_outputs);
+
+  ASSERT_EQ(2u, log.entries().size());
+  BuildLog::LogEntry* e1 = log.LookupByOutput("out.bis");
+  ASSERT_TRUE(e1);
+  ASSERT_EQ(15, e1->start_time);
+  ASSERT_EQ("out.bis", e1->output);
+}
+
+
 }  // anonymous namespace
