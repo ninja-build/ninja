@@ -102,10 +102,6 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
-/// Elide the given string @a str with '...' in the middle if the length
-/// exceeds @a width.
-std::string ElideMiddle(const std::string& str, size_t width);
-
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
 
