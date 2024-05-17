@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from textwrap import dedent
 from typing import Dict
 
 default_env = dict(os.environ)
@@ -19,35 +20,56 @@ default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
+class BuildDir:
+    def __init__(self, build_ninja: str):
+        self.build_ninja = dedent(build_ninja)
+        self.d = None
+
+    def __enter__(self):
+        self.d = tempfile.TemporaryDirectory()
+        with open(os.path.join(self.d.name, 'build.ninja'), 'w') as f:
+            f.write(self.build_ninja)
+            f.flush()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.d.cleanup()
+
+    def run(
+        self,
+        flags: str = '',
+        pipe: bool = False,
+        env: Dict[str, str] = default_env,
+    ) -> str:
+        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
+        try:
+            if pipe:
+                output = subprocess.check_output(
+                    [ninja_cmd], shell=True, cwd=self.d.name, env=env)
+            elif platform.system() == 'Darwin':
+                output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
+                                                 cwd=self.d.name, env=env)
+            else:
+                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
+                                                 cwd=self.d.name, env=env)
+        except subprocess.CalledProcessError as err:
+            sys.stdout.buffer.write(err.output)
+            raise err
+        final_output = ''
+        for line in output.decode('utf-8').splitlines(True):
+            if len(line) > 0 and line[-1] == '\r':
+                continue
+            final_output += line.replace('\r', '')
+        return final_output
+
 def run(
     build_ninja: str,
     flags: str = '',
     pipe: bool = False,
     env: Dict[str, str] = default_env,
 ) -> str:
-    with tempfile.TemporaryDirectory() as d:
-        with open(os.path.join(d, 'build.ninja'), 'w') as f:
-            f.write(build_ninja)
-            f.flush()
-        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
-        try:
-            if pipe:
-                output = subprocess.check_output([ninja_cmd], shell=True, cwd=d, env=env)
-            elif platform.system() == 'Darwin':
-                output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
-                                                 cwd=d, env=env)
-            else:
-                output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
-                                                 cwd=d, env=env)
-        except subprocess.CalledProcessError as err:
-            sys.stdout.buffer.write(err.output)
-            raise err
-    final_output = ''
-    for line in output.decode('utf-8').splitlines(True):
-        if len(line) > 0 and line[-1] == '\r':
-            continue
-        final_output += line.replace('\r', '')
-    return final_output
+    with BuildDir(build_ninja) as b:
+        return b.run(flags, pipe, env)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
@@ -191,6 +213,35 @@ out1
 out2
 ''')
 
+    def test_explain_output(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule create_if_non_exist
+              command = [ -e $out ] || touch $out
+              restat = true
+            rule write
+              command = cp $in $out
+            build input : create_if_non_exist .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # The explain output is shown just before the relevant build:
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                ninja explain: input is dirty
+                [2/3] cp input mid
+                ninja explain: mid is dirty
+                [3/3] cp mid output
+                '''))
+            # Don't print "ninja explain: XXX is dirty" for inputs that are
+            # pruned from the graph by an earlier restat.
+            self.assertEqual(b.run('-v -d explain'), dedent('''\
+                ninja explain: .FORCE is dirty
+                [1/3] [ -e input ] || touch input
+                '''))
 
 if __name__ == '__main__':
     unittest.main()

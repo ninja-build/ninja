@@ -247,20 +247,6 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   }
 }
 
-void StatusPrinter::BuildLoadDyndeps() {
-  // The DependencyScan calls EXPLAIN() to print lines explaining why
-  // it considers a portion of the graph to be out of date.  Normally
-  // this is done before the build starts, but our caller is about to
-  // load a dyndep file during the build.  Doing so may generate more
-  // explanation lines (via fprintf directly to stderr), but in an
-  // interactive console the cursor is currently at the end of a status
-  // line.  Start a new line so that the first explanation does not
-  // append to the status line.  After the explanations are done a
-  // new build status line will appear.
-  if (g_explaining)
-    printer_.PrintOnNewLine("");
-}
-
 void StatusPrinter::BuildStarted() {
   started_edges_ = 0;
   finished_edges_ = 0;
@@ -417,6 +403,13 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 }
 
 void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
+  if (g_explaining) {
+    // Start a new line so that the first explanation does not append to the
+    // status line.
+    printer_.PrintOnNewLine("");
+    print_explanations(stderr, edge);
+  }
+
   if (config_.verbosity == BuildConfig::QUIET
       || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
