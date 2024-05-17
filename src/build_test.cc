@@ -521,7 +521,7 @@ struct FakeCommandRunner : public CommandRunner {
       max_active_edges_(1), fs_(fs) {}
 
   // CommandRunner impl
-  virtual size_t CanRunMore() const;
+  size_t CanRunMore(bool jobserver_enabled) const override;
   virtual bool StartCommand(Edge* edge);
   virtual bool WaitForCommand(Result* result);
   virtual vector<Edge*> GetActiveEdges();
@@ -622,7 +622,9 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   builder.command_runner_.release();
 }
 
-size_t FakeCommandRunner::CanRunMore() const {
+size_t FakeCommandRunner::CanRunMore(bool jobserver_enabled) const {
+  assert(!jobserver_enabled);
+
   if (active_edges_.size() < max_active_edges_)
     return SIZE_MAX;
 

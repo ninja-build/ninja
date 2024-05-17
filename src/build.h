@@ -24,6 +24,7 @@
 #include "depfile_parser.h"
 #include "exit_status.h"
 #include "graph.h"
+#include "jobserver.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -51,6 +52,9 @@ struct Plan {
 
   /// Returns true if there's more work to be done.
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
+
+  /// Jobserver status used to skip capacity based on load average
+  bool JobserverEnabled() const;
 
   /// Dumps the current state of the plan.
   void Dump() const;
@@ -139,6 +143,9 @@ private:
 
   /// Total remaining number of wanted edges.
   int wanted_edges_;
+
+  /// Jobserver client
+  Jobserver jobserver_;
 };
 
 /// CommandRunner is an interface that wraps running the build
@@ -146,7 +153,7 @@ private:
 /// RealCommandRunner is an implementation that actually runs commands.
 struct CommandRunner {
   virtual ~CommandRunner() {}
-  virtual size_t CanRunMore() const = 0;
+  virtual size_t CanRunMore(bool jobserver_enabled) const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
