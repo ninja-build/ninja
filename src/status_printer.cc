@@ -417,12 +417,6 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
         fprintf(stderr, "ninja explain: %s\n", exp.c_str());
       }
     }
-  } else {
-    // DEPRECATED: Remove this code path once record_explanations() is
-    // no longer used by Ninja.
-    if (g_explaining) {
-      print_explanations(stderr, edge);
-    }
   }
 
   if (config_.verbosity == BuildConfig::QUIET

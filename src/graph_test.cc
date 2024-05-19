@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include "graph.h"
-#include "build.h"
 
+#include "build.h"
 #include "test.h"
 
 using namespace std;
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL) {}
+  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL, NULL) {}
 
   VirtualFileSystem fs_;
   DependencyScan scan_;

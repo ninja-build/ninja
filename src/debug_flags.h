@@ -17,20 +17,10 @@
 
 #include <stdio.h>
 
-#define EXPLAIN(node, fmt, ...) {                                       \
-  if (g_explaining) {                                                   \
-    char buf[1024];                                                     \
-    snprintf(buf, 1024, fmt, __VA_ARGS__);                              \
-    record_explanation(node, buf);                                      \
-  }                                                                     \
-}
-
 struct Edge;
 struct Node;
 
 extern bool g_explaining;
-void record_explanation(const Node* node, std::string reason);
-void print_explanations(FILE *stream, const Edge* node);
 
 extern bool g_keep_depfile;
 

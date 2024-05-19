@@ -20,6 +20,7 @@
 #include "debug_flags.h"
 #include "disk_interface.h"
 #include "dyndep_parser.h"
+#include "explanations.h"
 #include "graph.h"
 #include "state.h"
 #include "util.h"
@@ -37,7 +38,8 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   node->set_dyndep_pending(false);
 
   // Load the dyndep information from the file.
-  EXPLAIN(node, "loading dyndep file '%s'", node->path().c_str());
+  explanations_.Record(node, "loading dyndep file '%s'", node->path().c_str());
+
   if (!LoadDyndepFile(node, ddf, err))
     return false;
 

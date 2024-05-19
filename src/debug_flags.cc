@@ -26,21 +26,3 @@ bool g_keep_depfile = false;
 bool g_keep_rsp = false;
 
 bool g_experimental_statcache = true;
-
-// Reasons each Node needs rebuilding, for "-d explain".
-typedef std::map<const Node*, std::vector<std::string> > Explanations;
-static Explanations explanations_;
-
-void record_explanation(const Node* node, std::string explanation) {
-  explanations_[node].push_back(explanation);
-}
-
-void print_explanations(FILE *stream, const Edge* edge) {
-  for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    for (std::vector<std::string>::iterator s = explanations_[*o].begin();
-         s != explanations_[*o].end(); ++s) {
-      fprintf(stream, "ninja explain: %s\n", (*s).c_str());
-    }
-  }
-}
