@@ -403,11 +403,26 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 }
 
 void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
-  if (g_explaining) {
-    // Start a new line so that the first explanation does not append to the
-    // status line.
-    printer_.PrintOnNewLine("");
-    print_explanations(stderr, edge);
+  if (explanations_) {
+    // Collect all explanations for the current edge's outputs.
+    std::vector<std::string> explanations;
+    for (Node* output : edge->outputs_) {
+      explanations_->LookupAndAppend(output, &explanations);
+    }
+    if (!explanations.empty()) {
+      // Start a new line so that the first explanation does not append to the
+      // status line.
+      printer_.PrintOnNewLine("");
+      for (const auto& exp : explanations) {
+        fprintf(stderr, "ninja explain: %s\n", exp.c_str());
+      }
+    }
+  } else {
+    // DEPRECATED: Remove this code path once record_explanations() is
+    // no longer used by Ninja.
+    if (g_explaining) {
+      print_explanations(stderr, edge);
+    }
   }
 
   if (config_.verbosity == BuildConfig::QUIET
