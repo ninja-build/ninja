@@ -638,6 +638,7 @@ if gtest_src_dir:
         'disk_interface_test',
         'dyndep_parser_test',
         'edit_distance_test',
+        'explanations_test',
         'graph_test',
         'json_test',
         'lexer_test',

@@ -260,6 +260,7 @@ if(BUILD_TESTING)
     src/disk_interface_test.cc
     src/dyndep_parser_test.cc
     src/edit_distance_test.cc
+    src/explanations_test.cc
     src/graph_test.cc
     src/json_test.cc
     src/lexer_test.cc
