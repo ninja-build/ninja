@@ -1,6 +1,8 @@
 ;;; ninja-mode.el --- Major mode for editing .ninja files -*- lexical-binding: t -*-
 
 ;; Package-Requires: ((emacs "24"))
+;; Keywords: languages
+;; URL: https://ninja-build.org/
 
 ;; Copyright 2011 Google Inc. All Rights Reserved.
 ;;
