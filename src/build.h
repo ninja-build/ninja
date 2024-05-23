@@ -22,14 +22,15 @@
 #include <vector>
 
 #include "depfile_parser.h"
-#include "graph.h"
 #include "exit_status.h"
+#include "graph.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
 struct Builder;
 struct DiskInterface;
 struct Edge;
+struct Explanations;
 struct Node;
 struct State;
 struct Status;
@@ -186,9 +187,8 @@ struct BuildConfig {
 
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
-  Builder(State* state, const BuildConfig& config,
-          BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface, Status* status,
+  Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+          DepsLog* deps_log, DiskInterface* disk_interface, Status* status,
           int64_t start_time_millis);
   ~Builder();
 
@@ -242,6 +242,10 @@ struct Builder {
 
   std::string lock_file_path_;
   DiskInterface* disk_interface_;
+
+  // Only create an Explanations class if '-d explain' is used.
+  std::unique_ptr<Explanations> explanations_;
+
   DependencyScan scan_;
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.

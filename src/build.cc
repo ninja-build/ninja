@@ -34,6 +34,7 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "explanations.h"
 #include "graph.h"
 #include "metrics.h"
 #include "state.h"
@@ -669,22 +670,24 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface, Status *status,
-                 int64_t start_time_millis)
+Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+                 DepsLog* deps_log, DiskInterface* disk_interface,
+                 Status* status, int64_t start_time_millis)
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
+      explanations_(g_explaining ? new Explanations() : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
-            &config_.depfile_parser_options) {
+            &config_.depfile_parser_options, explanations_.get()) {
   lock_file_path_ = ".ninja_lock";
   string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty())
     lock_file_path_ = build_dir + "/" + lock_file_path_;
+  status_->SetExplanations(explanations_.get());
 }
 
 Builder::~Builder() {
   Cleanup();
+  status_->SetExplanations(nullptr);
 }
 
 void Builder::Cleanup() {

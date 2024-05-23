@@ -91,7 +91,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     if (!node->StatIfNecessary(disk_interface_, err))
       return false;
     if (!node->exists())
-      EXPLAIN(node, "%s has no in-edge and is missing", node->path().c_str());
+      explanations_.Record(node, "%s has no in-edge and is missing",
+                           node->path().c_str());
     node->set_dirty(!node->exists());
     return true;
   }
@@ -151,7 +152,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       if (!err->empty())
         return false;
       // Failed to load dependency info: rebuild to regenerate it.
-      // LoadDeps() did EXPLAIN() already, no need to do it here.
+      // LoadDeps() did explanations_->Record() already, no need to do it here.
       dirty = edge->deps_missing_ = true;
     }
   }
@@ -182,7 +183,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       // If a regular input is dirty (or missing), we're dirty.
       // Otherwise consider mtime.
       if ((*i)->dirty()) {
-        EXPLAIN(node, "%s is dirty", (*i)->path().c_str());
+        explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
         dirty = true;
       } else {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
@@ -282,8 +283,9 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
     if (edge->inputs_.empty() && !output->exists()) {
-      EXPLAIN(output, "output %s of phony edge with no inputs doesn't exist",
-              output->path().c_str());
+      explanations_.Record(
+          output, "output %s of phony edge with no inputs doesn't exist",
+          output->path().c_str());
       return true;
     }
 
@@ -299,7 +301,8 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
 
   // Dirty if we're missing the output.
   if (!output->exists()) {
-    EXPLAIN(output, "output %s doesn't exist", output->path().c_str());
+    explanations_.Record(output, "output %s doesn't exist",
+                         output->path().c_str());
     return true;
   }
 
@@ -319,11 +322,12 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
 
   // Dirty if the output is older than the input.
   if (!used_restat && most_recent_input && output->mtime() < most_recent_input->mtime()) {
-    EXPLAIN(output, "output %s older than most recent input %s "
-            "(%" PRId64 " vs %" PRId64 ")",
-            output->path().c_str(),
-            most_recent_input->path().c_str(),
-            output->mtime(), most_recent_input->mtime());
+    explanations_.Record(output,
+                         "output %s older than most recent input %s "
+                         "(%" PRId64 " vs %" PRId64 ")",
+                         output->path().c_str(),
+                         most_recent_input->path().c_str(), output->mtime(),
+                         most_recent_input->mtime());
     return true;
   }
 
@@ -335,7 +339,8 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
         // May also be dirty due to the command changing since the last build.
         // But if this is a generator rule, the command changing does not make us
         // dirty.
-        EXPLAIN(output, "command line changed for %s", output->path().c_str());
+        explanations_.Record(output, "command line changed for %s",
+                             output->path().c_str());
         return true;
       }
       if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
@@ -345,16 +350,18 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
         // exited with an error or was interrupted. If this was a restat rule,
         // then we only check the recorded mtime against the most recent input
         // mtime and ignore the actual output's mtime above.
-        EXPLAIN(output,
-                "recorded mtime of %s older than most recent input %s (%" PRId64 " vs %" PRId64 ")",
-                output->path().c_str(), most_recent_input->path().c_str(),
-                entry->mtime, most_recent_input->mtime());
+        explanations_.Record(
+            output,
+            "recorded mtime of %s older than most recent input %s (%" PRId64
+            " vs %" PRId64 ")",
+            output->path().c_str(), most_recent_input->path().c_str(),
+            entry->mtime, most_recent_input->mtime());
         return true;
       }
     }
     if (!entry && !generator) {
-      EXPLAIN(output, "command line not found in log for %s",
-              output->path().c_str());
+      explanations_.Record(output, "command line not found in log for %s",
+                           output->path().c_str());
       return true;
     }
   }
@@ -670,7 +677,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // On a missing depfile: return false and empty *err.
   Node* first_output = edge->outputs_[0];
   if (content.empty()) {
-    EXPLAIN(first_output, "depfile '%s' is missing", path.c_str());
+    explanations_.Record(first_output, "depfile '%s' is missing", path.c_str());
     return false;
   }
 
@@ -697,9 +704,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   // mark the edge as dirty.
   StringPiece opath = StringPiece(first_output->path());
   if (opath != *primary_out) {
-    EXPLAIN(first_output, "expected depfile '%s' to mention '%s', got '%s'",
-            path.c_str(), first_output->path().c_str(),
-            primary_out->AsString().c_str());
+    explanations_.Record(first_output,
+                         "expected depfile '%s' to mention '%s', got '%s'",
+                         path.c_str(), first_output->path().c_str(),
+                         primary_out->AsString().c_str());
     return false;
   }
 
@@ -740,15 +748,17 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
-    EXPLAIN(output, "deps for '%s' are missing", output->path().c_str());
+    explanations_.Record(output, "deps for '%s' are missing",
+                         output->path().c_str());
     return false;
   }
 
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
-    EXPLAIN(output,
-            "stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
-            output->path().c_str(), deps->mtime, output->mtime());
+    explanations_.Record(output,
+                         "stored deps info out of date for '%s' (%" PRId64
+                         " vs %" PRId64 ")",
+                         output->path().c_str(), deps->mtime, output->mtime());
     return false;
   }
 
