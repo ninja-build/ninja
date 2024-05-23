@@ -231,12 +231,14 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
 
 #ifdef _WIN32
     // Fix extra CR being added on Windows, writing out CR CR LF (#773)
-    _setmode(_fileno(stdout), _O_BINARY);  // Begin Windows extra CR fix
+    fflush(stdout);  // Begin Windows extra CR fix
+    _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
     printer_.PrintOnNewLine(final_output);
 
 #ifdef _WIN32
+    fflush(stdout);
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
