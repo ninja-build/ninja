@@ -163,6 +163,11 @@ if(WIN32)
 	# so that build environments which lack a C compiler, but have a C++
 	# compiler may build ninja.
 	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
+
+	# windows.h defines min() and max() which conflict with std::min()
+	# and std::max(), which both might be used in sources. Avoid compile
+	# errors by telling windows.h to not define those two.
+	add_compile_definitions(NOMINMAX)
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
