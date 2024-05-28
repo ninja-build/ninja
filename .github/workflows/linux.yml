@@ -42,7 +42,7 @@ jobs:
       image: rockylinux:8
     steps:
     - uses: actions/checkout@v4
-    - uses: codespell-project/actions-codespell@master
+    - uses: codespell-project/actions-codespell@v2
       with:
         ignore_words_list: fo,wee,addin,notin
     - name: Install dependencies

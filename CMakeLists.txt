@@ -5,6 +5,7 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
+option(BUILD_TESTING "Build ninja tests" ON)
 
 project(ninja CXX)
 
@@ -159,18 +160,10 @@ if(WIN32)
 		src/getopt.c
 		src/minidump-win32.cc
 	)
-	# Build getopt.c, which can be compiled as either C or C++, as C++
-	# so that build environments which lack a C compiler, but have a C++
-	# compiler may build ninja.
-	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 else()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
-		# Build getopt.c, which can be compiled as either C or C++, as C++
-		# so that build environments which lack a C compiler, but have a C++
-		# compiler may build ninja.
-		set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 	endif()
 
 	# Needed for perfstat_cpu_total
@@ -178,7 +171,12 @@ else()
 		target_link_libraries(libninja PUBLIC "-lperfstat")
 	endif()
 endif()
-
+get_property(src_getopt TARGET libninja PROPERTY SOURCES)
+if(src_getopt MATCHES "getopt.c")
+  # Build getopt.c as C++ so that build environments which lack
+  # a C compiler may build ninja.
+  set_property(SOURCE src/getopt.c PROPERTY LANGUAGE CXX)
+endif()
 target_compile_features(libninja PUBLIC cxx_std_11)
 
 #Fixes GetActiveProcessorCount on MinGW
@@ -230,7 +228,7 @@ if(platform_supports_ninja_browse)
 	)
 endif()
 
-include(CTest)
+enable_testing()
 if(BUILD_TESTING)
 
   # Can be removed if cmake min version is >=3.24
@@ -285,7 +283,7 @@ if(BUILD_TESTING)
   find_package(Threads REQUIRED)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
 
-  foreach(perftest
+  foreach(perftest IN ITEMS
     build_log_perftest
     canon_perftest
     clparser_perftest
