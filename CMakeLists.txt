@@ -272,6 +272,7 @@ if(BUILD_TESTING)
     src/edit_distance_test.cc
     src/explanations_test.cc
     src/graph_test.cc
+    src/jobserver_test.cc
     src/json_test.cc
     src/lexer_test.cc
     src/manifest_parser_test.cc
