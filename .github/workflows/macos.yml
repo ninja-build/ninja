@@ -15,18 +15,19 @@ jobs:
 
     - name: Install dependencies
       run: brew install re2c p7zip cmake
+      env:
+        HOMEBREW_NO_INSTALL_CLEANUP: 1
 
-    - name: Build ninja
-      shell: bash
+    - name: Configure ninja
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.15
-      run: |
-        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
-        cmake --build build --config Release
+      run: cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+
+    - name: Build ninja
+      run: cmake --build build --config Release --parallel
 
     - name: Test ninja
-      run: ctest -C Release -vv
-      working-directory: build
+      run: ctest --test-dir build -C Release -V
 
     - name: Create ninja archive
       shell: bash
