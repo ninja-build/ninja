@@ -89,7 +89,7 @@ struct StatusPrinter : Status {
   /// Prints progress output.
   LinePrinter printer_;
 
-  /// An optional Explaantions pointer, used to implement `-d explain`.
+  /// An optional Explanations pointer, used to implement `-d explain`.
   Explanations* explanations_ = nullptr;
 
   /// The custom progress status format to use.
