@@ -564,6 +564,7 @@ if platform.is_windows():
         objs += cxx('minidump-win32', variables=cxxvariables)
     objs += cc('getopt')
 else:
+    objs += cxx('jobserver-posix')
     objs += cxx('subprocess-posix')
 if platform.is_aix():
     objs += cc('getopt')

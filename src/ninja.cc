@@ -84,8 +84,8 @@ struct Options {
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
-  NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config),
+  NinjaMain(const char* ninja_command, const BuildConfig& config, Jobserver* jobserver) :
+      ninja_command_(ninja_command), config_(config), jobserver_(jobserver),
       start_time_millis_(GetTimeMillis()) {}
 
   /// Command line used to run Ninja.
@@ -93,6 +93,9 @@ struct NinjaMain : public BuildLogUser {
 
   /// Build configuration set from flags (e.g. parallelism).
   const BuildConfig& config_;
+
+  /// Client for jobserver to allow a parent process to control parallelism.
+  Jobserver* jobserver_;
 
   /// Loaded state (rules, nodes).
   State state_;
@@ -267,7 +270,8 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+  Builder builder(&state_, config_, jobserver_,
+                  &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
@@ -1355,7 +1359,8 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
+  Builder builder(&state_, config_, jobserver_,
+                  &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
@@ -1542,6 +1547,14 @@ NORETURN void real_main(int argc, char** argv) {
 
   Status* status = Status::factory(config);
 
+  // Client of jobserver to manage job slots assigned to ninja.
+// TODO: jobserver client support for Windows
+#ifdef _WIN32
+  Jobserver jobserver;
+#else
+  PosixJobserverClient jobserver;
+#endif
+
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
@@ -1558,14 +1571,14 @@ NORETURN void real_main(int argc, char** argv) {
   if (options.tool && options.tool->when == Tool::RUN_AFTER_FLAGS) {
     // None of the RUN_AFTER_FLAGS actually use a NinjaMain, but it's needed
     // by other tools.
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, config, &jobserver);
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
-    NinjaMain ninja(ninja_command, config);
+    NinjaMain ninja(ninja_command, config, &jobserver);
 
     ManifestParserOptions parser_opts;
     if (options.phony_cycle_should_err) {
