@@ -26,21 +26,19 @@ struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
 
   /// Callbacks for the Plan to notify us about adding/removing Edge's.
-  virtual void EdgeAddedToPlan(const Edge* edge);
-  virtual void EdgeRemovedFromPlan(const Edge* edge);
+  void EdgeAddedToPlan(const Edge* edge) override;
+  void EdgeRemovedFromPlan(const Edge* edge) override;
 
-  virtual void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis);
-  virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
+  void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis) override;
+  void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, bool success,
-                                 const std::string& output);
-  virtual void BuildStarted();
-  virtual void BuildFinished();
+                                 const std::string& output) override;
+  void BuildStarted() override;
+  void BuildFinished() override;
 
-  virtual void Info(const char* msg, ...);
-  virtual void Warning(const char* msg, ...);
-  virtual void Error(const char* msg, ...);
-
-  virtual ~StatusPrinter() {}
+  void Info(const char* msg, ...) override;
+  void Warning(const char* msg, ...) override;
+  void Error(const char* msg, ...) override;
 
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available
