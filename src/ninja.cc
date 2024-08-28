@@ -1230,6 +1230,10 @@ bool WarningEnable(const string& name, Options* options) {
   } else if (name == "phonycycle=warn") {
     options->phony_cycle_should_err = false;
     return true;
+  } else if (name == "dupbuild=err" ||
+             name == "dupbuild=warn") {
+    Warning("deprecated warning 'dupbuild'");
+    return true;
   } else if (name == "depfilemulti=err" ||
              name == "depfilemulti=warn") {
     Warning("deprecated warning 'depfilemulti'");
