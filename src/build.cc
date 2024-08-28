@@ -48,12 +48,10 @@ namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
 struct DryRunCommandRunner : public CommandRunner {
-  virtual ~DryRunCommandRunner() {}
-
   // Overridden from CommandRunner:
-  virtual size_t CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  size_t CanRunMore() const override;
+  bool StartCommand(Edge* edge) override;
+  bool WaitForCommand(Result* result) override;
 
  private:
   queue<Edge*> finished_;
@@ -595,12 +593,11 @@ void Plan::Dump() const {
 
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
-  virtual ~RealCommandRunner() {}
-  virtual size_t CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
-  virtual vector<Edge*> GetActiveEdges();
-  virtual void Abort();
+  size_t CanRunMore() const override;
+  bool StartCommand(Edge* edge) override;
+  bool WaitForCommand(Result* result) override;
+  vector<Edge*> GetActiveEdges() override;
+  void Abort() override;
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;
