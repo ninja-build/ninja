@@ -24,9 +24,9 @@ jobs:
         cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
         cmake --build build --config Release
 
-    - name: Test ninja
-      run: ctest -C Release -vv
-      working-directory: build
+    - name: Test ninja (Release)
+      run: ./ninja_test
+      working-directory: build/Release
 
     - name: Create ninja archive
       shell: bash
