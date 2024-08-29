@@ -496,28 +496,6 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
   return result;
 }
 
-void Edge::CollectInputs(bool shell_escape,
-                         std::vector<std::string>* out) const {
-  for (std::vector<Node*>::const_iterator it = inputs_.begin();
-       it != inputs_.end(); ++it) {
-    std::string path = (*it)->PathDecanonicalized();
-    if (shell_escape) {
-      std::string unescaped;
-      unescaped.swap(path);
-#ifdef _WIN32
-      GetWin32EscapedString(unescaped, &path);
-#else
-      GetShellEscapedString(unescaped, &path);
-#endif
-    }
-#if __cplusplus >= 201103L
-    out->push_back(std::move(path));
-#else
-    out->push_back(path);
-#endif
-  }
-}
-
 std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   string command = GetBinding("command");
   if (incl_rsp_file) {

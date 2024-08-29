@@ -201,9 +201,6 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
-  // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
-  void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
-
   // critical_path_weight is the priority during build scheduling. The
   // "critical path" between this edge's inputs and any target node is
   // the path which maximises the sum oof weights along that path.

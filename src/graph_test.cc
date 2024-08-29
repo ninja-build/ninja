@@ -215,39 +215,6 @@ TEST_F(GraphTest, RootNodes) {
   }
 }
 
-TEST_F(GraphTest, CollectInputs) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(
-      &state_,
-      "build out$ 1: cat in1 in2 in$ with$ space | implicit || order_only\n"));
-
-  std::vector<std::string> inputs;
-  Edge* edge = GetNode("out 1")->in_edge();
-
-  // Test without shell escaping.
-  inputs.clear();
-  edge->CollectInputs(false, &inputs);
-  EXPECT_EQ(5u, inputs.size());
-  EXPECT_EQ("in1", inputs[0]);
-  EXPECT_EQ("in2", inputs[1]);
-  EXPECT_EQ("in with space", inputs[2]);
-  EXPECT_EQ("implicit", inputs[3]);
-  EXPECT_EQ("order_only", inputs[4]);
-
-  // Test with shell escaping.
-  inputs.clear();
-  edge->CollectInputs(true, &inputs);
-  EXPECT_EQ(5u, inputs.size());
-  EXPECT_EQ("in1", inputs[0]);
-  EXPECT_EQ("in2", inputs[1]);
-#ifdef _WIN32
-  EXPECT_EQ("\"in with space\"", inputs[2]);
-#else
-  EXPECT_EQ("'in with space'", inputs[2]);
-#endif
-  EXPECT_EQ("implicit", inputs[3]);
-  EXPECT_EQ("order_only", inputs[4]);
-}
-
 TEST_F(GraphTest, InputsCollector) {
   // Build plan for the following graph:
   //

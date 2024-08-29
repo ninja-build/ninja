@@ -213,6 +213,27 @@ out1
 out2
 ''')
 
+        # Verify that results are shell-escaped by default.
+        # Also verify that phony outputs are never part of the results.
+        quote = '"' if platform.system() == "Windows" else "'"
+
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out$ 2 : cat out1
+build out$ 3 : phony out$ 2
+build all: phony out$ 3
+'''
+
+        self.assertEqual(run(plan, flags='-t inputs all'),
+f'''{quote}out 2{quote}
+in1
+out1
+''')
+
+
+
     def test_explain_output(self):
         b = BuildDir('''\
             build .FORCE: phony
