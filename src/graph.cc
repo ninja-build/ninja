@@ -779,3 +779,47 @@ vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
   edge->implicit_deps_ += count;
   return edge->inputs_.end() - edge->order_only_deps_ - count;
 }
+
+void InputsCollector::VisitNode(const Node* node) {
+  const Edge* edge = node->in_edge();
+
+  if (!edge)  // A source file.
+    return;
+
+  // Add inputs of the producing edge to the result,
+  // except if they are themselves produced by a phony
+  // edge.
+  for (const Node* input : edge->inputs_) {
+    if (!visited_nodes_.insert(input).second)
+      continue;
+
+    VisitNode(input);
+
+    const Edge* input_edge = input->in_edge();
+    if (!(input_edge && input_edge->is_phony())) {
+      inputs_.push_back(input);
+    }
+  }
+}
+
+std::vector<std::string> InputsCollector::GetInputsAsStrings(
+    bool shell_escape) const {
+  std::vector<std::string> result;
+  result.reserve(inputs_.size());
+
+  for (const Node* input : inputs_) {
+    std::string unescaped = input->PathDecanonicalized();
+    if (shell_escape) {
+      std::string path;
+#ifdef _WIN32
+      GetWin32EscapedString(unescaped, &path);
+#else
+      GetShellEscapedString(unescaped, &path);
+#endif
+      result.push_back(std::move(path));
+    } else {
+      result.push_back(std::move(unescaped));
+    }
+  }
+  return result;
+}
