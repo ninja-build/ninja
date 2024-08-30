@@ -53,7 +53,6 @@ struct Explanations {
   }
 
  private:
-  bool enabled_ = false;
   std::unordered_map<const void*, std::vector<std::string>> map_;
 };
 
