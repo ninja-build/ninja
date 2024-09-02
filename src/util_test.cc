@@ -524,40 +524,54 @@ TEST(ElideMiddle, ElideInTheMiddle) {
   EXPECT_EQ("01234567890123456789", ElideMiddle(input, 20));
 }
 
+// A few ANSI escape sequences. These macros make the following
+// test easier to read and understand.
+#define MAGENTA "\x1B[0;35m"
+#define NOTHING "\33[m"
+#define RED "\x1b[1;31m"
+#define RESET "\x1b[0m"
+
 TEST(ElideMiddle, ElideAnsiEscapeCodes) {
-  std::string input = "012345\x1B[0;35m67890123456789";
-  EXPECT_EQ("012...\x1B[0;35m6789", ElideMiddle(input, 10));
-  EXPECT_EQ("012345\x1B[0;35m67...23456789", ElideMiddle(input, 19));
+  std::string input = "012345" MAGENTA "67890123456789";
+  EXPECT_EQ("012..." MAGENTA "6789", ElideMiddle(input, 10));
+  EXPECT_EQ("012345" MAGENTA "67...23456789", ElideMiddle(input, 19));
 
-  EXPECT_EQ("Nothing \33[m string.", ElideMiddle("Nothing \33[m string.", 18));
-  EXPECT_EQ("0\33[m12...6789", ElideMiddle("0\33[m1234567890123456789", 10));
+  EXPECT_EQ("Nothing " NOTHING " string.",
+            ElideMiddle("Nothing " NOTHING " string.", 18));
+  EXPECT_EQ("0" NOTHING "12...6789",
+            ElideMiddle("0" NOTHING "1234567890123456789", 10));
 
-  input = "abcd\x1b[1;31mefg\x1b[0mhlkmnopqrstuvwxyz";
+  input = "abcd" RED "efg" RESET "hlkmnopqrstuvwxyz";
   EXPECT_EQ("", ElideMiddle(input, 0));
   EXPECT_EQ(".", ElideMiddle(input, 1));
   EXPECT_EQ("..", ElideMiddle(input, 2));
   EXPECT_EQ("...", ElideMiddle(input, 3));
-  EXPECT_EQ("...\x1B[1;31m\x1B[0mz", ElideMiddle(input, 4));
-  EXPECT_EQ("a...\x1B[1;31m\x1B[0mz", ElideMiddle(input, 5));
-  EXPECT_EQ("a...\x1B[1;31m\x1B[0myz", ElideMiddle(input, 6));
-  EXPECT_EQ("ab...\x1B[1;31m\x1B[0myz", ElideMiddle(input, 7));
-  EXPECT_EQ("ab...\x1B[1;31m\x1B[0mxyz", ElideMiddle(input, 8));
-  EXPECT_EQ("abc...\x1B[1;31m\x1B[0mxyz", ElideMiddle(input, 9));
-  EXPECT_EQ("abc...\x1B[1;31m\x1B[0mwxyz", ElideMiddle(input, 10));
-  EXPECT_EQ("abcd\x1B[1;31m...\x1B[0mwxyz", ElideMiddle(input, 11));
-  EXPECT_EQ("abcd\x1B[1;31m...\x1B[0mvwxyz", ElideMiddle(input, 12));
+  EXPECT_EQ("..." RED RESET "z", ElideMiddle(input, 4));
+  EXPECT_EQ("a..." RED RESET "z", ElideMiddle(input, 5));
+  EXPECT_EQ("a..." RED RESET "yz", ElideMiddle(input, 6));
+  EXPECT_EQ("ab..." RED RESET "yz", ElideMiddle(input, 7));
+  EXPECT_EQ("ab..." RED RESET "xyz", ElideMiddle(input, 8));
+  EXPECT_EQ("abc..." RED RESET "xyz", ElideMiddle(input, 9));
+  EXPECT_EQ("abc..." RED RESET "wxyz", ElideMiddle(input, 10));
+  EXPECT_EQ("abcd" RED "..." RESET "wxyz", ElideMiddle(input, 11));
+  EXPECT_EQ("abcd" RED "..." RESET "vwxyz", ElideMiddle(input, 12));
 
-  EXPECT_EQ("abcd\x1B[1;31mef...\x1B[0muvwxyz", ElideMiddle(input, 15));
-  EXPECT_EQ("abcd\x1B[1;31mef...\x1B[0mtuvwxyz", ElideMiddle(input, 16));
-  EXPECT_EQ("abcd\x1B[1;31mefg\x1B[0m...tuvwxyz", ElideMiddle(input, 17));
-  EXPECT_EQ("abcd\x1B[1;31mefg\x1B[0m...stuvwxyz", ElideMiddle(input, 18));
-  EXPECT_EQ("abcd\x1B[1;31mefg\x1B[0mh...stuvwxyz", ElideMiddle(input, 19));
+  EXPECT_EQ("abcd" RED "ef..." RESET "uvwxyz", ElideMiddle(input, 15));
+  EXPECT_EQ("abcd" RED "ef..." RESET "tuvwxyz", ElideMiddle(input, 16));
+  EXPECT_EQ("abcd" RED "efg" RESET "...tuvwxyz", ElideMiddle(input, 17));
+  EXPECT_EQ("abcd" RED "efg" RESET "...stuvwxyz", ElideMiddle(input, 18));
+  EXPECT_EQ("abcd" RED "efg" RESET "h...stuvwxyz", ElideMiddle(input, 19));
 
-  input = "abcdef\x1b[31mA\x1b[0mBC";
-  EXPECT_EQ("...\x1B[31m\x1B[0mC", ElideMiddle(input, 4));
-  EXPECT_EQ("a...\x1B[31m\x1B[0mC", ElideMiddle(input, 5));
-  EXPECT_EQ("a...\x1B[31m\x1B[0mBC", ElideMiddle(input, 6));
-  EXPECT_EQ("ab...\x1B[31m\x1B[0mBC", ElideMiddle(input, 7));
-  EXPECT_EQ("ab...\x1B[31mA\x1B[0mBC", ElideMiddle(input, 8));
-  EXPECT_EQ("abcdef\x1b[31mA\x1b[0mBC", ElideMiddle(input, 9));
+  input = "abcdef" RED "A" RESET "BC";
+  EXPECT_EQ("..." RED RESET "C", ElideMiddle(input, 4));
+  EXPECT_EQ("a..." RED RESET "C", ElideMiddle(input, 5));
+  EXPECT_EQ("a..." RED RESET "BC", ElideMiddle(input, 6));
+  EXPECT_EQ("ab..." RED RESET "BC", ElideMiddle(input, 7));
+  EXPECT_EQ("ab..." RED "A" RESET "BC", ElideMiddle(input, 8));
+  EXPECT_EQ("abcdef" RED "A" RESET "BC", ElideMiddle(input, 9));
 }
+
+#undef RESET
+#undef RED
+#undef NOTHING
+#undef MAGENTA
