@@ -135,6 +135,7 @@ add_library(libninja OBJECT
 	src/deps_log.cc
 	src/disk_interface.cc
 	src/edit_distance.cc
+	src/elide_middle.cc
 	src/eval_env.cc
 	src/graph.cc
 	src/graphviz.cc
@@ -265,6 +266,7 @@ if(BUILD_TESTING)
     src/disk_interface_test.cc
     src/dyndep_parser_test.cc
     src/edit_distance_test.cc
+    src/elide_middle_test.cc
     src/explanations_test.cc
     src/graph_test.cc
     src/json_test.cc
@@ -295,6 +297,7 @@ if(BUILD_TESTING)
     canon_perftest
     clparser_perftest
     depfile_parser_perftest
+    elide_middle_perftest
     hash_collision_bench
     manifest_parser_perftest
   )
