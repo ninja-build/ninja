@@ -246,7 +246,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE* fp = fopen(path.c_str(), "w");
+  FILE* fp = fopen(path.c_str(), "wb");
   if (fp == NULL) {
     Error("WriteFile(%s): Unable to create file. %s",
           path.c_str(), strerror(errno));
