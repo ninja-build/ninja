@@ -154,7 +154,7 @@ struct NinjaMain : public BuildLogUser {
   bool RebuildManifest(const char* input_file, string* err, Status* status);
 
   /// For each edge, lookup in build log how long it took last time,
-  /// and record that in the edge itself. It will be used for ETA predicton.
+  /// and record that in the edge itself. It will be used for ETA prediction.
   void ParsePreviousElapsedTimes();
 
   /// Build the targets listed on the command line.

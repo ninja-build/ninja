@@ -17,7 +17,7 @@
 
 #include <string>
 
-// Encode a string in JSON format without encolsing quotes
+// Encode a string in JSON format without enclosing quotes
 std::string EncodeJSONString(const std::string& in);
 
 // Print a string in JSON format to stdout without enclosing quotes
