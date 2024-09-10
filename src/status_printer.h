@@ -36,9 +36,9 @@ struct StatusPrinter : Status {
   void BuildStarted() override;
   void BuildFinished() override;
 
-  void Info(const char* msg, ...) override;
-  void Warning(const char* msg, ...) override;
-  void Error(const char* msg, ...) override;
+  void Info(const char* msg, ...) const override;
+  void Warning(const char* msg, ...) const override;
+  void Error(const char* msg, ...) const override;
 
   /// Format the progress status string by replacing the placeholders.
   /// See the user manual for more information about the available

@@ -437,21 +437,21 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
 
-void StatusPrinter::Warning(const char* msg, ...) {
+void StatusPrinter::Warning(const char* msg, ...) const {
   va_list ap;
   va_start(ap, msg);
   ::Warning(msg, ap);
   va_end(ap);
 }
 
-void StatusPrinter::Error(const char* msg, ...) {
+void StatusPrinter::Error(const char* msg, ...) const {
   va_list ap;
   va_start(ap, msg);
   ::Error(msg, ap);
   va_end(ap);
 }
 
-void StatusPrinter::Info(const char* msg, ...) {
+void StatusPrinter::Info(const char* msg, ...) const {
   va_list ap;
   va_start(ap, msg);
   ::Info(msg, ap);
