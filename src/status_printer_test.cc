@@ -56,3 +56,15 @@ TEST_F(StatusPrinterTest, StatusFormatReplacePlaceholder) {
   EXPECT_EQ("[%/s0/t0/r0/u0/f0]",
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));
 }
+
+TEST_F(StatusPrinterTest, StatusFormatValidator) {
+  EXPECT_TRUE(StatusPrinter::IsValidProgressStatus("[%f/%t] "));
+  {
+    std::string error_output;
+    EXPECT_FALSE(
+        StatusPrinter::IsValidProgressStatus("[%f/%X] ", &error_output));
+    EXPECT_EQ("unknown placeholder '%X' in $NINJA_STATUS", error_output);
+  }
+
+  EXPECT_EQ("", status_.FormatProgressStatus("[%f/%X] ", 0));
+}
