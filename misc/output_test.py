@@ -178,6 +178,21 @@ build a: cat
             except subprocess.CalledProcessError as err:
                 self.fail("non-zero exit code with: " + err.output)
 
+    def test_depfile_directory_creation(self) -> None:
+        b = BuildDir('''\
+            rule touch
+              command = touch $out && echo "$out: extra" > $depfile
+
+            build somewhere/out: touch
+              depfile = somewhere_else/out.d
+            ''')
+        with b:
+            self.assertEqual(b.run('', pipe=True), dedent('''\
+                [1/1] touch somewhere/out && echo "somewhere/out: extra" > somewhere_else/out.d
+                '''))
+            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere", "out")))
+            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere_else", "out.d")))
+
     def test_status(self) -> None:
         self.assertEqual(run(''), 'ninja: no work to do.\n')
         self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')

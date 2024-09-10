@@ -903,6 +903,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
 
   edge->command_start_time_ = build_start;
 
+  // Create depfile directory if needed.
+  // XXX: this may also block; do we care?
+  std::string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty() && !disk_interface_->MakeDirs(depfile))
+    return false;
+
   // Create response file, if needed
   // XXX: this may also block; do we care?
   string rspfile = edge->GetUnescapedRspfile();
