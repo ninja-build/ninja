@@ -171,13 +171,136 @@ class PosixJobserverClient : public Jobserver::Client {
   int write_fd_ = -1;
 };
 
+class PosixJobserverPool : public Jobserver::Pool {
+ public:
+  std::string GetEnvMakeFlagsValue() const override {
+    std::string result;
+    if (!fifo_.empty()) {
+      result.resize(fifo_.size() + 32);
+      int ret = snprintf(const_cast<char*>(result.data()), result.size(),
+                         " -j%zd --jobserver-auth=fifo:%s", job_count_,
+                         fifo_.c_str());
+      if (ret < 0 || ret > static_cast<int>(result.size()))
+        Fatal("Could not format PosixJobserverPool MAKEFLAGS!");
+      result.resize(static_cast<size_t>(ret));
+    }
+    if (read_fd_ >= 0 && write_fd_ >= 0) {
+      result.resize(256);
+      // See technical note in jobserver.c for formatting justification.
+      int ret = snprintf(const_cast<char*>(result.data()), result.size(),
+                         " -j%zu --jobserver-fds=%d,%d --jobserver-auth=%d,%d",
+                         job_count_, read_fd_, write_fd_, read_fd_, write_fd_);
+      if (ret < 0 || ret > static_cast<int>(result.size()))
+        Fatal("Could not format PosixJobserverPool MAKEFLAGS!");
+      result.resize(static_cast<size_t>(ret));
+    }
+    return result;
+  }
+
+  virtual ~PosixJobserverPool() {
+    if (read_fd_ >= 0)
+      ::close(read_fd_);
+    if (write_fd_ >= 0)
+      ::close(write_fd_);
+    if (!fifo_.empty())
+      ::unlink(fifo_.c_str());
+  }
+
+  bool InitWithPipe(size_t slot_count, std::string* error) {
+    // Create anonymous pipe, then write job slot tokens into it.
+    int fds[2] = { -1, -1 };
+    int ret = pipe(fds);
+    if (ret < 0) {
+      *error =
+          std::string("Could not create anonymous pipe: ") + strerror(errno);
+      return false;
+    }
+
+    // The file descriptors returned by pipe() are already heritable and
+    // blocking, which is exactly what's needed here.
+    read_fd_ = fds[0];
+    write_fd_ = fds[1];
+
+    return FillSlots(slot_count, error);
+  }
+
+  bool InitWithFifo(size_t slot_count, std::string* error) {
+    const char* tmp_dir = getenv("TMPDIR");
+    if (!tmp_dir)
+      tmp_dir = "/tmp";
+
+    fifo_.resize(strlen(tmp_dir) + 32);
+    int len = snprintf(const_cast<char*>(fifo_.data()), fifo_.size(),
+                       "%s/NinjaFIFO%d", tmp_dir, getpid());
+    if (len < 0) {
+      *error = "Cannot create fifo path!";
+      return false;
+    }
+    fifo_.resize(static_cast<size_t>(len));
+
+    int ret = mknod(fifo_.c_str(), S_IFIFO | 0666, 0);
+    if (ret < 0) {
+      *error = std::string("Cannot create fifo: ") + strerror(errno);
+      return false;
+    }
+
+    do {
+      write_fd_ = ::open(fifo_.c_str(), O_RDWR | O_CLOEXEC);
+    } while (write_fd_ < 0 && errno == EINTR);
+    if (write_fd_ < 0) {
+      *error = std::string("Could not open fifo: ") + strerror(errno);
+      // Let destructor remove the fifo.
+      return false;
+    }
+
+    return FillSlots(slot_count, error);
+  }
+
+ private:
+  // Fill the pool to satisfy |slot_count| job slots. This
+  // writes |slot_count - 1| bytes to the pipe to satisfy the
+  // implicit job slot requirement.
+  bool FillSlots(size_t slot_count, std::string* error) {
+    job_count_ = slot_count;
+    for (; slot_count > 1; --slot_count) {
+      // Write '+' into the pipe, just like GNU Make. Note that some
+      // implementations write '|' instead, but so far no client or pool
+      // implementation cares about the exact value, though the official spec
+      // says this might change in the future.
+      const char slot_char = '+';
+      int ret = ::write(write_fd_, &slot_char, 1);
+      if (ret != 1) {
+        if (ret < 0 && errno == EINTR)
+          continue;
+        *error =
+            std::string("Could not fill job slots pool: ") + strerror(errno);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Number of parallel job slots (including implicit one).
+  size_t job_count_ = 0;
+
+  // In pipe mode, these are inheritable read and write descriptors for the
+  // pipe. In fifo mode, read_fd_ will be -1, and write_fd_ will be a
+  // non-inheritable descriptor to keep the FIFO alive.
+  int read_fd_ = -1;
+  int write_fd_ = -1;
+
+  // Path to fifo, this will be empty when using an anonymous pipe.
+  std::string fifo_;
+};
+
 }  // namespace
 
 // static
 std::unique_ptr<Jobserver::Client> Jobserver::Client::Create(
     const Jobserver::Config& config, std::string* error) {
   bool success = false;
-  auto client = std::unique_ptr<PosixJobserverClient>(new PosixJobserverClient);
+  auto client =
+      std::unique_ptr<PosixJobserverClient>(new PosixJobserverClient());
   if (config.mode == Jobserver::Config::kModePipe) {
     success = client->InitWithPipeFds(config.read_fd, config.write_fd, error);
   } else if (config.mode == Jobserver::Config::kModePosixFifo) {
@@ -188,4 +311,26 @@ std::unique_ptr<Jobserver::Client> Jobserver::Client::Create(
   if (!success)
     client.reset();
   return client;
+}
+
+// static
+std::unique_ptr<Jobserver::Pool> Jobserver::Pool::Create(
+    size_t num_job_slots, Jobserver::Config::Mode mode, std::string* error) {
+  std::unique_ptr<PosixJobserverPool> pool;
+  if (num_job_slots < 2) {
+    *error = "At least 2 job slots needed";
+    return pool;
+  }
+  bool success = false;
+  pool.reset(new PosixJobserverPool());
+  if (mode == Jobserver::Config::kModePipe) {
+    success = pool->InitWithPipe(num_job_slots, error);
+  } else if (mode == Jobserver::Config::kModePosixFifo) {
+    success = pool->InitWithFifo(num_job_slots, error);
+  } else {
+    *error = "Unsupported jobserver mode";
+  }
+  if (!success)
+    pool.reset();
+  return pool;
 }

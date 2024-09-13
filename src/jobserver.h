@@ -232,4 +232,36 @@ struct Jobserver {
    protected:
     Client() = default;
   };
+
+  /// Jobserver::Pool implements a jobserver pool of job slots according
+  /// to the GNU Make protocol. Usage is the following:
+  ///
+  /// - Use Create() method to create new instances.
+  ///
+  /// - Retrieve the value of the MAKEFLAGS environment variable, and
+  ///   ensure it is passed to each client.
+  ///
+  class Pool {
+   public:
+    /// Destructor.
+    virtual ~Pool() {}
+
+    /// Default implementation mode for the current platform.
+#ifdef _WIN32
+    static constexpr Config::Mode kDefaultMode = Config::kModeWin32Semaphore;
+#else   // !_WIN32
+    static constexpr Config::Mode kDefaultMode = Config::kModePipe;
+#endif  // !_WIN32
+
+    /// Create new instance to use |num_slots| job slots, using a specific
+    /// implementation mode. On failure, set |*error| and return null.
+    ///
+    /// Note that it is an error to use a value of |num_slots| that is <= 1.
+    static std::unique_ptr<Pool> Create(size_t num_job_slots, Config::Mode mode,
+                                        std::string* error);
+
+    /// Return the value of the MAKEFLAGS variable, corresponding to this
+    /// instance, to pass to sub-processes.
+    virtual std::string GetEnvMakeFlagsValue() const = 0;
+  };
 };

@@ -86,6 +86,61 @@ class Win32JobserverClient : public Jobserver::Client {
   HANDLE handle_ = NULL;
 };
 
+class Win32JobserverPool : public Jobserver::Pool {
+ public:
+  bool InitWithSemaphore(size_t slot_count, std::string* error) {
+    job_count_ = slot_count;
+    sem_name_ = GetSemaphoreName();
+    LONG count = static_cast<LONG>(slot_count - 1);
+    handle_ = ::CreateSemaphoreA(NULL, count, count, sem_name_.c_str());
+    if (!IsValid()) {
+      *error = "Could not create semaphore: " + GetLastErrorString();
+      return false;
+    }
+    return true;
+  }
+
+  std::string GetEnvMakeFlagsValue() const override {
+    std::string result;
+    result.resize(sem_name_.size() + 32);
+    int ret =
+        snprintf(const_cast<char*>(result.data()), result.size(),
+                 " -j%zd --jobserver-auth=%s", job_count_, sem_name_.c_str());
+    if (ret < 0 || ret > static_cast<int>(result.size()))
+      Fatal("Could not format Win32JobserverPool MAKEFLAGS!");
+
+    return result;
+  }
+
+  virtual ~Win32JobserverPool() {
+    if (IsValid())
+      ::CloseHandle(handle_);
+  }
+
+ private:
+  // CreateSemaphore returns NULL on failure.
+  bool IsValid() const { return handle_ != NULL; }
+
+  // Compute semaphore name for new instance.
+  static std::string GetSemaphoreName() {
+    static int counter = 0;
+    counter += 1;
+    char name[64];
+    snprintf(name, sizeof(name), "ninja_jobserver_pool_%d_%d",
+             GetCurrentProcessId(), counter);
+    return std::string(name);
+  }
+
+  // Semaphore handle.
+  HANDLE handle_ = NULL;
+
+  // Saved slot count.
+  size_t job_count_ = 0;
+
+  // Semaphore name.
+  std::string sem_name_;
+};
+
 }  // namespace
 
 // static
@@ -102,4 +157,24 @@ std::unique_ptr<Jobserver::Client> Jobserver::Client::Create(
   if (!success)
     client.reset();
   return client;
+}
+
+// static
+std::unique_ptr<Jobserver::Pool> Jobserver::Pool::Create(
+    size_t num_job_slots, Jobserver::Config::Mode mode, std::string* error) {
+  if (num_job_slots < 2) {
+    *error = "At least 2 job slots needed";
+    return nullptr;
+  }
+  bool success;
+  auto pool = std::unique_ptr<Win32JobserverPool>(new Win32JobserverPool());
+  if (mode == Jobserver::Config::kModeWin32Semaphore) {
+    success = pool->InitWithSemaphore(num_job_slots, error);
+  } else {
+    *error = "Unsupported jobserver mode";
+    success = false;
+  }
+  if (!success)
+    pool.reset(nullptr);
+  return pool;
 }
