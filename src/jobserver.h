@@ -145,11 +145,6 @@ struct Jobserver {
     /// For kModeSemaphore, this is the name of the Win32 semaphore to use.
     std::string path;
 
-    /// For kModePipe, these are the file descriptor values
-    /// extracted from MAKEFLAGS.
-    int read_fd = -1;
-    int write_fd = -1;
-
     /// Return true if this instance matches an active implementation mode.
     /// This does not try to validate configuration parameters though.
     bool HasMode() { return mode != kModeNone; }
@@ -193,7 +188,6 @@ struct Jobserver {
   ///
   class Client {
    public:
-    /// Destructor.
     virtual ~Client() {}
 
     /// Try to acquire a slot from the pool. On failure, i.e. if no slot
