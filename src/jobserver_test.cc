@@ -151,8 +151,6 @@ TEST(Jobserver, ParseMakeFlagsValue) {
   ASSERT_TRUE(Jobserver::ParseMakeFlagsValue("--jobserver-auth=10,42", &config,
                                              &error));
   EXPECT_EQ(Jobserver::Config::kModePipe, config.mode);
-  EXPECT_EQ(10, config.read_fd);
-  EXPECT_EQ(42, config.write_fd);
 
   config = {};
   error.clear();

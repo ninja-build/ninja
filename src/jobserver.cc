@@ -36,17 +36,19 @@ bool GetPrefixedValue(StringPiece input, StringPiece prefix,
 }
 
 // Try to read a comma-separated pair of file descriptors from |input|.
-// On success return true and set |*config| accordingly. Otherwise return
-// false if the input doesn't follow the appropriate format.
+// On success return true and set |config->mode| accordingly. Otherwise return
+// false if the input doesn't follow the appropriate format. Note that the
+// values are not saved since pipe mode is not supported.
 bool GetFileDescriptorPair(StringPiece input, Jobserver::Config* config) {
+  int read_fd = 1, write_fd = -1;
   std::string pair = input.AsString();
-  if (sscanf(pair.c_str(), "%d,%d", &config->read_fd, &config->write_fd) != 2)
+  if (sscanf(pair.c_str(), "%d,%d", &read_fd, &write_fd) != 2)
     return false;
 
   // From
   // https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html Any
   // negative descriptor means the feature is disabled.
-  if (config->read_fd < 0 || config->write_fd < 0)
+  if (read_fd < 0 || write_fd < 0)
     config->mode = Jobserver::Config::kModeNone;
   else
     config->mode = Jobserver::Config::kModePipe;
@@ -136,7 +138,7 @@ bool Jobserver::ParseMakeFlagsValue(const char* makeflags_env,
   //
   // clang-format on
   if (!args.empty() && args[0][0] != '-' &&
-      !!memchr(args[0].str_, 'n', args[0].len_)) {
+      memchr(args[0].str_, 'n', args[0].len_) != nullptr) {
     return true;
   }
 
