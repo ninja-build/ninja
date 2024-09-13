@@ -241,6 +241,68 @@ build all: print
             prefix_args=[sys.executable, "-S", _JOBSERVER_POOL_SCRIPT, "--check"]
         )
 
+    def _run_pool_test(self, mode: str) -> None:
+        task_count = 10
+        build_plan = generate_build_plan(task_count)
+        extra_env = {"NINJA_JOBSERVER": mode}
+        with BuildDir(build_plan) as b:
+            # First, run the full 10 tasks with with 10 tokens, this should allow all
+            # tasks to run in parallel.
+            b.ninja_run([f"-j{task_count}", "all"], extra_env=extra_env)
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 10)
+
+            # Second, use 4 tokens only, and verify that this was enforced by Ninja.
+            b.ninja_clean()
+            b.ninja_run(["-j4", "all"], extra_env=extra_env)
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 4)
+
+            # Finally, verify that --token-count=1 serializes all tasks.
+            b.ninja_clean()
+            b.ninja_run(["-j1", "all"], extra_env=extra_env)
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 1)
+
+    def test_jobserver_pool_with_default_mode(self):
+        self._run_pool_test("1")
+
+    def test_server_passes_MAKEFLAGS(self):
+        self._test_MAKEFLAGS_value(ninja_args=["--jobserver"])
+
+    def _verify_NINJA_JOBSERVER_value(
+        self, expected_value, ninja_args=[], env_vars={}, msg=None
+    ):
+        build_plan = r"""
+rule print
+    command = echo NINJA_JOBSERVER="[$$NINJA_JOBSERVER]"
+
+build all: print
+"""
+        env = dict(os.environ)
+        env.update(env_vars)
+
+        with BuildDir(build_plan) as b:
+            extra_env = {"NINJA_JOBSERVER": "1"}
+            ret = b.ninja_spawn(["--quiet"] + ninja_args + ["all"], extra_env=extra_env)
+            self.assertEqual(ret.returncode, 0)
+            self.assertEqual(
+                ret.stdout.strip(), f"NINJA_JOBSERVER=[{expected_value}]", msg=msg
+            )
+
+    def test_server_unsets_NINJA_JOBSERVER(self):
+        env_jobserver_1 = {"NINJA_JOBSERVER": "1"}
+        self._verify_NINJA_JOBSERVER_value("", env_vars=env_jobserver_1)
+        self._verify_NINJA_JOBSERVER_value("", ninja_args=["--jobserver"])
+
+    @unittest.skipIf(_PLATFORM_IS_WINDOWS, "These test methods do not work on Windows")
+    def test_jobserver_pool_with_posix_pipe(self):
+        self._run_pool_test("pipe")
+
+    @unittest.skipIf(_PLATFORM_IS_WINDOWS, "These test methods do not work on Windows")
+    def test_jobserver_pool_with_posix_fifo(self):
+        self._run_pool_test("fifo")
+
 
 if __name__ == "__main__":
     unittest.main()
