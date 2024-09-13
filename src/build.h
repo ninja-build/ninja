@@ -24,6 +24,7 @@
 #include "depfile_parser.h"
 #include "exit_status.h"
 #include "graph.h"
+#include "jobserver.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
@@ -192,6 +193,12 @@ struct Builder {
           int64_t start_time_millis);
   ~Builder();
 
+  /// Set Jobserver client instance for this builder.
+  void SetJobserverClient(Jobserver::Client* jobserver_client) {
+    jobserver_ = jobserver_client;
+    ;
+  }
+
   /// Clean up after interrupted commands by deleting output files.
   void Cleanup();
 
@@ -225,6 +232,7 @@ struct Builder {
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
+  Jobserver::Client* jobserver_ = nullptr;
   std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
 
