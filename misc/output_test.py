@@ -228,6 +228,71 @@ out1
 out2
 ''')
 
+        self.assertEqual(run(plan, flags='-t inputs --dependency-order out3'),
+'''in2
+in1
+out1
+out2
+implicit
+order_only
+''')
+
+        # Verify that results are shell-escaped by default, unless --no-shell-escape
+        # is used. Also verify that phony outputs are never part of the results.
+        quote = '"' if platform.system() == "Windows" else "'"
+
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out$ 2 : cat out1
+build out$ 3 : phony out$ 2
+build all: phony out$ 3
+'''
+
+        # Quoting changes the order of results when sorting alphabetically.
+        self.assertEqual(run(plan, flags='-t inputs all'),
+f'''{quote}out 2{quote}
+in1
+out1
+''')
+
+        self.assertEqual(run(plan, flags='-t inputs --no-shell-escape all'),
+'''in1
+out 2
+out1
+''')
+
+        # But not when doing dependency order.
+        self.assertEqual(
+            run(
+              plan,
+              flags='-t inputs --dependency-order all'
+            ),
+            f'''in1
+out1
+{quote}out 2{quote}
+''')
+
+        self.assertEqual(
+          run(
+            plan,
+            flags='-t inputs --dependency-order --no-shell-escape all'
+          ),
+          f'''in1
+out1
+out 2
+''')
+
+        self.assertEqual(
+          run(
+            plan,
+            flags='-t inputs --dependency-order --no-shell-escape --print0 all'
+          ),
+          f'''in1\0out1\0out 2\0'''
+        )
+
+
     def test_explain_output(self):
         b = BuildDir('''\
             build .FORCE: phony

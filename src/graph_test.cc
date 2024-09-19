@@ -215,28 +215,90 @@ TEST_F(GraphTest, RootNodes) {
   }
 }
 
-TEST_F(GraphTest, CollectInputs) {
+TEST_F(GraphTest, InputsCollector) {
+  // Build plan for the following graph:
+  //
+  //      in1
+  //       |___________
+  //       |           |
+  //      ===         ===
+  //       |           |
+  //      out1        mid1
+  //       |       ____|_____
+  //       |      |          |
+  //       |     ===      =======
+  //       |      |       |     |
+  //       |     out2    out3  out4
+  //       |      |       |
+  //      =======phony======
+  //              |
+  //             all
+  //
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out1: cat in1\n"
+                                      "build mid1: cat in1\n"
+                                      "build out2: cat mid1\n"
+                                      "build out3 out4: cat mid1\n"
+                                      "build all: phony out1 out2 out3\n"));
+
+  InputsCollector collector;
+
+  // Start visit from out1, this should add in1 to the inputs.
+  collector.Reset();
+  collector.VisitNode(GetNode("out1"));
+  auto inputs = collector.GetInputsAsStrings();
+  ASSERT_EQ(1u, inputs.size());
+  EXPECT_EQ("in1", inputs[0]);
+
+  // Add a visit from out2, this should add mid1.
+  collector.VisitNode(GetNode("out2"));
+  inputs = collector.GetInputsAsStrings();
+  ASSERT_EQ(2u, inputs.size());
+  EXPECT_EQ("in1", inputs[0]);
+  EXPECT_EQ("mid1", inputs[1]);
+
+  // Another visit from all, this should add out1, out2 and out3,
+  // but not out4.
+  collector.VisitNode(GetNode("all"));
+  inputs = collector.GetInputsAsStrings();
+  ASSERT_EQ(5u, inputs.size());
+  EXPECT_EQ("in1", inputs[0]);
+  EXPECT_EQ("mid1", inputs[1]);
+  EXPECT_EQ("out1", inputs[2]);
+  EXPECT_EQ("out2", inputs[3]);
+  EXPECT_EQ("out3", inputs[4]);
+
+  collector.Reset();
+
+  // Starting directly from all, will add out1 before mid1 compared
+  // to the previous example above.
+  collector.VisitNode(GetNode("all"));
+  inputs = collector.GetInputsAsStrings();
+  ASSERT_EQ(5u, inputs.size());
+  EXPECT_EQ("in1", inputs[0]);
+  EXPECT_EQ("out1", inputs[1]);
+  EXPECT_EQ("mid1", inputs[2]);
+  EXPECT_EQ("out2", inputs[3]);
+  EXPECT_EQ("out3", inputs[4]);
+}
+
+TEST_F(GraphTest, InputsCollectorWithEscapes) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
       &state_,
       "build out$ 1: cat in1 in2 in$ with$ space | implicit || order_only\n"));
 
-  std::vector<std::string> inputs;
-  Edge* edge = GetNode("out 1")->in_edge();
-
-  // Test without shell escaping.
-  inputs.clear();
-  edge->CollectInputs(false, &inputs);
-  EXPECT_EQ(5u, inputs.size());
+  InputsCollector collector;
+  collector.VisitNode(GetNode("out 1"));
+  auto inputs = collector.GetInputsAsStrings();
+  ASSERT_EQ(5u, inputs.size());
   EXPECT_EQ("in1", inputs[0]);
   EXPECT_EQ("in2", inputs[1]);
   EXPECT_EQ("in with space", inputs[2]);
   EXPECT_EQ("implicit", inputs[3]);
   EXPECT_EQ("order_only", inputs[4]);
 
-  // Test with shell escaping.
-  inputs.clear();
-  edge->CollectInputs(true, &inputs);
-  EXPECT_EQ(5u, inputs.size());
+  inputs = collector.GetInputsAsStrings(true);
+  ASSERT_EQ(5u, inputs.size());
   EXPECT_EQ("in1", inputs[0]);
   EXPECT_EQ("in2", inputs[1]);
 #ifdef _WIN32

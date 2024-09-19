@@ -761,43 +761,50 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
-void CollectInputs(Edge* edge, std::set<Edge*>* seen,
-                   std::vector<std::string>* result) {
-  if (!edge)
-    return;
-  if (!seen->insert(edge).second)
-    return;
-
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in)
-    CollectInputs((*in)->in_edge(), seen, result);
-
-  if (!edge->is_phony()) {
-    edge->CollectInputs(true, result);
-  }
-}
-
 int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
   // The inputs tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "inputs".
   argc++;
   argv--;
+
+  bool print0 = false;
+  bool shell_escape = true;
+  bool dependency_order = false;
+
   optind = 1;
   int opt;
   const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { "no-shell-escape", no_argument, NULL, 'E' },
+                                  { "print0", no_argument, NULL, '0' },
+                                  { "dependency-order", no_argument, NULL,
+                                    'd' },
                                   { NULL, 0, NULL, 0 } };
-  while ((opt = getopt_long(argc, argv, "h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "h0Ed", kLongOptions, NULL)) != -1) {
     switch (opt) {
+    case 'd':
+      dependency_order = true;
+      break;
+    case 'E':
+      shell_escape = false;
+      break;
+    case '0':
+      print0 = true;
+      break;
     case 'h':
     default:
       // clang-format off
       printf(
 "Usage '-t inputs [options] [targets]\n"
 "\n"
-"List all inputs used for a set of targets. Note that this includes\n"
-"explicit, implicit and order-only inputs, but not validation ones.\n\n"
+"List all inputs used for a set of targets, sorted in dependency order.\n"
+"Note that by default, results are shell escaped, and sorted alphabetically,\n"
+"and never include validation target paths.\n\n"
 "Options:\n"
-"  -h, --help   Print this message.\n");
+"  -h, --help          Print this message.\n"
+"  -0, --print0            Use \\0, instead of \\n as a line terminator.\n"
+"  -E, --no-shell-escape   Do not shell escape the result.\n"
+"  -d, --dependency-order  Sort results by dependency order.\n"
+      );
       // clang-format on
       return 1;
     }
@@ -805,25 +812,31 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
   argv += optind;
   argc -= optind;
 
-  vector<Node*> nodes;
-  string err;
+  std::vector<Node*> nodes;
+  std::string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
     Error("%s", err.c_str());
     return 1;
   }
 
-  std::set<Edge*> seen;
-  std::vector<std::string> result;
-  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    CollectInputs((*in)->in_edge(), &seen, &result);
+  InputsCollector collector;
+  for (const Node* node : nodes)
+    collector.VisitNode(node);
 
-  // Make output deterministic by sorting then removing duplicates.
-  std::sort(result.begin(), result.end());
-  result.erase(std::unique(result.begin(), result.end()), result.end());
+  std::vector<std::string> inputs = collector.GetInputsAsStrings(shell_escape);
+  if (!dependency_order)
+    std::sort(inputs.begin(), inputs.end());
 
-  for (size_t n = 0; n < result.size(); ++n)
-    puts(result[n].c_str());
-
+  if (print0) {
+    for (const std::string& input : inputs) {
+      fwrite(input.c_str(), input.size(), 1, stdout);
+      fputc('\0', stdout);
+    }
+    fflush(stdout);
+  } else {
+    for (const std::string& input : inputs)
+      puts(input.c_str());
+  }
   return 0;
 }
 

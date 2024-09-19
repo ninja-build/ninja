@@ -201,9 +201,6 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
-  // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
-  void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
-
   // critical_path_weight is the priority during build scheduling. The
   // "critical path" between this edge's inputs and any target node is
   // the path which maximises the sum oof weights along that path.
@@ -423,6 +420,43 @@ public:
   void clear() {
     c.clear();
   }
+};
+
+/// A class used to collect the transitive set of inputs from a given set
+/// of starting nodes. Used to implement the `inputs` tool.
+///
+/// When collecting inputs, the outputs of phony edges are always ignored
+/// from the result, but are followed by the dependency walk.
+///
+/// Usage is:
+/// - Create instance.
+/// - Call VisitNode() for each root node to collect inputs from.
+/// - Call inputs() to retrieve the list of input node pointers.
+/// - Call GetInputsAsStrings() to retrieve the list of inputs as a string
+/// vector.
+///
+struct InputsCollector {
+  /// Visit a single @arg node during this collection.
+  void VisitNode(const Node* node);
+
+  /// Retrieve list of visited input nodes. A dependency always appears
+  /// before its dependents in the result, but final order depends on the
+  /// order of the VisitNode() calls performed before this.
+  const std::vector<const Node*>& inputs() const { return inputs_; }
+
+  /// Same as inputs(), but returns the list of visited nodes as a list of
+  /// strings, with optional shell escaping.
+  std::vector<std::string> GetInputsAsStrings(bool shell_escape = false) const;
+
+  /// Reset collector state.
+  void Reset() {
+    inputs_.clear();
+    visited_nodes_.clear();
+  }
+
+ private:
+  std::vector<const Node*> inputs_;
+  std::set<const Node*> visited_nodes_;
 };
 
 #endif  // NINJA_GRAPH_H_
