@@ -100,7 +100,7 @@ struct StatusPrinter : Status {
   Explanations* explanations_ = nullptr;
 
   /// The custom progress status format to use.
-  const char* progress_status_format_;
+  const char* progress_status_format_ = nullptr;
 
   template <size_t S>
   void SnprintfRate(double rate, char (&buf)[S], const char* format) const {

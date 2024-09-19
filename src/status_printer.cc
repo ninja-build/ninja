@@ -42,11 +42,13 @@ Status* Status::factory(const BuildConfig& config) {
 
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config), started_edges_(0), finished_edges_(0), total_edges_(0),
-      running_edges_(0), progress_status_format_(NULL),
-      current_rate_(config.parallelism) {
+      running_edges_(0), current_rate_(config.parallelism) {
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
+
+  // The progress status format to use by default
+  static const char kDefaultProgressStatusFormat[] = "[%f/%t] ";
 
   progress_status_format_ = getenv("NINJA_STATUS");
 
@@ -57,7 +59,7 @@ StatusPrinter::StatusPrinter(const BuildConfig& config)
     progress_status_format_ = nullptr;
   }
   if (!progress_status_format_)
-    progress_status_format_ = "[%f/%t] ";
+    progress_status_format_ = kDefaultProgressStatusFormat;
 }
 
 void StatusPrinter::EdgeAddedToPlan(const Edge* edge) {
