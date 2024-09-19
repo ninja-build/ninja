@@ -1852,7 +1852,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
   // out2 and out3 will be built even though "in" is not touched when built.
   // Then, since out2 is rebuilt, out4 should be rebuilt -- the restat on the
   // "true" rule should not lead to the "touch" edge writing out2 and out3 being
-  // cleard.
+  // cleared.
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out4", &err));
@@ -3261,7 +3261,7 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
 
   // Touch 'header.in', blank dependencies log (create a different one).
   // Building header.h triggers 'restat' outputs cleanup.
-  // Validate that out is rebuilt netherless, as deps are missing.
+  // Validate that out is rebuilt nevertheless, as deps are missing.
   fs_.Tick();
   fs_.Create("header.in", "");
 

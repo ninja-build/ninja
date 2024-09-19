@@ -526,7 +526,7 @@ void Plan::ComputeCriticalPath() {
   for (Edge* edge : sorted_edges)
     edge->set_critical_path_weight(EdgeWeightHeuristic(edge));
 
-  // Second propagate / increment weidghts from
+  // Second propagate / increment weights from
   // children to parents. Scan the list
   // in reverse order to do so.
   for (auto reverse_it = sorted_edges.rbegin();
