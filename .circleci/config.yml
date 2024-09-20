@@ -1,0 +1,35 @@
+version: 2.1
+jobs:
+  build-test:
+    docker:
+      - image: cimg/base:current
+    steps:
+      # Checkout the code as the first step.
+      - checkout
+      - run:
+          name: InstallPreq
+          command: | 
+            echo "Installing clang-tidy"
+            sudo apt-get update && sudo apt-get install -y clang-tidy
+            echo "Installed"
+      - run:
+          name: Build
+          command: | 
+            echo "Building"
+            mkdir build && cd build
+            cmake -S ..
+            make -j $(nproc)
+            cd ../
+            echo "Built"
+      - run:
+          name: Test
+          command: | 
+            echo "Start Testing"
+            cd build
+            ctest
+            echo "Testing Done"
+
+workflows:
+  build-test-workflow: 
+    jobs:
+      - build-test
