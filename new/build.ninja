@@ -1,0 +1,18 @@
+rule clang_tidy
+  command = clang-tidy $in 
+
+rule compile
+  command = g++ -c $in -o $out 
+
+rule link
+  command = g++ $in -o $out
+
+
+build hello.o: compile hello.cpp
+
+build hello.exe: link hello.o
+
+build tidy: clang_tidy hello.cpp
+
+default hello.exe
+

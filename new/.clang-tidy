@@ -1,0 +1,17 @@
+Checks: '*,
+  -fuchsia-*,
+  -google-*,
+  -zircon-*,
+  -abseil-*,
+  -modernize-use-trailing-return-type,
+  -llvm-*,
+  -llvmlibc-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -cppcoreguidelines-pro-type-member-init,
+  -hicpp-member-init,
+  -bugprone-exception-escape'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+FormatStyle: file
+SystemHeaders: false
