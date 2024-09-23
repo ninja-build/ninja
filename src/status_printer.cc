@@ -216,34 +216,36 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
+  if (!output.empty()) {
 #ifdef _WIN32
-  // Fix extra CR being added on Windows, writing out CR CR LF (#773)
-  fflush(stdout);  // Begin Windows extra CR fix
-  _setmode(_fileno(stdout), _O_BINARY);
+    // Fix extra CR being added on Windows, writing out CR CR LF (#773)
+    fflush(stdout);  // Begin Windows extra CR fix
+    _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
-  // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
-  // check if the output is empty. Some compilers, e.g. clang, check
-  // isatty(stderr) to decide if they should print colored output.
-  // To make it possible to use colored output with ninja, subprocesses should
-  // be run with a flag that forces them to always print color escape codes.
-  // To make sure these escape codes don't show up in a file if ninja's output
-  // is piped to a file, ninja strips ansi escape codes again if it's not
-  // writing to a |smart_terminal_|.
-  // (Launching subprocesses in pseudo ttys doesn't work because there are
-  // only a few hundred available on some systems, and ninja can launch
-  // thousands of parallel compile commands.)
-  if (printer_.supports_color() || output.find('\x1b') == std::string::npos) {
-    printer_.PrintOnNewLine(output);
-  } else {
-    std::string final_output = StripAnsiEscapeCodes(output);
-    printer_.PrintOnNewLine(final_output);
+    // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
+    // check if the output is empty. Some compilers, e.g. clang, check
+    // isatty(stderr) to decide if they should print colored output.
+    // To make it possible to use colored output with ninja, subprocesses should
+    // be run with a flag that forces them to always print color escape codes.
+    // To make sure these escape codes don't show up in a file if ninja's output
+    // is piped to a file, ninja strips ansi escape codes again if it's not
+    // writing to a |smart_terminal_|.
+    // (Launching subprocesses in pseudo ttys doesn't work because there are
+    // only a few hundred available on some systems, and ninja can launch
+    // thousands of parallel compile commands.)
+    if (printer_.supports_color() || output.find('\x1b') == std::string::npos) {
+      printer_.PrintOnNewLine(output);
+    } else {
+      std::string final_output = StripAnsiEscapeCodes(output);
+      printer_.PrintOnNewLine(final_output);
+    }
+
+#ifdef _WIN32
+    fflush(stdout);
+    _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
+#endif
   }
-
-#ifdef _WIN32
-  fflush(stdout);
-  _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
-#endif
 }
 
 void StatusPrinter::BuildStarted() {

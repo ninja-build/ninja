@@ -39,8 +39,29 @@ class BuildDir:
         self,
         flags: str = '',
         pipe: bool = False,
+        raw_output: bool = False,
         env: Dict[str, str] = default_env,
     ) -> str:
+        """Run Ninja command, and get filtered output.
+
+        Args:
+          flags: Extra arguments passed to Ninja.
+
+          pipe: set to True to run Ninja in a non-interactive terminal.
+            If False (the default), this runs Ninja in a pty to simulate
+            a smart terminal (this feature cannot work on Windows!).
+
+          raw_output: set to True to return the raw, unfiltered command
+            output.
+
+          env: Optional environment dictionary to run the command in.
+
+        Returns:
+          A UTF-8 string corresponding to the output (stdout only) of the
+          Ninja command. By default, partial lines that were overwritten
+          are removed according to the rules described in the comments
+          below.
+        """
         ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
         try:
             if pipe:
@@ -55,21 +76,55 @@ class BuildDir:
         except subprocess.CalledProcessError as err:
             sys.stdout.buffer.write(err.output)
             raise err
-        final_output = ''
-        for line in output.decode('utf-8').splitlines(True):
-            if len(line) > 0 and line[-1] == '\r':
-                continue
-            final_output += line.replace('\r', '')
-        return final_output
+
+        if raw_output:
+            return output.decode('utf-8')
+
+        # When running in a smart terminal, Ninja uses CR (\r) to
+        # return the cursor to the start of the current line, prints
+        # something, then uses `\x1b[K` to clear everything until
+        # the end of the line.
+        #
+        # Thus printing 'FOO', 'BAR', 'ZOO' on the same line, then
+        # jumping to the next one results in the following output
+        # on Posix:
+        #
+        # '\rFOO\x1b[K\rBAR\x1b[K\rZOO\x1b[K\r\n'
+        #
+        # The following splits the output at both \r, \n and \r\n
+        # boundaries, which gives:
+        #
+        #  [ '\r', 'FOO\x1b[K\r', 'BAR\x1b[K\r', 'ZOO\x1b[K\r\n' ]
+        #
+        decoded_lines = output.decode('utf-8').splitlines(True)
+
+        # Remove any item that ends with a '\r' as this means its
+        # content will be overwritten by the next item in the list.
+        # For the previous example, this gives:
+        #
+        #  [ 'ZOO\x1b[K\r\n' ]
+        #
+        final_lines = [ l for l in decoded_lines if not l.endswith('\r') ]
+
+        # Return a single string that concatenates all filtered lines
+        # while removing any remaining \r in it. Needed to transform
+        # \r\n into \n.
+        #
+        #  "ZOO\x1b[K\n'
+        #
+        return ''.join(final_lines).replace('\r', '')
 
 def run(
     build_ninja: str,
     flags: str = '',
     pipe: bool = False,
+    raw_output: bool = False,
     env: Dict[str, str] = default_env,
 ) -> str:
+    """Run Ninja with a given build plan in a temporary directory.
+    """
     with BuildDir(build_ninja) as b:
-        return b.run(flags, pipe, env)
+        return b.run(flags, pipe, raw_output, env)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
@@ -149,6 +204,29 @@ build a: cat
 '''[1/1] cat cat.rsp cat.rsp > a\x1b[K
 ''')
 
+    def test_issue_2499(self) -> None:
+        # This verifies that Ninja prints its status line updates on a single
+        # line when running in a smart terminal, and when commands do not have
+        # any output. Get the raw command output which includes CR (\r) codes
+        # and all content that was printed by Ninja.
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+
+build foo: touch
+build bar: touch foo
+build zoo: touch bar
+''', flags='-j1 zoo', raw_output=True).split('\r'),
+            [
+                '',
+                '[0/3] touch foo\x1b[K',
+                '[1/3] touch foo\x1b[K',
+                '[1/3] touch bar\x1b[K',
+                '[2/3] touch bar\x1b[K',
+                '[2/3] touch zoo\x1b[K',
+                '[3/3] touch zoo\x1b[K',
+                '\n',
+            ])
 
     def test_pr_1685(self) -> None:
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
