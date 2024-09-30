@@ -311,7 +311,28 @@ if(BUILD_TESTING)
     target_link_options(manifest_parser_perftest PRIVATE "-Wl,-bmaxdata:0x80000000")
   endif()
 
-  add_test(NAME NinjaTest COMMAND ninja_test)
+# Option to enable clang-tidy
+option(ENABLE_CLANG_TIDY "Enable clang-tidy checks" ON)
+
+# Find all .cc files in the src/ directory
+file(GLOB NINJA_SOURCES "${PROJECT_SOURCE_DIR}/src/*.cc")
+
+# Apply clang-tidy only during testing
+if(BUILD_TESTING AND ENABLE_CLANG_TIDY)
+  find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
+  if(CLANG_TIDY_EXECUTABLE)
+    message(STATUS "clang-tidy found: ${CLANG_TIDY_EXECUTABLE}")
+    
+    # Define a CTest entry for running clang-tidy
+    add_test(NAME ClangTidyTest
+      COMMAND ${CLANG_TIDY_EXECUTABLE} ${NINJA_SOURCES}
+    )
+  else()
+    message(WARNING "clang-tidy not found!")
+  endif()
+  endif()
+# Define the Ninja test target
+add_test(NAME NinjaTest COMMAND ninja_test)
 endif()
 
 if(NINJA_BUILD_BINARY)
