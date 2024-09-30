@@ -1,23 +1,29 @@
 version: 2.1
-
 jobs:
-  build-and-test:
+  build-test:
     docker:
-      - image: circleci/gcc:latest  # or another image with cmake and make installed
+      - image: cimg/base:current
     steps:
-      - checkout  # Checkout the source code
-
+      # Checkout the code as the first step.
+      - checkout
       - run:
-          name: Create Build Directory
-          command: |
-            mkdir build
-            cd build
+          name: Build
+          command: | 
+            echo "Building"
+            mkdir build && cd build
             cmake -S ..
-            make
+            make -j $(nproc)
+            cd ../
+            echo "Built"
+      - run:
+          name: Test
+          command: | 
+            echo "Start Testing"
+            cd build
             ctest
+            echo "Testing Done"
 
 workflows:
-  version: 2
-  build_and_test_workflow:
+  build-test-workflow: 
     jobs:
-      - build-and-test
+      - build-test
