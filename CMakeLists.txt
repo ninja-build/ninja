@@ -341,7 +341,7 @@ if(BUILD_TESTING)
   find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
   # Apply clang-tidy checks to the target
   if(CLANG_TIDY_EXE)
-  set_target_properties(ninja_test PROPERTIES
+  set_target_properties(clangTidy_test PROPERTIES
   	CXX_CLANG_TIDY "${CLANG_TIDY_EXE};--checks=-*,modernize-*"
 	)
 
