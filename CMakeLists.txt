@@ -340,12 +340,15 @@ if(BUILD_TESTING)
 	)
   find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
   # Apply clang-tidy checks to the target
-  if(CLANG_TIDY_EXE)
-  set_target_properties(clangTidy_test PROPERTIES
-  	CXX_CLANG_TIDY "${CLANG_TIDY_EXE};--checks=-*,modernize-*"
-	)
-
-	else()
+# Add a custom test for clang-tidy
+   if(CLANG_TIDY_EXE)
+    add_test(
+        NAME clang-tidy-check
+        COMMAND ${CLANG_TIDY_EXE} ${NINJA_TEST_SOURCES} --checks=-*,modernize-* --warnings-as-errors=*
+    )
+    else()
+    	message(WARNING "clang-tidy not found, skipping clang-tidy test")
+    endif()
 
 
 endif()
