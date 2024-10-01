@@ -125,6 +125,8 @@ struct NinjaMain : public BuildLogUser {
   int ToolBrowse(const Options* options, int argc, char* argv[]);
   int ToolMSVC(const Options* options, int argc, char* argv[]);
   int ToolTargets(const Options* options, int argc, char* argv[]);
+  int ToolDynOuts(const Options* options, int argc, char* argv[]);
+  int ToolOutputs(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolInputs(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
@@ -570,10 +572,11 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
     TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
     if (mtime == -1)
       Error("%s", err.c_str());  // Log and ignore Stat() errors;
+    int deps_count = deps->node_count - deps->outputs_count;
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
-           (*it)->path().c_str(), deps->node_count, deps->mtime,
+           (*it)->path().c_str(), deps_count, deps->mtime,
            (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
-    for (int i = 0; i < deps->node_count; ++i)
+    for (int i = 0; i < deps_count; ++i)
       printf("    %s\n", deps->nodes[i]->path().c_str());
     printf("\n");
   }
@@ -598,6 +601,84 @@ int NinjaMain::ToolMissingDeps(const Options* options, int argc, char** argv) {
   scanner.PrintStats();
   if (scanner.HadMissingDeps())
     return 3;
+  return 0;
+}
+
+int NinjaMain::ToolDynOuts(const Options*, int argc, char** argv) {
+  vector<Node*> nodes;
+  if (argc == 0) {
+    for (vector<Node*>::const_iterator ni = deps_log_.nodes().begin();
+         ni != deps_log_.nodes().end(); ++ni) {
+      if (deps_log_.IsDepsEntryLiveFor(*ni))
+        nodes.push_back(*ni);
+    }
+  } else {
+    string err;
+    if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+      Error("%s", err.c_str());
+      return 1;
+    }
+  }
+
+  RealDiskInterface disk_interface;
+  for (vector<Node*>::iterator it = nodes.begin(), end = nodes.end();
+       it != end; ++it) {
+    DepsLog::Deps* deps = deps_log_.GetDeps(*it);
+    if (!deps) {
+      printf("%s: deps not found\n", (*it)->path().c_str());
+      continue;
+    }
+
+    string err;
+    TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
+    if (mtime == -1)
+      Error("%s", err.c_str());  // Log and ignore Stat() errors;
+    int deps_count = deps->node_count - deps->outputs_count;
+    printf("%s: #dynouts %d, deps mtime %" PRId64 " (%s)\n",
+           (*it)->path().c_str(), deps->outputs_count, deps->mtime,
+           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+    for (int i = deps_count; i < deps->node_count; ++i)
+      printf("    %s\n", deps->nodes[i]->path().c_str());
+    printf("\n");
+  }
+
+  return 0;
+}
+
+int NinjaMain::ToolOutputs(const Options*, int, char*[]) {
+  // Load dyndep files that exist, in order to load dynamic outputs
+  DyndepLoader dyndep_loader(&state_, &disk_interface_);
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    if (Node* dyndep = (*e)->dyndep_) {
+      std::string err;
+      dyndep_loader.LoadDyndeps(dyndep, &err);
+    }
+  }
+
+  std::string err;
+  // Load dynamic outputs which may exist in the deps log
+  DepfileParserOptions depfileOptions;
+  ImplicitDepLoader implicit_dep_loader(&state_, &deps_log_, &disk_interface_,
+                                        &depfileOptions, nullptr);
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    string dynout = (*e)->GetUnescapedDynout();
+
+    if (!dynout.empty()) {
+      implicit_dep_loader.LoadImplicitOutputs(*e, &err);
+    }
+  }
+
+  for (vector<Edge*>::iterator e = state_.edges_.begin();
+       e != state_.edges_.end(); ++e) {
+    for (vector<Node*>::iterator out_node = (*e)->outputs_.begin();
+         out_node != (*e)->outputs_.end(); ++out_node) {
+      printf("%s: %s\n", (*out_node)->path().c_str(),
+             (*e)->rule_->name().c_str());
+    }
+  }
+
   return 0;
 }
 
@@ -878,7 +959,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -890,7 +971,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
 }
 
 int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &deps_log_);
   return cleaner.CleanDead(build_log_.entries());
 }
 
@@ -1124,13 +1205,15 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolMSVC },
 #endif
     { "clean", "clean built files",
-      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolClean },
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolClean },
     { "commands", "list all commands required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "inputs", "list all inputs required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolInputs},
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
+    { "dynouts", "shows dynamic outputs stored in the deps log",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDynOuts },
     { "missingdeps", "check deps log dependencies on generated files",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolMissingDeps },
     { "graph", "output graphviz dot file for targets",
@@ -1139,6 +1222,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolQuery },
     { "targets",  "list targets by their rule or depth in the DAG",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
+    { "outputs", "list all outputs of the build graph, including dynamic outputs stored in the deps log",
+      Tool::RUN_AFTER_LOGS, &NinjaMain::ToolOutputs },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
     { "recompact",  "recompacts ninja-internal data structures",
@@ -1193,6 +1278,7 @@ bool DebugEnable(const string& name) {
 "  stats        print operation counts/timing info\n"
 "  explain      explain what caused a command to execute\n"
 "  keepdepfile  don't delete depfiles after they're read by ninja\n"
+"  keepdynout   don't delete dynout files after they're read by ninja\n"
 "  keeprsp      don't delete @response files on success\n"
 #ifdef _WIN32
 "  nostatcache  don't batch stat() calls per directory and cache them\n"
@@ -1208,6 +1294,9 @@ bool DebugEnable(const string& name) {
   } else if (name == "keepdepfile") {
     g_keep_depfile = true;
     return true;
+  } else if (name == "keepdynout") {
+    g_keep_dynout = true;
+    return true;
   } else if (name == "keeprsp") {
     g_keep_rsp = true;
     return true;
@@ -1217,7 +1306,7 @@ bool DebugEnable(const string& name) {
   } else {
     const char* suggestion =
         SpellcheckString(name.c_str(),
-                         "stats", "explain", "keepdepfile", "keeprsp",
+                         "stats", "explain", "keepdepfile", "keepdynout", "keeprsp",
                          "nostatcache", NULL);
     if (suggestion) {
       Error("unknown debug setting '%s', did you mean '%s'?",

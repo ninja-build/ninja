@@ -50,7 +50,8 @@ TEST_F(DepsLogTest, WriteRead) {
     vector<Node*> deps;
     deps.push_back(state1.GetNode("foo.h", 0));
     deps.push_back(state1.GetNode("bar.h", 0));
-    log1.RecordDeps(state1.GetNode("out.o", 0), 1, deps);
+    deps.push_back(state1.GetNode("out.bis", 0));
+    log1.RecordDeps(state1.GetNode("out.o", 0), 1, deps, 1);
 
     deps.clear();
     deps.push_back(state1.GetNode("foo.h", 0));
@@ -60,9 +61,11 @@ TEST_F(DepsLogTest, WriteRead) {
     DepsLog::Deps* log_deps = log1.GetDeps(state1.GetNode("out.o", 0));
     ASSERT_TRUE(log_deps);
     ASSERT_EQ(1, log_deps->mtime);
-    ASSERT_EQ(2, log_deps->node_count);
+    ASSERT_EQ(3, log_deps->node_count);
+    ASSERT_EQ(1, log_deps->outputs_count);
     ASSERT_EQ("foo.h", log_deps->nodes[0]->path());
     ASSERT_EQ("bar.h", log_deps->nodes[1]->path());
+    ASSERT_EQ("out.bis", log_deps->nodes[2]->path());
   }
 
   log1.Close();

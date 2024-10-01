@@ -22,6 +22,7 @@
 #include "build_log.h"
 #include "debug_flags.h"
 #include "depfile_parser.h"
+#include "dynout_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "manifest_parser.h"
@@ -148,7 +149,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   if (!edge->deps_loaded_) {
     // This is our first encounter with this edge.  Load discovered deps.
     edge->deps_loaded_ = true;
-    if (!dep_loader_.LoadDeps(edge, err)) {
+    if (!dep_loader_.LoadDeps(edge, err) || !dep_loader_.LoadImplicitOutputs(edge, err)) {
       if (!err->empty())
         return false;
       // Failed to load dependency info: rebuild to regenerate it.
@@ -520,6 +521,11 @@ string Edge::GetUnescapedDepfile() const {
   return env.LookupVariable("depfile");
 }
 
+string Edge::GetUnescapedDynout() const {
+  EdgeEnv env(this, EdgeEnv::kDoNotEscape);
+  return env.LookupVariable("dynout");
+}
+
 string Edge::GetUnescapedDyndep() const {
   EdgeEnv env(this, EdgeEnv::kDoNotEscape);
   return env.LookupVariable("dyndep");
@@ -623,6 +629,21 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
     return LoadDepFile(edge, depfile, err);
 
   // No deps to load.
+  return true;
+}
+
+bool ImplicitDepLoader::LoadImplicitOutputs(Edge* edge, string* err) {
+  string dynout = edge->GetUnescapedDynout();
+  if (!dynout.empty()) {
+    if (LoadOutputsFromLog(edge, err))
+      return true;
+    if (err != NULL && !err->empty())
+      return false;
+
+    return LoadDynoutFile(edge, dynout, err);
+  }
+
+  // No outputs to load.
   return true;
 }
 
@@ -741,12 +762,133 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   }
 
   vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, deps->node_count);
-  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
+      PreallocateSpace(edge, deps->node_count - deps->outputs_count);
+  for (int i = 0; i < (deps->node_count - deps->outputs_count); ++i, ++implicit_dep) {
     Node* node = deps->nodes[i];
     *implicit_dep = node;
     node->AddOutEdge(edge);
   }
+  return true;
+}
+
+bool ImplicitDepLoader::LoadDynoutFile(Edge* edge, const std::string& path,
+                                    std::string* err) {
+  METRIC_RECORD("dynout load");
+  // Read depfile content.  Treat a missing depfile as empty.
+  string content;
+  switch (disk_interface_->ReadFile(path, &content, err)) {
+  case DiskInterface::Okay:
+    break;
+  case DiskInterface::NotFound:
+    err->clear();
+    break;
+  case DiskInterface::OtherError:
+    *err = "loading '" + path + "': " + *err;
+    return false;
+  }
+  // On a missing depfile: return false and empty *err.
+  Node* first_output = edge->outputs_[0];
+  if (content.empty()) {
+    explanations_.Record(first_output, "dynout '%s' is missing", path.c_str());
+    return false;
+  }
+
+  std::string dynout_err;
+  std::vector<StringPiece> output_paths;
+  if (!DynoutParser::Parse(content, output_paths, &dynout_err)) {
+    *err = path + ": " + dynout_err;
+    return false;
+  }
+
+  std::vector<Node*> new_implicit_outputs;
+  new_implicit_outputs.reserve(output_paths.size());
+  for (const StringPiece &p : output_paths) {
+    uint64_t slash_bits;
+    std::string canonical = p.AsString();
+    CanonicalizePath(&canonical, &slash_bits);
+    Node* new_node = state_->GetNode(canonical, slash_bits);
+    bool exists = std::find(edge->outputs_.begin(), edge->outputs_.end(),
+                           new_node) != edge->outputs_.end();
+    if (!exists) {
+      std::string stat_err;
+      if (!new_node->StatIfNecessary(disk_interface_, &stat_err)) {
+        *err = "stat '" + new_node->path() + "': " + stat_err;
+        return false;
+      }
+      new_implicit_outputs.push_back(new_node);
+    }
+  }
+
+  // Add the dyndep-discovered outputs to the edge.
+  edge->outputs_.insert(edge->outputs_.end(),
+                        new_implicit_outputs.begin(),
+                        new_implicit_outputs.end());
+  edge->implicit_outs_ += new_implicit_outputs.size();
+
+  // Add this edge as incoming to each new output.
+  for (Node* output : new_implicit_outputs) {
+    if (output->in_edge()) {
+      if (err != NULL) {
+        *err = "multiple rules generate " + output->path();
+      }
+      return false;
+    }
+    output->set_in_edge(edge);
+  }
+
+  return true;
+}
+
+bool ImplicitDepLoader::LoadOutputsFromLog(Edge* edge, string* err) {
+  std::vector<Node*> implicit_outputs;
+
+  for (Node *output : edge->outputs_) {
+    DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
+    if (!deps) {
+      explanations_.Record(output, "outputs for '%s' are missing", output->path().c_str());
+      return false;
+    }
+
+    // Deps are invalid if the output is newer than the deps.
+    if (output->mtime() > deps->mtime) {
+      explanations_.Record(output,
+              "stored outputs info out of date for '%s' (%" PRId64
+              " vs %" PRId64 ")",
+              output->path().c_str(), deps->mtime, output->mtime());
+      return false;
+    }
+
+    for (int i = deps->node_count - deps->outputs_count; i < deps->node_count; i++) {
+      Node* new_node = deps->nodes[i];
+      bool exists = std::find(edge->outputs_.begin(), edge->outputs_.end(),
+                              new_node) != edge->outputs_.end();
+      if (!exists) {
+        std::string stat_err;
+        if (!new_node->StatIfNecessary(disk_interface_, &stat_err)) {
+          *err = "stat '" + new_node->path() + "': " + stat_err;
+          return false;
+        }
+        implicit_outputs.push_back(new_node);
+      }
+    }
+  }
+
+  // Add the dyndep-discovered outputs to the edge.
+  edge->outputs_.insert(edge->outputs_.end(), implicit_outputs.begin(),
+                        implicit_outputs.end());
+  edge->implicit_outs_ += implicit_outputs.size();
+
+  // Add this edge as incoming to each new output.
+  for (Node *output : implicit_outputs) {
+    if (output->in_edge()) {
+      if (err != NULL) {
+        *err = "multiple rules generate " + output->path();
+      }
+      return false;
+    }
+    output->set_in_edge(edge);
+  }
+
   return true;
 }
 

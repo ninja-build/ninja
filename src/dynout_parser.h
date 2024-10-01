@@ -1,4 +1,4 @@
-// Copyright 2012 Google Inc. All Rights Reserved.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
-#include <map>
-#include <vector>
+#ifndef NINJA_DYNOUT_PARSER_H_
+#define NINJA_DYNOUT_PARSER_H_
+
 #include <string>
+#include <vector>
 
-#include "graph.h"
+#include "string_piece.h"
 
-bool g_explaining = false;
+/// Parser for dynout file.
+struct DynoutParser {
 
-bool g_keep_depfile = false;
+  /// Parse a dynout file, placing each listed output into `result`.
+  /// The resulting StringPieces point into `content`.
+  static bool Parse(const std::string& content,
+                    std::vector<StringPiece>& result, std::string* err);
+};
 
-bool g_keep_dynout = false;
-
-bool g_keep_rsp = false;
-
-bool g_experimental_statcache = true;
+#endif // NINJA_DYNOUT_PARSER_H_

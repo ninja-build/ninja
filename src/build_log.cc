@@ -142,33 +142,36 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 }
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             TimeStamp mtime) {
+                             TimeStamp mtime,
+                             const std::vector<Node*> &extra_outputs) {
   string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
-       out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->path();
-    Entries::iterator i = entries_.find(path);
-    LogEntry* log_entry;
-    if (i != entries_.end()) {
-      log_entry = i->second;
-    } else {
-      log_entry = new LogEntry(path);
-      entries_.insert(Entries::value_type(log_entry->output, log_entry));
-    }
-    log_entry->command_hash = command_hash;
-    log_entry->start_time = start_time;
-    log_entry->end_time = end_time;
-    log_entry->mtime = mtime;
 
-    if (!OpenForWriteIfNeeded()) {
-      return false;
-    }
-    if (log_file_) {
-      if (!WriteEntry(log_file_, *log_entry))
+  for (const vector<Node*> outputs : { edge->outputs_, extra_outputs }) {
+    for (const Node *out : outputs) {
+      const string& path = out->path();
+      Entries::iterator i = entries_.find(path);
+      LogEntry* log_entry;
+      if (i != entries_.end()) {
+        log_entry = i->second;
+      } else {
+        log_entry = new LogEntry(path);
+        entries_.insert(Entries::value_type(log_entry->output, log_entry));
+      }
+      log_entry->command_hash = command_hash;
+      log_entry->start_time = start_time;
+      log_entry->end_time = end_time;
+      log_entry->mtime = mtime;
+
+      if (!OpenForWriteIfNeeded()) {
         return false;
-      if (fflush(log_file_) != 0) {
+      }
+      if (log_file_) {
+        if (!WriteEntry(log_file_, *log_entry))
           return false;
+        if (fflush(log_file_) != 0) {
+            return false;
+        }
       }
     }
   }

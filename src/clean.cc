@@ -26,12 +26,14 @@ using namespace std;
 
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
-                 DiskInterface* disk_interface)
+                 DiskInterface* disk_interface,
+                 DepsLog* deps_log)
   : state_(state),
     config_(config),
     dyndep_loader_(state, disk_interface),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
+    deps_log_(deps_log),
     status_(0) {
 }
 
@@ -79,6 +81,10 @@ void Cleaner::RemoveEdgeFiles(Edge* edge) {
   if (!depfile.empty())
     Remove(depfile);
 
+  string dynout = edge->GetUnescapedDynout();
+  if (!dynout.empty())
+    Remove(dynout);
+
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
@@ -105,6 +111,7 @@ int Cleaner::CleanAll(bool generator) {
   Reset();
   PrintHeader();
   LoadDyndeps();
+  LoadDynamicOutputs();
   for (vector<Edge*>::iterator e = state_->edges_.begin();
        e != state_->edges_.end(); ++e) {
     // Do not try to remove phony targets
@@ -174,6 +181,7 @@ int Cleaner::CleanTarget(Node* target) {
   Reset();
   PrintHeader();
   LoadDyndeps();
+  LoadDynamicOutputs();
   DoCleanTarget(target);
   PrintFooter();
   return status_;
@@ -197,6 +205,7 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   Reset();
   PrintHeader();
   LoadDyndeps();
+  LoadDynamicOutputs();
   for (int i = 0; i < target_count; ++i) {
     string target_name = targets[i];
     if (target_name.empty()) {
@@ -241,6 +250,7 @@ int Cleaner::CleanRule(const Rule* rule) {
   Reset();
   PrintHeader();
   LoadDyndeps();
+  LoadDynamicOutputs();
   DoCleanRule(rule);
   PrintFooter();
   return status_;
@@ -266,6 +276,7 @@ int Cleaner::CleanRules(int rule_count, char* rules[]) {
   Reset();
   PrintHeader();
   LoadDyndeps();
+  LoadDynamicOutputs();
   for (int i = 0; i < rule_count; ++i) {
     const char* rule_name = rules[i];
     const Rule* rule = state_->bindings_.LookupRule(rule_name);
@@ -299,6 +310,22 @@ void Cleaner::LoadDyndeps() {
       // We clean as much of the graph as we know.
       std::string err;
       dyndep_loader_.LoadDyndeps(dyndep, &err);
+    }
+  }
+}
+
+void Cleaner::LoadDynamicOutputs() {
+  std::string err;
+  // Load dynamic outputs which may exist in the deps log
+  DepfileParserOptions depfileOptions;
+  ImplicitDepLoader implicit_dep_loader(state_, deps_log_, disk_interface_,
+                                        &depfileOptions, nullptr);
+  for (vector<Edge*>::iterator e = state_->edges_.begin();
+       e != state_->edges_.end(); ++e) {
+    string dynout = (*e)->GetUnescapedDynout();
+
+    if (!dynout.empty()) {
+      implicit_dep_loader.LoadImplicitOutputs(*e, &err);
     }
   }
 }
