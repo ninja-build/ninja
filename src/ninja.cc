@@ -20,6 +20,8 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <string>
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -38,6 +40,7 @@
 #include "build_log.h"
 #include "deps_log.h"
 #include "clean.h"
+#include "command_collector.h"
 #include "debug_flags.h"
 #include "depfile_parser.h"
 #include "disk_interface.h"
@@ -130,6 +133,8 @@ struct NinjaMain : public BuildLogUser {
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
+  int ToolCompilationDatabaseForTargets(const Options* options, int argc,
+                                        char* argv[]);
   int ToolRecompact(const Options* options, int argc, char* argv[]);
   int ToolRestat(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
@@ -932,8 +937,8 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
   return command;
 }
 
-void printCompdb(const char* const directory, const Edge* const edge,
-                 const EvaluateCommandMode eval_mode) {
+void PrintOneCompdbObject(std::string const& directory, const Edge* const edge,
+                          const EvaluateCommandMode eval_mode) {
   printf("\n  {\n    \"directory\": \"");
   PrintJSONString(directory);
   printf("\",\n    \"command\": \"");
@@ -977,37 +982,25 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<char> cwd;
-  char* success = NULL;
 
-  do {
-    cwd.resize(cwd.size() + 1024);
-    errno = 0;
-    success = getcwd(&cwd[0], cwd.size());
-  } while (!success && errno == ERANGE);
-  if (!success) {
-    Error("cannot determine working directory: %s", strerror(errno));
-    return 1;
-  }
-
+  std::string directory = GetWorkingDirectory();
   putchar('[');
-  for (vector<Edge*>::iterator e = state_.edges_.begin();
-       e != state_.edges_.end(); ++e) {
-    if ((*e)->inputs_.empty())
+  for (const Edge* edge : state_.edges_) {
+    if (edge->inputs_.empty())
       continue;
     if (argc == 0) {
       if (!first) {
         putchar(',');
       }
-      printCompdb(&cwd[0], *e, eval_mode);
+      PrintOneCompdbObject(directory, edge, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
-        if ((*e)->rule_->name() == argv[i]) {
+        if (edge->rule_->name() == argv[i]) {
           if (!first) {
             putchar(',');
           }
-          printCompdb(&cwd[0], *e, eval_mode);
+          PrintOneCompdbObject(directory, edge, eval_mode);
           first = false;
         }
       }
@@ -1087,6 +1080,118 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
   return EXIT_SUCCESS;
 }
 
+struct CompdbTargets {
+  enum class Action { kDisplayHelpAndExit, kEmitCommands };
+
+  Action action;
+  EvaluateCommandMode eval_mode = ECM_NORMAL;
+
+  std::vector<std::string> targets;
+
+  static CompdbTargets CreateFromArgs(int argc, char* argv[]) {
+    //
+    // grammar:
+    //     ninja -t compdb-targets [-hx] target [targets]
+    //
+    CompdbTargets ret;
+
+    // getopt_long() expects argv[0] to contain the name of
+    // the tool, i.e. "compdb-targets".
+    argc++;
+    argv--;
+
+    // Phase 1: parse options:
+    optind = 1;  // see `man 3 getopt` for documentation on optind
+    int opt;
+    while ((opt = getopt(argc, argv, const_cast<char*>("hx"))) != -1) {
+      switch (opt) {
+      case 'x':
+        ret.eval_mode = ECM_EXPAND_RSPFILE;
+        break;
+      case 'h':
+      default:
+        ret.action = CompdbTargets::Action::kDisplayHelpAndExit;
+        return ret;
+      }
+    }
+
+    // Phase 2: parse operands:
+    int const targets_begin = optind;
+    int const targets_end = argc;
+
+    if (targets_begin == targets_end) {
+      Error("compdb-targets expects the name of at least one target");
+      ret.action = CompdbTargets::Action::kDisplayHelpAndExit;
+    } else {
+      ret.action = CompdbTargets::Action::kEmitCommands;
+      for (int i = targets_begin; i < targets_end; ++i) {
+        ret.targets.push_back(argv[i]);
+      }
+    }
+
+    return ret;
+  }
+};
+
+void PrintCompdb(std::string const& directory, std::vector<Edge*> const& edges,
+                 const EvaluateCommandMode eval_mode) {
+  putchar('[');
+
+  bool first = true;
+  for (const Edge* edge : edges) {
+    if (edge->is_phony() || edge->inputs_.empty())
+      continue;
+    if (!first)
+      putchar(',');
+    PrintOneCompdbObject(directory, edge, eval_mode);
+    first = false;
+  }
+
+  puts("\n]");
+}
+
+int NinjaMain::ToolCompilationDatabaseForTargets(const Options* options,
+                                                 int argc, char* argv[]) {
+  auto compdb = CompdbTargets::CreateFromArgs(argc, argv);
+
+  switch (compdb.action) {
+  case CompdbTargets::Action::kDisplayHelpAndExit: {
+    printf(
+        "usage: ninja -t compdb [-hx] target [targets]\n"
+        "\n"
+        "options:\n"
+        "  -h     display this help message\n"
+        "  -x     expand @rspfile style response file invocations\n");
+    return 1;
+  }
+
+  case CompdbTargets::Action::kEmitCommands: {
+    CommandCollector collector;
+
+    for (const std::string& target_arg : compdb.targets) {
+      std::string err;
+      Node* node = CollectTarget(target_arg.c_str(), &err);
+      if (!node) {
+        Fatal("%s", err.c_str());
+        return 1;
+      }
+      if (!node->in_edge()) {
+        Fatal(
+            "'%s' is not a target "
+            "(i.e. it is not an output of any `build` statement)",
+            node->path().c_str());
+      }
+      collector.CollectFrom(node);
+    }
+
+    std::string directory = GetWorkingDirectory();
+    PrintCompdb(directory, collector.in_edges, compdb.eval_mode);
+  } break;
+  }
+
+  return 0;
+}
+
 int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
   // RLE encoded.
   const char* urtle =
@@ -1141,6 +1246,9 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolTargets },
     { "compdb",  "dump JSON compilation database to stdout",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabase },
+    { "compdb-targets",
+      "dump JSON compilation database for a given list of targets to stdout",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCompilationDatabaseForTargets },
     { "recompact",  "recompacts ninja-internal data structures",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "restat",  "restats all outputs in the build log",
