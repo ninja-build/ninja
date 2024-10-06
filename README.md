@@ -1,5 +1,8 @@
 # Ninja
 
+Code and graph for Hello World's direct build without Ninja Manifest File is in folder "hello-world-graph"
+
+
 Ninja is a small build system with a focus on speed.
 https://ninja-build.org/
 
