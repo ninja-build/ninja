@@ -36,6 +36,7 @@
 #include "disk_interface.h"
 #include "explanations.h"
 #include "graph.h"
+#include "jobserver.h"
 #include "metrics.h"
 #include "state.h"
 #include "status.h"
@@ -163,6 +164,15 @@ Edge* Plan::FindWork() {
     return NULL;
 
   Edge* work = ready_.top();
+
+  // If jobserver mode is enabled, try to acquire a token first,
+  // and return null in case of failure.
+  if (builder_ && builder_->jobserver_) {
+    work->job_slot_ = builder_->jobserver_->TryAcquire();
+    if (!work->job_slot_.IsValid())
+      return nullptr;
+  }
+
   ready_.pop();
   return work;
 }
@@ -198,6 +208,10 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
   edge->pool()->RetrieveReadyEdges(&ready_);
+
+  // Release job slot if needed.
+  if (builder_ && builder_->jobserver_)
+    builder_->jobserver_->Release(std::move(edge->job_slot_));
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)
@@ -592,14 +606,26 @@ void Plan::Dump() const {
 }
 
 struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
+  explicit RealCommandRunner(const BuildConfig& config,
+                             Jobserver::Client* jobserver)
+      : config_(config), jobserver_(jobserver) {}
+
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   bool WaitForCommand(Result* result) override;
   vector<Edge*> GetActiveEdges() override;
   void Abort() override;
 
+  void ClearJobTokens() {
+    if (jobserver_) {
+      for (Edge* edge : GetActiveEdges()) {
+        jobserver_->Release(std::move(edge->job_slot_));
+      }
+    }
+  }
+
   const BuildConfig& config_;
+  Jobserver::Client* jobserver_;
   SubprocessSet subprocs_;
   map<const Subprocess*, Edge*> subproc_to_edge_;
 };
@@ -613,6 +639,7 @@ vector<Edge*> RealCommandRunner::GetActiveEdges() {
 }
 
 void RealCommandRunner::Abort() {
+  ClearJobTokens();
   subprocs_.Clear();
 }
 
@@ -621,6 +648,13 @@ size_t RealCommandRunner::CanRunMore() const {
       subprocs_.running_.size() + subprocs_.finished_.size();
 
   int64_t capacity = config_.parallelism - subproc_number;
+
+  if (jobserver_) {
+    // When a jobserver token pool is used, make the
+    // capacity infinite, and let FindWork() limit jobs
+    // through token acquisitions instead.
+    capacity = INT_MAX;
+  }
 
   if (config_.max_load_average > 0.0f) {
     int load_capacity = config_.max_load_average - GetLoadAverage();
@@ -775,7 +809,7 @@ bool Builder::Build(string* err) {
     if (config_.dry_run)
       command_runner_.reset(new DryRunCommandRunner);
     else
-      command_runner_.reset(new RealCommandRunner(config_));
+      command_runner_.reset(new RealCommandRunner(config_, jobserver_));
   }
 
   // We are about to start the build process.

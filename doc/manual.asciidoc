@@ -187,10 +187,57 @@ Ninja defaults to running commands in parallel anyway, so typically
 you don't need to pass `-j`.)
 
 
+GNU Jobserver support
+~~~~~~~~~~~~~~~~~~~~~
+
+Since version 1.13., Ninja builds support the
+https://https://www.gnu.org/software/make/manual/html_node/Job-Slots.html[GNU Make jobserver]
+protocol (on Posix systems). If supports both client and
+server modes.
+
+Client mode is useful when Ninja is invoked as part of a larger
+build system controlled by a top-level GNU Make instance, as it
+allows better coordination between concurrent build tasks.
+
+Server mode is useful when Ninja is the top-level build tool that
+invokes sub-builds recursively in a similar setup.
+
+To enable server mode, use `--jobserver` or `--jobserver=MODE`
+on the command line, or set `NINJA_JOBSERVER=MODE` in your
+environment, where `MODE` can be one of the following values:
+
+`0`: Do not enable the feature (the default)
+`1`: Enable the feature, using the best mode for the current system.
+`pipe`: Enable the feature, implemented with an anonymous pipe (Posix only).
+`fifo`: Enable the feature, implemented with a FIFO file path (Posix only).
+`sem`: Enable the feature, implemented with a Win32 semaphore (Windows only).
+
+Note that `--jobserver` is equivalent to `--jobserver=1`.
+
+Otherwise, the client feature is automatically enabled for builds
+(not tools) under the following conditions:
+
+- Dry-run (i.e. `-n` or `--dry-run`) is not enabled.
+
+- `-j1` (no parallelism) is not used on the command line.
+  Note that `-j0` means "infinite" parallelism and does not
+  disable client mode.
+
+- The `MAKEFLAGS` environment variable is defined and
+  describes a valid jobserver mode using `--jobserver-auth` or
+  even `--jobserver-fds`.
+
+In this case, Ninja will use the shared pool of job slots
+to control parallelism, instead of its default implementation
+of `-j<count>`.
+
+Note that other parallelism limitations, (such as `-l<count>`) are *still*
+being enforced in this mode however.
+
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports one environment variable to control its behavior:
+Ninja supports a few environment variables to control its behavior:
 `NINJA_STATUS`, the progress status printed before the rule being run.
 
 Several placeholders are available:
@@ -214,6 +261,9 @@ specified by `-j` or its default)
 The default progress status is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
 could be `"[%u/%r/%f] "`.
+
+`NINJA_JOBSERVER` and `MAKEFLAGS` may impact how Ninja dispatches
+parallel jobs, as described in the "GNU Jobserver support" section.
 
 Extra tools
 ~~~~~~~~~~~

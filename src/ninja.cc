@@ -36,13 +36,14 @@
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
-#include "deps_log.h"
 #include "clean.h"
 #include "debug_flags.h"
 #include "depfile_parser.h"
+#include "deps_log.h"
 #include "disk_interface.h"
 #include "graph.h"
 #include "graphviz.h"
+#include "jobserver.h"
 #include "json.h"
 #include "manifest_parser.h"
 #include "metrics.h"
@@ -1359,8 +1360,8 @@ bool NinjaMain::EnsureBuildDirExists() {
 }
 
 int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
-  string err;
-  vector<Node*> targets;
+  std::string err;
+  std::vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
     status->Error("%s", err.c_str());
     return 1;
@@ -1370,6 +1371,58 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
+
+  // If MAKEFLAGS is set, only setup a Jobserver client if needed.
+  // (this means that an empty MAKEFLAGS value disables the feature).
+  std::unique_ptr<Jobserver::Client> jobserver_client;
+
+  // Determine whether to use a Jobserver client in this build.
+  // Disallowed for dry-runs, and for explicit -j1. Note that
+  // `-j0` means "infinite" parallelism but is translated as
+  // `config_.parallelism == INT_MAX` in ReadFlags().
+  bool use_jobserver = !config_.dry_run && config_.parallelism > 1;
+
+  if (use_jobserver) {
+    do {
+      const char* makeflags = getenv("MAKEFLAGS");
+      if (!makeflags) {
+        // MAKEFLAGS is not defined.
+        break;
+      }
+
+      Jobserver::Config jobserver_config;
+      if (!Jobserver::ParseNativeMakeFlagsValue(makeflags, &jobserver_config,
+                                                &err)) {
+        // MAKEFLAGS is defined but could not be parsed correctly.
+        if (config_.verbosity > BuildConfig::QUIET)
+          status->Warning("Unsupported MAKEFLAGS value: %s [%s]", err.c_str(),
+                          makeflags);
+        break;
+      }
+      if (!jobserver_config.HasMode()) {
+        // MAKEFLAGS is defined, but does not describe a jobserver mode.
+        break;
+      }
+
+      if (config_.verbosity > BuildConfig::NO_STATUS_UPDATE)
+        status->Info("Jobserver mode detected: %s", makeflags);
+
+      jobserver_client = Jobserver::Client::Create(jobserver_config, &err);
+      if (!jobserver_client.get()) {
+        // Jobserver client initialization failed !?
+        if (config_.verbosity > BuildConfig::QUIET)
+          status->Error("Could not initialize jobserver: %s", err.c_str());
+        break;
+      }
+
+      // Initialization succeeded, setup builder to use it.
+      builder.SetJobserverClient(jobserver_client.get());
+
+    } while (0);
+
+    err.clear();
+  }
+
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
@@ -1449,15 +1502,16 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
-  const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { "version", no_argument, NULL, OPT_VERSION },
-    { "verbose", no_argument, NULL, 'v' },
-    { "quiet", no_argument, NULL, OPT_QUIET },
-    { NULL, 0, NULL, 0 }
-  };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_JOBSERVER = 3 };
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { "version", no_argument, NULL, OPT_VERSION },
+                                  { "verbose", no_argument, NULL, 'v' },
+                                  { "quiet", no_argument, NULL, OPT_QUIET },
+                                  { "jobserver", optional_argument, NULL,
+                                    OPT_JOBSERVER },
+                                  { NULL, 0, NULL, 0 } };
 
+  const char* jobserver_mode = nullptr;
   int opt;
   while (!options->tool &&
          (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
@@ -1526,6 +1580,9 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_JOBSERVER:
+        jobserver_mode = optarg ? optarg : "1";
+        break;
       case 'h':
       default:
         deferGuessParallelism.Refresh();
@@ -1535,6 +1592,29 @@ int ReadFlags(int* argc, char*** argv,
   }
   *argv += optind;
   *argc -= optind;
+
+  // If an explicit --jobserver has not been used, lookup the NINJA_JOBSERVER
+  // environment variable. Ignore it if parallelism was set explicitly on the
+  // command line though (and warn about it).
+  if (jobserver_mode == nullptr) {
+    jobserver_mode = getenv("NINJA_JOBSERVER");
+    if (jobserver_mode && !deferGuessParallelism.needGuess) {
+      if (!config->dry_run && config->verbosity > BuildConfig::QUIET)
+        Warning(
+            "Explicit parallelism (-j), ignoring NINJA_JOBSERVER environment "
+            "variable.");
+      jobserver_mode = nullptr;
+    }
+  }
+  if (jobserver_mode) {
+    auto ret = Jobserver::Config::ModeFromString(jobserver_mode);
+    config->jobserver_mode = ret.second;
+    if (!ret.first && !config->dry_run &&
+        config->verbosity > BuildConfig::QUIET) {
+      Warning("Invalid jobserver mode '%s': Must be one of: %s", jobserver_mode,
+              Jobserver::Config::GetValidModesListAsString(", ").c_str());
+    }
+  }
 
   return -1;
 }
@@ -1574,6 +1654,72 @@ NORETURN void real_main(int argc, char** argv) {
     NinjaMain ninja(ninja_command, config);
     exit((ninja.*options.tool->func)(&options, argc, argv));
   }
+
+  // Determine whether to setup a Jobserver pool. This depends on
+  // --jobserver or --jobserver=MODE being passed on the command-line,
+  // or NINJA_JOBSERVER=MODE being set in the environment.
+  //
+  // This must be ignored if a tool is being used, or no/infinite
+  // parallelism is being asked.
+  //
+  // At the moment, this overrides any MAKEFLAGS definition in
+  // the environment.
+  std::unique_ptr<Jobserver::Pool> jobserver_pool;
+
+  do {
+    if (options.tool)  // Do not setup pool when a tool is used.
+      break;
+
+    if (config.parallelism == 1 || config.parallelism == INT_MAX) {
+      // No-parallelism (-j1) or infinite parallelism (-j0) was specified.
+      break;
+    }
+
+    if (config.jobserver_mode == Jobserver::Config::kModeNone) {
+      // --jobserver was not used, and NINJA_JOBSERVER is not set.
+      break;
+    }
+
+    if (config.verbosity >= BuildConfig::VERBOSE)
+      status->Info("Creating jobserver pool for %d parallel jobs",
+                   config.parallelism);
+
+    std::string err;
+    jobserver_pool = Jobserver::Pool::Create(
+        static_cast<size_t>(config.parallelism), config.jobserver_mode, &err);
+    if (!jobserver_pool.get()) {
+      if (config.verbosity > BuildConfig::QUIET)
+        status->Warning("Jobserver pool creation failed: %s", err.c_str());
+      break;
+    }
+
+    std::string makeflags = jobserver_pool->GetEnvMakeFlagsValue();
+
+    //  Set or override the MAKEFLAGS environment variable in
+    // the current process. This ensures it is passed to sub-commands
+    // as well.
+#ifdef _WIN32
+    // TODO(digit): Verify that this works correctly on Win32.
+    // this code assumes that _putenv(), unlike Posix putenv()
+    // does create a copy of the input string, and that the
+    // resulting environment is passed to processes launched
+    // with CreateProcess (the documentation only mentions
+    // _spawn() and _exec()).
+    std::string env = "MAKEFLAGS=" + makeflags;
+    _putenv(env.c_str());
+#else   // !_WIN32
+    setenv("MAKEFLAGS", makeflags.c_str(), 1);
+#endif  // !_WIN32
+
+  } while (0);
+
+  // Unset NINJA_JOBSERVER unconditionally in subprocesses
+  // to avoid multiple sub-pools to be started by mistake.
+#ifdef _WIN32
+  _putenv("NINJA_JOBSERVER=");
+#else   // !_WIN32
+  unsetenv("NINJA_JOBSERVER");
+#endif  // !_WIN32
 
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
