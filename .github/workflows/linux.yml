@@ -12,9 +12,11 @@ jobs:
     container:
       image: fedora:40
     steps:
-    - uses: actions/checkout@v4
     - name: Install dependencies
-      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux git
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - name: Linting
       run: misc/ci.py
     - name: Configure with CMake
@@ -41,16 +43,18 @@ jobs:
     container:
       image: rockylinux:8
     steps:
-    - uses: actions/checkout@v4
-    - uses: codespell-project/actions-codespell@master
-      with:
-        ignore_words_list: fo,wee,addin,notin
     - name: Install dependencies
       run: |
         dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
         dnf config-manager --set-enabled powertools
-        dnf install -y gtest-devel p7zip p7zip-plugins
-
+        dnf install -y gtest-devel p7zip p7zip-plugins git
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: codespell-project/actions-codespell@master
+      with:
+        ignore_words_list: fo,wee,addin,notin
+        skip: ./parallel-hashmap
     - name: Build debug ninja
       shell: bash
       env:
@@ -103,12 +107,14 @@ jobs:
     container:
       image: ubuntu:20.04
     steps:
-    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         apt update
-        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang libgtest-dev
+        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang libgtest-dev git
         pip3 install cmake==3.17.*
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - name: Configure (GCC)
       run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
 
@@ -159,11 +165,13 @@ jobs:
       matrix:
         image: ['ubuntu:20.04', 'ubuntu:22.04', 'ubuntu:24.04']
     steps:
-    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         apt update
-        apt install -y g++ python3
+        apt install -y g++ python3 git
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - name: ${{ matrix.image }}
       run: |
         python3 configure.py --bootstrap
@@ -176,6 +184,8 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Build
       uses: uraimo/run-on-arch-action@v2

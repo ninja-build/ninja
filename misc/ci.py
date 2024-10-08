@@ -7,6 +7,7 @@ ignores = [
 	'misc/afl-fuzz-tokens/',
 	'src/depfile_parser.cc',
 	'src/lexer.cc',
+	'parallel-hashmap/',
 ]
 
 error_count = 0

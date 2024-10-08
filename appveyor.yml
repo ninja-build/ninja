@@ -10,6 +10,9 @@ environment:
     - MSYSTEM: MINGW64
     - MSYSTEM: LINUX
 
+install:
+  - git submodule update --init --recursive
+
 matrix:
   exclude:
     - image: Visual Studio 2017

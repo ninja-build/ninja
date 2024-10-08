@@ -17,6 +17,8 @@
 
 #include <algorithm>
 #include <string.h>
+#include "parallel_hashmap/phmap.h"
+#include "parallel_hashmap/phmap_utils.h"
 #include "string_piece.h"
 #include "util.h"
 
@@ -53,8 +55,6 @@ unsigned int MurmurHash2(const void* key, size_t len) {
   return h;
 }
 
-#include <unordered_map>
-
 namespace std {
 template<>
 struct hash<StringPiece> {
@@ -73,7 +73,7 @@ struct hash<StringPiece> {
 /// mapping StringPiece => Foo*.
 template<typename V>
 struct ExternalStringHashMap {
-  typedef std::unordered_map<StringPiece, V> Type;
+  typedef phmap::flat_hash_map<StringPiece, V> Type;
 };
 
 #endif // NINJA_MAP_H_
