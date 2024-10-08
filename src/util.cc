@@ -21,6 +21,7 @@
 #include <windows.h>
 #include <io.h>
 #include <share.h>
+#include <direct.h>
 #endif
 
 #include <assert.h>
@@ -916,6 +917,21 @@ double GetLoadAverage() {
   return loadavg[0];
 }
 #endif // _WIN32
+
+std::string GetWorkingDirectory() {
+  std::string ret;
+  char* success = NULL;
+  do {
+    ret.resize(ret.size() + 1024);
+    errno = 0;
+    success = getcwd(&ret[0], ret.size());
+  } while (!success && errno == ERANGE);
+  if (!success) {
+    Fatal("cannot determine working directory: %s", strerror(errno));
+  }
+  ret.resize(strlen(&ret[0]));
+  return ret;
+}
 
 bool Truncate(const string& path, size_t size, string* err) {
 #ifdef _WIN32
