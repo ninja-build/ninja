@@ -76,6 +76,9 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
    return true;
 }
 
+// A callable value used to refresh the current Ninja status.
+using StatusRefresher = std::function<void(void)>;
+
 }  // namespace
 
 Plan::Plan(Builder* builder)
@@ -592,7 +595,9 @@ void Plan::Dump() const {
 }
 
 struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
+  explicit RealCommandRunner(const BuildConfig& config,
+                             StatusRefresher&& refresh_status)
+      : config_(config), refresh_status_(std::move(refresh_status)) {}
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   bool WaitForCommand(Result* result) override;
@@ -600,6 +605,7 @@ struct RealCommandRunner : public CommandRunner {
   void Abort() override;
 
   const BuildConfig& config_;
+  StatusRefresher refresh_status_;
   SubprocessSet subprocs_;
   map<const Subprocess*, Edge*> subproc_to_edge_;
 };
@@ -651,8 +657,13 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult ret =
+        subprocs_.DoWork(config_.status_refresh_millis);
+    if (ret == SubprocessSet::WorkResult::TIMEOUT) {
+      refresh_status_();
+      continue;
+    }
+    if (ret == SubprocessSet::WorkResult::INTERRUPTION)
       return false;
   }
 
@@ -772,10 +783,13 @@ bool Builder::Build(string* err) {
 
   // Set up the command runner if we haven't done so already.
   if (!command_runner_.get()) {
-    if (config_.dry_run)
+    if (config_.dry_run) {
       command_runner_.reset(new DryRunCommandRunner);
-    else
-      command_runner_.reset(new RealCommandRunner(config_));
+    } else {
+      command_runner_.reset(new RealCommandRunner(config_, [this]() {
+        status_->Refresh(GetTimeMillis() - start_time_millis_);
+      }));
+    }
   }
 
   // We are about to start the build process.
