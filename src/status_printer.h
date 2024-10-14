@@ -37,6 +37,8 @@ struct StatusPrinter : Status {
   void BuildStarted() override;
   void BuildFinished() override;
 
+  void Refresh(int64_t cur_time_millis) override;
+
   void Info(const char* msg, ...) override;
   void Warning(const char* msg, ...) override;
   void Error(const char* msg, ...) override;
@@ -83,6 +85,8 @@ struct StatusPrinter : Status {
   /// For how many edges we don't know the previous run time?
   int eta_unpredictable_edges_remaining_ = 0;
 
+  void RefreshStatus(int64_t cur_time_millis, bool force_full_command);
+
   void RecalculateProgressPrediction();
 
   /// Prints progress output.
@@ -93,6 +97,9 @@ struct StatusPrinter : Status {
 
   /// The custom progress status format to use.
   const char* progress_status_format_;
+
+  /// Last command's description or command-line.
+  std::string last_description_;
 
   template <size_t S>
   void SnprintfRate(double rate, char (&buf)[S], const char* format) const {
