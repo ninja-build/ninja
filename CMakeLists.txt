@@ -206,6 +206,12 @@ if(NINJA_BUILD_BINARY)
 	if(WIN32)
 		target_sources(ninja PRIVATE windows/ninja.manifest)
 	endif()
+
+	option(NINJA_CLANG_TIDY "Run clang-tidy on source files" OFF)
+	if(NINJA_CLANG_TIDY)
+		set_target_properties(libninja PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
+		set_target_properties(ninja    PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
+	endif()
 endif()
 
 # Adds browse mode into the ninja binary if it's supported by the host platform.

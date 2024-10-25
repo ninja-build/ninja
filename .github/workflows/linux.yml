@@ -14,26 +14,26 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux clang-tools-extra
     - name: Linting
       run: misc/ci.py
     - name: Configure with CMake
-      run: cmake -Bbuild -G"Ninja Multi-Config"
+      run: cmake -Bbuild -G"Ninja Multi-Config" -DNINJA_CLANG_TIDY=1
     - name: Build debug ninja
-      run: ninja
+      run: CLICOLOR_FORCE=1 ninja
       working-directory: build
     - name: Test debug ninja
       working-directory: build/Debug
       run: |
-        ./ninja_test
+        ./ninja_test --gtest_color=yes
         ../../misc/output_test.py
     - name: Build release ninja
-      run: ninja -f build-Release.ninja
+      run: CLICOLOR_FORCE=1 ninja -f build-Release.ninja
       working-directory: build
     - name: Test release ninja
       working-directory: build/Release
       run: |
-        ./ninja_test
+        ./ninja_test --gtest_color=yes
         ../../misc/output_test.py
 
   build:
@@ -107,7 +107,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt update
-        apt install -y python3-pytest ninja-build clang-tidy python3-pip clang libgtest-dev
+        apt install -y python3-pytest ninja-build python3-pip clang libgtest-dev
         pip3 install cmake==3.17.*
     - name: Configure (GCC)
       run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
@@ -129,7 +129,7 @@ jobs:
       working-directory: build-gcc/Release
 
     - name: Configure (Clang)
-      run: CC=clang CXX=clang++ cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config' -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+      run: CC=clang CXX=clang++ cmake -Bbuild-clang -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
 
     - name: Build (Clang, Debug)
       run: cmake --build build-clang --config Debug
@@ -146,10 +146,6 @@ jobs:
     - name: Python tests (Clang, Release)
       run: pytest-3 --color=yes ../..
       working-directory: build-clang/Release
-
-    - name: clang-tidy
-      run: /usr/lib/llvm-10/share/clang/run-clang-tidy.py -header-filter=src
-      working-directory: build-clang
 
   build-with-python:
     runs-on: [ubuntu-latest]
