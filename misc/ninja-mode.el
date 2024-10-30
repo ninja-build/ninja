@@ -62,7 +62,7 @@
                ;; Is it the first non-white character on the line?
                (eq match-pos (save-excursion (back-to-indentation) (point)))
                (save-excursion
-                 (goto-char (line-end-position 0))
+                 (end-of-line 0) ; Go to the end of the previous line.
                  (or
                   ;; If we're continuing the previous line, it's not a
                   ;; comment.
@@ -74,7 +74,7 @@
           (let ((line-end (line-end-position)))
             ;; Avoid putting properties past the end of the buffer.
             ;; Otherwise we get an `args-out-of-range' error.
-            (unless (= line-end (1+ (buffer-size)))
+            (unless (= line-end (point-max))
               (put-text-property line-end (1+ line-end) 'syntax-table '(12)))))))))
 
 (defun ninja-compute-indentation ()
