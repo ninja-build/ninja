@@ -99,6 +99,10 @@ string BindingEnv::LookupWithFallback(const string& var,
 }
 
 string EvalString::Evaluate(Env* env) const {
+  if (parsed_.empty()) {
+    return single_token_.AsString();
+  }
+
   string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
@@ -112,35 +116,65 @@ string EvalString::Evaluate(Env* env) const {
 }
 
 void EvalString::AddText(StringPiece text) {
+  if (parsed_.empty()) {
+    if (!single_token_.empty()) {
+      // Going from one to two tokens, so we can no longer apply
+      // our single_token_ optimization and need to push everything
+      // onto the vector.
+      parsed_.push_back(make_pair(single_token_, RAW));
+    } else {
+      // This is the first (nonempty) token, so we don't need to
+      // allocate anything on the vector (yet).
+      single_token_ = text;
+      return;
+    }
+  }
   parsed_.push_back(make_pair(text, RAW));
 }
+
 void EvalString::AddSpecial(StringPiece text) {
+  if (parsed_.empty() && !single_token_.empty()) {
+    // Going from one to two tokens, so we can no longer apply
+    // our single_token_ optimization and need to push everything
+    // onto the vector.
+    parsed_.push_back(make_pair(single_token_, RAW));
+  }
   parsed_.push_back(make_pair(text, SPECIAL));
 }
 
 string EvalString::Serialize() const {
   string result;
-  for (TokenList::const_iterator i = parsed_.begin();
-       i != parsed_.end(); ++i) {
+  if (parsed_.empty() && !single_token_.empty()) {
     result.append("[");
-    if (i->second == SPECIAL)
-      result.append("$");
-    result.append(i->first.begin(), i->first.end());
+    result.append(single_token_.begin(), single_token_.end());
     result.append("]");
+  } else {
+    for (TokenList::const_iterator i = parsed_.begin();
+         i != parsed_.end(); ++i) {
+      result.append("[");
+      if (i->second == SPECIAL)
+        result.append("$");
+      result.append(i->first.begin(), i->first.end());
+      result.append("]");
+    }
   }
   return result;
 }
 
 string EvalString::Unparse() const {
   string result;
-  for (TokenList::const_iterator i = parsed_.begin();
-       i != parsed_.end(); ++i) {
-    bool special = (i->second == SPECIAL);
-    if (special)
-      result.append("${");
-    result.append(i->first.begin(), i->first.end());
-    if (special)
-      result.append("}");
+  if (parsed_.empty() && !single_token_.empty()) {
+    result.append(single_token_.begin(), single_token_.end());
+  } else {
+    for (TokenList::const_iterator i = parsed_.begin();
+         i != parsed_.end(); ++i) {
+      bool special = (i->second == SPECIAL);
+      if (special)
+        result.append("${");
+      result.append(i->first.begin(), i->first.end());
+      if (special)
+        result.append("}");
+    }
   }
   return result;
 }
