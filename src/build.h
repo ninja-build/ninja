@@ -38,7 +38,7 @@ struct Status;
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
 struct Plan {
-  Plan(Builder* builder = NULL);
+  explicit Plan(Arena* arena, Builder* builder = NULL);
 
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
@@ -139,6 +139,8 @@ private:
 
   /// Total remaining number of wanted edges.
   int wanted_edges_;
+
+  Arena* arena_ = nullptr;
 };
 
 /// CommandRunner is an interface that wraps running the build
@@ -189,7 +191,7 @@ struct BuildConfig {
 struct Builder {
   Builder(State* state, const BuildConfig& config, BuildLog* build_log,
           DepsLog* deps_log, DiskInterface* disk_interface, Status* status,
-          int64_t start_time_millis);
+          int64_t start_time_millis, Arena *arena);
   ~Builder();
 
   /// Clean up after interrupted commands by deleting output files.
@@ -220,7 +222,7 @@ struct Builder {
   }
 
   /// Load the dyndep information provided by the given node.
-  bool LoadDyndeps(Node* node, std::string* err);
+  bool LoadDyndeps(Node* node, Arena* arena, std::string* err);
 
   State* state_;
   const BuildConfig& config_;

@@ -27,20 +27,20 @@
 
 using namespace std;
 
-bool DyndepLoader::LoadDyndeps(Node* node, std::string* err) const {
+bool DyndepLoader::LoadDyndeps(Node* node, Arena *arena, std::string* err) const {
   DyndepFile ddf;
-  return LoadDyndeps(node, &ddf, err);
+  return LoadDyndeps(node, &ddf, arena, err);
 }
 
 bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
-                               std::string* err) const {
+                               Arena *arena, std::string* err) const {
   // We are loading the dyndep file now so it is no longer pending.
   node->set_dyndep_pending(false);
 
   // Load the dyndep information from the file.
   explanations_.Record(node, "loading dyndep file '%s'", node->path().c_str());
 
-  if (!LoadDyndepFile(node, ddf, err))
+  if (!LoadDyndepFile(node, ddf, arena, err))
     return false;
 
   // Update each edge that specified this node as its dyndep binding.
@@ -116,7 +116,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
 }
 
 bool DyndepLoader::LoadDyndepFile(Node* file, DyndepFile* ddf,
-                                  std::string* err) const {
-  DyndepParser parser(state_, disk_interface_, ddf);
+                                  Arena *arena, std::string* err) const {
+  DyndepParser parser(state_, disk_interface_, arena, ddf);
   return parser.Load(file->path(), err);
 }

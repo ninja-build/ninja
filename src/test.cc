@@ -99,7 +99,8 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
 
 void AssertParse(State* state, const char* input,
                  ManifestParserOptions opts) {
-  ManifestParser parser(state, NULL, opts);
+  static Arena arena;  // For testing purposes only.
+  ManifestParser parser(state, NULL, &arena, opts);
   string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);

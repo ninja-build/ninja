@@ -78,10 +78,11 @@ bool DryRunCommandRunner::WaitForCommand(Result* result) {
 
 }  // namespace
 
-Plan::Plan(Builder* builder)
+Plan::Plan(Arena* arena, Builder* builder)
   : builder_(builder)
   , command_edges_(0)
   , wanted_edges_(0)
+  , arena_(arena)
 {}
 
 void Plan::Reset() {
@@ -223,7 +224,7 @@ bool Plan::NodeFinished(Node* node, string* err) {
     assert(builder_ && "dyndep requires Plan to have a Builder");
     // Load the now-clean dyndep file.  This will also update the
     // build plan and schedule any new work that is ready.
-    return builder_->LoadDyndeps(node, err);
+    return builder_->LoadDyndeps(node, arena_, err);
   }
 
   // See if we we want any edges from this node.
@@ -669,12 +670,12 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 
 Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
                  DepsLog* deps_log, DiskInterface* disk_interface,
-                 Status* status, int64_t start_time_millis)
-    : state_(state), config_(config), plan_(this), status_(status),
+                 Status* status, int64_t start_time_millis, Arena *arena)
+    : state_(state), config_(config), plan_(arena, this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
       explanations_(g_explaining ? new Explanations() : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
-            &config_.depfile_parser_options, explanations_.get()) {
+            &config_.depfile_parser_options, explanations_.get(), arena) {
   lock_file_path_ = ".ninja_lock";
   string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty())
@@ -1100,10 +1101,10 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   return true;
 }
 
-bool Builder::LoadDyndeps(Node* node, string* err) {
+bool Builder::LoadDyndeps(Node* node, Arena* arena, string* err) {
   // Load the dyndep information provided by this node.
   DyndepFile ddf;
-  if (!scan_.LoadDyndeps(node, &ddf, err))
+  if (!scan_.LoadDyndeps(node, &ddf, arena, err))
     return false;
 
   // Update the build plan to account for dyndep modifications to the graph.

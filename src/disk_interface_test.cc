@@ -259,7 +259,7 @@ TEST_F(DiskInterfaceTest, RemoveDirectory) {
 
 struct StatTest : public StateTestWithBuiltinRules,
                   public DiskInterface {
-  StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL) {}
+  StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL, &arena_) {}
 
   // DiskInterface implementation.
   virtual TimeStamp Stat(const string& path, string* err) const;
@@ -280,6 +280,7 @@ struct StatTest : public StateTestWithBuiltinRules,
     return 0;
   }
 
+  Arena arena_;
   DependencyScan scan_;
   map<string, TimeStamp> mtimes_;
   mutable vector<string> stats_;

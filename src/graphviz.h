@@ -27,8 +27,8 @@ struct State;
 
 /// Runs the process of creating GraphViz .dot file output.
 struct GraphViz {
-  GraphViz(State* state, DiskInterface* disk_interface)
-      : dyndep_loader_(state, disk_interface) {}
+  GraphViz(State* state, DiskInterface* disk_interface, Arena* arena)
+      : dyndep_loader_(state, disk_interface), arena_(arena) {}
   void Start();
   void AddTarget(Node* node);
   void Finish();
@@ -36,6 +36,7 @@ struct GraphViz {
   DyndepLoader dyndep_loader_;
   std::set<Node*> visited_nodes_;
   EdgeSet visited_edges_;
+  Arena* arena_ = nullptr;
 };
 
 #endif  // NINJA_GRAPHVIZ_H_

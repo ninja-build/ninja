@@ -36,7 +36,10 @@ struct CompareEdgesByOutput {
 // Though Plan doesn't use State, it's useful to have one around
 // to create Nodes and Edges.
 struct PlanTest : public StateTestWithBuiltinRules {
+  Arena arena_;
   Plan plan_;
+
+  PlanTest() : plan_(&arena_) {}
 
   /// Because FindWork does not return Edges in any sort of predictable order,
   // provide a means to get available Edges in order and in a format which is
@@ -535,12 +538,12 @@ struct FakeCommandRunner : public CommandRunner {
 
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
-                builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0) {
+                builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0, &arena_) {
   }
 
   explicit BuildTest(DepsLog* log)
       : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
-        builder_(&state_, config_, NULL, log, &fs_, &status_, 0) {}
+        builder_(&state_, config_, NULL, log, &fs_, &status_, 0, &arena_) {}
 
   virtual void SetUp() {
     StateTestWithBuiltinRules::SetUp();
@@ -577,6 +580,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
     return config;
   }
 
+  Arena arena_;
   BuildConfig config_;
   FakeCommandRunner command_runner_;
   VirtualFileSystem fs_;
@@ -610,7 +614,7 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
     pdeps_log = &deps_log;
   }
 
-  Builder builder(pstate, config_, pbuild_log, pdeps_log, &fs_, &status_, 0);
+  Builder builder(pstate, config_, pbuild_log, pdeps_log, &fs_, &status_, 0, &arena_);
   EXPECT_TRUE(builder.AddTarget(target, &err));
 
   command_runner_.commands_ran_.clear();
@@ -2559,7 +2563,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2589,7 +2593,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2630,7 +2634,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2659,7 +2663,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2695,7 +2699,7 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
 
   // The deps log is NULL in dry runs.
   config_.dry_run = true;
-  Builder builder(&state, config_, NULL, NULL, &fs_, &status_, 0);
+  Builder builder(&state, config_, NULL, NULL, &fs_, &status_, 0, &arena_);
   builder.command_runner_.reset(&command_runner_);
   command_runner_.commands_ran_.clear();
 
@@ -2730,7 +2734,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
 
   BuildLog::LogEntry* log_entry = NULL;
   {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2750,7 +2754,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   }
 
   {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2772,7 +2776,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   }
 
   {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2811,7 +2815,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
   {
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
 
     // Run the build, out gets built, dep file is created
@@ -2832,7 +2836,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     // Trigger the build again - "out" will rebuild since its newest input mtime (header.h)
     // is newer than the recorded mtime of out in the build log
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2848,7 +2852,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     // Trigger the build again - "out" won't rebuild since the file wasn't updated during
     // the previous build
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2867,7 +2871,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     // Rebuild. This time, long-cc will cause header.h to be updated while the build is
     // in progress
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2883,7 +2887,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     // Rebuild. Because header.h is now in the deplog for out, it should be detectable as
     // a change-while-in-progress and should cause a rebuild of out.
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2899,7 +2903,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     // This time, the header.h file was not updated during the build, so the target should
     // not be considered dirty.
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
 
@@ -2957,7 +2961,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2983,7 +2987,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -3016,7 +3020,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
@@ -3037,7 +3041,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
 
     Edge* edge = state.edges_.back();
@@ -3087,7 +3091,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
@@ -3111,7 +3115,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
@@ -3134,7 +3138,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_TRUE(builder.AlreadyUpToDate());
@@ -4264,7 +4268,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
 
     EXPECT_TRUE(builder.AddTarget("out2", &err));
@@ -4300,7 +4304,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
     ASSERT_EQ("", err);
 
-    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0, &arena_);
     builder.command_runner_.reset(&command_runner_);
 
     EXPECT_TRUE(builder.AddTarget("out2", &err));

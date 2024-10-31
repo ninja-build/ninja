@@ -31,7 +31,8 @@ struct Cleaner {
   /// Build a cleaner object with the given @a disk_interface
   Cleaner(State* state,
           const BuildConfig& config,
-          DiskInterface* disk_interface);
+          DiskInterface* disk_interface,
+          Arena* arena);
 
   /// Clean the given @a target and all the file built for it.
   /// @return non-zero if an error occurs.
@@ -106,6 +107,7 @@ struct Cleaner {
   int cleaned_files_count_;
   DiskInterface* disk_interface_;
   int status_;
+  Arena* arena_ = nullptr;
 };
 
 #endif  // NINJA_CLEAN_H_

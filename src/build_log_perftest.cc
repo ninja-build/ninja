@@ -72,8 +72,9 @@ bool WriteTestData(string* err) {
   }
   long_rule_command += "$in -o $out\n";
 
+  Arena arena;
   State state;
-  ManifestParser parser(&state, NULL);
+  ManifestParser parser(&state, NULL, &arena);
   if (!parser.ParseTest("rule cxx\n  command = " + long_rule_command, err))
     return false;
 

@@ -102,23 +102,20 @@ string EvalString::Evaluate(Env* env) const {
   string result;
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
-      result.append(i->first);
+      result.append(i->first.begin(), i->first.end());
     else
-      result.append(env->LookupVariable(i->first));
+      // We could probably avoid the AsString() here, but this path
+      // is rare enough that it doesn't seem to be worth it.
+      result.append(env->LookupVariable(i->first.AsString()));
   }
   return result;
 }
 
 void EvalString::AddText(StringPiece text) {
-  // Add it to the end of an existing RAW token if possible.
-  if (!parsed_.empty() && parsed_.back().second == RAW) {
-    parsed_.back().first.append(text.str_, text.len_);
-  } else {
-    parsed_.push_back(make_pair(text.AsString(), RAW));
-  }
+  parsed_.push_back(make_pair(text, RAW));
 }
 void EvalString::AddSpecial(StringPiece text) {
-  parsed_.push_back(make_pair(text.AsString(), SPECIAL));
+  parsed_.push_back(make_pair(text, SPECIAL));
 }
 
 string EvalString::Serialize() const {
@@ -128,7 +125,7 @@ string EvalString::Serialize() const {
     result.append("[");
     if (i->second == SPECIAL)
       result.append("$");
-    result.append(i->first);
+    result.append(i->first.begin(), i->first.end());
     result.append("]");
   }
   return result;
@@ -141,7 +138,7 @@ string EvalString::Unparse() const {
     bool special = (i->second == SPECIAL);
     if (special)
       result.append("${");
-    result.append(i->first);
+    result.append(i->first.begin(), i->first.end());
     if (special)
       result.append("}");
   }

@@ -28,9 +28,9 @@
 using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
-                               ManifestParserOptions options)
-    : Parser(state, file_reader),
-      options_(options), quiet_(false) {
+                               Arena* arena, ManifestParserOptions options)
+    : Parser(state, file_reader, arena),
+      arena_(arena), options_(options), quiet_(false) {
   env_ = &state->bindings_;
 }
 
@@ -419,7 +419,7 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
+  ManifestParser subparser(state_, file_reader_, arena_, options_);
   if (new_scope) {
     subparser.env_ = new BindingEnv(env_);
   } else {

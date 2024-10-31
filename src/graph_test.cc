@@ -20,8 +20,9 @@
 using namespace std;
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL, NULL) {}
+  GraphTest() : scan_(&state_, NULL, NULL, &fs_, NULL, NULL, &arena_) {}
 
+  Arena arena_;
   VirtualFileSystem fs_;
   DependencyScan scan_;
 };
@@ -412,7 +413,7 @@ TEST_F(GraphTest, NestedPhonyPrintsDone) {
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("n2"), NULL, &err));
   ASSERT_EQ("", err);
 
-  Plan plan_;
+  Plan plan_(&arena_);
   EXPECT_TRUE(plan_.AddTarget(GetNode("n2"), &err));
   ASSERT_EQ("", err);
 
@@ -591,7 +592,7 @@ TEST_F(GraphTest, DyndepLoadTrivial) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("", err);
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 
@@ -621,7 +622,7 @@ TEST_F(GraphTest, DyndepLoadImplicit) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("", err);
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 
@@ -647,7 +648,7 @@ TEST_F(GraphTest, DyndepLoadMissingFile) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("loading 'dd': No such file or directory", err);
 }
 
@@ -664,7 +665,7 @@ TEST_F(GraphTest, DyndepLoadMissingEntry) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("'out' not mentioned in its dyndep file 'dd'", err);
 }
 
@@ -684,7 +685,7 @@ TEST_F(GraphTest, DyndepLoadExtraEntry) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("dyndep file 'dd' mentions output 'out2' whose build statement "
             "does not have a dyndep binding for the file", err);
 }
@@ -704,7 +705,7 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules1) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("multiple rules generate out-twice.imp", err);
 }
 
@@ -728,10 +729,10 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules2) {
 
   string err;
   ASSERT_TRUE(GetNode("dd1")->dyndep_pending());
-  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd1"), &err));
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd1"), &arena_, &err));
   EXPECT_EQ("", err);
   ASSERT_TRUE(GetNode("dd2")->dyndep_pending());
-  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd2"), &err));
+  EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd2"), &arena_, &err));
   EXPECT_EQ("multiple rules generate out-twice.imp", err);
 }
 
@@ -754,7 +755,7 @@ TEST_F(GraphTest, DyndepLoadMultiple) {
 
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
-  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &err));
+  EXPECT_TRUE(scan_.LoadDyndeps(GetNode("dd"), &arena_, &err));
   EXPECT_EQ("", err);
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 

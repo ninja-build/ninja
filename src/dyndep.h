@@ -21,6 +21,7 @@
 
 #include "explanations.h"
 
+struct Arena;
 struct DiskInterface;
 struct Edge;
 struct Node;
@@ -53,11 +54,11 @@ struct DyndepLoader {
   /// build graph with the new information.  One overload accepts
   /// a caller-owned 'DyndepFile' object in which to store the
   /// information loaded from the dyndep file.
-  bool LoadDyndeps(Node* node, std::string* err) const;
-  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndeps(Node* node, Arena* arena, std::string* err) const;
+  bool LoadDyndeps(Node* node, DyndepFile* ddf, Arena* arena, std::string* err) const;
 
  private:
-  bool LoadDyndepFile(Node* file, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndepFile(Node* file, DyndepFile* ddf, Arena *arena, std::string* err) const;
 
   bool UpdateEdge(Edge* edge, Dyndeps const* dyndeps, std::string* err) const;
 

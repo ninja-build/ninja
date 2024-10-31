@@ -26,13 +26,15 @@ using namespace std;
 
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
-                 DiskInterface* disk_interface)
+                 DiskInterface* disk_interface,
+                 Arena* arena)
   : state_(state),
     config_(config),
     dyndep_loader_(state, disk_interface),
     cleaned_files_count_(0),
     disk_interface_(disk_interface),
-    status_(0) {
+    status_(0),
+    arena_(arena) {
 }
 
 int Cleaner::RemoveFile(const string& path) {
@@ -298,7 +300,7 @@ void Cleaner::LoadDyndeps() {
       // Capture and ignore errors loading the dyndep file.
       // We clean as much of the graph as we know.
       std::string err;
-      dyndep_loader_.LoadDyndeps(dyndep, &err);
+      dyndep_loader_.LoadDyndeps(dyndep, arena_, &err);
     }
   }
 }

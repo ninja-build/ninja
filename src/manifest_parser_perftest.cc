@@ -60,8 +60,9 @@ bool WriteFakeManifests(const string& dir, string* err) {
 int LoadManifests(bool measure_command_evaluation) {
   string err;
   RealDiskInterface disk_interface;
+  Arena arena;
   State state;
-  ManifestParser parser(&state, &disk_interface);
+  ManifestParser parser(&state, &disk_interface, &arena);
   if (!parser.Load("build.ninja", &err)) {
     fprintf(stderr, "Failed to read test data: %s\n", err.c_str());
     exit(1);

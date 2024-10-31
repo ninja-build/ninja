@@ -33,6 +33,7 @@
 #include <unistd.h>
 #endif
 
+#include "arena.h"
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
@@ -93,6 +94,9 @@ struct NinjaMain : public BuildLogUser {
 
   /// Build configuration set from flags (e.g. parallelism).
   const BuildConfig& config_;
+
+  /// Used for allocating memory used during parsing.
+  Arena arena_;
 
   /// Loaded state (rules, nodes).
   State state_;
@@ -268,7 +272,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
     return false;
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
-                  status, start_time_millis_);
+                  status, start_time_millis_, &arena_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -380,7 +384,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  GraphViz graph(&state_, &disk_interface_);
+  GraphViz graph(&state_, &disk_interface_, &arena_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
     graph.AddTarget(*n);
@@ -408,7 +412,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     printf("%s:\n", node->path().c_str());
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
-        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
+        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &arena_, &err)) {
           Warning("%s\n", err.c_str());
         }
       }
@@ -878,7 +882,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &arena_);
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
@@ -890,7 +894,7 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
 }
 
 int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
-  Cleaner cleaner(&state_, config_, &disk_interface_);
+  Cleaner cleaner(&state_, config_, &disk_interface_, &arena_);
   return cleaner.CleanDead(build_log_.entries());
 }
 
@@ -1369,7 +1373,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
-                  status, start_time_millis_);
+                  status, start_time_millis_, &arena_);
   for (size_t i = 0; i < targets.size(); ++i) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
@@ -1584,7 +1588,7 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, &ninja.arena_, parser_opts);
     string err;
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
