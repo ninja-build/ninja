@@ -345,6 +345,7 @@ if platform.is_msvc():
               # Disable size_t -> int truncation warning.
               # We never have strings or arrays larger than 2**31.
               '/wd4267',
+              '/Ithird_party/parallel_hashmap',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
@@ -363,6 +364,7 @@ else:
               '-fno-exceptions',
               '-std=c++11',
               '-fvisibility=hidden', '-pipe',
+              '-Ithird_party/parallel_hashmap',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
