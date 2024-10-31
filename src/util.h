@@ -102,6 +102,9 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
+/// a wrapper for getcwd()
+std::string GetWorkingDirectory();
+
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
 

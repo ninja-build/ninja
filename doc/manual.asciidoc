@@ -289,6 +289,11 @@ http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
 by the Clang tooling interface.
 _Available since Ninja 1.2._
 
+`compdb-targets`:: like `compdb`, but takes a list of targets instead of rules,
+and expects at least one target. The resulting compilation database contains
+all commands required to build the indicated targets, and _only_ those
+commands.
+
 `deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
 target, show just the target's dependencies. _Available since Ninja 1.4._
 

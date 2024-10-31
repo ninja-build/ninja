@@ -15,6 +15,7 @@
 #include "graph.h"
 
 #include "build.h"
+#include "command_collector.h"
 #include "test.h"
 
 using namespace std;
@@ -308,6 +309,54 @@ TEST_F(GraphTest, InputsCollectorWithEscapes) {
 #endif
   EXPECT_EQ("implicit", inputs[3]);
   EXPECT_EQ("order_only", inputs[4]);
+}
+
+TEST_F(GraphTest, CommandCollector) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out1: cat in1\n"
+                                      "build mid1: cat in1\n"
+                                      "build out2: cat mid1\n"
+                                      "build out3 out4: cat mid1\n"
+                                      "build all: phony out1 out2 out3\n"));
+  {
+    CommandCollector collector;
+    auto& edges = collector.in_edges;
+
+    // Start visit from out2; this should add `build mid1` and `build out2` to
+    // the edge list.
+    collector.CollectFrom(GetNode("out2"));
+    ASSERT_EQ(2u, edges.size());
+    EXPECT_EQ("cat in1 > mid1", edges[0]->EvaluateCommand());
+    EXPECT_EQ("cat mid1 > out2", edges[1]->EvaluateCommand());
+
+    // Add a visit from out1, this should append `build out1`
+    collector.CollectFrom(GetNode("out1"));
+    ASSERT_EQ(3u, edges.size());
+    EXPECT_EQ("cat in1 > out1", edges[2]->EvaluateCommand());
+
+    // Another visit from all; this should add edges for out1, out2 and out3,
+    // but not all (because it's phony).
+    collector.CollectFrom(GetNode("all"));
+    ASSERT_EQ(4u, edges.size());
+    EXPECT_EQ("cat in1 > mid1", edges[0]->EvaluateCommand());
+    EXPECT_EQ("cat mid1 > out2", edges[1]->EvaluateCommand());
+    EXPECT_EQ("cat in1 > out1", edges[2]->EvaluateCommand());
+    EXPECT_EQ("cat mid1 > out3 out4", edges[3]->EvaluateCommand());
+  }
+
+  {
+    CommandCollector collector;
+    auto& edges = collector.in_edges;
+
+    // Starting directly from all, will add `build out1` before `build mid1`
+    // compared to the previous example above.
+    collector.CollectFrom(GetNode("all"));
+    ASSERT_EQ(4u, edges.size());
+    EXPECT_EQ("cat in1 > out1", edges[0]->EvaluateCommand());
+    EXPECT_EQ("cat in1 > mid1", edges[1]->EvaluateCommand());
+    EXPECT_EQ("cat mid1 > out2", edges[2]->EvaluateCommand());
+    EXPECT_EQ("cat mid1 > out3 out4", edges[3]->EvaluateCommand());
+  }
 }
 
 TEST_F(GraphTest, VarInOutPathEscaping) {
