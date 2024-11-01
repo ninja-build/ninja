@@ -19,6 +19,7 @@
 #include <string.h>
 #include "string_piece.h"
 #include "util.h"
+#include "third_party/emhash/hash_table8.hpp"
 
 // MurmurHash2, by Austin Appleby
 static inline
@@ -53,8 +54,6 @@ unsigned int MurmurHash2(const void* key, size_t len) {
   return h;
 }
 
-#include <unordered_map>
-
 namespace std {
 template<>
 struct hash<StringPiece> {
@@ -73,7 +72,7 @@ struct hash<StringPiece> {
 /// mapping StringPiece => Foo*.
 template<typename V>
 struct ExternalStringHashMap {
-  typedef std::unordered_map<StringPiece, V> Type;
+  typedef emhash8::HashMap<StringPiece, V> Type;
 };
 
 #endif // NINJA_MAP_H_
