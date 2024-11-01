@@ -224,6 +224,7 @@ struct Edge {
   bool deps_loaded_ = false;
   bool deps_missing_ = false;
   bool generated_by_dep_loader_ = false;
+  unsigned char job_token_ = '\0';
   TimeStamp command_start_time_ = 0;
 
   const Rule& rule() const { return *rule_; }
