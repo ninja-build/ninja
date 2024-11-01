@@ -17,6 +17,8 @@
 
 #include "parser.h"
 
+#include <vector>
+
 struct BindingEnv;
 struct EvalString;
 
@@ -37,7 +39,8 @@ struct ManifestParserOptions {
 /// Parses .ninja files.
 struct ManifestParser : public Parser {
   ManifestParser(State* state, FileReader* file_reader,
-                 ManifestParserOptions options = ManifestParserOptions());
+                 ManifestParserOptions options = ManifestParserOptions(),
+                 const std::vector<std::string>& included_file = std::vector<std::string>());
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
@@ -63,6 +66,7 @@ private:
   BindingEnv* env_;
   ManifestParserOptions options_;
   bool quiet_;
+  std::vector<std::string> included_files_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
