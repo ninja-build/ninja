@@ -209,14 +209,16 @@ bool ManifestParser::ParseDefault(string* err) {
 }
 
 bool ManifestParser::ParseEdge(string* err) {
-  vector<EvalString> ins, outs, validations;
+  ins.clear();
+  outs.clear();
+  validations.clear();
 
   {
     EvalString out;
     if (!lexer_.ReadPath(&out, err))
       return false;
     while (!out.empty()) {
-      outs.push_back(out);
+      outs.push_back(std::move(out));
 
       out.Clear();
       if (!lexer_.ReadPath(&out, err))
@@ -233,7 +235,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (out.empty())
         break;
-      outs.push_back(out);
+      outs.push_back(std::move(out));
       ++implicit_outs;
     }
   }
@@ -259,7 +261,7 @@ bool ManifestParser::ParseEdge(string* err) {
       return false;
     if (in.empty())
       break;
-    ins.push_back(in);
+    ins.push_back(std::move(in));
   }
 
   // Add all implicit deps, counting how many as we go.
@@ -271,7 +273,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (in.empty())
         break;
-      ins.push_back(in);
+      ins.push_back(std::move(in));
       ++implicit;
     }
   }
@@ -285,7 +287,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (in.empty())
         break;
-      ins.push_back(in);
+      ins.push_back(std::move(in));
       ++order_only;
     }
   }
@@ -298,7 +300,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (validation.empty())
         break;
-      validations.push_back(validation);
+      validations.push_back(std::move(validation));
     }
   }
 
@@ -419,14 +421,16 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, arena_, options_);
+  if (subparser == nullptr) {
+    subparser.reset(new ManifestParser(state_, file_reader_, arena_, options_));
+  }
   if (new_scope) {
-    subparser.env_ = new BindingEnv(env_);
+    subparser->env_ = new BindingEnv(env_);
   } else {
-    subparser.env_ = env_;
+    subparser->env_ = env_;
   }
 
-  if (!subparser.Load(path, err, &lexer_))
+  if (!subparser->Load(path, err, &lexer_))
     return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))

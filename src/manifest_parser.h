@@ -65,6 +65,12 @@ private:
   BindingEnv* env_;
   ManifestParserOptions options_;
   bool quiet_;
+
+  // ins/out/validations are reused across invocations to ParseEdge(),
+  // to save on the otherwise constant memory reallocation.
+  // subparser is reused solely to get better reuse out ins/outs/validation.
+  std::unique_ptr<ManifestParser> subparser;
+  std::vector<EvalString> ins, outs, validations;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
