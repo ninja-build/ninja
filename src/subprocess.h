@@ -15,9 +15,11 @@
 #ifndef NINJA_SUBPROCESS_H_
 #define NINJA_SUBPROCESS_H_
 
+#include <limits.h>
+
+#include <queue>
 #include <string>
 #include <vector>
-#include <queue>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -52,7 +54,13 @@ struct Subprocess {
 
  private:
   Subprocess(bool use_console);
-  bool Start(struct SubprocessSet* set, const std::string& command);
+  // priority:
+  // - INT_MIN denotes no intended priority change
+  // - The range of possible values is platform dependent
+  // - POSIX: typically between -20 and 19 but can be changed by RLIMIT_NICE
+  // - Windows: between -20 (highest priority) and 20 (lowest priority)
+  bool Start(struct SubprocessSet* set, const std::string& command,
+             int priority);
   void OnPipeReady();
 
   std::string buf_;
@@ -83,7 +91,9 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const std::string& command, bool use_console = false);
+  // priority is forwarded to Subprocess::Start
+  Subprocess* Add(const std::string& command, int priority = INT_MIN,
+                  bool use_console = false);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
