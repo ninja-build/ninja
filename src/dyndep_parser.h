@@ -18,13 +18,14 @@
 #include "eval_env.h"
 #include "parser.h"
 
+struct Arena;
 struct DyndepFile;
 struct EvalString;
 
 /// Parses dyndep files.
 struct DyndepParser: public Parser {
   DyndepParser(State* state, FileReader* file_reader,
-               DyndepFile* dyndep_file);
+               Arena* arena, DyndepFile* dyndep_file);
 
   /// Parse a text string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {

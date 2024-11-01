@@ -329,11 +329,12 @@ struct DependencyScan {
   DependencyScan(State* state, BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface,
                  DepfileParserOptions const* depfile_parser_options,
-                 Explanations* explanations)
+                 Explanations* explanations, Arena* arena)
       : build_log_(build_log), disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options,
                     explanations),
-        dyndep_loader_(state, disk_interface), explanations_(explanations) {}
+        dyndep_loader_(state, disk_interface), explanations_(explanations),
+        arena_(arena) {}
 
   /// Update the |dirty_| state of the given nodes by transitively inspecting
   /// their input edges.
@@ -364,8 +365,8 @@ struct DependencyScan {
   /// build graph with the new information.  One overload accepts
   /// a caller-owned 'DyndepFile' object in which to store the
   /// information loaded from the dyndep file.
-  bool LoadDyndeps(Node* node, std::string* err) const;
-  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndeps(Node* node, Arena *arena, std::string* err) const;
+  bool LoadDyndeps(Node* node, DyndepFile* ddf, Arena* arena, std::string* err) const;
 
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
@@ -384,6 +385,7 @@ struct DependencyScan {
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
   OptionalExplanations explanations_;
+  Arena* arena_ = nullptr;
 };
 
 // Implements a less comparison for edges by priority, where highest

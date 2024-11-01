@@ -17,6 +17,7 @@
 
 #include "parser.h"
 
+struct Arena;
 struct BindingEnv;
 struct EvalString;
 
@@ -36,7 +37,7 @@ struct ManifestParserOptions {
 
 /// Parses .ninja files.
 struct ManifestParser : public Parser {
-  ManifestParser(State* state, FileReader* file_reader,
+  ManifestParser(State* state, FileReader* file_reader, Arena* arena,
                  ManifestParserOptions options = ManifestParserOptions());
 
   /// Parse a text string of input.  Used by tests.
@@ -60,9 +61,16 @@ private:
   /// Parse either a 'subninja' or 'include' line.
   bool ParseFileInclude(bool new_scope, std::string* err);
 
+  Arena* arena_ = nullptr;
   BindingEnv* env_;
   ManifestParserOptions options_;
   bool quiet_;
+
+  // ins/out/validations are reused across invocations to ParseEdge(),
+  // to save on the otherwise constant memory reallocation.
+  // subparser is reused solely to get better reuse out ins/outs/validation.
+  std::unique_ptr<ManifestParser> subparser;
+  std::vector<EvalString> ins, outs, validations;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_

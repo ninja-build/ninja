@@ -132,7 +132,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       if (!edge->dyndep_->in_edge() ||
           edge->dyndep_->in_edge()->outputs_ready()) {
         // The dyndep file is ready, so load it now.
-        if (!LoadDyndeps(edge->dyndep_, err))
+        if (!LoadDyndeps(edge->dyndep_, arena_, err))
           return false;
       }
     }
@@ -369,13 +369,13 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   return false;
 }
 
-bool DependencyScan::LoadDyndeps(Node* node, string* err) const {
-  return dyndep_loader_.LoadDyndeps(node, err);
+bool DependencyScan::LoadDyndeps(Node* node, Arena *arena, string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, arena, err);
 }
 
 bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
-                                 string* err) const {
-  return dyndep_loader_.LoadDyndeps(node, ddf, err);
+                                 Arena* arena, string* err) const {
+  return dyndep_loader_.LoadDyndeps(node, ddf, arena, err);
 }
 
 bool Edge::AllInputsReady() const {
@@ -740,12 +740,13 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
     return false;
   }
 
-  vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, deps->node_count);
-  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
-    Node* node = deps->nodes[i];
-    *implicit_dep = node;
-    node->AddOutEdge(edge);
+  Node** nodes = deps->nodes;
+  size_t node_count = deps->node_count;
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       nodes, nodes + node_count);
+  edge->implicit_deps_ += node_count;
+  for (size_t i = 0; i < node_count; ++i) {
+    nodes[i]->AddOutEdge(edge);
   }
   return true;
 }

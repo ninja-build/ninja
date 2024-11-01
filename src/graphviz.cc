@@ -45,7 +45,7 @@ void GraphViz::AddTarget(Node* node) {
 
   if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
     std::string err;
-    if (!dyndep_loader_.LoadDyndeps(edge->dyndep_, &err)) {
+    if (!dyndep_loader_.LoadDyndeps(edge->dyndep_, arena_, &err)) {
       Warning("%s\n", err.c_str());
     }
   }

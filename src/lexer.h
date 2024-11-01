@@ -25,9 +25,9 @@
 struct EvalString;
 
 struct Lexer {
-  Lexer() {}
+  explicit Lexer(Arena* arena) : arena_(arena) {}
   /// Helper ctor useful for tests.
-  explicit Lexer(const char* input);
+  explicit Lexer(Arena* arena, const char* input);
 
   enum Token {
     ERROR,
@@ -97,6 +97,7 @@ private:
   /// Read a $-escaped string.
   bool ReadEvalString(EvalString* eval, bool path, std::string* err);
 
+  Arena* arena_ = nullptr;
   StringPiece filename_;
   StringPiece input_;
   const char* ofs_;

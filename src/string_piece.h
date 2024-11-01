@@ -19,6 +19,8 @@
 
 #include <string.h>
 
+#include "arena.h"
+
 /// StringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of std::strings
 /// we need to allocate.
@@ -41,6 +43,14 @@ struct StringPiece {
     return !(*this == other);
   }
 
+  /// Make a new StringPiece with the same contents, that will live
+  /// for as long as the given arena does.
+  StringPiece Persist(Arena* arena) {
+    char *mem = arena->Alloc(len_);
+    memcpy(mem, str_, len_);
+    return StringPiece(mem, len_);
+  }
+
   /// Convert the slice into a full-fledged std::string, copying the
   /// data into a new string.
   std::string AsString() const {
@@ -61,6 +71,10 @@ struct StringPiece {
 
   size_t size() const {
     return len_;
+  }
+
+  size_t empty() const {
+    return len_ == 0;
   }
 
   const char* str_;

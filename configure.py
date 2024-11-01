@@ -529,7 +529,8 @@ n.newline()
 
 n.comment('Core source files all build into ninja library.')
 objs.extend(re2c_objs)
-for name in ['build',
+for name in ['arena',
+             'build',
              'build_log',
              'clean',
              'clparser',
