@@ -53,63 +53,14 @@ using namespace std;
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kOldestSupportedVersion = 6;
-const int kCurrentVersion = 6;
-
-// 64bit MurmurHash2, by Austin Appleby
-#if defined(_MSC_VER)
-#define BIG_CONSTANT(x) (x)
-#else   // defined(_MSC_VER)
-#define BIG_CONSTANT(x) (x##LLU)
-#endif // !defined(_MSC_VER)
-inline
-uint64_t MurmurHash64A(const void* key, size_t len) {
-  static const uint64_t seed = 0xDECAFBADDECAFBADull;
-  const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
-  const int r = 47;
-  uint64_t h = seed ^ (len * m);
-  const unsigned char* data = static_cast<const unsigned char*>(key);
-  while (len >= 8) {
-    uint64_t k;
-    memcpy(&k, data, sizeof k);
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-    h ^= k;
-    h *= m;
-    data += 8;
-    len -= 8;
-  }
-  switch (len & 7)
-  {
-  case 7: h ^= uint64_t(data[6]) << 48;
-          NINJA_FALLTHROUGH;
-  case 6: h ^= uint64_t(data[5]) << 40;
-          NINJA_FALLTHROUGH;
-  case 5: h ^= uint64_t(data[4]) << 32;
-          NINJA_FALLTHROUGH;
-  case 4: h ^= uint64_t(data[3]) << 24;
-          NINJA_FALLTHROUGH;
-  case 3: h ^= uint64_t(data[2]) << 16;
-          NINJA_FALLTHROUGH;
-  case 2: h ^= uint64_t(data[1]) << 8;
-          NINJA_FALLTHROUGH;
-  case 1: h ^= uint64_t(data[0]);
-          h *= m;
-  };
-  h ^= h >> r;
-  h *= m;
-  h ^= h >> r;
-  return h;
-}
-#undef BIG_CONSTANT
-
+const int kOldestSupportedVersion = 7;
+const int kCurrentVersion = 7;
 
 }  // namespace
 
 // static
 uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
-  return MurmurHash64A(command.str_, command.len_);
+  return rapidhash(command.str_, command.len_);
 }
 
 BuildLog::LogEntry::LogEntry(const string& output)
