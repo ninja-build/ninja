@@ -4,4 +4,4 @@ URL: https://github.com/ktprime/emhash
 Copyright: Copyright (c) 2021-2024 Huang Yuanbing & bailuzhou AT 163.com
 SPDX-License-Identifier: MIT
 Local changes:
- - None.
+ - Added includes for _mm_prefetch on MinGW.

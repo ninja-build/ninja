@@ -58,6 +58,10 @@
     _etail = bucket; \
     _index[bucket] = {bucket, _num_filled++ | ((size_type)(key_hash) & ~_mask)}
 
+#if _WIN32 && defined(_M_IX86)
+#include <xmmintrin.h>
+#endif
+
 namespace emhash8 {
 
 struct DefaultPolicy {
@@ -1237,7 +1241,7 @@ private:
         // misses.  This is intended to overlap with execution of calculating the hash for a key.
 #if __linux__
         __builtin_prefetch(static_cast<const void*>(ctrl));
-#elif _WIN32
+#elif _WIN32 && defined(_M_IX86)
         _mm_prefetch((const char*)ctrl, _MM_HINT_T0);
 #endif
     }
