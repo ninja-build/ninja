@@ -740,12 +740,13 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
     return false;
   }
 
-  vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, deps->node_count);
-  for (int i = 0; i < deps->node_count; ++i, ++implicit_dep) {
-    Node* node = deps->nodes[i];
-    *implicit_dep = node;
-    node->AddOutEdge(edge);
+  Node** nodes = deps->nodes;
+  size_t node_count = deps->node_count;
+  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
+                       nodes, nodes + node_count);
+  edge->implicit_deps_ += node_count;
+  for (size_t i = 0; i < node_count; ++i) {
+    nodes[i]->AddOutEdge(edge);
   }
   return true;
 }
