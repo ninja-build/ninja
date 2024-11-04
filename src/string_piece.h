@@ -47,6 +47,16 @@ struct StringPiece {
     return len_ ? std::string(str_, len_) : std::string();
   }
 
+  StringPiece PersistOutsideArena() const {
+    if (empty()) {
+      return *this;
+    } else {
+      char *mem = (char *)malloc(len_);
+      memcpy(mem, str_, len_);
+      return StringPiece(mem, len_);
+    }
+  }
+
   const_iterator begin() const {
     return str_;
   }
