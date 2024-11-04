@@ -21,7 +21,7 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.15
       run: |
-        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' -DCMAKE_CXX_STANDARD=11
         cmake --build build --config Release
 
     - name: Test ninja (Release)

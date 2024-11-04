@@ -1526,6 +1526,12 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
+// Check that this file is properly compiled in C++11 mode.
+// See PR #2520.
+#if __cplusplus < 201103
+#error "This file should be compiled with C++11 or higher!"
+#endif
+
 NORETURN void real_main(int argc, char** argv) {
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
