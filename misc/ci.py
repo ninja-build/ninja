@@ -22,9 +22,13 @@ try:
 except:
 	repo = None
 
-for root, directory, filenames in os.walk('.'):
+for dirpath, dirnames, filenames in os.walk('.'):
+	# Ignore linting in '*/third_party' sub-directories.
+	if "third_party" in dirnames:
+		dirnames.remove("third_party")
+
 	for filename in filenames:
-		path = os.path.join(root, filename)[2:]
+		path = os.path.join(dirpath, filename)[2:]
 		if any([path.startswith(x) for x in ignores]) or (repo is not None and repo.ignored(path)):
 			continue
 		with open(path, 'rb') as file:
