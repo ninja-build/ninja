@@ -1456,7 +1456,7 @@ private:
 #endif
 
     //kick out bucket and find empty to occpuy
-    //it will break the orgin link and relnik again.
+    //it will break the origin link and relink again.
     //before: main_bucket-->prev_bucket --> bucket   --> next_bucket
     //atfer : main_bucket-->prev_bucket --> (removed)--> new_bucket--> next_bucket
     size_type kickout_bucket(const size_type kmain, const size_type bucket) noexcept
@@ -1556,7 +1556,7 @@ private:
       Since Robin Hood hashing is relatively resilient to clustering (both primary and secondary), linear probing is the most cache friendly alternativeis typically used.
 
       It's the core algorithm of this hash map with highly optimization/benchmark.
-      normaly linear probing is inefficient with high load factor, it use a new 3-way linear
+      normally linear probing is inefficient with high load factor, it use a new 3-way linear
       probing strategy to search empty slot. from benchmark even the load factor > 0.9, it's more 2-3 timer fast than
       one-way search strategy.
 
