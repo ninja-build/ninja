@@ -141,6 +141,8 @@ private:
   int wanted_edges_;
 };
 
+struct BuildConfig;
+
 /// CommandRunner is an interface that wraps running the build
 /// subcommands.  This allows tests to abstract out running commands.
 /// RealCommandRunner is an implementation that actually runs commands.
@@ -162,6 +164,9 @@ struct CommandRunner {
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
+
+  /// Creates the RealCommandRunner
+  static CommandRunner* factory(const BuildConfig& config);
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.

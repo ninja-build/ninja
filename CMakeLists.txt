@@ -145,6 +145,7 @@ add_library(libninja OBJECT
 	src/metrics.cc
 	src/missing_deps.cc
 	src/parser.cc
+	src/real_command_runner.cc
 	src/state.cc
 	src/status_printer.cc
 	src/string_piece_util.cc
