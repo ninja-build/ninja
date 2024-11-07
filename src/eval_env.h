@@ -16,6 +16,7 @@
 #define NINJA_EVAL_ENV_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,10 @@ private:
 struct Rule {
   explicit Rule(const std::string& name) : name_(name) {}
 
+  static std::unique_ptr<Rule> Phony();
+
+  bool IsPhony() const;
+
   const std::string& name() const { return name_; }
 
   void AddBinding(const std::string& key, const EvalString& val);
@@ -74,6 +79,7 @@ struct Rule {
   std::string name_;
   typedef std::map<std::string, EvalString> Bindings;
   Bindings bindings_;
+  bool phony_ = false;
 };
 
 /// An Env which contains a mapping of variables to values
@@ -85,10 +91,10 @@ struct BindingEnv : public Env {
   virtual ~BindingEnv() {}
   virtual std::string LookupVariable(const std::string& var);
 
-  void AddRule(const Rule* rule);
+  void AddRule(std::unique_ptr<const Rule> rule);
   const Rule* LookupRule(const std::string& rule_name);
   const Rule* LookupRuleCurrentScope(const std::string& rule_name);
-  const std::map<std::string, const Rule*>& GetRules() const;
+  const std::map<std::string, std::unique_ptr<const Rule>>& GetRules() const;
 
   void AddBinding(const std::string& key, const std::string& val);
 
@@ -102,7 +108,7 @@ struct BindingEnv : public Env {
 
 private:
   std::map<std::string, std::string> bindings_;
-  std::map<std::string, const Rule*> rules_;
+  std::map<std::string, std::unique_ptr<const Rule>> rules_;
   BindingEnv* parent_;
 };
 
