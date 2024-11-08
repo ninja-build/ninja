@@ -770,16 +770,18 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
   bool print0 = false;
   bool shell_escape = true;
   bool dependency_order = false;
+  bool include_target = false;
 
   optind = 1;
   int opt;
   const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
                                   { "no-shell-escape", no_argument, NULL, 'E' },
                                   { "print0", no_argument, NULL, '0' },
+                                  { "include-target", no_argument, NULL, 'i' },
                                   { "dependency-order", no_argument, NULL,
                                     'd' },
                                   { NULL, 0, NULL, 0 } };
-  while ((opt = getopt_long(argc, argv, "h0Ed", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "h0Edi", kLongOptions, NULL)) != -1) {
     switch (opt) {
     case 'd':
       dependency_order = true;
@@ -789,6 +791,9 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
       break;
     case '0':
       print0 = true;
+      break;
+    case 'i':
+      include_target = true;
       break;
     case 'h':
     default:
@@ -804,6 +809,7 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
 "  -0, --print0            Use \\0, instead of \\n as a line terminator.\n"
 "  -E, --no-shell-escape   Do not shell escape the result.\n"
 "  -d, --dependency-order  Sort results by dependency order.\n"
+"  -i, --include-target    Add target before result in every line, separated by the : character.\n"
       );
       // clang-format on
       return 1;
@@ -819,23 +825,45 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  InputsCollector collector;
-  for (const Node* node : nodes)
-    collector.VisitNode(node);
+  if (include_target) {
+    for (const Node* node : nodes) {
+      InputsCollector collector;
 
-  std::vector<std::string> inputs = collector.GetInputsAsStrings(shell_escape);
-  if (!dependency_order)
-    std::sort(inputs.begin(), inputs.end());
+      collector.VisitNode(node);
+      std::vector<std::string> inputs =
+          collector.GetInputsAsStrings(shell_escape);
 
-  if (print0) {
-    for (const std::string& input : inputs) {
-      fwrite(input.c_str(), input.size(), 1, stdout);
-      fputc('\0', stdout);
+      if (!dependency_order)
+        std::sort(inputs.begin(), inputs.end());
+
+      for (const std::string& input : inputs)
+        if (print0) {
+          printf("%s:%s", node->path().c_str(), input.c_str());
+          fputc('\0', stdout);
+        } else {
+          printf("%s:%s\n", node->path().c_str(), input.c_str());
+        }
     }
-    fflush(stdout);
   } else {
-    for (const std::string& input : inputs)
-      puts(input.c_str());
+    InputsCollector collector;
+    for (const Node* node : nodes)
+      collector.VisitNode(node);
+
+    std::vector<std::string> inputs =
+        collector.GetInputsAsStrings(shell_escape);
+    if (!dependency_order)
+      std::sort(inputs.begin(), inputs.end());
+
+    if (print0) {
+      for (const std::string& input : inputs) {
+        fwrite(input.c_str(), input.size(), 1, stdout);
+        fputc('\0', stdout);
+      }
+      fflush(stdout);
+    } else {
+      for (const std::string& input : inputs)
+        puts(input.c_str());
+    }
   }
   return 0;
 }
