@@ -14,11 +14,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux clang-tools-extra
+      run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux clang-tools-extra boost-devel
     - name: Linting
       run: misc/ci.py
     - name: Configure with CMake
-      run: cmake -Bbuild -G"Ninja Multi-Config" -DNINJA_CLANG_TIDY=1
+      run: cmake -Bbuild -G"Ninja Multi-Config" -DNINJA_CLANG_TIDY=1 -DNINJA_V2=1
     - name: Build debug ninja
       run: CLICOLOR_FORCE=1 ninja
       working-directory: build
