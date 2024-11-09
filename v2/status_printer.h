@@ -13,9 +13,10 @@ class StatusPrinter : public Status {
   void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                          int64_t end_time_millis, bool success,
                          const std::string& output) override;
-  void BuildLoadDyndeps() override;
   void BuildStarted() override;
   void BuildFinished() override;
+
+  void SetExplanations(Explanations*) override;
 
   void Info(const char* msg, ...) override;
   void Warning(const char* msg, ...) override;

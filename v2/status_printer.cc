@@ -90,10 +90,6 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   }
 }
 
-void StatusPrinter::BuildLoadDyndeps() {
-  assert(false);
-}
-
 void StatusPrinter::BuildStarted() {
   finished_edges_ = 0;
   assert(failed_edges_ == 0);
@@ -111,6 +107,10 @@ void StatusPrinter::BuildFinished() {
   } else {
     std::print("ninja: \x1b[1;32mdone\x1b[0m\n");
   }
+}
+
+void StatusPrinter::SetExplanations(Explanations*) {
+  // assert(false); // TODO
 }
 
 void StatusPrinter::Info(const char* msg, ...) {
@@ -149,6 +149,54 @@ void StatusPrinter::TimerCallback(boost::system::error_code err) {
   StartTimer();
 }
 
+#define BASE 65521L /* largest prime smaller than 65536 */
+#define NMAX 5552
+/* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
+
+#define DO1(buf, i) \
+  {                 \
+    s1 += buf[i];   \
+    s2 += s1;       \
+  }
+#define DO2(buf, i) \
+  DO1(buf, i);      \
+  DO1(buf, i + 1);
+#define DO4(buf, i) \
+  DO2(buf, i);      \
+  DO2(buf, i + 2);
+#define DO8(buf, i) \
+  DO4(buf, i);      \
+  DO4(buf, i + 4);
+#define DO16(buf) \
+  DO8(buf, 0);    \
+  DO8(buf, 8);
+
+unsigned long adler32(const char* buf, size_t len) {
+  unsigned long s1 = 0xffff;
+  unsigned long s2 = (s1 >> 16) & 0xffff;
+  int k;
+  if (buf == nullptr)
+    return 1L;
+
+  while (len > 0) {
+    k = len < NMAX ? len : NMAX;
+    len -= k;
+    while (k >= 16) {
+      DO16(buf);
+      buf += 16;
+      k -= 16;
+    }
+    if (k != 0)
+      do {
+        s1 += *buf++;
+        s2 += s1;
+      } while (--k);
+    s1 %= BASE;
+    s2 %= BASE;
+  }
+  return (s2 << 16) | s1;
+}
+
 void StatusPrinter::PrintStatus() {
   if (console_locked_ || running_edges_.empty()) {
     return;
@@ -170,10 +218,63 @@ void StatusPrinter::PrintStatus() {
   }
   std::ostringstream sstream;
   const auto duration = (now - it->second).count() / 100;
-  sstream << "[" << finished_edges_ << "/" << total_edges_
-          << " running: " << running_edges_.size() << "] " << (duration / 10)
-          << '.' << (duration % 10) << "s | "
-          << last_printed_edge_.first->GetBinding("description");
+
+  std::string description = last_printed_edge_.first->GetBinding("description");
+  const auto first_space = description.find_first_of(' ');
+  const auto second_space = description.find_first_of(' ', first_space + 1);
+  unsigned long hash_number = 0;
+  if (first_space != second_space) {
+    const auto third_space = description.find_first_of(' ', second_space + 1);
+    auto first_word = description.substr(0, first_space);
+    first_word += description[second_space + 1];
+    hash_number = adler32(first_word.data(), first_word.size()) % 10;
+  }
+
+  const char* progress[] = {
+    "⠀", "⠁", "⠉", "⠋", "⠛",
+    "⠟", "⠿", "⡿", "⣿"
+    // "⠀⠀",
+    // "⠁⠀",
+    // "⠉⠀",
+    // "⠉⠁",
+    // "⠉⠉",
+    // "⠋⠉",
+    // "⠛⠉",
+    // "⠛⠋",
+    // "⠛⠛",
+    // "⠟⠛",
+    // "⠿⠛",
+    // "⠿⠟",
+    // "⠿⠿",
+    // "⡿⠿",
+    // "⣿⠿",
+    // "⣿⡿",
+    // "⣿⣿"
+  };
+
+  uint8_t percentage = finished_edges_ *
+                       (sizeof(progress) / sizeof(progress[0]) - 1) /
+                       total_edges_;
+  uint8_t percentage_with_running =
+      (running_edges_.size() + finished_edges_) *
+      (sizeof(progress) / sizeof(progress[0]) - 1) / total_edges_;
+
+  if ((now.count() / 100) % 2 == 0) {
+    if (percentage == percentage_with_running) {
+      percentage += 1;
+    } else {
+      percentage = percentage_with_running;
+    }
+  }
+
+  sstream << progress[percentage] << " \x1b[36m" << running_edges_.size()
+          << "\x1b[0m|\x1b[34m" << finished_edges_ << "\x1b[0m/" << total_edges_
+          << " \x1b[" << (hash_number > 4 ? 1 : 0) << ";3"
+          << (hash_number % 5 + 2) << "m" << description << "\x1b[0m";
+  if (duration > 20) {
+    sstream << " ⌛ " << (duration / 10) << '.' << (duration % 10) << "s";
+  }
+
   printer_.Print(sstream.str(),
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
 }
