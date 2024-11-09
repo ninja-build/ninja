@@ -62,12 +62,11 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
-  return RecordDeps(node, mtime, nodes.size(),
-                    nodes.empty() ? NULL : const_cast<Node**>(&nodes.front()));
+  return RecordDeps(node, mtime, nodes.size(), nodes.data());
 }
 
-bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         int node_count, Node** nodes) {
+bool DepsLog::RecordDeps(Node* node, TimeStamp mtime, int node_count,
+                         Node* const* nodes) {
   // Track whether there's any new data to be recorded.
   bool made_change = false;
 

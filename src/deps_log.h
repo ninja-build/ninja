@@ -72,7 +72,8 @@ struct DepsLog {
   // Writing (build-time) interface.
   bool OpenForWrite(const std::string& path, std::string* err);
   bool RecordDeps(Node* node, TimeStamp mtime, const std::vector<Node*>& nodes);
-  bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
+  bool RecordDeps(Node* node, TimeStamp mtime, int node_count,
+                  Node* const* nodes);
   void Close();
 
   // Reading (startup-time) interface.
