@@ -130,6 +130,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolTargets(const Options* options, int argc, char* argv[]);
   int ToolCommands(const Options* options, int argc, char* argv[]);
   int ToolInputs(const Options* options, int argc, char* argv[]);
+  int ToolMultiInputs(const Options* options, int argc, char* argv[]);
   int ToolClean(const Options* options, int argc, char* argv[]);
   int ToolCleanDead(const Options* options, int argc, char* argv[]);
   int ToolCompilationDatabase(const Options* options, int argc, char* argv[]);
@@ -845,6 +846,74 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
   return 0;
 }
 
+int NinjaMain::ToolMultiInputs(const Options* options, int argc, char* argv[]) {
+  // The inputs tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "inputs".
+  argc++;
+  argv--;
+
+  optind = 1;
+  int opt;
+  char terminator = '\n';
+  const char* delimiter = "\t";
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { "delimiter", required_argument, NULL,
+                                    'd' },
+                                  { "print0", no_argument, NULL, '0' },
+                                  { NULL, 0, NULL, 0 } };
+  while ((opt = getopt_long(argc, argv, "d:h0", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case 'd':
+      delimiter = optarg;
+      break;
+    case '0':
+      terminator = '\0';
+      break;
+    case 'h':
+    default:
+      // clang-format off
+      printf(
+"Usage '-t multi-inputs [options] [targets]\n"
+"\n"
+"Print one or more sets of inputs required to build targets, sorted in dependency order.\n"
+"The tool works like inputs tool but with addition of the target for each line.\n"
+"The output will be a series of lines with the following elements:\n"
+"<target> <delimiter> <input> <terminator>\n"
+"Note that a given input may appear for several targets if it is used by more than one targets.\n"
+"Options:\n"
+"  -h, --help                   Print this message.\n"
+"  -d  --delimiter=DELIM        Use DELIM instead of TAB for field delimiter.\n"
+"  -0, --print0                 Use \\0, instead of \\n as a line terminator.\n"
+      );
+      // clang-format on
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
+  std::vector<Node*> nodes;
+  std::string err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
+    Error("%s", err.c_str());
+    return 1;
+  }
+
+  for (const Node* node : nodes) {
+    InputsCollector collector;
+
+    collector.VisitNode(node);
+    std::vector<std::string> inputs = collector.GetInputsAsStrings();
+
+    for (const std::string& input : inputs) {
+      printf("%s%s%s", node->path().c_str(), delimiter, input.c_str());
+      fputc(terminator, stdout);
+    }
+  }
+
+  return 0;
+}
+
 int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   // The clean tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "clean".
@@ -1234,6 +1303,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolCommands },
     { "inputs", "list all inputs required to rebuild given targets",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolInputs},
+    { "multi-inputs", "print one or more sets of inputs required to build targets",
+      Tool::RUN_AFTER_LOAD, &NinjaMain::ToolMultiInputs},
     { "deps", "show dependencies stored in the deps log",
       Tool::RUN_AFTER_LOGS, &NinjaMain::ToolDeps },
     { "missingdeps", "check deps log dependencies on generated files",
