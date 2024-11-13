@@ -61,6 +61,8 @@ else()
 	endif()
 endif()
 
+include_directories(third_party/parallel_hashmap)
+
 # --- optional re2c
 set(RE2C_MAJOR_VERSION 0)
 find_program(RE2C re2c)
