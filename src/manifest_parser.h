@@ -17,6 +17,9 @@
 
 #include "parser.h"
 
+#include <memory>
+#include <vector>
+
 struct BindingEnv;
 struct EvalString;
 
@@ -63,6 +66,12 @@ private:
   BindingEnv* env_;
   ManifestParserOptions options_;
   bool quiet_;
+
+  // ins_/out_/validations_ are reused across invocations to ParseEdge(),
+  // to save on the otherwise constant memory reallocation.
+  // subparser_ is reused solely to get better reuse out ins_/outs_/validation_.
+  std::unique_ptr<ManifestParser> subparser_;
+  std::vector<EvalString> ins_, outs_, validations_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
