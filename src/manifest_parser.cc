@@ -209,14 +209,16 @@ bool ManifestParser::ParseDefault(string* err) {
 }
 
 bool ManifestParser::ParseEdge(string* err) {
-  vector<EvalString> ins, outs, validations;
+  ins_.clear();
+  outs_.clear();
+  validations_.clear();
 
   {
     EvalString out;
     if (!lexer_.ReadPath(&out, err))
       return false;
     while (!out.empty()) {
-      outs.push_back(out);
+      outs_.push_back(std::move(out));
 
       out.Clear();
       if (!lexer_.ReadPath(&out, err))
@@ -233,12 +235,12 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (out.empty())
         break;
-      outs.push_back(out);
+      outs_.push_back(std::move(out));
       ++implicit_outs;
     }
   }
 
-  if (outs.empty())
+  if (outs_.empty())
     return lexer_.Error("expected path", err);
 
   if (!ExpectToken(Lexer::COLON, err))
@@ -259,7 +261,7 @@ bool ManifestParser::ParseEdge(string* err) {
       return false;
     if (in.empty())
       break;
-    ins.push_back(in);
+    ins_.push_back(std::move(in));
   }
 
   // Add all implicit deps, counting how many as we go.
@@ -271,7 +273,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (in.empty())
         break;
-      ins.push_back(in);
+      ins_.push_back(std::move(in));
       ++implicit;
     }
   }
@@ -285,7 +287,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (in.empty())
         break;
-      ins.push_back(in);
+      ins_.push_back(std::move(in));
       ++order_only;
     }
   }
@@ -298,7 +300,7 @@ bool ManifestParser::ParseEdge(string* err) {
         return false;
       if (validation.empty())
         break;
-      validations.push_back(validation);
+      validations_.push_back(std::move(validation));
     }
   }
 
@@ -329,9 +331,9 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
-  edge->outputs_.reserve(outs.size());
-  for (size_t i = 0, e = outs.size(); i != e; ++i) {
-    string path = outs[i].Evaluate(env);
+  edge->outputs_.reserve(outs_.size());
+  for (size_t i = 0, e = outs_.size(); i != e; ++i) {
+    string path = outs_[i].Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -351,8 +353,8 @@ bool ManifestParser::ParseEdge(string* err) {
   }
   edge->implicit_outs_ = implicit_outs;
 
-  edge->inputs_.reserve(ins.size());
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
+  edge->inputs_.reserve(ins_.size());
+  for (vector<EvalString>::iterator i = ins_.begin(); i != ins_.end(); ++i) {
     string path = i->Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
@@ -363,9 +365,9 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
-  edge->validations_.reserve(validations.size());
-  for (std::vector<EvalString>::iterator v = validations.begin();
-      v != validations.end(); ++v) {
+  edge->validations_.reserve(validations_.size());
+  for (std::vector<EvalString>::iterator v = validations_.begin();
+      v != validations_.end(); ++v) {
     string path = v->Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
@@ -419,14 +421,16 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
-  ManifestParser subparser(state_, file_reader_, options_);
+  if (subparser_ == nullptr) {
+    subparser_.reset(new ManifestParser(state_, file_reader_, options_));
+  }
   if (new_scope) {
-    subparser.env_ = new BindingEnv(env_);
+    subparser_->env_ = new BindingEnv(env_);
   } else {
-    subparser.env_ = env_;
+    subparser_->env_ = env_;
   }
 
-  if (!subparser.Load(path, err, &lexer_))
+  if (!subparser_->Load(path, err, &lexer_))
     return false;
 
   if (!ExpectToken(Lexer::NEWLINE, err))

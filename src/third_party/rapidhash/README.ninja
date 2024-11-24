@@ -1,0 +1,7 @@
+Description: Very fast, high quality, platform-independent hashing algorithm.
+Version: commit 4a6b2570e868536be84800353efd92c699f37d2c
+URL: https://github.com/Nicoshev/rapidhash
+Copyright: Copyright (C) 2024 Nicolas De Carli, Based on 'wyhash', by Wang Yi <godspeed_china@yeah.net>
+SPDX-License-Identifier: BSD-2-Clause
+Local changes:
+ - Changed to UNIX line endings
