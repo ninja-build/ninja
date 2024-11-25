@@ -15,8 +15,10 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <string>
 #include <stdio.h>
+
+#include <memory>
+#include <string>
 
 #include "hash_map.h"
 #include "load_status.h"
@@ -90,7 +92,7 @@ struct BuildLog {
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  typedef ExternalStringHashMap<std::unique_ptr<LogEntry>>::Type Entries;
   const Entries& entries() const { return entries_; }
 
  private:

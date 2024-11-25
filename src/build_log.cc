@@ -97,10 +97,11 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
     if (i != entries_.end()) {
-      log_entry = i->second;
+      log_entry = i->second.get();
     } else {
       log_entry = new LogEntry(path);
-      entries_.insert(Entries::value_type(log_entry->output, log_entry));
+      // Passes ownership of |log_entry| to the map, but keeps the pointer valid.
+      entries_.emplace(log_entry->output, std::unique_ptr<LogEntry>(log_entry));
     }
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
@@ -286,10 +287,11 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     LogEntry* entry;
     Entries::iterator i = entries_.find(output);
     if (i != entries_.end()) {
-      entry = i->second;
+      entry = i->second.get();
     } else {
       entry = new LogEntry(std::move(output));
-      entries_.insert(Entries::value_type(entry->output, entry));
+      // Passes ownership of |entry| to the map, but keeps the pointer valid.
+      entries_.emplace(entry->output, std::unique_ptr<LogEntry>(entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -325,7 +327,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
 BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
-    return i->second;
+    return i->second.get();
   return NULL;
 }
 
@@ -354,21 +356,21 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
   }
 
   std::vector<StringPiece> dead_outputs;
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    if (user.IsPathDead(i->first)) {
-      dead_outputs.push_back(i->first);
+  for (const auto& pair : entries_) {
+    if (user.IsPathDead(pair.first)) {
+      dead_outputs.push_back(pair.first);
       continue;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
 
-  for (size_t i = 0; i < dead_outputs.size(); ++i)
-    entries_.erase(dead_outputs[i]);
+  for (StringPiece output : dead_outputs)
+    entries_.erase(output);
 
   fclose(f);
   if (unlink(path.c_str()) < 0) {
@@ -403,24 +405,24 @@ bool BuildLog::Restat(const StringPiece path,
     fclose(f);
     return false;
   }
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+  for (auto& pair : entries_) {
     bool skip = output_count > 0;
     for (int j = 0; j < output_count; ++j) {
-      if (i->second->output == outputs[j]) {
+      if (pair.second->output == outputs[j]) {
         skip = false;
         break;
       }
     }
     if (!skip) {
-      const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+      const TimeStamp mtime = disk_interface.Stat(pair.second->output, err);
       if (mtime == -1) {
         fclose(f);
         return false;
       }
-      i->second->mtime = mtime;
+      pair.second->mtime = mtime;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
