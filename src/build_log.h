@@ -57,10 +57,10 @@ struct BuildLog {
 
   struct LogEntry {
     std::string output;
-    uint64_t command_hash;
-    int start_time;
-    int end_time;
-    TimeStamp mtime;
+    uint64_t command_hash = 0;
+    int start_time = 0;
+    int end_time = 0;
+    TimeStamp mtime = 0;
 
     static uint64_t HashCommand(StringPiece command);
 
@@ -99,9 +99,9 @@ struct BuildLog {
   bool OpenForWriteIfNeeded();
 
   Entries entries_;
-  FILE* log_file_;
+  FILE* log_file_ = nullptr;
   std::string log_file_path_;
-  bool needs_recompaction_;
+  bool needs_recompaction_ = false;
 };
 
 #endif // NINJA_BUILD_LOG_H_

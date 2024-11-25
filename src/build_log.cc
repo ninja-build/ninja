@@ -72,8 +72,7 @@ BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
     start_time(start_time), end_time(end_time), mtime(mtime)
 {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog() = default;
 
 BuildLog::~BuildLog() {
   Close();
