@@ -61,7 +61,7 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return rapidhash(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const std::string& output) : output(output) {}
+BuildLog::LogEntry::LogEntry(std::string output) : output(std::move(output)) {}
 
 BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
                              int start_time, int end_time, TimeStamp mtime)
@@ -288,7 +288,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     if (i != entries_.end()) {
       entry = i->second;
     } else {
-      entry = new LogEntry(output);
+      entry = new LogEntry(std::move(output));
       entries_.insert(Entries::value_type(entry->output, entry));
       ++unique_entry_count;
     }
