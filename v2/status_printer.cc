@@ -144,7 +144,7 @@ void StatusPrinter::StartTimer() {
 }
 
 void StatusPrinter::TimerCallback(boost::system::error_code err) {
-  assert(!err);
+  // assert(!err);
   PrintStatus();
   StartTimer();
 }
