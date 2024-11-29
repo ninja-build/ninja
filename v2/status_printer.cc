@@ -27,7 +27,7 @@ void StatusPrinter::EdgeAddedToPlan(const Edge* edge) {
 }
 
 void StatusPrinter::EdgeRemovedFromPlan(const Edge* edge) {
-  assert(false);
+  --total_edges_;
 }
 
 void StatusPrinter::BuildEdgeStarted(const Edge* edge,
