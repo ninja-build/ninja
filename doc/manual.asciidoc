@@ -265,6 +265,47 @@ output files are out of date.
 rebuild those targets.
 _Available since Ninja 1.11._
 
+`multi-inputs`:: print one or more sets of inputs required to build targets.
+Each line will consist of a target, a delimiter, an input and a terminator character.
+The list produced by the tool can be helpful if one would like to know which targets
+that are affected by a certain input.
++
+The output will be a series of lines with the following elements:
++
+----
+<target> <delimiter> <input> <terminator>
+----
++
+The default `<delimiter>` is a single TAB character.
+The delimiter can be modified to any string using the `--delimiter` argument.
++
+The default `<terminator>` is a line terminator (i.e. `\n` on Posix and `\r\n` on Windows).
+The terminator can be changed to `\0` by using the `--print0` argument.
++
+----
+----
++
+Example usage of the `multi-inputs` tool:
++
+----
+ninja -t multi-inputs target1 target2 target3
+----
++
+Example of produced output from the `multi-inputs` tool:
++
+----
+target1 file1.c
+target2 file1.c
+target2 file2.c
+target3 file1.c
+target3 file2.c
+target3 file3.c
+----
++
+_Note that a given input may appear for several targets if it is used by more
+than one targets._
+_Available since Ninja 1.13._
+
 `clean`:: remove built files. By default, it removes all built files
 except for those created by the generator.  Adding the `-g` flag also
 removes built files created by the generator (see <<ref_rule,the rule
@@ -288,6 +329,11 @@ source file, prints on standard output a compilation database in the
 http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
 by the Clang tooling interface.
 _Available since Ninja 1.2._
+
+`compdb-targets`:: like `compdb`, but takes a list of targets instead of rules,
+and expects at least one target. The resulting compilation database contains
+all commands required to build the indicated targets, and _only_ those
+commands.
 
 `deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
 target, show just the target's dependencies. _Available since Ninja 1.4._

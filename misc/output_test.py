@@ -12,13 +12,48 @@ import sys
 import tempfile
 import unittest
 from textwrap import dedent
-from typing import Dict
+import typing as T
 
 default_env = dict(os.environ)
 default_env.pop('NINJA_STATUS', None)
 default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
+
+def remove_non_visible_lines(raw_output: bytes) -> str:
+  # When running in a smart terminal, Ninja uses CR (\r) to
+  # return the cursor to the start of the current line, prints
+  # something, then uses `\x1b[K` to clear everything until
+  # the end of the line.
+  #
+  # Thus printing 'FOO', 'BAR', 'ZOO' on the same line, then
+  # jumping to the next one results in the following output
+  # on Posix:
+  #
+  # '\rFOO\x1b[K\rBAR\x1b[K\rZOO\x1b[K\r\n'
+  #
+  # The following splits the output at both \r, \n and \r\n
+  # boundaries, which gives:
+  #
+  #  [ '\r', 'FOO\x1b[K\r', 'BAR\x1b[K\r', 'ZOO\x1b[K\r\n' ]
+  #
+  decoded_lines = raw_output.decode('utf-8').splitlines(True)
+
+  # Remove any item that ends with a '\r' as this means its
+  # content will be overwritten by the next item in the list.
+  # For the previous example, this gives:
+  #
+  #  [ 'ZOO\x1b[K\r\n' ]
+  #
+  final_lines = [ l for l in decoded_lines if not l.endswith('\r') ]
+
+  # Return a single string that concatenates all filtered lines
+  # while removing any remaining \r in it. Needed to transform
+  # \r\n into \n.
+  #
+  #  "ZOO\x1b[K\n'
+  #
+  return ''.join(final_lines).replace('\r', '')
 
 class BuildDir:
     def __init__(self, build_ninja: str):
@@ -35,12 +70,18 @@ class BuildDir:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.d.cleanup()
 
+    @property
+    def path(self) -> str:
+        return os.path.realpath(self.d.name)
+
+
     def run(
         self,
-        flags: str = '',
+        flags: T.Optional[str] = None,
         pipe: bool = False,
         raw_output: bool = False,
-        env: Dict[str, str] = default_env,
+        env: T.Dict[str, str] = default_env,
+        print_err_output = True,
     ) -> str:
         """Run Ninja command, and get filtered output.
 
@@ -56,13 +97,17 @@ class BuildDir:
 
           env: Optional environment dictionary to run the command in.
 
+          print_err_output: set to False if the test expects ninja to print
+            something to stderr. (Otherwise, an error message from Ninja
+            probably represents a failed test.)
+
         Returns:
           A UTF-8 string corresponding to the output (stdout only) of the
           Ninja command. By default, partial lines that were overwritten
           are removed according to the rules described in the comments
           below.
         """
-        ninja_cmd = '{} {}'.format(NINJA_PATH, flags)
+        ninja_cmd = '{} {}'.format(NINJA_PATH, flags if flags else '')
         try:
             if pipe:
                 output = subprocess.check_output(
@@ -74,57 +119,27 @@ class BuildDir:
                 output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
                                                  cwd=self.d.name, env=env)
         except subprocess.CalledProcessError as err:
-            sys.stdout.buffer.write(err.output)
+            if print_err_output:
+              sys.stdout.buffer.write(err.output)
+            err.cooked_output = remove_non_visible_lines(err.output)
             raise err
 
         if raw_output:
             return output.decode('utf-8')
-
-        # When running in a smart terminal, Ninja uses CR (\r) to
-        # return the cursor to the start of the current line, prints
-        # something, then uses `\x1b[K` to clear everything until
-        # the end of the line.
-        #
-        # Thus printing 'FOO', 'BAR', 'ZOO' on the same line, then
-        # jumping to the next one results in the following output
-        # on Posix:
-        #
-        # '\rFOO\x1b[K\rBAR\x1b[K\rZOO\x1b[K\r\n'
-        #
-        # The following splits the output at both \r, \n and \r\n
-        # boundaries, which gives:
-        #
-        #  [ '\r', 'FOO\x1b[K\r', 'BAR\x1b[K\r', 'ZOO\x1b[K\r\n' ]
-        #
-        decoded_lines = output.decode('utf-8').splitlines(True)
-
-        # Remove any item that ends with a '\r' as this means its
-        # content will be overwritten by the next item in the list.
-        # For the previous example, this gives:
-        #
-        #  [ 'ZOO\x1b[K\r\n' ]
-        #
-        final_lines = [ l for l in decoded_lines if not l.endswith('\r') ]
-
-        # Return a single string that concatenates all filtered lines
-        # while removing any remaining \r in it. Needed to transform
-        # \r\n into \n.
-        #
-        #  "ZOO\x1b[K\n'
-        #
-        return ''.join(final_lines).replace('\r', '')
+        return remove_non_visible_lines(output)
 
 def run(
     build_ninja: str,
-    flags: str = '',
+    flags: T.Optional[str] = None,
     pipe: bool = False,
     raw_output: bool = False,
-    env: Dict[str, str] = default_env,
+    env: T.Dict[str, str] = default_env,
+    print_err_output = True,
 ) -> str:
     """Run Ninja with a given build plan in a temporary directory.
     """
     with BuildDir(build_ninja) as b:
-        return b.run(flags, pipe, raw_output, env)
+        return b.run(flags, pipe, raw_output, env, print_err_output)
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
@@ -136,6 +151,16 @@ class Output(unittest.TestCase):
         'build a: echo',
         '',
     ))
+
+    def _test_expected_error(self, plan: str, flags: T.Optional[str], expected: str):
+        """Run Ninja with a given plan and flags, and verify its cooked output against an expected content.
+        """
+        actual = ''
+        try:
+          actual = run(plan, flags, print_err_output=False)
+        except subprocess.CalledProcessError as err:
+          actual = err.cooked_output
+        self.assertEqual(expected, actual)
 
     def test_issue_1418(self) -> None:
         self.assertEqual(run(
@@ -368,6 +393,93 @@ out 2
             flags='-t inputs --dependency-order --no-shell-escape --print0 all'
           ),
           f'''in1\0out1\0out 2\0'''
+        )
+
+
+    def test_tool_compdb_targets(self) -> None:
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out2 : cat in2 out1
+build out3 : cat out2 out1
+build out4 : cat in4
+'''
+
+
+        self._test_expected_error(plan, '-t compdb-targets',
+'''ninja: error: compdb-targets expects the name of at least one target
+usage: ninja -t compdb [-hx] target [targets]
+
+options:
+  -h     display this help message
+  -x     expand @rspfile style response file invocations
+''')
+
+        self._test_expected_error(plan, '-t compdb-targets in1',
+            "ninja: fatal: 'in1' is not a target (i.e. it is not an output of any `build` statement)\n")
+
+        self._test_expected_error(plan, '-t compdb-targets nonexistent_target',
+            "ninja: fatal: unknown target 'nonexistent_target'\n")
+
+
+        with BuildDir(plan) as b:
+            actual = b.run(flags='-t compdb-targets out3')
+            expected = f'''[
+  {{
+    "directory": "{b.path}",
+    "command": "cat in1 out1",
+    "file": "in1",
+    "output": "out1"
+  }},
+  {{
+    "directory": "{b.path}",
+    "command": "cat in2 out1 out2",
+    "file": "in2",
+    "output": "out2"
+  }},
+  {{
+    "directory": "{b.path}",
+    "command": "cat out2 out1 out3",
+    "file": "out2",
+    "output": "out3"
+  }}
+]
+'''
+            self.assertEqual(expected, actual)
+
+
+    def test_tool_multi_inputs(self) -> None:
+        plan = '''
+rule cat
+  command = cat $in $out
+build out1 : cat in1
+build out2 : cat in1 in2
+build out3 : cat in1 in2 in3
+'''
+        self.assertEqual(run(plan, flags='-t multi-inputs out1'),
+'''out1<TAB>in1
+'''.replace("<TAB>", "\t"))
+
+        self.assertEqual(run(plan, flags='-t multi-inputs out1 out2 out3'),
+'''out1<TAB>in1
+out2<TAB>in1
+out2<TAB>in2
+out3<TAB>in1
+out3<TAB>in2
+out3<TAB>in3
+'''.replace("<TAB>", "\t"))
+
+        self.assertEqual(run(plan, flags='-t multi-inputs -d: out1'),
+'''out1:in1
+''')
+
+        self.assertEqual(
+          run(
+            plan,
+            flags='-t multi-inputs -d, --print0 out1 out2'
+          ),
+          '''out1,in1\0out2,in1\0out2,in2\0'''
         )
 
 

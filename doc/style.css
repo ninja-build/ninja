@@ -53,3 +53,16 @@ div.chapter {
 p {
     margin-top: 0;
 }
+
+/* The following applies to the left column of a [horizontal] labeled list: */
+table.horizontal > tbody > tr > td:nth-child(1) {
+
+    /* prevent the insertion of a line-break in the middle of a label: */
+    white-space: nowrap;
+
+    /* insert a little horizontal padding between the two columns: */
+    padding-right: 1.5em;
+
+    /* right-justify labels: */
+    text-align: end;
+}

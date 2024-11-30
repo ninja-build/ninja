@@ -63,6 +63,10 @@ struct StringPiece {
     return len_;
   }
 
+  size_t empty() const {
+    return len_ == 0;
+  }
+
   const char* str_;
   size_t len_;
 };

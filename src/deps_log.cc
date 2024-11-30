@@ -185,15 +185,13 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
     return LOAD_SUCCESS;
   }
 
-  long offset;
+  long offset = ftell(f);
   bool read_failed = false;
   int unique_dep_record_count = 0;
   int total_dep_record_count = 0;
   for (;;) {
-    offset = ftell(f);
-
     unsigned size;
-    if (fread(&size, 4, 1, f) < 1) {
+    if (fread(&size, sizeof(size), 1, f) < 1) {
       if (!feof(f))
         read_failed = true;
       break;
@@ -205,6 +203,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       read_failed = true;
       break;
     }
+    offset += size + sizeof(size);
 
     if (is_deps) {
       if ((size % 4) != 0) {
