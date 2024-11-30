@@ -329,11 +329,12 @@ if platform.is_msvc():
         raise Exception('cl.exe not found. Run again from the Developer Command Prompt for VS')
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
+              '/utf-8',
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
               '/wd4530', '/wd4100', '/wd4706', '/wd4244',
-              '/wd4512', '/wd4800', '/wd4702', '/wd4819',
+              '/wd4512', '/wd4800', '/wd4702',
               # Disable warnings about constant conditional expressions.
               '/wd4127',
               # Disable warnings about passing "this" during initialization.
