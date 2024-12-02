@@ -544,7 +544,7 @@ string GetLastErrorString() {
 
   if (msg_buf == nullptr) {
     char fallback_msg[128] = {0};
-    snprintf(fallback_msg, sizeof(fallback_msg), "GetLastError() = %d", err);
+    snprintf(fallback_msg, sizeof(fallback_msg), "GetLastError() = %lu", err);
     return fallback_msg;
   }
 
