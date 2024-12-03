@@ -164,17 +164,18 @@ int Subprocess::Finish() {
   }
 #endif
 
-  int exit = 0;
   if (WIFEXITED(status)) {
-    exit = WEXITSTATUS(status);
-    if (exit == 0)
-      return ExitSuccess;
-  } else if (WIFSIGNALED(status)) {
+    // propagate the status transparantly
+    return WEXITSTATUS(status);
+  }
+  if (WIFSIGNALED(status)) {
+    // Overwrite interrupts to exit code 2
     if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
         || WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
-  return exit;
+  // At this point, we exit with any other signal+128
+  return status | 0x80;
 }
 
 bool Subprocess::Done() const {
