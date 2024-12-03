@@ -211,7 +211,7 @@ struct Builder {
 
   /// Run the build.  Returns false on error.
   /// It is an error to call this function when AlreadyUpToDate() is true.
-  bool Build(std::string* err);
+  ExitStatus Build(std::string* err);
 
   bool StartEdge(Edge* edge, std::string* err);
 
@@ -232,6 +232,11 @@ struct Builder {
   Plan plan_;
   std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
+
+  /// Keep the global exit code for the run
+  ExitStatus exit_code_;
+  void SetExitCode(ExitStatus code);
+  ExitStatus ExitCode() { return exit_code_; }
 
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
