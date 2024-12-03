@@ -55,6 +55,9 @@ TEST_F(SubprocessTest, BadCommandStderr) {
   EXPECT_NE(ExitSuccess, exit);
   EXPECT_NE(ExitFailure, exit);
   EXPECT_NE(ExitInterrupted, exit);
+#ifdef _POSIX_VERSION
+  EXPECT_EQ(127, exit);
+#endif
   EXPECT_NE("", subproc->GetOutput());
 }
 
@@ -72,6 +75,9 @@ TEST_F(SubprocessTest, NoSuchCommand) {
   EXPECT_NE(ExitSuccess, exit);
   EXPECT_NE(ExitFailure, exit);
   EXPECT_NE(ExitInterrupted, exit);
+#ifdef _POSIX_VERSION
+  EXPECT_EQ(127, exit);
+#endif
   EXPECT_NE("", subproc->GetOutput());
 #ifdef _WIN32
   ASSERT_EQ("CreateProcess failed: The system cannot find the file "
