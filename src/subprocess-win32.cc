@@ -185,7 +185,7 @@ void Subprocess::OnPipeReady() {
   // function again later and get them at that point.
 }
 
-ExitStatus Subprocess::Finish() {
+int Subprocess::Finish() {
   if (!child_)
     return ExitFailure;
 
@@ -198,9 +198,8 @@ ExitStatus Subprocess::Finish() {
   CloseHandle(child_);
   child_ = NULL;
 
-  return exit_code == 0              ? ExitSuccess :
-         exit_code == CONTROL_C_EXIT ? ExitInterrupted :
-                                       ExitFailure;
+  return exit_code == CONTROL_C_EXIT ? ExitInterrupted :
+                                       (int)exit_code;
 }
 
 bool Subprocess::Done() const {

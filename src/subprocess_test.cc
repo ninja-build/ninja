@@ -14,6 +14,7 @@
 
 #include "subprocess.h"
 
+#include "exit_status.h"
 #include "test.h"
 
 #ifndef _WIN32
@@ -50,7 +51,10 @@ TEST_F(SubprocessTest, BadCommandStderr) {
     subprocs_.DoWork();
   }
 
-  EXPECT_EQ(ExitFailure, subproc->Finish());
+  int exit = subproc->Finish();
+  EXPECT_NE(ExitSuccess, exit);
+  EXPECT_NE(ExitFailure, exit);
+  EXPECT_NE(ExitInterrupted, exit);
   EXPECT_NE("", subproc->GetOutput());
 }
 
@@ -64,7 +68,10 @@ TEST_F(SubprocessTest, NoSuchCommand) {
     subprocs_.DoWork();
   }
 
-  EXPECT_EQ(ExitFailure, subproc->Finish());
+  int exit = subproc->Finish();
+  EXPECT_NE(ExitSuccess, exit);
+  EXPECT_NE(ExitFailure, exit);
+  EXPECT_NE(ExitInterrupted, exit);
   EXPECT_NE("", subproc->GetOutput());
 #ifdef _WIN32
   ASSERT_EQ("CreateProcess failed: The system cannot find the file "

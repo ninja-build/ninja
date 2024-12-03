@@ -147,7 +147,7 @@ void Subprocess::OnPipeReady() {
   }
 }
 
-ExitStatus Subprocess::Finish() {
+int Subprocess::Finish() {
   assert(pid_ != -1);
   int status;
   if (waitpid(pid_, &status, 0) < 0)
@@ -164,8 +164,9 @@ ExitStatus Subprocess::Finish() {
   }
 #endif
 
+  int exit = 0;
   if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
+    exit = WEXITSTATUS(status);
     if (exit == 0)
       return ExitSuccess;
   } else if (WIFSIGNALED(status)) {
@@ -173,7 +174,7 @@ ExitStatus Subprocess::Finish() {
         || WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
-  return ExitFailure;
+  return exit;
 }
 
 bool Subprocess::Done() const {

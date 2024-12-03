@@ -764,7 +764,9 @@ bool Builder::Build(string* err) {
       }
 
       --pending_commands;
-      if (!FinishCommand(&result, err)) {
+      bool command_finished = FinishCommand(&result, err);
+      SetExitCode(result.status);
+      if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
         return false;
@@ -1035,4 +1037,9 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
     return false;
 
   return true;
+}
+
+void Builder::SetExitCode(int code) {
+  // Set code to the most recent error
+  if (code != 0) exit_code_ = code;
 }

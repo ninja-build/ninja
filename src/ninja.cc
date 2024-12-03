@@ -1580,7 +1580,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     if (err.find("interrupted by user") != string::npos) {
       return 130;
     }
-    return 1;
+    return builder.ExitCode();
   }
 
   return 0;
