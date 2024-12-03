@@ -211,7 +211,7 @@ struct Builder {
 
   /// Run the build.  Returns false on error.
   /// It is an error to call this function when AlreadyUpToDate() is true.
-  bool Build(std::string* err);
+  ExitStatus Build(std::string* err);
 
   bool StartEdge(Edge* edge, std::string* err);
 
@@ -233,6 +233,9 @@ struct Builder {
   std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
 
+  // Get the global ExitStatus for the build
+  ExitStatus GetExitCode() { return exit_code_; }
+
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
                    const std::string& deps_prefix,
@@ -252,6 +255,10 @@ struct Builder {
   std::unique_ptr<Explanations> explanations_;
 
   DependencyScan scan_;
+
+  /// Keep the global exit code for the build
+  ExitStatus exit_code_;
+  void SetExitCode(ExitStatus code);
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT

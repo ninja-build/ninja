@@ -23,6 +23,7 @@
 #include <climits>
 #include <functional>
 #include <unordered_set>
+#include "exit_status.h"
 
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
@@ -39,7 +40,6 @@
 #include "metrics.h"
 #include "state.h"
 #include "status.h"
-#include "subprocess.h"
 #include "util.h"
 
 using namespace std;
@@ -687,7 +687,7 @@ bool Builder::AlreadyUpToDate() const {
   return !plan_.more_to_do();
 }
 
-bool Builder::Build(string* err) {
+ExitStatus Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
   plan_.PrepareQueue();
 
@@ -726,14 +726,14 @@ bool Builder::Build(string* err) {
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();
-          return false;
+          return ExitFailure;
         }
 
         if (edge->is_phony()) {
           if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
             Cleanup();
             status_->BuildFinished();
-            return false;
+            return ExitFailure;
           }
         } else {
           ++pending_commands;
@@ -760,14 +760,16 @@ bool Builder::Build(string* err) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
-        return false;
+        return result.status;
       }
 
       --pending_commands;
-      if (!FinishCommand(&result, err)) {
+      bool command_finished = FinishCommand(&result, err);
+      SetExitCode(result.status);
+      if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
-        return false;
+        return result.status;
       }
 
       if (!result.success()) {
@@ -791,11 +793,11 @@ bool Builder::Build(string* err) {
     else
       *err = "stuck [this is a bug]";
 
-    return false;
+    return GetExitCode();
   }
 
   status_->BuildFinished();
-  return true;
+  return ExitSuccess;
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
@@ -1035,4 +1037,9 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
     return false;
 
   return true;
+}
+
+void Builder::SetExitCode(ExitStatus code) {
+  // Set code to the most recent error
+  if (code != 0) exit_code_ = code;
 }
