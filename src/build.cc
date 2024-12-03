@@ -885,7 +885,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   running_edges_.erase(it);
 
   status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
-                             result->success(), result->output);
+                             result->status, result->output);
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
