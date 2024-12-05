@@ -38,7 +38,7 @@ struct ManifestParserOptions {
 };
 
 /// Parses .ninja files.
-struct ManifestParser : public Parser {
+struct ManifestParser final : public Parser {
   ManifestParser(State* state, FileReader* file_reader,
                  ManifestParserOptions options = ManifestParserOptions());
 
