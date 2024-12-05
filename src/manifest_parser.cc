@@ -29,7 +29,7 @@ using namespace std;
 
 ManifestParser::ManifestParser(State* state, FileReader* file_reader,
                                ManifestParserOptions options)
-    : Parser(state, file_reader),
+    : Parser(state, file_reader, &arena_),
       options_(options), quiet_(false) {
   env_ = &state->bindings_;
 }
@@ -152,6 +152,10 @@ bool ManifestParser::ParseRule(string* err) {
       return false;
 
     if (Rule::IsReservedBinding(key)) {
+      for (auto it = value.parsed_.begin(); it != value.parsed_.end(); ++it) {
+        it->first = it->first.PersistOutsideArena();
+      }
+      value.single_token_ = value.single_token_.PersistOutsideArena();
       rule->AddBinding(key, value);
     } else {
       // Die on other keyvals for now; revisit if we want to add a
@@ -209,6 +213,7 @@ bool ManifestParser::ParseDefault(string* err) {
 }
 
 bool ManifestParser::ParseEdge(string* err) {
+  arena_.Clear();
   ins_.clear();
   outs_.clear();
   validations_.clear();
