@@ -53,10 +53,12 @@ TEST_F(SubprocessTest, BadCommandStderr) {
 
   int exit = subproc->Finish();
   EXPECT_NE(ExitSuccess, exit);
-  EXPECT_NE(ExitFailure, exit);
   EXPECT_NE(ExitInterrupted, exit);
 #ifdef _POSIX_VERSION
   EXPECT_EQ(127, exit);
+#endif
+#ifdef _WIN32
+  EXPECT_EQ(ExitFailure, exit);
 #endif
   EXPECT_NE("", subproc->GetOutput());
 }
@@ -73,10 +75,12 @@ TEST_F(SubprocessTest, NoSuchCommand) {
 
   int exit = subproc->Finish();
   EXPECT_NE(ExitSuccess, exit);
-  EXPECT_NE(ExitFailure, exit);
   EXPECT_NE(ExitInterrupted, exit);
 #ifdef _POSIX_VERSION
   EXPECT_EQ(127, exit);
+#endif
+#ifdef _WIN32
+  EXPECT_EQ(ExitFailure, exit);
 #endif
   EXPECT_NE("", subproc->GetOutput());
 #ifdef _WIN32
