@@ -165,7 +165,7 @@ int Subprocess::Finish() {
 #endif
 
   if (WIFEXITED(status)) {
-    // propagate the status transparantly
+    // propagate the status transparently
     return WEXITSTATUS(status);
   }
   if (WIFSIGNALED(status)) {

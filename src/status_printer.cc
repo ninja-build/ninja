@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "status_printer.h"
-#include <cstdio>
 
 #ifdef _WIN32
 #include "win32port.h"
