@@ -147,7 +147,7 @@ void Subprocess::OnPipeReady() {
   }
 }
 
-ExitStatus Subprocess::Finish() {
+int Subprocess::Finish() {
   assert(pid_ != -1);
   int status;
   if (waitpid(pid_, &status, 0) < 0)
@@ -165,15 +165,17 @@ ExitStatus Subprocess::Finish() {
 #endif
 
   if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
-    if (exit == 0)
-      return ExitSuccess;
-  } else if (WIFSIGNALED(status)) {
+    // propagate the status transparently
+    return WEXITSTATUS(status);
+  }
+  if (WIFSIGNALED(status)) {
+    // Overwrite interrupts to exit code 2
     if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
         || WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
-  return ExitFailure;
+  // At this point, we exit with any other signal+128
+  return status | 0x80;
 }
 
 bool Subprocess::Done() const {

@@ -155,7 +155,7 @@ struct CommandRunner {
   struct Result {
     Result() : edge(NULL) {}
     Edge* edge;
-    ExitStatus status;
+    int status;
     std::string output;
     bool success() const { return status == ExitSuccess; }
   };
@@ -232,6 +232,11 @@ struct Builder {
   Plan plan_;
   std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
+
+  /// Keep the global exit code for the run
+  int exit_code_;
+  void SetExitCode(int code);
+  int ExitCode() { return exit_code_; }
 
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,

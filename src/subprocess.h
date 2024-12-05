@@ -44,7 +44,7 @@ struct Subprocess {
 
   /// Returns ExitSuccess on successful process exit, ExitInterrupted if
   /// the process was interrupted, ExitFailure if it otherwise failed.
-  ExitStatus Finish();
+  int Finish();
 
   bool Done() const;
 

@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -174,7 +175,7 @@ void StatusPrinter::RecalculateProgressPrediction() {
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                      int64_t end_time_millis, bool success,
+                                      int64_t end_time_millis, int exit_code,
                                       const string& output) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
@@ -202,16 +203,17 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   --running_edges_;
 
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (exit_code != 0) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
+    string failed = "FAILED[code " + std::to_string(exit_code) + "] ";
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+        printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+        printer_.PrintOnNewLine(failed + outputs + "\n");
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
