@@ -15,8 +15,10 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <string>
 #include <stdio.h>
+
+#include <memory>
+#include <string>
 
 #include "hash_map.h"
 #include "load_status.h"
@@ -57,10 +59,10 @@ struct BuildLog {
 
   struct LogEntry {
     std::string output;
-    uint64_t command_hash;
-    int start_time;
-    int end_time;
-    TimeStamp mtime;
+    uint64_t command_hash = 0;
+    int start_time = 0;
+    int end_time = 0;
+    TimeStamp mtime = 0;
 
     static uint64_t HashCommand(StringPiece command);
 
@@ -71,7 +73,7 @@ struct BuildLog {
           mtime == o.mtime;
     }
 
-    explicit LogEntry(const std::string& output);
+    explicit LogEntry(std::string output);
     LogEntry(const std::string& output, uint64_t command_hash,
              int start_time, int end_time, TimeStamp mtime);
   };
@@ -90,7 +92,7 @@ struct BuildLog {
   bool Restat(StringPiece path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  typedef ExternalStringHashMap<std::unique_ptr<LogEntry>>::Type Entries;
   const Entries& entries() const { return entries_; }
 
  private:
@@ -99,9 +101,9 @@ struct BuildLog {
   bool OpenForWriteIfNeeded();
 
   Entries entries_;
-  FILE* log_file_;
+  FILE* log_file_ = nullptr;
   std::string log_file_path_;
-  bool needs_recompaction_;
+  bool needs_recompaction_ = false;
 };
 
 #endif // NINJA_BUILD_LOG_H_
