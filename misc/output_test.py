@@ -10,15 +10,16 @@ import platform
 import subprocess
 import sys
 import tempfile
+import typing as T
 import unittest
 from textwrap import dedent
-import typing as T
 
 default_env = dict(os.environ)
 default_env.pop('NINJA_STATUS', None)
 default_env.pop('CLICOLOR_FORCE', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
+
 
 def remove_non_visible_lines(raw_output: bytes) -> str:
   # When running in a smart terminal, Ninja uses CR (\r) to
@@ -120,7 +121,7 @@ class BuildDir:
                                                  cwd=self.d.name, env=env)
         except subprocess.CalledProcessError as err:
             if print_err_output:
-              sys.stdout.buffer.write(err.output)
+                sys.stdout.buffer.write(err.output)
             err.cooked_output = remove_non_visible_lines(err.output)
             raise err
 
@@ -152,14 +153,18 @@ class Output(unittest.TestCase):
         '',
     ))
 
-    def _test_expected_error(self, plan: str, flags: T.Optional[str], expected: str):
+    def _test_expected_error(self,  expected: str, *args, **kwargs):
         """Run Ninja with a given plan and flags, and verify its cooked output against an expected content.
+        All *args and **kwargs are passed to the `run`, except `exit_code`
         """
         actual = ''
-        try:
-          actual = run(plan, flags, print_err_output=False)
-        except subprocess.CalledProcessError as err:
-          actual = err.cooked_output
+        kwargs['print_err_output'] = False
+        exit_code = kwargs.pop("exit_code", None)
+        with self.assertRaises(subprocess.CalledProcessError) as cm:
+            run(*args,  **kwargs)
+        actual = cm.exception.cooked_output
+        if exit_code is not None:
+            self.assertEqual(cm.exception.returncode, exit_code)
         self.assertEqual(expected, actual)
 
     def test_issue_1418(self) -> None:
@@ -280,6 +285,70 @@ build zoo: touch bar
                 )
             except subprocess.CalledProcessError as err:
                 self.fail("non-zero exit code with: " + err.output)
+
+    def test_pr_2540(self)->None:
+        plan = '''\
+rule CUSTOM_COMMAND
+  command = $COMMAND
+
+build 124: CUSTOM_COMMAND
+  COMMAND = python3 -c 'exit(124)'
+
+build 127: CUSTOM_COMMAND
+  COMMAND = python3 -c 'exit(127)'
+
+build 130: CUSTOM_COMMAND
+  COMMAND = python3 -c 'exit(130)'
+
+build 137: CUSTOM_COMMAND
+  COMMAND = python3 -c 'exit(137)'
+
+build success: CUSTOM_COMMAND
+  COMMAND = sleep 1; echo success
+'''
+        # Disable colors
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self._test_expected_error(
+            '''[1/1] python3 -c 'exit(124)'
+FAILED: [code=124] 124 \npython3 -c 'exit(124)'
+ninja: build stopped: subcommand failed.
+''',
+            plan, '124', exit_code=124, env=env,
+        )
+        self._test_expected_error(
+            '''[1/1] python3 -c 'exit(127)'
+FAILED: [code=127] 127 \npython3 -c 'exit(127)'
+ninja: build stopped: subcommand failed.
+''',
+            plan, '127', exit_code=127, env=env,
+        )
+        self._test_expected_error(
+            'ninja: build stopped: interrupted by user.\n',
+            plan, '130', exit_code=130, env=env,
+        )
+        self._test_expected_error(
+            '''[1/1] python3 -c 'exit(137)'
+FAILED: [code=137] 137 \npython3 -c 'exit(137)'
+ninja: build stopped: subcommand failed.
+''',
+            plan, '137', exit_code=137, env=env,
+        )
+        self._test_expected_error(
+            "ninja: error: unknown target 'non-existent-target'\n",
+            plan, 'non-existent-target', exit_code=1, env=env,
+        )
+        self._test_expected_error(
+            '''[1/2] python3 -c 'exit(127)'
+FAILED: [code=127] 127 \npython3 -c 'exit(127)'
+[2/2] sleep 1; echo success
+success
+ninja: build stopped: subcommand failed.
+''',
+            plan, 'success 127', exit_code=127, env=env,
+        )
+
+
 
     def test_depfile_directory_creation(self) -> None:
         b = BuildDir('''\
@@ -407,20 +476,26 @@ build out4 : cat in4
 '''
 
 
-        self._test_expected_error(plan, '-t compdb-targets',
-'''ninja: error: compdb-targets expects the name of at least one target
+        self._test_expected_error(
+            '''ninja: error: compdb-targets expects the name of at least one target
 usage: ninja -t compdb [-hx] target [targets]
 
 options:
   -h     display this help message
   -x     expand @rspfile style response file invocations
-''')
+''',
+            plan, '-t compdb-targets',
+        )
 
-        self._test_expected_error(plan, '-t compdb-targets in1',
-            "ninja: fatal: 'in1' is not a target (i.e. it is not an output of any `build` statement)\n")
+        self._test_expected_error(
+            "ninja: fatal: 'in1' is not a target (i.e. it is not an output of any `build` statement)\n",
+            plan, '-t compdb-targets in1',
+        )
 
-        self._test_expected_error(plan, '-t compdb-targets nonexistent_target',
-            "ninja: fatal: unknown target 'nonexistent_target'\n")
+        self._test_expected_error(
+            "ninja: fatal: unknown target 'nonexistent_target'\n",
+            plan, '-t compdb-targets nonexistent_target',
+        )
 
 
         with BuildDir(plan) as b:
