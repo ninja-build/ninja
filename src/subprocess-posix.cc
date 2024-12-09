@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "exit_status.h"
 #include "subprocess.h"
 
 #include <sys/select.h>
@@ -23,6 +24,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
+#include <cmath>
 
 #if defined(USE_PPOLL)
 #include <poll.h>
@@ -165,15 +167,17 @@ ExitStatus Subprocess::Finish() {
 #endif
 
   if (WIFEXITED(status)) {
-    int exit = WEXITSTATUS(status);
-    if (exit == 0)
-      return ExitSuccess;
-  } else if (WIFSIGNALED(status)) {
+    // propagate the status transparently
+    return static_cast<ExitStatus>(WEXITSTATUS(status));
+  }
+  if (WIFSIGNALED(status)) {
+    // Overwrite interrupts to exit code 2
     if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
         || WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
-  return ExitFailure;
+  // At this point, we exit with any other signal+128
+  return static_cast<ExitStatus>(status | 0x80);
 }
 
 bool Subprocess::Done() const {
