@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "status_printer.h"
-#include "exit_status.h"
 
 #ifdef _WIN32
 #include "win32port.h"
@@ -26,7 +25,6 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-#include <string>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -35,6 +33,7 @@
 
 #include "build.h"
 #include "debug_flags.h"
+#include "exit_status.h"
 
 using namespace std;
 
@@ -204,7 +203,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   --running_edges_;
 
   // Print the command that is spewing before printing its output.
-  if (exit_code != 0) {
+  if (exit_code != ExitSuccess) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)

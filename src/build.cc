@@ -23,7 +23,6 @@
 #include <climits>
 #include <functional>
 #include <unordered_set>
-#include "exit_status.h"
 
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
@@ -35,6 +34,7 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "exit_status.h"
 #include "explanations.h"
 #include "graph.h"
 #include "metrics.h"
@@ -765,7 +765,7 @@ ExitStatus Builder::Build(string* err) {
 
       --pending_commands;
       bool command_finished = FinishCommand(&result, err);
-      SetExitCode(result.status);
+      SetFailureCode(result.status);
       if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
@@ -1039,7 +1039,7 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
   return true;
 }
 
-void Builder::SetExitCode(ExitStatus code) {
-  // Set code to the most recent error
-  if (code != 0) exit_code_ = code;
+void Builder::SetFailureCode(ExitStatus code) {
+  // The ExitSuccess should not overwrite any error
+  if (code != ExitSuccess) exit_code_ = code;
 }

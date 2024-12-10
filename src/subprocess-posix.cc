@@ -24,7 +24,6 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <spawn.h>
-#include <cmath>
 
 #if defined(USE_PPOLL)
 #include <poll.h>
@@ -171,13 +170,12 @@ ExitStatus Subprocess::Finish() {
     return static_cast<ExitStatus>(WEXITSTATUS(status));
   }
   if (WIFSIGNALED(status)) {
-    // Overwrite interrupts to exit code 2
     if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM
         || WTERMSIG(status) == SIGHUP)
       return ExitInterrupted;
   }
   // At this point, we exit with any other signal+128
-  return static_cast<ExitStatus>(status | 0x80);
+  return static_cast<ExitStatus>(status + 128);
 }
 
 bool Subprocess::Done() const {
