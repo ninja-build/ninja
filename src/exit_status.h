@@ -23,22 +23,11 @@
 #define EXIT_STATUS_TYPE int
 #endif  // !_WIN32
 
-// The platform-specific value of ExitInterrupted returned by Ninja in case of use interruption (e.g. Ctrl-C).
-// On Windows, the convention used by the C runtime library is to return 3, even
-// though the system error `ERROR_CONTROL_C_EXIT` is 572. Some applications also return 1
-// which is ExitFailure. The value 2 is chosen to preserve the existing Ninja behavior on this
-// platform. On Posix, this is simply 128 + SIGINT. Note that Ninja will map SIGHUP
-// and SIGTERM interrupted to ExitInterrupted as well.
-#ifdef _WIN32
-#  define EXIT_INTERRUPTED_VALUE  2
-#else  // !_WIN32
-#  define EXIT_INTERRUPTED_VALUE  130
-#endif  // !_WIN32
 
 enum ExitStatus : EXIT_STATUS_TYPE {
   ExitSuccess=0,
   ExitFailure,
-  ExitInterrupted=EXIT_INTERRUPTED_VALUE,
+  ExitInterrupted=130,
 };
 
 #endif  // NINJA_EXIT_STATUS_H_
