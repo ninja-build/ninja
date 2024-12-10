@@ -41,8 +41,6 @@
 #define strtoll _strtoi64
 #endif
 
-using namespace std;
-
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
@@ -63,24 +61,21 @@ uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
   return rapidhash(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const string& output)
-  : output(output) {}
+BuildLog::LogEntry::LogEntry(std::string output) : output(std::move(output)) {}
 
-BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp mtime)
-  : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(mtime)
-{}
+BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
+                             int start_time, int end_time, TimeStamp mtime)
+    : output(output), command_hash(command_hash), start_time(start_time),
+      end_time(end_time), mtime(mtime) {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog() = default;
 
 BuildLog::~BuildLog() {
   Close();
 }
 
-bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
-                            string* err) {
+bool BuildLog::OpenForWrite(const std::string& path, const BuildLogUser& user,
+                            std::string* err) {
   if (needs_recompaction_) {
     if (!Recompact(path, user, err))
       return false;
@@ -94,18 +89,19 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
-  string command = edge->EvaluateCommand(true);
+  std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
+  for (std::vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->path();
+    const std::string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
     if (i != entries_.end()) {
-      log_entry = i->second;
+      log_entry = i->second.get();
     } else {
       log_entry = new LogEntry(path);
-      entries_.insert(Entries::value_type(log_entry->output, log_entry));
+      // Passes ownership of |log_entry| to the map, but keeps the pointer valid.
+      entries_.emplace(log_entry->output, std::unique_ptr<LogEntry>(log_entry));
     }
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
@@ -209,7 +205,7 @@ struct LineReader {
   char* line_end_;
 };
 
-LoadStatus BuildLog::Load(const string& path, string* err) {
+LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
@@ -283,7 +279,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
-    string output = string(start, end - start);
+    std::string output(start, end - start);
 
     start = end + 1;
     end = line_end;
@@ -291,10 +287,11 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     LogEntry* entry;
     Entries::iterator i = entries_.find(output);
     if (i != entries_.end()) {
-      entry = i->second;
+      entry = i->second.get();
     } else {
-      entry = new LogEntry(output);
-      entries_.insert(Entries::value_type(entry->output, entry));
+      entry = new LogEntry(std::move(output));
+      // Passes ownership of |entry| to the map, but keeps the pointer valid.
+      entries_.emplace(entry->output, std::unique_ptr<LogEntry>(entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -327,10 +324,10 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
-    return i->second;
+    return i->second.get();
   return NULL;
 }
 
@@ -340,12 +337,12 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
-bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
-                         string* err) {
+bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
+                         std::string* err) {
   METRIC_RECORD(".ninja_log recompact");
 
   Close();
-  string temp_path = path + ".recompact";
+  std::string temp_path = path + ".recompact";
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
@@ -358,22 +355,22 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     return false;
   }
 
-  vector<StringPiece> dead_outputs;
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    if (user.IsPathDead(i->first)) {
-      dead_outputs.push_back(i->first);
+  std::vector<StringPiece> dead_outputs;
+  for (const auto& pair : entries_) {
+    if (user.IsPathDead(pair.first)) {
+      dead_outputs.push_back(pair.first);
       continue;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
 
-  for (size_t i = 0; i < dead_outputs.size(); ++i)
-    entries_.erase(dead_outputs[i]);
+  for (StringPiece output : dead_outputs)
+    entries_.erase(output);
 
   fclose(f);
   if (unlink(path.c_str()) < 0) {
@@ -408,24 +405,24 @@ bool BuildLog::Restat(const StringPiece path,
     fclose(f);
     return false;
   }
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+  for (auto& pair : entries_) {
     bool skip = output_count > 0;
     for (int j = 0; j < output_count; ++j) {
-      if (i->second->output == outputs[j]) {
+      if (pair.second->output == outputs[j]) {
         skip = false;
         break;
       }
     }
     if (!skip) {
-      const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+      const TimeStamp mtime = disk_interface.Stat(pair.second->output, err);
       if (mtime == -1) {
         fclose(f);
         return false;
       }
-      i->second->mtime = mtime;
+      pair.second->mtime = mtime;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
