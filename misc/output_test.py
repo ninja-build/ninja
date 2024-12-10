@@ -153,13 +153,13 @@ class Output(unittest.TestCase):
         '',
     ))
 
-    def _test_expected_error(self, plan: str, flags: T.Optional[str], expected: str, *args, **kwargs):
+    def _test_expected_error(self, plan: str, flags: T.Optional[str],expected: str,
+                             *args, exit_code: T.Optional[int]=None, **kwargs)->None:
         """Run Ninja with a given plan and flags, and verify its cooked output against an expected content.
-        All *args and **kwargs are passed to the `run`, except `exit_code`
+        All *args and **kwargs are passed to the `run` function
         """
         actual = ''
         kwargs['print_err_output'] = False
-        exit_code = kwargs.pop("exit_code", None)
         with self.assertRaises(subprocess.CalledProcessError) as cm:
             run(plan, flags, *args,  **kwargs)
         actual = cm.exception.cooked_output
