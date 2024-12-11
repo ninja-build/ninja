@@ -124,6 +124,16 @@ std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+
+/// Naive implementation of C++ 20 std::bit_cast(), used to fix Clang and GCC
+/// [-Wcast-function-type] warning on casting result of GetProcAddress().
+template <class To, class From>
+inline To FunctionCast(From from) {
+	static_assert(sizeof(To) == sizeof(From), "");
+	To result;
+	memcpy(&result, &from, sizeof(To));
+	return result;
+}
 #endif
 
 #endif  // NINJA_UTIL_H_

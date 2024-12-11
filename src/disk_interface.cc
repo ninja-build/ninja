@@ -165,7 +165,7 @@ RealDiskInterface::RealDiskInterface()
   HINSTANCE ntdll_lib = ::GetModuleHandleW(L"ntdll");
   if (ntdll_lib) {
     typedef BOOLEAN(WINAPI FunctionType)();
-    auto* func_ptr = reinterpret_cast<FunctionType*>(
+    auto* func_ptr = FunctionCast<FunctionType*>(
         ::GetProcAddress(ntdll_lib, "RtlAreLongPathsEnabled"));
     if (func_ptr) {
       long_paths_enabled_ = (*func_ptr)();
