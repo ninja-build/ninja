@@ -341,6 +341,8 @@ if platform.is_msvc():
               '/wd4355',
               # Disable warnings about ignored typedef in DbgHelp.h
               '/wd4091',
+              # Disable warning about signed/unsigned mismatch and _unlink in gtest
+              '/wd4389', '/wd4996',
               '/GR-',  # Disable RTTI.
               '/Zc:__cplusplus',
               # Disable size_t -> int truncation warning.
