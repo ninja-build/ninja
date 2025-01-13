@@ -24,11 +24,11 @@
 
 namespace {
 
-std::string GetCurDir() {
+std::string GetCurrentDirName() {
   char buf[_MAX_PATH];
   _getcwd(buf, sizeof(buf));
   std::vector<StringPiece> parts = SplitStringPiece(buf, '\\');
-  return parts[parts.size() - 1].AsString();
+  return parts.back().AsString();
 }
 
 std::string NormalizeAndCheckNoError(const std::string& input) {
@@ -59,7 +59,7 @@ TEST(IncludesNormalize, Simple) {
 
 TEST(IncludesNormalize, WithRelative) {
   std::string err;
-  std::string currentdir = GetCurDir();
+  std::string currentdir = GetCurrentDirName();
   EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
   EXPECT_EQ("a",
             NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
@@ -98,19 +98,20 @@ TEST(IncludesNormalize, DifferentDrive) {
 }
 
 TEST(IncludesNormalize, LongInvalidPath) {
+  // A long an invalid path that is larger than _MAX_PATH will still be
+  // canonicalized without crashing.
   const char kLongInputString[] =
       "C:\\Program Files (x86)\\Microsoft Visual Studio "
       "12.0\\VC\\INCLUDEwarning #31001: The dll for reading and writing the "
       "pdb (for example, mspdb110.dll) could not be found on your path. This "
       "is usually a configuration error. Compilation will continue using /Z7 "
       "instead of /Zi, but expect a similar error when you link your program.";
-  // Too long, won't be canonicalized. Ensure doesn't crash.
+  ASSERT_GT(sizeof(kLongInputString) - 1u, _MAX_PATH);
   std::string result, err;
   IncludesNormalize normalizer(".");
-  EXPECT_FALSE(
-      normalizer.Normalize(kLongInputString, &result, &err));
-  EXPECT_EQ("path too long", err);
-
+  EXPECT_TRUE(normalizer.Normalize(kLongInputString, &result, &err));
+  EXPECT_FALSE(result.empty());
+  EXPECT_TRUE(err.empty()) << err;
 
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
@@ -163,6 +164,6 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
   EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(_MAX_PATH));
 
   // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
-  EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
-  EXPECT_TRUE(err.find("GetFullPathName") != std::string::npos);
+  EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err)) << err;
+  EXPECT_NE(err.find("GetFullPathNameA"), std::string::npos);
 }
