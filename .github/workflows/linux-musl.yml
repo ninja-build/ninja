@@ -1,0 +1,94 @@
+name: ci-linux-musl
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        build_method: ["python", "cmake"]
+        runs-on: ["ubuntu-24.04", "ubuntu-24.04-arm"]
+        include:
+          - runs-on: "ubuntu-24.04"
+            container: "amd64/alpine:latest"
+            binary_name: amd64
+          - runs-on: "ubuntu-24.04-arm"
+            container: "arm64v8/alpine:latest"
+            binary_name: aarch64
+          - build_method: "python"
+            build_suffix: "-python"
+
+    name: ${{ matrix.build_method}} ${{ matrix.binary_name }}
+
+    steps:
+      - name: Host - checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Host - Create docker crossbuild container
+        run: docker run --name crossbuild -it -d -e "LDFLAGS=-s -static --static" -w /root -v ${{ github.workspace }}:/root ${{ matrix.container }}
+
+      - name: Docker - Install ninja build optional dependencies
+        run: |
+          docker exec crossbuild apk update
+          docker exec crossbuild apk add -u --no-cache python3 build-base cmake re2c
+
+      - name: Docker - Configure ${{ matrix.binary_name }}
+        if: matrix.build_method == 'cmake'
+        run: docker exec crossbuild cmake -B build -D CMAKE_BUILD_TYPE="Release"
+
+      - name: Docker - Cmake Build ${{ matrix.binary_name }}
+        if: matrix.build_method == 'cmake'
+        run: docker exec crossbuild cmake --build build --parallel --config Release
+
+      - name: Docker - Cmake test ${{ matrix.binary_name }}
+        if: matrix.build_method == 'cmake'
+        run: docker exec crossbuild build/ninja_test --gtest_color=yes
+
+      - name: Docker - Python Build ${{ matrix.binary_name }}
+        if: matrix.build_method == 'python'
+        run: docker exec crossbuild python3 configure.py --bootstrap --verbose
+
+      - name: Docker - Python test ${{ matrix.binary_name }}
+        if: matrix.build_method == 'python'
+        run: |
+          docker exec crossbuild /root/ninja all
+          docker exec crossbuild python3 misc/ninja_syntax_test.py
+          # docker exec crossbuild python3 misc/output_test.py
+
+      - name: Host - Rename ${{ matrix.binary_name }} to ${{ env.release_asset }}
+        run: sudo mv -f ${{ (matrix.build_method == 'cmake') && 'build/' || '' }}ninja ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
+
+      - name: Host - ninja-${{ matrix.binary_name }} --version
+        run: ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} --version >> $GITHUB_STEP_SUMMARY
+
+      - name: Host - crossbuild binary info via file
+        run: file ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} >> $GITHUB_STEP_SUMMARY
+
+      - name: Host - signed build provenance attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
+
+      - name: Upload artifact - ${{ matrix.binary_name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
+          path: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
