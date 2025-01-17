@@ -42,7 +42,8 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                      int64_t end_time_millis, bool success,
+                                      int64_t end_time_millis,
+                                      ExitStatus exit_code,
                                       const std::string& output) {
   ++finished_edges_;
   int num_removed [[maybe_unused]] = running_edges_.erase(edge);
@@ -54,7 +55,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
     // TODO: should have stopped the timer and started it again here
   }
 
-  if (!success) {
+  if (exit_code != ExitSuccess) {
     ++failed_edges_;
   }
 
@@ -63,14 +64,16 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   }
 
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (exit_code != ExitSuccess) {
     std::string outputs;
     for (auto o = edge->outputs_.cbegin(); o != edge->outputs_.cend(); ++o) {
       outputs += (*o)->path() + " ";
     }
     printer_.PrintOnNewLine(
         "\x1B[1;31m"
-        "failed: "
+        "failed [" +
+        std::to_string(exit_code) +
+        "]: "
         "\x1B[0m" +
         outputs + "\n");
     // printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");

@@ -11,7 +11,7 @@ class StatusPrinter : public Status {
   void EdgeRemovedFromPlan(const Edge* edge) override;
   void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis) override;
   void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                         int64_t end_time_millis, bool success,
+                         int64_t end_time_millis, ExitStatus,
                          const std::string& output) override;
   void BuildStarted() override;
   void BuildFinished() override;
