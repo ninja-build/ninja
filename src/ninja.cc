@@ -42,8 +42,8 @@
 #include "clean.h"
 #include "command_collector.h"
 #include "debug_flags.h"
-#include "depfile_parser.h"
 #include "disk_interface.h"
+#include "exit_status.h"
 #include "graph.h"
 #include "graphviz.h"
 #include "json.h"
@@ -165,7 +165,7 @@ struct NinjaMain : public BuildLogUser {
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
-  int RunBuild(int argc, char** argv, Status* status);
+  ExitStatus RunBuild(int argc, char** argv, Status* status);
 
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
@@ -281,7 +281,7 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   if (builder.AlreadyUpToDate())
     return false;  // Not an error, but we didn't rebuild.
 
-  if (!builder.Build(err))
+  if (builder.Build(err) != ExitSuccess)
     return false;
 
   // The manifest was only rebuilt if it is now dirty (it may have been cleaned
@@ -680,12 +680,12 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
 
   // Print rules
 
-  typedef map<string, const Rule*> Rules;
+  typedef map<string, std::unique_ptr<const Rule>> Rules;
   const Rules& rules = state_.bindings_.GetRules();
   for (Rules::const_iterator i = rules.begin(); i != rules.end(); ++i) {
     printf("%s", i->first.c_str());
     if (print_description) {
-      const Rule* rule = i->second;
+      const Rule* rule = i->second.get();
       const EvalString* description = rule->GetBinding("description");
       if (description != NULL) {
         printf(": %s", description->Unparse().c_str());
@@ -1422,6 +1422,10 @@ bool WarningEnable(const string& name, Options* options) {
   } else if (name == "phonycycle=warn") {
     options->phony_cycle_should_err = false;
     return true;
+  } else if (name == "dupbuild=err" ||
+             name == "dupbuild=warn") {
+    Warning("deprecated warning 'dupbuild'");
+    return true;
   } else if (name == "depfilemulti=err" ||
              name == "depfilemulti=warn") {
     Warning("deprecated warning 'depfilemulti'");
@@ -1537,12 +1541,12 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
+ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   string err;
   vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
     status->Error("%s", err.c_str());
-    return 1;
+    return ExitFailure;
   }
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
@@ -1553,7 +1557,7 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     if (!builder.AddTarget(targets[i], &err)) {
       if (!err.empty()) {
         status->Error("%s", err.c_str());
-        return 1;
+        return ExitFailure;
       } else {
         // Added a target that is already up-to-date; not really
         // an error.
@@ -1568,18 +1572,18 @@ int NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     if (config_.verbosity != BuildConfig::NO_STATUS_UPDATE) {
       status->Info("no work to do.");
     }
-    return 0;
+    return ExitSuccess;
   }
 
-  if (!builder.Build(&err)) {
+  ExitStatus exit_status = builder.Build(&err);
+  if (exit_status != ExitSuccess) {
     status->Info("build stopped: %s.", err.c_str());
     if (err.find("interrupted by user") != string::npos) {
-      return 130;
+      return ExitInterrupted;
     }
-    return 1;
   }
 
-  return 0;
+  return exit_status;
 }
 
 #ifdef _MSC_VER
@@ -1797,7 +1801,7 @@ NORETURN void real_main(int argc, char** argv) {
 
     ninja.ParsePreviousElapsedTimes();
 
-    int result = ninja.RunBuild(argc, argv, status);
+    ExitStatus result = ninja.RunBuild(argc, argv, status);
     if (g_metrics)
       ninja.DumpMetrics();
     exit(result);

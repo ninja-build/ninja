@@ -26,6 +26,7 @@ struct State;
 struct Parser {
   Parser(State* state, FileReader* file_reader)
       : state_(state), file_reader_(file_reader) {}
+  virtual ~Parser() {}
 
   /// Load and parse a file.
   bool Load(const std::string& filename, std::string* err, Lexer* parent = NULL);
