@@ -169,31 +169,18 @@ jobs:
 
   build-aarch64:
     name: Build Linux ARM64
-    runs-on: [ubuntu-latest]
+    runs-on: [ubuntu-24.04-arm]
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Build
-      uses: uraimo/run-on-arch-action@v2
-      with:
-        arch: aarch64
-        distro: ubuntu18.04
-        githubToken: ${{ github.token }}
-        dockerRunArgs: |
-          --volume "${PWD}:/ninja"
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y make gcc g++ libasan5 clang-tools curl p7zip-full file
-        run: |
-          set -x
-          cd /ninja
+      - run: |
+          sudo apt-get update -q -y
+          sudo apt-get install -q -y make gcc g++ libasan5 clang-tools curl p7zip-full file cmake re2c
 
-          # INSTALL CMAKE
-          CMAKE_VERSION=3.23.4
-          curl -L -O https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-aarch64.sh
-          chmod +x cmake-${CMAKE_VERSION}-Linux-aarch64.sh
-          ./cmake-${CMAKE_VERSION}-Linux-aarch64.sh --skip-license --prefix=/usr/local
-
+      - run: |         
           # BUILD
           cmake -DCMAKE_BUILD_TYPE=Release -B release-build
           cmake --build release-build --parallel --config Release
@@ -209,20 +196,21 @@ jobs:
           mkdir artifact
           7z a artifact/ninja-linux-aarch64.zip ./release-build/ninja
 
-    # Upload ninja binary archive as an artifact
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ninja-aarch64-binary-archives
-        path: artifact
+      # Upload ninja binary archive as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninja-aarch64-binary-archives
+          path: artifact
 
-    - name: Upload release asset
-      if: github.event.action == 'published'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifact/ninja-linux-aarch64.zip
-        asset_name: ninja-linux-aarch64.zip
-        asset_content_type: application/zip
+      - name: Upload release asset
+        if: github.event.action == 'published'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./artifact/ninja-linux-aarch64.zip
+          asset_name: ninja-linux-aarch64.zip
+          asset_content_type: application/zip
+
