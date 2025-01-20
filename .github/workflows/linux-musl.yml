@@ -83,6 +83,7 @@ jobs:
         run: file ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} >> $GITHUB_STEP_SUMMARY
 
       - name: Host - signed build provenance attestations
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
