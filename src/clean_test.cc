@@ -469,11 +469,11 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
 struct CleanDeadTest : public CleanTest, public BuildLogUser{
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
-    _unlink(kTestFilename);
+    platformAwareUnlink(kTestFilename);
     CleanTest::SetUp();
   }
   virtual void TearDown() {
-    _unlink(kTestFilename);
+    platformAwareUnlink(kTestFilename);
   }
   virtual bool IsPathDead(StringPiece) const { return false; }
 };

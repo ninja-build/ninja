@@ -144,7 +144,7 @@ int main() {
   printf("min %dms  max %dms  avg %.1fms\n",
          min, max, total / times.size());
 
-  _unlink(kTestFilename);
+  platformAwareUnlink(kTestFilename);
 
   return 0;
 }

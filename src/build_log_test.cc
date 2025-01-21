@@ -34,10 +34,10 @@ const char kTestFilename[] = "BuildLogTest-tempfile";
 struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
-    _unlink(kTestFilename);
+    platformAwareUnlink(kTestFilename);
   }
   virtual void TearDown() {
-    _unlink(kTestFilename);
+    platformAwareUnlink(kTestFilename);
   }
   virtual bool IsPathDead(StringPiece s) const { return false; }
 };

@@ -33,9 +33,9 @@ const char kTestFilename[] = "DepsLogTest-tempfile";
 struct DepsLogTest : public testing::Test {
   virtual void SetUp() {
     // In case a crashing test left a stale file behind.
-    _unlink(kTestFilename);
+    platformAwareUnlink(kTestFilename);
   }
-  virtual void TearDown() { _unlink(kTestFilename); }
+  virtual void TearDown() { platformAwareUnlink(kTestFilename); }
 };
 
 TEST_F(DepsLogTest, WriteRead) {
