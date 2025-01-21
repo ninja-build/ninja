@@ -135,7 +135,8 @@ TEST(IncludesNormalize, LongInvalidPath) {
   }
 
   kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+  // This is a relatively safe cast as we can expect that _MAX_PATH will never be negative
+  EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(_MAX_PATH));
 
   string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
@@ -161,7 +162,7 @@ TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
       kExactlyMaxPath[i] = 'a';
   }
   kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
+  EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(_MAX_PATH));
 
   // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
