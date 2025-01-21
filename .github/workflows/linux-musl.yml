@@ -16,8 +16,6 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: read
-      id-token: write
-      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -81,15 +79,3 @@ jobs:
 
       - name: Host - crossbuild binary info via file
         run: file ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} >> $GITHUB_STEP_SUMMARY
-
-      - name: Host - signed build provenance attestations
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
-
-      - name: Upload artifact - ${{ matrix.binary_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
-          path: ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
