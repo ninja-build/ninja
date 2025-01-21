@@ -203,6 +203,8 @@ class Bootstrap:
             print('when running: ', cmdline)
             raise
 
+def is_clang_cl(cxx: str) -> bool:
+    return cxx.endswith('clang-cl.exe') or cxx.endswith('clang-cl')
 
 parser = OptionParser()
 profilers = ['gmon', 'pprof']
@@ -282,7 +284,8 @@ n.newline()
 CXX = configure_env.get('CXX', 'c++')
 objext = '.o'
 if platform.is_msvc():
-    CXX = 'cl'
+    if not is_clang_cl(CXX):
+        CXX = 'cl'
     objext = '.obj'
 
 def src(filename: str) -> str:
@@ -355,6 +358,11 @@ if platform.is_msvc():
     if not options.debug:
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
+        if is_clang_cl(CXX):
+            # argument unused during compilation: '/GL'
+            cflags.remove('/GL')
+            # /LTCG specified but no code generation required
+            ldflags.remove('/LTCG')
 else:
     cflags = ['-g', '-Wall', '-Wextra',
               '-Wno-deprecated',
@@ -745,7 +753,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if not host.is_mingw():
+if not host.is_windows() or not configure_env:
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='${configure_env}%s $root/configure.py $configure_args' %
