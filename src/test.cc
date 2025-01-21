@@ -254,7 +254,7 @@ ScopedFilePath& ScopedFilePath::operator=(ScopedFilePath&& other) noexcept {
 
 ScopedFilePath::~ScopedFilePath() {
   if (!released_) {
-    unlink(path_.c_str());
+    _unlink(path_.c_str());
   }
 }
 
