@@ -135,4 +135,6 @@ inline To FunctionCast(From from) {
 }
 #endif
 
+int platformAwareUnlink(const char* filename);
+
 #endif  // NINJA_UTIL_H_
