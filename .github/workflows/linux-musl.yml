@@ -11,30 +11,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   build:
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ubuntu-24.04
+    container: alpine:edge
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
         build_method: ["python", "cmake"]
-        runs-on: ["ubuntu-24.04", "ubuntu-24.04-arm"]
-        include:
-          - runs-on: "ubuntu-24.04"
-            container: "amd64/alpine:latest"
-            binary_name: amd64
-          - runs-on: "ubuntu-24.04-arm"
-            container: "arm64v8/alpine:latest"
-            binary_name: aarch64
-          - build_method: "python"
-            build_suffix: "-python"
-
-    name: ${{ matrix.build_method}} ${{ matrix.binary_name }}
-
-    env:
-      container_name: crossbuild
 
     steps:
       - name: Host - checkout
@@ -43,49 +31,38 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Host - Create docker build container
-        run: |
-          # We create an Alpine edge container for cross-compilation with a user named gh which has same id as runner 1001 and provide sudo access
-          # This way we can run commands as a non-root user, avoiding permission issues on host runner. Switching between user and root as needed.
-          docker run --name ${container_name} -it -d -e "LDFLAGS=-s -static --static" -w /home/gh -v ${{ github.workspace }}:/home/gh ${{ matrix.container }}
-          # Create the user gh with the id 1001:1001 which is the same as the runner user id and group id.
-          docker exec ${container_name} sh -c 'adduser -h /home/gh -Ds /bin/bash -u 1001 gh && apk add sudo'
-          # Allow the user gh to run sudo without password prompt: docker exec -u gh:gh ${container_name} sudo ls
-          docker exec ${container_name} sh -c 'printf "%s" "gh ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/gh'
+      - name: Install ninja build optional dependencies
+        run: apk update && apk add -u --no-cache python3 build-base cmake re2c
 
-      - name: Docker - Install ninja build optional dependencies
-        run: |
-          docker exec ${container_name} apk update
-          docker exec ${container_name} apk add -u --no-cache python3 build-base cmake re2c
-
-      - name: Docker - Configure ${{ matrix.binary_name }}
+      - name: Configure ninja build
         if: matrix.build_method == 'cmake'
-        run: docker exec -u gh:gh ${container_name} cmake -B build -D CMAKE_BUILD_TYPE="Release"
+        run: cmake -B build -D CMAKE_BUILD_TYPE="Release"
 
-      - name: Docker - Cmake Build ${{ matrix.binary_name }}
+      - name: Cmake Build ninja
         if: matrix.build_method == 'cmake'
-        run: docker exec -u gh:gh ${container_name} cmake --build build --parallel --config Release
+        run: cmake --build build --parallel --config Release
 
-      - name: Docker - Cmake test ${{ matrix.binary_name }}
+      - name: Cmake test ninja
         if: matrix.build_method == 'cmake'
-        run: docker exec -u gh:gh ${container_name} build/ninja_test --gtest_color=yes
+        run: build/ninja_test --gtest_color=yes
 
-      - name: Docker - Python Build ${{ matrix.binary_name }}
+      - name: Python Build ninja
         if: matrix.build_method == 'python'
-        run: docker exec -u gh:gh ${container_name} python3 configure.py --bootstrap --verbose
+        run: python3 configure.py --bootstrap --verbose
 
-      - name: Docker - Python test ${{ matrix.binary_name }}
+      - name: Python test ninja
         if: matrix.build_method == 'python'
         run: |
-          docker exec -u gh:gh ${container_name} /home/gh/ninja all
-          docker exec -u gh:gh ${container_name} python3 misc/ninja_syntax_test.py
-          # docker exec -u gh:gh ${container_name} python3 misc/output_test.py
+          ./ninja all
+          python3 misc/ninja_syntax_test.py
+          # python3 misc/output_test.py
 
-      - name: Host - Rename ${{ matrix.binary_name }} to ${{ env.release_asset }}
-        run: mv -f ${{ matrix.build_method == 'cmake' && 'build/' || '' }}ninja ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }}
+      - name: Move ninja binary
+        if: matrix.build_method == 'cmake'
+        run: mv -f build/ninja ninja
 
-      - name: Host - ninja-${{ matrix.binary_name }} --version
-        run: ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} --version >> $GITHUB_STEP_SUMMARY
+      - name: ninja-ninja --version
+        run: ./ninja --version >> $GITHUB_STEP_SUMMARY
 
-      - name: Host - ${{ env.container_name}} binary info via file
-        run: file ./ninja-${{ matrix.binary_name }}${{ matrix.build_suffix }} >> $GITHUB_STEP_SUMMARY
+      - name: binary info via file
+        run: file ./ninja >> $GITHUB_STEP_SUMMARY
