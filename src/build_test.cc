@@ -1745,8 +1745,8 @@ TEST_F(BuildWithLogTest, RestatTest) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(3u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(3u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(3), command_runner_.commands_ran_.size());
+  EXPECT_EQ(3, builder_.plan_.command_edge_count());
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1936,8 +1936,8 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(2u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(2), command_runner_.commands_ran_.size());
+  EXPECT_EQ(2, builder_.plan_.command_edge_count());
   BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(2u, log_entry->mtime);
@@ -1959,8 +1959,8 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   EXPECT_TRUE(!state_.GetNode("out1", 0)->dirty());
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(1u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(1), command_runner_.commands_ran_.size());
+  EXPECT_EQ(1, builder_.plan_.command_edge_count());
 }
 
 TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
@@ -4275,7 +4275,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ("", err);
 
     // On the first build, only the out2 command is run.
-    ASSERT_EQ(command_runner_.commands_ran_.size(), 1);
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(1));
     EXPECT_EQ("cat in3 > out2", command_runner_.commands_ran_[0]);
 
     // The deps file should have been removed.
@@ -4311,7 +4311,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ("", err);
 
     // The out and validate actions should have been run as well as out2.
-    ASSERT_EQ(command_runner_.commands_ran_.size(), 3);
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(3));
     // out has to run first, as both out2 and validate depend on it.
     EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
 

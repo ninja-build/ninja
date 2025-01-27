@@ -1337,8 +1337,8 @@ private:
 
         while (true) {
             if (EMH_EQHASH(next_bucket, key_hash)) {
-                const auto slot = _index[next_bucket].slot & _mask;
-                if (EMH_LIKELY(_eq(key, _pairs[slot].first)))
+                const auto next_slot = _index[next_bucket].slot & _mask;
+                if (EMH_LIKELY(_eq(key, _pairs[next_slot].first)))
                     return next_bucket;
             }
 
@@ -1372,9 +1372,9 @@ private:
 
         while (true) {
             if (EMH_EQHASH(next_bucket, key_hash)) {
-                const auto slot = _index[next_bucket].slot & _mask;
-                if (EMH_LIKELY(_eq(key, _pairs[slot].first)))
-                    return slot;
+                const auto next_slot = _index[next_bucket].slot & _mask;
+                if (EMH_LIKELY(_eq(key, _pairs[next_slot].first)))
+                    return next_slot;
             }
 
             const auto nbucket = _index[next_bucket].next;

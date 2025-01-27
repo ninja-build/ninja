@@ -111,7 +111,6 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
-#define unlink _unlink
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
@@ -135,5 +134,7 @@ inline To FunctionCast(From from) {
 	return result;
 }
 #endif
+
+int platformAwareUnlink(const char* filename);
 
 #endif  // NINJA_UTIL_H_

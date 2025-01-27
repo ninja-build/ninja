@@ -54,23 +54,23 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
   string depfile_path = string(object_path) + ".d";
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
-    unlink(object_path);
+    platformAwareUnlink(object_path);
     Fatal("opening %s: %s", depfile_path.c_str(),
           GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
-    unlink(object_path);
+    platformAwareUnlink(object_path);
     fclose(depfile);
-    unlink(depfile_path.c_str());
+    platformAwareUnlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
   const set<string>& headers = parse.includes_;
   for (set<string>::const_iterator i = headers.begin();
        i != headers.end(); ++i) {
     if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
-      unlink(object_path);
+      platformAwareUnlink(object_path);
       fclose(depfile);
-      unlink(depfile_path.c_str());
+      platformAwareUnlink(depfile_path.c_str());
       Fatal("writing %s", depfile_path.c_str());
     }
   }

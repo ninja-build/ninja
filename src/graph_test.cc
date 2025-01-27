@@ -109,7 +109,7 @@ TEST_F(GraphTest, ImplicitOutputParse) {
 "build out | out.imp: cat in\n"));
 
   Edge* edge = GetNode("out")->in_edge();
-  EXPECT_EQ(2, edge->outputs_.size());
+  EXPECT_EQ(size_t(2), edge->outputs_.size());
   EXPECT_EQ("out", edge->outputs_[0]->path());
   EXPECT_EQ("out.imp", edge->outputs_[1]->path());
   EXPECT_EQ(1, edge->implicit_outs_);
@@ -151,7 +151,7 @@ TEST_F(GraphTest, ImplicitOutputOnlyParse) {
 "build | out.imp: cat in\n"));
 
   Edge* edge = GetNode("out.imp")->in_edge();
-  EXPECT_EQ(1, edge->outputs_.size());
+  EXPECT_EQ(size_t(1), edge->outputs_.size());
   EXPECT_EQ("out.imp", edge->outputs_[0]->path());
   EXPECT_EQ(1, edge->implicit_outs_);
   EXPECT_EQ(edge, GetNode("out.imp")->in_edge());
@@ -549,7 +549,7 @@ TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
   // but the depfile also adds b as an input), the deps should have been loaded
   // only once:
   Edge* edge = GetNode("a")->in_edge();
-  EXPECT_EQ(1, edge->inputs_.size());
+  EXPECT_EQ(size_t(1), edge->inputs_.size());
   EXPECT_EQ("b", edge->inputs_[0]->path());
 }
 
@@ -574,7 +574,7 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
   // but c's in_edge has b as input but the depfile also adds |edge| as
   // output)), the deps should have been loaded only once:
   Edge* edge = GetNode("a")->in_edge();
-  EXPECT_EQ(1, edge->inputs_.size());
+  EXPECT_EQ(size_t(1), edge->inputs_.size());
   EXPECT_EQ("c", edge->inputs_[0]->path());
 }
 
@@ -601,7 +601,7 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
   // but c's in_edge has b as input but the depfile also adds |edge| as
   // output)), the deps should have been loaded only once:
   Edge* edge = GetNode("a")->in_edge();
-  EXPECT_EQ(1, edge->inputs_.size());
+  EXPECT_EQ(size_t(1), edge->inputs_.size());
   EXPECT_EQ("c", edge->inputs_[0]->path());
 }
 
@@ -645,13 +645,13 @@ TEST_F(GraphTest, DyndepLoadTrivial) {
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 
   Edge* edge = GetNode("out")->in_edge();
-  ASSERT_EQ(1u, edge->outputs_.size());
+  ASSERT_EQ(size_t(1), edge->outputs_.size());
   EXPECT_EQ("out", edge->outputs_[0]->path());
-  ASSERT_EQ(2u, edge->inputs_.size());
+  ASSERT_EQ(size_t(2), edge->inputs_.size());
   EXPECT_EQ("in", edge->inputs_[0]->path());
   EXPECT_EQ("dd", edge->inputs_[1]->path());
-  EXPECT_EQ(0u, edge->implicit_deps_);
-  EXPECT_EQ(1u, edge->order_only_deps_);
+  EXPECT_EQ(0, edge->implicit_deps_);
+  EXPECT_EQ(1, edge->order_only_deps_);
   EXPECT_FALSE(edge->GetBindingBool("restat"));
 }
 
@@ -675,14 +675,14 @@ TEST_F(GraphTest, DyndepLoadImplicit) {
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 
   Edge* edge = GetNode("out1")->in_edge();
-  ASSERT_EQ(1u, edge->outputs_.size());
+  ASSERT_EQ(size_t(1), edge->outputs_.size());
   EXPECT_EQ("out1", edge->outputs_[0]->path());
-  ASSERT_EQ(3u, edge->inputs_.size());
+  ASSERT_EQ(size_t(3), edge->inputs_.size());
   EXPECT_EQ("in", edge->inputs_[0]->path());
   EXPECT_EQ("out2", edge->inputs_[1]->path());
   EXPECT_EQ("dd", edge->inputs_[2]->path());
-  EXPECT_EQ(1u, edge->implicit_deps_);
-  EXPECT_EQ(1u, edge->order_only_deps_);
+  EXPECT_EQ(1, edge->implicit_deps_);
+  EXPECT_EQ(1, edge->order_only_deps_);
   EXPECT_FALSE(edge->GetBindingBool("restat"));
 }
 
@@ -808,35 +808,35 @@ TEST_F(GraphTest, DyndepLoadMultiple) {
   EXPECT_FALSE(GetNode("dd")->dyndep_pending());
 
   Edge* edge1 = GetNode("out1")->in_edge();
-  ASSERT_EQ(2u, edge1->outputs_.size());
+  ASSERT_EQ(size_t(2), edge1->outputs_.size());
   EXPECT_EQ("out1", edge1->outputs_[0]->path());
   EXPECT_EQ("out1imp", edge1->outputs_[1]->path());
-  EXPECT_EQ(1u, edge1->implicit_outs_);
-  ASSERT_EQ(3u, edge1->inputs_.size());
+  EXPECT_EQ(1, edge1->implicit_outs_);
+  ASSERT_EQ(size_t(3), edge1->inputs_.size());
   EXPECT_EQ("in1", edge1->inputs_[0]->path());
   EXPECT_EQ("in1imp", edge1->inputs_[1]->path());
   EXPECT_EQ("dd", edge1->inputs_[2]->path());
-  EXPECT_EQ(1u, edge1->implicit_deps_);
-  EXPECT_EQ(1u, edge1->order_only_deps_);
+  EXPECT_EQ(1, edge1->implicit_deps_);
+  EXPECT_EQ(1, edge1->order_only_deps_);
   EXPECT_FALSE(edge1->GetBindingBool("restat"));
   EXPECT_EQ(edge1, GetNode("out1imp")->in_edge());
   Node* in1imp = GetNode("in1imp");
-  ASSERT_EQ(1u, in1imp->out_edges().size());
+  ASSERT_EQ(size_t(1), in1imp->out_edges().size());
   EXPECT_EQ(edge1, in1imp->out_edges()[0]);
 
   Edge* edge2 = GetNode("out2")->in_edge();
-  ASSERT_EQ(1u, edge2->outputs_.size());
+  ASSERT_EQ(size_t(1), edge2->outputs_.size());
   EXPECT_EQ("out2", edge2->outputs_[0]->path());
-  EXPECT_EQ(0u, edge2->implicit_outs_);
-  ASSERT_EQ(3u, edge2->inputs_.size());
+  EXPECT_EQ(0, edge2->implicit_outs_);
+  ASSERT_EQ(size_t(3), edge2->inputs_.size());
   EXPECT_EQ("in2", edge2->inputs_[0]->path());
   EXPECT_EQ("in2imp", edge2->inputs_[1]->path());
   EXPECT_EQ("dd", edge2->inputs_[2]->path());
-  EXPECT_EQ(1u, edge2->implicit_deps_);
-  EXPECT_EQ(1u, edge2->order_only_deps_);
+  EXPECT_EQ(1, edge2->implicit_deps_);
+  EXPECT_EQ(1, edge2->order_only_deps_);
   EXPECT_TRUE(edge2->GetBindingBool("restat"));
   Node* in2imp = GetNode("in2imp");
-  ASSERT_EQ(1u, in2imp->out_edges().size());
+  ASSERT_EQ(size_t(1), in2imp->out_edges().size());
   EXPECT_EQ(edge2, in2imp->out_edges()[0]);
 }
 
@@ -1026,12 +1026,12 @@ TEST_F(GraphTest, DyndepFileCircular) {
 
   // Verify that "out.d" was loaded exactly once despite
   // circular reference discovered from dyndep file.
-  ASSERT_EQ(3u, edge->inputs_.size());
+  ASSERT_EQ(size_t(3), edge->inputs_.size());
   EXPECT_EQ("in", edge->inputs_[0]->path());
   EXPECT_EQ("inimp", edge->inputs_[1]->path());
   EXPECT_EQ("dd", edge->inputs_[2]->path());
-  EXPECT_EQ(1u, edge->implicit_deps_);
-  EXPECT_EQ(1u, edge->order_only_deps_);
+  EXPECT_EQ(1, edge->implicit_deps_);
+  EXPECT_EQ(1, edge->order_only_deps_);
 }
 
 TEST_F(GraphTest, Validation) {
@@ -1045,7 +1045,7 @@ TEST_F(GraphTest, Validation) {
   EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &validation_nodes, &err));
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(validation_nodes.size(), 1);
+  ASSERT_EQ(validation_nodes.size(), size_t(1));
   EXPECT_EQ(validation_nodes[0]->path(), "validate");
 
   EXPECT_TRUE(GetNode("out")->dirty());
@@ -1117,7 +1117,7 @@ TEST_F(GraphTest, EdgeQueuePriority) {
     queue.push(edges[i]);
   }
 
-  EXPECT_EQ(queue.size(), n_edges);
+  EXPECT_EQ(queue.size(), static_cast<size_t>(n_edges));
   for (int i = 0; i < n_edges; ++i) {
     EXPECT_EQ(queue.top(), edges[n_edges - 1 - i]);
     queue.pop();

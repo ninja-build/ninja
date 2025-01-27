@@ -237,7 +237,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
       }
       if (invalid_log_version) {
         fclose(file);
-        unlink(path.c_str());
+        platformAwareUnlink(path.c_str());
         // Don't report this as a failure. A missing build log will cause
         // us to rebuild the outputs anyway.
         return LOAD_NOT_FOUND;
@@ -373,7 +373,7 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     entries_.erase(output);
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if (platformAwareUnlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }
@@ -430,7 +430,7 @@ bool BuildLog::Restat(const StringPiece path,
   }
 
   fclose(f);
-  if (unlink(path.str_) < 0) {
+  if (platformAwareUnlink(path.str_) < 0) {
     *err = strerror(errno);
     return false;
   }
