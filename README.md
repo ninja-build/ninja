@@ -71,7 +71,7 @@ You must have `asciidoc` and `xsltproc` in your PATH, then do:
 
 ```
 ./configure.py
-ninja manual doc/manual.pdf
+ninja manual doc/manual.html
 ```
 
 Which will generate `doc/manual.html`.
