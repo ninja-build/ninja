@@ -1,0 +1,15 @@
+ninja_required_version = 1.3
+
+# The arguments passed to configure.py, for rerunning it.
+configure_args = --build-file ./build/build.ninja --disable-configure-rule
+
+root = .
+builddir = build
+
+# Regenerate build files if build script changes.
+rule configure
+  command = ${configure_env}python3 $root/configure.py $configure_args && touch build.ninja
+  generator = true
+build build.ninja $builddir/build.ninja: configure | $root/configure.py $root/misc/ninja_syntax.py
+
+include $builddir/build.ninja
