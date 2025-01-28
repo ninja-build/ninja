@@ -623,7 +623,7 @@ if gtest_src_dir:
     n.comment('Tests all build into ninja_test executable.')
 
     # Test-specific version of cflags, must include the GoogleTest
-    # include directory. 
+    # include directory.
     test_cflags = cflags.copy()
     test_cflags.append('-I' + os.path.join(gtest_src_dir, 'googletest', 'include'))
 
