@@ -362,7 +362,7 @@ else:
               '-Wno-unused-parameter',
               '-fno-rtti',
               '-fno-exceptions',
-              '-std=c++11',
+              '-std=c++14',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
     if options.debug:
@@ -623,8 +623,8 @@ if gtest_src_dir:
     n.comment('Tests all build into ninja_test executable.')
 
     # Test-specific version of cflags, must include the GoogleTest
-    # include directory. Also GoogleTest can only build with a C++14 compiler.
-    test_cflags = [f.replace('std=c++11', 'std=c++14') for f in cflags]
+    # include directory.
+    test_cflags = cflags.copy()
     test_cflags.append('-I' + os.path.join(gtest_src_dir, 'googletest', 'include'))
 
     test_variables = [('cflags', test_cflags)]
