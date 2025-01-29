@@ -1458,7 +1458,7 @@ private:
     //kick out bucket and find empty to occpuy
     //it will break the origin link and relink again.
     //before: main_bucket-->prev_bucket --> bucket   --> next_bucket
-    //atfer : main_bucket-->prev_bucket --> (removed)--> new_bucket--> next_bucket
+    //after : main_bucket-->prev_bucket --> (removed)--> new_bucket--> next_bucket
     size_type kickout_bucket(const size_type kmain, const size_type bucket) noexcept
     {
         const auto next_bucket = _index[bucket].next;
