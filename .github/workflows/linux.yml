@@ -183,7 +183,7 @@ jobs:
       - run: |
           # BUILD
           cmake -DCMAKE_BUILD_TYPE=Release -B release-build
-          cmake --build release-build --parallel --config Release
+          cmake --build release-build --config Release
           strip release-build/ninja
           file release-build/ninja
 
