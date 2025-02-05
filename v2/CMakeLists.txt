@@ -1,7 +1,7 @@
 find_package(Boost 1.81 REQUIRED)
 
 add_executable(nj
-  ../src/ninja.cc
+  ninja.cc
   real_command_runner.cc
   status_printer.cc
 )
