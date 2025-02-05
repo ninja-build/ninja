@@ -1,0 +1,68 @@
+name: ci-linux-musl
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: alpine:edge
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        build_method: ["python", "cmake"]
+
+    steps:
+      - name: Host - checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install ninja build optional dependencies
+        run: apk update && apk add -u --no-cache python3 build-base cmake re2c
+
+      - name: Configure ninja build
+        if: matrix.build_method == 'cmake'
+        run: cmake -B build -D CMAKE_BUILD_TYPE="Release"
+
+      - name: Cmake Build ninja
+        if: matrix.build_method == 'cmake'
+        run: cmake --build build --parallel --config Release
+
+      - name: Cmake test ninja
+        if: matrix.build_method == 'cmake'
+        run: build/ninja_test --gtest_color=yes
+
+      - name: Python Build ninja
+        if: matrix.build_method == 'python'
+        run: python3 configure.py --bootstrap --verbose
+
+      - name: Python test ninja
+        if: matrix.build_method == 'python'
+        run: |
+          ./ninja all
+          python3 misc/ninja_syntax_test.py
+          # python3 misc/output_test.py
+
+      - name: Move ninja binary
+        if: matrix.build_method == 'cmake'
+        run: mv -f build/ninja ninja
+
+      - name: ninja-ninja --version
+        run: ./ninja --version >> $GITHUB_STEP_SUMMARY
+
+      - name: binary info via file
+        run: file ./ninja >> $GITHUB_STEP_SUMMARY

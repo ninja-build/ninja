@@ -350,7 +350,7 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x\\y.h";
   CanonicalizePath(&path, &slash_bits);
-  EXPECT_EQ(slash_bits, 0x1ffffffff);
+  EXPECT_EQ(slash_bits, uint64_t(0x1ffffffff));
 
 
   // 59 after canonicalization is OK.
@@ -368,7 +368,7 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\a\\a\\a\\a\\a\\a\\a\\a\\x\\y.h";
   EXPECT_EQ(58, std::count(path.begin(), path.end(), '\\'));
   CanonicalizePath(&path, &slash_bits);
-  EXPECT_EQ(slash_bits, 0x3ffffffffffffff);
+  EXPECT_EQ(slash_bits, uint64_t(0x3ffffffffffffff));
 
   // More than 60 components is now completely ok too.
   path =

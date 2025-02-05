@@ -179,7 +179,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
     else
       *err = "bad deps log signature or version; starting over";
     fclose(f);
-    unlink(path.c_str());
+    platformAwareUnlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
     return LOAD_SUCCESS;
@@ -331,7 +331,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
   // left-over file from a previous recompaction attempt that crashed somehow.
-  unlink(temp_path.c_str());
+  platformAwareUnlink(temp_path.c_str());
 
   DepsLog new_log;
   if (!new_log.OpenForWrite(temp_path, err))
@@ -363,7 +363,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  if (unlink(path.c_str()) < 0) {
+  if (platformAwareUnlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

@@ -380,7 +380,7 @@ TEST_F(ParserTest, PhonySelfReferenceKept) {
 
   Node* node = state.LookupNode("a");
   Edge* edge = node->in_edge();
-  ASSERT_EQ(edge->inputs_.size(), 1);
+  ASSERT_EQ(edge->inputs_.size(), size_t(1));
   ASSERT_EQ(edge->inputs_[0], node);
 }
 
@@ -944,7 +944,7 @@ TEST_F(ParserTest, Validations) {
 "build foo: cat bar |@ baz\n"));
 
   Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->validations_.size(), 1);
+  ASSERT_EQ(edge->validations_.size(), size_t(1));
   EXPECT_EQ(edge->validations_[0]->path(), "baz");
 }
 
@@ -955,7 +955,7 @@ TEST_F(ParserTest, ImplicitOutput) {
 "build foo | imp: cat bar\n"));
 
   Edge* edge = state.LookupNode("imp")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 2);
+  ASSERT_EQ(edge->outputs_.size(), size_t(2));
   EXPECT_TRUE(edge->is_implicit_out(1));
 }
 
@@ -966,7 +966,7 @@ TEST_F(ParserTest, ImplicitOutputEmpty) {
 "build foo | : cat bar\n"));
 
   Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 1);
+  ASSERT_EQ(edge->outputs_.size(), size_t(1));
   EXPECT_FALSE(edge->is_implicit_out(0));
 }
 

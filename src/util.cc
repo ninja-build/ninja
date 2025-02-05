@@ -950,3 +950,11 @@ bool Truncate(const string& path, size_t size, string* err) {
   }
   return true;
 }
+
+int platformAwareUnlink(const char* filename) {
+	#ifdef _WIN32
+		return _unlink(filename);
+	#else
+		return unlink(filename);
+	#endif
+}
