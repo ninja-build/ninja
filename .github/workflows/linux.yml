@@ -47,6 +47,7 @@ jobs:
       - uses: codespell-project/actions-codespell@master
         with:
           ignore_words_list: fo,wee,addin,notin
+          skip: ./src/third_party/rapidjson
       - name: Install dependencies
         run: |
           dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release

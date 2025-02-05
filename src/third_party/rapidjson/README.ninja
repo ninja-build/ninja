@@ -1,0 +1,7 @@
+Description: A fast JSON parser/generator for C++ with both SAX/DOM style API
+Version: commit f56928de85d56add3ca6ae7cf7f119a42ee1585b, 2025-02-05
+URL: https://github.com/Tencent/rapidjson
+Copyright: Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
+SPDX-License-Identifier: MIT
+Local changes:
+ - Removed trailing whitespace
