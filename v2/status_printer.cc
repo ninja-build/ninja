@@ -108,7 +108,7 @@ void StatusPrinter::BuildFinished() {
     std::print("ninja: \x1b[1;31m{} job{} failed.\x1b[0m\n", failed_edges_,
                failed_edges_ == 1 ? "" : "s");
   } else {
-    std::print("ninja: \x1b[1;32mdone\x1b[0m\n");
+    std::print("ninja: \x1b[1;32mdone\x1b[0m\x1b]9;4;0;\007\n");
   }
 }
 
@@ -273,7 +273,8 @@ void StatusPrinter::PrintStatus() {
   sstream << progress[percentage] << " \x1b[36m" << running_edges_.size()
           << "\x1b[0m|\x1b[34m" << finished_edges_ << "\x1b[0m/" << total_edges_
           << " \x1b[" << (hash_number > 4 ? 1 : 0) << ";3"
-          << (hash_number % 5 + 2) << "m" << description << "\x1b[0m";
+          << (hash_number % 5 + 2) << "m" << description << "\x1b[0m"
+          << "\033]9;4;1;" << (finished_edges_ * 100 / total_edges_) << "\007";
   if (duration > 20) {
     sstream << " ⌛ " << (duration / 10) << '.' << (duration % 10) << "s";
   }
