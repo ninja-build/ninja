@@ -2025,6 +2025,29 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildDryRun, WithDyndep) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"rule cp\n"
+"  command = cp $in $out\n"
+"build dd: cp dd-in\n"
+"build out: touch || dd\n"
+"  dyndep = dd\n"
+"build out-copy: cp out\n"
+));
+  fs_.Create("dd-in",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep\n"
+);
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out-copy", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+}
+
 // Test that RSP files are created when & where appropriate and deleted after
 // successful execution.
 TEST_F(BuildTest, RspFileSuccess)
