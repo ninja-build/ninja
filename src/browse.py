@@ -82,7 +82,7 @@ def parse(text: str) -> Node:
         if match:
             (match, line) = match_strip(next(lines), '    ')
             while match:
-                type = None
+                type = ""
                 (match, line) = match_strip(line, '| ')
                 if match:
                     type = 'implicit'
