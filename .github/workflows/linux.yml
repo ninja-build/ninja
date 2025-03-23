@@ -3,8 +3,6 @@ name: Linux
 on:
   pull_request:
   push:
-  release:
-    types: published
 
 jobs:
   fedora:
