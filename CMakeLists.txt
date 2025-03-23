@@ -257,8 +257,8 @@ if(BUILD_TESTING)
     include(FetchContent)
     FetchContent_Declare(
       googletest
-      URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
-      URL_HASH SHA256=81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2
+      URL https://github.com/google/googletest/releases/download/v1.16.0/googletest-1.16.0.tar.gz
+      URL_HASH SHA256=78c676fc63881529bf97bf9d45948d905a66833fbfa5318ea2cd7478cb98f399
     )
     FetchContent_MakeAvailable(googletest)
   endif()
