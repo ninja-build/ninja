@@ -591,10 +591,9 @@ void Plan::Dump() const {
   printf("ready: %d\n", (int)ready_.size());
 }
 
-Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface, Status *status,
-                 int64_t start_time_millis)
+Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+                 DepsLog* deps_log, DiskInterface* disk_interface,
+                 Status* status, int64_t start_time_millis)
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
       explanations_(g_explaining ? new Explanations() : nullptr),
