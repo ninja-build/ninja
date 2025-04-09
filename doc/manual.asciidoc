@@ -1041,7 +1041,7 @@ This is the standard form of output to be used for e.g. the
 object file of a compile command.
 
 2. _Implicit outputs_, as listed in a build line with the syntax +|
-   _out1_ _out2_+ + before the `:` of a build line _(available since
+   _out1_ _out2_+ before the `:` of a build line _(available since
    Ninja 1.7)_.  The semantics are identical to explicit outputs,
   the only difference is that implicit outputs don't show up in the
   `$out` variable.
