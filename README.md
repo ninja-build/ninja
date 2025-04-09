@@ -49,15 +49,17 @@ version of the library.
 
 ### CMake
 
+To build the ninja binary without building the unit tests, disable test building by setting `BUILD_TESTING` to `false`:
+
 ```
-cmake -Bbuild-cmake
+cmake -Bbuild-cmake -DBUILD_TESTING=false
 cmake --build build-cmake
 ```
 
 The `ninja` binary will now be inside the `build-cmake` directory (you can
 choose any other name you like).
 
-To run the unit tests:
+To run the unit tests, omit the `-DBUILD_TESTING=false` option, and after building, run:
 
 ```
 ./build-cmake/ninja_test
