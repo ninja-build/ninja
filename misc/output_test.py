@@ -586,5 +586,25 @@ out3<TAB>in3
                 [1/3] [ -e input ] || touch input
                 '''))
 
+    def test_issue_2586(self):
+        """This shouldn't hang"""
+        plan = '''rule echo
+  command = echo echo
+build dep: echo
+build console1: echo dep
+  pool = console
+build console2: echo
+  pool = console
+build all: phony console1 console2
+default all
+'''
+        self.assertEqual(run(plan, flags='-j2', env={'NINJA_STATUS':''}), '''echo echo
+echo
+echo echo
+echo
+echo echo
+echo
+''')
+
 if __name__ == '__main__':
     unittest.main()
