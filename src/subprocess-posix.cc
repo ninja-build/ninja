@@ -278,6 +278,8 @@ SubprocessSet::SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
 }
 
+// Reaps console processes that have exited and moves them from the running set
+// to the finished set.
 void SubprocessSet::CheckConsoleProcessTerminated() {
   if (!s_sigchld_received)
     return;
@@ -341,6 +343,9 @@ bool SubprocessSet::DoWork() {
   interrupted_ = 0;
   s_sigchld_received = 0;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  // Note: This can remove console processes from the running set, but that is
+  // not a problem for the pollfd set, as console processes are not part of the
+  // pollfd set (they don't have a fd).
   CheckConsoleProcessTerminated();
   if (ret == -1) {
     if (errno != EINTR) {
@@ -357,12 +362,16 @@ bool SubprocessSet::DoWork() {
   if (IsInterrupted())
     return true;
 
+  // Iterate through both the pollfd set and the running set.
+  // All valid fds in the running set are in the pollfd, in the same order.
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
     int fd = (*i)->fd_;
-    if (fd < 0)
+    if (fd < 0) {
+      ++i;
       continue;
+    }
     assert(fd == fds[cur_nfd].fd);
     if (fds[cur_nfd++].revents) {
       (*i)->OnPipeReady();
