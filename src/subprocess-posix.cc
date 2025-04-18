@@ -37,6 +37,10 @@ extern char** environ;
 
 using namespace std;
 
+namespace {
+  ExitStatus ParseExitStatus(int status);
+}
+
 Subprocess::Subprocess(bool use_console) : fd_(-1), pid_(-1),
                                            use_console_(use_console) {
 }
@@ -50,26 +54,34 @@ Subprocess::~Subprocess() {
 }
 
 bool Subprocess::Start(SubprocessSet* set, const string& command) {
-  int output_pipe[2];
-  if (pipe(output_pipe) < 0)
-    Fatal("pipe: %s", strerror(errno));
-  fd_ = output_pipe[0];
+  int subproc_stdout_fd = -1;
+  if (use_console_) {
+    fd_ = -1;
+  } else {
+    int output_pipe[2];
+    if (pipe(output_pipe) < 0)
+      Fatal("pipe: %s", strerror(errno));
+    fd_ = output_pipe[0];
+    subproc_stdout_fd = output_pipe[1];
 #if !defined(USE_PPOLL)
-  // If available, we use ppoll in DoWork(); otherwise we use pselect
-  // and so must avoid overly-large FDs.
-  if (fd_ >= static_cast<int>(FD_SETSIZE))
-    Fatal("pipe: %s", strerror(EMFILE));
+    // If available, we use ppoll in DoWork(); otherwise we use pselect
+    // and so must avoid overly-large FDs.
+    if (fd_ >= static_cast<int>(FD_SETSIZE))
+      Fatal("pipe: %s", strerror(EMFILE));
 #endif  // !USE_PPOLL
-  SetCloseOnExec(fd_);
+    SetCloseOnExec(fd_);
+  }
 
   posix_spawn_file_actions_t action;
   int err = posix_spawn_file_actions_init(&action);
   if (err != 0)
     Fatal("posix_spawn_file_actions_init: %s", strerror(err));
 
-  err = posix_spawn_file_actions_addclose(&action, output_pipe[0]);
-  if (err != 0)
-    Fatal("posix_spawn_file_actions_addclose: %s", strerror(err));
+  if (!use_console_) {
+    err = posix_spawn_file_actions_addclose(&action, fd_);
+    if (err != 0)
+      Fatal("posix_spawn_file_actions_addclose: %s", strerror(err));
+  }
 
   posix_spawnattr_t attr;
   err = posix_spawnattr_init(&attr);
@@ -98,18 +110,17 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
       Fatal("posix_spawn_file_actions_addopen: %s", strerror(err));
     }
 
-    err = posix_spawn_file_actions_adddup2(&action, output_pipe[1], 1);
+    err = posix_spawn_file_actions_adddup2(&action, subproc_stdout_fd, 1);
     if (err != 0)
       Fatal("posix_spawn_file_actions_adddup2: %s", strerror(err));
-    err = posix_spawn_file_actions_adddup2(&action, output_pipe[1], 2);
+    err = posix_spawn_file_actions_adddup2(&action, subproc_stdout_fd, 2);
     if (err != 0)
       Fatal("posix_spawn_file_actions_adddup2: %s", strerror(err));
-    err = posix_spawn_file_actions_addclose(&action, output_pipe[1]);
+    err = posix_spawn_file_actions_addclose(&action, subproc_stdout_fd);
     if (err != 0)
       Fatal("posix_spawn_file_actions_addclose: %s", strerror(err));
-    // In the console case, output_pipe is still inherited by the child and
-    // closed when the subprocess finishes, which then notifies ninja.
   }
+
 #ifdef POSIX_SPAWN_USEVFORK
   flags |= POSIX_SPAWN_USEVFORK;
 #endif
@@ -131,7 +142,8 @@ bool Subprocess::Start(SubprocessSet* set, const string& command) {
   if (err != 0)
     Fatal("posix_spawn_file_actions_destroy: %s", strerror(err));
 
-  close(output_pipe[1]);
+  if (!use_console_)
+    close(subproc_stdout_fd);
   return true;
 }
 
@@ -148,13 +160,32 @@ void Subprocess::OnPipeReady() {
   }
 }
 
-ExitStatus Subprocess::Finish() {
-  assert(pid_ != -1);
-  int status;
-  if (waitpid(pid_, &status, 0) < 0)
-    Fatal("waitpid(%d): %s", pid_, strerror(errno));
-  pid_ = -1;
 
+bool Subprocess::TryFinish(int waitpid_options) {
+  assert(pid_ != -1);
+  int status, ret;
+  while ((ret = waitpid(pid_, &status, waitpid_options)) < 0) {
+    if (errno != EINTR)
+      Fatal("waitpid(%d): %s", pid_, strerror(errno));
+  }
+  if (ret == 0)
+    return false; // Subprocess is alive (WNOHANG-only).
+  pid_ = -1;
+  exit_status_ = ParseExitStatus(status);
+  return true; // Subprocess has terminated.
+}
+
+ExitStatus Subprocess::Finish() {
+  if (pid_ != -1) {
+    TryFinish(0);
+    assert(pid_ == -1);
+  }
+  return exit_status_;
+}
+
+namespace {
+
+ExitStatus ParseExitStatus(int status) {
 #ifdef _AIX
   if (WIFEXITED(status) && WEXITSTATUS(status) & 0x80) {
     // Map the shell's exit code used for signal failure (128 + signal) to the
@@ -178,18 +209,29 @@ ExitStatus Subprocess::Finish() {
   return static_cast<ExitStatus>(status + 128);
 }
 
+} // anonymous namespace
+
 bool Subprocess::Done() const {
-  return fd_ == -1;
+  // Console subprocesses share console with ninja, and we consider them done
+  // when they exit.
+  // For other processes, we consider them done when we have consumed all their
+  // output and closed their associated pipe.
+  return (use_console_ && pid_ == -1) || (!use_console_ && fd_ == -1);
 }
 
 const string& Subprocess::GetOutput() const {
   return buf_;
 }
 
-int SubprocessSet::interrupted_;
+volatile sig_atomic_t SubprocessSet::interrupted_;
+volatile sig_atomic_t SubprocessSet::s_sigchld_received;
 
 void SubprocessSet::SetInterruptedFlag(int signum) {
   interrupted_ = signum;
+}
+
+void SubprocessSet::SigChldHandler(int signo, siginfo_t* info, void* context) {
+  s_sigchld_received = 1;
 }
 
 void SubprocessSet::HandlePendingInterruption() {
@@ -208,11 +250,14 @@ void SubprocessSet::HandlePendingInterruption() {
 }
 
 SubprocessSet::SubprocessSet() {
+  // Block all these signals.
+  // Their handlers will only be enabled during ppoll/pselect().
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGINT);
   sigaddset(&set, SIGTERM);
   sigaddset(&set, SIGHUP);
+  sigaddset(&set, SIGCHLD);
   if (sigprocmask(SIG_BLOCK, &set, &old_mask_) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
 
@@ -225,6 +270,27 @@ SubprocessSet::SubprocessSet() {
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGHUP, &act, &old_hup_act_) < 0)
     Fatal("sigaction: %s", strerror(errno));
+
+  memset(&act, 0, sizeof(act));
+  act.sa_flags = SA_SIGINFO | SA_NOCLDSTOP;
+  act.sa_sigaction = SigChldHandler;
+  if (sigaction(SIGCHLD, &act, &old_chld_act_) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+}
+
+// Reaps console processes that have exited and moves them from the running set
+// to the finished set.
+void SubprocessSet::CheckConsoleProcessTerminated() {
+  if (!s_sigchld_received)
+    return;
+  for (auto i = running_.begin(); i != running_.end(); ) {
+    if ((*i)->use_console_ && (*i)->TryFinish(WNOHANG)) {
+      finished_.push(*i);
+      i = running_.erase(i);
+    } else {
+      ++i;
+    }
+  }
 }
 
 SubprocessSet::~SubprocessSet() {
@@ -235,6 +301,8 @@ SubprocessSet::~SubprocessSet() {
   if (sigaction(SIGTERM, &old_term_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
   if (sigaction(SIGHUP, &old_hup_act_, 0) < 0)
+    Fatal("sigaction: %s", strerror(errno));
+  if (sigaction(SIGCHLD, &old_chld_act_, 0) < 0)
     Fatal("sigaction: %s", strerror(errno));
   if (sigprocmask(SIG_SETMASK, &old_mask_, 0) < 0)
     Fatal("sigprocmask: %s", strerror(errno));
@@ -264,9 +332,21 @@ bool SubprocessSet::DoWork() {
     fds.push_back(pfd);
     ++nfds;
   }
+  if (nfds == 0) {
+    // Add a dummy entry to prevent using an empty pollfd vector.
+    // ppoll() allows to do this by setting fd < 0.
+    pollfd pfd = { -1, 0, 0 };
+    fds.push_back(pfd);
+    ++nfds;
+  }
 
   interrupted_ = 0;
+  s_sigchld_received = 0;
   int ret = ppoll(&fds.front(), nfds, NULL, &old_mask_);
+  // Note: This can remove console processes from the running set, but that is
+  // not a problem for the pollfd set, as console processes are not part of the
+  // pollfd set (they don't have a fd).
+  CheckConsoleProcessTerminated();
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
@@ -275,16 +355,23 @@ bool SubprocessSet::DoWork() {
     return IsInterrupted();
   }
 
+  // ppoll/pselect prioritizes file descriptor events over a signal delivery.
+  // However, if the user is trying to quit ninja, we should react as fast as
+  // possible.
   HandlePendingInterruption();
   if (IsInterrupted())
     return true;
 
+  // Iterate through both the pollfd set and the running set.
+  // All valid fds in the running set are in the pollfd, in the same order.
   nfds_t cur_nfd = 0;
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
     int fd = (*i)->fd_;
-    if (fd < 0)
+    if (fd < 0) {
+      ++i;
       continue;
+    }
     assert(fd == fds[cur_nfd].fd);
     if (fds[cur_nfd++].revents) {
       (*i)->OnPipeReady();
@@ -317,7 +404,9 @@ bool SubprocessSet::DoWork() {
   }
 
   interrupted_ = 0;
-  int ret = pselect(nfds, &set, 0, 0, 0, &old_mask_);
+  s_sigchld_received = 0;
+  int ret = pselect(nfds, (nfds > 0 ? &set : nullptr), 0, 0, 0, &old_mask_);
+  CheckConsoleProcessTerminated();
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
@@ -326,6 +415,9 @@ bool SubprocessSet::DoWork() {
     return IsInterrupted();
   }
 
+  // ppoll/pselect prioritizes file descriptor events over a signal delivery.
+  // However, if the user is trying to quit ninja, we should react as fast as
+  // possible.
   HandlePendingInterruption();
   if (IsInterrupted())
     return true;
