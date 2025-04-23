@@ -134,7 +134,7 @@ bool DepfileParser::Parse(string* content, string* err) {
         *out++ = '$';
         continue;
       }
-      '\\'+ [^\000\r\n] | [a-zA-Z0-9+?,/_:.~()}{%=@\x5B\x5D!\x80-\xFF-]+ {
+      '\\'+ [^\000\r\n] | [a-zA-Z0-9+?"'&,/_:.~()}{%=@\x5B\x5D!\x80-\xFF-]+ {
         // Got a span of plain text.
         int len = (int)(in - start);
         // Need to shift it over if we're overwriting backslashes.

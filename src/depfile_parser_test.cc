@@ -72,6 +72,20 @@ TEST_F(DepfileParserTest, WindowsDrivePaths) {
   EXPECT_EQ("//?/c:/bar.h", parser_.ins_[0].AsString());
 }
 
+TEST_F(DepfileParserTest, AmpersandsAndQuotes) {
+  string err;
+  EXPECT_TRUE(Parse("foo&bar.o foo'bar.o foo\"bar.o: foo&bar.h foo'bar.h foo\"bar.h\n", &err));
+  ASSERT_EQ("", err);
+  ASSERT_EQ(3u, parser_.outs_.size());
+  EXPECT_EQ("foo&bar.o", parser_.outs_[0].AsString());
+  EXPECT_EQ("foo'bar.o", parser_.outs_[1].AsString());
+  EXPECT_EQ("foo\"bar.o", parser_.outs_[2].AsString());
+  EXPECT_EQ(3u, parser_.ins_.size());
+  EXPECT_EQ("foo&bar.h", parser_.ins_[0].AsString());
+  EXPECT_EQ("foo'bar.h", parser_.ins_[1].AsString());
+  EXPECT_EQ("foo\"bar.h", parser_.ins_[2].AsString());
+}
+
 TEST_F(DepfileParserTest, CarriageReturnContinuation) {
   string err;
   EXPECT_TRUE(Parse(
