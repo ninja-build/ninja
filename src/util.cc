@@ -692,13 +692,15 @@ map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
       continue;
     if (mp.fsType == "cgroup") {
       for (size_t i = 0; i < mp.superOptions.size(); i++) {
-        string opt = mp.superOptions[i].AsString();
-        map<string, CGroupSubSys>::iterator subsys = subsystems.find(opt);
-        if (subsys == subsystems.end())
+        std::string opt = mp.superOptions[i].AsString();
+        auto subsys = subsystems.find(opt);
+        if (subsys == subsystems.end()) {
           continue;
-        string newPath = mp.translate(subsys->second.name);
-        if (!newPath.empty())
-          cgroups.insert(make_pair(opt, newPath));
+        }
+        std::string newPath = mp.translate(subsys->second.name);
+        if (!newPath.empty()) {
+          cgroups.emplace(opt, newPath);
+        }
       }
     } else if (mp.fsType == "cgroup2") {
       // Find cgroup2 entry in format "0::/path/to/cgroup"
@@ -714,7 +716,7 @@ map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
         // Append the relative path for the cgroup to the mount point
         path.append(subsys->second.name);
       }
-      cgroups.insert(std::make_pair("cgroup2", path));
+      cgroups.emplace("cgroup2", path);
     }
   }
   return cgroups;
@@ -792,16 +794,15 @@ int ParseCgroupV2(std::string& path) {
 }
 
 int ParseCPUFromCGroup() {
-  map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
-  map<string, string> cgroups = ParseMountInfo(subsystems);
-  const auto cgroup2 = cgroups.find("cgroup2");
-  const auto cpu = cgroups.find("cpu");
+  std::map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
+  std::map<string, string> cgroups = ParseMountInfo(subsystems);
 
   // Prefer cgroup v2 if both v1 and v2 should be present
-  if (cgroup2 != cgroups.end()) {
+  if (const auto cgroup2 = cgroups.find("cgroup2"); cgroup2 != cgroups.end()) {
     return ParseCgroupV2(cgroup2->second);
   }
-  if (cpu != cgroups.end()) {
+
+  if (const auto cpu = cgroups.find("cpu"); cpu != cgroups.end()) {
     return ParseCgroupV1(cpu->second);
   }
   return -1;
