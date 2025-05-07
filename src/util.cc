@@ -794,8 +794,8 @@ int ParseCgroupV2(std::string& path) {
 }
 
 int ParseCPUFromCGroup() {
-  std::map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
-  std::map<string, string> cgroups = ParseMountInfo(subsystems);
+  auto subsystems = ParseSelfCGroup();
+  auto cgroups = ParseMountInfo(subsystems);
 
   // Prefer cgroup v2 if both v1 and v2 should be present
   if (const auto cgroup2 = cgroups.find("cgroup2"); cgroup2 != cgroups.end()) {
