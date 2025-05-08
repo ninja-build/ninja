@@ -63,7 +63,7 @@ void GraphViz::AddTarget(Node* node, const int depth) {
     // like a graphviz bug.
     printNodeLabel(edge->inputs_[0]);
     printf("\"%p\" -> \"%p\" [label=\" %s\"]\n", edge->inputs_[0],
-           edge->outputs_[0], edge->rule_->name().c_str());    
+           edge->outputs_[0], edge->rule_->name().c_str());
   } else {
     if (labeled_edges_.find(edge) == labeled_edges_.end()) {
       printf("\"%p\" [label=\"%s\", shape=ellipse]\n", edge,

@@ -36,7 +36,7 @@ struct GraphViz {
   void printNodeLabel(Node* node);
 
   DyndepLoader dyndep_loader_;
-  std::set<Node*> visited_nodes_;  
+  std::set<Node*> visited_nodes_;
   EdgeSet visited_edges_;
   std::set<Node*> labeled_nodes_;
   EdgeSet labeled_edges_;

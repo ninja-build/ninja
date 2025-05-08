@@ -379,13 +379,12 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
 }
 
 int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
-
   // The graph tool uses getopt, and expects argv[0] to contain the name of
   // the tool, i.e. "graph".
   argc++;
   argv--;
 
-  int depth = -1; 
+  int depth = -1;
 
   optind = 1;
   int opt;
@@ -396,7 +395,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
     switch (opt) {
     case 'd':
       depth = atoi(optarg);
-      break;   
+      break;
     case 'h':
     default:
       // clang-format off
