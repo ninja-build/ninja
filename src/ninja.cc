@@ -379,6 +379,44 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
 }
 
 int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
+  // The graph tool uses getopt, and expects argv[0] to contain the name of
+  // the tool, i.e. "graph".
+  argc++;
+  argv--;
+
+  int depth = -1;
+
+  optind = 1;
+  int opt;
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { "depth", required_argument, NULL, 'd' },
+                                  { NULL, 0, NULL, 0 } };
+  while ((opt = getopt_long(argc, argv, "d:h0", kLongOptions, NULL)) != -1) {
+    switch (opt) {
+    case 'd':
+      depth = atoi(optarg);
+      break;
+    case 'h':
+    default:
+      // clang-format off
+      printf(
+"Usage '-t graph [options] [targets]\n"
+"\n"
+"output graphviz dot file for targets.\n"
+"For smaller outputs try the --depth option.\n"
+"  example:\n"
+"   ninja -t graph mytarget | dot -Tsvg -ograph.svg\n"
+"Options:\n"
+"  -h, --help   Print this message.\n"
+"  -d, --depth  limit the dependency depth to inputs.\n"
+      );
+      // clang-format on
+      return 1;
+    }
+  }
+  argv += optind;
+  argc -= optind;
+
   vector<Node*> nodes;
   string err;
   if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
@@ -389,7 +427,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   GraphViz graph(&state_, &disk_interface_);
   graph.Start();
   for (vector<Node*>::const_iterator n = nodes.begin(); n != nodes.end(); ++n)
-    graph.AddTarget(*n);
+    graph.AddTarget(*n, depth);
   graph.Finish();
 
   return 0;
