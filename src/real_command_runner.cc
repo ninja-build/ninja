@@ -13,18 +13,31 @@
 // limitations under the License.
 
 #include "build.h"
+#include "jobserver.h"
+#include "limits.h"
 #include "subprocess.h"
 
 struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
+  explicit RealCommandRunner(const BuildConfig& config,
+                             Jobserver::Client* jobserver)
+      : config_(config), jobserver_(jobserver) {}
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   bool WaitForCommand(Result* result) override;
   std::vector<Edge*> GetActiveEdges() override;
   void Abort() override;
 
+  void ClearJobTokens() {
+    if (jobserver_) {
+      for (Edge* edge : GetActiveEdges()) {
+        jobserver_->Release(std::move(edge->job_slot_));
+      }
+    }
+  }
+
   const BuildConfig& config_;
   SubprocessSet subprocs_;
+  Jobserver::Client* jobserver_ = nullptr;
   std::map<const Subprocess*, Edge*> subproc_to_edge_;
 };
 
@@ -38,6 +51,7 @@ std::vector<Edge*> RealCommandRunner::GetActiveEdges() {
 }
 
 void RealCommandRunner::Abort() {
+  ClearJobTokens();
   subprocs_.Clear();
 }
 
@@ -46,6 +60,13 @@ size_t RealCommandRunner::CanRunMore() const {
       subprocs_.running_.size() + subprocs_.finished_.size();
 
   int64_t capacity = config_.parallelism - subproc_number;
+
+  if (jobserver_) {
+    // When a jobserver token pool is used, make the
+    // capacity infinite, and let FindWork() limit jobs
+    // through token acquisitions instead.
+    capacity = INT_MAX;
+  }
 
   if (config_.max_load_average > 0.0f) {
     int load_capacity = config_.max_load_average - GetLoadAverage();
@@ -93,6 +114,7 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-CommandRunner* CommandRunner::factory(const BuildConfig& config) {
-  return new RealCommandRunner(config);
+CommandRunner* CommandRunner::factory(const BuildConfig& config,
+                                      Jobserver::Client* jobserver) {
+  return new RealCommandRunner(config, jobserver);
 }
