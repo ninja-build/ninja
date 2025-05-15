@@ -214,9 +214,6 @@ parallelism, instead of its default parallel implementation.
 Note that load-average limitations (i.e. when using `-l<count>`)
 are still being enforced in this mode.
 
-On Posix, Ninja supports both the `pipe` and `fifo` client modes, based on
-the content of `MAKEFLAGS`.
-
 IMPORTANT: On Posix, only the FIFO-based version of the protocol, which is
 implemented by GNU Make 4.4 and higher, is supported. Ninja will detect
 when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
