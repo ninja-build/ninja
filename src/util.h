@@ -66,6 +66,10 @@ void Info(const char* msg, va_list ap);
 void CanonicalizePath(std::string* path, uint64_t* slash_bits);
 void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits);
 
+#ifdef _WIN32
+void LowerCasePath(const char* path, size_t len, char* path_lower);
+#endif
+
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
 /// Appends the string directly to |result| without modification if we can
