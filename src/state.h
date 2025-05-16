@@ -105,6 +105,10 @@ struct State {
 
   Node* GetNode(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
+#ifdef _WIN32
+  Node* GetNodeLowerCase(StringPiece path, uint64_t slash_bits);
+  Node* LookupNodeLowerCase(StringPiece path) const;
+#endif
   Node* SpellcheckNode(const std::string& path);
 
   /// Add input / output / validation nodes to a given edge. This also
@@ -130,6 +134,12 @@ struct State {
   /// Mapping of path -> Node.
   typedef ExternalStringHashMap<Node*>::Type Paths;
   Paths paths_;
+
+#ifdef _WIN32
+  /// Mapping of lower-case path -> Node
+  /// for use by LookupNodeLowerCase.
+  Paths paths_lower_;
+#endif
 
   /// All the pools used in the graph.
   std::map<std::string, Pool*> pools_;
