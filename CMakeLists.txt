@@ -155,6 +155,7 @@ add_library(libninja OBJECT
 )
 if(WIN32)
 	target_sources(libninja PRIVATE
+		src/clsourcedependencies_parser.cc
 		src/subprocess-win32.cc
 		src/includes_normalize-win32.cc
 		src/jobserver-win32.cc
@@ -163,6 +164,7 @@ if(WIN32)
 		src/getopt.c
 		src/minidump-win32.cc
 	)
+	target_compile_definitions(libninja PRIVATE NINJA_ENABLE_CL_SOURCE_DEPENDENCIES)
 	# Build getopt.c, which can be compiled as either C or C++, as C++
 	# so that build environments which lack a C compiler, but have a C++
 	# compiler may build ninja.
@@ -296,7 +298,9 @@ if(BUILD_TESTING)
   )
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
+      src/clsourcedependencies_parser_test.cc
       windows/ninja.manifest)
+    target_compile_definitions(ninja_test PRIVATE NINJA_ENABLE_CL_SOURCE_DEPENDENCIES)
 
     if(MSVC)
       # Silence warnings about using unlink rather than _unlink
@@ -305,6 +309,22 @@ if(BUILD_TESTING)
   endif()
   find_package(Threads REQUIRED)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
+
+  # Use RadpidJSON on Windows to support MSVC's /sourceDependencies format.
+  if(WIN32)
+    find_package(RapidJSON)
+    if(NOT RapidJSON_FOUND)
+      include(FetchContent)
+      FetchContent_Declare(
+        rapidjson
+        URL https://github.com/Tencent/rapidjson/archive/f56928de85d56add3ca6ae7cf7f119a42ee1585b.zip
+        URL_HASH SHA256=42D93071C6BC4A9AC24D83055C2CDEF5E355281A2A2AEEB917FD905257970473
+      )
+      FetchContent_MakeAvailable(rapidjson)
+      find_package(RapidJSON)
+    endif()
+    target_link_libraries(libninja PRIVATE rapidjson)
+  endif()
 
   foreach(perftest
     build_log_perftest
