@@ -42,6 +42,10 @@
 #include "status.h"
 #include "util.h"
 
+#ifdef _WIN32
+#include "clsourcedependencies_parser.h"
+#endif
+
 using namespace std;
 
 namespace {
@@ -993,10 +997,11 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else if (deps_type == "gcc") {
+  } else if (deps_type == "gcc" || deps_type == "msvc_source_dependencies") {
     string depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
-      *err = string("edge with deps=gcc but no depfile makes no sense");
+      *err = std::string("edge with deps=") + deps_type +
+             " but no depfile makes no sense";
       return false;
     }
 
@@ -1014,19 +1019,40 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     if (content.empty())
       return true;
 
-    DepfileParser deps(config_.depfile_parser_options);
-    if (!deps.Parse(&content, err))
-      return false;
+    if (deps_type == "gcc") {
+      DepfileParser deps(config_.depfile_parser_options);
+      if (!deps.Parse(&content, err))
+        return false;
 
-    // XXX check depfile matches expected output.
-    deps_nodes->reserve(deps.ins_.size());
-    for (StringPiece input : deps.ins_) {
-      uint64_t slash_bits;
-      // NOTE: In-place modification of deps buffer.
-      // This is ok as nothing else will use it after this loop.
-      CanonicalizePath(const_cast<char*>(input.str_), &input.len_,
-                       &slash_bits);
-      deps_nodes->push_back(state_->GetNode(input, slash_bits));
+      // XXX check depfile matches expected output.
+      deps_nodes->reserve(deps.ins_.size());
+      for (StringPiece input : deps.ins_) {
+        uint64_t slash_bits;
+        // NOTE: In-place modification of deps buffer.
+        // This is ok as nothing else will use it after this loop.
+        CanonicalizePath(const_cast<char*>(input.str_), &input.len_,
+                         &slash_bits);
+        deps_nodes->push_back(state_->GetNode(input, slash_bits));
+      }
+    } else if (deps_type == "msvc_source_dependencies") {
+#ifdef _WIN32
+      std::vector<std::string> includes;
+      if (!ParseCLSourceDependencies(content, &includes, err))
+        return false;
+
+      deps_nodes->reserve(includes.size());
+      for (std::string& inc : includes) {
+        uint64_t slash_bits;
+        CanonicalizePath(&inc, &slash_bits);
+        // 'cl /sourceDependencies' reports lower-case paths.
+        // Lookup by lower-case to reconcile them with
+        // mixed-case paths in the build manifest.
+        deps_nodes->push_back(state_->GetNodeLowerCase(inc, slash_bits));
+      }
+#else   // _WIN32
+      *err = "msvc_source_dependencies is only supported on Windows";
+      return false;
+#endif  // _WIN32
     }
 
     if (!g_keep_depfile) {

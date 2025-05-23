@@ -155,6 +155,7 @@ add_library(libninja OBJECT
 )
 if(WIN32)
 	target_sources(libninja PRIVATE
+		src/clsourcedependencies_parser.cc
 		src/subprocess-win32.cc
 		src/includes_normalize-win32.cc
 		src/jobserver-win32.cc
@@ -296,6 +297,7 @@ if(BUILD_TESTING)
   )
   if(WIN32)
     target_sources(ninja_test PRIVATE src/includes_normalize_test.cc src/msvc_helper_test.cc
+      src/clsourcedependencies_parser_test.cc
       windows/ninja.manifest)
 
     if(MSVC)
@@ -305,6 +307,19 @@ if(BUILD_TESTING)
   endif()
   find_package(Threads REQUIRED)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
+
+  # Use RadpidJSON on Windows to support MSVC's /sourceDependencies format.
+  if(WIN32)
+    find_package(RapidJSON CONFIG)
+    if(NOT RapidJSON_FOUND)
+      # Fall back to a vendored copy.
+      add_library(rapidjson INTERFACE)
+      target_include_directories(rapidjson INTERFACE
+        ${ninja_SOURCE_DIR}/src/third_party/rapidjson/include
+      )
+    endif()
+    target_link_libraries(libninja PRIVATE rapidjson)
+  endif()
 
   foreach(perftest
     build_log_perftest

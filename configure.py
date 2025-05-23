@@ -227,6 +227,11 @@ parser.add_option('--gtest-source-dir', metavar='PATH',
                   help='Path to GoogleTest source directory. If not provided ' +
                        'GTEST_SOURCE_DIR will be probed in the environment. ' +
                        'Tests will not be built without a value.')
+parser.add_option('--rapidjson-root-dir', metavar='PATH',
+                  help='Path to RapidJSON source directory or install prefix. ' +
+                       'It is expected to contain "include/rapidjson". ' +
+                       'If not provided RAPIDJSON_ROOT_DIR will be probed in the environment. ' +
+                       'Needed to parse MSVC /sourceDependencies on Windows.')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -418,6 +423,17 @@ if platform.supports_ninja_browse():
 # Search for generated headers relative to build dir.
 cflags.append('-I.')
 
+if platform.is_windows():
+    if options.rapidjson_root_dir:
+        rapidjson_root_dir = options.rapidjson_root_dir
+    else:
+        rapidjson_root_dir = os.environ.get('RAPIDJSON_ROOT_DIR')
+    if not rapidjson_root_dir:
+        # Fall back to a vendored copy.
+        rapidjson_root_dir = os.path.join(sourcedir, 'src/third_party/rapidjson')
+
+    cflags.append('-I' + os.path.join(rapidjson_root_dir, 'include'))
+
 def shell_escape(str: str) -> str:
     """Escape str such that it's interpreted as a single argument by
     the shell."""
@@ -559,7 +575,8 @@ for name in ['build',
              'version']:
     objs += cxx(name, variables=cxxvariables)
 if platform.is_windows():
-    for name in ['subprocess-win32',
+    for name in ['clsourcedependencies_parser',
+                 'subprocess-win32',
                  'includes_normalize-win32',
                  'jobserver-win32',
                  'msvc_helper-win32',
@@ -661,6 +678,7 @@ if gtest_src_dir:
     ]
     if platform.is_windows():
         test_names += [
+            'clsourcedependencies_parser_test',
             'includes_normalize_test',
             'msvc_helper_test',
         ]

@@ -2282,6 +2282,25 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+TEST_F(BuildTest, DepsMsvcSourceDependenciesWithEmptyDepfileErrorsOut) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"========(
+rule cc
+  command = cc
+  deps = msvc_source_dependencies
+build out: cc
+)========"));
+  Dirty("out");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  ASSERT_EQ("subcommand failed", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
 TEST_F(BuildTest, StatusFormatElapsed_e) {
   status_.BuildStarted();
   // Before any task is done, the elapsed time must be zero.
@@ -2537,6 +2556,49 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
   EXPECT_EQ("in1", out2_deps->nodes[0]->path());
   EXPECT_EQ("in2", out2_deps->nodes[1]->path());
 }
+
+#ifdef _WIN32
+/// Test a MSVC sourceDependencies deps log that reconciles with a
+/// path in the build manifest that differs in both slashes and case.
+TEST_F(BuildWithQueryDepsLogTest, DepsMsvcSourceDependenciesMixedCase) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"========(
+rule cc
+  command = cc $in
+build out: cc C$:/Mixed/Case/Path/In/Build/Manifest.c
+  deps = msvc_source_dependencies
+  depfile = out.json
+)========"));
+  Dirty("out");
+
+  fs_.Create("C:/Mixed/Case/Path/In/Build/Manifest.c", "");
+  fs_.Create("out.json", R"========({
+  "Version": "1.0",
+  "Data": {
+    "Includes": [
+      "c:\\lower\\case\\path\\not\\in\\manifest.h",
+      "c:\\mixed\\case\\path\\in\\build\\manifest.c"
+    ]
+  }
+})========");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  Node* out_node = state_.LookupNode("out");
+  ASSERT_TRUE(out_node != nullptr);
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cc C:/Mixed/Case/Path/In/Build/Manifest.c", command_runner_.commands_ran_[0]);
+  DepsLog::Deps* out_deps = log_.GetDeps(out_node);
+  ASSERT_TRUE(out_deps != nullptr);
+  EXPECT_EQ(2, out_deps->node_count);
+  EXPECT_EQ("c:/lower/case/path/not/in/manifest.h", out_deps->nodes[0]->path());
+  EXPECT_EQ("C:/Mixed/Case/Path/In/Build/Manifest.c", out_deps->nodes[1]->path());
+}
+#endif  // _WIN32
 
 /// Tests of builds involving deps logs necessarily must span
 /// multiple builds.  We reuse methods on BuildTest but not the
