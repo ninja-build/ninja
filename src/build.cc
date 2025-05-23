@@ -1020,11 +1020,13 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 
     // XXX check depfile matches expected output.
     deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
-         i != deps.ins_.end(); ++i) {
+    for (StringPiece input : deps.ins_) {
       uint64_t slash_bits;
-      CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      // NOTE: In-place modification of deps buffer.
+      // This is ok as nothing else will use it after this loop.
+      CanonicalizePath(const_cast<char*>(input.str_), &input.len_,
+                       &slash_bits);
+      deps_nodes->push_back(state_->GetNode(input, slash_bits));
     }
 
     if (!g_keep_depfile) {
