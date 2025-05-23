@@ -19,6 +19,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "dyndep.h"
@@ -40,8 +41,8 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const std::string& path, uint64_t slash_bits)
-      : path_(path), slash_bits_(slash_bits) {}
+  Node(std::string path, uint64_t slash_bits)
+      : path_(std::move(path)), slash_bits_(slash_bits) {}
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
