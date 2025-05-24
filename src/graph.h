@@ -19,6 +19,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "dyndep.h"
@@ -40,8 +41,12 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
-  Node(const std::string& path, uint64_t slash_bits)
-      : path_(path), slash_bits_(slash_bits) {}
+  Node(std::string path, uint64_t slash_bits)
+      : path_(std::move(path)), slash_bits_(slash_bits) {
+#ifdef _WIN32
+    path_lower_ = PathToLowerCase(path_);
+#endif
+  }
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
@@ -80,6 +85,13 @@ struct Node {
   }
 
   const std::string& path() const { return path_; }
+#ifdef _WIN32
+  const std::string& path_lower() const { return path_lower_; }
+
+  static std::string PathToLowerCase(StringPiece path);
+  static void PathToLowerCase(StringPiece path, char* path_lower);
+#endif
+
   /// Get |path()| but use slash_bits to convert back to original slash styles.
   std::string PathDecanonicalized() const {
     return PathDecanonicalized(path_, slash_bits_);
@@ -120,6 +132,9 @@ struct Node {
 
 private:
   std::string path_;
+#ifdef _WIN32
+  std::string path_lower_;
+#endif
 
   /// Set bits starting from lowest for backslashes that were normalized to
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.

@@ -227,6 +227,11 @@ parser.add_option('--gtest-source-dir', metavar='PATH',
                   help='Path to GoogleTest source directory. If not provided ' +
                        'GTEST_SOURCE_DIR will be probed in the environment. ' +
                        'Tests will not be built without a value.')
+parser.add_option('--rapidjson-root-dir', metavar='PATH',
+                  help='Path to RapidJSON source directory or install prefix. ' +
+                       'It is expected to contain "include/rapidjson". ' +
+                       'If not provided RAPIDJSON_ROOT_DIR will be probed in the environment. ' +
+                       'Needed to parse MSVC /sourceDependencies on Windows.')
 parser.add_option('--with-python', metavar='EXE',
                   help='use EXE as the Python interpreter',
                   default=os.path.basename(sys.executable))
@@ -418,6 +423,19 @@ if platform.supports_ninja_browse():
 # Search for generated headers relative to build dir.
 cflags.append('-I.')
 
+if options.rapidjson_root_dir:
+    rapidjson_root_dir = options.rapidjson_root_dir
+else:
+    rapidjson_root_dir = os.environ.get('RAPIDJSON_ROOT_DIR')
+
+if platform.is_windows():
+    if rapidjson_root_dir:
+        cflags.append('-DNINJA_ENABLE_CL_SOURCE_DEPENDENCIES')
+        cflags.append('-I' + os.path.join(rapidjson_root_dir, 'include'))
+    else:
+        print("warning: RapidJSON was not provided via --rapidjson-root-dir or RAPIDJSON_ROOT_DIR; "
+              "MSVC /sourceDependencies will not be supported.")
+
 def shell_escape(str: str) -> str:
     """Escape str such that it's interpreted as a single argument by
     the shell."""
@@ -565,6 +583,8 @@ if platform.is_windows():
                  'msvc_helper-win32',
                  'msvc_helper_main-win32']:
         objs += cxx(name, variables=cxxvariables)
+    if rapidjson_root_dir:
+        objs += cxx('clsourcedependencies_parser', variables=cxxvariables)
     if platform.is_msvc():
         objs += cxx('minidump-win32', variables=cxxvariables)
     objs += cc('getopt')
@@ -664,6 +684,8 @@ if gtest_src_dir:
             'includes_normalize_test',
             'msvc_helper_test',
         ]
+        if rapidjson_root_dir:
+            test_names += ['clsourcedependencies_parser_test']
 
     objs = []
     for name in test_names:

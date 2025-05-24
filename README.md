@@ -34,6 +34,11 @@ via CMake. For more details see
 This will generate the `ninja` binary and a `build.ninja` file you can now use
 to build Ninja with itself.
 
+On Windows, if you have a RapidJSON source or install tree, you can
+enable MSVC `/sourceDependencies` support by passing its path with
+the `--rapidjson-root-dir=PATH` option, or with the `RAPIDJSON_ROOT_DIR`
+envronment variable.
+
 If you have a GoogleTest source directory, you can build the tests
 by passing its path with `--gtest-source-dir=PATH` option, or the
 `GTEST_SOURCE_DIR` environment variable, e.g.:
@@ -44,8 +49,8 @@ by passing its path with `--gtest-source-dir=PATH` option, or the
 ./ninja_test`   # run the unit-test suite.
 ```
 
-Use the CMake build below if you want to use a preinstalled binary
-version of the library.
+Use the CMake build below if you want to build these dependencies
+automatically.
 
 ### CMake
 

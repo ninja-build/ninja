@@ -25,6 +25,7 @@
 #endif
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -308,6 +309,14 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   *slash_bits = 0;
 #endif
 }
+
+#ifdef _WIN32
+void LowerCasePath(const char* path, size_t len, char* path_lower) {
+  // FIXME: Consider LCMapStringEx + LOCALE_NAME_INVARIANT + LCMAP_UPPERCASE
+  // for more robust case-insensitive filename comparison.
+  std::transform(path, path + len, path_lower, ::tolower);
+}
+#endif
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
   if ('A' <= ch && ch <= 'Z') return true;

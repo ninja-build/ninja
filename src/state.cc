@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <cctype>
 
 #include "edit_distance.h"
 #include "graph.h"
@@ -93,11 +94,17 @@ Edge* State::AddEdge(const Rule* rule) {
 }
 
 Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
-  Node* node = LookupNode(path);
-  if (node)
+  if (Node* node = LookupNode(path))
     return node;
-  node = new Node(path.AsString(), slash_bits);
+  return CreateNode(path, slash_bits);
+}
+
+Node* State::CreateNode(StringPiece path, uint64_t slash_bits) {
+  Node* node = new Node(path.AsString(), slash_bits);
   paths_[node->path()] = node;
+#ifdef _WIN32
+  paths_lower_[node->path_lower()] = node;
+#endif
   return node;
 }
 
@@ -107,6 +114,28 @@ Node* State::LookupNode(StringPiece path) const {
     return i->second;
   return NULL;
 }
+
+#ifdef _WIN32
+Node* State::GetNodeLowerCase(StringPiece path, uint64_t slash_bits) {
+  if (Node* node = LookupNodeLowerCase(path))
+    return node;
+  return CreateNode(path, slash_bits);
+}
+
+Node* State::LookupNodeLowerCase(StringPiece path) const {
+  char stack_buf[1024];
+  std::unique_ptr<char[]> heap_buf;
+  char* buf = stack_buf;
+  if (path.size() > sizeof(stack_buf)) {
+    heap_buf.reset(new char[path.size()]);
+    buf = heap_buf.get();
+  }
+  Node::PathToLowerCase(path, buf);
+  StringPiece path_lower(buf, path.size());
+  Paths::const_iterator i = paths_lower_.find(path_lower);
+  return i != paths_lower_.end() ? i->second : nullptr;
+}
+#endif
 
 Node* State::SpellcheckNode(const string& path) {
   const bool kAllowReplacements = true;

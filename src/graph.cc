@@ -574,6 +574,18 @@ bool Edge::maybe_phonycycle_diagnostic() const {
       implicit_deps_ == 0;
 }
 
+#ifdef _WIN32
+std::string Node::PathToLowerCase(StringPiece path) {
+  std::string path_lower(path.size(), ' ');
+  PathToLowerCase(path, &path_lower[0]);
+  return path_lower;
+}
+
+void Node::PathToLowerCase(StringPiece path, char* path_lower) {
+  LowerCasePath(path.begin(), path.size(), path_lower);
+}
+#endif
+
 // static
 string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   string result = path;
