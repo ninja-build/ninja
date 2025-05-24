@@ -198,13 +198,14 @@ TEST_F(DepfileParserTest, SpecialChars) {
 " en@quot.header~ t+t-x!=1 \\\n"
 " openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif\\\n"
 " Fu\303\244ball\\\n"
+" ampersand&Special\\\n"
 " a[1]b@2%c",
       &err));
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, parser_.outs_.size());
   EXPECT_EQ("C:/Program Files (x86)/Microsoft crtdefs.h",
             parser_.outs_[0].AsString());
-  ASSERT_EQ(5u, parser_.ins_.size());
+  ASSERT_EQ(6u, parser_.ins_.size());
   EXPECT_EQ("en@quot.header~",
             parser_.ins_[0].AsString());
   EXPECT_EQ("t+t-x!=1",
@@ -213,8 +214,10 @@ TEST_F(DepfileParserTest, SpecialChars) {
             parser_.ins_[2].AsString());
   EXPECT_EQ("Fu\303\244ball",
             parser_.ins_[3].AsString());
-  EXPECT_EQ("a[1]b@2%c",
+  EXPECT_EQ("ampersand&Special",
             parser_.ins_[4].AsString());
+  EXPECT_EQ("a[1]b@2%c",
+            parser_.ins_[5].AsString());
 }
 
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
