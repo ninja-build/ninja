@@ -409,3 +409,14 @@ TEST_F(DepfileParserTest, MissingColon) {
   EXPECT_FALSE(Parse("foo.o foo.c\n", &err));
   EXPECT_EQ("expected ':' in depfile", err);
 }
+
+TEST_F(DepfileParserTest, InvalidSeperator) {
+  // the variable name contains an illegal char ';'
+  std::string err;
+  EXPECT_FALSE(Parse("foo.o: fo;o.c\n", &err));
+  EXPECT_EQ("illegal character:\";\" ASCI:\"59\"", err);  
+
+  err.clear();
+  EXPECT_FALSE(Parse("fo;o.o: foo.c\n", &err));
+  EXPECT_EQ("illegal character:\";\" ASCI:\"59\"", err);  
+}
