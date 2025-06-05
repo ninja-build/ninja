@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <climits>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
@@ -1028,7 +1029,7 @@ int platformAwareUnlink(const char* filename) {
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-double GetFreeMemory() {
+long GetFreeMemory() {
     static long commited_idle = LONG_MAX;
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
@@ -1036,23 +1037,23 @@ double GetFreeMemory() {
     const long commited = (status.ullTotalPageFile - status.ullAvailPageFile);
     //since system use commited memory normaly, we store the smallest amount we have seen to guess how much
     // paging is non-ninja related
-    commited_idle = min(commited_idle, commited);
+    commited_idle = std::min(commited_idle, commited);
 
     return status.ullAvailPhys - (commited - commited_idle);
 }
 #elif defined(__UCLIBC__) || defined (__GNUC__)
-double GetFreeMemory() {
+long GetFreeMemory() {
   static long swapped_idle = LONG_MAX;
   struct sysinfo infos;
   sysinfo(&infos);
   const long swapped = (infos.totalswap - infos.freeswap);
   //since system use commited memory normaly, we store the smallest amount we have seen to guess how much
   // paging is non-ninja related
-  swapped_idle = min(swapped_idle, swapped);
+  swapped_idle = std::min(swapped_idle, swapped);
   return infos.freeram - (swapped - swapped_idle);
 }
 #else
-double GetFreeMemory() {
-    return std::numeric_limits<double>::max();
+long GetFreeMemory() {
+    return std::numeric_limits<long>::max();
 }
 #endif

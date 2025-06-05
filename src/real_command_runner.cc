@@ -74,17 +74,20 @@ size_t RealCommandRunner::CanRunMore() const {
       capacity = load_capacity;
   }
 
+  //this just pause the creation of new processes when we run out of ram
+  if (config_.desired_free_ram > 0) {
+    long memory_capacity = GetFreeMemory() / config_.desired_free_ram;
+    fprintf(stderr, "Mem cap=%ld\n", memory_capacity);
+    if (memory_capacity < capacity)
+      capacity = memory_capacity;
+  }
+
   if (capacity < 0)
     capacity = 0;
 
   if (capacity == 0 && subprocs_.running_.empty())
     // Ensure that we make progress.
     capacity = 1;
-
-  //this just pause the creation of new processes when we run out of ram, there is no way to estimate the number of process we can run.
-  if (config_.desired_free_ram > 0 && GetFreeMemory() < config_.desired_free_ram ) {
-    capacity = 0;
-  }
 
   return capacity;
 }
