@@ -81,7 +81,7 @@ size_t RealCommandRunner::CanRunMore() const {
     // Ensure that we make progress.
     capacity = 1;
 
-  //this just pause the creation of new processes when we run out of ran, there is no way to estimate the number of process we can run.
+  //this just pause the creation of new processes when we run out of ram, there is no way to estimate the number of process we can run.
   if (config_.desired_free_ram > 0 && GetFreeMemory() < config_.desired_free_ram ) {
     capacity = 0;
   }

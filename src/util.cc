@@ -1029,20 +1029,27 @@ int platformAwareUnlink(const char* filename) {
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 double GetFreeMemory() {
+    static long commited_idle = LONG_MAX;
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatusEx(&status);
-    //we can't measure the amount of process memory in the pagefile
-    //on my system the MEMORYSTATUSEX's paging info reports that im using 40GB or am at idle,
-    // so this is clearly not the information we want here
-    return status.ullAvailPhys;
+    const long commited = (status.ullTotalPageFile - status.ullAvailPageFile);
+    //since system use commited memory normaly, we store the smallest amount we have seen to guess how much
+    // paging is non-ninja related
+    commited_idle = min(commited_idle, commited);
+
+    return status.ullAvailPhys - (commited - commited_idle);
 }
 #elif defined(__UCLIBC__) || defined (__GNUC__)
 double GetFreeMemory() {
+  static long swapped_idle = LONG_MAX;
   struct sysinfo infos;
   sysinfo(&infos);
-
-  return infos.freeram - (infos.totalswap - infos.freeswap);
+  const long swapped = (infos.totalswap - infos.freeswap);
+  //since system use commited memory normaly, we store the smallest amount we have seen to guess how much
+  // paging is non-ninja related
+  swapped_idle = min(swapped_idle, swapped);
+  return infos.freeram - (swapped - swapped_idle);
 }
 #else
 double GetFreeMemory() {
