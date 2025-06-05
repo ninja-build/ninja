@@ -1685,6 +1685,23 @@ class DeferGuessParallelism {
   ~DeferGuessParallelism() { Refresh(); }
 };
 
+static inline constexpr long GetUnitToByteRatio(char unit) {
+  switch (unit) {
+  case 'G':
+  case 'g':
+    return 1e+9;
+  case 'M':
+  case 'm':
+    return 1e+6;
+  case 'K':
+  case 'k':
+    return 1e+3;
+  case 'B':
+    return 1;
+  }
+  return 0;
+}
+
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
@@ -1774,7 +1791,12 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_FREE_MEM: {
         char * end;
         long value = strtol(optarg, &end, 10);
-        if (*end != 0 || value < 0)
+        long multiplier = GetUnitToByteRatio(*end);
+        value *= multiplier;
+        //last char was the unit
+        if(multiplier > 0)
+          end++;
+        if (*end != 0 || value < 0 || multiplier == 0)
           Fatal("invalid --keep-free-memory parameter");
         config->desired_free_ram = value;
         break;
