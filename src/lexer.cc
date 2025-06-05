@@ -716,23 +716,25 @@ yy109:
 	if (yybm[0+yych] & 64) {
 		goto yy122;
 	}
-	if (yych <= ' ') {
+	if (yych <= '#') {
 		if (yych <= '\f') {
 			if (yych == '\n') goto yy114;
 			goto yy112;
 		} else {
 			if (yych <= '\r') goto yy117;
-			if (yych <= 0x1F) goto yy112;
-			goto yy118;
+			if (yych == ' ') goto yy118;
+			goto yy112;
 		}
 	} else {
-		if (yych <= '/') {
-			if (yych == '$') goto yy120;
+		if (yych <= ']') {
+			if (yych <= '$') goto yy120;
+			if (yych <= '/') goto yy112;
+			if (yych <= ':') goto yy125;
 			goto yy112;
 		} else {
-			if (yych <= ':') goto yy125;
+			if (yych <= '^') goto yy127;
 			if (yych <= '`') goto yy112;
-			if (yych <= '{') goto yy127;
+			if (yych <= '{') goto yy129;
 			goto yy112;
 		}
 	}
@@ -760,7 +762,7 @@ yy114:
     }
 yy117:
 	yych = *++p;
-	if (yych == '\n') goto yy128;
+	if (yych == '\n') goto yy130;
 	goto yy113;
 yy118:
 	++p;
@@ -790,26 +792,32 @@ yy125:
       continue;
     }
 yy127:
+	++p;
+	{
+      eval->AddText(StringPiece("\n", 1));
+      continue;
+    }
+yy129:
 	yych = *(q = ++p);
 	if (yybm[0+yych] & 128) {
-		goto yy131;
+		goto yy133;
 	}
 	goto yy113;
-yy128:
+yy130:
 	yych = *++p;
-	if (yych == ' ') goto yy128;
+	if (yych == ' ') goto yy130;
 	{
       continue;
     }
-yy131:
+yy133:
 	yych = *++p;
 	if (yybm[0+yych] & 128) {
-		goto yy131;
+		goto yy133;
 	}
-	if (yych == '}') goto yy134;
+	if (yych == '}') goto yy136;
 	p = q;
 	goto yy113;
-yy134:
+yy136:
 	++p;
 	{
       eval->AddSpecial(StringPiece(start + 2, p - start - 3));
