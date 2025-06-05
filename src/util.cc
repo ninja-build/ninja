@@ -1026,3 +1026,23 @@ int platformAwareUnlink(const char* filename) {
 		return unlink(filename);
 	#endif
 }
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+double GetFreeMemory() {
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    return status.ullAvailPhys - (status.ullTotalPageFile - status.ullAvailPageFile);
+}
+#elif defined(__UCLIBC__) || defined (__GNUC__)
+double GetFreeMemory() {
+  struct sysinfo infos;
+  sysinfo(&infos);
+
+  return infos.freeram - (infos.totalswap - infos.freeswap);
+}
+#else
+double GetFreeMemory() {
+    return std::numeric_limits<double>::max();
+}
+#endif

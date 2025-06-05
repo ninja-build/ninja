@@ -187,6 +187,7 @@ struct BuildConfig {
   int parallelism = 1;
   bool disable_jobserver_client = false;
   int failures_allowed = 1;
+  long desired_free_ram = -1;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
   double max_load_average = -0.0f;

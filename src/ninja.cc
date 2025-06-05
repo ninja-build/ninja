@@ -246,7 +246,8 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n"
+"  --keep-free-memory AMOUNT the amount of ram required to start a job\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -1690,12 +1691,13 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_FREE_MEM = 3 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
+    { "keep-free-memory", required_argument, NULL, OPT_FREE_MEM},
     { NULL, 0, NULL, 0 }
   };
 
@@ -1769,6 +1771,14 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_FREE_MEM: {
+        char * end;
+        long value = strtol(optarg, &end, 10);
+        if (*end != 0 || value < 0)
+          Fatal("invalid --keep-free-memory parameter");
+        config->desired_free_ram = value;
+        break;
+      }
       case 'h':
       default:
         deferGuessParallelism.Refresh();
