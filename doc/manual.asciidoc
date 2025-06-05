@@ -917,6 +917,8 @@ paths, where a space would otherwise separate filenames.  See below.)
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
 would otherwise terminate the list of outputs.)
 
+`$^` :: a newline. Inserts '\n' into the resulting string.
+
 `$$`:: a literal `$`.
 
 A `build` or `default` statement is first parsed as a space-separated

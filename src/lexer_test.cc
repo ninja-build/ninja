@@ -96,3 +96,12 @@ TEST(Lexer, Tabs) {
   EXPECT_EQ(Lexer::ERROR, token);
   EXPECT_EQ("tabs are not allowed, use spaces", lexer.DescribeLastError());
 }
+
+TEST(Lexer, EscapedNewlines) {
+  Lexer lexer("foo$\nbar$^newline foo\n");
+  EvalString eval;
+  string err;
+  EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("[foobar\nnewline foo]", eval.Serialize());
+}
