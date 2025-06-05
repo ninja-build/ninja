@@ -1032,7 +1032,10 @@ double GetFreeMemory() {
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatusEx(&status);
-    return status.ullAvailPhys - (status.ullTotalPageFile - status.ullAvailPageFile);
+    //we can't measure the amount of process memory in the pagefile
+    //on my system the MEMORYSTATUSEX's paging info reports that im using 40GB or am at idle,
+    // so this is clearly not the information we want here
+    return status.ullAvailPhys;
 }
 #elif defined(__UCLIBC__) || defined (__GNUC__)
 double GetFreeMemory() {
