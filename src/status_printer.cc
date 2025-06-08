@@ -397,6 +397,16 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
         Fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *s);
         return "";
       }
+
+      // OSC 9;4 ANSI Sequences
+      int percent = 0;
+      if (finished_edges_ != 0 && total_edges_ != 0)
+        percent = (100 * finished_edges_) / total_edges_;
+      snprintf(buf, sizeof(buf), "\033]9;4;1;%i\e\\", percent);
+      if (percent == 100)
+        snprintf(buf, sizeof(buf), "\033]9;4;0\e\\");
+      out += buf;
+
     } else {
       out.push_back(*s);
     }

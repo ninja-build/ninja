@@ -172,6 +172,10 @@ bool Subprocess::TryFinish(int waitpid_options) {
     return false; // Subprocess is alive (WNOHANG-only).
   pid_ = -1;
   exit_status_ = ParseExitStatus(status);
+
+  // Always reset OSC 9;4 progress status on exit
+  printf("\033]9;4;0\e\\");
+
   return true; // Subprocess has terminated.
 }
 
