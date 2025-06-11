@@ -1041,7 +1041,7 @@ long GetFreeMemory() {
 
     return status.ullAvailPhys - (committed - committed_idle);
 }
-#elif defined(__UCLIBC__) || defined (__GNUC__)
+#elif !defined(__APPLE__) && ( defined(__UCLIBC__) || defined (__GNUC__) )
 long GetFreeMemory() {
   static long swapped_idle = LONG_MAX;
   struct sysinfo infos;
