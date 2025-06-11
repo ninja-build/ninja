@@ -1030,16 +1030,16 @@ int platformAwareUnlink(const char* filename) {
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 long GetFreeMemory() {
-    static long commited_idle = LONG_MAX;
+    static long committed_idle = LONG_MAX;
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatusEx(&status);
-    const long commited = (status.ullTotalPageFile - status.ullAvailPageFile);
-    //since system use commited memory normaly, we store the smallest amount we have seen to guess how much
+    const long committed = (status.ullTotalPageFile - status.ullAvailPageFile);
+    //since system use committed memory normaly, we store the smallest amount we have seen to guess how much
     // paging is non-ninja related
-    commited_idle = std::min(commited_idle, commited);
+    committed_idle = std::min(committed_idle, committed);
 
-    return status.ullAvailPhys - (commited - commited_idle);
+    return status.ullAvailPhys - (committed - committed_idle);
 }
 #elif defined(__UCLIBC__) || defined (__GNUC__)
 long GetFreeMemory() {
