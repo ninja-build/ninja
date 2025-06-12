@@ -1685,7 +1685,7 @@ class DeferGuessParallelism {
   ~DeferGuessParallelism() { Refresh(); }
 };
 
-static inline constexpr long GetUnitToByteRatio(char unit) {
+static inline long GetUnitToByteRatio(char unit) {
   switch (unit) {
   case 'G':
   case 'g':

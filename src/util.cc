@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "util.h"
+#include <cstddef>
 
 #ifdef __CYGWIN__
 #include <windows.h>
@@ -45,6 +46,7 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#include <mach/mach.h>
 #elif defined(__SVR4) && defined(__sun)
 #include <unistd.h>
 #include <sys/loadavg.h>
@@ -1030,18 +1032,48 @@ int platformAwareUnlink(const char* filename) {
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 long GetFreeMemory() {
-    static long committed_idle = LONG_MAX;
-    MEMORYSTATUSEX status;
-    status.dwLength = sizeof(status);
-    GlobalMemoryStatusEx(&status);
-    const long committed = (status.ullTotalPageFile - status.ullAvailPageFile);
-    //since system use committed memory normaly, we store the smallest amount we have seen to guess how much
-    // paging is non-ninja related
-    committed_idle = std::min(committed_idle, committed);
+  static long committed_idle = LONG_MAX;
+  MEMORYSTATUSEX status;
+  status.dwLength = sizeof(status);
+  GlobalMemoryStatusEx(&status);
+  const long committed = (status.ullTotalPageFile - status.ullAvailPageFile);
+  //since system use committed memory normaly, we store the smallest amount we have seen to guess how much
+  // paging is non-ninja related
+  committed_idle = std::min(committed_idle, committed);
 
-    return status.ullAvailPhys - (committed - committed_idle);
+  return status.ullAvailPhys - (committed - committed_idle);
 }
-#elif !defined(__APPLE__) && ( defined(__UCLIBC__) || defined (__GNUC__) )
+#elif defined(__APPLE__)
+long GetFreeMemory() {
+  static uint64_t swapped_idle = LONG_MAX;
+  vm_size_t page_size;
+  vm_statistics64_data_t vm_stats;
+
+  mach_port_t port = mach_host_self();
+  mach_msg_type_number_t count = sizeof(vm_stats) / sizeof(natural_t);
+
+  size_t swap_stats_size = sizeof(xsw_usage);
+  xsw_usage swap_stats;
+
+  int ctl[] = {CTL_VM, VM_SWAPUSAGE};
+
+  int result = host_page_size(port, &page_size);
+  result += host_statistics64(port, HOST_VM_INFO,
+    reinterpret_cast<host_info64_t>(&vm_stats), &count);
+  result -= sysctl(ctl, 2, &swap_stats, &swap_stats_size, NULL, 0);
+
+  if (KERN_SUCCESS != result)
+    //information not available
+    return std::numeric_limits<long>::max();
+
+  //inactive is memory is marked to be moved to swap or is fs cache and should be considered as free
+  int64_t free_memory = (vm_stats.free_count + vm_stats.inactive_count ) * page_size;
+  //since inactive memory can be moved to the swap this value will be inexact, and i don't belive that there is a clean solution for that.
+  uint64_t used_swap = swap_stats.xsu_used;
+  swapped_idle = std::min(used_swap, swapped_idle);
+  return free_memory - (used_swap - swapped_idle);
+}
+#elif defined(__linux__)
 long GetFreeMemory() {
   static long swapped_idle = LONG_MAX;
   struct sysinfo infos;
@@ -1054,6 +1086,6 @@ long GetFreeMemory() {
 }
 #else
 long GetFreeMemory() {
-    return std::numeric_limits<long>::max();
+  return std::numeric_limits<long>::max();
 }
 #endif
