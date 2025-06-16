@@ -142,20 +142,22 @@ class PosixJobserverPool : public JobserverPool {
   // implicit job slot requirement.
   bool FillSlots(size_t slot_count, std::string* error) {
     job_count_ = slot_count;
-    for (; slot_count > 1; --slot_count) {
+    while (slot_count > 1) {
       // Write '+' into the pipe, just like GNU Make. Note that some
       // implementations write '|' instead, but so far no client or pool
       // implementation cares about the exact value, though the official spec
       // says this might change in the future.
       const char slot_char = '+';
       ssize_t ret = ::write(write_fd_, &slot_char, 1);
-      if (ret != 1) {
-        if (ret < 0 && errno == EINTR)
-          continue;
-        *error =
-            std::string("Could not fill job slots pool: ") + strerror(errno);
-        return false;
+      if (ret == 1) {
+        slot_count--;
+        continue;
       }
+      if (ret < 0 && errno == EINTR)
+        continue;
+
+      *error = std::string("Could not fill job slots pool: ") + strerror(errno);
+      return false;
     }
     return true;
   }

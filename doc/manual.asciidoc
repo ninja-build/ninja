@@ -192,12 +192,33 @@ GNU Jobserver support
 
 Since version 1.13., Ninja builds can follow the
 https://www.gnu.org/software/make/manual/html_node/Job-Slots.html[GNU Make jobserver]
-client protocol. This is useful when Ninja is invoked as part of a larger
-build system controlled by a top-level GNU Make instance, or any other
-jobserver pool implementation, as it allows better coordination between
-concurrent build tasks.
+protocol.
 
-This feature is automatically enabled under the following conditions:
+The protocol is useful to efficiently control parallelism across a set of
+concurrent and cooperating processes. This is useful when Ninja is invoked
+as part of a larger build system controlled by a top-level Ninja or
+GNU Make instance, or any other jobserver pool implementation.
+
+Ninja becomes a protocol client automatically if it detects the right
+values in the `MAKEFLAGS` environment variable (see exact conditions below).
+
+Since version 1.14, Ninja can also be a protocol server, if needed, using
+the `--jobserver-pool` command-line flag.
+
+In jobserver-enabled builds, there is one top-level "server" process which:
+
+- Sets up a shared pool of job tokens.
+- Sets the `MAKEFLAGS` environment variable with special values
+  to reference the pool.
+- Launches child processes (concurrent sub-commands).
+
+Said child processes can be protocol clients if they:
+
+- Recognize the special `MAKEFLAGS` values specific to the protocol.
+- Use it to access the shared pool to acquire and release job tokens
+  during the build.
+
+Ninja automatically becomes a protocol client during builds when:
 
 - Dry-run (i.e. `-n` or `--dry-run`) is not enabled.
 
@@ -208,17 +229,29 @@ This feature is automatically enabled under the following conditions:
   jobserver mode using `--jobserver-auth=SEMAPHORE_NAME` on Windows, or
   `--jobserver-auth=fifo:PATH` on Posix.
 
-In this case, Ninja will use the jobserver pool of job slots to control
-parallelism, instead of its default parallel implementation.
-
-Note that load-average limitations (i.e. when using `-l<count>`)
-are still being enforced in this mode.
-
 IMPORTANT: On Posix, only the FIFO-based version of the protocol, which is
 implemented by GNU Make 4.4 and higher, is supported. Ninja will detect
 when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
 `--jobserver-auth=<read>,<write>`) and will print a warning, but will
 otherwise ignore it.
+
+Using `--jobserver-pool` will make Ninja act as a protocol server, unless
+any of these are true:
+
+- An existing pool was detected, as this keeps all processes cooperating
+  properly.
+
+- `-j1` is used on the command-line, as this is asking Ninja to explicitly
+  not perform parallel builds.
+
+- Dry-run is enabled.
+
+The size of the pool setup by Ninja matches its parallel count, determined
+by the `-j<COUNT>` option, or auto-detected if that one is not provided.
+
+The load-average limitations (i.e. when using `-l<count>`) are still being
+enforced in both modes.
+
 
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
