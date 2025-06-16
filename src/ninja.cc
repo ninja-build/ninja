@@ -47,6 +47,7 @@
 #include "graph.h"
 #include "graphviz.h"
 #include "jobserver.h"
+#include "jobserver_pool.h"
 #include "json.h"
 #include "manifest_parser.h"
 #include "metrics.h"
@@ -83,6 +84,37 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+};
+
+/// Helper class used to manage the state of jobserver pool and client
+/// handling in a given NinjaMain instance.
+struct JobserverState {
+  JobserverState(const BuildConfig& config, Status* status) {
+    SetupPool(config, status);
+    SetupClient(config, status);
+  }
+
+  /// Return pointer to client instance or nullptr.
+  Jobserver::Client* client() { return client_.get(); }
+
+  /// Transfer ownership of client to caller.
+  std::unique_ptr<Jobserver::Client> TakeClient() { return std::move(client_); }
+
+ private:
+  /// Detect whether an external and supported jobserver pool is available.
+  /// On success, set |*config| and return true.
+  /// On failure, set |*error| and return false.
+  /// A pool with an unsupported scheme is an error.
+  bool HasExternalJobserverPool(std::string* error);
+  bool ShouldSetupPool(const BuildConfig& config, std::string* reason);
+  bool ShouldSetupClient(const BuildConfig& config, std::string* reason);
+  void SetupPool(const BuildConfig& config, Status* status);
+  void SetupClient(const BuildConfig& config, Status* status);
+
+  std::string makeflags_;
+  Jobserver::Config jobserver_config_;
+  std::unique_ptr<JobserverPool> pool_;
+  std::unique_ptr<Jobserver::Client> client_;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -164,10 +196,6 @@ struct NinjaMain : public BuildLogUser {
   /// and record that in the edge itself. It will be used for ETA prediction.
   void ParsePreviousElapsedTimes();
 
-  /// Create a jobserver client if needed. Return a nullptr value if
-  /// not. Prints info and warnings to \a status.
-  std::unique_ptr<Jobserver::Client> SetupJobserverClient(Status* status);
-
   /// Build the targets listed on the command line.
   /// @return an exit code.
   ExitStatus RunBuild(int argc, char** argv, Status* status);
@@ -225,29 +253,37 @@ struct Tool {
 
 /// Print usage information.
 void Usage(const BuildConfig& config) {
-  fprintf(stderr,
-"usage: ninja [options] [targets...]\n"
-"\n"
-"if targets are unspecified, builds the 'default' target (see manual).\n"
-"\n"
-"options:\n"
-"  --version      print ninja version (\"%s\")\n"
-"  -v, --verbose  show all command lines while building\n"
-"  --quiet        don't show progress status, just command output\n"
-"\n"
-"  -C DIR   change to DIR before doing anything else\n"
-"  -f FILE  specify input build file [default=build.ninja]\n"
-"\n"
-"  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
-"  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
-"  -l N     do not start new jobs if the load average is greater than N\n"
-"  -n       dry run (don't run commands but act like they succeeded)\n"
-"\n"
-"  -d MODE  enable debugging (use '-d list' to list modes)\n"
-"  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
-"    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
-          kNinjaVersion, config.parallelism);
+  fprintf(
+      stderr,
+      "usage: ninja [options] [targets...]\n"
+      "\n"
+      "if targets are unspecified, builds the 'default' target (see manual).\n"
+      "\n"
+      "options:\n"
+      "  --version      print ninja version (\"%s\")\n"
+      "  -v, --verbose  show all command lines while building\n"
+      "  --quiet        don't show progress status, just command output\n"
+      "\n"
+      "  -C DIR   change to DIR before doing anything else\n"
+      "  -f FILE  specify input build file [default=build.ninja]\n"
+      "\n"
+      "  -j N     run N jobs in parallel (0 means infinity) [default=%d on "
+      "this system]\n"
+      "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
+      "  -l N     do not start new jobs if the load average is greater than N\n"
+      "  -n       dry run (don't run commands but act like they succeeded)\n"
+      "\n"
+      "  -d MODE  enable debugging (use '-d list' to list modes)\n"
+      "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
+      "    terminates toplevel options; further flags are passed to the tool\n"
+      "  -w FLAG  adjust warnings (use '-w list' to list warnings)\n\n"
+
+      "  --jobserver-pool\n"
+      "           setup a GNU jobserver pool of job slots matching the\n"
+      "           current parallel job configuration. Ignored if -j1 is\n"
+      "           specified explicitly, or if an existing pool is detected\n\n",
+
+      kNinjaVersion, config.parallelism);
 }
 
 /// Choose a default value for the -j (parallelism) flag.
@@ -1546,47 +1582,115 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-std::unique_ptr<Jobserver::Client> NinjaMain::SetupJobserverClient(
-    Status* status) {
-  // Empty result by default.
-  std::unique_ptr<Jobserver::Client> result;
-
-  // If dry-run or explicit job count, don't even look at MAKEFLAGS
-  if (config_.disable_jobserver_client)
-    return result;
-
+bool JobserverState::HasExternalJobserverPool(std::string* error) {
   const char* makeflags = getenv("MAKEFLAGS");
+  makeflags_ = makeflags ? makeflags : "";
   if (!makeflags) {
-    // MAKEFLAGS is not defined.
-    return result;
+    return false;
   }
 
-  std::string err;
-  Jobserver::Config jobserver_config;
-  if (!Jobserver::ParseNativeMakeFlagsValue(makeflags, &jobserver_config,
-                                            &err)) {
+  if (!Jobserver::ParseNativeMakeFlagsValue(makeflags, &jobserver_config_,
+                                            error)) {
     // MAKEFLAGS is defined but could not be parsed correctly.
-    if (config_.verbosity > BuildConfig::QUIET)
-      status->Warning("Ignoring jobserver: %s [%s]", err.c_str(), makeflags);
-    return result;
+    return false;
+  }
+  if (!jobserver_config_.HasMode()) {
+    // This happens when the feature is disabled explicitly in MAKEFLAGS
+    // e.g. using "--jobserver-fds=-1,-1"
+    *error = "external pool is disabled";
+    return false;
+  }
+  return true;
+}
+
+bool JobserverState::ShouldSetupPool(const BuildConfig& config,
+                                     std::string* reason) {
+  if (config.parallelism == 1) {
+    *reason = "no parallelism (-j1) specified";
+    return false;
+  }
+  if (config.dry_run) {
+    *reason = "dry-run mode";
+    return false;
+  }
+  if (HasExternalJobserverPool(reason)) {
+    *reason = "external pool detected";
+    return false;
+  }
+  if (!reason->empty())
+    return false;
+
+  if (!config.jobserver_pool) {
+    return false;
+  }
+  *reason = "";
+  return true;
+}
+
+bool JobserverState::ShouldSetupClient(const BuildConfig& config,
+                                       std::string* reason) {
+  if (config.dry_run) {
+    *reason = "Dry-run mode";
+    return false;
+  }
+  if (config.explicit_parallelism && !config.jobserver_pool) {
+    *reason = "Explicit parallelism specified";
+    return false;
+  }
+  return HasExternalJobserverPool(reason);
+}
+
+void JobserverState::SetupPool(const BuildConfig& config, Status* status) {
+  std::string err;
+  if (!ShouldSetupPool(config, &err)) {
+    if (!err.empty() && config.verbosity >= BuildConfig::VERBOSE)
+      status->Info("not creating a jobserver pool: %s", err.c_str());
+    return;
   }
 
-  if (!jobserver_config.HasMode()) {
-    // MAKEFLAGS is defined, but does not describe a jobserver mode.
-    return result;
+  if (config.verbosity >= BuildConfig::VERBOSE)
+    status->Info("Creating jobserver pool for %d parallel jobs",
+                 config.parallelism);
+
+  err.clear();
+  pool_ = JobserverPool::Create(static_cast<size_t>(config.parallelism), &err);
+  if (!pool_.get()) {
+    if (config.verbosity > BuildConfig::QUIET)
+      status->Warning("Jobserver pool creation failed: %s", err.c_str());
+    return;
   }
 
-  if (config_.verbosity > BuildConfig::NO_STATUS_UPDATE) {
-    status->Info("Jobserver mode detected: %s", makeflags);
+  std::string makeflags = pool_->GetEnvMakeFlagsValue();
+
+  //  Set or override the MAKEFLAGS environment variable in
+  // the current process. This ensures it is passed to sub-commands
+  // as well.
+#ifdef _WIN32
+  std::string env = "MAKEFLAGS=" + makeflags;
+  _putenv(env.c_str());
+#else   // !_WIN32
+  setenv("MAKEFLAGS", makeflags.c_str(), 1);
+#endif  // !_WIN32
+}
+
+void JobserverState::SetupClient(const BuildConfig& config, Status* status) {
+  std::string err;
+  if (!ShouldSetupClient(config, &err)) {
+    if (!err.empty() && config.verbosity >= BuildConfig::VERBOSE)
+      status->Warning("ignoring jobserver: %s [%s]", err.c_str(),
+                      makeflags_.c_str());
+    return;
+  }
+  if (config.verbosity > BuildConfig::NO_STATUS_UPDATE) {
+    status->Info("Jobserver mode detected: %s", makeflags_.c_str());
   }
 
-  result = Jobserver::Client::Create(jobserver_config, &err);
-  if (!result.get()) {
+  client_ = Jobserver::Client::Create(jobserver_config_, &err);
+  if (!client_.get()) {
     // Jobserver client initialization failed !?
-    if (config_.verbosity > BuildConfig::QUIET)
+    if (config.verbosity > BuildConfig::QUIET)
       status->Error("Could not initialize jobserver: %s", err.c_str());
   }
-  return result;
 }
 
 ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
@@ -1599,16 +1703,14 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  // Detect jobserver context and inject Jobserver::Client into the builder
-  // if needed.
-  std::unique_ptr<Jobserver::Client> jobserver_client =
-      SetupJobserverClient(status);
+  // Setup jobserver pool and client if needed.
+  JobserverState jobserver_state(config_, status);
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
 
-  if (jobserver_client.get()) {
-    builder.SetJobserverClient(std::move(jobserver_client));
+  if (jobserver_state.client()) {
+    builder.SetJobserverClient(jobserver_state.TakeClient());
   }
 
   for (size_t i = 0; i < targets.size(); ++i) {
@@ -1690,14 +1792,14 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
-  const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { "version", no_argument, NULL, OPT_VERSION },
-    { "verbose", no_argument, NULL, 'v' },
-    { "quiet", no_argument, NULL, OPT_QUIET },
-    { NULL, 0, NULL, 0 }
-  };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_JOBSERVER_POOL = 3 };
+  const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
+                                  { "version", no_argument, NULL, OPT_VERSION },
+                                  { "verbose", no_argument, NULL, 'v' },
+                                  { "quiet", no_argument, NULL, OPT_QUIET },
+                                  { "jobserver-pool", no_argument, NULL,
+                                    OPT_JOBSERVER_POOL },
+                                  { NULL, 0, NULL, 0 } };
 
   int opt;
   while (!options->tool &&
@@ -1721,7 +1823,7 @@ int ReadFlags(int* argc, char*** argv,
         // is close enough to infinite for most sane builds.
         config->parallelism =
             static_cast<int>((value > 0 && value < INT_MAX) ? value : INT_MAX);
-        config->disable_jobserver_client = true;
+        config->explicit_parallelism = true;
         deferGuessParallelism.needGuess = false;
         break;
       }
@@ -1748,7 +1850,6 @@ int ReadFlags(int* argc, char*** argv,
       }
       case 'n':
         config->dry_run = true;
-        config->disable_jobserver_client = true;
         break;
       case 't':
         options->tool = ChooseTool(optarg);
@@ -1771,6 +1872,9 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_JOBSERVER_POOL:
+        config->jobserver_pool = true;
+        break;
       case 'h':
       default:
         deferGuessParallelism.Refresh();
@@ -1780,7 +1884,6 @@ int ReadFlags(int* argc, char*** argv,
   }
   *argv += optind;
   *argc -= optind;
-
   return -1;
 }
 
