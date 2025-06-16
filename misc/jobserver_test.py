@@ -31,6 +31,7 @@ _PLATFORM_IS_WINDOWS = platform.system() == "Windows"
 
 # Set this to True to debug command invocations.
 _DEBUG = False
+_DEBUG = True
 
 default_env = dict(os.environ)
 default_env.pop("NINJA_STATUS", None)
@@ -272,7 +273,7 @@ class JobserverTest(unittest.TestCase):
                 ret.check_returncode()
                 return ret.stdout, ret.stderr
 
-            output, error = run_ninja_with_jobserver_pipe(["all"])
+            output, error = run_ninja_with_jobserver_pipe(["-v", "all"])
             if _DEBUG:
                 print(f"OUTPUT [{output}]\nERROR [{error}]\n", file=sys.stderr)
             self.assertTrue(error.find("Pipe-based protocol is not supported!") >= 0)
@@ -282,13 +283,87 @@ class JobserverTest(unittest.TestCase):
 
             # Using an explicit -j<N> ignores the jobserver pool.
             b.ninja_clean()
-            output, error = run_ninja_with_jobserver_pipe(["-j1", "all"])
+            output, error = run_ninja_with_jobserver_pipe(["-v", "-j1", "all"])
             if _DEBUG:
                 print(f"OUTPUT [{output}]\nERROR [{error}]\n", file=sys.stderr)
             self.assertFalse(error.find("Pipe-based protocol is not supported!") >= 0)
 
             max_overlaps = compute_max_overlapped_spans(b.path, task_count)
             self.assertEqual(max_overlaps, 1)
+
+    def test_jobserver_pool_mode(self):
+        task_count = 4
+        build_plan = generate_build_plan(task_count)
+        with BuildDir(build_plan) as b:
+            # First, run the full tasks with with {task_count} tokens, this should allow all
+            # tasks to run in parallel.
+            ret = b.ninja_run(
+                ninja_args=["--jobserver-pool", "all"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, task_count)
+
+            # Second, use 2 tokens only, and verify that this was enforced by Ninja and
+            # that both a pool and a client were setup by Ninja.
+            b.ninja_clean()
+            ret = b.ninja_spawn(
+                ["-j2", "--jobserver-pool", "--verbose", "all"],
+                capture_output=True,
+            )
+            self.assertEqual(ret.returncode, 0)
+            self.assertTrue(
+                "ninja: Creating jobserver pool for 2 parallel jobs" in ret.stdout,
+                msg="Ninja failed to setup jobserver pool!",
+            )
+            self.assertTrue(
+                "ninja: Jobserver mode detected: " in ret.stdout,
+                msg="Ninja failed to setup jobserver client!",
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 2)
+
+            # Third, verify that --jobs=1 serializes all tasks.
+            b.ninja_clean()
+            b.ninja_run(
+                ["--jobserver-pool", "-j1", "all"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 1)
+
+            # On Linux, use taskset to limit the number of available cores to 1
+            # and verify that the jobserver overrides the default Ninja parallelism
+            # and that {task_count} tasks are still spawned in parallel.
+            if platform.system() == "Linux":
+                # First, run without a jobserver, with a single CPU, Ninja will
+                # use a parallelism of 2 in this case (GuessParallelism() in ninja.cc)
+                b.ninja_clean()
+                b.ninja_run(
+                    ["all"],
+                    prefix_args=["taskset", "-c", "0"],
+                )
+                max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+                self.assertEqual(max_overlaps, 2)
+
+                # Now with a jobserver with {task_count} tasks.
+                b.ninja_clean()
+                b.ninja_run(
+                    ["--jobserver-pool", f"-j{task_count}", "all"],
+                    prefix_args=["taskset", "-c", "0"],
+                )
+                max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+                self.assertEqual(max_overlaps, task_count)
+
+    def test_jobserver_pool_mode_ignored_with_existing_pool(self):
+        task_count = 4
+        build_plan = generate_build_plan(task_count)
+        with BuildDir(build_plan) as b:
+            # Setup a top-level pool with 2 jobs, and verify that `--jobserver-pool` respected it.
+            ret = b.ninja_run(
+                ninja_args=["--jobserver-pool", "all"],
+                prefix_args=[sys.executable, "-S", _JOBSERVER_POOL_SCRIPT, "--jobs=2"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 2)
 
     def _test_MAKEFLAGS_value(
         self, ninja_args: T.List[str] = [], prefix_args: T.List[str] = []
