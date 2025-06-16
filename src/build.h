@@ -186,6 +186,7 @@ struct BuildConfig {
   bool dry_run = false;
   int parallelism = 1;
   bool disable_jobserver_client = false;
+  bool jobserver_pool = false;
   int failures_allowed = 1;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
