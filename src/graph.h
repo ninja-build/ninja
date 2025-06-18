@@ -16,13 +16,15 @@
 #define NINJA_GRAPH_H_
 
 #include <algorithm>
+#include <queue>
 #include <set>
 #include <string>
 #include <vector>
-#include <queue>
 
 #include "dyndep.h"
 #include "eval_env.h"
+#include "explanations.h"
+#include "jobserver.h"
 #include "timestamp.h"
 #include "util.h"
 
@@ -200,9 +202,6 @@ struct Edge {
 
   void Dump(const char* prefix="") const;
 
-  // Append all edge explicit inputs to |*out|. Possibly with shell escaping.
-  void CollectInputs(bool shell_escape, std::vector<std::string>* out) const;
-
   // critical_path_weight is the priority during build scheduling. The
   // "critical path" between this edge's inputs and any target node is
   // the path which maximises the sum oof weights along that path.
@@ -265,6 +264,9 @@ struct Edge {
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
 
+  /// A Jobserver slot instance. Invalid by default.
+  Jobserver::Slot job_slot_;
+
   // Historical info: how long did this edge take last time,
   // as per .ninja_log, if known? Defaults to -1 if unknown.
   int64_t prev_elapsed_time_millis = -1;
@@ -283,9 +285,11 @@ typedef std::set<Edge*, EdgeCmp> EdgeSet;
 struct ImplicitDepLoader {
   ImplicitDepLoader(State* state, DepsLog* deps_log,
                     DiskInterface* disk_interface,
-                    DepfileParserOptions const* depfile_parser_options)
+                    DepfileParserOptions const* depfile_parser_options,
+                    Explanations* explanations)
       : state_(state), disk_interface_(disk_interface), deps_log_(deps_log),
-        depfile_parser_options_(depfile_parser_options) {}
+        depfile_parser_options_(depfile_parser_options),
+        explanations_(explanations) {}
 
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
@@ -319,6 +323,7 @@ struct ImplicitDepLoader {
   DiskInterface* disk_interface_;
   DepsLog* deps_log_;
   DepfileParserOptions const* depfile_parser_options_;
+  OptionalExplanations explanations_;
 };
 
 
@@ -327,11 +332,12 @@ struct ImplicitDepLoader {
 struct DependencyScan {
   DependencyScan(State* state, BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface,
-                 DepfileParserOptions const* depfile_parser_options)
-      : build_log_(build_log),
-        disk_interface_(disk_interface),
-        dep_loader_(state, deps_log, disk_interface, depfile_parser_options),
-        dyndep_loader_(state, disk_interface) {}
+                 DepfileParserOptions const* depfile_parser_options,
+                 Explanations* explanations)
+      : build_log_(build_log), disk_interface_(disk_interface),
+        dep_loader_(state, deps_log, disk_interface, depfile_parser_options,
+                    explanations),
+        dyndep_loader_(state, disk_interface), explanations_(explanations) {}
 
   /// Update the |dirty_| state of the given nodes by transitively inspecting
   /// their input edges.
@@ -375,10 +381,13 @@ struct DependencyScan {
   bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
                             const std::string& command, Node* output);
 
+  void RecordExplanation(const Node* node, const char* fmt, ...);
+
   BuildLog* build_log_;
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
+  OptionalExplanations explanations_;
 };
 
 // Implements a less comparison for edges by priority, where highest
@@ -415,6 +424,43 @@ public:
   void clear() {
     c.clear();
   }
+};
+
+/// A class used to collect the transitive set of inputs from a given set
+/// of starting nodes. Used to implement the `inputs` tool.
+///
+/// When collecting inputs, the outputs of phony edges are always ignored
+/// from the result, but are followed by the dependency walk.
+///
+/// Usage is:
+/// - Create instance.
+/// - Call VisitNode() for each root node to collect inputs from.
+/// - Call inputs() to retrieve the list of input node pointers.
+/// - Call GetInputsAsStrings() to retrieve the list of inputs as a string
+/// vector.
+///
+struct InputsCollector {
+  /// Visit a single @arg node during this collection.
+  void VisitNode(const Node* node);
+
+  /// Retrieve list of visited input nodes. A dependency always appears
+  /// before its dependents in the result, but final order depends on the
+  /// order of the VisitNode() calls performed before this.
+  const std::vector<const Node*>& inputs() const { return inputs_; }
+
+  /// Same as inputs(), but returns the list of visited nodes as a list of
+  /// strings, with optional shell escaping.
+  std::vector<std::string> GetInputsAsStrings(bool shell_escape = false) const;
+
+  /// Reset collector state.
+  void Reset() {
+    inputs_.clear();
+    visited_nodes_.clear();
+  }
+
+ private:
+  std::vector<const Node*> inputs_;
+  std::set<const Node*> visited_nodes_;
 };
 
 #endif  // NINJA_GRAPH_H_

@@ -17,10 +17,8 @@
 
 #include <stdio.h>
 
-#define EXPLAIN(fmt, ...) {                                             \
-  if (g_explaining)                                                     \
-    fprintf(stderr, "ninja explain: " fmt "\n", __VA_ARGS__);           \
-}
+struct Edge;
+struct Node;
 
 extern bool g_explaining;
 

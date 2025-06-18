@@ -15,7 +15,7 @@
 #ifdef _MSC_VER
 
 #include <windows.h>
-#include <DbgHelp.h>
+#include <dbghelp.h>
 
 #include "util.h"
 
@@ -51,8 +51,8 @@ void CreateWin32MiniDump(_EXCEPTION_POINTERS* pep) {
     return;
   }
 
-  MiniDumpWriteDumpFunc mini_dump_write_dump =
-      (MiniDumpWriteDumpFunc)GetProcAddress(dbghelp, "MiniDumpWriteDump");
+  MiniDumpWriteDumpFunc mini_dump_write_dump = FunctionCast
+      <MiniDumpWriteDumpFunc>(GetProcAddress(dbghelp, "MiniDumpWriteDump"));
   if (mini_dump_write_dump == NULL) {
     Error("failed to create minidump: GetProcAddress('MiniDumpWriteDump'): %s",
           GetLastErrorString().c_str());

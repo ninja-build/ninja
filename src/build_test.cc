@@ -20,8 +20,9 @@
 
 #include "build_log.h"
 #include "deps_log.h"
+#include "exit_status.h"
 #include "graph.h"
-#include "status.h"
+#include "status_printer.h"
 #include "test.h"
 
 using namespace std;
@@ -616,8 +617,8 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
   command_runner_.commands_ran_.clear();
   builder.command_runner_.reset(&command_runner_);
   if (!builder.AlreadyUpToDate()) {
-    bool build_res = builder.Build(&err);
-    EXPECT_TRUE(build_res);
+    ExitStatus build_res = builder.Build(&err);
+    EXPECT_EQ(build_res, ExitSuccess);
   }
   builder.command_runner_.release();
 }
@@ -823,7 +824,7 @@ TEST_F(BuildTest, OneStep) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -837,7 +838,7 @@ TEST_F(BuildTest, OneStep2) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -848,7 +849,7 @@ TEST_F(BuildTest, TwoStep) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   // Depending on how the pointers work out, we could've ran
@@ -868,7 +869,7 @@ TEST_F(BuildTest, TwoStep) {
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("cat12", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(5u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cat in1 in2 > cat2", command_runner_.commands_ran_[3]);
@@ -886,7 +887,7 @@ TEST_F(BuildTest, TwoOutputs) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("touch out1 out2", command_runner_.commands_ran_[0]);
@@ -902,7 +903,7 @@ TEST_F(BuildTest, ImplicitOutput) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[0]);
@@ -924,7 +925,7 @@ TEST_F(BuildTest, MultiOutIn) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 }
 
@@ -940,7 +941,7 @@ TEST_F(BuildTest, Chain) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(4u, command_runner_.commands_ran_.size());
 
@@ -960,7 +961,7 @@ TEST_F(BuildTest, Chain) {
   EXPECT_TRUE(builder_.AddTarget("c5", &err));
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());  // 3->4, 4->5
 }
 
@@ -1001,7 +1002,7 @@ TEST_F(BuildTest, MakeDirs) {
   EXPECT_TRUE(builder_.AddTarget("subdir/dir2/file", &err));
 
   EXPECT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, fs_.directories_made_.size());
   EXPECT_EQ("subdir", fs_.directories_made_[0]);
@@ -1086,7 +1087,7 @@ TEST_F(BuildTest, EncounterReadyTwice) {
   EXPECT_TRUE(builder_.AddTarget("a", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
@@ -1119,7 +1120,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
 
   // explicit dep dirty, expect a rebuild.
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
@@ -1134,7 +1135,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
@@ -1156,7 +1157,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -1174,7 +1175,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 
   // foo.o and order-only dep dirty, build both.
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
@@ -1190,7 +1191,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
@@ -1202,7 +1203,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cc oo.h.in", command_runner_.commands_ran_[0]);
@@ -1251,7 +1252,7 @@ TEST_F(BuildTest, Phony) {
 
   // Only one command to run, because phony runs no command.
   EXPECT_FALSE(builder_.AlreadyUpToDate());
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -1345,7 +1346,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.AddTarget("test6", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
 
   string ci;
@@ -1363,8 +1364,9 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     // Build number 1
     EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
     ASSERT_EQ("", err);
-    if (!builder_.AlreadyUpToDate())
-      EXPECT_TRUE(builder_.Build(&err));
+    if (!builder_.AlreadyUpToDate()) {
+      EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+    }
     ASSERT_EQ("", err);
 
     // Touch the input file
@@ -1378,7 +1380,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     // Second build, expect testN edge to be rebuilt
     // and phonyN node's mtime to be updated.
     EXPECT_FALSE(builder_.AlreadyUpToDate());
-    EXPECT_TRUE(builder_.Build(&err));
+    EXPECT_EQ(builder_.Build(&err), ExitSuccess);
     ASSERT_EQ("", err);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
     EXPECT_EQ(string("touch test") + ci, command_runner_.commands_ran_[0]);
@@ -1404,7 +1406,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
     ASSERT_EQ("", err);
     EXPECT_FALSE(builder_.AlreadyUpToDate());
-    EXPECT_TRUE(builder_.Build(&err));
+    EXPECT_EQ(builder_.Build(&err), ExitSuccess);
     ASSERT_EQ("", err);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
     EXPECT_EQ("touch test" + ci, command_runner_.commands_ran_[0]);
@@ -1414,7 +1416,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     EXPECT_TRUE(builder_.AddTarget("test" + ci, &err));
     ASSERT_EQ("", err);
     EXPECT_FALSE(builder_.AlreadyUpToDate());
-    EXPECT_TRUE(builder_.Build(&err));
+    EXPECT_EQ(builder_.Build(&err), ExitSuccess);
     ASSERT_EQ("", err);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
     EXPECT_EQ("touch test" + ci, command_runner_.commands_ran_[0]);
@@ -1438,7 +1440,7 @@ TEST_F(BuildTest, Fail) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommand failed", err);
 }
@@ -1459,7 +1461,7 @@ TEST_F(BuildTest, SwallowFailures) {
   EXPECT_TRUE(builder_.AddTarget("all", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("subcommands failed", err);
 }
@@ -1480,7 +1482,7 @@ TEST_F(BuildTest, SwallowFailuresLimit) {
   EXPECT_TRUE(builder_.AddTarget("final", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
 }
@@ -1504,7 +1506,7 @@ TEST_F(BuildTest, SwallowFailuresPool) {
   EXPECT_TRUE(builder_.AddTarget("final", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   ASSERT_EQ("cannot make progress due to previous errors", err);
 }
@@ -1578,7 +1580,7 @@ TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate2) {
   EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
   command_runner_.commands_ran_.clear();
@@ -1601,7 +1603,7 @@ TEST_F(BuildWithLogTest, ImplicitGeneratedOutOfDate2) {
   EXPECT_TRUE(builder_.AddTarget("out.imp", &err));
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
   command_runner_.commands_ran_.clear();
@@ -1635,7 +1637,7 @@ TEST_F(BuildWithLogTest, NotInLogButOnDisk) {
   state_.Reset();
 
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
@@ -1651,7 +1653,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
 
   // Run once successfully to get out1 in the log
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 
@@ -1665,7 +1667,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
 
   // Run again with a failure that updates the output file timestamp
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   EXPECT_EQ("subcommand failed", err);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 
@@ -1679,7 +1681,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
   // Run again, should rerun even though the output file is up to date on disk
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_FALSE(builder_.AlreadyUpToDate());
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("", err);
 }
@@ -1697,7 +1699,7 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
 
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
 
@@ -1710,7 +1712,7 @@ TEST_F(BuildWithLogTest, RebuildWithNoInputs) {
 
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -1741,10 +1743,10 @@ TEST_F(BuildWithLogTest, RestatTest) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(3u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(3u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(3), command_runner_.commands_ran_.size());
+  EXPECT_EQ(3, builder_.plan_.command_edge_count());
   command_runner_.commands_ran_.clear();
   state_.Reset();
 
@@ -1755,7 +1757,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   // touch out2, we should cancel the build of out3.
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // If we run again, it should be a no-op, because the build log has recorded
@@ -1776,7 +1778,7 @@ TEST_F(BuildWithLogTest, RestatTest) {
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 }
 
@@ -1803,7 +1805,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   command_runner_.commands_ran_.clear();
   state_.Reset();
@@ -1817,7 +1819,7 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
   // we shouldn't run the dependent build.
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
@@ -1839,7 +1841,7 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out4", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 
@@ -1851,12 +1853,12 @@ TEST_F(BuildWithLogTest, RestatSingleDependentOutputDirty) {
   // out2 and out3 will be built even though "in" is not touched when built.
   // Then, since out2 is rebuilt, out4 should be rebuilt -- the restat on the
   // "true" rule should not lead to the "touch" edge writing out2 and out3 being
-  // cleard.
+  // cleared.
   command_runner_.commands_ran_.clear();
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out4", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 }
@@ -1888,7 +1890,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
 
   // See that an entry in the logfile is created, capturing
@@ -1906,7 +1908,7 @@ TEST_F(BuildWithLogTest, RestatMissingInput) {
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // Check that the logfile entry remains correctly set
@@ -1932,10 +1934,10 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(2u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(2u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(2), command_runner_.commands_ran_.size());
+  EXPECT_EQ(2, builder_.plan_.command_edge_count());
   BuildLog::LogEntry* log_entry = build_log_.LookupByOutput("out1");
   ASSERT_TRUE(NULL != log_entry);
   ASSERT_EQ(2u, log_entry->mtime);
@@ -1955,10 +1957,10 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   EXPECT_TRUE(!state_.GetNode("out1", 0)->dirty());
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ(1u, builder_.plan_.command_edge_count());
+  EXPECT_EQ(size_t(1), command_runner_.commands_ran_.size());
+  EXPECT_EQ(1, builder_.plan_.command_edge_count());
 }
 
 TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
@@ -1976,7 +1978,7 @@ TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 
   command_runner_.commands_ran_.clear();
@@ -2019,7 +2021,30 @@ TEST_F(BuildDryRun, AllCommandsShown) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out3", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildDryRun, WithDyndep) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"rule cp\n"
+"  command = cp $in $out\n"
+"build dd: cp dd-in\n"
+"build out: touch || dd\n"
+"  dyndep = dd\n"
+"build out-copy: cp out\n"
+));
+  fs_.Create("dd-in",
+"ninja_dyndep_version = 1\n"
+"build out: dyndep\n"
+);
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out-copy", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 }
 
@@ -2062,7 +2087,7 @@ TEST_F(BuildTest, RspFileSuccess)
   size_t files_created = fs_.files_created_.size();
   size_t files_removed = fs_.files_removed_.size();
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 
   // The RSP files and temp file to acquire output mtimes were created
@@ -2099,7 +2124,7 @@ TEST_F(BuildTest, RspFileFailure) {
   size_t files_created = fs_.files_created_.size();
   size_t files_removed = fs_.files_removed_.size();
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ("subcommand failed", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
@@ -2137,7 +2162,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   ASSERT_EQ("", err);
 
   // 1. Build for the 1st time (-> populate log)
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // 2. Build again (no change)
@@ -2160,7 +2185,7 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
@@ -2183,7 +2208,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_EQ("", err);
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitInterrupted);
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
   EXPECT_GT(fs_.Stat("out1", &err), 0);
@@ -2192,7 +2217,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   // A touched output of an interrupted command should be deleted.
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   EXPECT_EQ("", err);
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitInterrupted);
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
   EXPECT_EQ(0, fs_.Stat("out2", &err));
@@ -2234,7 +2259,7 @@ TEST_F(BuildTest, PhonyWithNoInputs) {
   state_.Reset();
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -2252,7 +2277,7 @@ TEST_F(BuildTest, DepsGccWithEmptyDepfileErrorsOut) {
   ASSERT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   ASSERT_EQ("subcommand failed", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -2300,7 +2325,7 @@ TEST_F(BuildTest, FailedDepsParse) {
   // path to the left of the colon.
   fs_.Create("in1.d", "AAA BBB");
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   EXPECT_EQ("subcommand failed", err);
 }
 
@@ -2340,7 +2365,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileMSVC) {
   std::string err;
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'using in1' && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2369,7 +2394,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOneLine) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   fs_.Create("in.d", "out1 out2: in1 in2");
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out1 out2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2400,7 +2425,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCMultiLineInput) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   fs_.Create("in.d", "out1 out2: in1\nout1 out2: in2");
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out1 out2: in1\\nout1 out2: in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2431,7 +2456,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCMultiLineOutput) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   fs_.Create("in.d", "out1: in1 in2\nout2: in1 in2");
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out1: in1 in2\\nout2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2462,7 +2487,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlyMainOutput) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   fs_.Create("in.d", "out1: in1 in2");
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out1: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2495,7 +2520,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
   fs_.Create("in.d", "out2: in1 in2");
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
@@ -2563,7 +2588,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     fs_.Create("in1.d", "out: in2");
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // The deps file should have been removed.
@@ -2593,7 +2618,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // We should have rebuilt the output due to in2 being
@@ -2633,7 +2658,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     builder.command_runner_.reset(&command_runner_);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     deps_log.Close();
@@ -2667,7 +2692,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     // Recreate the deps file here because the build expects them to exist.
     fs_.Create("in1.d", "out: ");
 
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // We should have rebuilt the output due to the deps being
@@ -2701,7 +2726,7 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   string err;
   EXPECT_TRUE(builder.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder.Build(&err));
+  EXPECT_EQ(builder.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   builder.command_runner_.release();
@@ -2736,7 +2761,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
     // Run the build, out gets built, dep file is created
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     // See that an entry in the logfile is created. the input_mtime is 1 since that was
@@ -2760,7 +2785,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     // Check that the logfile entry is still correct
@@ -2816,7 +2841,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // Run the build, out gets built, dep file is created
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     // See that an entry in the logfile is created. the mtime is 1 due to the command
@@ -2838,7 +2863,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     builder.command_runner_.release();
@@ -2873,7 +2898,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     builder.command_runner_.release();
@@ -2889,7 +2914,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
     builder.command_runner_.release();
@@ -2929,7 +2954,7 @@ TEST_F(BuildTest, RestatDepfileDependency) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 }
 
@@ -2961,7 +2986,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     fs_.Create("in1.d", "out: header.h");
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     deps_log.Close();
@@ -2987,7 +3012,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // Rule "true" should have run again, but the build of "out" should have
@@ -3020,7 +3045,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
     fs_.Create("fo o.o.d", "fo\\ o.o: blah.h bar.h\n");
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     deps_log.Close();
@@ -3091,7 +3116,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
 
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
@@ -3115,7 +3140,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
 
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
@@ -3168,7 +3193,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     // Note, different slashes from manifest.
     fs_.Create("a/b\\c\\d/e/fo o.o.d",
                "a\\b\\c\\d\\e\\fo\\ o.o: blah.h bar.h\n");
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     deps_log.Close();
@@ -3260,7 +3285,7 @@ TEST_F(BuildWithDepsLogTest, RestatMissingDepfileDepslog) {
 
   // Touch 'header.in', blank dependencies log (create a different one).
   // Building header.h triggers 'restat' outputs cleanup.
-  // Validate that out is rebuilt netherless, as deps are missing.
+  // Validate that out is rebuilt nevertheless, as deps are missing.
   fs_.Tick();
   fs_.Create("header.in", "");
 
@@ -3319,7 +3344,7 @@ TEST_F(BuildTest, Console) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("cons", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 }
@@ -3360,7 +3385,7 @@ TEST_F(BuildTest, DyndepReadyImplicitConnection) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
   EXPECT_EQ("touch tmp tmp.imp", command_runner_.commands_ran_[0]);
@@ -3427,7 +3452,7 @@ TEST_F(BuildTest, DyndepBuild) {
   EXPECT_EQ("", err);
 
   size_t files_created = fs_.files_created_.size();
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
@@ -3490,7 +3515,7 @@ TEST_F(BuildTest, DyndepBuildUnrelatedOutput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3522,7 +3547,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(2u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3624,7 +3649,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewInput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3684,7 +3709,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewInputWithTransitiveValidation) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(4u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3717,7 +3742,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverImplicitConnection) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3753,7 +3778,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverOutputAndDepfileInput) {
   // Loading the depfile did not give tmp.imp a phony input edge.
   ASSERT_FALSE(GetNode("tmp.imp")->in_edge());
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   // Loading the dyndep file gave tmp.imp a real input edge.
@@ -3792,7 +3817,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdge) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3823,7 +3848,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdgeAndDependent) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3894,7 +3919,7 @@ TEST_F(BuildWithLogTest, DyndepBuildDiscoverRestat) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
@@ -3910,7 +3935,7 @@ TEST_F(BuildWithLogTest, DyndepBuildDiscoverRestat) {
   // touch "out1", we should cancel the build of "out2".
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("true", command_runner_.commands_ran_[0]);
 }
@@ -3951,7 +3976,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverScheduledEdge) {
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   // Depending on how the pointers in Plan::ready_ work out, the first
@@ -4002,7 +4027,7 @@ TEST_F(BuildTest, DyndepTwoLevelDirect) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd1-in dd1", command_runner_.commands_ran_[0]);
@@ -4047,7 +4072,7 @@ TEST_F(BuildTest, DyndepTwoLevelIndirect) {
   string err;
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd1-in dd1", command_runner_.commands_ran_[0]);
@@ -4087,7 +4112,7 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredReady) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(4u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd1-in dd1", command_runner_.commands_ran_[0]);
@@ -4127,7 +4152,7 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
   ASSERT_EQ(5u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cp dd1-in dd1", command_runner_.commands_ran_[0]);
@@ -4149,7 +4174,7 @@ TEST_F(BuildTest, Validation) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
@@ -4165,7 +4190,7 @@ TEST_F(BuildTest, Validation) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -4182,7 +4207,7 @@ TEST_F(BuildTest, Validation) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -4201,7 +4226,7 @@ TEST_F(BuildTest, ValidationDependsOnOutput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
@@ -4216,7 +4241,7 @@ TEST_F(BuildTest, ValidationDependsOnOutput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
@@ -4232,7 +4257,7 @@ TEST_F(BuildTest, ValidationDependsOnOutput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -4269,11 +4294,11 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     ASSERT_EQ("", err);
 
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // On the first build, only the out2 command is run.
-    ASSERT_EQ(command_runner_.commands_ran_.size(), 1);
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(1));
     EXPECT_EQ("cat in3 > out2", command_runner_.commands_ran_[0]);
 
     // The deps file should have been removed.
@@ -4305,11 +4330,11 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     ASSERT_EQ("", err);
 
-    EXPECT_TRUE(builder.Build(&err));
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     // The out and validate actions should have been run as well as out2.
-    ASSERT_EQ(command_runner_.commands_ran_.size(), 3);
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(3));
     // out has to run first, as both out2 and validate depend on it.
     EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
 
@@ -4330,7 +4355,7 @@ TEST_F(BuildTest, ValidationCircular) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   EXPECT_EQ(2u, command_runner_.commands_ran_.size());
@@ -4345,7 +4370,7 @@ TEST_F(BuildTest, ValidationCircular) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -4361,7 +4386,7 @@ TEST_F(BuildTest, ValidationCircular) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  EXPECT_TRUE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());

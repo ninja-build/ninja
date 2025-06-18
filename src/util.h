@@ -26,27 +26,26 @@
 #include <string>
 #include <vector>
 
-#ifdef _MSC_VER
-#define NORETURN __declspec(noreturn)
+#if !defined(__has_cpp_attribute)
+#  define __has_cpp_attribute(x)  0
+#endif
+
+#if __has_cpp_attribute(noreturn)
+#  define NORETURN [[noreturn]]
 #else
-#define NORETURN __attribute__((noreturn))
+#  define NORETURN  // nothing for old compilers
 #endif
 
 /// Log a fatal message and exit.
 NORETURN void Fatal(const char* msg, ...);
 
 // Have a generic fall-through for different versions of C/C++.
-#if defined(__cplusplus) && __cplusplus >= 201703L
-#define NINJA_FALLTHROUGH [[fallthrough]]
-#elif defined(__cplusplus) && __cplusplus >= 201103L && defined(__clang__)
-#define NINJA_FALLTHROUGH [[clang::fallthrough]]
-#elif defined(__cplusplus) && __cplusplus >= 201103L && defined(__GNUC__) && \
-    __GNUC__ >= 7
-#define NINJA_FALLTHROUGH [[gnu::fallthrough]]
-#elif defined(__GNUC__) && __GNUC__ >= 7 // gcc 7
-#define NINJA_FALLTHROUGH __attribute__ ((fallthrough))
-#else // C++11 on gcc 6, and all other cases
-#define NINJA_FALLTHROUGH
+#if __has_cpp_attribute(fallthrough)
+#  define NINJA_FALLTHROUGH [[fallthrough]]
+#elif defined(__clang__)
+#  define NINJA_FALLTHROUGH [[clang::fallthrough]]
+#else
+#  define NINJA_FALLTHROUGH // nothing
 #endif
 
 /// Log a warning message.
@@ -103,9 +102,8 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
-/// Elide the given string @a str with '...' in the middle if the length
-/// exceeds @a width.
-std::string ElideMiddle(const std::string& str, size_t width);
+/// a wrapper for getcwd()
+std::string GetWorkingDirectory();
 
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
@@ -113,7 +111,6 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #define fileno _fileno
-#define unlink _unlink
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
@@ -126,6 +123,18 @@ std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+
+/// Naive implementation of C++ 20 std::bit_cast(), used to fix Clang and GCC
+/// [-Wcast-function-type] warning on casting result of GetProcAddress().
+template <class To, class From>
+inline To FunctionCast(From from) {
+	static_assert(sizeof(To) == sizeof(From), "");
+	To result;
+	memcpy(&result, &from, sizeof(To));
+	return result;
+}
 #endif
+
+int platformAwareUnlink(const char* filename);
 
 #endif  // NINJA_UTIL_H_

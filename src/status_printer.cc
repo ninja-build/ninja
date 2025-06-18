@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "status.h"
+#include "status_printer.h"
 
 #ifdef _WIN32
 #include "win32port.h"
@@ -31,9 +31,15 @@
 #include <io.h>
 #endif
 
+#include "build.h"
 #include "debug_flags.h"
+#include "exit_status.h"
 
 using namespace std;
+
+Status* Status::factory(const BuildConfig& config) {
+  return new StatusPrinter(config);
+}
 
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config), started_edges_(0), finished_edges_(0), total_edges_(0),
@@ -169,7 +175,7 @@ void StatusPrinter::RecalculateProgressPrediction() {
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                      int64_t end_time_millis, bool success,
+                                      int64_t end_time_millis, ExitStatus exit_code,
                                       const string& output) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
@@ -197,21 +203,28 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   --running_edges_;
 
   // Print the command that is spewing before printing its output.
-  if (!success) {
+  if (exit_code != ExitSuccess) {
     string outputs;
     for (vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o)
       outputs += (*o)->path() + " ";
 
+    string failed = "FAILED: [code=" + std::to_string(exit_code) + "] ";
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+        printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+        printer_.PrintOnNewLine(failed + outputs + "\n");
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
 
   if (!output.empty()) {
+#ifdef _WIN32
+    // Fix extra CR being added on Windows, writing out CR CR LF (#773)
+    fflush(stdout);  // Begin Windows extra CR fix
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
     // ninja sets stdout and stderr of subprocesses to a pipe, to be able to
     // check if the output is empty. Some compilers, e.g. clang, check
     // isatty(stderr) to decide if they should print colored output.
@@ -223,39 +236,18 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
     // (Launching subprocesses in pseudo ttys doesn't work because there are
     // only a few hundred available on some systems, and ninja can launch
     // thousands of parallel compile commands.)
-    string final_output;
-    if (!printer_.supports_color())
-      final_output = StripAnsiEscapeCodes(output);
-    else
-      final_output = output;
-
-#ifdef _WIN32
-    // Fix extra CR being added on Windows, writing out CR CR LF (#773)
-    fflush(stdout);  // Begin Windows extra CR fix
-    _setmode(_fileno(stdout), _O_BINARY);
-#endif
-
-    printer_.PrintOnNewLine(final_output);
+    if (printer_.supports_color() || output.find('\x1b') == std::string::npos) {
+      printer_.PrintOnNewLine(output);
+    } else {
+      std::string final_output = StripAnsiEscapeCodes(output);
+      printer_.PrintOnNewLine(final_output);
+    }
 
 #ifdef _WIN32
     fflush(stdout);
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
-}
-
-void StatusPrinter::BuildLoadDyndeps() {
-  // The DependencyScan calls EXPLAIN() to print lines explaining why
-  // it considers a portion of the graph to be out of date.  Normally
-  // this is done before the build starts, but our caller is about to
-  // load a dyndep file during the build.  Doing so may generate more
-  // explanation lines (via fprintf directly to stderr), but in an
-  // interactive console the cursor is currently at the end of a status
-  // line.  Start a new line so that the first explanation does not
-  // append to the status line.  After the explanations are done a
-  // new build status line will appear.
-  if (g_explaining)
-    printer_.PrintOnNewLine("");
 }
 
 void StatusPrinter::BuildStarted() {
@@ -414,6 +406,22 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 }
 
 void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
+  if (explanations_) {
+    // Collect all explanations for the current edge's outputs.
+    std::vector<std::string> explanations;
+    for (Node* output : edge->outputs_) {
+      explanations_->LookupAndAppend(output, &explanations);
+    }
+    if (!explanations.empty()) {
+      // Start a new line so that the first explanation does not append to the
+      // status line.
+      printer_.PrintOnNewLine("");
+      for (const auto& exp : explanations) {
+        fprintf(stderr, "ninja explain: %s\n", exp.c_str());
+      }
+    }
+  }
+
   if (config_.verbosity == BuildConfig::QUIET
       || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;

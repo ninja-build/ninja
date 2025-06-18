@@ -20,10 +20,11 @@
 import time
 import subprocess
 import sys
+from typing import Union, List
 
 devnull = open('/dev/null', 'w')
 
-def run(cmd, repeat=10):
+def run(cmd: Union[str, List[str]], repeat: int = 10) -> None:
     print('sampling:', end=' ')
     sys.stdout.flush()
 

@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdio.h>
+#include <map>
+#include <vector>
+#include <string>
+
+#include "graph.h"
+
 bool g_explaining = false;
 
 bool g_keep_depfile = false;

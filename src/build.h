@@ -22,14 +22,16 @@
 #include <vector>
 
 #include "depfile_parser.h"
-#include "graph.h"
 #include "exit_status.h"
+#include "graph.h"
+#include "jobserver.h"
 #include "util.h"  // int64_t
 
 struct BuildLog;
 struct Builder;
 struct DiskInterface;
 struct Edge;
+struct Explanations;
 struct Node;
 struct State;
 struct Status;
@@ -140,6 +142,8 @@ private:
   int wanted_edges_;
 };
 
+struct BuildConfig;
+
 /// CommandRunner is an interface that wraps running the build
 /// subcommands.  This allows tests to abstract out running commands.
 /// RealCommandRunner is an implementation that actually runs commands.
@@ -161,12 +165,16 @@ struct CommandRunner {
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
+
+  /// Creates the RealCommandRunner. \arg jobserver can be nullptr if there
+  /// is no jobserver pool to use.
+  static CommandRunner* factory(const BuildConfig& config,
+                                Jobserver::Client* jobserver);
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
 struct BuildConfig {
-  BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
-                  failures_allowed(1), max_load_average(-0.0f) {}
+  BuildConfig() = default;
 
   enum Verbosity {
     QUIET,  // No output -- used when testing.
@@ -174,23 +182,28 @@ struct BuildConfig {
     NORMAL,  // regular output and status update
     VERBOSE
   };
-  Verbosity verbosity;
-  bool dry_run;
-  int parallelism;
-  int failures_allowed;
+  Verbosity verbosity = NORMAL;
+  bool dry_run = false;
+  int parallelism = 1;
+  bool disable_jobserver_client = false;
+  int failures_allowed = 1;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
-  double max_load_average;
+  double max_load_average = -0.0f;
   DepfileParserOptions depfile_parser_options;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
 struct Builder {
-  Builder(State* state, const BuildConfig& config,
-          BuildLog* build_log, DepsLog* deps_log,
-          DiskInterface* disk_interface, Status* status,
+  Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+          DepsLog* deps_log, DiskInterface* disk_interface, Status* status,
           int64_t start_time_millis);
   ~Builder();
+
+  /// Set Jobserver client instance for this builder.
+  void SetJobserverClient(std::unique_ptr<Jobserver::Client> jobserver_client) {
+    jobserver_ = std::move(jobserver_client);
+  }
 
   /// Clean up after interrupted commands by deleting output files.
   void Cleanup();
@@ -204,9 +217,9 @@ struct Builder {
   /// Returns true if the build targets are already up to date.
   bool AlreadyUpToDate() const;
 
-  /// Run the build.  Returns false on error.
+  /// Run the build.  Returns ExitStatus or the exit code of the last failed job.
   /// It is an error to call this function when AlreadyUpToDate() is true.
-  bool Build(std::string* err);
+  ExitStatus Build(std::string* err);
 
   bool StartEdge(Edge* edge, std::string* err);
 
@@ -225,8 +238,13 @@ struct Builder {
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
+  std::unique_ptr<Jobserver::Client> jobserver_;
   std::unique_ptr<CommandRunner> command_runner_;
   Status* status_;
+
+  /// Returns ExitStatus or the exit code of the last failed job
+  /// (doesn't need to be an enum value of ExitStatus)
+  ExitStatus GetExitCode() const { return exit_code_; }
 
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
@@ -242,7 +260,15 @@ struct Builder {
 
   std::string lock_file_path_;
   DiskInterface* disk_interface_;
+
+  // Only create an Explanations class if '-d explain' is used.
+  std::unique_ptr<Explanations> explanations_;
+
   DependencyScan scan_;
+
+  /// Keep the global exit code for the build
+  ExitStatus exit_code_ = ExitSuccess;
+  void SetFailureCode(ExitStatus code);
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT

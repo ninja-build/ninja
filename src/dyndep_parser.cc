@@ -88,7 +88,6 @@ bool DyndepParser::ParseDyndepVersion(string* err) {
   if (major != 1 || minor != 0) {
     return lexer_.Error(
       string("unsupported 'ninja_dyndep_version = ") + version + "'", err);
-    return false;
   }
   return true;
 }
@@ -96,11 +95,7 @@ bool DyndepParser::ParseDyndepVersion(string* err) {
 bool DyndepParser::ParseLet(string* key, EvalString* value, string* err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
-  if (!ExpectToken(Lexer::EQUALS, err))
-    return false;
-  if (!lexer_.ReadVarValue(value, err))
-    return false;
-  return true;
+  return (ExpectToken(Lexer::EQUALS, err) && lexer_.ReadVarValue(value, err));
 }
 
 bool DyndepParser::ParseEdge(string* err) {
@@ -200,8 +195,8 @@ bool DyndepParser::ParseEdge(string* err) {
   }
 
   dyndeps->implicit_inputs_.reserve(ins.size());
-  for (vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
-    string path = i->Evaluate(&env_);
+  for (const EvalString& in : ins) {
+    string path = in.Evaluate(&env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -211,11 +206,10 @@ bool DyndepParser::ParseEdge(string* err) {
   }
 
   dyndeps->implicit_outputs_.reserve(outs.size());
-  for (vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
-    string path = i->Evaluate(&env_);
+  for (const EvalString& out : outs) {
+    string path = out.Evaluate(&env_);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    string path_err;
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
     Node* n = state_->GetNode(path, slash_bits);

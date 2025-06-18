@@ -51,7 +51,7 @@ TEST_F(ParserTest, Rules) {
 "build result: cat in_1.cc in-2.O\n"));
 
   ASSERT_EQ(3u, state.bindings_.GetRules().size());
-  const Rule* rule = state.bindings_.GetRules().begin()->second;
+  const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
   EXPECT_EQ("[cat ][$in][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -84,7 +84,7 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
 "  #comment\n"));
 
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
-  const Rule* rule = state.bindings_.GetRules().begin()->second;
+  const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
   Edge* edge = state.GetNode("result", 0)->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
@@ -117,7 +117,7 @@ TEST_F(ParserTest, ResponseFiles) {
 "  rspfile=out.rsp\n"));
 
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
-  const Rule* rule = state.bindings_.GetRules().begin()->second;
+  const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$rspfile][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -134,7 +134,7 @@ TEST_F(ParserTest, InNewline) {
 "  rspfile=out.rsp\n"));
 
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
-  const Rule* rule = state.bindings_.GetRules().begin()->second;
+  const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat_rsp", rule->name());
   EXPECT_EQ("[cat ][$in_newline][ > ][$out]",
             rule->GetBinding("command")->Serialize());
@@ -195,7 +195,7 @@ TEST_F(ParserTest, Continuation) {
 " d e f\n"));
 
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
-  const Rule* rule = state.bindings_.GetRules().begin()->second;
+  const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("link", rule->name());
   EXPECT_EQ("[foo bar baz]", rule->GetBinding("command")->Serialize());
 }
@@ -380,7 +380,7 @@ TEST_F(ParserTest, PhonySelfReferenceKept) {
 
   Node* node = state.LookupNode("a");
   Edge* edge = node->in_edge();
-  ASSERT_EQ(edge->inputs_.size(), 1);
+  ASSERT_EQ(edge->inputs_.size(), size_t(1));
   ASSERT_EQ(edge->inputs_[0], node);
 }
 
@@ -944,7 +944,7 @@ TEST_F(ParserTest, Validations) {
 "build foo: cat bar |@ baz\n"));
 
   Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->validations_.size(), 1);
+  ASSERT_EQ(edge->validations_.size(), size_t(1));
   EXPECT_EQ(edge->validations_[0]->path(), "baz");
 }
 
@@ -955,7 +955,7 @@ TEST_F(ParserTest, ImplicitOutput) {
 "build foo | imp: cat bar\n"));
 
   Edge* edge = state.LookupNode("imp")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 2);
+  ASSERT_EQ(edge->outputs_.size(), size_t(2));
   EXPECT_TRUE(edge->is_implicit_out(1));
 }
 
@@ -966,7 +966,7 @@ TEST_F(ParserTest, ImplicitOutputEmpty) {
 "build foo | : cat bar\n"));
 
   Edge* edge = state.LookupNode("foo")->in_edge();
-  ASSERT_EQ(edge->outputs_.size(), 1);
+  ASSERT_EQ(edge->outputs_.size(), size_t(1));
   EXPECT_FALSE(edge->is_implicit_out(0));
 }
 

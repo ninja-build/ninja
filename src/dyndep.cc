@@ -20,6 +20,7 @@
 #include "debug_flags.h"
 #include "disk_interface.h"
 #include "dyndep_parser.h"
+#include "explanations.h"
 #include "graph.h"
 #include "state.h"
 #include "util.h"
@@ -37,15 +38,14 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   node->set_dyndep_pending(false);
 
   // Load the dyndep information from the file.
-  EXPLAIN("loading dyndep file '%s'", node->path().c_str());
+  explanations_.Record(node, "loading dyndep file '%s'", node->path().c_str());
+
   if (!LoadDyndepFile(node, ddf, err))
     return false;
 
   // Update each edge that specified this node as its dyndep binding.
   std::vector<Edge*> const& out_edges = node->out_edges();
-  for (std::vector<Edge*>::const_iterator oe = out_edges.begin();
-       oe != out_edges.end(); ++oe) {
-    Edge* const edge = *oe;
+  for (Edge* edge : out_edges) {
     if (edge->dyndep_ != node)
       continue;
 
@@ -65,10 +65,9 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   }
 
   // Reject extra outputs in dyndep file.
-  for (DyndepFile::const_iterator oe = ddf->begin(); oe != ddf->end();
-       ++oe) {
-    if (!oe->second.used_) {
-      Edge* const edge = oe->first;
+  for (const auto& dyndep_output : *ddf) {
+    if (!dyndep_output.second.used_) {
+      Edge* const edge = dyndep_output.first;
       *err = ("dyndep file '" + node->path() + "' mentions output "
               "'" + edge->outputs_[0]->path() + "' whose build statement "
               "does not have a dyndep binding for the file");
@@ -94,15 +93,13 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   edge->implicit_outs_ += dyndeps->implicit_outputs_.size();
 
   // Add this edge as incoming to each new output.
-  for (std::vector<Node*>::const_iterator i =
-           dyndeps->implicit_outputs_.begin();
-       i != dyndeps->implicit_outputs_.end(); ++i) {
-    if ((*i)->in_edge()) {
+  for (Node* node : dyndeps->implicit_outputs_) {
+    if (node->in_edge()) {
       // This node already has an edge producing it.
-      *err = "multiple rules generate " + (*i)->path();
+      *err = "multiple rules generate " + node->path();
       return false;
     }
-    (*i)->set_in_edge(edge);
+    node->set_in_edge(edge);
   }
 
   // Add the dyndep-discovered inputs to the edge.
@@ -112,10 +109,8 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   edge->implicit_deps_ += dyndeps->implicit_inputs_.size();
 
   // Add this edge as outgoing from each new input.
-  for (std::vector<Node*>::const_iterator i =
-           dyndeps->implicit_inputs_.begin();
-       i != dyndeps->implicit_inputs_.end(); ++i)
-    (*i)->AddOutEdge(edge);
+  for (Node* node : dyndeps->implicit_inputs_)
+    node->AddOutEdge(edge);
 
   return true;
 }

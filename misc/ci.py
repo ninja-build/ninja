@@ -5,22 +5,27 @@ import os
 ignores = [
 	'.git/',
 	'misc/afl-fuzz-tokens/',
-	'ninja_deps',
 	'src/depfile_parser.cc',
 	'src/lexer.cc',
 ]
 
 error_count = 0
 
-def error(path, msg):
+def error(path: str, msg: str) -> None:
 	global error_count
 	error_count += 1
 	print('\x1b[1;31m{}\x1b[0;31m{}\x1b[0m'.format(path, msg))
 
+try:
+	import git
+	repo = git.Repo('.')
+except:
+	repo = None
+
 for root, directory, filenames in os.walk('.'):
 	for filename in filenames:
 		path = os.path.join(root, filename)[2:]
-		if any([path.startswith(x) for x in ignores]):
+		if any([path.startswith(x) for x in ignores]) or (repo is not None and repo.ignored(path)):
 			continue
 		with open(path, 'rb') as file:
 			line_nr = 1

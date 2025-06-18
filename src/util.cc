@@ -21,6 +21,7 @@
 #include <windows.h>
 #include <io.h>
 #include <share.h>
+#include <direct.h>
 #endif
 
 #include <assert.h>
@@ -38,6 +39,7 @@
 #include <sys/time.h>
 #endif
 
+#include <algorithm>
 #include <vector>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -47,7 +49,7 @@
 #include <sys/loadavg.h>
 #elif defined(_AIX) && !defined(__PASE__)
 #include <libperfstat.h>
-#elif defined(linux) || defined(__GLIBC__)
+#elif defined(__linux__) || defined(__GLIBC__)
 #include <sys/sysinfo.h>
 #include <fstream>
 #include <map>
@@ -543,7 +545,7 @@ string GetLastErrorString() {
 
   if (msg_buf == nullptr) {
     char fallback_msg[128] = {0};
-    snprintf(fallback_msg, sizeof(fallback_msg), "GetLastError() = %d", err);
+    snprintf(fallback_msg, sizeof(fallback_msg), "GetLastError() = %lu", err);
     return fallback_msg;
   }
 
@@ -589,7 +591,7 @@ string StripAnsiEscapeCodes(const string& in) {
   return stripped;
 }
 
-#if defined(linux) || defined(__GLIBC__)
+#if defined(__linux__) || defined(__GLIBC__)
 std::pair<int64_t, bool> readCount(const std::string& path) {
   std::ifstream file(path.c_str());
   if (!file.is_open())
@@ -688,16 +690,33 @@ map<string, string> ParseMountInfo(map<string, CGroupSubSys>& subsystems) {
     MountPoint mp;
     if (!mp.parse(line))
       continue;
-    if (mp.fsType != "cgroup")
-      continue;
-    for (size_t i = 0; i < mp.superOptions.size(); i++) {
-      string opt = mp.superOptions[i].AsString();
-      map<string, CGroupSubSys>::iterator subsys = subsystems.find(opt);
-      if (subsys == subsystems.end())
+    if (mp.fsType == "cgroup") {
+      for (size_t i = 0; i < mp.superOptions.size(); i++) {
+        std::string opt = mp.superOptions[i].AsString();
+        auto subsys = subsystems.find(opt);
+        if (subsys == subsystems.end()) {
+          continue;
+        }
+        std::string newPath = mp.translate(subsys->second.name);
+        if (!newPath.empty()) {
+          cgroups.emplace(opt, newPath);
+        }
+      }
+    } else if (mp.fsType == "cgroup2") {
+      // Find cgroup2 entry in format "0::/path/to/cgroup"
+      auto subsys = std::find_if(subsystems.begin(), subsystems.end(),
+                                 [](const auto& sys) {
+                                   return sys.first == "" && sys.second.id == 0;
+                                 });
+      if (subsys == subsystems.end()) {
         continue;
-      string newPath = mp.translate(subsys->second.name);
-      if (!newPath.empty())
-        cgroups.insert(make_pair(opt, newPath));
+      }
+      std::string path = mp.mountPoint.AsString();
+      if (subsys->second.name != "/") {
+        // Append the relative path for the cgroup to the mount point
+        path.append(subsys->second.name);
+      }
+      cgroups.emplace("cgroup2", path);
     }
   }
   return cgroups;
@@ -721,22 +740,72 @@ map<string, CGroupSubSys> ParseSelfCGroup() {
   return cgroups;
 }
 
-int ParseCPUFromCGroup() {
-  map<string, CGroupSubSys> subsystems = ParseSelfCGroup();
-  map<string, string> cgroups = ParseMountInfo(subsystems);
-  map<string, string>::iterator cpu = cgroups.find("cpu");
-  if (cpu == cgroups.end())
-    return -1;
-  std::pair<int64_t, bool> quota = readCount(cpu->second + "/cpu.cfs_quota_us");
+int ParseCgroupV1(std::string& path) {
+  std::pair<int64_t, bool> quota = readCount(path + "/cpu.cfs_quota_us");
   if (!quota.second || quota.first == -1)
     return -1;
-  std::pair<int64_t, bool> period =
-      readCount(cpu->second + "/cpu.cfs_period_us");
+  std::pair<int64_t, bool> period = readCount(path + "/cpu.cfs_period_us");
   if (!period.second)
     return -1;
   if (period.first == 0)
     return -1;
   return quota.first / period.first;
+}
+
+int ParseCgroupV2(std::string& path) {
+  // Read CPU quota from cgroup v2
+  std::ifstream cpu_max(path + "/cpu.max");
+  if (!cpu_max.is_open()) {
+    return -1;
+  }
+  std::string max_line;
+  if (!std::getline(cpu_max, max_line) || max_line.empty()) {
+    return -1;
+  }
+  // Format is "quota period" or "max period"
+  size_t space_pos = max_line.find(' ');
+  if (space_pos == string::npos) {
+    return -1;
+  }
+  std::string quota_str = max_line.substr(0, space_pos);
+  std::string period_str = max_line.substr(space_pos + 1);
+  if (quota_str == "max") {
+    return -1;  // No CPU limit set
+  }
+  // Convert quota string to integer
+  char* quota_end = nullptr;
+  errno = 0;
+  int64_t quota = strtoll(quota_str.c_str(), &quota_end, 10);
+  // Check for conversion errors
+  if (errno == ERANGE || quota_end == quota_str.c_str() || *quota_end != '\0' ||
+      quota <= 0) {
+    return -1;
+  }
+  // Convert period string to integer
+  char* period_end = nullptr;
+  errno = 0;
+  int64_t period = strtoll(period_str.c_str(), &period_end, 10);
+  // Check for conversion errors
+  if (errno == ERANGE || period_end == period_str.c_str() ||
+      *period_end != '\0' || period <= 0) {
+    return -1;
+  }
+  return quota / period;
+}
+
+int ParseCPUFromCGroup() {
+  auto subsystems = ParseSelfCGroup();
+  auto cgroups = ParseMountInfo(subsystems);
+
+  // Prefer cgroup v2 if both v1 and v2 should be present
+  if (const auto cgroup2 = cgroups.find("cgroup2"); cgroup2 != cgroups.end()) {
+    return ParseCgroupV2(cgroup2->second);
+  }
+
+  if (const auto cpu = cgroups.find("cpu"); cpu != cgroups.end()) {
+    return ParseCgroupV1(cpu->second);
+  }
+  return -1;
 }
 #endif
 
@@ -789,7 +858,7 @@ int GetProcessorCount() {
 #else
   int cgroupCount = -1;
   int schedCount = -1;
-#if defined(linux) || defined(__GLIBC__)
+#if defined(__linux__) || defined(__GLIBC__)
   cgroupCount = ParseCPUFromCGroup();
 #endif
   // The number of exposed processors might not represent the actual number of
@@ -917,22 +986,19 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-string ElideMiddle(const string& str, size_t width) {
-  switch (width) {
-      case 0: return "";
-      case 1: return ".";
-      case 2: return "..";
-      case 3: return "...";
+std::string GetWorkingDirectory() {
+  std::string ret;
+  char* success = NULL;
+  do {
+    ret.resize(ret.size() + 1024);
+    errno = 0;
+    success = getcwd(&ret[0], ret.size());
+  } while (!success && errno == ERANGE);
+  if (!success) {
+    Fatal("cannot determine working directory: %s", strerror(errno));
   }
-  const int kMargin = 3;  // Space for "...".
-  string result = str;
-  if (result.size() > width) {
-    size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
-      + "..."
-      + result.substr(result.size() - elide_size, elide_size);
-  }
-  return result;
+  ret.resize(strlen(&ret[0]));
+  return ret;
 }
 
 bool Truncate(const string& path, size_t size, string* err) {
@@ -951,4 +1017,12 @@ bool Truncate(const string& path, size_t size, string* err) {
     return false;
   }
   return true;
+}
+
+int platformAwareUnlink(const char* filename) {
+	#ifdef _WIN32
+		return _unlink(filename);
+	#else
+		return unlink(filename);
+	#endif
 }

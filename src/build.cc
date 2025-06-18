@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <climits>
 #include <functional>
 #include <unordered_set>
 
@@ -34,11 +33,13 @@
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
+#include "exit_status.h"
+#include "explanations.h"
 #include "graph.h"
+#include "jobserver.h"
 #include "metrics.h"
 #include "state.h"
 #include "status.h"
-#include "subprocess.h"
 #include "util.h"
 
 using namespace std;
@@ -47,12 +48,10 @@ namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
 struct DryRunCommandRunner : public CommandRunner {
-  virtual ~DryRunCommandRunner() {}
-
   // Overridden from CommandRunner:
-  virtual size_t CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  size_t CanRunMore() const override;
+  bool StartCommand(Edge* edge) override;
+  bool WaitForCommand(Result* result) override;
 
  private:
   queue<Edge*> finished_;
@@ -164,6 +163,15 @@ Edge* Plan::FindWork() {
     return NULL;
 
   Edge* work = ready_.top();
+
+  // If jobserver mode is enabled, try to acquire a token first,
+  // and return null in case of failure.
+  if (builder_ && builder_->jobserver_.get()) {
+    work->job_slot_ = builder_->jobserver_->TryAcquire();
+    if (!work->job_slot_.IsValid())
+      return nullptr;
+  }
+
   ready_.pop();
   return work;
 }
@@ -199,6 +207,10 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
   edge->pool()->RetrieveReadyEdges(&ready_);
+
+  // Release job slot if needed.
+  if (builder_ && builder_->jobserver_.get())
+    builder_->jobserver_->Release(std::move(edge->job_slot_));
 
   // The rest of this function only applies to successful commands.
   if (result != kEdgeSucceeded)
@@ -527,7 +539,7 @@ void Plan::ComputeCriticalPath() {
   for (Edge* edge : sorted_edges)
     edge->set_critical_path_weight(EdgeWeightHeuristic(edge));
 
-  // Second propagate / increment weidghts from
+  // Second propagate / increment weights from
   // children to parents. Scan the list
   // in reverse order to do so.
   for (auto reverse_it = sorted_edges.rbegin();
@@ -557,16 +569,14 @@ void Plan::ScheduleInitialEdges() {
            end = want_.end(); it != end; ++it) {
     Edge* edge = it->first;
     Plan::Want want = it->second;
-    if (!(want == kWantToStart && edge->AllInputsReady())) {
-      continue;
-    }
-
-    Pool* pool = edge->pool();
-    if (pool->ShouldDelayEdge()) {
-      pool->DelayEdge(edge);
-      pools.insert(pool);
-    } else {
-      ScheduleWork(it);
+    if (want == kWantToStart && edge->AllInputsReady()) {
+      Pool* pool = edge->pool();
+      if (pool->ShouldDelayEdge()) {
+        pool->DelayEdge(edge);
+        pools.insert(pool);
+      } else {
+        ScheduleWork(it);
+      }
     }
   }
 
@@ -594,99 +604,24 @@ void Plan::Dump() const {
   printf("ready: %d\n", (int)ready_.size());
 }
 
-struct RealCommandRunner : public CommandRunner {
-  explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
-  virtual ~RealCommandRunner() {}
-  virtual size_t CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
-  virtual vector<Edge*> GetActiveEdges();
-  virtual void Abort();
-
-  const BuildConfig& config_;
-  SubprocessSet subprocs_;
-  map<const Subprocess*, Edge*> subproc_to_edge_;
-};
-
-vector<Edge*> RealCommandRunner::GetActiveEdges() {
-  vector<Edge*> edges;
-  for (map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.begin();
-       e != subproc_to_edge_.end(); ++e)
-    edges.push_back(e->second);
-  return edges;
-}
-
-void RealCommandRunner::Abort() {
-  subprocs_.Clear();
-}
-
-size_t RealCommandRunner::CanRunMore() const {
-  size_t subproc_number =
-      subprocs_.running_.size() + subprocs_.finished_.size();
-
-  int64_t capacity = config_.parallelism - subproc_number;
-
-  if (config_.max_load_average > 0.0f) {
-    int load_capacity = config_.max_load_average - GetLoadAverage();
-    if (load_capacity < capacity)
-      capacity = load_capacity;
-  }
-
-  if (capacity < 0)
-    capacity = 0;
-
-  if (capacity == 0 && subprocs_.running_.empty())
-    // Ensure that we make progress.
-    capacity = 1;
-
-  return capacity;
-}
-
-bool RealCommandRunner::StartCommand(Edge* edge) {
-  string command = edge->EvaluateCommand();
-  Subprocess* subproc = subprocs_.Add(command, edge->use_console());
-  if (!subproc)
-    return false;
-  subproc_to_edge_.insert(make_pair(subproc, edge));
-
-  return true;
-}
-
-bool RealCommandRunner::WaitForCommand(Result* result) {
-  Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
-      return false;
-  }
-
-  result->status = subproc->Finish();
-  result->output = subproc->GetOutput();
-
-  map<const Subprocess*, Edge*>::iterator e = subproc_to_edge_.find(subproc);
-  result->edge = e->second;
-  subproc_to_edge_.erase(e);
-
-  delete subproc;
-  return true;
-}
-
-Builder::Builder(State* state, const BuildConfig& config,
-                 BuildLog* build_log, DepsLog* deps_log,
-                 DiskInterface* disk_interface, Status *status,
-                 int64_t start_time_millis)
+Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
+                 DepsLog* deps_log, DiskInterface* disk_interface,
+                 Status* status, int64_t start_time_millis)
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
+      explanations_(g_explaining ? new Explanations() : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
-            &config_.depfile_parser_options) {
+            &config_.depfile_parser_options, explanations_.get()) {
   lock_file_path_ = ".ninja_lock";
   string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty())
     lock_file_path_ = build_dir + "/" + lock_file_path_;
+  status_->SetExplanations(explanations_.get());
 }
 
 Builder::~Builder() {
   Cleanup();
+  status_->SetExplanations(nullptr);
 }
 
 void Builder::Cleanup() {
@@ -765,7 +700,7 @@ bool Builder::AlreadyUpToDate() const {
   return !plan_.more_to_do();
 }
 
-bool Builder::Build(string* err) {
+ExitStatus Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
   plan_.PrepareQueue();
 
@@ -777,7 +712,8 @@ bool Builder::Build(string* err) {
     if (config_.dry_run)
       command_runner_.reset(new DryRunCommandRunner);
     else
-      command_runner_.reset(new RealCommandRunner(config_));
+      command_runner_.reset(CommandRunner::factory(config_, jobserver_.get()));
+    ;
   }
 
   // We are about to start the build process.
@@ -804,14 +740,14 @@ bool Builder::Build(string* err) {
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();
-          return false;
+          return ExitFailure;
         }
 
         if (edge->is_phony()) {
           if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
             Cleanup();
             status_->BuildFinished();
-            return false;
+            return ExitFailure;
           }
         } else {
           ++pending_commands;
@@ -838,14 +774,16 @@ bool Builder::Build(string* err) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
-        return false;
+        return result.status;
       }
 
       --pending_commands;
-      if (!FinishCommand(&result, err)) {
+      bool command_finished = FinishCommand(&result, err);
+      SetFailureCode(result.status);
+      if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
-        return false;
+        return result.status;
       }
 
       if (!result.success()) {
@@ -869,11 +807,11 @@ bool Builder::Build(string* err) {
     else
       *err = "stuck [this is a bug]";
 
-    return false;
+    return GetExitCode();
   }
 
   status_->BuildFinished();
-  return true;
+  return ExitSuccess;
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
@@ -904,6 +842,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   }
 
   edge->command_start_time_ = build_start;
+
+  // Create depfile directory if needed.
+  // XXX: this may also block; do we care?
+  std::string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty() && !disk_interface_->MakeDirs(depfile))
+    return false;
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
@@ -955,7 +899,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   running_edges_.erase(it);
 
   status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
-                             result->success(), result->output);
+                             result->status, result->output);
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
@@ -1097,8 +1041,6 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
 }
 
 bool Builder::LoadDyndeps(Node* node, string* err) {
-  status_->BuildLoadDyndeps();
-
   // Load the dyndep information provided by this node.
   DyndepFile ddf;
   if (!scan_.LoadDyndeps(node, &ddf, err))
@@ -1109,4 +1051,11 @@ bool Builder::LoadDyndeps(Node* node, string* err) {
     return false;
 
   return true;
+}
+
+void Builder::SetFailureCode(ExitStatus code) {
+  // ExitSuccess should not overwrite any error
+  if (code != ExitSuccess) {
+    exit_code_ = code;
+  }
 }

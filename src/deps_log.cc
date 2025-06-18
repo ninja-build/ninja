@@ -62,12 +62,11 @@ bool DepsLog::OpenForWrite(const string& path, string* err) {
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const vector<Node*>& nodes) {
-  return RecordDeps(node, mtime, nodes.size(),
-                    nodes.empty() ? NULL : (Node**)&nodes.front());
+  return RecordDeps(node, mtime, nodes.size(), nodes.data());
 }
 
-bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
-                         int node_count, Node** nodes) {
+bool DepsLog::RecordDeps(Node* node, TimeStamp mtime, int node_count,
+                         Node* const* nodes) {
   // Track whether there's any new data to be recorded.
   bool made_change = false;
 
@@ -180,21 +179,19 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
     else
       *err = "bad deps log signature or version; starting over";
     fclose(f);
-    unlink(path.c_str());
+    platformAwareUnlink(path.c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
     return LOAD_SUCCESS;
   }
 
-  long offset;
+  long offset = ftell(f);
   bool read_failed = false;
   int unique_dep_record_count = 0;
   int total_dep_record_count = 0;
   for (;;) {
-    offset = ftell(f);
-
     unsigned size;
-    if (fread(&size, 4, 1, f) < 1) {
+    if (fread(&size, sizeof(size), 1, f) < 1) {
       if (!feof(f))
         read_failed = true;
       break;
@@ -206,6 +203,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       read_failed = true;
       break;
     }
+    offset += size + sizeof(size);
 
     if (is_deps) {
       if ((size % 4) != 0) {
@@ -333,7 +331,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
 
   // OpenForWrite() opens for append.  Make sure it's not appending to a
   // left-over file from a previous recompaction attempt that crashed somehow.
-  unlink(temp_path.c_str());
+  platformAwareUnlink(temp_path.c_str());
 
   DepsLog new_log;
   if (!new_log.OpenForWrite(temp_path, err))
@@ -365,7 +363,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  if (unlink(path.c_str()) < 0) {
+  if (platformAwareUnlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

@@ -350,7 +350,7 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\"
       "a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\a\\.\\x\\y.h";
   CanonicalizePath(&path, &slash_bits);
-  EXPECT_EQ(slash_bits, 0x1ffffffff);
+  EXPECT_EQ(slash_bits, uint64_t(0x1ffffffff));
 
 
   // 59 after canonicalization is OK.
@@ -368,7 +368,7 @@ TEST(CanonicalizePath, TooManyComponents) {
       "a\\a\\a\\a\\a\\a\\a\\a\\a\\x\\y.h";
   EXPECT_EQ(58, std::count(path.begin(), path.end(), '\\'));
   CanonicalizePath(&path, &slash_bits);
-  EXPECT_EQ(slash_bits, 0x3ffffffffffffff);
+  EXPECT_EQ(slash_bits, uint64_t(0x3ffffffffffffff));
 
   // More than 60 components is now completely ok too.
   path =
@@ -501,21 +501,4 @@ TEST(StripAnsiEscapeCodes, StripColors) {
   string stripped = StripAnsiEscapeCodes(input);
   EXPECT_EQ("affixmgr.cxx:286:15: warning: using the result... [-Wparentheses]",
             stripped);
-}
-
-TEST(ElideMiddle, NothingToElide) {
-  string input = "Nothing to elide in this short string.";
-  EXPECT_EQ(input, ElideMiddle(input, 80));
-  EXPECT_EQ(input, ElideMiddle(input, 38));
-  EXPECT_EQ("", ElideMiddle(input, 0));
-  EXPECT_EQ(".", ElideMiddle(input, 1));
-  EXPECT_EQ("..", ElideMiddle(input, 2));
-  EXPECT_EQ("...", ElideMiddle(input, 3));
-}
-
-TEST(ElideMiddle, ElideInTheMiddle) {
-  string input = "01234567890123456789";
-  string elided = ElideMiddle(input, 10);
-  EXPECT_EQ("012...789", elided);
-  EXPECT_EQ("01234567...23456789", ElideMiddle(input, 19));
 }

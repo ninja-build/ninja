@@ -41,8 +41,6 @@
 #define strtoll _strtoi64
 #endif
 
-using namespace std;
-
 // Implementation details:
 // Each run's log appends to the log file.
 // To load, we run through all log entries in series, throwing away
@@ -53,83 +51,31 @@ using namespace std;
 namespace {
 
 const char kFileSignature[] = "# ninja log v%d\n";
-const int kOldestSupportedVersion = 6;
-const int kCurrentVersion = 6;
-
-// 64bit MurmurHash2, by Austin Appleby
-#if defined(_MSC_VER)
-#define BIG_CONSTANT(x) (x)
-#else   // defined(_MSC_VER)
-#define BIG_CONSTANT(x) (x##LLU)
-#endif // !defined(_MSC_VER)
-inline
-uint64_t MurmurHash64A(const void* key, size_t len) {
-  static const uint64_t seed = 0xDECAFBADDECAFBADull;
-  const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
-  const int r = 47;
-  uint64_t h = seed ^ (len * m);
-  const unsigned char* data = (const unsigned char*)key;
-  while (len >= 8) {
-    uint64_t k;
-    memcpy(&k, data, sizeof k);
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-    h ^= k;
-    h *= m;
-    data += 8;
-    len -= 8;
-  }
-  switch (len & 7)
-  {
-  case 7: h ^= uint64_t(data[6]) << 48;
-          NINJA_FALLTHROUGH;
-  case 6: h ^= uint64_t(data[5]) << 40;
-          NINJA_FALLTHROUGH;
-  case 5: h ^= uint64_t(data[4]) << 32;
-          NINJA_FALLTHROUGH;
-  case 4: h ^= uint64_t(data[3]) << 24;
-          NINJA_FALLTHROUGH;
-  case 3: h ^= uint64_t(data[2]) << 16;
-          NINJA_FALLTHROUGH;
-  case 2: h ^= uint64_t(data[1]) << 8;
-          NINJA_FALLTHROUGH;
-  case 1: h ^= uint64_t(data[0]);
-          h *= m;
-  };
-  h ^= h >> r;
-  h *= m;
-  h ^= h >> r;
-  return h;
-}
-#undef BIG_CONSTANT
-
+const int kOldestSupportedVersion = 7;
+const int kCurrentVersion = 7;
 
 }  // namespace
 
 // static
 uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
-  return MurmurHash64A(command.str_, command.len_);
+  return rapidhash(command.str_, command.len_);
 }
 
-BuildLog::LogEntry::LogEntry(const string& output)
-  : output(output) {}
+BuildLog::LogEntry::LogEntry(std::string output) : output(std::move(output)) {}
 
-BuildLog::LogEntry::LogEntry(const string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp mtime)
-  : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(mtime)
-{}
+BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
+                             int start_time, int end_time, TimeStamp mtime)
+    : output(output), command_hash(command_hash), start_time(start_time),
+      end_time(end_time), mtime(mtime) {}
 
-BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+BuildLog::BuildLog() = default;
 
 BuildLog::~BuildLog() {
   Close();
 }
 
-bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
-                            string* err) {
+bool BuildLog::OpenForWrite(const std::string& path, const BuildLogUser& user,
+                            std::string* err) {
   if (needs_recompaction_) {
     if (!Recompact(path, user, err))
       return false;
@@ -143,18 +89,19 @@ bool BuildLog::OpenForWrite(const string& path, const BuildLogUser& user,
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
-  string command = edge->EvaluateCommand(true);
+  std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (vector<Node*>::iterator out = edge->outputs_.begin();
+  for (std::vector<Node*>::iterator out = edge->outputs_.begin();
        out != edge->outputs_.end(); ++out) {
-    const string& path = (*out)->path();
+    const std::string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
     if (i != entries_.end()) {
-      log_entry = i->second;
+      log_entry = i->second.get();
     } else {
       log_entry = new LogEntry(path);
-      entries_.insert(Entries::value_type(log_entry->output, log_entry));
+      // Passes ownership of |log_entry| to the map, but keeps the pointer valid.
+      entries_.emplace(log_entry->output, std::unique_ptr<LogEntry>(log_entry));
     }
     log_entry->command_hash = command_hash;
     log_entry->start_time = start_time;
@@ -230,7 +177,7 @@ struct LineReader {
       line_start_ = line_end_ + 1;
     }
 
-    line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+    line_end_ = static_cast<char*>(memchr(line_start_, '\n', buf_end_ - line_start_));
     if (!line_end_) {
       // No newline. Move rest of data to start of buffer, fill rest.
       size_t already_consumed = line_start_ - buf_;
@@ -240,7 +187,7 @@ struct LineReader {
       size_t read = fread(buf_ + size_rest, 1, sizeof(buf_) - size_rest, file_);
       buf_end_ = buf_ + size_rest + read;
       line_start_ = buf_;
-      line_end_ = (char*)memchr(line_start_, '\n', buf_end_ - line_start_);
+      line_end_ = static_cast<char*>(memchr(line_start_, '\n', buf_end_ - line_start_));
     }
 
     *line_start = line_start_;
@@ -258,7 +205,7 @@ struct LineReader {
   char* line_end_;
 };
 
-LoadStatus BuildLog::Load(const string& path, string* err) {
+LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
@@ -290,7 +237,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
       }
       if (invalid_log_version) {
         fclose(file);
-        unlink(path.c_str());
+        platformAwareUnlink(path.c_str());
         // Don't report this as a failure. A missing build log will cause
         // us to rebuild the outputs anyway.
         return LOAD_NOT_FOUND;
@@ -304,7 +251,7 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     const char kFieldSeparator = '\t';
 
     char* start = line_start;
-    char* end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    char* end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
@@ -315,24 +262,24 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     start_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
     end_time = atoi(start);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
     *end = 0;
     mtime = strtoll(start, NULL, 10);
     start = end + 1;
 
-    end = (char*)memchr(start, kFieldSeparator, line_end - start);
+    end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
     if (!end)
       continue;
-    string output = string(start, end - start);
+    std::string output(start, end - start);
 
     start = end + 1;
     end = line_end;
@@ -340,10 +287,11 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
     LogEntry* entry;
     Entries::iterator i = entries_.find(output);
     if (i != entries_.end()) {
-      entry = i->second;
+      entry = i->second.get();
     } else {
-      entry = new LogEntry(output);
-      entries_.insert(Entries::value_type(entry->output, entry));
+      entry = new LogEntry(std::move(output));
+      // Passes ownership of |entry| to the map, but keeps the pointer valid.
+      entries_.emplace(entry->output, std::unique_ptr<LogEntry>(entry));
       ++unique_entry_count;
     }
     ++total_entry_count;
@@ -376,10 +324,10 @@ LoadStatus BuildLog::Load(const string& path, string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntry* BuildLog::LookupByOutput(const string& path) {
+BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
-    return i->second;
+    return i->second.get();
   return NULL;
 }
 
@@ -389,12 +337,12 @@ bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
-bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
-                         string* err) {
+bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
+                         std::string* err) {
   METRIC_RECORD(".ninja_log recompact");
 
   Close();
-  string temp_path = path + ".recompact";
+  std::string temp_path = path + ".recompact";
   FILE* f = fopen(temp_path.c_str(), "wb");
   if (!f) {
     *err = strerror(errno);
@@ -407,25 +355,25 @@ bool BuildLog::Recompact(const string& path, const BuildLogUser& user,
     return false;
   }
 
-  vector<StringPiece> dead_outputs;
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    if (user.IsPathDead(i->first)) {
-      dead_outputs.push_back(i->first);
+  std::vector<StringPiece> dead_outputs;
+  for (const auto& pair : entries_) {
+    if (user.IsPathDead(pair.first)) {
+      dead_outputs.push_back(pair.first);
       continue;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
 
-  for (size_t i = 0; i < dead_outputs.size(); ++i)
-    entries_.erase(dead_outputs[i]);
+  for (StringPiece output : dead_outputs)
+    entries_.erase(output);
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if (platformAwareUnlink(path.c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }
@@ -457,24 +405,24 @@ bool BuildLog::Restat(const StringPiece path,
     fclose(f);
     return false;
   }
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
+  for (auto& pair : entries_) {
     bool skip = output_count > 0;
     for (int j = 0; j < output_count; ++j) {
-      if (i->second->output == outputs[j]) {
+      if (pair.second->output == outputs[j]) {
         skip = false;
         break;
       }
     }
     if (!skip) {
-      const TimeStamp mtime = disk_interface.Stat(i->second->output, err);
+      const TimeStamp mtime = disk_interface.Stat(pair.second->output, err);
       if (mtime == -1) {
         fclose(f);
         return false;
       }
-      i->second->mtime = mtime;
+      pair.second->mtime = mtime;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *pair.second)) {
       *err = strerror(errno);
       fclose(f);
       return false;
@@ -482,7 +430,7 @@ bool BuildLog::Restat(const StringPiece path,
   }
 
   fclose(f);
-  if (unlink(path.str_) < 0) {
+  if (platformAwareUnlink(path.str_) < 0) {
     *err = strerror(errno);
     return false;
   }
