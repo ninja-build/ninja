@@ -155,10 +155,16 @@ bool DepfileParser::Parse(string* content, string* err) {
         have_newline = true;
         break;
       }
-      [^] {
-        // For any other character (e.g. whitespace), swallow it here,
+      [\t\v\f ]{
+        // For any whitespace, swallow it here,
         // allowing the outer logic to loop around again.
         break;
+      }
+      [^] {
+        // Any other character is illegal
+        char* temp = in - 1;
+        *err = std::string("illegal character:\"") + *temp + "\" ASCI:\""+ std::to_string(*temp) + "\"";
+        return false;
       }
       */
     }

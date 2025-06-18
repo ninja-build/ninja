@@ -105,55 +105,67 @@ bool DepfileParser::Parse(string* content, string* err) {
       };
       yych = *in;
       if (yybm[0+yych] & 128) {
-        goto yy5;
+        goto yy7;
       }
       if (yych <= '\r') {
         if (yych <= '\t') {
-          if (yych >= 0x01) goto yy1;
-        } else {
-          if (yych <= '\n') goto yy3;
-          if (yych <= '\f') goto yy1;
+          if (yych <= 0x00) goto yy1;
+          if (yych <= 0x08) goto yy2;
           goto yy4;
+        } else {
+          if (yych <= '\n') goto yy5;
+          if (yych <= '\f') goto yy4;
+          goto yy6;
         }
       } else {
-        if (yych <= '$') {
-          if (yych <= '#') goto yy1;
-          goto yy7;
+        if (yych <= '#') {
+          if (yych == ' ') goto yy4;
+          goto yy2;
         } else {
-          if (yych <= '>') goto yy1;
-          if (yych <= '\\') goto yy8;
-          goto yy1;
+          if (yych <= '$') goto yy9;
+          if (yych <= '>') goto yy2;
+          if (yych <= '\\') goto yy10;
+          goto yy2;
         }
-      }
-      ++in;
-      {
-        break;
       }
 yy1:
       ++in;
-yy2:
       {
-        // For any other character (e.g. whitespace), swallow it here,
+        break;
+      }
+yy2:
+      ++in;
+yy3:
+      {
+        // Any other character is illegal
+        char* temp = in - 1;
+        *err = std::string("illegal character:\"") + *temp + "\" ASCI:\""+ std::to_string(*temp) + "\"";
+        return false;
+      }
+yy4:
+      ++in;
+      {
+        // For any whitespace, swallow it here,
         // allowing the outer logic to loop around again.
         break;
       }
-yy3:
+yy5:
       ++in;
       {
         // A newline ends the current file name and the current rule.
         have_newline = true;
         break;
       }
-yy4:
+yy6:
       yych = *++in;
-      if (yych == '\n') goto yy3;
-      goto yy2;
-yy5:
+      if (yych == '\n') goto yy5;
+      goto yy3;
+yy7:
       yych = *++in;
       if (yybm[0+yych] & 128) {
-        goto yy5;
+        goto yy7;
       }
-yy6:
+yy8:
       {
         // Got a span of plain text.
         int len = (int)(in - start);
@@ -163,54 +175,54 @@ yy6:
         out += len;
         continue;
       }
-yy7:
+yy9:
       yych = *++in;
-      if (yych == '$') goto yy9;
-      goto yy2;
-yy8:
+      if (yych == '$') goto yy11;
+      goto yy3;
+yy10:
       yych = *(yymarker = ++in);
       if (yych <= ' ') {
         if (yych <= '\n') {
-          if (yych <= 0x00) goto yy2;
-          if (yych <= '\t') goto yy10;
-          goto yy11;
-        } else {
-          if (yych == '\r') goto yy12;
-          if (yych <= 0x1F) goto yy10;
+          if (yych <= 0x00) goto yy3;
+          if (yych <= '\t') goto yy12;
           goto yy13;
+        } else {
+          if (yych == '\r') goto yy14;
+          if (yych <= 0x1F) goto yy12;
+          goto yy15;
         }
       } else {
         if (yych <= '9') {
-          if (yych == '#') goto yy14;
-          goto yy10;
+          if (yych == '#') goto yy16;
+          goto yy12;
         } else {
-          if (yych <= ':') goto yy15;
-          if (yych == '\\') goto yy17;
-          goto yy10;
+          if (yych <= ':') goto yy17;
+          if (yych == '\\') goto yy19;
+          goto yy12;
         }
       }
-yy9:
+yy11:
       ++in;
       {
         // De-escape dollar character.
         *out++ = '$';
         continue;
       }
-yy10:
+yy12:
       ++in;
-      goto yy6;
-yy11:
+      goto yy8;
+yy13:
       ++in;
       {
         // A line continuation ends the current file name.
         break;
       }
-yy12:
+yy14:
       yych = *++in;
-      if (yych == '\n') goto yy11;
+      if (yych == '\n') goto yy13;
       in = yymarker;
-      goto yy2;
-yy13:
+      goto yy3;
+yy15:
       ++in;
       {
         // 2N+1 backslashes plus space -> N backslashes plus space.
@@ -222,7 +234,7 @@ yy13:
         *out++ = ' ';
         continue;
       }
-yy14:
+yy16:
       ++in;
       {
         // De-escape hash sign, but preserve other leading backslashes.
@@ -233,17 +245,17 @@ yy14:
         *out++ = '#';
         continue;
       }
-yy15:
+yy17:
       yych = *++in;
       if (yych <= '\f') {
-        if (yych <= 0x00) goto yy18;
-        if (yych <= 0x08) goto yy16;
-        if (yych <= '\n') goto yy18;
+        if (yych <= 0x00) goto yy20;
+        if (yych <= 0x08) goto yy18;
+        if (yych <= '\n') goto yy20;
       } else {
-        if (yych <= '\r') goto yy18;
-        if (yych == ' ') goto yy18;
+        if (yych <= '\r') goto yy20;
+        if (yych == ' ') goto yy20;
       }
-yy16:
+yy18:
       {
         // De-escape colon sign, but preserve other leading backslashes.
         // Regular expression uses lookahead to make sure that no whitespace
@@ -255,29 +267,29 @@ yy16:
         *out++ = ':';
         continue;
       }
-yy17:
+yy19:
       yych = *++in;
       if (yych <= ' ') {
         if (yych <= '\n') {
-          if (yych <= 0x00) goto yy6;
-          if (yych <= '\t') goto yy10;
-          goto yy6;
+          if (yych <= 0x00) goto yy8;
+          if (yych <= '\t') goto yy12;
+          goto yy8;
         } else {
-          if (yych == '\r') goto yy6;
-          if (yych <= 0x1F) goto yy10;
-          goto yy19;
+          if (yych == '\r') goto yy8;
+          if (yych <= 0x1F) goto yy12;
+          goto yy21;
         }
       } else {
         if (yych <= '9') {
-          if (yych == '#') goto yy14;
-          goto yy10;
+          if (yych == '#') goto yy16;
+          goto yy12;
         } else {
-          if (yych <= ':') goto yy15;
-          if (yych == '\\') goto yy20;
-          goto yy10;
+          if (yych <= ':') goto yy17;
+          if (yych == '\\') goto yy22;
+          goto yy12;
         }
       }
-yy18:
+yy20:
       ++in;
       {
         // Backslash followed by : and whitespace.
@@ -291,7 +303,7 @@ yy18:
           have_newline = true;
         break;
       }
-yy19:
+yy21:
       ++in;
       {
         // 2N backslashes plus space -> 2N backslashes, end of filename.
@@ -301,26 +313,26 @@ yy19:
         out += len - 1;
         break;
       }
-yy20:
+yy22:
       yych = *++in;
       if (yych <= ' ') {
         if (yych <= '\n') {
-          if (yych <= 0x00) goto yy6;
-          if (yych <= '\t') goto yy10;
-          goto yy6;
+          if (yych <= 0x00) goto yy8;
+          if (yych <= '\t') goto yy12;
+          goto yy8;
         } else {
-          if (yych == '\r') goto yy6;
-          if (yych <= 0x1F) goto yy10;
-          goto yy13;
+          if (yych == '\r') goto yy8;
+          if (yych <= 0x1F) goto yy12;
+          goto yy15;
         }
       } else {
         if (yych <= '9') {
-          if (yych == '#') goto yy14;
-          goto yy10;
+          if (yych == '#') goto yy16;
+          goto yy12;
         } else {
-          if (yych <= ':') goto yy15;
-          if (yych == '\\') goto yy17;
-          goto yy10;
+          if (yych <= ':') goto yy17;
+          if (yych == '\\') goto yy19;
+          goto yy12;
         }
       }
     }
