@@ -69,7 +69,7 @@ jobs:
       - name: Build release ninja
         shell: bash
         run: |
-          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -B release-build
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
           cmake --build release-build --parallel --config Release
           strip release-build/ninja
 
@@ -164,6 +164,8 @@ jobs:
           apt install -y g++ python3
       - name: ${{ matrix.image }}
         run: |
+          # Do not set --warnings-as-errors here as that triggers an irrelevant
+          # compiler warnings in <stdio.h> with ubuntu:24.04. See issue #2615
           python3 configure.py --bootstrap
           ./ninja all
           python3 misc/ninja_syntax_test.py
@@ -184,7 +186,7 @@ jobs:
 
       - run: |
           # BUILD
-          cmake -DCMAKE_BUILD_TYPE=Release -B release-build
+          cmake -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
           cmake --build release-build --parallel --config Release
           strip release-build/ninja
           file release-build/ninja

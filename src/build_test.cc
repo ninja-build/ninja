@@ -1024,7 +1024,7 @@ TEST_F(BuildTest, DepFileMissing) {
 
 TEST_F(BuildTest, DepFileOK) {
   string err;
-  int orig_edges = state_.edges_.size();
+  int orig_edges = static_cast<int>(state_.edges_.size());
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));

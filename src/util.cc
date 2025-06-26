@@ -880,7 +880,8 @@ int GetProcessorCount() {
   }
 #endif
   if (cgroupCount >= 0 && schedCount >= 0) return std::min(cgroupCount, schedCount);
-  if (cgroupCount < 0 && schedCount < 0) return sysconf(_SC_NPROCESSORS_ONLN);
+  if (cgroupCount < 0 && schedCount < 0)
+    return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
   return std::max(cgroupCount, schedCount);
 #endif
 }

@@ -951,8 +951,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, record_mtime)) {
+    if (!scan_.build_log()->RecordCommand(
+            edge, static_cast<int>(start_time_millis),
+            static_cast<int>(end_time_millis), record_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
