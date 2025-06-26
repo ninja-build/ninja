@@ -798,11 +798,13 @@ int ParseCPUFromCGroup() {
   auto cgroups = ParseMountInfo(subsystems);
 
   // Prefer cgroup v2 if both v1 and v2 should be present
-  if (const auto cgroup2 = cgroups.find("cgroup2"); cgroup2 != cgroups.end()) {
+  const auto cgroup2 = cgroups.find("cgroup2");
+  if (cgroup2 != cgroups.end()) {
     return ParseCgroupV2(cgroup2->second);
   }
 
-  if (const auto cpu = cgroups.find("cpu"); cpu != cgroups.end()) {
+  const auto cpu = cgroups.find("cpu");
+  if (cpu != cgroups.end()) {
     return ParseCgroupV1(cpu->second);
   }
   return -1;
