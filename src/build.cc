@@ -859,7 +859,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
-    if (!disk_interface_->WriteFile(rspfile, content))
+    if (!disk_interface_->WriteTextFile(rspfile, content))
       return false;
   }
 

@@ -55,6 +55,13 @@ struct DiskInterface: public FileReader {
   virtual bool WriteFile(const std::string& path,
                          const std::string& contents) = 0;
 
+  /// Same as WriteFile(), but ensures that on Windows \n is converted
+  /// into \r\n. This is critical when writing response files.
+  virtual bool WriteTextFile(const std::string& path,
+                             const std::string& contents) {
+    return WriteFile(path, contents);
+  }
+
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
@@ -74,6 +81,10 @@ struct RealDiskInterface : public DiskInterface {
   virtual TimeStamp Stat(const std::string& path, std::string* err) const;
   virtual bool MakeDir(const std::string& path);
   virtual bool WriteFile(const std::string& path, const std::string& contents);
+#ifdef _WIN32
+  bool WriteTextFile(const std::string& path,
+                     const std::string& contents) override;
+#endif
   virtual Status ReadFile(const std::string& path, std::string* contents,
                           std::string* err);
   virtual int RemoveFile(const std::string& path);
