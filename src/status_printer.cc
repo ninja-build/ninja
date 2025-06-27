@@ -32,7 +32,6 @@
 #endif
 
 #include "build.h"
-#include "debug_flags.h"
 #include "exit_status.h"
 
 using namespace std;

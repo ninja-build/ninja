@@ -40,7 +40,6 @@
 #include "build_log.h"
 #include "clean.h"
 #include "command_collector.h"
-#include "debug_flags.h"
 #include "deps_log.h"
 #include "disk_interface.h"
 #include "exit_status.h"
@@ -1371,7 +1370,7 @@ const Tool* ChooseTool(const string& tool_name) {
 
 /// Enable a debugging mode.  Returns false if Ninja should exit instead
 /// of continuing.
-bool DebugEnable(const string& name) {
+bool DebugEnable(const string& name, BuildConfig* config) {
   if (name == "list") {
     printf("debugging modes:\n"
 "  stats        print operation counts/timing info\n"
@@ -1387,16 +1386,16 @@ bool DebugEnable(const string& name) {
     g_metrics = new Metrics;
     return true;
   } else if (name == "explain") {
-    g_explaining = true;
+    config->explaining = true;
     return true;
   } else if (name == "keepdepfile") {
-    g_keep_depfile = true;
+    config->keep_depfile = true;
     return true;
   } else if (name == "keeprsp") {
-    g_keep_rsp = true;
+    config->keep_rsp = true;
     return true;
   } else if (name == "nostatcache") {
-    g_experimental_statcache = false;
+    config->experimental_statcache = false;
     return true;
   } else {
     const char* suggestion =
@@ -1597,7 +1596,7 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
     return ExitFailure;
   }
 
-  disk_interface_.AllowStatCache(g_experimental_statcache);
+  disk_interface_.AllowStatCache(config_.experimental_statcache);
 
   // Detect jobserver context and inject Jobserver::Client into the builder
   // if needed.
@@ -1705,7 +1704,7 @@ int ReadFlags(int* argc, char*** argv,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
-        if (!DebugEnable(optarg))
+        if (!DebugEnable(optarg, config))
           return 1;
         break;
       case 'f':

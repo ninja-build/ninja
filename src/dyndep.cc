@@ -17,7 +17,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "debug_flags.h"
 #include "disk_interface.h"
 #include "dyndep_parser.h"
 #include "explanations.h"

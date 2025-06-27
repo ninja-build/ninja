@@ -29,7 +29,6 @@
 
 #include "build_log.h"
 #include "clparser.h"
-#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"
@@ -609,7 +608,7 @@ Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
                  Status* status, int64_t start_time_millis)
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
-      explanations_(g_explaining ? new Explanations() : nullptr),
+      explanations_(config_.explaining ? new Explanations() : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options, explanations_.get()) {
   lock_file_path_ = ".ninja_lock";
@@ -953,7 +952,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();
-  if (!rspfile.empty() && !g_keep_rsp)
+  if (!rspfile.empty() && !config_.keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
@@ -1034,7 +1033,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       deps_nodes->push_back(state_->GetNode(*i, slash_bits));
     }
 
-    if (!g_keep_depfile) {
+    if (!config_.keep_depfile) {
       if (disk_interface_->RemoveFile(depfile) < 0) {
         *err = string("deleting depfile: ") + strerror(errno) + string("\n");
         return false;
