@@ -220,6 +220,8 @@ parser.add_option('--host',
                   choices=Platform.known_platforms())
 parser.add_option('--debug', action='store_true',
                   help='enable debugging extras',)
+parser.add_option('--warnings-as-errors', action='store_true',
+                  help='convert warnings into errors during build',)
 parser.add_option('--profile', metavar='TYPE',
                   choices=profilers,
                   help='enable profiling (' + '/'.join(profilers) + ')',)
@@ -349,6 +351,8 @@ if platform.is_msvc():
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
+    if options.warnings_as_errors:
+        cflags.append('/WX')
     if platform.msvc_needs_fs():
         cflags.append('/FS')
     ldflags = ['/DEBUG', '/libpath:$builddir']
@@ -365,6 +369,8 @@ else:
               '-std=c++14',
               '-fvisibility=hidden', '-pipe',
               '-DNINJA_PYTHON="%s"' % options.with_python]
+    if options.warnings_as_errors:
+        cflags += [ "-Werror" ]
     if options.debug:
         cflags += ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC']
         cflags.remove('-fno-rtti')  # Needed for above pedanticness.

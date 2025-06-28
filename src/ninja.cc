@@ -1713,27 +1713,29 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'j': {
         char* end;
-        int value = strtol(optarg, &end, 10);
+        long value = strtol(optarg, &end, 10);
         if (*end != 0 || value < 0)
           Fatal("invalid -j parameter");
 
         // We want to run N jobs in parallel. For N = 0, INT_MAX
         // is close enough to infinite for most sane builds.
-        config->parallelism = value > 0 ? value : INT_MAX;
+        config->parallelism =
+            static_cast<int>((value > 0 && value < INT_MAX) ? value : INT_MAX);
         config->disable_jobserver_client = true;
         deferGuessParallelism.needGuess = false;
         break;
       }
       case 'k': {
         char* end;
-        int value = strtol(optarg, &end, 10);
+        long value = strtol(optarg, &end, 10);
         if (*end != 0)
           Fatal("-k parameter not numeric; did you mean -k 0?");
 
         // We want to go until N jobs fail, which means we should allow
         // N failures and then stop.  For N <= 0, INT_MAX is close enough
         // to infinite for most sane builds.
-        config->failures_allowed = value > 0 ? value : INT_MAX;
+        config->failures_allowed =
+            static_cast<int>((value > 0 && value < INT_MAX) ? value : INT_MAX);
         break;
       }
       case 'l': {

@@ -117,7 +117,7 @@ bool ManifestParser::ParsePool(string* err) {
 
     if (key == "depth") {
       string depth_string = value.Evaluate(env_);
-      depth = atol(depth_string.c_str());
+      depth = atoi(depth_string.c_str());
       if (depth < 0)
         return lexer_.Error("invalid pool depth", err);
     } else {

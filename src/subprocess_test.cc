@@ -230,7 +230,7 @@ TEST_F(SubprocessTest, SetWithLots) {
   ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlim));
   if (rlim.rlim_cur < kNumProcs) {
     printf("Raise [ulimit -n] above %u (currently %lu) to make this test go\n",
-           kNumProcs, rlim.rlim_cur);
+           kNumProcs, static_cast<unsigned long>(rlim.rlim_cur));
     return;
   }
 

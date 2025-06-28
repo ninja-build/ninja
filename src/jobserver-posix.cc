@@ -49,7 +49,7 @@ class PosixJobserverClient : public Jobserver::Client {
       return Jobserver::Slot::CreateImplicit();
     }
     uint8_t slot_char = '\0';
-    int ret;
+    ssize_t ret;
     do {
       ret = ::read(read_fd_, &slot_char, 1);
     } while (ret < 0 && errno == EINTR);
@@ -70,7 +70,7 @@ class PosixJobserverClient : public Jobserver::Client {
     }
 
     uint8_t slot_char = slot.GetExplicitValue();
-    int ret;
+    ssize_t ret;
     do {
       ret = ::write(write_fd_, &slot_char, 1);
     } while (ret < 0 && errno == EINTR);
