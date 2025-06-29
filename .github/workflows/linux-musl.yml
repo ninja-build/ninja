@@ -36,7 +36,7 @@ jobs:
 
       - name: Configure ninja build
         if: matrix.build_method == 'cmake'
-        run: cmake -B build -D CMAKE_BUILD_TYPE="Release"
+        run: cmake -B build -D CMAKE_BUILD_TYPE="Release" -D CMAKE_COMPILE_WARNING_AS_ERROR="ON"
 
       - name: Cmake Build ninja
         if: matrix.build_method == 'cmake'
@@ -48,7 +48,7 @@ jobs:
 
       - name: Python Build ninja
         if: matrix.build_method == 'python'
-        run: python3 configure.py --bootstrap --verbose
+        run: python3 configure.py --warnings-as-errors --bootstrap --verbose
 
       - name: Python test ninja
         if: matrix.build_method == 'python'

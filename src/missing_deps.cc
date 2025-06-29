@@ -103,7 +103,8 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
     std::string err;
     dep_loader.LoadDeps(edge, &err);
     if (!depfile_deps.empty())
-      ProcessNodeDeps(node, &depfile_deps[0], depfile_deps.size());
+      ProcessNodeDeps(node, &depfile_deps[0],
+                      static_cast<int>(depfile_deps.size()));
   }
 }
 
