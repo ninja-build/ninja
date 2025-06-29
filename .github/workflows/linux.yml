@@ -3,16 +3,32 @@ name: Linux
 on:
   pull_request:
   push:
+    branches: ['**']
+    tags-ignore: ['**']  # Don't trigger on tag pushes to stop two runs on release publish
   release:
     types: published
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fedora:
-    runs-on: [ubuntu-latest]
-    container:
-      image: fedora:40
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        host-os: ["ubuntu-latest", "ubuntu-24.04-arm"]
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.host-os }}
+    container: fedora:40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux clang-tools-extra
       - name: Linting
@@ -39,22 +55,37 @@ jobs:
           ../../misc/jobserver_test.py
 
   build:
-    runs-on: [ubuntu-latest]
-    container:
-      image: rockylinux:8
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        host-os: ["ubuntu-latest", "ubuntu-24.04-arm"]
+        include:
+          - host-os: "ubuntu-24.04-arm"
+            arch: "-aarch64"
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.host-os }}
+    container: rockylinux/rockylinux:8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - uses: codespell-project/actions-codespell@master
         with:
           ignore_words_list: fo,wee,addin,notin
+
       - name: Install dependencies
         run: |
-          dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
+          dnf update -y
+          dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y gtest-devel p7zip p7zip-plugins ninja-build
+          dnf install -y clang-analyzer cmake gcc-c++ gtest-devel libasan make ninja-build p7zip p7zip-plugins re2c
 
       - name: Build debug ninja
-        shell: bash
         env:
           CFLAGS: -fstack-protector-all -fsanitize=address
           CXXFLAGS: -fstack-protector-all -fsanitize=address
@@ -67,7 +98,6 @@ jobs:
         working-directory: debug-build
 
       - name: Build release ninja
-        shell: bash
         run: |
           cmake -GNinja -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
           cmake --build release-build --parallel --config Release
@@ -78,39 +108,48 @@ jobs:
         working-directory: release-build
 
       - name: Create ninja archive
-        run: |
-          mkdir artifact
-          7z a artifact/ninja-linux.zip ./release-build/ninja
+        run: 7z a ninja-linux${{ matrix.arch }}.zip ./release-build/ninja
 
-      # Upload ninja binary archive as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ninja-binary-archives
-          path: artifact
+          name: ninja${{ matrix.arch }}-binary-archives
+          path: ninja-linux${{ matrix.arch }}.zip
 
       - name: Upload release asset
         if: github.event.action == 'published'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./artifact/ninja-linux.zip
-          asset_name: ninja-linux.zip
-          asset_content_type: application/zip
+          allowUpdates: true
+          artifactContentType : "application/zip"
+          replacesArtifacts: true
+          artifacts: ./ninja-linux${{ matrix.arch }}.zip
 
   test:
-    runs-on: [ubuntu-latest]
-    container:
-      image: ubuntu:20.04
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        host-os: ["ubuntu-latest", "ubuntu-24.04-arm"]
+        image: ["ubuntu:20.04", "ubuntu:22.04", "ubuntu:24.04"]
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.host-os }}
+    container: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: |
           apt update
-          apt install -y python3-pytest ninja-build python3-pip clang libgtest-dev
-          pip3 install cmake==3.17.*
+          apt install -y python3-pytest ninja-build python3-pip clang libgtest-dev re2c
+          pip3 install cmake=="3.20.3"
+        env:
+          PIP_BREAK_SYSTEM_PACKAGES: "1"
+
       - name: Configure (GCC)
         run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
 
@@ -150,19 +189,27 @@ jobs:
         working-directory: build-clang/Release
 
   build-with-python:
-    runs-on: [ubuntu-latest]
-    container:
-      image: ${{ matrix.image }}
+    permissions:
+      contents: read
     strategy:
       matrix:
+        host-os: ["ubuntu-latest", "ubuntu-24.04-arm"]
         image: ["ubuntu:20.04", "ubuntu:22.04", "ubuntu:24.04"]
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.host-os }}
+    container: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: |
           apt update
           apt install -y g++ python3
-      - name: ${{ matrix.image }}
+      - name: ${{ matrix.host-os }} ${{ matrix.image }}
         run: |
           # Do not set --warnings-as-errors here as that triggers an irrelevant
           # compiler warnings in <stdio.h> with ubuntu:24.04. See issue #2615
@@ -170,50 +217,3 @@ jobs:
           ./ninja all
           python3 misc/ninja_syntax_test.py
           ./misc/output_test.py
-
-  build-aarch64:
-    name: Build Linux ARM64
-    runs-on: [ubuntu-24.04-arm]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - run: |
-          sudo apt-get update -q -y
-          sudo apt-get install -q -y make gcc g++ libasan5 clang-tools curl p7zip-full file cmake re2c
-
-      - run: |
-          # BUILD
-          cmake -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
-          cmake --build release-build --parallel --config Release
-          strip release-build/ninja
-          file release-build/ninja
-
-          # TEST
-          pushd release-build
-          ./ninja_test
-          popd
-
-          # CREATE ARCHIVE
-          mkdir artifact
-          7z a artifact/ninja-linux-aarch64.zip ./release-build/ninja
-
-      # Upload ninja binary archive as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-aarch64-binary-archives
-          path: artifact
-
-      - name: Upload release asset
-        if: github.event.action == 'published'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./artifact/ninja-linux-aarch64.zip
-          asset_name: ninja-linux-aarch64.zip
-          asset_content_type: application/zip
