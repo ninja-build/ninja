@@ -783,6 +783,12 @@ ExitStatus Builder::Build(string* err) {
       if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
+        if (result.success()) {
+          // If the command pretend succeeded, the status wasn't set to a proper exit code,
+          // so we set it to ExitFailure.
+          result.status = ExitFailure;
+          SetFailureCode(result.status);
+        }
         return result.status;
       }
 
