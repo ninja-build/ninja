@@ -58,9 +58,10 @@ jobs:
           ignore_words_list: fo,wee,addin,notin
       - name: Install dependencies
         run: |
-          dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
+          dnf update -y
+          dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y gtest-devel p7zip p7zip-plugins ninja-build
+          dnf install -y clang-analyzer cmake gcc-c++ gtest-devel libasan make ninja-build p7zip p7zip-plugins re2c
 
       - name: Build debug ninja
         env:
@@ -98,14 +99,13 @@ jobs:
 
       - name: Upload release asset
         if: github.event.action == 'published'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./artifact/ninja-linux${{ matrix.arch }}.zip
-          asset_name: ninja-linux${{ matrix.arch }}.zip
-          asset_content_type: application/zip
+          allowUpdates: true # if release exists it will edit it.
+          artifactContentType: "application/zip" # if empty defaults to raw
+          replacesArtifacts: true # will update existing release assets if needed.
+          omitBodyDuringUpdate: true # don't edit release body when published via webui
+          artifacts: ./artifact/ninja-linux${{ matrix.arch }}.zip # release asset
 
   test:
     runs-on: [ubuntu-latest]
