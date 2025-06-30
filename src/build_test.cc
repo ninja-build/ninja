@@ -3487,7 +3487,7 @@ TEST_F(BuildTest, DyndepBuildSyntaxError) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   EXPECT_EQ("dd:1: expected 'ninja_dyndep_version = ...'\n", err);
 }
 
@@ -3581,7 +3581,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules1) {
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   EXPECT_EQ("multiple rules generate out-twice.imp", err);
 }
 
@@ -3621,7 +3621,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules2) {
   EXPECT_TRUE(builder_.AddTarget("out2", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   EXPECT_EQ("multiple rules generate out-twice.imp", err);
 }
 
@@ -3678,7 +3678,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewInputWithValidation) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
 
   string err_first_line = err.substr(0, err.find("\n"));
   EXPECT_EQ("dd:2: expected newline, got '|@'", err_first_line);
@@ -3883,7 +3883,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverCircular) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   EXPECT_EQ("", err);
 
-  EXPECT_FALSE(builder_.Build(&err));
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
   // Depending on how the pointers in Plan::ready_ work out, we could have
   // discovered the cycle from either starting point.
   EXPECT_TRUE(err == "dependency cycle: circ -> in -> circ" ||
