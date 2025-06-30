@@ -762,10 +762,25 @@ vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
 }
 
 void InputsCollector::VisitNode(const Node* node) {
-  const Edge* edge = node->in_edge();
+  Edge* edge = node->in_edge();
 
   if (!edge)  // A source file.
     return;
+
+  if (implicit_dep_loader_ && !edge->deps_loaded_) {
+    // Record that the deps were loaded in |deps_loaded_| as
+    // multiple visits to the same edge can be performed by
+    // repeated InputsCollector uses, as for the multi-inputs tool.
+    edge->deps_loaded_ = true;
+
+    // Ignore errors when loading depfile entries.
+    std::string err;
+    if (!implicit_dep_loader_->LoadDeps(edge, &err) && !err.empty()) {
+      // Print the error as a warning on stderr when an error occurred during
+      // the load.
+      Warning("%s", err.c_str());
+    }
+  }
 
   // Add inputs of the producing edge to the result,
   // except if they are themselves produced by a phony
