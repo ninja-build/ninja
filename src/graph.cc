@@ -767,6 +767,19 @@ void InputsCollector::VisitNode(const Node* node) {
   if (!edge)  // A source file.
     return;
 
+  if (implicit_dep_loader_ && !edge->deps_loaded_) {
+    Edge* mutable_edge = const_cast<Edge*>(edge);
+
+    // Record that the deps were loaded in |deps_loaded_| as
+    // multiple visits to the same edge can be performed by
+    // repeated InputsCollector uses, as for the multi-inputs tool.
+    mutable_edge->deps_loaded_ = true;
+
+    // Ignore errors when loading depfile entries.
+    std::string err;
+    (void)implicit_dep_loader_->LoadDeps(mutable_edge, &err);
+  }
+
   // Add inputs of the producing edge to the result,
   // except if they are themselves produced by a phony
   // edge.

@@ -58,7 +58,7 @@ def remove_non_visible_lines(raw_output: bytes) -> str:
 class BuildDir:
     def __init__(self, build_ninja: str):
         self.build_ninja = dedent(build_ninja)
-        self.d = None
+        self.d : None | tempfile.TemporaryDirectory[str] = None
 
     def __enter__(self):
         self.d = tempfile.TemporaryDirectory()
@@ -72,6 +72,7 @@ class BuildDir:
 
     @property
     def path(self) -> str:
+        assert self.d
         return os.path.realpath(self.d.name)
 
 
@@ -111,13 +112,13 @@ class BuildDir:
         try:
             if pipe:
                 output = subprocess.check_output(
-                    [ninja_cmd], shell=True, cwd=self.d.name, env=env)
+                    [ninja_cmd], shell=True, cwd=self.path, env=env)
             elif platform.system() == 'Darwin':
                 output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
-                                                 cwd=self.d.name, env=env)
+                                                 cwd=self.path, env=env)
             else:
                 output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
-                                                 cwd=self.d.name, env=env)
+                                                 cwd=self.path, env=env)
         except subprocess.CalledProcessError as err:
             if print_err_output:
               sys.stdout.buffer.write(err.output)
@@ -366,8 +367,8 @@ ninja: build stopped: subcommand failed.
             self.assertEqual(b.run('', pipe=True), dedent('''\
                 [1/1] touch somewhere/out && echo "somewhere/out: extra" > somewhere_else/out.d
                 '''))
-            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere", "out")))
-            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere_else", "out.d")))
+            self.assertTrue(os.path.isfile(os.path.join(b.path, "somewhere", "out")))
+            self.assertTrue(os.path.isfile(os.path.join(b.path, "somewhere_else", "out.d")))
 
     def test_status(self) -> None:
         self.assertEqual(run(''), 'ninja: no work to do.\n')
@@ -468,6 +469,19 @@ out 2
           f'''in1\0out1\0out 2\0'''
         )
 
+    def test_tool_inputs_with_depfile_entries(self) -> None:
+        build_ninja = '''
+rule touch
+  command = touch $out && echo "$out: extra extra2" > $depfile
+build out: touch
+  depfile = out.d
+'''
+        with BuildDir(build_ninja) as b:
+          # Run the plan and create the log entry for 'out'
+          b.run('out')
+          self.assertEqual(b.run(flags='-t inputs out'), '')
+          self.assertEqual(b.run(flags='-t inputs --depfile out'), 'extra\nextra2\n')
+
 
     def test_tool_compdb_targets(self) -> None:
         plan = '''
@@ -554,6 +568,55 @@ out3<TAB>in3
           ),
           '''out1,in1\0out2,in1\0out2,in2\0'''
         )
+
+
+    def test_tool_multi_inputs_with_depfile_entries(self) -> None:
+        build_ninja = '''
+rule touch1
+  command = touch $out && echo "$out: extra extra2" > $depfile
+rule touch2
+  command = touch $out && echo "$out: extra extra3" > $depfile
+build out1: touch1
+  depfile = out1.d
+build out2: touch2
+  depfile = out2.d
+'''
+        with BuildDir(build_ninja) as b:
+          # Run the plan and create the log entries for 'out1' and 'out2'
+          b.run('out1 out2')
+
+          self.assertEqual(b.run(flags='-t multi-inputs'), '')
+          self.assertEqual(b.run(flags='-t multi-inputs out1'), '')
+          self.assertEqual(b.run(flags='-t multi-inputs out2'), '')
+          self.assertEqual(b.run(flags='-t multi-inputs out1 out2'), '')
+          self.assertEqual(b.run(flags='-t multi-inputs out2 out1'), '')
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile'), '''out1<TAB>extra
+out1<TAB>extra2
+out2<TAB>extra
+out2<TAB>extra3
+'''.replace('<TAB>', '\t'))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out1'), '''out1<TAB>extra
+out1<TAB>extra2
+'''.replace('<TAB>', '\t'))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out2'), '''out2<TAB>extra
+out2<TAB>extra3
+'''.replace('<TAB>', '\t'))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out1 out2'), '''out1<TAB>extra
+out1<TAB>extra2
+out2<TAB>extra
+out2<TAB>extra3
+'''.replace('<TAB>', '\t'))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out2 out1'), '''out2<TAB>extra
+out2<TAB>extra3
+out1<TAB>extra
+out1<TAB>extra2
+'''.replace('<TAB>', '\t'))
+
 
 
     def test_explain_output(self):
