@@ -39,9 +39,18 @@ jobs:
           ../../misc/jobserver_test.py
 
   build:
-    runs-on: [ubuntu-latest]
-    container:
-      image: rockylinux:8
+    strategy:
+      matrix:
+        host-os: ["ubuntu-latest", "ubuntu-24.04-arm"]
+        include:
+          - host-os: "ubuntu-24.04-arm"
+            arch: "-aarch64"
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.host-os }}
+    container: rockylinux/rockylinux:8
     steps:
       - uses: actions/checkout@v4
       - uses: codespell-project/actions-codespell@master
@@ -54,7 +63,6 @@ jobs:
           dnf install -y gtest-devel p7zip p7zip-plugins ninja-build
 
       - name: Build debug ninja
-        shell: bash
         env:
           CFLAGS: -fstack-protector-all -fsanitize=address
           CXXFLAGS: -fstack-protector-all -fsanitize=address
@@ -67,7 +75,6 @@ jobs:
         working-directory: debug-build
 
       - name: Build release ninja
-        shell: bash
         run: |
           cmake -GNinja -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
           cmake --build release-build --parallel --config Release
@@ -80,13 +87,13 @@ jobs:
       - name: Create ninja archive
         run: |
           mkdir artifact
-          7z a artifact/ninja-linux.zip ./release-build/ninja
+          7z a artifact/ninja-linux${{ matrix.arch }}.zip ./release-build/ninja
 
       # Upload ninja binary archive as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ninja-binary-archives
+          name: ninja${{ matrix.arch }}-binary-archives
           path: artifact
 
       - name: Upload release asset
@@ -96,8 +103,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./artifact/ninja-linux.zip
-          asset_name: ninja-linux.zip
+          asset_path: ./artifact/ninja-linux${{ matrix.arch }}.zip
+          asset_name: ninja-linux${{ matrix.arch }}.zip
           asset_content_type: application/zip
 
   test:
@@ -170,50 +177,3 @@ jobs:
           ./ninja all
           python3 misc/ninja_syntax_test.py
           ./misc/output_test.py
-
-  build-aarch64:
-    name: Build Linux ARM64
-    runs-on: [ubuntu-24.04-arm]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - run: |
-          sudo apt-get update -q -y
-          sudo apt-get install -q -y make gcc g++ libasan5 clang-tools curl p7zip-full file cmake re2c
-
-      - run: |
-          # BUILD
-          cmake -DCMAKE_BUILD_TYPE=Release -B release-build -DCMAKE_COMPILE_WARNING_AS_ERROR=1
-          cmake --build release-build --parallel --config Release
-          strip release-build/ninja
-          file release-build/ninja
-
-          # TEST
-          pushd release-build
-          ./ninja_test
-          popd
-
-          # CREATE ARCHIVE
-          mkdir artifact
-          7z a artifact/ninja-linux-aarch64.zip ./release-build/ninja
-
-      # Upload ninja binary archive as an artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-aarch64-binary-archives
-          path: artifact
-
-      - name: Upload release asset
-        if: github.event.action == 'published'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./artifact/ninja-linux-aarch64.zip
-          asset_name: ninja-linux-aarch64.zip
-          asset_content_type: application/zip
