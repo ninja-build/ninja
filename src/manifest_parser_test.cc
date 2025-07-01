@@ -1136,3 +1136,28 @@ TEST_F(ParserTest, DyndepRuleInput) {
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
 }
+
+struct ManifestParserTest : public testing::Test {
+  ManifestParserTest() : parser(&state, &fs_) {}
+
+  void AssertParse(const char* input) {
+    string err;
+    EXPECT_TRUE(parser.ParseTest(input, &err));
+    ASSERT_EQ("", err);
+    VerifyGraph(state);
+  }
+
+  State state;
+  VirtualFileSystem fs_;
+  ManifestParser parser;
+};
+
+TEST_F(ManifestParserTest, LookupVariable) {
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse("foo = World\n"
+                  "bar = Hello $foo\n"));
+
+  ASSERT_EQ(parser.LookupVariable("foo"), "World");
+  ASSERT_EQ(parser.LookupVariable("bar"), "Hello World");
+  ASSERT_EQ(parser.LookupVariable("zoo"), "");
+}
