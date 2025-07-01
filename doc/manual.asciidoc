@@ -203,7 +203,8 @@ Ninja becomes a protocol client automatically if it detects the right
 values in the `MAKEFLAGS` environment variable (see exact conditions below).
 
 Since version 1.14, Ninja can also be a protocol server, if needed, using
-the `--jobserver-pool` command-line flag.
+the `--jobserver-pool` command-line flag, or if `enable_jobserver_pool = 1`
+is set in the Ninja build plan.
 
 In jobserver-enabled builds, there is one top-level "server" process which:
 
@@ -235,8 +236,8 @@ when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
 `--jobserver-auth=<read>,<write>`) and will print a warning, but will
 otherwise ignore it.
 
-Using `--jobserver-pool` will make Ninja act as a protocol server, unless
-any of these are true:
+Using `--jobserver-pool` or `enable_jobserver_pool = 1` will make Ninja
+act as a protocol server, unless any of these are true:
 
 - An existing pool was detected, as this keeps all processes cooperating
   properly.
@@ -983,7 +984,7 @@ previous one, it closes the previous scope.
 Top-level variables
 ~~~~~~~~~~~~~~~~~~~
 
-Two variables are significant when declared in the outermost file scope.
+Three variables are significant when declared in the outermost file scope.
 
 `builddir`:: a directory for some Ninja output files.  See <<ref_log,the
   discussion of the build log>>.  (You can also store other build output
@@ -992,6 +993,11 @@ Two variables are significant when declared in the outermost file scope.
 `ninja_required_version`:: the minimum version of Ninja required to process
   the build correctly.  See <<ref_versioning,the discussion of versioning>>.
 
+`enable_jobserver_pool`:: If set to `1` (any other value is ignored), enable
+  jobserver pool mode, as if `--jobserver-pool` was passed on the command
+  line. Note that `0` does not disable the feature, and that the size of
+  the pool is determined by the parallel job count that is either auto-detected
+  or controlled by the `-j<COUNT>` command-line option.
 
 [[ref_rule]]
 Rule variables

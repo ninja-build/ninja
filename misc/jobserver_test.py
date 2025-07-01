@@ -111,13 +111,13 @@ def span_output_file(span_n: int) -> str:
     return "out%02d" % span_n
 
 
-def generate_build_plan(command_count: int) -> str:
+def generate_build_plan(command_count: int, prefix: str = "") -> str:
     """Generate a Ninja build plan for |command_count| parallel tasks.
 
     Each task calls the test helper script which waits for 50ms
     then writes its own start and end time to its output file.
     """
-    result = f"""
+    result = prefix + f"""
 rule span
     command = {sys.executable} -S {_JOBSERVER_TEST_HELPER_SCRIPT} --duration-ms=50 $out
 
@@ -291,7 +291,7 @@ class JobserverTest(unittest.TestCase):
             max_overlaps = compute_max_overlapped_spans(b.path, task_count)
             self.assertEqual(max_overlaps, 1)
 
-    def test_jobserver_pool_mode(self):
+    def test_jobserver_pool_mode_with_flag(self):
         task_count = 4
         build_plan = generate_build_plan(task_count)
         with BuildDir(build_plan) as b:
@@ -364,6 +364,57 @@ class JobserverTest(unittest.TestCase):
             )
             max_overlaps = compute_max_overlapped_spans(b.path, task_count)
             self.assertEqual(max_overlaps, 2)
+
+    def test_jobserver_pool_mode_with_variable(self):
+        task_count = 4
+        build_plan = generate_build_plan(task_count, prefix = "enable_jobserver_pool = 1\n")
+        with BuildDir(build_plan) as b:
+            # First, run the full tasks with with {task_count} tokens, this should allow all
+            # tasks to run in parallel.
+            ret = b.ninja_run(
+                ninja_args=["all"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, task_count)
+
+            # Second, use 2 tokens only, and verify that this was enforced by Ninja.
+            b.ninja_clean()
+            b.ninja_run(
+                ["-j2", "all"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 2)
+
+            # Third, verify that --jobs=1 serializes all tasks.
+            b.ninja_clean()
+            b.ninja_run(
+                ["-j1", "all"],
+            )
+            max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+            self.assertEqual(max_overlaps, 1)
+
+            # On Linux, use taskset to limit the number of available cores to 1
+            # and verify that the jobserver overrides the default Ninja parallelism
+            # and that {task_count} tasks are still spawned in parallel.
+            if platform.system() == "Linux":
+                # First, run without a jobserver, with a single CPU, Ninja will
+                # use a parallelism of 2 in this case (GuessParallelism() in ninja.cc)
+                b.ninja_clean()
+                b.ninja_run(
+                    ["all"],
+                    prefix_args=["taskset", "-c", "0"],
+                )
+                max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+                self.assertEqual(max_overlaps, 2)
+
+                # Now with a jobserver with {task_count} tasks.
+                b.ninja_clean()
+                b.ninja_run(
+                    [f"-j{task_count}", "all"],
+                    prefix_args=["taskset", "-c", "0"],
+                )
+                max_overlaps = compute_max_overlapped_spans(b.path, task_count)
+                self.assertEqual(max_overlaps, task_count)
 
     def _test_MAKEFLAGS_value(
         self, ninja_args: T.List[str] = [], prefix_args: T.List[str] = []

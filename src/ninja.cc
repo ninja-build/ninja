@@ -1964,6 +1964,16 @@ NORETURN void real_main(int argc, char** argv) {
       exit(1);
     }
 
+    // If enable_jobserver_pool is set to 1, enable jobserver pool mode as
+    // if --jobserver-pool had been passed on the command line. Note that
+    // any other value is ignored (thus 0 does not disable the flag if it is
+    // used).
+    std::string enable_jobserver_pool =
+        parser.LookupVariable("enable_jobserver_pool");
+    if (enable_jobserver_pool == "1") {
+      const_cast<BuildConfig&>(ninja.config_).jobserver_pool = true;
+    }
+
     ninja.ParsePreviousElapsedTimes();
 
     ExitStatus result = ninja.RunBuild(argc, argv, status);
