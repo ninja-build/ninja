@@ -8,16 +8,15 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.host-os }}
 
     strategy:
       fail-fast: false
       matrix:
+        host-os: ["windows-2025", "windows-11-arm"]
         include:
-        - arch: 'x64'
-          suffix: ''
-        - arch: 'arm64'
-          suffix: 'arm64'
+        - host-os: "windows-11-arm"
+          suffix: "-arm64"
 
     steps:
     - uses: actions/checkout@v4
@@ -28,17 +27,15 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        cmake -Bbuild -A ${{ matrix.arch }} -DCMAKE_COMPILE_WARNING_AS_ERROR=1
+        cmake -Bbuild -DCMAKE_COMPILE_WARNING_AS_ERROR=1
         cmake --build build --parallel --config Debug
         cmake --build build --parallel --config Release
 
     - name: Test ninja (Debug)
-      if: matrix.arch != 'arm64'
       run: .\ninja_test.exe
       working-directory: build/Debug
 
     - name: Test ninja (Release)
-      if: matrix.arch != 'arm64'
       run: .\ninja_test.exe
       working-directory: build/Release
 
