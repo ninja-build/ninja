@@ -3,8 +3,10 @@ name: Linux
 on:
   pull_request:
   push:
+    branches: ['**']
+    tags-ignore: ['**']  # Don't trigger on tag pushes
   release:
-    types: published
+    types: [published]
 
 jobs:
   fedora:
