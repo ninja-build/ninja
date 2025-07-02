@@ -660,7 +660,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     string err;
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
-      fs_->WriteFile(edge->outputs_[0]->path(), content);
+      fs_->WriteFile(edge->outputs_[0]->path(), content, false);
   } else if (edge->rule().name() == "touch-implicit-dep-out") {
     string dep = edge->GetBinding("test_dependency");
     fs_->Tick();

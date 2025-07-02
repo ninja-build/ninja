@@ -227,23 +227,24 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
 }
 
 struct TestDiskInterface : public DiskInterface {
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const {
+  TimeStamp Stat(const std::string& path, std::string* err) const override {
     return 4;
   }
-  virtual bool WriteFile(const std::string& path, const std::string& contents) {
+  bool WriteFile(const std::string& path, const std::string& contents,
+                 bool crlf_on_windows) override {
     assert(false);
     return true;
   }
-  virtual bool MakeDir(const std::string& path) {
+  bool MakeDir(const std::string& path) override {
     assert(false);
     return false;
   }
-  virtual Status ReadFile(const std::string& path, std::string* contents,
-                          std::string* err) {
+  Status ReadFile(const std::string& path, std::string* contents,
+                  std::string* err) override {
     assert(false);
     return NotFound;
   }
-  virtual int RemoveFile(const std::string& path) {
+  int RemoveFile(const std::string& path) override {
     assert(false);
     return 0;
   }

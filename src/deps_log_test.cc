@@ -610,7 +610,7 @@ TEST_F(DepsLogTest, MalformedDepsLog) {
   auto write_bad_log_file =
       [&disk, &kBadLogFile](const std::string& bad_contents) -> bool {
     (void)disk.RemoveFile(kBadLogFile);
-    return disk.WriteFile(kBadLogFile, bad_contents);
+    return disk.WriteFile(kBadLogFile, bad_contents, false);
   };
 
   // First, corrupt the header.

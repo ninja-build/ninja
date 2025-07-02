@@ -840,7 +840,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
     if (build_start == -1) {
-      disk_interface_->WriteFile(lock_file_path_, "");
+      disk_interface_->WriteFile(lock_file_path_, "", false);
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;
@@ -860,7 +860,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
-    if (!disk_interface_->WriteFile(rspfile, content))
+    if (!disk_interface_->WriteFile(rspfile, content, true))
       return false;
   }
 
