@@ -440,6 +440,12 @@ public:
 /// vector.
 ///
 struct InputsCollector {
+  /// Constructor allows passing a pointer to an optional ImplicitDepLoader
+  /// which will be used to load implicit dependencies from the Ninja log
+  /// or existing depfiles. Note that this will mutate the graph.
+  explicit InputsCollector(ImplicitDepLoader* implicit_dep_loader = nullptr)
+      : implicit_dep_loader_(implicit_dep_loader) {}
+
   /// Visit a single @arg node during this collection.
   void VisitNode(const Node* node);
 
@@ -459,6 +465,7 @@ struct InputsCollector {
   }
 
  private:
+  ImplicitDepLoader* implicit_dep_loader_ = nullptr;
   std::vector<const Node*> inputs_;
   std::set<const Node*> visited_nodes_;
 };

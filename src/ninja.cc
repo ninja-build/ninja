@@ -784,14 +784,19 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
 
   optind = 1;
   int opt;
+  bool include_depfile_inputs = false;
   const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
                                   { "no-shell-escape", no_argument, NULL, 'E' },
                                   { "print0", no_argument, NULL, '0' },
+                                  { "depfile", no_argument, NULL, 'D' },
                                   { "dependency-order", no_argument, NULL,
                                     'd' },
                                   { NULL, 0, NULL, 0 } };
-  while ((opt = getopt_long(argc, argv, "h0Ed", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "h0EDd", kLongOptions, NULL)) != -1) {
     switch (opt) {
+    case 'D':
+      include_depfile_inputs = true;
+      break;
     case 'd':
       dependency_order = true;
       break;
@@ -815,6 +820,7 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
 "  -0, --print0            Use \\0, instead of \\n as a line terminator.\n"
 "  -E, --no-shell-escape   Do not shell escape the result.\n"
 "  -d, --dependency-order  Sort results by dependency order.\n"
+"  -D, --depfile           Include depfile inputs in the result.\n"
       );
       // clang-format on
       return 1;
@@ -830,7 +836,13 @@ int NinjaMain::ToolInputs(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  InputsCollector collector;
+  std::unique_ptr<ImplicitDepLoader> implicit_dep_loader;
+  if (include_depfile_inputs) {
+    implicit_dep_loader.reset(new ImplicitDepLoader(
+        &state_, &deps_log_, &disk_interface_, nullptr, nullptr));
+  }
+
+  InputsCollector collector(implicit_dep_loader.get());
   for (const Node* node : nodes)
     collector.VisitNode(node);
 
@@ -861,13 +873,17 @@ int NinjaMain::ToolMultiInputs(const Options* options, int argc, char* argv[]) {
   int opt;
   char terminator = '\n';
   const char* delimiter = "\t";
+  bool include_depfile_inputs = false;
   const option kLongOptions[] = { { "help", no_argument, NULL, 'h' },
-                                  { "delimiter", required_argument, NULL,
-                                    'd' },
+                                  { "delimiter", required_argument, NULL, 'd' },
+                                  { "depfile", no_argument, NULL, 'D' },
                                   { "print0", no_argument, NULL, '0' },
                                   { NULL, 0, NULL, 0 } };
-  while ((opt = getopt_long(argc, argv, "d:h0", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "Dd:h0", kLongOptions, NULL)) != -1) {
     switch (opt) {
+    case 'D':
+      include_depfile_inputs = true;
+      break;
     case 'd':
       delimiter = optarg;
       break;
@@ -888,6 +904,7 @@ int NinjaMain::ToolMultiInputs(const Options* options, int argc, char* argv[]) {
 "Options:\n"
 "  -h, --help                   Print this message.\n"
 "  -d  --delimiter=DELIM        Use DELIM instead of TAB for field delimiter.\n"
+"  -D, --depfile                Include depfile inputs in the result.\n"
 "  -0, --print0                 Use \\0, instead of \\n as a line terminator.\n"
       );
       // clang-format on
@@ -904,8 +921,14 @@ int NinjaMain::ToolMultiInputs(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
+  std::unique_ptr<ImplicitDepLoader> implicit_dep_loader;
+  if (include_depfile_inputs) {
+    implicit_dep_loader.reset(new ImplicitDepLoader(
+        &state_, &deps_log_, &disk_interface_, nullptr, nullptr));
+  }
+
   for (const Node* node : nodes) {
-    InputsCollector collector;
+    InputsCollector collector(implicit_dep_loader.get());
 
     collector.VisitNode(node);
     std::vector<std::string> inputs = collector.GetInputsAsStrings();
