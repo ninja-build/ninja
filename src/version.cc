@@ -33,10 +33,9 @@ void ParseVersion(const string& version, int* major, int* minor) {
   }
 }
 
-void CheckNinjaVersion(const string& version) {
+void CheckNinjaVersion(const string& version, int &file_major, int &file_minor) {
   int bin_major, bin_minor;
   ParseVersion(kNinjaVersion, &bin_major, &bin_minor);
-  int file_major, file_minor;
   ParseVersion(version, &file_major, &file_minor);
 
   if (bin_major > file_major) {

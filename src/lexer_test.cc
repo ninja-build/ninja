@@ -96,3 +96,20 @@ TEST(Lexer, Tabs) {
   EXPECT_EQ(Lexer::ERROR, token);
   EXPECT_EQ("tabs are not allowed, use spaces", lexer.DescribeLastError());
 }
+
+TEST(Lexer, EscapedNewlines) {
+  Lexer lexer("foo$\nbar$^newline foo\n");
+  EvalString eval;
+  string err;
+  EXPECT_FALSE(lexer.ReadVarValue(&eval, &err));
+  EXPECT_EQ("input:1: using $^ escape requires specifying 'ninja_required_version' with version greater or equal 1.14\n", err);
+
+  lexer.manifest_version_major = 1;
+  lexer.manifest_version_minor = 14;
+
+  eval.Clear();
+  err = "";
+  EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
+  EXPECT_EQ("", err);
+  EXPECT_EQ("[foobar\nnewline foo]", eval.Serialize());
+}
