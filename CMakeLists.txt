@@ -131,7 +131,6 @@ add_library(libninja OBJECT
 	src/clparser.cc
 	src/dyndep.cc
 	src/dyndep_parser.cc
-	src/debug_flags.cc
 	src/deps_log.cc
 	src/disk_interface.cc
 	src/edit_distance.cc

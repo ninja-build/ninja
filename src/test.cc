@@ -163,6 +163,25 @@ bool VirtualFileSystem::WriteFile(const string& path, const string& contents) {
   return true;
 }
 
+#ifdef _WIN32
+bool VirtualFileSystem::WriteTextFile(const string& path,
+                                      const string& contents) {
+  size_t pos = 0;
+  std::string converted;
+  while (true) {
+    size_t next_newline = contents.find('\n', pos);
+    if (next_newline == std::string::npos)
+      break;
+    converted += contents.substr(pos, next_newline - pos);
+    converted += "\r\n";
+    pos = next_newline + 1;
+  }
+  converted += contents.substr(pos);
+  Create(path, converted);
+  return true;
+}
+#endif  // _WIN32
+
 bool VirtualFileSystem::MakeDir(const string& path) {
   directories_made_.push_back(path);
   return true;  // success

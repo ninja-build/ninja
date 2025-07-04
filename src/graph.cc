@@ -14,13 +14,13 @@
 
 #include "graph.h"
 
-#include <algorithm>
-#include <deque>
 #include <assert.h>
 #include <stdio.h>
 
+#include <algorithm>
+#include <deque>
+
 #include "build_log.h"
-#include "debug_flags.h"
 #include "depfile_parser.h"
 #include "deps_log.h"
 #include "disk_interface.h"

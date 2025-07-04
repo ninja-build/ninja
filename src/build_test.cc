@@ -2189,6 +2189,51 @@ TEST_F(BuildWithLogTest, RspFileCmdLineChange) {
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
 }
 
+// Test that RSP files newlines are written as \n on Posix, but \r\n on Windows
+// as certain tools like the MSVC linker rely on them (see issue #2616
+TEST_F(BuildTest, RspFileNewlines) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "rule cat_rsp\n"
+                                      "  command = cat $out.rsp > $out\n"
+                                      "  rspfile = $out.rsp\n"
+                                      "  rspfile_content = $in_newline\n"
+                                      "build out1: cat_rsp in1 in2\n"));
+
+  fs_.Create("out1", "");
+
+  fs_.Tick();
+
+  fs_.Create("in1", "");
+  fs_.Create("in2", "");
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+
+  size_t files_created = fs_.files_created_.size();
+
+  // Ensure rsp file is not deleted.
+  config_.keep_rsp = true;
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+
+  // The RSP files and temp file to acquire output mtimes were created
+  ASSERT_EQ(files_created + 2, fs_.files_created_.size());
+  ASSERT_EQ(1u, fs_.files_created_.count("out1.rsp"));
+  ASSERT_EQ(1u, fs_.files_created_.count(".ninja_lock"));
+
+  std::string rsp_content;
+  ASSERT_EQ(FileReader::Okay, fs_.ReadFile("out1.rsp", &rsp_content, &err))
+      << err;
+#ifdef _WIN32
+  static const char kExpected[] = "in1\r\nin2";
+#else
+  static const char kExpected[] = "in1\nin2";
+#endif
+  ASSERT_EQ(rsp_content, kExpected);
+}
+
 TEST_F(BuildTest, InterruptCleanup) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule interrupt\n"

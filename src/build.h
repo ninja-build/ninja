@@ -185,6 +185,15 @@ struct BuildConfig {
   Verbosity verbosity = NORMAL;
   bool dry_run = false;
   int parallelism = 1;
+  // True to explain why targets are rebuild (-d explain)
+  bool explaining = false;
+  // True to keep depfiles after the build (-d keepdepfile)
+  bool keep_depfile = false;
+  // True to keep the response files after the build.  (-d keeprsp)
+  bool keep_rsp = false;
+  // Enable experimental stat cache (only works on Windows) (-d nostatcache)
+  bool experimental_statcache = true;
+  // Prevent jobserver client detection.
   bool disable_jobserver_client = false;
   int failures_allowed = 1;
   /// The maximum load average we must not exceed. A negative value

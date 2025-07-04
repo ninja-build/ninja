@@ -133,6 +133,30 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 }
 #endif  // _WIN32
 
+bool WriteFileInternal(const std::string& path, const char* mode,
+                       const std::string& contents) {
+  FILE* fp = fopen(path.c_str(), mode);
+  if (fp == NULL) {
+    Error("WriteFile(%s): Unable to create file. %s", path.c_str(),
+          strerror(errno));
+    return false;
+  }
+
+  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length()) {
+    Error("WriteFile(%s): Unable to write to the file. %s", path.c_str(),
+          strerror(errno));
+    fclose(fp);
+    return false;
+  }
+
+  if (fclose(fp) == EOF) {
+    Error("WriteFile(%s): Unable to close the file. %s", path.c_str(),
+          strerror(errno));
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 // DiskInterface ---------------------------------------------------------------
@@ -246,28 +270,15 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
 }
 
 bool RealDiskInterface::WriteFile(const string& path, const string& contents) {
-  FILE* fp = fopen(path.c_str(), "wb");
-  if (fp == NULL) {
-    Error("WriteFile(%s): Unable to create file. %s",
-          path.c_str(), strerror(errno));
-    return false;
-  }
-
-  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
-    Error("WriteFile(%s): Unable to write to the file. %s",
-          path.c_str(), strerror(errno));
-    fclose(fp);
-    return false;
-  }
-
-  if (fclose(fp) == EOF) {
-    Error("WriteFile(%s): Unable to close the file. %s",
-          path.c_str(), strerror(errno));
-    return false;
-  }
-
-  return true;
+  return WriteFileInternal(path, "wb", contents);
 }
+
+#ifdef _WIN32
+bool RealDiskInterface::WriteTextFile(const string& path,
+                                      const string& contents) {
+  return WriteFileInternal(path, "wt", contents);
+}
+#endif  // _WIN32
 
 bool RealDiskInterface::MakeDir(const string& path) {
   if (::MakeDir(path) < 0) {

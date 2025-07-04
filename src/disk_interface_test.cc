@@ -220,6 +220,45 @@ TEST_F(DiskInterfaceTest, ReadFile) {
   EXPECT_EQ("", err);
 }
 
+TEST_F(DiskInterfaceTest, WriteFile) {
+  const char kTestFile[] = "testfile";
+  const char kContent[] = "some text\non several lines\n";
+
+  ASSERT_TRUE(disk_.WriteFile(kTestFile, kContent))
+      << "Could not write " << kTestFile;
+  FILE* f = fopen(kTestFile, "rb");
+  ASSERT_TRUE(f) << "Could not open " << kTestFile;
+
+  char buffer[32];
+  size_t ret = fread(buffer, 1, sizeof(buffer), f);
+  fclose(f);
+  ASSERT_GT(ret, 0);
+  std::string content(buffer, ret);
+  ASSERT_EQ(content, kContent);
+}
+
+TEST_F(DiskInterfaceTest, WriteTextFile) {
+  const char kTestFile[] = "testfile";
+  const char kContent[] = "some text\non several lines\n";
+#ifdef _WIN32
+  const char kExpected[] = "some text\r\non several lines\r\n";
+#else   // !_WIN32
+  const char kExpected[] = "some text\non several lines\n";
+#endif  // !_WIN32
+
+  ASSERT_TRUE(disk_.WriteTextFile(kTestFile, kContent))
+      << "Could not write " << kTestFile;
+  FILE* f = fopen(kTestFile, "rb");
+  ASSERT_TRUE(f) << "Could not open " << kTestFile;
+
+  char buffer[32];
+  size_t ret = fread(buffer, 1, sizeof(buffer), f);
+  fclose(f);
+  ASSERT_GT(ret, 0);
+  std::string content(buffer, ret);
+  ASSERT_EQ(content, kExpected);
+}
+
 TEST_F(DiskInterfaceTest, MakeDirs) {
   string path = "path/with/double//slash/";
   EXPECT_TRUE(disk_.MakeDirs(path));
