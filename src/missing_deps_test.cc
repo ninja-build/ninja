@@ -117,6 +117,17 @@ TEST_F(MissingDependencyScannerTest, MissingDepPresent) {
                                  &generator_rule_);
 }
 
+TEST_F(MissingDependencyScannerTest, MissingDepDummyTarget) {
+  CreateInitialState();
+  Edge* phony_edge = state_.AddEdge(state_.bindings_.LookupRule("phony"));
+  state_.AddOut(phony_edge, "dummy_output", 0, nullptr);
+  // compiled_object depends on dummy_output, which does not exist
+  // but will not be reported as a missing dependency.
+  RecordDepsLogDep("compiled_object", "dummy_output");
+  ProcessAllNodes();
+  ASSERT_FALSE(scanner().HadMissingDeps());
+}
+
 TEST_F(MissingDependencyScannerTest, MissingDepFixedDirect) {
   CreateInitialState();
   // Adding the direct dependency fixes the missing dep
