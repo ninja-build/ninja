@@ -20,7 +20,7 @@
 
 using namespace std;
 
-const char* kNinjaVersion = "1.13.0";
+const char* kNinjaVersion = "1.13.1";
 
 void ParseVersion(const string& version, int* major, int* minor) {
   size_t end = version.find('.');
