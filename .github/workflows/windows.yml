@@ -3,8 +3,10 @@ name: Windows
 on:
   pull_request:
   push:
+    branches: ['**']
+    tags-ignore: ['**']  # Don't trigger on tag pushes
   release:
-    types: published
+    types: [published]
 
 jobs:
   build:
@@ -28,7 +30,7 @@ jobs:
     - name: Build ninja
       shell: bash
       run: |
-        cmake -Bbuild -A ${{ matrix.arch }}
+        cmake -Bbuild -A ${{ matrix.arch }} -DCMAKE_COMPILE_WARNING_AS_ERROR=1
         cmake --build build --parallel --config Debug
         cmake --build build --parallel --config Release
 

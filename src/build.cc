@@ -783,6 +783,12 @@ ExitStatus Builder::Build(string* err) {
       if (!command_finished) {
         Cleanup();
         status_->BuildFinished();
+        if (result.success()) {
+          // If the command pretend succeeded, the status wasn't set to a proper exit code,
+          // so we set it to ExitFailure.
+          result.status = ExitFailure;
+          SetFailureCode(result.status);
+        }
         return result.status;
       }
 
@@ -834,7 +840,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
     if (build_start == -1) {
-      disk_interface_->WriteFile(lock_file_path_, "");
+      disk_interface_->WriteFile(lock_file_path_, "", false);
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;
@@ -854,7 +860,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   string rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty()) {
     string content = edge->GetBinding("rspfile_content");
-    if (!disk_interface_->WriteFile(rspfile, content))
+    if (!disk_interface_->WriteFile(rspfile, content, true))
       return false;
   }
 
@@ -951,8 +957,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     disk_interface_->RemoveFile(rspfile);
 
   if (scan_.build_log()) {
-    if (!scan_.build_log()->RecordCommand(edge, start_time_millis,
-                                          end_time_millis, record_mtime)) {
+    if (!scan_.build_log()->RecordCommand(
+            edge, static_cast<int>(start_time_millis),
+            static_cast<int>(end_time_millis), record_mtime)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }

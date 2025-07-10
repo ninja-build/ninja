@@ -331,7 +331,8 @@ TEST(Jobserver, PosixFifoClient) {
   ASSERT_TRUE(write_fd.IsValid()) << "Cannot open FIFO at: " << strerror(errno);
   for (size_t n = 0; n < kSlotCount; ++n) {
     uint8_t slot_byte = static_cast<uint8_t>('0' + n);
-    ::write(write_fd.fd_, &slot_byte, 1);
+    ssize_t ret = ::write(write_fd.fd_, &slot_byte, 1);
+    (void)ret;  // make compiler happy
   }
   // Keep the file descriptor opened to ensure the fifo's content
   // persists in kernel memory.

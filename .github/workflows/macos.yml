@@ -3,8 +3,10 @@ name: macOS
 on:
   pull_request:
   push:
+    branches: ['**']
+    tags-ignore: ['**']  # Don't trigger on tag pushes
   release:
-    types: published
+    types: [published]
 
 jobs:
   build:
@@ -21,7 +23,7 @@ jobs:
       env:
         MACOSX_DEPLOYMENT_TARGET: 10.15
       run: |
-        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+        cmake -Bbuild -GXcode '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' -DCMAKE_COMPILE_WARNING_AS_ERROR=1
         cmake --build build --config Release
 
     - name: Test ninja (Release)

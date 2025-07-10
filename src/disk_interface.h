@@ -51,9 +51,11 @@ struct DiskInterface: public FileReader {
   virtual bool MakeDir(const std::string& path) = 0;
 
   /// Create a file, with the specified name and contents
+  /// If \a crlf_on_windows is true, \n will be converted to \r\n (only on
+  /// Windows builds of Ninja).
   /// Returns true on success, false on failure
-  virtual bool WriteFile(const std::string& path,
-                         const std::string& contents) = 0;
+  virtual bool WriteFile(const std::string& path, const std::string& contents,
+                         bool crlf_on_windows) = 0;
 
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
@@ -71,12 +73,13 @@ struct DiskInterface: public FileReader {
 struct RealDiskInterface : public DiskInterface {
   RealDiskInterface();
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool MakeDir(const std::string& path);
-  virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual Status ReadFile(const std::string& path, std::string* contents,
-                          std::string* err);
-  virtual int RemoveFile(const std::string& path);
+  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  bool MakeDir(const std::string& path) override;
+  bool WriteFile(const std::string& path, const std::string& contents,
+                 bool crlf_on_windows) override;
+  Status ReadFile(const std::string& path, std::string* contents,
+                  std::string* err) override;
+  int RemoveFile(const std::string& path) override;
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);
