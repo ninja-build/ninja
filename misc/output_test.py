@@ -606,5 +606,30 @@ echo echo
 echo
 ''')
 
+    def test_issue_2621(self):
+        """Should result in "multiple rules generate" error"""
+        plan = r"""rule dd
+  command = printf 'ninja_dyndep_version = 1\nbuild stamp-$n | out: dyndep\n' > $out
+rule touch
+  command = touch stamp-$n out
+  dyndep = dd-$n
+build dd-1: dd
+  n = 1
+build dd-2: dd
+  n = 2
+build stamp-1: touch || dd-1
+  n = 1
+build stamp-2: touch || dd-2
+  n = 2
+"""
+        self._test_expected_error(
+            plan,
+            "-v",
+            r"""[1/4] printf 'ninja_dyndep_version = 1\nbuild stamp-1 | out: dyndep\n' > dd-1
+[2/4] printf 'ninja_dyndep_version = 1\nbuild stamp-2 | out: dyndep\n' > dd-2
+ninja: build stopped: multiple rules generate out.
+""",
+        )
+
 if __name__ == '__main__':
     unittest.main()
