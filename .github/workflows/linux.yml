@@ -58,10 +58,9 @@ jobs:
           ignore_words_list: fo,wee,addin,notin
       - name: Install dependencies
         run: |
-          dnf update -y
-          dnf install -y dnf-plugins-core epel-release
+          dnf install -y make gcc-c++ libasan clang-analyzer cmake dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y clang-analyzer cmake gcc-c++ gtest-devel libasan make ninja-build p7zip p7zip-plugins re2c
+          dnf install -y gtest-devel p7zip p7zip-plugins ninja-build
 
       - name: Build debug ninja
         env:
