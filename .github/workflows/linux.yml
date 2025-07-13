@@ -122,15 +122,10 @@ jobs:
     container: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false #https://docs.zizmor.sh/audits/#artipacked
       - name: Install dependencies
         run: |
           apt update
-          apt install -y python3-pytest ninja-build python3-pip clang libgtest-dev re2c
-          pip3 install cmake==3.20.*
-        env:
-          PIP_BREAK_SYSTEM_PACKAGES: "1" # 24.04 introduces https://peps.python.org/pep-0668/
+          apt install -y cmake python3-pytest ninja-build python3-pip clang libgtest-dev
 
       - name: Configure (GCC)
         run: cmake -Bbuild-gcc -DCMAKE_BUILD_TYPE=Debug -G'Ninja Multi-Config'
