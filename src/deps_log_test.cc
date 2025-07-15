@@ -566,15 +566,30 @@ TEST_F(DepsLogTest, MalformedDepsLog) {
 
   const size_t version_offset = 12;
   ASSERT_EQ("# ninjadeps\n", original_contents.substr(0, version_offset));
+#if defined(_WIN32) || (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
   ASSERT_EQ('\x04', original_contents[version_offset + 0]);
   ASSERT_EQ('\x00', original_contents[version_offset + 1]);
   ASSERT_EQ('\x00', original_contents[version_offset + 2]);
   ASSERT_EQ('\x00', original_contents[version_offset + 3]);
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  ASSERT_EQ('\x00', original_contents[version_offset + 0]);
+  ASSERT_EQ('\x00', original_contents[version_offset + 1]);
+  ASSERT_EQ('\x00', original_contents[version_offset + 2]);
+  ASSERT_EQ('\x04', original_contents[version_offset + 3]);
+#else
+#  error "Unknown endianness."
+#endif
 
   // clang-format off
   static const uint8_t kFirstRecord[] = {
     // size field == 0x0000000c
+#if defined(_WIN32) || (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
     0x0c, 0x00, 0x00, 0x00,
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    0x00, 0x00, 0x00, 0x0c,
+#else
+#  error "Unknown endianness."
+#endif
     // name field = 'out.o' + 3 bytes of padding.
     'o', 'u', 't', '.', 'o', 0x00, 0x00, 0x00,
     // checksum = ~0
@@ -593,11 +608,23 @@ TEST_F(DepsLogTest, MalformedDepsLog) {
   // clang-format off
   static const uint8_t kSecondRecord[] = {
     // size field == 0x0000000c
+#if defined(_WIN32) || (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
     0x0c, 0x00, 0x00, 0x00,
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    0x00, 0x00, 0x00, 0x0c,
+#else
+#  error "Unknown endianness."
+#endif
     // name field = 'foo.hh' + 2 bytes of padding.
     'f', 'o', 'o', '.', 'h', 'h', 0x00, 0x00,
     // checksum = ~1
+#if defined(_WIN32) || (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
     0xfe, 0xff, 0xff, 0xff,
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    0xff, 0xff, 0xff, 0xfe,
+#else
+#  error "Unknown endianness."
+#endif
   };
   // clang-format on
   const size_t kSecondRecordLen = sizeof(kSecondRecord);
@@ -650,10 +677,19 @@ TEST_F(DepsLogTest, MalformedDepsLog) {
 
   // Corrupt first record |size| value.
   bad_contents = original_contents;
+#if defined(_WIN32) || (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
   bad_contents[first_offset + 0] = '\x55';
   bad_contents[first_offset + 1] = '\xaa';
   bad_contents[first_offset + 2] = '\xff';
   bad_contents[first_offset + 3] = '\xff';
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  bad_contents[first_offset + 0] = '\xff';
+  bad_contents[first_offset + 1] = '\xff';
+  bad_contents[first_offset + 2] = '\xaa';
+  bad_contents[first_offset + 3] = '\x55';
+#else
+#  error "Unknown endianness."
+#endif
   ASSERT_TRUE(write_bad_log_file(bad_contents)) << strerror(errno);
   {
     State state;
