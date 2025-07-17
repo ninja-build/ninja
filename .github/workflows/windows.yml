@@ -63,11 +63,10 @@ jobs:
 
     - name: Upload release asset
       if: github.event.action == 'published'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: ncipollo/release-action@v1
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifact/ninja-win${{ matrix.suffix }}.zip
-        asset_name: ninja-win${{ matrix.suffix }}.zip
-        asset_content_type: application/zip
+        allowUpdates: true # if release exists it will edit it.
+        artifactContentType: "application/zip" # if empty defaults to raw
+        replacesArtifacts: true # will update existing release assets if needed.
+        omitBodyDuringUpdate: true # don't edit release body when published via webui
+        artifacts: ./artifact/ninja-win${{ matrix.suffix }}.zip # release asset
