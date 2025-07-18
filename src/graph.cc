@@ -282,7 +282,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   if (edge->is_phony()) {
     // Phony edges don't write any output.  Outputs are only dirty if
     // there are no inputs and we're missing the output.
-    if (edge->inputs_.empty() && !output->exists()) {
+    if (edge->has_dummy_outputs() && !output->exists()) {
       explanations_.Record(
           output, "output %s of phony edge with no inputs doesn't exist",
           output->path().c_str());
