@@ -235,6 +235,15 @@ parser.add_option('--with-python', metavar='EXE',
 parser.add_option('--force-pselect', action='store_true',
                   help='ppoll() is used by default where available, '
                        'but some platforms may need to use pselect instead',)
+parser.add_option('--build-file', metavar = 'FILE',
+                  help='File to write the build file to. ' +
+                       'Defaults to %default',
+                  default='build.ninja')
+parser.add_option('--disable-configure-rule',
+                  action='store_true',
+                  help='Disables generating the `configure` rule, ' +
+                  'which is normally used to regenerate `build.ninja`, ' +
+                  'when `./configure.py` changes.')
 (options, args) = parser.parse_args()
 if args:
     print('ERROR: extra unparsed command-line arguments:', args)
@@ -246,7 +255,7 @@ if options.host:
 else:
     host = platform
 
-BUILD_FILENAME = 'build.ninja'
+BUILD_FILENAME = options.build_file
 ninja_writer = ninja_syntax.Writer(open(BUILD_FILENAME, 'w'))
 n: Union[ninja_syntax.Writer, Bootstrap] = ninja_writer
 
@@ -756,7 +765,7 @@ n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)
 n.newline()
 
-if not host.is_mingw():
+if not host.is_mingw() and not options.disable_configure_rule:
     n.comment('Regenerate build files if build script changes.')
     n.rule('configure',
            command='${configure_env}%s $root/configure.py $configure_args' %
