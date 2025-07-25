@@ -137,4 +137,18 @@ inline To FunctionCast(From from) {
 
 int platformAwareUnlink(const char* filename);
 
+struct ContinuedExecutionPriv;
+
+struct ContinuedExecution
+{
+  explicit ContinuedExecution(const char *reason = nullptr);
+  ~ContinuedExecution();
+
+  ContinuedExecution(const ContinuedExecution&) = delete;
+  ContinuedExecution& operator=(const ContinuedExecution&) = delete;
+
+private:
+  ContinuedExecutionPriv *priv;
+};
+
 #endif  // NINJA_UTIL_H_

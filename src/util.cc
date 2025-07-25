@@ -60,6 +60,10 @@
 #include <sys/cpuset.h>
 #endif
 
+#if defined (__APPLE__)
+#import <IOKit/pwr_mgt/IOPMLib.h>
+#endif
+
 #include "edit_distance.h"
 
 using namespace std;
@@ -1028,4 +1032,51 @@ int platformAwareUnlink(const char* filename) {
 	#else
 		return unlink(filename);
 	#endif
+}
+
+struct ContinuedExecutionPriv
+{
+#ifdef __APPLE__
+  IOPMAssertionID assertionID {};
+  bool succeeded {};
+#endif
+};
+
+ContinuedExecution::ContinuedExecution(const char *reason)
+{
+#ifdef __APPLE__
+  // https://developer.apple.com/library/archive/qa/qa1340/_index.html
+  priv = new ContinuedExecutionPriv();
+
+  // NOTE: IOPMAssertionCreateWithName limits the string to 128 characters.
+  CFStringRef reasonForActivity = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault,
+                                                                  reason ? reason : "Ninja Build",
+                                                                  kCFStringEncodingUTF8,
+                                                                  kCFAllocatorDefault);
+
+  IOReturn retval = IOPMAssertionCreateWithName(kIOPMAssertionTypeNoIdleSleep,
+                                                kIOPMAssertionLevelOn,
+                                                reasonForActivity,
+                                                &assertionID);
+  if (retval != kIOReturnSuccess) {
+    Warning("IOPMAssertionCreateWithName failed");
+    priv->succeeded = false;
+  }
+  else {
+    priv->succeeded = true;
+  }
+
+  CFRelease(reasonForActivity)
+#endif
+}
+
+ContinuedExecution::~ContinuedExecution()
+{
+#ifdef __APPLE__
+  if (priv->succeeded) {
+    IOPMAssertionRelease(priv->assertionID);
+  }
+
+  delete priv;
+#endif
 }

@@ -1863,6 +1863,8 @@ NORETURN void real_main(int argc, char** argv) {
 
     ninja.ParsePreviousElapsedTimes();
 
+    ContinuedExecution continued_execution(nullptr);
+
     ExitStatus result = ninja.RunBuild(argc, argv, status);
     if (g_metrics)
       ninja.DumpMetrics();
