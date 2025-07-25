@@ -561,6 +561,32 @@ void Win32Fatal(const char* function, const char* hint) {
     Fatal("%s: %s", function, GetLastErrorString().c_str());
   }
 }
+
+void Win32Warning(const char* function, const char* hint) {
+  if (hint) {
+    Warning("%s: %s (%s)", function, GetLastErrorString().c_str(), hint);
+  } else {
+    Warning("%s: %s", function, GetLastErrorString().c_str());
+  }
+}
+
+std::unique_ptr<wchar_t[]> Utf16FromUtf8(const char *utf8, bool strict)
+{
+  const DWORD flags = strict ? MB_ERR_INVALID_CHARS : 0;
+  std::unique_ptr<wchar_t[]> result;
+  int wchars_count = 0;
+
+  do {
+    if (wchars_count > 0)
+      result = std::make_unique<wchar_t[]>(wchars_count);
+
+    wchars_count = MultiByteToWideChar (CP_UTF8, flags, utf8, -1, result.get(), wchars_count);
+    if (wchars_count == 0)
+      Win32Fatal("MultiByteToWideChar");
+  } while (!result);
+
+  return result;
+}
 #endif
 
 bool islatinalpha(int c) {
@@ -1028,4 +1054,45 @@ int platformAwareUnlink(const char* filename) {
 	#else
 		return unlink(filename);
 	#endif
+}
+
+struct ContinuedExecutionPriv
+{
+#ifdef _WIN32
+  HANDLE handle {INVALID_HANDLE_VALUE};
+#endif
+};
+
+ContinuedExecution::ContinuedExecution(const char *reason)
+{
+#ifdef _WIN32
+  priv = new ContinuedExecutionPriv();
+
+  auto reason_utf16 = Utf16FromUtf8(reason ? reason : "Ninja Build", true);
+
+  REASON_CONTEXT context = {POWER_REQUEST_CONTEXT_VERSION};
+  context.Flags = POWER_REQUEST_CONTEXT_SIMPLE_STRING;
+  context.Reason.SimpleReasonString = reason_utf16.get();
+
+  priv->handle = PowerCreateRequest (&context);
+  if (priv->handle == INVALID_HANDLE_VALUE) {
+    Win32Warning("PowerCreateRequest");
+    return;
+  }
+
+  if (!PowerSetRequest (priv->handle, PowerRequestSystemRequired)) {
+    Win32Warning("PowerSetRequest");
+    return;
+  }
+#endif
+}
+
+ContinuedExecution::~ContinuedExecution()
+{
+#ifdef _WIN32
+  if (priv->handle != INVALID_HANDLE_VALUE)
+    CloseHandle (priv->handle);
+
+  delete priv;
+#endif
 }

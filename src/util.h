@@ -25,6 +25,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #if !defined(__has_cpp_attribute)
 #  define __has_cpp_attribute(x)  0
@@ -124,6 +125,9 @@ std::string GetLastErrorString();
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
 
+/// Calls Warning() with a function name and GetLastErrorString.
+void Win32Warning(const char* function, const char* hint = NULL);
+
 /// Naive implementation of C++ 20 std::bit_cast(), used to fix Clang and GCC
 /// [-Wcast-function-type] warning on casting result of GetProcAddress().
 template <class To, class From>
@@ -133,8 +137,24 @@ inline To FunctionCast(From from) {
 	memcpy(&result, &from, sizeof(To));
 	return result;
 }
+
+std::unique_ptr<wchar_t[]> Utf16FromUtf8(const char *utf8, bool strict);
 #endif
 
 int platformAwareUnlink(const char* filename);
+
+struct ContinuedExecutionPriv;
+
+struct ContinuedExecution
+{
+  explicit ContinuedExecution(const char *reason = nullptr);
+  ~ContinuedExecution();
+
+  ContinuedExecution(const ContinuedExecution&) = delete;
+  ContinuedExecution& operator=(const ContinuedExecution&) = delete;
+
+private:
+  ContinuedExecutionPriv *priv;
+};
 
 #endif  // NINJA_UTIL_H_
