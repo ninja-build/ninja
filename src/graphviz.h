@@ -30,15 +30,16 @@ struct GraphViz {
   GraphViz(State* state, DiskInterface* disk_interface)
       : dyndep_loader_(state, disk_interface) {}
   void Start();
-  void AddTarget(Node* node, int depth);
+  void AddTarget(const Node* node, int depth);
   void Finish();
 
-  void printNodeLabel(Node* node);
+  void printNodeLabel(const Node* node);
+  void printEdgeLabel(const Edge* edge);
 
   DyndepLoader dyndep_loader_;
-  std::set<Node*> visited_nodes_;
+  std::set<const Node*> visited_nodes_;
   EdgeSet visited_edges_;
-  std::set<Node*> labeled_nodes_;
+  std::set<const Node*> labeled_nodes_;
   EdgeSet labeled_edges_;
 };
 
