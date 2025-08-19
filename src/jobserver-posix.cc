@@ -33,6 +33,35 @@ bool IsFifoDescriptor(int fd) {
   return (ret == 0) && ((info.st_mode & S_IFMT) == S_IFIFO);
 }
 
+int OpenPipeDescriptor(const char* path, int mode) {
+#ifdef O_CLOEXEC
+  return ::open(path, mode | O_NONBLOCK | O_CLOEXEC);
+#else   // !defined(O_CLOEXEC)
+  // O_CLOEXEC is not available on older MacOS versions.
+  // See https://github.com/ninja-build/ninja/issues/2645
+  int fd = ::open(path, mode | O_NONBLOCK);
+  if (fd < 0)
+    return fd;
+
+  auto safe_close = [](int fd) {
+    int saved_errno = errno;
+    ::close(fd);
+    errno = saved_errno;
+  };
+
+  int flags = fcntl(fd, F_GETFD);
+  if (flags < 0) {
+    safe_close(fd);
+    return -1;
+  }
+  if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
+    safe_close(fd);
+    return -1;
+  }
+  return fd;
+#endif  // !defined(O_CLOEXEC)
+}
+
 // Implementation of Jobserver::Client for Posix systems
 class PosixJobserverClient : public Jobserver::Client {
  public:
@@ -83,7 +112,7 @@ class PosixJobserverClient : public Jobserver::Client {
       *error = "Empty fifo path";
       return false;
     }
-    read_fd_ = ::open(fifo_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    read_fd_ = OpenPipeDescriptor(fifo_path.c_str(), O_RDONLY);
     if (read_fd_ < 0) {
       *error =
           std::string("Error opening fifo for reading: ") + strerror(errno);
@@ -94,7 +123,7 @@ class PosixJobserverClient : public Jobserver::Client {
       // Let destructor close read_fd_.
       return false;
     }
-    write_fd_ = ::open(fifo_path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+    write_fd_ = OpenPipeDescriptor(fifo_path.c_str(), O_WRONLY);
     if (write_fd_ < 0) {
       *error =
           std::string("Error opening fifo for writing: ") + strerror(errno);
