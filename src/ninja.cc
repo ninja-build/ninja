@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <string>
 
 #ifdef _WIN32
@@ -384,7 +385,7 @@ int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   argc++;
   argv--;
 
-  int depth = -1;
+  int depth = std::numeric_limits<int>::max();
 
   optind = 1;
   int opt;

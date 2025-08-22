@@ -87,9 +87,9 @@ void GraphViz::AddTarget(const Node* const node, const int depth) {
     }
   }
 
-  if (depth != 0) {
-    for (const auto in: edge->inputs_) {
-      AddTarget(in, depth < 0 ? -1 : depth - 1);
+  if (depth > 0) {
+    for (const auto in : edge->inputs_) {
+      AddTarget(in, depth - 1);
     }
   }
 }
