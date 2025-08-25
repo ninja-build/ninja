@@ -191,7 +191,7 @@ GNU Jobserver support
 ~~~~~~~~~~~~~~~~~~~~~
 
 Since version 1.13., Ninja builds can follow the
-https://https://www.gnu.org/software/make/manual/html_node/Job-Slots.html[GNU Make jobserver]
+https://www.gnu.org/software/make/manual/html_node/Job-Slots.html[GNU Make jobserver]
 client protocol. This is useful when Ninja is invoked as part of a larger
 build system controlled by a top-level GNU Make instance, or any other
 jobserver pool implementation, as it allows better coordination between
