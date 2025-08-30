@@ -8,6 +8,10 @@ option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()
 
 project(ninja CXX)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
@@ -190,9 +194,6 @@ else()
 		target_link_libraries(libninja PUBLIC "-lperfstat")
 	endif()
 endif()
-
-target_compile_features(libninja PUBLIC cxx_std_14)
-target_compile_features(libninja-re2c PUBLIC cxx_std_14)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
