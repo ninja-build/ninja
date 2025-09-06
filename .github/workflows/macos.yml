@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: brew install re2c p7zip cmake
+      run: brew install re2c
 
     - name: Build ninja
       shell: bash
