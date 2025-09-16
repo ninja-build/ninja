@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-13
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install dependencies
       run: brew install re2c

@@ -14,7 +14,7 @@ jobs:
     container:
       image: fedora:40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install dependencies
         run: dnf install -y ninja-build cmake gtest-devel re2c clang util-linux clang-tools-extra
       - name: Linting
@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.host-os }}
     container: rockylinux/rockylinux:8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: codespell-project/actions-codespell@master
         with:
           ignore_words_list: fo,wee,addin,notin
@@ -122,7 +122,7 @@ jobs:
     runs-on: ${{ matrix.host-os }}
     container: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install dependencies
         run: |
           apt update
@@ -180,7 +180,7 @@ jobs:
     runs-on: ${{ matrix.host-os }}
     container: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false #https://docs.zizmor.sh/audits/#artipacked
       - name: Install dependencies
