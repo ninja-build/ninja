@@ -79,6 +79,67 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
   return true;
 }
 
+namespace {
+class PropagateDirty {
+ public:
+  /// Propagate "dirty" status through all given edges.
+  /// Any node that becomes dirty and has no further outgoing edges
+  /// is added to 'topLevelNodes'.
+  static void call(const std::vector<Edge*>& edges,
+                   std::vector<Node*>* topLevelNodes);
+
+ private:
+  PropagateDirty(std::vector<Node*>* topLevelNodes)
+      : top_level_nodes_(topLevelNodes) {}
+
+  /// returns true if at least one of its outputs was originally marked 'clean'.
+  bool process(Edge* edge);
+
+  std::vector<Node*>* top_level_nodes_;
+};
+
+void PropagateDirty::call(const std::vector<Edge*>& edges,
+                          std::vector<Node*>* topLevelNodes) {
+  PropagateDirty propagateDirtyDyndep(topLevelNodes);
+  for (Edge* outedges : edges)
+    propagateDirtyDyndep.process(outedges);
+}
+
+bool PropagateDirty::process(Edge* const edge) {
+  bool clean_out = false;
+  for (Node* const out : edge->outputs_) {
+    // Only propagate if the node is currently clean.
+    if (out->clean()) {
+      clean_out = true;
+      out->MarkDirty();
+      edge->outputs_ready_ = false;
+
+      // If the node has no outgoing edges, it is a top‑level target.
+      if (out->out_edges().empty()) {
+        top_level_nodes_->push_back(out);
+        continue;
+      }
+
+      // Track whether any dependent edges had clean outputs.
+      bool dependent_clean = false;
+
+      for (Edge* outEdge : out->out_edges()) {
+        if (outEdge && process(outEdge)) {
+          dependent_clean = true;
+        }
+      }
+
+      // If this node have outgoing edges, but none of those edges produced
+      // clean outputs, then this node is effectively a top‑level node in the
+      // dirty propagation chain.
+      if (!out->out_edges().empty() && !dependent_clean)
+        top_level_nodes_->push_back(out);
+    }
+  }
+  return clean_out;
+}
+}  // namespace
+
 bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                                         std::vector<Node*>* validation_nodes,
                                         string* err) {
@@ -112,6 +173,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   bool dirty = false;
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
+  bool dyndepLoaded = false;
 
   if (!edge->deps_loaded_) {
     // This is our first encounter with this edge.
@@ -134,6 +196,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
         // The dyndep file is ready, so load it now.
         if (!LoadDyndeps(edge->dyndep_, err))
           return false;
+        else
+          dyndepLoaded = true;
       }
     }
   }
@@ -203,10 +267,17 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       return false;
 
   // Finally, visit each output and update their dirty state if necessary.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (dirty)
-      (*o)->MarkDirty();
+  for (Node* out : edge->outputs_) {
+    if (dirty) {
+      out->MarkDirty();
+
+      // Only if a dyndep file was loaded, propagate the dirty state
+      // through all dependent edges of this output node.
+      if (dyndepLoaded)
+        PropagateDirty::call(out->out_edges(), validation_nodes);
+    } else {
+      out->MarkClean();
+    }
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
