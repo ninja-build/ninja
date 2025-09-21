@@ -79,6 +79,37 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
   return true;
 }
 
+namespace {
+class propagateDirty {
+ public:
+  propagateDirty(std::vector<Node*>* topLevelNodes)
+      : topLevelNodes_(topLevelNodes) {}
+
+  void process(Edge* edge);
+
+ private:
+  std::vector<Node*>* topLevelNodes_;
+};
+
+void propagateDirty::process(Edge* const edge) {
+  for (Node* const out : edge->outputs_) {
+    if (out->clean()) {
+      out->MarkDirty();
+      edge->outputs_ready_ = false;
+      if (out->out_edges().empty()) {
+        // add target to top level
+        topLevelNodes_->push_back(out);
+        continue;
+      }
+      for (Edge* outEdge : out->out_edges()) {
+        if (outEdge)
+          process(outEdge);
+      }
+    }
+  }
+}
+}  // namespace
+
 bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                                         std::vector<Node*>* validation_nodes,
                                         string* err) {
@@ -112,6 +143,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   bool dirty = false;
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
+  bool dyndepLoaded = false;
 
   if (!edge->deps_loaded_) {
     // This is our first encounter with this edge.
@@ -134,6 +166,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
         // The dyndep file is ready, so load it now.
         if (!LoadDyndeps(edge->dyndep_, err))
           return false;
+        else
+          dyndepLoaded = true;
       }
     }
   }
@@ -202,8 +236,16 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   // Finally, visit each output and update their dirty state if necessary.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
-    if (dirty)
+    if (dirty) {
       (*o)->MarkDirty();
+      if (dyndepLoaded) {
+        propagateDirty propagateDirtyDyndep(validation_nodes);
+        for (Edge* outedges : (*o)->out_edges())
+          propagateDirtyDyndep.process(outedges);
+      }
+    } else {
+      (*o)->MarkClean();
+    }
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
