@@ -111,5 +111,9 @@ TEST(Lexer, EscapedNewlines) {
   err = "";
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
+#ifdef _WIN32
+  EXPECT_EQ("[foobar\r\nnewline foo]", eval.Serialize());
+#else
   EXPECT_EQ("[foobar\nnewline foo]", eval.Serialize());
+#endif
 }

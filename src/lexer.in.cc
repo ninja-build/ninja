@@ -274,7 +274,11 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
         }
         newline_version_checked_ = true;
       }
+#ifdef _WIN32
+      eval->AddText(StringPiece("\r\n", 2));
+#else
       eval->AddText(StringPiece("\n", 1));
+#endif
       continue;
     }
     "$". {
