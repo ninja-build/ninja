@@ -34,24 +34,35 @@ bool InternalGetFullPathName(const StringPiece& file_name, std::string* path,
   // "The filename or extension is too long" even if long path supported is
   // enabled. GetFullPathNameW() must be used for this function to work!
   path->clear();
+  // Convert to wide filename first.
   std::string filename_str = file_name.AsString();
-  DWORD full_size = GetFullPathNameA(filename_str.c_str(), 0, NULL, NULL);
-  if (full_size == 0) {
-    *err = "GetFullPathNameA(" + filename_str + "): " + GetLastErrorString();
+  std::wstring wide_filename;
+  if (!ConvertUTF8ToWin32Unicode(filename_str, &wide_filename, err))
+    return false;
+
+  // Call GetFullPathNameW()
+  DWORD wide_full_size = GetFullPathNameW(wide_filename.c_str(), 0, NULL, NULL);
+  if (wide_full_size == 0) {
+    *err = "GetFullPathNameW(" +
+           std::string(wide_filename.begin(), wide_filename.end()) +
+           "): " + GetLastErrorString();
     return false;
   }
 
-  // NOTE: full_size includes the null-terminating character.
-  path->resize(static_cast<size_t>(full_size - 1));
-  DWORD result2 = GetFullPathNameA(filename_str.c_str(), full_size,
-                                   const_cast<char*>(path->data()), NULL);
-  if (result2 == 0) {
-    *err = "GetFullPathNameA(" + filename_str + "): " + GetLastErrorString();
+  // NOTE: wide_full_size includes the null-terminating character.
+  std::wstring wide_path;
+  wide_path.resize(static_cast<size_t>(wide_full_size - 1));
+  DWORD wide_full_size2 =
+      GetFullPathNameW(wide_filename.c_str(), wide_full_size,
+                       const_cast<wchar_t*>(wide_path.data()), NULL);
+  if (wide_full_size2 == 0) {
+    *err = "GetFullPathNameW(" + filename_str + "): " + GetLastErrorString();
+    path->clear();
     return false;
   }
 
-  path->resize(static_cast<size_t>(result2));
-  return true;
+  // Convert wide_path to Unicode.
+  return ConvertWin32UnicodeToUTF8(wide_path, path, err);
 }
 
 // Get the drive prefix of a given filename. On success set |*drive| then return
