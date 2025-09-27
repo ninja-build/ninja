@@ -389,6 +389,9 @@ struct DependencyScan {
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes, std::string* err);
+  bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
+                          std::vector<Node*>* validation_nodes,
+                          bool& dyndepLoaded, std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
