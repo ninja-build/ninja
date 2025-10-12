@@ -79,6 +79,46 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
   return true;
 }
 
+bool DependencyScan::RecomputeEdgesInputsDirty(
+    Node* node, Node*& most_recent_input, bool& dirty,
+    std::vector<Node*>* stack, std::vector<Node*>* validation_nodes,
+    std::string* err) {
+  // Visit all inputs; we're dirty if any of the inputs are dirty.
+
+  Edge* edge = node->in_edge();
+
+  for (vector<Node*>::iterator i = edge->inputs_.begin();
+       i != edge->inputs_.end(); ++i) {
+    // @todo no measure if this is a depsfile dependency input[i] -> edge
+    // now, anything will be processed...
+
+    // Visit this input.
+    if (!RecomputeNodeDirty(*i, stack, validation_nodes, err))
+      return false;
+
+    // If an input is not ready, neither are our outputs.
+    if (Edge* in_edge = (*i)->in_edge()) {
+      if (!in_edge->outputs_ready_)
+        edge->outputs_ready_ = false;
+    }
+
+    if (!edge->is_order_only(i - edge->inputs_.begin())) {
+      // If a regular input is dirty (or missing), we're dirty.
+      // Otherwise consider mtime.
+      if ((*i)->dirty()) {
+        explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
+        dirty = true;
+      } else {
+        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
+          most_recent_input = *i;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                                         std::vector<Node*>* validation_nodes,
                                         string* err) {
@@ -145,7 +185,29 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       return false;
   }
 
-  if (!edge->deps_loaded_) {
+  // Store any validation nodes from the edge for adding to the initial
+  // nodes.  Don't recurse into them, that would trigger the dependency
+  // cycle detector if the validation node depends on this node.
+  // RecomputeDirty will add the validation nodes to the initial nodes
+  // and recurse into them.
+  validation_nodes->insert(validation_nodes->end(),
+      edge->validations_.begin(), edge->validations_.end());
+
+  Node* most_recent_input = NULL;
+  if (!RecomputeEdgesInputsDirty(node, most_recent_input, dirty, stack,
+                                 validation_nodes, err))
+    return false;
+
+  // We may also be dirty due to output state: missing outputs, out of
+  // date outputs, etc.  Visit all outputs and determine whether they're
+  // dirty.
+  if (!dirty)
+    if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
+      return false;
+
+  // only try to load the deps log if no rebuild is necessary
+  // if an rebuild is necessary the deps log is outdated for this target
+  if (!edge->deps_loaded_ && !dirty) {
     // This is our first encounter with this edge.  Load discovered deps.
     edge->deps_loaded_ = true;
     if (!dep_loader_.LoadDeps(edge, err)) {
@@ -155,49 +217,29 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       // LoadDeps() did explanations_->Record() already, no need to do it here.
       dirty = edge->deps_missing_ = true;
     }
-  }
 
-  // Store any validation nodes from the edge for adding to the initial
-  // nodes.  Don't recurse into them, that would trigger the dependency
-  // cycle detector if the validation node depends on this node.
-  // RecomputeDirty will add the validation nodes to the initial nodes
-  // and recurse into them.
-  validation_nodes->insert(validation_nodes->end(),
-      edge->validations_.begin(), edge->validations_.end());
-
-  // Visit all inputs; we're dirty if any of the inputs are dirty.
-  Node* most_recent_input = NULL;
-  for (vector<Node*>::iterator i = edge->inputs_.begin();
-       i != edge->inputs_.end(); ++i) {
-    // Visit this input.
-    if (!RecomputeNodeDirty(*i, stack, validation_nodes, err))
+    // now all availabe inputs are checked
+    // @todo better to only check the newly added inputs, and do not recheck the
+    // inputs from manifest a second time(performance).
+    const Node* most_recent_input_previous = most_recent_input;
+    if (!RecomputeEdgesInputsDirty(node, most_recent_input, dirty, stack,
+                                   validation_nodes, err))
       return false;
-
-    // If an input is not ready, neither are our outputs.
-    if (Edge* in_edge = (*i)->in_edge()) {
-      if (!in_edge->outputs_ready_)
-        edge->outputs_ready_ = false;
-    }
-
-    if (!edge->is_order_only(i - edge->inputs_.begin())) {
-      // If a regular input is dirty (or missing), we're dirty.
-      // Otherwise consider mtime.
-      if ((*i)->dirty()) {
-        explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
-        dirty = true;
-      } else {
-        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
-          most_recent_input = *i;
-        }
+    
+    // only applicable if most_recent_input did change, any other criteria has already been checked
+    // @todo write a RecomputeOutputsDirty version only checking the most_recent_input for performance reason
+    if (!dirty && most_recent_input_previous != most_recent_input)
+      if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
+        return false;
+  } else if (!edge->deps_loaded_ && dirty) {
+    if (!dep_loader_.LoadDepsTry(edge, err)) {
+      if (!err->empty())
+        return false;
+      else {
+        dirty = edge->deps_missing_ = true;
       }
     }
   }
-
-  // We may also be dirty due to output state: missing outputs, out of
-  // date outputs, etc.  Visit all outputs and determine whether they're dirty.
-  if (!dirty)
-    if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
-      return false;
 
   // Finally, visit each output and update their dirty state if necessary.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
@@ -628,6 +670,19 @@ bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
   return true;
 }
 
+bool ImplicitDepLoader::LoadDepsTry(const Edge* edge, string* err) const {
+  string deps_type = edge->GetBinding("deps");
+  if (!deps_type.empty())
+    return LoadDepsFromLogTry(edge, err);
+
+  string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty())
+    return LoadDepFileTry(edge, depfile, err);
+
+  // No deps to load.
+  return true;
+}
+
 struct matches {
   explicit matches(std::vector<StringPiece>::iterator i) : i_(i) {}
 
@@ -704,6 +759,24 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   return ProcessDepfileDeps(edge, &depfile.ins_, err);
 }
 
+bool ImplicitDepLoader::LoadDepFileTry(const Edge* edge, const string& path,
+                                    string* err) const {
+  string content;
+  switch (disk_interface_->ReadFile(path, &content, err)) {
+  case DiskInterface::Okay:
+    return true;
+    break;
+  case DiskInterface::NotFound:
+    err->clear();
+    return false;
+    break;
+  case DiskInterface::OtherError:
+    *err = "loading '" + path + "': " + *err;
+    return false;
+  }
+  return false;
+}
+
 bool ImplicitDepLoader::ProcessDepfileDeps(
     Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
   // Preallocate space in edge->inputs_ to be filled in below.
@@ -750,6 +823,30 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }
+  return true;
+}
+
+bool ImplicitDepLoader::LoadDepsFromLogTry(const Edge* edge,
+                                           string* err) const {
+  // NOTE: deps are only supported for single-target edges.
+  Node* output = edge->outputs_[0];
+  DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
+  if (!deps) {
+    err->clear();
+    // explanations_.Record(output, "deps for '%s' are missing",
+    //                      output->path().c_str());
+    return false;
+  }
+
+   // Deps are invalid if the output is newer than the deps.
+  if (output->mtime() > deps->mtime) {
+    // explanations_.Record(output,
+    //                      "stored deps info out of date for '%s' (%" PRId64
+    //                      " vs %" PRId64 ")",
+    //                      output->path().c_str(), deps->mtime, output->mtime());
+    return false;
+  }
+
   return true;
 }
 

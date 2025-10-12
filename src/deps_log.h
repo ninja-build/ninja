@@ -86,7 +86,7 @@ struct DepsLog {
     Node** nodes;
   };
   LoadStatus Load(const std::string& path, State* state, std::string* err);
-  Deps* GetDeps(Node* node);
+  Deps* GetDeps(const Node* node) const;
   Node* GetFirstReverseDepsNode(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.
