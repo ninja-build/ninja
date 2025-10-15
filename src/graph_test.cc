@@ -540,6 +540,8 @@ TEST_F(GraphTest, CycleWithLengthZeroFromDepfile) {
 "build a b: deprule\n"
   );
   fs_.Create("dep.d", "a: b\n");
+  fs_.Create("b", "");
+  fs_.Create("a", "");
 
   string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), NULL, &err));
@@ -565,6 +567,8 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfile) {
 "build c: r b\n"
   );
   fs_.Create("dep.d", "a: c\n");
+  fs_.Create("b", "");
+  fs_.Create("a", "");
 
   string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("a"), NULL, &err));
@@ -592,6 +596,8 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
 "build d: r a\n"
   );
   fs_.Create("dep.d", "a: c\n");
+  fs_.Create("b", "");
+  fs_.Create("a", "");
 
   string err;
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("d"), NULL, &err));
@@ -1017,6 +1023,10 @@ TEST_F(GraphTest, DyndepFileCircular) {
 "ninja_dyndep_version = 1\n"
 "build out | circ: dyndep\n"
   );
+  fs_.Create("circ", "");
+  fs_.Tick();
+  fs_.Create("in", "");
+  fs_.Tick();
   fs_.Create("out", "");
 
   Edge* edge = GetNode("out")->in_edge();
@@ -1024,13 +1034,12 @@ TEST_F(GraphTest, DyndepFileCircular) {
   EXPECT_FALSE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
   EXPECT_EQ("dependency cycle: circ -> in -> circ", err);
 
-  // Verify that "out.d" was loaded exactly once despite
-  // circular reference discovered from dyndep file.
-  ASSERT_EQ(size_t(3), edge->inputs_.size());
+  // Verify that "out.d" was not loaded. Circular reference is discovered from
+  // dyndep file, before depsfile is loaded in the same edge.
+  ASSERT_EQ(size_t(2), edge->inputs_.size());
   EXPECT_EQ("in", edge->inputs_[0]->path());
-  EXPECT_EQ("inimp", edge->inputs_[1]->path());
-  EXPECT_EQ("dd", edge->inputs_[2]->path());
-  EXPECT_EQ(1, edge->implicit_deps_);
+  EXPECT_EQ("dd", edge->inputs_[1]->path());
+  EXPECT_EQ(0, edge->implicit_deps_);
   EXPECT_EQ(1, edge->order_only_deps_);
 }
 
