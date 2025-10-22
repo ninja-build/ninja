@@ -672,6 +672,17 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content, false);
+  } else if (edge->rule().name() == "cp-deps") {
+    // like copy, additionally write to file d.d
+    assert(!edge->inputs_.empty());
+    assert(edge->outputs_.size() >= 1);
+    string content;
+    string err;
+    if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
+        DiskInterface::Okay) {
+      fs_->WriteFile(edge->outputs_[0]->path(), content, false);
+      fs_->Create("d.d", content);
+    }
   } else if (edge->rule().name() == "touch-implicit-dep-out") {
     string dep = edge->GetBinding("test_dependency");
     fs_->Tick();
@@ -4445,4 +4456,38 @@ TEST_F(BuildTest, ValidationWithCircularDependency) {
   string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dependency cycle: validate -> validate_in -> validate", err);
+}
+
+TEST_F(BuildTest, CycleWithOldDepfile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cp\n"
+    "  command = cp $in $out\n"
+    "rule cp-deps\n"
+    "  command = cp $in $out\n"
+    "build b: cp-deps a\n"
+    "  depfile = d.d\n"
+    "build c: cp b\n"
+    "build d: cp c\n"
+    ));
+
+  fs_.Create("a", "b: X");    // depfile content to be generated in this run
+  fs_.Create("d.d", "b: d");  // depfile from last run, cycle "d -> c -> b -> d"
+  fs_.Create("X", "");
+
+  string err;
+  ASSERT_TRUE(builder_.AddTarget("d", &err)) << " Error: " << err;
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  err.clear();
+
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cp a b", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("cp b c", command_runner_.commands_ran_[1]);
+  EXPECT_EQ("cp c d", command_runner_.commands_ran_[2]);
+  std::string content;
+  fs_.ReadFile("d.d", &content, &err);
+  EXPECT_EQ("b: X", content);
+  EXPECT_EQ("", err);
 }
