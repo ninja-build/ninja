@@ -7,9 +7,11 @@ In order to simulate a smart terminal it uses the 'script' command.
 
 import os
 import platform
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from textwrap import dedent
 import typing as T
@@ -630,6 +632,24 @@ build stamp-2: touch || dd-2
 ninja: build stopped: multiple rules generate out.
 """,
         )
+
+    def test_issue_2681(self):
+        """Ninja should return a status code of 130 when interrupted."""
+        plan = r"""rule sleep
+  command = sleep 10
+
+build foo: sleep
+"""
+        with BuildDir(plan) as b:
+            for signum in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
+                proc = subprocess.Popen([NINJA_PATH, "foo"], cwd=b.path, env=default_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                # Sleep a bit to let Ninja start the build, otherwise the signal could be received
+                # before it, and returncode will be -2.
+                time.sleep(0.2)
+                os.kill(proc.pid, signum)
+                proc.wait()
+                self.assertEqual(proc.returncode, 130, msg=f"For signal {signum}")
+
 
 if __name__ == '__main__':
     unittest.main()

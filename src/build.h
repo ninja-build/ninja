@@ -154,9 +154,8 @@ struct CommandRunner {
 
   /// The result of waiting for a command.
   struct Result {
-    Result() : edge(NULL) {}
-    Edge* edge;
-    ExitStatus status;
+    Edge* edge = nullptr;
+    ExitStatus status = ExitFailure;
     std::string output;
     bool success() const { return status == ExitSuccess; }
   };
