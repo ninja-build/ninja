@@ -19,8 +19,10 @@
 
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config,
-                             Jobserver::Client* jobserver)
-      : config_(config), jobserver_(jobserver) {}
+                             Jobserver::Client* jobserver,
+                             StatusRefresher&& refresh_status)
+      : config_(config), jobserver_(jobserver),
+        refresh_status_(std::move(refresh_status)) {}
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   bool WaitForCommand(Result* result) override;
@@ -38,6 +40,7 @@ struct RealCommandRunner : public CommandRunner {
   const BuildConfig& config_;
   SubprocessSet subprocs_;
   Jobserver::Client* jobserver_ = nullptr;
+  StatusRefresher refresh_status_;
   std::map<const Subprocess*, Edge*> subproc_to_edge_;
 };
 
@@ -96,9 +99,14 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 
 bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+  while ((subproc = subprocs_.NextFinished()) == nullptr) {
+    SubprocessSet::WorkResult ret =
+        subprocs_.DoWork(config_.status_refresh_millis);
+    if (ret == SubprocessSet::WorkResult::TIMEOUT) {
+      refresh_status_();
+      continue;
+    }
+    if (ret == SubprocessSet::WorkResult::INTERRUPTION)
       return false;
   }
 
@@ -115,6 +123,7 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
 }
 
 CommandRunner* CommandRunner::factory(const BuildConfig& config,
-                                      Jobserver::Client* jobserver) {
-  return new RealCommandRunner(config, jobserver);
+                                      Jobserver::Client* jobserver,
+                                      StatusRefresher&& refresh_status) {
+  return new RealCommandRunner(config, jobserver, std::move(refresh_status));
 }
