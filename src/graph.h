@@ -386,11 +386,6 @@ struct DependencyScan {
                                  std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
-  /// Recompute whether a given single output should be marked dirty.
-  /// Returns true if so.
-  bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
-                            const std::string& command, Node* output);
-
   void RecordExplanation(const Node* node, const char* fmt, ...);
 
   BuildLog* build_log_;

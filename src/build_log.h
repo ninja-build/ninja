@@ -79,7 +79,7 @@ struct BuildLog {
   };
 
   /// Lookup a previously-run command by its output path.
-  LogEntry* LookupByOutput(const std::string& path);
+  LogEntry* LookupByOutput(const std::string& path) const;
 
   /// Serialize an entry into a log file.
   bool WriteEntry(FILE* f, const LogEntry& entry);
