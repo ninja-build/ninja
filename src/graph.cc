@@ -294,18 +294,17 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
 }
 
 bool DependencyScan::RecomputeEdgesInputsDirty(
-    Node* node, Node*& most_recent_input, bool& dirty,
-    std::vector<Node*>* stack, std::vector<Node*>* validation_nodes,
-    std::string* err) {
+    Node* node, std::array<std::size_t, 2> offset, Node*& most_recent_input,
+    bool& dirty, std::vector<Node*>* stack,
+    std::vector<Node*>* validation_nodes, std::string* err) {
   // Visit all inputs; we're dirty if any of the inputs are dirty.
 
   Edge* edge = node->in_edge();
 
-  for (vector<Node*>::iterator i = edge->inputs_.begin();
-       i != edge->inputs_.end(); ++i) {
-    // @todo no measure if this is a depsfile dependency input[i] -> edge
-    // now, anything will be processed...
+  const auto end_ = edge->inputs_.end() - offset[1];
 
+  for (vector<Node*>::iterator i = edge->inputs_.begin() + offset[0];
+       i != end_; ++i) {
     // Visit this input.
     if (!RecomputeNodeDirty(*i, stack, validation_nodes, err))
       return false;
@@ -408,8 +407,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       edge->validations_.begin(), edge->validations_.end());
 
   Node* most_recent_input = NULL;
-  if (!RecomputeEdgesInputsDirty(node, most_recent_input, dirty, stack,
-                                 validation_nodes, err))
+  if (!RecomputeEdgesInputsDirty(node, { 0, 0 }, most_recent_input, dirty,
+                                 stack, validation_nodes, err))
     return false;
 
   // We may also be dirty due to output state: missing outputs, out of
@@ -424,8 +423,9 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   // if an rebuild is necessary the deps log is outdated for this target
   if (!edge->deps_loaded_ && !dirty) {
     // This is our first encounter with this edge.  Load discovered deps.
+    std::array<std::size_t, 2> newLinks{ 0, 0 };
     edge->deps_loaded_ = true;
-    if (!dep_loader_.LoadDeps(edge, err)) {
+    if (!dep_loader_.LoadDeps(edge, err, &newLinks)) {
       if (!err->empty())
         return false;
       // Failed to load dependency info: rebuild to regenerate it.
@@ -433,12 +433,10 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       dirty = edge->deps_missing_ = true;
     }
 
-    // now all availabe inputs are checked
-    // @todo better to only check the newly added inputs, and do not recheck the
-    // inputs from manifest a second time(performance).
+    // check the recently added inputs from deps
     const Node* most_recent_input_previous = most_recent_input;
-    if (!RecomputeEdgesInputsDirty(node, most_recent_input, dirty, stack,
-                                   validation_nodes, err))
+    if (!RecomputeEdgesInputsDirty(node, newLinks, most_recent_input, dirty,
+                                   stack, validation_nodes, err))
       return false;
 
     // only applicable if most_recent_input did change, any other criteria has
@@ -772,14 +770,15 @@ void Node::Dump(const char* prefix) const {
   }
 }
 
-bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err,
+                                 std::array<std::size_t, 2>* ptr) {
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty())
-    return LoadDepsFromLog(edge, err);
+    return LoadDepsFromLog(edge, err, ptr);
 
   string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
-    return LoadDepFile(edge, depfile, err);
+    return LoadDepFile(edge, depfile, err, ptr);
 
   // No deps to load.
   return true;
@@ -809,8 +808,8 @@ struct matches {
   std::vector<StringPiece>::iterator i_;
 };
 
-bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
-                                    string* err) {
+bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path, string* err,
+                                    std::array<std::size_t, 2>* ptr) {
   METRIC_RECORD("depfile load");
   // Read depfile content.  Treat a missing depfile as empty.
   string content;
@@ -871,7 +870,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     }
   }
 
-  return ProcessDepfileDeps(edge, &depfile.ins_, err);
+  return ProcessDepfileDeps(edge, &depfile.ins_, err, ptr);
 }
 
 bool ImplicitDepLoader::LoadDepFileTry(const Edge* edge, const string& path,
@@ -893,10 +892,14 @@ bool ImplicitDepLoader::LoadDepFileTry(const Edge* edge, const string& path,
 }
 
 bool ImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err,
+    std::array<std::size_t, 2>* ptr) {
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, static_cast<int>(depfile_ins->size()));
+
+  if (ptr)
+    (*ptr)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
 
   // Add all its in-edges.
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
@@ -908,10 +911,14 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
     node->AddOutEdge(edge);
   }
 
+  if (ptr)
+    (*ptr)[1] = std::distance(implicit_dep, edge->inputs_.end());
+
   return true;
 }
 
-bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err,
+                                        std::array<std::size_t, 2>* ptr) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
@@ -931,13 +938,18 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   }
 
   Node** nodes = deps->nodes;
-  size_t node_count = deps->node_count;
-  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       nodes, nodes + node_count);
+  const size_t node_count = deps->node_count;
+  const auto implicit_dep = edge->inputs_.end() - edge->order_only_deps_;
+  if (ptr) {
+    (*ptr)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
+    (*ptr)[1] = edge->inputs_.size() - (*ptr)[0];
+  }
+  edge->inputs_.insert(implicit_dep, nodes, nodes + node_count);
   edge->implicit_deps_ += node_count;
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }
+
   return true;
 }
 
