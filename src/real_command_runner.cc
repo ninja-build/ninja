@@ -98,8 +98,10 @@ bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
     bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    if (interrupted) {
+      result->status = ExitInterrupted;
       return false;
+    }
   }
 
   result->status = subproc->Finish();
