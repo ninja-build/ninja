@@ -137,6 +137,8 @@ add_library(libninja OBJECT
 	src/edit_distance.cc
 	src/elide_middle.cc
 	src/eval_env.cc
+	src/evalstring.cc
+	src/evalstring.natvis
 	src/graph.cc
 	src/graphviz.cc
 	src/jobserver.cc

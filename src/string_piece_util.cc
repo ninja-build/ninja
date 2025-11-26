@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+
 using namespace std;
 
 vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
@@ -75,4 +76,12 @@ bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
   }
 
   return true;
+}
+
+bool StringPieceLess::operator()(const StringPiece& lhs,
+                                 const StringPiece& rhs) const {
+  return std::lexicographical_compare(lhs.begin(),
+                                      lhs.end(),
+                                      rhs.begin(),
+                                      rhs.end());
 }
