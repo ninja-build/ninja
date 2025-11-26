@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+-->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="EvalString">
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="mask" InitialValue="((EvalString::Offset)1) &lt;&lt; (sizeof(EvalString::Offset) * 8 - 1)"/>
+        <Variable Name="rawLength" InitialValue="(EvalString::Offset)0"/>
+        <Variable Name="isVariable" InitialValue="false"/>
+        <Variable Name="length" InitialValue="(EvalString::Offset)0"/>
+        <Variable Name="it" InitialValue="data_.isShortString() ? data_._Mypair._Myval2._Bx._Buf : data_._Mypair._Myval2._Bx._Ptr"/>
+        <Loop>
+          <Break Condition="*it == '\0'" />
+          <Exec>rawLength = *(const EvalString::Offset*)it</Exec>
+          <Exec>isVariable = (rawLength &amp; mask)</Exec>
+          <Exec>length = rawLength &amp; ~mask</Exec>
+          <If Condition="isVariable">
+            <Item Name="var">it + sizeof(EvalString::Offset),[length]s8b</Item>
+          </If>
+          <If Condition="!isVariable">
+            <Item Name="text">it + sizeof(EvalString::Offset),[length]s8</Item>
+          </If>
+          <Exec>it += length + sizeof(length)</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="EvalString::const_iterator">
+    <Intrinsic Name="isEnd" Expression="*pos_ == '\0'"/>
+    <Intrinsic Name="rawLength" Expression="*(const EvalString::Offset*)pos_"/>
+    <Intrinsic Name="mask" Expression="(EvalString::Offset)1 &lt;&lt; (sizeof(EvalString::Offset) * 8 - 1)"/>
+    <Intrinsic Name="isVariable" Expression="(rawLength() &amp; mask()) != 0"/>
+    <Intrinsic Name="length" Expression="rawLength() &amp; ~mask()"/>
+    <DisplayString Condition="isEnd()">{{ end }}</DisplayString>
+    <DisplayString Condition="!isEnd() &amp;&amp; isVariable()">{{ var = {pos_ + sizeof(EvalString::Offset),[length()]s8b} }}</DisplayString>
+    <DisplayString Condition="!isEnd() &amp;&amp; !isVariable()">{{ text = {pos_ + sizeof(EvalString::Offset),[length()]s8} }}</DisplayString>
+  </Type>
+</AutoVisualizer>
+

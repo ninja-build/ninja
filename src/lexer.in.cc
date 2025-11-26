@@ -206,7 +206,7 @@ bool Lexer::ReadIdent(string* out) {
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadEvalString(EvalStringBuilder* eval, bool path, string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;

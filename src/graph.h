@@ -190,8 +190,8 @@ struct Edge {
   std::string EvaluateCommand(bool incl_rsp_file = false) const;
 
   /// Returns the shell-escaped value of |key|.
-  std::string GetBinding(const std::string& key) const;
-  bool GetBindingBool(const std::string& key) const;
+  std::string GetBinding(const StringPiece& key) const;
+  bool GetBindingBool(const StringPiece& key) const;
 
   /// Like GetBinding("depfile"), but without shell escaping.
   std::string GetUnescapedDepfile() const;

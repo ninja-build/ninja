@@ -59,7 +59,7 @@ struct MissingDependencyScannerTest : public testing::Test {
   }
 
   void CreateInitialState() {
-    EvalString deps_type;
+    EvalStringBuilder deps_type;
     deps_type.AddText("gcc");
     compile_rule_.AddBinding("deps", deps_type);
     generator_rule_.AddBinding("deps", deps_type);

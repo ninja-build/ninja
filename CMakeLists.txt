@@ -137,6 +137,7 @@ add_library(libninja OBJECT
 	src/edit_distance.cc
 	src/elide_middle.cc
 	src/eval_env.cc
+	src/evalstring.cc
 	src/graph.cc
 	src/graphviz.cc
 	src/jobserver.cc
@@ -162,6 +163,7 @@ if(WIN32)
 		src/msvc_helper_main-win32.cc
 		src/getopt.c
 		src/minidump-win32.cc
+		$<$<BOOL:${MSVC}>:src/evalstring.natvis>
 	)
 	# Build getopt.c, which can be compiled as either C or C++, as C++
 	# so that build environments which lack a C compiler, but have a C++
@@ -282,6 +284,7 @@ if(BUILD_TESTING)
     src/dyndep_parser_test.cc
     src/edit_distance_test.cc
     src/elide_middle_test.cc
+    src/evalstring_test.cc
     src/explanations_test.cc
     src/graph_test.cc
     src/jobserver_test.cc

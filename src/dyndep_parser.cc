@@ -14,13 +14,14 @@
 
 #include "dyndep_parser.h"
 
-#include <vector>
-
 #include "dyndep.h"
+#include "evalstring.h"
 #include "graph.h"
 #include "state.h"
 #include "util.h"
 #include "version.h"
+
+#include <vector>
 
 using namespace std;
 
@@ -76,13 +77,13 @@ bool DyndepParser::Parse(const string& filename, const string& input,
 
 bool DyndepParser::ParseDyndepVersion(string* err) {
   string name;
-  EvalString let_value;
+  EvalStringBuilder let_value;
   if (!ParseLet(&name, &let_value, err))
     return false;
   if (name != "ninja_dyndep_version") {
     return lexer_.Error("expected 'ninja_dyndep_version = ...'", err);
   }
-  string version = let_value.Evaluate(&env_);
+  string version = Env::Evaluate(&env_, let_value);
   int major, minor;
   ParseVersion(version, &major, &minor);
   if (major != 1 || minor != 0) {
@@ -92,7 +93,7 @@ bool DyndepParser::ParseDyndepVersion(string* err) {
   return true;
 }
 
-bool DyndepParser::ParseLet(string* key, EvalString* value, string* err) {
+bool DyndepParser::ParseLet(string* key, EvalStringBuilder* value, string* err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
   return (ExpectToken(Lexer::EQUALS, err) && lexer_.ReadVarValue(value, err));
@@ -103,13 +104,13 @@ bool DyndepParser::ParseEdge(string* err) {
   // We will record its dynamically-discovered dependency information.
   Dyndeps* dyndeps = NULL;
   {
-    EvalString out0;
+    EvalStringBuilder out0;
     if (!lexer_.ReadPath(&out0, err))
       return false;
     if (out0.empty())
       return lexer_.Error("expected path", err);
 
-    string path = out0.Evaluate(&env_);
+    string path = Env::Evaluate(&env_, out0);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -127,7 +128,7 @@ bool DyndepParser::ParseEdge(string* err) {
 
   // Disallow explicit outputs.
   {
-    EvalString out;
+    EvalStringBuilder out;
     if (!lexer_.ReadPath(&out, err))
       return false;
     if (!out.empty())
@@ -138,12 +139,12 @@ bool DyndepParser::ParseEdge(string* err) {
   vector<EvalString> outs;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
-      EvalString out;
+      EvalStringBuilder out;
       if (!lexer_.ReadPath(&out, err))
         return err;
       if (out.empty())
         break;
-      outs.push_back(out);
+      outs.push_back(std::move(out).str());
     }
   }
 
@@ -156,7 +157,7 @@ bool DyndepParser::ParseEdge(string* err) {
 
   // Disallow explicit inputs.
   {
-    EvalString in;
+    EvalStringBuilder in;
     if (!lexer_.ReadPath(&in, err))
       return false;
     if (!in.empty())
@@ -167,12 +168,12 @@ bool DyndepParser::ParseEdge(string* err) {
   vector<EvalString> ins;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
-      EvalString in;
+      EvalStringBuilder in;
       if (!lexer_.ReadPath(&in, err))
         return err;
       if (in.empty())
         break;
-      ins.push_back(in);
+      ins.push_back(std::move(in).str());
     }
   }
 
@@ -185,18 +186,18 @@ bool DyndepParser::ParseEdge(string* err) {
 
   if (lexer_.PeekToken(Lexer::INDENT)) {
     string key;
-    EvalString val;
+    EvalStringBuilder val;
     if (!ParseLet(&key, &val, err))
       return false;
     if (key != "restat")
       return lexer_.Error("binding is not 'restat'", err);
-    string value = val.Evaluate(&env_);
+    string value = Env::Evaluate(&env_, val);
     dyndeps->restat_ = !value.empty();
   }
 
   dyndeps->implicit_inputs_.reserve(ins.size());
   for (const EvalString& in : ins) {
-    string path = in.Evaluate(&env_);
+    string path = Env::Evaluate(&env_, in);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -207,7 +208,7 @@ bool DyndepParser::ParseEdge(string* err) {
 
   dyndeps->implicit_outputs_.reserve(outs.size());
   for (const EvalString& out : outs) {
-    string path = out.Evaluate(&env_);
+    string path = Env::Evaluate(&env_, out);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;

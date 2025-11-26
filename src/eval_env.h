@@ -20,46 +20,42 @@
 #include <string>
 #include <vector>
 
+#include "evalstring.h"
 #include "string_piece.h"
+#include "string_piece_util.h"
 
 struct Rule;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
   virtual ~Env() {}
-  virtual std::string LookupVariable(const std::string& var) = 0;
-};
+  virtual std::string LookupVariable(const StringPiece& var) = 0;
 
-/// A tokenized string that contains variable references.
-/// Can be evaluated relative to an Env.
-struct EvalString {
-  /// @return The evaluated string with variable expanded using value found in
+  /// @return The evaluated string @a var expanded using values found in
   ///         environment @a env.
-  std::string Evaluate(Env* env) const;
-
-  /// @return The string with variables not expanded.
-  std::string Unparse() const;
-
-  void Clear() { parsed_.clear(); single_token_.clear(); }
-  bool empty() const { return parsed_.empty() && single_token_.empty(); }
-
-  void AddText(StringPiece text);
-  void AddSpecial(StringPiece text);
-
-  /// Construct a human-readable representation of the parsed state,
-  /// for use in tests.
-  std::string Serialize() const;
-
-private:
-  enum TokenType { RAW, SPECIAL };
-  typedef std::vector<std::pair<std::string, TokenType> > TokenList;
-  TokenList parsed_;
-
-  // If we hold only a single RAW token, then we keep it here instead of
-  // pushing it on TokenList. This saves a bunch of allocations for
-  // what is a common case. If parsed_ is nonempty, then this value
-  // must be ignored.
-  std::string single_token_;
+  template <typename E>
+  static std::string Evaluate(E* env, const EvalString& var) {
+    std::string result;
+    const auto end = var.end();
+    for (auto it = var.begin(); it != end; ++it) {
+      std::pair<StringPiece, EvalString::TokenType> token = *it;
+      switch (token.second) {
+      case EvalString::TokenType::RAW:
+        result.append(token.first.str_, token.first.len_);
+        if (++it == end) {
+          return result;
+        }
+        // As we consolidate consecutive text sections if we are not at the
+        // end then we must have a variable next and we deliberately fallthrough
+        token = *it;
+        // fallthrough
+      case EvalString::TokenType::SPECIAL: {
+        result.append(env->LookupVariable(token.first));
+      }
+      }
+    }
+    return result;
+  }
 };
 
 /// An invocable build command and associated metadata (description, etc.).
@@ -74,16 +70,16 @@ struct Rule {
 
   void AddBinding(const std::string& key, const EvalString& val);
 
-  static bool IsReservedBinding(const std::string& var);
+  static bool IsReservedBinding(const StringPiece& var);
 
-  const EvalString* GetBinding(const std::string& key) const;
+  const EvalString* GetBinding(const StringPiece& key) const;
 
  private:
   // Allow the parsers to reach into this object and fill out its fields.
   friend struct ManifestParser;
 
   std::string name_;
-  typedef std::map<std::string, EvalString> Bindings;
+  typedef std::map<std::string, EvalString, StringPieceLess> Bindings;
   Bindings bindings_;
   bool phony_ = false;
 };
@@ -95,7 +91,7 @@ struct BindingEnv : public Env {
   explicit BindingEnv(BindingEnv* parent) : parent_(parent) {}
 
   virtual ~BindingEnv() {}
-  virtual std::string LookupVariable(const std::string& var);
+  virtual std::string LookupVariable(const StringPiece& var);
 
   void AddRule(std::unique_ptr<const Rule> rule);
   const Rule* LookupRule(const std::string& rule_name);
@@ -109,11 +105,11 @@ struct BindingEnv : public Env {
   /// 2) value set on rule, with expansion in the edge's scope
   /// 3) value set on enclosing scope of edge (edge_->env_->parent_)
   /// This function takes as parameters the necessary info to do (2).
-  std::string LookupWithFallback(const std::string& var, const EvalString* eval,
+  std::string LookupWithFallback(const StringPiece& var, const EvalString* eval,
                                  Env* env);
 
 private:
-  std::map<std::string, std::string> bindings_;
+  std::map<std::string, std::string, StringPieceLess> bindings_;
   std::map<std::string, std::unique_ptr<const Rule>> rules_;
   BindingEnv* parent_;
 };

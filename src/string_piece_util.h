@@ -30,4 +30,13 @@ inline char ToLowerASCII(char c) {
 
 bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b);
 
+/// A comparator for StringPiece that can be used in
+/// `std::map<std::string, V, StringPieceLess>` that will allow using a
+/// StringPiece as a key.
+struct StringPieceLess {
+  using is_transparent = void;
+
+  bool operator()(const StringPiece& lhs, const StringPiece& rhs) const;
+};
+
 #endif  // NINJA_STRINGPIECE_UTIL_H_

@@ -14,29 +14,29 @@
 
 #include "lexer.h"
 
-#include "eval_env.h"
+#include "evalstring.h"
 #include "test.h"
 
 using namespace std;
 
 TEST(Lexer, ReadVarValue) {
   Lexer lexer("plain text $var $VaR ${x}\n");
-  EvalString eval;
+  EvalStringBuilder eval;
   string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[plain text ][$var][ ][$VaR][ ][$x]",
-            eval.Serialize());
+            eval.str().Serialize());
 }
 
 TEST(Lexer, ReadEvalStringEscapes) {
   Lexer lexer("$ $$ab c$: $\ncde\n");
-  EvalString eval;
+  EvalStringBuilder eval;
   string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[ $ab c: cde]",
-            eval.Serialize());
+            eval.str().Serialize());
 }
 
 TEST(Lexer, ReadIdent) {
@@ -60,17 +60,17 @@ TEST(Lexer, ReadIdentCurlies) {
   EXPECT_TRUE(lexer.ReadIdent(&ident));
   EXPECT_EQ("foo.dots", ident);
 
-  EvalString eval;
+  EvalStringBuilder eval;
   string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
   EXPECT_EQ("[$bar][.dots ][$bar.dots]",
-            eval.Serialize());
+            eval.str().Serialize());
 }
 
 TEST(Lexer, Error) {
   Lexer lexer("foo$\nbad $");
-  EvalString eval;
+  EvalStringBuilder eval;
   string err;
   ASSERT_FALSE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("input:2: bad $-escape (literal $ must be written as $$)\n"
