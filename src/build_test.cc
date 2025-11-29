@@ -534,6 +534,17 @@ struct FakeCommandRunner : public CommandRunner {
   VirtualFileSystem* fs_;
 };
 
+class SafeRelease {
+  public:
+  ~SafeRelease() {
+    builder_->command_runner_.release();
+  }
+  SafeRelease(Builder* builder) {
+    builder_ = builder;
+  }
+  Builder* builder_;
+};
+
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildTest() : config_(MakeConfig()), command_runner_(&fs_), status_(config_),
                 builder_(&state_, config_, NULL, NULL, &fs_, &status_, 0) {
@@ -616,11 +627,11 @@ void BuildTest::RebuildTarget(const string& target, const char* manifest,
 
   command_runner_.commands_ran_.clear();
   builder.command_runner_.reset(&command_runner_);
+  SafeRelease protect(&builder);
   if (!builder.AlreadyUpToDate()) {
     ExitStatus build_res = builder.Build(&err);
     EXPECT_EQ(build_res, ExitSuccess);
   }
-  builder.command_runner_.release();
 }
 
 size_t FakeCommandRunner::CanRunMore() const {
@@ -2585,6 +2596,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     fs_.Create("in1.d", "out: in2");
@@ -2596,7 +2608,6 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     // Recreate it for the next step.
     fs_.Create("in1.d", "out: in2");
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   {
@@ -2615,6 +2626,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2624,8 +2636,6 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     // We should have rebuilt the output due to in2 being
     // out of date.
     EXPECT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 }
 
@@ -2656,13 +2666,13 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   // Push all files one tick forward so that only the deps are out
@@ -2685,6 +2695,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -2698,8 +2709,6 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
     // We should have rebuilt the output due to the deps being
     // out of date.
     EXPECT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 }
 
@@ -2721,6 +2730,7 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   config_.dry_run = true;
   Builder builder(&state, config_, NULL, NULL, &fs_, &status_, 0);
   builder.command_runner_.reset(&command_runner_);
+  SafeRelease protect(&builder);
   command_runner_.commands_ran_.clear();
 
   string err;
@@ -2728,8 +2738,6 @@ TEST_F(BuildWithDepsLogTest, DepsIgnoredInDryRun) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder.Build(&err), ExitSuccess);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-  builder.command_runner_.release();
 }
 
 TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
@@ -2756,6 +2764,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   {
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     // Run the build, out gets built, dep file is created
@@ -2769,13 +2778,12 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
     log_entry = build_log.LookupByOutput("out");
     ASSERT_TRUE(NULL != log_entry);
     ASSERT_EQ(1u, log_entry->mtime);
-
-    builder.command_runner_.release();
   }
 
   {
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     // Trigger the build again - "out" should rebuild despite having a newer mtime than
@@ -2792,12 +2800,12 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
     log_entry = build_log.LookupByOutput("out");
     ASSERT_TRUE(NULL != log_entry);
     ASSERT_TRUE(fs_.files_["in1"].mtime < log_entry->mtime);
-    builder.command_runner_.release();
   }
 
   {
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     // And a subsequent run should not have any work to do
@@ -2806,8 +2814,6 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     EXPECT_TRUE(builder.AlreadyUpToDate());
-
-    builder.command_runner_.release();
   }
 }
 
@@ -2837,6 +2843,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   {
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
 
     // Run the build, out gets built, dep file is created
     EXPECT_TRUE(builder.AddTarget("out", &err));
@@ -2849,8 +2856,6 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     BuildLog::LogEntry* log_entry = build_log.LookupByOutput("out");
     ASSERT_TRUE(NULL != log_entry);
     ASSERT_EQ(1u, log_entry->mtime);
-
-    builder.command_runner_.release();
   }
 
   {
@@ -2858,6 +2863,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // is newer than the recorded mtime of out in the build log
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     state.Reset();
@@ -2865,8 +2871,6 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     ASSERT_EQ("", err);
     EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 
   {
@@ -2874,14 +2878,13 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // the previous build
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     ASSERT_TRUE(builder.AlreadyUpToDate());
-
-    builder.command_runner_.release();
   }
 
   // touch the header to trigger a rebuild
@@ -2893,6 +2896,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // in progress
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     state.Reset();
@@ -2900,8 +2904,6 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     ASSERT_EQ("", err);
     EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 
   {
@@ -2909,6 +2911,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // a change-while-in-progress and should cause a rebuild of out.
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     state.Reset();
@@ -2916,8 +2919,6 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     ASSERT_EQ("", err);
     EXPECT_EQ(builder.Build(&err), ExitSuccess);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 
   {
@@ -2925,14 +2926,13 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
     // not be considered dirty.
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
 
     state.Reset();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     EXPECT_TRUE(builder.AlreadyUpToDate());
-
-    builder.command_runner_.release();
   }
 }
 
@@ -2983,6 +2983,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
     fs_.Create("in1.d", "out: header.h");
@@ -2990,7 +2991,6 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     EXPECT_EQ("", err);
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   {
@@ -3009,6 +3009,7 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     command_runner_.commands_ran_.clear();
     EXPECT_TRUE(builder.AddTarget("out", &err));
     ASSERT_EQ("", err);
@@ -3018,8 +3019,6 @@ TEST_F(BuildWithDepsLogTest, RestatDepfileDependencyDepsLog) {
     // Rule "true" should have run again, but the build of "out" should have
     // been cancelled due to restat propagating through the depfile header.
     EXPECT_EQ(1u, command_runner_.commands_ran_.size());
-
-    builder.command_runner_.release();
   }
 }
 
@@ -3042,6 +3041,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
     fs_.Create("fo o.o.d", "fo\\ o.o: blah.h bar.h\n");
@@ -3049,7 +3049,6 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     EXPECT_EQ("", err);
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   {
@@ -3063,6 +3062,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
 
     Edge* edge = state.edges_.back();
 
@@ -3080,7 +3080,6 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
     ASSERT_EQ("cc foo.c", edge->EvaluateCommand());
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 }
 
@@ -3113,6 +3112,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
 
@@ -3120,7 +3120,6 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   fs_.Tick();
@@ -3137,6 +3136,7 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_FALSE(builder.AlreadyUpToDate());
 
@@ -3144,7 +3144,6 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
     EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   fs_.Tick();
@@ -3160,11 +3159,11 @@ TEST_F(BuildWithDepsLogTest, DiscoveredDepDuringBuildChanged) {
 
     Builder builder(&state, config_, &build_log, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     EXPECT_TRUE(builder.AlreadyUpToDate());
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 }
 
@@ -3188,6 +3187,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
     // Note, different slashes from manifest.
@@ -3197,7 +3197,6 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     EXPECT_EQ("", err);
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   {
@@ -3211,6 +3210,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
 
     state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
@@ -3227,7 +3227,6 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     ASSERT_EQ("cc x\\y/z\\foo.c", edge->EvaluateCommand());
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 }
 #endif
@@ -4290,6 +4289,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
     builder.command_runner_.reset(&command_runner_);
+    SafeRelease protect(&builder);
 
     EXPECT_TRUE(builder.AddTarget("out2", &err));
     ASSERT_EQ("", err);
@@ -4305,7 +4305,6 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ(0, fs_.Stat("out2.d", &err));
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 
   fs_.Tick();
@@ -4325,6 +4324,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     ASSERT_EQ("", err);
 
     Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    SafeRelease ff(&builder);
     builder.command_runner_.reset(&command_runner_);
 
     EXPECT_TRUE(builder.AddTarget("out2", &err));
@@ -4339,7 +4339,6 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
 
     deps_log.Close();
-    builder.command_runner_.release();
   }
 }
 
