@@ -16,6 +16,7 @@
 #define NINJA_GRAPH_H_
 
 #include <algorithm>
+#include <array>
 #include <queue>
 #include <set>
 #include <string>
@@ -294,7 +295,9 @@ struct ImplicitDepLoader {
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
-  bool LoadDeps(Edge* edge, std::string* err);
+  bool LoadDeps(Edge* edge, std::string* err,
+                std::array<std::size_t, 2>* ptr = nullptr);
+  bool LoadDepsTry(const Edge* edge, std::string* err) const;
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -305,15 +308,23 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing)
   virtual bool ProcessDepfileDeps(Edge* edge,
                                   std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+                                  std::string* err,
+                                  std::array<std::size_t, 2>* ptr);
 
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
+  bool LoadDepFile(Edge* edge, const std::string& path, std::string* err,
+                   std::array<std::size_t, 2>* ptr);
+  /// check if an depfile exists
+  /// @return No file found: false on error and \a err = ""
+  bool LoadDepFileTry(const Edge* edge, const std::string& path,
+                      std::string* err) const;
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, std::string* err);
+  bool LoadDepsFromLog(Edge* edge, std::string* err,
+                       std::array<std::size_t, 2>* ptr);
+  bool LoadDepsFromLogTry(const Edge* edge, std::string* err) const;
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
@@ -373,13 +384,16 @@ struct DependencyScan {
 
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
-                          std::vector<Node*>* validation_nodes, std::string* err);
+                          std::vector<Node*>* validation_nodes,
+                          std::string* err);
+  /// @inputs offset of the edges input iterators to only process a subset.
+  /// range is [i.begin() + input[0] ... i.end() - input[1] ]
+  bool RecomputeEdgesInputsDirty(Node* node, std::array<std::size_t, 2> offset,
+                                 Node*& most_recent_input, bool& dirty,
+                                 std::vector<Node*>* stack,
+                                 std::vector<Node*>* validation_nodes,
+                                 std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
-
-  /// Recompute whether a given single output should be marked dirty.
-  /// Returns true if so.
-  bool RecomputeOutputDirty(const Edge* edge, const Node* most_recent_input,
-                            const std::string& command, Node* output);
 
   void RecordExplanation(const Node* node, const char* fmt, ...);
 
