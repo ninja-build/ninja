@@ -16,6 +16,7 @@
 #define NINJA_STRINGPIECE_H_
 
 #include <string>
+#include <functional>
 
 #include <string.h>
 

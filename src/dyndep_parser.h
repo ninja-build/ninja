@@ -19,7 +19,7 @@
 #include "parser.h"
 
 struct DyndepFile;
-struct EvalString;
+class EvalStringBuilder;
 
 /// Parses dyndep files.
 struct DyndepParser: public Parser {
@@ -37,7 +37,7 @@ private:
              std:: string* err);
 
   bool ParseDyndepVersion(std::string* err);
-  bool ParseLet(std::string* key, EvalString* val, std::string* err);
+  bool ParseLet(std::string* key, EvalStringBuilder* val, std::string* err);
   bool ParseEdge(std::string* err);
 
   DyndepFile* dyndep_file_;

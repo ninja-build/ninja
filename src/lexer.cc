@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 
-#include "eval_env.h"
+#include "evalstring.h"
 #include "util.h"
 
 using namespace std;
@@ -620,7 +620,7 @@ yy65:
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
+bool Lexer::ReadEvalString(EvalStringBuilder* eval, bool path, string* err) {
   const char* p = ofs_;
   const char* q;
   const char* start;

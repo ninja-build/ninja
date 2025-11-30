@@ -23,7 +23,7 @@ namespace {
 TEST(State, Basic) {
   State state;
 
-  EvalString command;
+  EvalStringBuilder command;
   command.AddText("cat ");
   command.AddSpecial("in");
   command.AddText(" > ");

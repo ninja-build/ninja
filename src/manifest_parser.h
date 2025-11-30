@@ -15,13 +15,12 @@
 #ifndef NINJA_MANIFEST_PARSER_H_
 #define NINJA_MANIFEST_PARSER_H_
 
+#include "eval_env.h"
+#include "evalstring.h"
 #include "parser.h"
 
 #include <memory>
 #include <vector>
-
-struct BindingEnv;
-struct EvalString;
 
 enum DupeEdgeAction {
   kDupeEdgeActionWarn,
@@ -56,7 +55,7 @@ private:
   /// Parse various statement types.
   bool ParsePool(std::string* err);
   bool ParseRule(std::string* err);
-  bool ParseLet(std::string* key, EvalString* val, std::string* err);
+  bool ParseLet(std::string* key, EvalStringBuilder* val, std::string* err);
   bool ParseEdge(std::string* err);
   bool ParseDefault(std::string* err);
 
@@ -72,6 +71,8 @@ private:
   // subparser_ is reused solely to get better reuse out ins_/outs_/validation_.
   std::unique_ptr<ManifestParser> subparser_;
   std::vector<EvalString> ins_, outs_, validations_;
+  // value_ is reused while parsing variables.
+  EvalStringBuilder value_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
