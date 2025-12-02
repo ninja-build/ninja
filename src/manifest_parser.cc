@@ -68,7 +68,7 @@ bool ManifestParser::Parse(const string& filename, const string& input,
       // Check ninja_required_version immediately so we can exit
       // before encountering any syntactic surprises.
       if (name == "ninja_required_version")
-        CheckNinjaVersion(value);
+        CheckNinjaVersion(value, &lexer_.manifest_version_major, &lexer_.manifest_version_minor);
       env_->AddBinding(name, value);
       break;
     }

@@ -21,6 +21,10 @@
 
 using namespace std;
 
+// $^ supported starting this version
+const int minNewlineEscapeVersionMajor = 1;
+const int minNewlineEscapeVersionMinor = 14;
+
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
   int line = 1;
@@ -257,6 +261,24 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, string* err) {
     }
     "$:" {
       eval->AddText(StringPiece(":", 1));
+      continue;
+    }
+    "$^" {
+      if (!newline_version_checked_)
+      {
+        if ((manifest_version_major < minNewlineEscapeVersionMajor) ||
+            (manifest_version_major = minNewlineEscapeVersionMajor &&
+             manifest_version_minor < minNewlineEscapeVersionMinor))
+        {
+          return Error("using $^ escape requires specifying 'ninja_required_version' with version greater or equal 1.14", err);
+        }
+        newline_version_checked_ = true;
+      }
+#ifdef _WIN32
+      eval->AddText(StringPiece("\r\n", 2));
+#else
+      eval->AddText(StringPiece("\n", 1));
+#endif
       continue;
     }
     "$". {

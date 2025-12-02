@@ -26,6 +26,7 @@ void ParseVersion(const std::string& version, int* major, int* minor);
 
 /// Check whether \a version is compatible with the current Ninja version,
 /// aborting if not.
-void CheckNinjaVersion(const std::string& required_version);
+void CheckNinjaVersion(const std::string& required_version, int* file_major,
+                       int* file_minor);
 
 #endif  // NINJA_VERSION_H_
