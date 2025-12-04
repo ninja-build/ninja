@@ -22,16 +22,28 @@
 
 using namespace std;
 
-void GraphViz::AddTarget(Node* node) {
-  if (visited_nodes_.find(node) != visited_nodes_.end())
+void GraphViz::printNodeLabel(const Node* const node){
+   if (labeled_nodes_.insert(node).second) {
+    string pathstr = node->path();
+    replace(pathstr.begin(), pathstr.end(), '\\', '/');
+    printf("\"%p\" [label=\"%s\"]\n", node, pathstr.c_str());
+  }
+}
+
+void GraphViz::printEdgeLabel(const Edge* const edge){
+  if (labeled_edges_.insert(edge).second) {
+      printf("\"%p\" [label=\"%s\", shape=ellipse]\n", edge,
+             edge->rule_->name().c_str());
+    }
+}
+
+void GraphViz::AddTarget(const Node* const node, const int depth) {
+  if (!visited_nodes_.insert(node).second)
     return;
 
-  string pathstr = node->path();
-  replace(pathstr.begin(), pathstr.end(), '\\', '/');
-  printf("\"%p\" [label=\"%s\"]\n", node, pathstr.c_str());
-  visited_nodes_.insert(node);
+  printNodeLabel(node);
 
-  Edge* edge = node->in_edge();
+  const Edge* const edge = node->in_edge();
 
   if (!edge) {
     // Leaf node.
@@ -39,9 +51,8 @@ void GraphViz::AddTarget(Node* node) {
     return;
   }
 
-  if (visited_edges_.find(edge) != visited_edges_.end())
+  if (!visited_edges_.insert(edge).second)
     return;
-  visited_edges_.insert(edge);
 
   if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
     std::string err;
@@ -54,27 +65,32 @@ void GraphViz::AddTarget(Node* node) {
     // Can draw simply.
     // Note extra space before label text -- this is cosmetic and feels
     // like a graphviz bug.
-    printf("\"%p\" -> \"%p\" [label=\" %s\"]\n",
-           edge->inputs_[0], edge->outputs_[0], edge->rule_->name().c_str());
+    printNodeLabel(edge->inputs_[0]);
+    printNodeLabel(edge->outputs_[0]);
+    printf("\"%p\" -> \"%p\" [label=\" %s\"]\n", edge->inputs_[0],
+           edge->outputs_[0], edge->rule_->name().c_str());
   } else {
-    printf("\"%p\" [label=\"%s\", shape=ellipse]\n",
-           edge, edge->rule_->name().c_str());
-    for (vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      printf("\"%p\" -> \"%p\"\n", edge, *out);
+    printEdgeLabel(edge);
+    for (const auto out : edge->outputs_) {
+      printNodeLabel(out);
+      printf("\"%p\" -> \"%p\"\n", edge, out);
     }
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
-         in != edge->inputs_.end(); ++in) {
-      const char* order_only = "";
-      if (edge->is_order_only(in - edge->inputs_.begin()))
-        order_only = " style=dotted";
-      printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", (*in), edge, order_only);
+    {
+      std::size_t index = 0;
+      for (const auto in : edge->inputs_) {
+        const char* order_only = "";
+        if (edge->is_order_only(index++))
+          order_only = " style=dotted";
+        printNodeLabel(in);
+        printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", in, edge, order_only);
+      }
     }
   }
 
-  for (vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    AddTarget(*in);
+  if (depth > 0) {
+    for (const auto in : edge->inputs_) {
+      AddTarget(in, depth - 1);
+    }
   }
 }
 
