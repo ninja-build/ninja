@@ -1011,17 +1011,27 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
   return command;
 }
 
-void PrintOneCompdbObject(std::string const& directory, const Edge* const edge,
-                          const EvaluateCommandMode eval_mode) {
-  printf("\n  {\n    \"directory\": \"");
-  PrintJSONString(directory);
-  printf("\",\n    \"command\": \"");
-  PrintJSONString(EvaluateCommandWithRspfile(edge, eval_mode));
-  printf("\",\n    \"file\": \"");
-  PrintJSONString(edge->inputs_[0]->path());
-  printf("\",\n    \"output\": \"");
-  PrintJSONString(edge->outputs_[0]->path());
-  printf("\"\n  }");
+void PrintCompdbObjectsForEdge(std::string const& directory, const Edge* const edge,
+                               const EvaluateCommandMode eval_mode) {
+  const auto& command = EvaluateCommandWithRspfile(edge, eval_mode);
+  bool first = true;
+
+  for (const Node* input : edge->inputs_) {
+    if (!first) {
+      putchar(',');
+    }
+
+    printf("\n  {\n    \"directory\": \"");
+    PrintJSONString(directory);
+    printf("\",\n    \"command\": \"");
+    PrintJSONString(command);
+    printf("\",\n    \"file\": \"");
+    PrintJSONString(input->path());
+    printf("\",\n    \"output\": \"");
+    PrintJSONString(edge->outputs_[0]->path());
+    printf("\"\n  }");
+    first = false;
+  }
 }
 
 int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
@@ -1066,7 +1076,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
       if (!first) {
         putchar(',');
       }
-      PrintOneCompdbObject(directory, edge, eval_mode);
+      PrintCompdbObjectsForEdge(directory, edge, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
@@ -1074,7 +1084,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
           if (!first) {
             putchar(',');
           }
-          PrintOneCompdbObject(directory, edge, eval_mode);
+          PrintCompdbObjectsForEdge(directory, edge, eval_mode);
           first = false;
         }
       }
@@ -1217,7 +1227,7 @@ void PrintCompdb(std::string const& directory, std::vector<Edge*> const& edges,
       continue;
     if (!first)
       putchar(',');
-    PrintOneCompdbObject(directory, edge, eval_mode);
+    PrintCompdbObjectsForEdge(directory, edge, eval_mode);
     first = false;
   }
 
