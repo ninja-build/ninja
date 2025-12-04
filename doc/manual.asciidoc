@@ -299,7 +299,12 @@ executed in order, may be used to rebuild those targets, assuming that all
 output files are out of date.
 
 `inputs`:: given a list of targets, print a list of all inputs used to
-rebuild those targets.
+rebuild those targets. By default, this only includes static inputs declared
+in the Ninja build plan itself.
+
+Since Ninja 1.14, the `--depfile` flag can be used to include Ninja log / depfile
+inputs in the result. Note that if the build plan was regenerated since the last
+build, the log will contain stale entries, which may result in an incorrect output.
 _Available since Ninja 1.11._
 
 `multi-inputs`:: print one or more sets of inputs required to build targets.
@@ -341,6 +346,10 @@ target3 file3.c
 +
 _Note that a given input may appear for several targets if it is used by more
 than one targets._
+
+Like the `inputs` tool, this only reports static inputs from the build plan itself,
+but since Ninja 1.14, the `--depfile` flag can be used to also includes entries
+from the Ninja log or explicit depfiles.
 _Available since Ninja 1.13._
 
 `clean`:: remove built files. By default, it removes all built files
