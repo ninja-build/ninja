@@ -117,6 +117,16 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define PATH_MAX _MAX_PATH
 #endif
 
+
+/// ReplaceContent the content of \a file_dst with the content of \a
+/// new_content. On platforms other than Windows, the file pointed to by \a
+/// file_dst will keep the same uid and gid, if possible. Reason for this is
+/// that permissions on Windows are more complex than on Linux, fetching
+/// permissions on Windows would involve an non-trivial amount of code to fetch
+/// users and have fallback paths
+bool ReplaceContent(const std::string& file_dst, const std::string& new_content,
+                    std::string* err);
+
 #ifdef _WIN32
 /// Convert the value returned by GetLastError() into a string.
 std::string GetLastErrorString();
