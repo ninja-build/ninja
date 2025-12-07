@@ -617,12 +617,12 @@ graph::Options NinjaMain::ToolGraphGroups(
     // or "ninja -t graph"
     // add default Target
 
-    std::string err;
+    std::string errDefault;
     std::vector<Node*> nodes;
-    nodes = state_.DefaultNodes(&err);
-    if (!err.empty()) {
-      Error("%s", err.c_str());
-      err = 1;
+    nodes = state_.DefaultNodes(&errDefault);
+    if (!errDefault.empty()) {
+      Error("%s", errDefault.c_str());
+      errDefault = 1;
       return {};
     }
 
