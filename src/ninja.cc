@@ -602,7 +602,7 @@ graph::Options NinjaMain::ToolGraphGroups(
       err = ret;
       return {};
     }
-    
+
     // check if regex is valid
     if (!myGroup.options_.checkRegex()) {
       Error("Invalid regex expression for option -x: \"%s\".",

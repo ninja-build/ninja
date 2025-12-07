@@ -123,7 +123,7 @@ class GraphViz {
 
   void printDot() const;
   void printStatistics() const;
-  
+
   exportLinks getLinks() const;
 
  private:
@@ -133,7 +133,7 @@ class GraphViz {
                          const graph::Option& options);
   void printLabels() const;
   void printLinks() const;
-  
+
   exportLinks data_;
   const int elide_;
 };

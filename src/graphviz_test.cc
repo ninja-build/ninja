@@ -78,7 +78,7 @@ std::size_t linkNumberCycle(const exportLinks& data) {
         ++size;
     }
   }
-  return size;  
+  return size;
 }
 
 struct groupFactory {
@@ -232,7 +232,7 @@ TEST_F(GraphvizTest, Basic) {
 
   // ninja -t graph Target
   auto plain = groupFactory();
-  // ninja -t graph -s Target  
+  // ninja -t graph -s Target
   auto sib = groupFactory();
   sib.opt_.input_siblings_ = false;
 
@@ -243,7 +243,7 @@ TEST_F(GraphvizTest, Basic) {
   TEST_VIZ(plain, { outA }, { "outA", "A", "B", "in" }, 5);
   TEST_VIZ(plain, { outA, outB }, { "outA", "outB", "A", "B", "in" }, 7);
 
-  TEST_VIZ(sib, { outA }, { "outA", "A", "in" }, 4);  
+  TEST_VIZ(sib, { outA }, { "outA", "A", "in" }, 4);
   TEST_VIZ(sib, { outB }, { "outB", "B", "in" }, 4);
   TEST_VIZ(sib, { out2 }, { "out", "outB", "outA", "A", "B", "in", "out2" }, 12);
 
@@ -313,7 +313,7 @@ TEST_F(GraphvizTest, GraphsWithCycle) {
   rel.opt_.relations_ = true;
   // ninja -t graph -R Target
   auto plainR = plain;
-  plainR.opt_.reverse_ = true; 
+  plainR.opt_.reverse_ = true;
 
   std::set<Node*> nodes{ A0 };
   DepLoader::Load(&state_, &fs_, nullptr, nodes, true, false);
@@ -390,10 +390,9 @@ TEST_F(GraphvizTest, Depth2) {
   // "build Y3   : cat C0 B1\n"  // short path first
     "build Y2   : cat Y3\n"
     "build Y1   : cat Y2\n"
-    "build Y0   : cat Y1\n"    
+    "build Y0   : cat Y1\n"
   ));
 
-  
   DEFINE_VARIABLE(Y0);
   DEFINE_VARIABLE(X0);
 

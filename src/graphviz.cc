@@ -64,7 +64,7 @@ bool Option::checkRegex() const {
 
   try {
     std::regex temp(regexExclude_);
-  } catch (const std::regex_error& exc) {
+  } catch (const std::regex_error&) {
     return false;
   }
   return true;
@@ -155,7 +155,7 @@ void DepLoader::AddTarget(Node* node) {
 
 namespace {
 
-linktype getLinktypeInput(const Edge* edge, int index) {
+linktype getLinktypeInput(const Edge* edge, std::size_t index) {
   if (edge->is_order_only(index))
     return linktype::inputorderOnly;
   if (edge->is_implicit(index))
@@ -244,7 +244,7 @@ constIteratorPath& constIteratorPath::operator++() {
   }
 }
 
-[[maybe_unused]] constIteratorPath constIteratorPath::operator++(int) {
+constIteratorPath constIteratorPath::operator++(int) {
   constIteratorPath tmp(*this);
   ++(*this);
   return tmp;
@@ -269,9 +269,9 @@ path::iterator path::end() const {
 }
 
 // additionally maintain the recursion depth
-struct nodeAttributeFilter: public edgeAttribute{
+struct nodeAttributeFilter : public edgeAttribute {
   nodeAttributeFilter(int depth, std::set<nodeAttribute> mySet)
-      : depth_(depth), edgeAttribute(mySet) {}
+      : edgeAttribute(mySet), depth_(depth) {}
   int depth_ = -1;
 };
 
@@ -293,7 +293,7 @@ class graph_filter {
   int decrement(int depth) const;
   const graph::Option options_;
   /// contains all nodes to be exported and their respective links to be
-  /// exported  
+  /// exported
   std::map<const Edge*, nodeAttributeFilter> export_links_;
   using cycleType = std::vector<path::value_type>;
 };
@@ -629,9 +629,9 @@ bool graph_connection::addTarget(const Node* node, path_type mypath) {
               copy.cyclic_ = true;
               temp.insert(temp.erase(makecyclic), copy);
             } else {
-              nodeAttribute node = (*iter).second;
-              node.cyclic_ = true;
-              temp.insert(node);
+              nodeAttribute nodeCycle = (*iter).second;
+              nodeCycle.cyclic_ = true;
+              temp.insert(nodeCycle);
             }
           } else {
             nodeAttribute cycleNode = (*iter).second;
