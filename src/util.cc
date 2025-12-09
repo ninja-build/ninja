@@ -1022,6 +1022,41 @@ bool Truncate(const string& path, size_t size, string* err) {
   return true;
 }
 
+bool ReplaceContent(const string& file_dst, const string& new_content,
+                    string* err) {
+#ifndef _WIN32
+  struct stat old_file;
+  bool found_uid_gid = true;
+
+  if (stat(file_dst.c_str(), &old_file) < 0) {
+    found_uid_gid = false;
+  }
+#endif
+
+  if (platformAwareUnlink(file_dst.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+  if (rename(new_content.c_str(), file_dst.c_str()) < 0) {
+    *err = strerror(errno);
+    return false;
+  }
+
+#ifndef _WIN32
+  // apply uid and gid again so we always stay as the uid and gid of the first
+  // ninja invocation that created the file at file_dst
+  if (found_uid_gid) {
+    if (chown(file_dst.c_str(), old_file.st_uid, old_file.st_gid)) {
+      Warning("Reapplying previous uid and gid failed with: %s uid: %d gid: %d",
+              strerror(errno), old_file.st_uid, old_file.st_gid);
+    }
+  }
+#endif
+
+  return true;
+}
+
 int platformAwareUnlink(const char* filename) {
 	#ifdef _WIN32
 		return _unlink(filename);
