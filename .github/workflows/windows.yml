@@ -52,7 +52,7 @@ jobs:
 
     # Upload ninja binary archive as an artifact
     - name: Upload artifact
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ninja-binary-archives${{ matrix.suffix }}
         path: artifact
