@@ -294,16 +294,16 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
 }
 
 bool DependencyScan::RecomputeEdgesInputsDirty(
-    Node* node, std::array<std::size_t, 2> offset, Node*& most_recent_input,
+    Node* node, std::array<std::size_t, 2> input_range, Node*& most_recent_input,
     bool& dirty, std::vector<Node*>* stack,
     std::vector<Node*>* validation_nodes, std::string* err) {
   // Visit all inputs; we're dirty if any of the inputs are dirty.
 
   Edge* edge = node->in_edge();
 
-  const auto end_ = edge->inputs_.end() - offset[1];
+  const auto end_ = edge->inputs_.end() - input_range[1];
 
-  for (vector<Node*>::iterator i = edge->inputs_.begin() + offset[0];
+  for (vector<Node*>::iterator i = edge->inputs_.begin() + input_range[0];
        i != end_; ++i) {
     // Visit this input.
     if (!RecomputeNodeDirty(*i, stack, validation_nodes, err))
@@ -771,14 +771,14 @@ void Node::Dump(const char* prefix) const {
 }
 
 bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err,
-                                 std::array<std::size_t, 2>* ptr) {
+                                 std::array<std::size_t, 2>* input_range) {
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty())
-    return LoadDepsFromLog(edge, err, ptr);
+    return LoadDepsFromLog(edge, err, input_range);
 
   string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
-    return LoadDepFile(edge, depfile, err, ptr);
+    return LoadDepFile(edge, depfile, err, input_range);
 
   // No deps to load.
   return true;
@@ -809,7 +809,7 @@ struct matches {
 };
 
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path, string* err,
-                                    std::array<std::size_t, 2>* ptr) {
+                                    std::array<std::size_t, 2>* input_range) {
   METRIC_RECORD("depfile load");
   // Read depfile content.  Treat a missing depfile as empty.
   string content;
@@ -870,7 +870,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path, string* err,
     }
   }
 
-  return ProcessDepfileDeps(edge, &depfile.ins_, err, ptr);
+  return ProcessDepfileDeps(edge, &depfile.ins_, err, input_range);
 }
 
 bool ImplicitDepLoader::LoadDepFileTry(const Edge* edge, const string& path,
@@ -893,13 +893,13 @@ bool ImplicitDepLoader::LoadDepFileTry(const Edge* edge, const string& path,
 
 bool ImplicitDepLoader::ProcessDepfileDeps(
     Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err,
-    std::array<std::size_t, 2>* ptr) {
+    std::array<std::size_t, 2>* input_range) {
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
       PreallocateSpace(edge, static_cast<int>(depfile_ins->size()));
 
-  if (ptr)
-    (*ptr)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
+  if (input_range)
+    (*input_range)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
 
   // Add all its in-edges.
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
@@ -911,14 +911,14 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
     node->AddOutEdge(edge);
   }
 
-  if (ptr)
-    (*ptr)[1] = std::distance(implicit_dep, edge->inputs_.end());
+  if (input_range)
+    (*input_range)[1] = std::distance(implicit_dep, edge->inputs_.end());
 
   return true;
 }
 
 bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err,
-                                        std::array<std::size_t, 2>* ptr) {
+                                        std::array<std::size_t, 2>* input_range) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
@@ -940,9 +940,9 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err,
   Node** nodes = deps->nodes;
   const size_t node_count = deps->node_count;
   const auto implicit_dep = edge->inputs_.end() - edge->order_only_deps_;
-  if (ptr) {
-    (*ptr)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
-    (*ptr)[1] = edge->inputs_.size() - (*ptr)[0];
+  if (input_range) {
+    (*input_range)[0] = std::distance(edge->inputs_.begin(), implicit_dep);
+    (*input_range)[1] = edge->inputs_.size() - (*input_range)[0];
   }
   edge->inputs_.insert(implicit_dep, nodes, nodes + node_count);
   edge->implicit_deps_ += node_count;
@@ -960,17 +960,17 @@ bool ImplicitDepLoader::LoadDepsFromLogTry(const Edge* edge,
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
     err->clear();
-    // explanations_.Record(output, "deps for '%s' are missing",
-    //                      output->path().c_str());
+    explanations_.Record(output, "deps for '%s' are missing",
+                         output->path().c_str());
     return false;
   }
 
-   // Deps are invalid if the output is newer than the deps.
+  // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
-    // explanations_.Record(output,
-    //                      "stored deps info out of date for '%s' (%" PRId64
-    //                      " vs %" PRId64 ")",
-    //                      output->path().c_str(), deps->mtime, output->mtime());
+    explanations_.Record(output,
+                         "stored deps info out of date for '%s' (%" PRId64
+                         " vs %" PRId64 ")",
+                         output->path().c_str(), deps->mtime, output->mtime());
     return false;
   }
 

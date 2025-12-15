@@ -1244,6 +1244,7 @@ TEST_F(BuildTest, DepFileCanonicalize) {
 "build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
 
   fs_.Create("x/y/z/foo.c", "");
+  fs_.Create("gen/stuff/things/foo.o", "");
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   // Note, different slashes from manifest.
   fs_.Create("gen/stuff\\things/foo.o.d",

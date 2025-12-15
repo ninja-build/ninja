@@ -296,7 +296,7 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
   bool LoadDeps(Edge* edge, std::string* err,
-                std::array<std::size_t, 2>* ptr = nullptr);
+                std::array<std::size_t, 2>* input_range = nullptr);
   bool LoadDepsTry(const Edge* edge, std::string* err) const;
 
   DepsLog* deps_log() const {
@@ -309,12 +309,12 @@ struct ImplicitDepLoader {
   virtual bool ProcessDepfileDeps(Edge* edge,
                                   std::vector<StringPiece>* depfile_ins,
                                   std::string* err,
-                                  std::array<std::size_t, 2>* ptr);
+                                  std::array<std::size_t, 2>* input_range);
 
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepFile(Edge* edge, const std::string& path, std::string* err,
-                   std::array<std::size_t, 2>* ptr);
+                   std::array<std::size_t, 2>* input_range);
   /// check if an depfile exists
   /// @return No file found: false on error and \a err = ""
   bool LoadDepFileTry(const Edge* edge, const std::string& path,
@@ -323,7 +323,7 @@ struct ImplicitDepLoader {
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepsFromLog(Edge* edge, std::string* err,
-                       std::array<std::size_t, 2>* ptr);
+                       std::array<std::size_t, 2>* input_range);
   bool LoadDepsFromLogTry(const Edge* edge, std::string* err) const;
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
@@ -334,7 +334,7 @@ struct ImplicitDepLoader {
   DiskInterface* disk_interface_;
   DepsLog* deps_log_;
   DepfileParserOptions const* depfile_parser_options_;
-  OptionalExplanations explanations_;
+  mutable OptionalExplanations explanations_;
 };
 
 
@@ -386,9 +386,7 @@ struct DependencyScan {
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes,
                           std::string* err);
-  /// @inputs offset of the edges input iterators to only process a subset.
-  /// range is [i.begin() + input[0] ... i.end() - input[1] ]
-  bool RecomputeEdgesInputsDirty(Node* node, std::array<std::size_t, 2> offset,
+  bool RecomputeEdgesInputsDirty(Node* node, std::array<std::size_t, 2> input_range,
                                  Node*& most_recent_input, bool& dirty,
                                  std::vector<Node*>* stack,
                                  std::vector<Node*>* validation_nodes,
