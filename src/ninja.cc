@@ -713,8 +713,16 @@ int NinjaMain::ToolWinCodePage(const Options* options, int argc, char* argv[]) {
 }
 #endif
 
+enum EvaluateCommandMode {
+  ECM_NORMAL,
+  ECM_EXPAND_RSPFILE
+};
+std::string EvaluateCommandWithRspfile(const Edge* edge,
+                                       EvaluateCommandMode mode);
+
 enum PrintCommandMode { PCM_Single, PCM_All };
-void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
+void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode,
+                   EvaluateCommandMode eval_mode) {
   if (!edge)
     return;
   if (!seen->insert(edge).second)
@@ -723,11 +731,11 @@ void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode) {
   if (mode == PCM_All) {
     for (vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in)
-      PrintCommands((*in)->in_edge(), seen, mode);
+      PrintCommands((*in)->in_edge(), seen, mode, eval_mode);
   }
 
   if (!edge->is_phony())
-    puts(edge->EvaluateCommand().c_str());
+    puts(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
 }
 
 int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
@@ -737,13 +745,17 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   --argv;
 
   PrintCommandMode mode = PCM_All;
+  EvaluateCommandMode eval_mode = ECM_NORMAL;
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("hs"))) != -1) {
+  while ((opt = getopt(argc, argv, const_cast<char*>("hsx"))) != -1) {
     switch (opt) {
     case 's':
       mode = PCM_Single;
+      break;
+    case 'x':
+      eval_mode = ECM_EXPAND_RSPFILE;
       break;
     case 'h':
     default:
@@ -751,6 +763,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
 "\n"
 "options:\n"
 "  -s     only print the final command to build [target], not the whole chain\n"
+"  -x     expand @rspfile style response file invocations\n"
              );
     return 1;
     }
@@ -767,7 +780,7 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
 
   EdgeSet seen;
   for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge(), &seen, mode);
+    PrintCommands((*in)->in_edge(), &seen, mode, eval_mode);
 
   return 0;
 }
@@ -973,10 +986,6 @@ int NinjaMain::ToolCleanDead(const Options* options, int argc, char* argv[]) {
   return cleaner.CleanDead(build_log_.entries());
 }
 
-enum EvaluateCommandMode {
-  ECM_NORMAL,
-  ECM_EXPAND_RSPFILE
-};
 std::string EvaluateCommandWithRspfile(const Edge* edge,
                                        const EvaluateCommandMode mode) {
   string command = edge->EvaluateCommand();
