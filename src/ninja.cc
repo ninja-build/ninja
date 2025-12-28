@@ -721,21 +721,34 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
                                        EvaluateCommandMode mode);
 
 enum PrintCommandMode { PCM_Single, PCM_All };
-void PrintCommands(Edge* edge, EdgeSet* seen, PrintCommandMode mode,
-                   EvaluateCommandMode eval_mode) {
+class PrintCommands {
+ public:
+  PrintCommands(PrintCommandMode mode, EvaluateCommandMode eval_mode);
+  void operator()(const Edge* edge);
+
+ private:
+  EdgeSet seen_;
+  const PrintCommandMode mode_;
+  const EvaluateCommandMode eval_mode_;
+};
+
+PrintCommands::PrintCommands(PrintCommandMode mode,
+                             EvaluateCommandMode eval_mode)
+    : mode_(mode), eval_mode_(eval_mode) {}
+
+void PrintCommands::operator()(const Edge* const edge) {
   if (!edge)
     return;
-  if (!seen->insert(edge).second)
+  if (!seen_.insert(edge).second)
     return;
 
-  if (mode == PCM_All) {
-    for (vector<Node*>::iterator in = edge->inputs_.begin();
-         in != edge->inputs_.end(); ++in)
-      PrintCommands((*in)->in_edge(), seen, mode, eval_mode);
+  if (mode_ == PCM_All) {
+    for (auto in : edge->inputs_)
+      operator()(in->in_edge());
   }
 
   if (!edge->is_phony())
-    puts(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
+    puts(EvaluateCommandWithRspfile(edge, eval_mode_).c_str());
 }
 
 int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
@@ -778,9 +791,9 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
     return 1;
   }
 
-  EdgeSet seen;
-  for (vector<Node*>::iterator in = nodes.begin(); in != nodes.end(); ++in)
-    PrintCommands((*in)->in_edge(), &seen, mode, eval_mode);
+  PrintCommands printCommands(mode, eval_mode);
+  for (const auto& in: nodes)
+    printCommands(in->in_edge());
 
   return 0;
 }
