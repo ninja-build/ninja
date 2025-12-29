@@ -386,7 +386,7 @@ struct DependencyScan {
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes,
                           std::string* err);
-  bool RecomputeEdgesInputsDirty(Node* node, std::array<std::size_t, 2> input_range,
+  bool RecomputeEdgesInputsDirty(const Node* node, std::array<std::size_t, 2> input_range,
                                  Node*& most_recent_input, bool& dirty,
                                  std::vector<Node*>* stack,
                                  std::vector<Node*>* validation_nodes,
