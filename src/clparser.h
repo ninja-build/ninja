@@ -18,6 +18,8 @@
 #include <set>
 #include <string>
 
+struct StringPiece;
+
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
 /// format when building with /showIncludes.  This class parses this
@@ -26,26 +28,28 @@ struct CLParser {
   /// Parse a line of cl.exe output and extract /showIncludes info.
   /// If a dependency is extracted, returns a nonempty string.
   /// Exposed for testing.
-  static std::string FilterShowIncludes(const std::string& line,
-                                        const std::string& deps_prefix);
+  static StringPiece FilterShowIncludes(const StringPiece& line,
+                                        const StringPiece& deps_prefix);
 
   /// Return true if a mentioned include file is a system path.
+  /// Use \@ temp to store temporary data if needed.
   /// Filtering these out reduces dependency information considerably.
-  static bool IsSystemInclude(std::string path);
+  static bool IsSystemInclude(StringPiece path, std::string* temp);
 
   /// Parse a line of cl.exe output and return true if it looks like
   /// it's printing an input filename.  This is a heuristic but it appears
   /// to be the best we can do.
   /// Exposed for testing.
-  static bool FilterInputFilename(std::string line);
+  static bool FilterInputFilename(const StringPiece& line);
 
-  /// Parse the full output of cl, filling filtered_output with the text that
+  /// Parse the full output of cl, updating /a output with the text that
   /// should be printed (if any). Returns true on success, or false with err
-  /// filled. output must not be the same object as filtered_object.
-  bool Parse(const std::string& output, const std::string& deps_prefix,
-             std::string* filtered_output, std::string* err);
+  /// filled.
+  bool Parse(std::string *output, const StringPiece& deps_prefix,
+             std::string* err);
 
   std::set<std::string> includes_;
+  std::string temp_;
 };
 
 #endif  // NINJA_CLPARSER_H_

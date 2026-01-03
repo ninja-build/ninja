@@ -19,11 +19,11 @@
 #include <string.h>
 
 #include "metrics.h"
+#include "string_piece.h"
 #include "string_piece_util.h"
 
 #ifdef _WIN32
 #include "includes_normalize.h"
-#include "string_piece.h"
 #else
 #include "util.h"
 #endif
@@ -32,98 +32,151 @@ using namespace std;
 
 namespace {
 
-/// Return true if \a input ends with \a needle.
-bool EndsWith(const string& input, const string& needle) {
-  return (input.size() >= needle.size() &&
-          input.substr(input.size() - needle.size()) == needle);
-}
+/// Iterate through lines of a string (delimeted by "\r", "\n", or
+/// "\r\n"), removing all lines by default unless `KeepCurrent()`
+/// is called. Note that kept lines will be be changed to be
+/// separated by just "\n" regardless of the original line separator.
+struct InPlaceLineRemover {
+  InPlaceLineRemover(std::string* str)
+      : str_(str), out_(str->begin()), end_(str->size()), inStart_(0),
+        inEnd_(std::min(str_->find_first_of("\r\n", inStart_), end_)),
+        copyOnNext_(false) {}
 
-}  // anonymous namespace
+  ~InPlaceLineRemover() { str_->erase(out_, str_->end()); }
+
+  /// Return the current line.
+  StringPiece Current() const {
+    return StringPiece(str_->data() + inStart_, inEnd_ - inStart_);
+  }
+
+  /// Keep the current line instead of removing it from the string.
+  void KeepCurrent() { copyOnNext_ = true; }
+
+  /// Return whether we have iterated through all lines.
+  bool HasNext() const { return inStart_ != end_; }
+
+  /// Move to the next line and remove the current line from the
+  /// string unless `KeepCurrent()` has been called.
+  /// \pre `HasNext() == true`
+  void Next() {
+    assert(HasNext());
+
+    // No need to check bounds as `str[end_] == '\0'` and we won't
+    // advance further.
+    std::string::size_type nextStart = inEnd_;
+    nextStart = (*str_)[nextStart] == '\r' ? nextStart + 1 : nextStart;
+    nextStart = (*str_)[nextStart] == '\n' ? nextStart + 1 : nextStart;
+
+    if (copyOnNext_) {
+      const StringPiece line = Current();
+      out_ = std::copy(line.begin(), line.end(), out_);
+      *out_++ = '\n';
+      copyOnNext_ = false;
+    }
+
+    inStart_ = nextStart;
+    inEnd_ = std::min(str_->find_first_of("\r\n", inStart_), end_);
+  }
+
+private:
+  std::string* str_;
+  std::string::iterator out_;
+  std::string::size_type end_;
+  std::string::size_type inStart_;
+  std::string::size_type inEnd_;
+  bool copyOnNext_;
+};
+
+} // anonymous namespace
 
 // static
-string CLParser::FilterShowIncludes(const string& line,
-                                    const string& deps_prefix) {
-  const string kDepsPrefixEnglish = "Note: including file: ";
-  const char* in = line.c_str();
-  const char* end = in + line.size();
-  const string& prefix = deps_prefix.empty() ? kDepsPrefixEnglish : deps_prefix;
+StringPiece CLParser::FilterShowIncludes(const StringPiece& line,
+                                         const StringPiece& deps_prefix) {
+  const StringPiece kDepsPrefixEnglish = "Note: including file: ";
+  const char* in = line.str_;
+  const char* end = in + line.len_;
+  const StringPiece prefix = deps_prefix.empty() ? kDepsPrefixEnglish : deps_prefix;
   if (end - in > (int)prefix.size() &&
-      memcmp(in, prefix.c_str(), (int)prefix.size()) == 0) {
-    in += prefix.size();
+      memcmp(in, prefix.str_, (int)prefix.len_) == 0) {
+    in += prefix.len_;
     while (*in == ' ')
       ++in;
-    return line.substr(in - line.c_str());
+    return line.substr(in - line.str_);
   }
   return "";
 }
 
 // static
-bool CLParser::IsSystemInclude(string path) {
-  transform(path.begin(), path.end(), path.begin(), ToLowerASCII);
+bool CLParser::IsSystemInclude(StringPiece path, std::string* temp) {
+  // TODO: Use std::search in C++17 to avoid temporaries
+  temp->resize(path.size());
+  transform(path.begin(), path.end(), temp->begin(), ToLowerASCII);
   // TODO: this is a heuristic, perhaps there's a better way?
-  return (path.find("program files") != string::npos ||
-          path.find("microsoft visual studio") != string::npos);
+  return (temp->find("program files") != string::npos ||
+          temp->find("microsoft visual studio") != string::npos);
 }
 
 // static
-bool CLParser::FilterInputFilename(string line) {
-  transform(line.begin(), line.end(), line.begin(), ToLowerASCII);
+bool CLParser::FilterInputFilename(const StringPiece& line) {
+  const size_t maxFilenameSuffix = 3;
+  if (line.len_ < maxFilenameSuffix + 1) {
+    return false;
+  }
+  const auto dot = std::find(
+    std::make_reverse_iterator(line.end()),
+    std::make_reverse_iterator(line.end()) + maxFilenameSuffix + 1,
+    '.');
+  const size_t extLength = dot - std::make_reverse_iterator(line.end());
+  if (extLength > maxFilenameSuffix) {
+    return false;
+  }
+  char BUFFER[maxFilenameSuffix] = {};
+  transform(line.end() - extLength, line.end(), BUFFER, ToLowerASCII);
+  const StringPiece suffix(BUFFER, extLength);
   // TODO: other extensions, like .asm?
-  return EndsWith(line, ".c") ||
-      EndsWith(line, ".cc") ||
-      EndsWith(line, ".cxx") ||
-      EndsWith(line, ".cpp") ||
-      EndsWith(line, ".c++");
+  return suffix == "c" ||
+         suffix == "cc" ||
+         suffix == "cxx" ||
+         suffix == "cpp" ||
+         suffix == "c++";
 }
 
 // static
-bool CLParser::Parse(const string& output, const string& deps_prefix,
-                     string* filtered_output, string* err) {
+bool CLParser::Parse(string* output, const StringPiece& deps_prefix,
+                     string* err) {
   METRIC_RECORD("CLParser::Parse");
 
   // Loop over all lines in the output to process them.
-  assert(&output != filtered_output);
-  size_t start = 0;
   bool seen_show_includes = false;
 #ifdef _WIN32
   IncludesNormalize normalizer(".");
 #endif
 
-  while (start < output.size()) {
-    size_t end = output.find_first_of("\r\n", start);
-    if (end == string::npos)
-      end = output.size();
-    string line = output.substr(start, end - start);
-
-    string include = FilterShowIncludes(line, deps_prefix);
+  std::string normalized;
+  for (InPlaceLineRemover lines(output); lines.HasNext(); lines.Next()) {
+    const StringPiece line = lines.Current();
+    const StringPiece include = FilterShowIncludes(line, deps_prefix);
     if (!include.empty()) {
       seen_show_includes = true;
-      string normalized;
 #ifdef _WIN32
+      normalized = "";
       if (!normalizer.Normalize(include, &normalized, err))
         return false;
 #else
       // TODO: should this make the path relative to cwd?
-      normalized = include;
+      normalized.assign(include.str_, include.len_);
       uint64_t slash_bits;
       CanonicalizePath(&normalized, &slash_bits);
 #endif
-      if (!IsSystemInclude(normalized))
+      if (!IsSystemInclude(normalized, &temp_))
         includes_.insert(normalized);
     } else if (!seen_show_includes && FilterInputFilename(line)) {
       // Drop it.
       // TODO: if we support compiling multiple output files in a single
       // cl.exe invocation, we should stash the filename.
     } else {
-      filtered_output->append(line);
-      filtered_output->append("\n");
+      lines.KeepCurrent();
     }
-
-    if (end < output.size() && output[end] == '\r')
-      ++end;
-    if (end < output.size() && output[end] == '\n')
-      ++end;
-    start = end;
   }
 
   return true;

@@ -24,17 +24,17 @@ struct StringPiece;
 /// TODO: this likely duplicates functionality of CanonicalizePath; refactor.
 struct IncludesNormalize {
   /// Normalize path relative to |relative_to|.
-  IncludesNormalize(const std::string& relative_to);
+  IncludesNormalize(const StringPiece& relative_to);
 
   // Internal utilities made available for testing, maybe useful otherwise.
-  static std::string AbsPath(StringPiece s, std::string* err);
-  static std::string Relativize(StringPiece path,
-                                const std::vector<StringPiece>& start_list,
-                                std::string* err);
+  static void AbsPath(std::string* s, std::string* err);
+  static void Relativize(std::string* abs_path,
+                         const std::vector<StringPiece>& start_list,
+                         std::string* err);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path |input| relative to |this->relative_to_| and store to |result|.
-  bool Normalize(const std::string& input, std::string* result,
+  bool Normalize(const StringPiece& input, std::string* result,
                  std::string* err) const;
 
  private:
