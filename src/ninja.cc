@@ -83,6 +83,9 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+
+  /// Set build to idle (low) priority
+  bool idle_priority;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -238,6 +241,7 @@ void Usage(const BuildConfig& config) {
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
 "\n"
+"  -i       run jobs with idle (low) priority, useful to keep system responsive\n"
 "  -j N     run N jobs in parallel (0 means infinity) [default=%d on this system]\n"
 "  -k N     keep going until N jobs fail (0 means infinity) [default=1]\n"
 "  -l N     do not start new jobs if the load average is greater than N\n"
@@ -1701,7 +1705,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, "d:f:ij:k:l:nt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1710,6 +1714,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'f':
         options->input_file = optarg;
+        break;
+      case 'i':
+        options->idle_priority = true;
         break;
       case 'j': {
         char* end;
@@ -1799,6 +1806,8 @@ NORETURN void real_main(int argc, char** argv) {
     exit(exit_code);
 
   Status* status = Status::factory(config);
+  bool show_info =
+      (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE);
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -1806,10 +1815,18 @@ NORETURN void real_main(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
+    if (show_info)
       status->Info("Entering directory `%s'", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
+    }
+  }
+
+  if (options.idle_priority) {
+    if (show_info)
+      status->Info("Set idle priority");
+    if (SetIdlePriority() < 0) {
+      Fatal("Failed to set idle priority");
     }
   }
 
