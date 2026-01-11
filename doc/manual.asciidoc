@@ -917,6 +917,15 @@ paths, where a space would otherwise separate filenames.  See below.)
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
 would otherwise terminate the list of outputs.)
 
+`$^` :: a newline _(available since Ninja 1.14)_.
+
+Inserts '\n' into the resulting string. This is useful to
+write build commands that require several shell lines as a single `command`
+value in the build plan.
+
+Requires `ninja_required_version` to be specified and greater or equal to 1.14
+in the build file.
+
 `$$`:: a literal `$`.
 
 A `build` or `default` statement is first parsed as a space-separated
