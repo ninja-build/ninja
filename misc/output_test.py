@@ -60,7 +60,7 @@ def remove_non_visible_lines(raw_output: bytes) -> str:
 class BuildDir:
     def __init__(self, build_ninja: str):
         self.build_ninja = dedent(build_ninja)
-        self.d = None
+        self.d : None | tempfile.TemporaryDirectory[str] = None
 
     def __enter__(self):
         self.d = tempfile.TemporaryDirectory()
@@ -72,8 +72,16 @@ class BuildDir:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.d.cleanup()
 
+    def write_file(self, path: str, content: str) -> None:
+        assert self.d
+        file_path = os.path.join(self.d.name, path)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wt") as f:
+            f.write(content)
+
     @property
     def path(self) -> str:
+        assert self.d
         return os.path.realpath(self.d.name)
 
 
@@ -113,13 +121,13 @@ class BuildDir:
         try:
             if pipe:
                 output = subprocess.check_output(
-                    [ninja_cmd], shell=True, cwd=self.d.name, env=env)
+                    [ninja_cmd], shell=True, cwd=self.path, env=env)
             elif platform.system() == 'Darwin':
                 output = subprocess.check_output(['script', '-q', '/dev/null', 'bash', '-c', ninja_cmd],
-                                                 cwd=self.d.name, env=env)
+                                                 cwd=self.path, env=env)
             else:
                 output = subprocess.check_output(['script', '-qfec', ninja_cmd, '/dev/null'],
-                                                 cwd=self.d.name, env=env)
+                                                 cwd=self.path, env=env)
         except subprocess.CalledProcessError as err:
             if print_err_output:
               sys.stdout.buffer.write(err.output)
@@ -368,8 +376,8 @@ ninja: build stopped: subcommand failed.
             self.assertEqual(b.run('', pipe=True), dedent('''\
                 [1/1] touch somewhere/out && echo "somewhere/out: extra" > somewhere_else/out.d
                 '''))
-            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere", "out")))
-            self.assertTrue(os.path.isfile(os.path.join(b.d.name, "somewhere_else", "out.d")))
+            self.assertTrue(os.path.isfile(os.path.join(b.path, "somewhere", "out")))
+            self.assertTrue(os.path.isfile(os.path.join(b.path, "somewhere_else", "out.d")))
 
     def test_status(self) -> None:
         self.assertEqual(run(''), 'ninja: no work to do.\n')
@@ -470,6 +478,39 @@ out 2
           f'''in1\0out1\0out 2\0'''
         )
 
+    def test_tool_inputs_with_depfile_entries(self) -> None:
+        build_ninja = '''
+rule touch
+  command = touch $out && echo "$out: $extras" > $depfile
+  depfile = $out.d
+
+build out1: touch in1
+  deps = gcc
+  extras = extra extra2
+
+build out2: touch in2
+  extras = extra3 extra4
+  # No deps = gcc here intentionally
+'''
+        with BuildDir(build_ninja) as b:
+          # Do not run the build (empty deps log).
+          self.assertEqual(b.run(flags='-t inputs out1'), 'in1\n')
+          self.assertEqual(b.run(flags='-t inputs --depfile out1'), 'in1\n')
+
+          self.assertEqual(b.run(flags='-t inputs out2'), 'in2\n')
+          self.assertEqual(b.run(flags='-t inputs --depfile out2'), 'in2\n')
+
+          # Run the plan and create the log entry for 'out'
+          b.write_file("in1", "")
+          b.write_file("in2", "")
+          b.run('out1 out2')
+
+          # Check with a full deps log.
+          self.assertEqual(b.run(flags='-t inputs out1'), 'in1\n')
+          self.assertEqual(b.run(flags='-t inputs --depfile out1'), 'extra\nextra2\nin1\n')
+
+          self.assertEqual(b.run(flags='-t inputs out2'), 'in2\n')
+          self.assertEqual(b.run(flags='-t inputs --depfile out2'), 'extra3\nextra4\nin2\n')
 
     def test_tool_compdb_targets(self) -> None:
         plan = '''
@@ -568,6 +609,90 @@ out3<TAB>in3
           ),
           '''out1,in1\0out2,in1\0out2,in2\0'''
         )
+
+
+    def test_tool_multi_inputs_with_depfile_entries(self) -> None:
+        build_ninja = '''
+rule touch1
+  command = touch $out && echo "$out: extra extra2" > $depfile
+  depfile = $out.d
+  deps = gcc
+
+rule touch2
+  command = touch $out && echo "$out: extra extra3" > $depfile
+  depfile = $out.d
+  # Do not use deps = gcc here intentionally
+
+build out1: touch1 in1
+build out2: touch2 in2
+'''
+
+        # Helper function to replace <TAB> with real tabs in input text.
+        def t(text):
+            if text[0] == '\n':  # skip initial newline if any.
+              text = text[1:]
+            return text.replace("<TAB>", "\t")
+
+        with BuildDir(build_ninja) as b:
+          # Run the plan and create the log entries for 'out1' and 'out2'
+          b.write_file("in1", "1")
+          b.write_file("in2", "2")
+          b.run('out1 out2')
+
+          self.assertEqual(b.run(flags='-t multi-inputs'), t('''
+out1<TAB>in1
+out2<TAB>in2
+'''))
+          self.assertEqual(b.run(flags='-t multi-inputs out1'), t('out1<TAB>in1\n'))
+          self.assertEqual(b.run(flags='-t multi-inputs out2'), t('out2<TAB>in2\n'))
+          self.assertEqual(b.run(flags='-t multi-inputs out1 out2'), t('''
+out1<TAB>in1
+out2<TAB>in2
+'''))
+          self.assertEqual(b.run(flags='-t multi-inputs out2 out1'), t('''
+out2<TAB>in2
+out1<TAB>in1
+'''))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile'), t('''
+out1<TAB>in1
+out1<TAB>extra
+out1<TAB>extra2
+out2<TAB>in2
+out2<TAB>extra
+out2<TAB>extra3
+'''))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out1'), t('''
+out1<TAB>in1
+out1<TAB>extra
+out1<TAB>extra2
+'''))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out2'), t('''
+out2<TAB>in2
+out2<TAB>extra
+out2<TAB>extra3
+'''))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out1 out2'), t('''
+out1<TAB>in1
+out1<TAB>extra
+out1<TAB>extra2
+out2<TAB>in2
+out2<TAB>extra
+out2<TAB>extra3
+'''))
+
+          self.assertEqual(b.run(flags='-t multi-inputs --depfile out2 out1'), t('''
+out2<TAB>in2
+out2<TAB>extra
+out2<TAB>extra3
+out1<TAB>in1
+out1<TAB>extra
+out1<TAB>extra2
+'''))
+
 
 
     def test_explain_output(self):
