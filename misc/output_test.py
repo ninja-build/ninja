@@ -515,8 +515,20 @@ options:
   }},
   {{
     "directory": "{b.path}",
+    "command": "cat in2 out1 out2",
+    "file": "out1",
+    "output": "out2"
+  }},
+  {{
+    "directory": "{b.path}",
     "command": "cat out2 out1 out3",
     "file": "out2",
+    "output": "out3"
+  }},
+  {{
+    "directory": "{b.path}",
+    "command": "cat out2 out1 out3",
+    "file": "out1",
     "output": "out3"
   }}
 ]
