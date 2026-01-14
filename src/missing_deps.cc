@@ -48,12 +48,11 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
 };
 
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
-  for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
-       i != depfile_ins->end(); ++i) {
+    Edge*, std::vector<StringPiece>* depfile_ins, std::string* err) {
+  for (StringPiece input : *depfile_ins) {
     uint64_t slash_bits;
-    CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-    Node* node = state_->GetNode(*i, slash_bits);
+    CanonicalizePath(const_cast<char*>(input.str_), &input.len_, &slash_bits);
+    Node* node = state_->GetNode(input, slash_bits);
     dep_nodes_output_->push_back(node);
   }
   return true;
@@ -84,10 +83,8 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
   if (!seen_.insert(node).second)
     return;
 
-  for (std::vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    ProcessNode(*in);
-  }
+  for (Node* input : edge->inputs_)
+    ProcessNode(input);
 
   std::string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty()) {
@@ -124,7 +121,11 @@ void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
       return;
     Edge* deplog_edge = deplog_node->in_edge();
     if (deplog_edge) {
-      deplog_edges.insert(deplog_edge);
+      // Special case: the output of a phony edge *without* any inputs
+      // may not exist at build time, and will not be considered a missing
+      // dependency.
+      if (!deplog_edge->has_dummy_outputs())
+        deplog_edges.insert(deplog_edge);
     }
   }
   std::vector<Edge*> missing_deps;

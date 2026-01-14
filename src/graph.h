@@ -264,6 +264,11 @@ struct Edge {
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
 
+  /// Return true if this edge is phony and has no inputs, its outputs
+  /// are treated specially by Ninja: when they do not exist, they are
+  /// considered out-of-date instead of missing.
+  bool has_dummy_outputs() const { return is_phony() && inputs_.empty(); }
+
   /// A Jobserver slot instance. Invalid by default.
   Jobserver::Slot job_slot_;
 
