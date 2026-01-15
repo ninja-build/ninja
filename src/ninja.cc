@@ -246,7 +246,8 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n"
+"  --keep-free-memory AMOUNT the amount of ram required to start a job\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -1694,18 +1695,36 @@ class DeferGuessParallelism {
   ~DeferGuessParallelism() { Refresh(); }
 };
 
+static inline long GetUnitToByteRatio(char unit) {
+  switch (unit) {
+  case 'G':
+  case 'g':
+    return 1e+9;
+  case 'M':
+  case 'm':
+    return 1e+6;
+  case 'K':
+  case 'k':
+    return 1e+3;
+  case 'B':
+    return 1;
+  }
+  return 0;
+}
+
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
 int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_FREE_MEM = 3 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
+    { "keep-free-memory", required_argument, NULL, OPT_FREE_MEM},
     { NULL, 0, NULL, 0 }
   };
 
@@ -1781,6 +1800,19 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_FREE_MEM: {
+        char * end;
+        long value = strtol(optarg, &end, 10);
+        long multiplier = GetUnitToByteRatio(*end);
+        value *= multiplier;
+        //last char was the unit
+        if(multiplier > 0)
+          end++;
+        if (*end != 0 || value < 0 || multiplier == 0)
+          Fatal("invalid --keep-free-memory parameter");
+        config->desired_free_ram = value;
+        break;
+      }
       case 'h':
       default:
         deferGuessParallelism.Refresh();
