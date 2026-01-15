@@ -173,7 +173,7 @@ private:
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  enum VisitMark {
+  enum VisitMark : char {
     VisitNone,
     VisitInStack,
     VisitDone
@@ -218,9 +218,13 @@ struct Edge {
   std::vector<Node*> validations_;
   Node* dyndep_ = nullptr;
   BindingEnv* env_ = nullptr;
-  VisitMark mark_ = VisitNone;
   size_t id_ = 0;
   int64_t critical_path_weight_ = -1;
+
+  /// A Jobserver slot instance. Invalid by default.
+  Jobserver::Slot job_slot_;
+
+  VisitMark mark_ = VisitNone;
   bool outputs_ready_ = false;
   bool deps_loaded_ = false;
   bool deps_missing_ = false;
@@ -263,9 +267,6 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
-
-  /// A Jobserver slot instance. Invalid by default.
-  Jobserver::Slot job_slot_;
 
   // Historical info: how long did this edge take last time,
   // as per .ninja_log, if known? Defaults to -1 if unknown.
