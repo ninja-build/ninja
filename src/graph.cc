@@ -141,6 +141,9 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   // Load output mtimes so we can compare them to the most recent input below.
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
+    if (err) {
+      *err = "";
+    }
     if (!(*o)->StatIfNecessary(disk_interface_, err))
       return false;
   }
