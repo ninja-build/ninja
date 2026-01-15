@@ -19,6 +19,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <cassert>
 #include <iterator>
 #include <sstream>
 
@@ -28,13 +29,15 @@ using namespace std;
 
 namespace {
 
-bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
+bool InternalGetFullPathName(const char *file_name, char* buffer,
                              size_t buffer_length, string *err) {
-  DWORD result_size = GetFullPathNameA(file_name.AsString().c_str(),
+  DWORD result_size = GetFullPathNameA(file_name,
                                        buffer_length, buffer, NULL);
   if (result_size == 0) {
-    *err = "GetFullPathNameA(" + file_name.AsString() + "): " +
-        GetLastErrorString();
+    *err = "GetFullPathNameA(";
+    *err += file_name;
+    *err += "): ";
+    *err += GetLastErrorString();
     return false;
   } else if (result_size > buffer_length) {
     *err = "path too long";
@@ -50,7 +53,7 @@ bool IsPathSeparator(char c) {
 // Return true if paths a and b are on the same windows drive.
 // Return false if this function cannot check
 // whether or not on the same windows drive.
-bool SameDriveFast(StringPiece a, StringPiece b) {
+bool SameDriveFast(const StringPiece& a, const StringPiece& b) {
   if (a.size() < 3 || b.size() < 3) {
     return false;
   }
@@ -71,17 +74,18 @@ bool SameDriveFast(StringPiece a, StringPiece b) {
 }
 
 // Return true if paths a and b are on the same Windows drive.
-bool SameDrive(StringPiece a, StringPiece b, string* err)  {
+bool SameDrive(const std::string& a, const std::string& b, string* err)  {
   if (SameDriveFast(a, b)) {
     return true;
   }
 
   char a_absolute[_MAX_PATH];
   char b_absolute[_MAX_PATH];
-  if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
+  if (!InternalGetFullPathName(a.c_str(), a_absolute, sizeof(a_absolute), err)) {
     return false;
   }
-  if (!InternalGetFullPathName(b, b_absolute, sizeof(b_absolute), err)) {
+  if (!InternalGetFullPathName(b.c_str(), b_absolute, sizeof(b_absolute),
+                               err)) {
     return false;
   }
   char a_drive[_MAX_DIR];
@@ -124,64 +128,144 @@ bool IsFullPathName(StringPiece s) {
   return true;
 }
 
+#ifdef NDEBUG
+void AssertIsAbsoluteInDebug(const StringPiece&) {
+#else
+void AssertIsAbsoluteInDebug(const StringPiece& s) {
+  std::string err;
+  std::string copy = s.AsString();
+  IncludesNormalize::AbsPath(&copy, &err);
+  assert(StringPiece(copy) == s);
+#endif
+}
+
+struct StringPieceRange {
+  struct const_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type        = StringPiece;
+    using difference_type   = std::ptrdiff_t;
+    using pointer           = const StringPiece*;
+    using reference         = const StringPiece&;
+
+    const_iterator(const StringPiece& str, const char *end, char sep)
+        : str_(str), end_(end), sep_(sep) {}
+
+    const_iterator& operator++() {
+      if (str_.end() == end_) {
+        str_ = StringPiece(str_.end(), 0);
+      } else {
+        const auto start = str_.end() + 1;
+        const auto sep_it = std::find(start, end_, sep_);
+        str_ = StringPiece(start, sep_it - start);
+      }
+      return *this;
+    }
+
+    reference operator*() const {
+      return str_;
+    }
+
+    pointer operator->() const { return &str_; }
+
+    friend bool operator==(
+        const const_iterator& lhs, const const_iterator& rhs) {
+      return lhs.str_.str_ == rhs.str_.str_;
+    }
+
+    friend bool operator!=(
+        const const_iterator& lhs, const const_iterator& rhs) {
+      return !(lhs == rhs);
+    }
+
+    StringPiece str_;
+    const char* end_;
+    char sep_;
+  };
+
+  StringPieceRange(const StringPiece& str, char sep)
+    : str_(str), sep_(sep) {}
+
+  const_iterator begin() const {
+    const auto it = std::find(str_.begin(), str_.end(), sep_);
+    return const_iterator(StringPiece(str_.begin(), it - str_.begin()),
+                          str_.end(), sep_);
+  }
+
+  const_iterator end() const {
+    return const_iterator(StringPiece(str_.end(), 0), str_.end(), sep_);
+  }
+
+  StringPiece str_;
+  char sep_;
+};
+
 }  // anonymous namespace
 
-IncludesNormalize::IncludesNormalize(const string& relative_to) {
+IncludesNormalize::IncludesNormalize(const StringPiece& relative_to)
+ : relative_to_(relative_to.str_, relative_to.len_) {
   string err;
-  relative_to_ = AbsPath(relative_to, &err);
+  AbsPath(&relative_to_, &err);
   if (!err.empty()) {
     Fatal("Initializing IncludesNormalize(): %s", err.c_str());
   }
   split_relative_to_ = SplitStringPiece(relative_to_, '/');
 }
 
-string IncludesNormalize::AbsPath(StringPiece s, string* err) {
-  if (IsFullPathName(s)) {
-    string result = s.AsString();
-    for (size_t i = 0; i < result.size(); ++i) {
-      if (result[i] == '\\') {
-        result[i] = '/';
+void IncludesNormalize::AbsPath(std::string *s, string* err) {
+  if (IsFullPathName(*s)) {
+    for (char& ch : *s) {
+      if (ch == '\\') {
+        ch = '/';
       }
     }
-    return result;
+    return;
   }
 
   char result[_MAX_PATH];
-  if (!InternalGetFullPathName(s, result, sizeof(result), err)) {
-    return "";
+  if (!InternalGetFullPathName(s->c_str(), result, sizeof(result), err)) {
+    s->clear();
+    return;
   }
-  for (char* c = result; *c; ++c)
+  char* c = result;
+  for (; *c; ++c)
     if (*c == '\\')
       *c = '/';
-  return result;
+  s->assign(result, c);
 }
 
-string IncludesNormalize::Relativize(
-    StringPiece path, const vector<StringPiece>& start_list, string* err) {
-  string abs_path = AbsPath(path, err);
-  if (!err->empty())
-    return "";
-  vector<StringPiece> path_list = SplitStringPiece(abs_path, '/');
-  int i;
-  for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size()));
-       ++i) {
-    if (!EqualsCaseInsensitiveASCII(start_list[i], path_list[i])) {
-      break;
-    }
+void IncludesNormalize::Relativize(
+    std::string *abs_path, const vector<StringPiece>& start_list, string* err) {
+  AssertIsAbsoluteInDebug(*abs_path);
+
+  const StringPieceRange path_list(*abs_path, '/');
+  const auto diff =
+      std::mismatch(path_list.begin(), path_list.end(), start_list.begin(),
+                    start_list.end(), EqualsCaseInsensitiveASCII);
+  const size_t sections_to_replace = start_list.end() - diff.second;
+  const StringPiece dotdot = "../";
+  const size_t bytes_to_write = sections_to_replace * dotdot.size();
+  const size_t bytes_to_delete = diff.first->str_ - abs_path->data();
+  if (bytes_to_write > bytes_to_delete) {
+    // We can insert chars at any position from
+    // [begin(), begin() + bytes_to_delete) so we choose the last
+    // element to minimize copying
+    abs_path->insert(abs_path->begin() + bytes_to_delete,
+                     bytes_to_write - bytes_to_delete, '\0');
+  } else if (bytes_to_write < bytes_to_delete) {
+    abs_path->erase(abs_path->begin(),
+                    abs_path->begin() + bytes_to_delete - bytes_to_write);
+  }
+  auto it = abs_path->begin();
+  for (size_t i = 0; i < sections_to_replace; ++i) {
+    it = std::copy(dotdot.begin(), dotdot.end(), it);
   }
 
-  vector<StringPiece> rel_list;
-  rel_list.reserve(start_list.size() - i + path_list.size() - i);
-  for (int j = 0; j < static_cast<int>(start_list.size() - i); ++j)
-    rel_list.push_back("..");
-  for (int j = i; j < static_cast<int>(path_list.size()); ++j)
-    rel_list.push_back(path_list[j]);
-  if (rel_list.size() == 0)
-    return ".";
-  return JoinStringPiece(rel_list, '/');
+  if (abs_path->empty()) {
+    *abs_path = '.';
+  }
 }
 
-bool IncludesNormalize::Normalize(const string& input,
+bool IncludesNormalize::Normalize(const StringPiece& input,
                                   string* result, string* err) const {
   char copy[_MAX_PATH + 1];
   size_t len = input.size();
@@ -189,21 +273,22 @@ bool IncludesNormalize::Normalize(const string& input,
     *err = "path too long";
     return false;
   }
-  strncpy(copy, input.c_str(), input.size() + 1);
+  strncpy(copy, input.str_, input.len_);
+  copy[len] = '\0';
   uint64_t slash_bits;
   CanonicalizePath(copy, &len, &slash_bits);
-  StringPiece partially_fixed(copy, len);
-  string abs_input = AbsPath(partially_fixed, err);
+  result->assign(copy, len);
+  AbsPath(result, err);
   if (!err->empty())
     return false;
 
-  if (!SameDrive(abs_input, relative_to_, err)) {
+  if (!SameDrive(*result, relative_to_, err)) {
     if (!err->empty())
       return false;
-    *result = partially_fixed.AsString();
+    result->assign(copy, len);
     return true;
   }
-  *result = Relativize(abs_input, split_relative_to_, err);
+  Relativize(result, split_relative_to_, err);
   if (!err->empty())
     return false;
   return true;

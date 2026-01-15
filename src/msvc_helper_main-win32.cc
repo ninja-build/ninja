@@ -20,6 +20,7 @@
 #include <windows.h>
 
 #include "clparser.h"
+#include "string_piece.h"
 #include "util.h"
 
 #include "getopt.h"
@@ -131,7 +132,7 @@ int MSVCHelperMain(int argc, char** argv) {
   if (output_filename) {
     CLParser parser;
     string err;
-    if (!parser.Parse(output, deps_prefix, &output, &err))
+    if (!parser.Parse(&output, deps_prefix, &err))
       Fatal("%s\n", err.c_str());
     WriteDepFileOrDie(output_filename, parser);
   }
