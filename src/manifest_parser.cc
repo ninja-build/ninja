@@ -61,10 +61,10 @@ bool ManifestParser::Parse(const string& filename, const string& input,
     case Lexer::IDENT: {
       lexer_.UnreadToken();
       string name;
-      EvalString let_value;
-      if (!ParseLet(&name, &let_value, err))
+      value_.Clear();
+      if (!ParseLet(&name, &value_, err))
         return false;
-      string value = let_value.Evaluate(env_);
+      string value = Env::Evaluate(env_, value_);
       // Check ninja_required_version immediately so we can exit
       // before encountering any syntactic surprises.
       if (name == "ninja_required_version")
@@ -110,13 +110,13 @@ bool ManifestParser::ParsePool(string* err) {
   int depth = -1;
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
+    value_.Clear();
     string key;
-    EvalString value;
-    if (!ParseLet(&key, &value, err))
+    if (!ParseLet(&key, &value_, err))
       return false;
 
     if (key == "depth") {
-      string depth_string = value.Evaluate(env_);
+      string depth_string = Env::Evaluate(env_, value_);
       depth = atoi(depth_string.c_str());
       if (depth < 0)
         return lexer_.Error("invalid pool depth", err);
@@ -148,12 +148,12 @@ bool ManifestParser::ParseRule(string* err) {
 
   while (lexer_.PeekToken(Lexer::INDENT)) {
     string key;
-    EvalString value;
-    if (!ParseLet(&key, &value, err))
+    value_.Clear();
+    if (!ParseLet(&key, &value_, err))
       return false;
 
     if (Rule::IsReservedBinding(key)) {
-      rule->AddBinding(key, value);
+      rule->AddBinding(key, value_);
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
@@ -174,7 +174,7 @@ bool ManifestParser::ParseRule(string* err) {
   return true;
 }
 
-bool ManifestParser::ParseLet(string* key, EvalString* value, string* err) {
+bool ManifestParser::ParseLet(string* key, EvalStringBuilder* value, string* err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
   if (!ExpectToken(Lexer::EQUALS, err))
@@ -185,14 +185,14 @@ bool ManifestParser::ParseLet(string* key, EvalString* value, string* err) {
 }
 
 bool ManifestParser::ParseDefault(string* err) {
-  EvalString eval;
-  if (!lexer_.ReadPath(&eval, err))
+  value_.Clear();
+  if (!lexer_.ReadPath(&value_, err))
     return false;
-  if (eval.empty())
+  if (value_.empty())
     return lexer_.Error("expected target name", err);
 
   do {
-    string path = eval.Evaluate(env_);
+    string path = Env::Evaluate(env_, value_);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;  // Unused because this only does lookup.
@@ -201,10 +201,10 @@ bool ManifestParser::ParseDefault(string* err) {
     if (!state_->AddDefault(path, &default_err))
       return lexer_.Error(default_err, err);
 
-    eval.Clear();
-    if (!lexer_.ReadPath(&eval, err))
+    value_.Clear();
+    if (!lexer_.ReadPath(&value_, err))
       return false;
-  } while (!eval.empty());
+  } while (!value_.empty());
 
   return ExpectToken(Lexer::NEWLINE, err);
 }
@@ -215,11 +215,11 @@ bool ManifestParser::ParseEdge(string* err) {
   validations_.clear();
 
   {
-    EvalString out;
+    EvalStringBuilder out;
     if (!lexer_.ReadPath(&out, err))
       return false;
     while (!out.empty()) {
-      outs_.push_back(std::move(out));
+      outs_.push_back(std::move(out).str());
 
       out.Clear();
       if (!lexer_.ReadPath(&out, err))
@@ -231,12 +231,12 @@ bool ManifestParser::ParseEdge(string* err) {
   int implicit_outs = 0;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
-      EvalString out;
+      EvalStringBuilder out;
       if (!lexer_.ReadPath(&out, err))
         return false;
       if (out.empty())
         break;
-      outs_.push_back(std::move(out));
+      outs_.push_back(std::move(out).str());
       ++implicit_outs;
     }
   }
@@ -257,24 +257,24 @@ bool ManifestParser::ParseEdge(string* err) {
 
   for (;;) {
     // XXX should we require one path here?
-    EvalString in;
+    EvalStringBuilder in;
     if (!lexer_.ReadPath(&in, err))
       return false;
     if (in.empty())
       break;
-    ins_.push_back(std::move(in));
+    ins_.push_back(std::move(in).str());
   }
 
   // Add all implicit deps, counting how many as we go.
   int implicit = 0;
   if (lexer_.PeekToken(Lexer::PIPE)) {
     for (;;) {
-      EvalString in;
+      EvalStringBuilder in;
       if (!lexer_.ReadPath(&in, err))
         return false;
       if (in.empty())
         break;
-      ins_.push_back(std::move(in));
+      ins_.push_back(std::move(in).str());
       ++implicit;
     }
   }
@@ -283,12 +283,12 @@ bool ManifestParser::ParseEdge(string* err) {
   int order_only = 0;
   if (lexer_.PeekToken(Lexer::PIPE2)) {
     for (;;) {
-      EvalString in;
+      EvalStringBuilder in;
       if (!lexer_.ReadPath(&in, err))
         return false;
       if (in.empty())
         break;
-      ins_.push_back(std::move(in));
+      ins_.push_back(std::move(in).str());
       ++order_only;
     }
   }
@@ -296,12 +296,12 @@ bool ManifestParser::ParseEdge(string* err) {
   // Add all validations, counting how many as we go.
   if (lexer_.PeekToken(Lexer::PIPEAT)) {
     for (;;) {
-      EvalString validation;
+      EvalStringBuilder validation;
       if (!lexer_.ReadPath(&validation, err))
         return false;
       if (validation.empty())
         break;
-      validations_.push_back(std::move(validation));
+      validations_.push_back(std::move(validation).str());
     }
   }
 
@@ -313,11 +313,11 @@ bool ManifestParser::ParseEdge(string* err) {
   BindingEnv* env = has_indent_token ? new BindingEnv(env_) : env_;
   while (has_indent_token) {
     string key;
-    EvalString val;
-    if (!ParseLet(&key, &val, err))
+    value_.Clear();
+    if (!ParseLet(&key, &value_, err))
       return false;
 
-    env->AddBinding(key, val.Evaluate(env_));
+    env->AddBinding(key, Env::Evaluate(env_, value_));
     has_indent_token = lexer_.PeekToken(Lexer::INDENT);
   }
 
@@ -334,7 +334,7 @@ bool ManifestParser::ParseEdge(string* err) {
 
   edge->outputs_.reserve(outs_.size());
   for (size_t i = 0, e = outs_.size(); i != e; ++i) {
-    string path = outs_[i].Evaluate(env);
+    string path = Env::Evaluate(env, outs_[i]);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -356,7 +356,7 @@ bool ManifestParser::ParseEdge(string* err) {
 
   edge->inputs_.reserve(ins_.size());
   for (vector<EvalString>::iterator i = ins_.begin(); i != ins_.end(); ++i) {
-    string path = i->Evaluate(env);
+    string path = Env::Evaluate(env, *i);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -369,7 +369,7 @@ bool ManifestParser::ParseEdge(string* err) {
   edge->validations_.reserve(validations_.size());
   for (std::vector<EvalString>::iterator v = validations_.begin();
       v != validations_.end(); ++v) {
-    string path = v->Evaluate(env);
+    string path = Env::Evaluate(env, *v);
     if (path.empty())
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
@@ -417,10 +417,10 @@ bool ManifestParser::ParseEdge(string* err) {
 }
 
 bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
-  EvalString eval;
-  if (!lexer_.ReadPath(&eval, err))
+  value_.Clear();
+  if (!lexer_.ReadPath(&value_, err))
     return false;
-  string path = eval.Evaluate(env_);
+  string path = Env::Evaluate(env_, value_);
 
   if (subparser_ == nullptr) {
     subparser_.reset(new ManifestParser(state_, file_reader_, options_));
