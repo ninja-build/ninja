@@ -998,7 +998,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // all backslashes (as some of the slashes will certainly be backslashes
       // anyway). This could be fixed if necessary with some additional
       // complexity in IncludesNormalize::Relativize.
-      deps_nodes->push_back(state_->GetNode(*i, ~0u));
+      deps_nodes->push_back(state_->FindOrCreateDepfileNode(*i, ~0u));
     }
   } else if (deps_type == "gcc") {
     string depfile = result->edge->GetUnescapedDepfile();
@@ -1031,7 +1031,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
          i != deps.ins_.end(); ++i) {
       uint64_t slash_bits;
       CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      deps_nodes->push_back(state_->FindOrCreateDepfileNode(*i, slash_bits));
     }
 
     if (!g_keep_depfile) {

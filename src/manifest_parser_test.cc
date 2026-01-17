@@ -86,7 +86,7 @@ TEST_F(ParserTest, IgnoreIndentedComments) {
   ASSERT_EQ(2u, state.bindings_.GetRules().size());
   const auto& rule = state.bindings_.GetRules().begin()->second;
   EXPECT_EQ("cat", rule->name());
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   EXPECT_TRUE(edge->GetBindingBool("restat"));
   EXPECT_FALSE(edge->GetBindingBool("generator"));
 }
@@ -1072,7 +1072,7 @@ TEST_F(ParserTest, DyndepNotSpecified) {
 "rule cat\n"
 "  command = cat $in > $out\n"
 "build result: cat in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   ASSERT_FALSE(edge->dyndep_);
 }
 
@@ -1095,7 +1095,7 @@ TEST_F(ParserTest, DyndepExplicitInput) {
 "  command = cat $in > $out\n"
 "build result: cat in\n"
 "  dyndep = in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
@@ -1107,7 +1107,7 @@ TEST_F(ParserTest, DyndepImplicitInput) {
 "  command = cat $in > $out\n"
 "build result: cat in | dd\n"
 "  dyndep = dd\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "dd");
@@ -1119,7 +1119,7 @@ TEST_F(ParserTest, DyndepOrderOnlyInput) {
 "  command = cat $in > $out\n"
 "build result: cat in || dd\n"
 "  dyndep = dd\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "dd");
@@ -1131,7 +1131,7 @@ TEST_F(ParserTest, DyndepRuleInput) {
 "  command = cat $in > $out\n"
 "  dyndep = $in\n"
 "build result: cat in\n"));
-  Edge* edge = state.GetNode("result", 0)->in_edge();
+  Edge* edge = state.GetNode("result")->in_edge();
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");

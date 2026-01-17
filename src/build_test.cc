@@ -1044,6 +1044,7 @@ TEST_F(BuildTest, DepFileOK) {
   Edge* edge = state_.edges_.back();
 
   fs_.Create("foo.c", "");
+  state_.FindOrCreateDepfileNode("bar.h",0);  // create node 'bar.h'
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -1231,7 +1232,8 @@ TEST_F(BuildTest, DepFileCanonicalize) {
 "build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
 
   fs_.Create("x/y/z/foo.c", "");
-  GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+  state_.FindOrCreateDyndepNode("bar.h",0); // create node 'bar.h'
+  GetNode("bar.h")->MarkDirty(); // Mark bar.h as missing.
   // Note, different slashes from manifest.
   fs_.Create("gen/stuff\\things/foo.o.d",
              "gen\\stuff\\things\\foo.o: blah.h bar.h\n");
@@ -1969,7 +1971,7 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   // mtime
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(!state_.GetNode("out1", 0)->dirty());
+  EXPECT_TRUE(!state_.GetNode("out1")->dirty());
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   EXPECT_EQ(size_t(1), command_runner_.commands_ran_.size());
@@ -3068,7 +3070,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.FindOrCreateDepfileNode("bar.h", 0)->MarkDirty(); // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -3214,7 +3216,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     builder.command_runner_.reset(&command_runner_);
     SafeRelease protect(&builder);
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.FindOrCreateDyndepNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
 
