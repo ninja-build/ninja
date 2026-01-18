@@ -838,8 +838,8 @@ TEST_F(BuildTest, OneStep) {
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
 
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(std::vector<std::string>({ "cat in1 > cat1" }),
+            command_runner_.commands_ran_);
 }
 
 TEST_F(BuildTest, OneStep2) {
@@ -852,8 +852,8 @@ TEST_F(BuildTest, OneStep2) {
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(std::vector<std::string>({ "cat in1 > cat1" }),
+            command_runner_.commands_ran_);
 }
 
 TEST_F(BuildTest, TwoStep) {
@@ -882,9 +882,11 @@ TEST_F(BuildTest, TwoStep) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
-  ASSERT_EQ(5u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cat in1 in2 > cat2", command_runner_.commands_ran_[3]);
-  EXPECT_EQ("cat cat1 cat2 > cat12", command_runner_.commands_ran_[4]);
+  EXPECT_EQ(
+      std::vector<std::string>({ "cat in1 > cat1", "cat in1 in2 > cat2",
+                                 "cat cat1 cat2 > cat12", "cat in1 in2 > cat2",
+                                 "cat cat1 cat2 > cat12" }),
+      command_runner_.commands_ran_);
 }
 
 TEST_F(BuildTest, TwoOutputs) {
@@ -900,8 +902,8 @@ TEST_F(BuildTest, TwoOutputs) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("touch out1 out2", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(std::vector<std::string>({ "touch out1 out2" }),
+            command_runner_.commands_ran_);
 }
 
 TEST_F(BuildTest, ImplicitOutput) {
@@ -916,8 +918,8 @@ TEST_F(BuildTest, ImplicitOutput) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[0]);
+  EXPECT_EQ(std::vector<std::string>({ "touch out out.imp" }),
+            command_runner_.commands_ran_);
 }
 
 // Test case from
@@ -3818,10 +3820,9 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdge) {
   ASSERT_EQ("", err);
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
-  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cp dd-in dd", command_runner_.commands_ran_[0]);
-  EXPECT_EQ("touch tmp tmp.imp", command_runner_.commands_ran_[1]);
-  EXPECT_EQ("touch out out.imp", command_runner_.commands_ran_[2]);
+  EXPECT_EQ(std::vector<std::string>(
+                { "cp dd-in dd", "touch tmp tmp.imp", "touch out out.imp" }),
+            command_runner_.commands_ran_);
 }
 
 TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdgeAndDependent) {
