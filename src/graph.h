@@ -131,7 +131,7 @@ private:
   ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
   TimeStamp mtime_ = -1;
 
-  enum ExistenceStatus {
+  enum ExistenceStatus : char {
     /// The file hasn't been examined.
     ExistenceStatusUnknown,
     /// The file doesn't exist. mtime_ will be the latest mtime of its dependencies.
@@ -157,6 +157,9 @@ private:
   /// can be loaded before the manifest.
   bool generated_by_dep_loader_ = true;
 
+  /// A dense integer id for the node, assigned and used by DepsLog.
+  int id_ = -1;
+
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
   Edge* in_edge_ = nullptr;
@@ -166,9 +169,6 @@ private:
 
   /// All Edges that use this Node as a validation.
   std::vector<Edge*> validation_out_edges_;
-
-  /// A dense integer id for the node, assigned and used by DepsLog.
-  int id_ = -1;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
