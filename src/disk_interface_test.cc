@@ -115,6 +115,27 @@ xxxxxxxxxxxxxxxxxxxxx";
 }
 #endif
 
+TEST_F(DiskInterfaceTest, StatSymlink) {
+  string err;
+
+  ASSERT_TRUE(Touch("file"));
+  auto fileTimeStamp = disk_.Stat("file", &err);
+  EXPECT_EQ("", err);
+
+#ifdef _WIN32
+  // Create a symlink to file
+  ASSERT_TRUE(CreateSymbolicLinkA(
+      "fileSymlink", "file", SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE));
+#else
+  ASSERT_TRUE(symlink("file", "fileSymlink") == 0);
+#endif
+
+  // Assert that stating the symlink will resolve the timestamp for the
+  // linked file.
+  auto symlinkTimeStamp = disk_.Stat("fileSymlink", &err);
+  ASSERT_EQ(fileTimeStamp, symlinkTimeStamp);
+}
+
 TEST_F(DiskInterfaceTest, StatExistingDir) {
   string err;
   ASSERT_TRUE(disk_.MakeDir("subdir"));
