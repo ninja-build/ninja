@@ -130,14 +130,6 @@ void CanonicalizePath(string* path, uint64_t* slash_bits) {
   path->resize(len);
 }
 
-static bool IsPathSeparator(char c) {
-#ifdef _WIN32
-  return c == '/' || c == '\\';
-#else
-  return c == '/';
-#endif
-}
-
 void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   // WARNING: this function is performance-critical; please benchmark
   // any changes you make to it.
@@ -152,12 +144,35 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   const char* end = start + *len;
   const char* src_next;
 
+#ifdef _WIN32
+  // Convert '\' to '/' and record their positions.
+  // Do this first so the following code can assume all path
+  // separators are '/'.
+  uint64_t bits = 0;
+  uint64_t bits_mask = 1;
+
+  for (char* c = start; c < end; ++c) {
+    switch (*c) {
+    case '\\':
+      bits |= bits_mask;
+      *c = '/';
+      NINJA_FALLTHROUGH;
+    case '/':
+      bits_mask <<= 1;
+    }
+  }
+
+  *slash_bits = bits;
+#else
+  *slash_bits = 0;
+#endif
+
   // For absolute paths, skip the leading directory separator
   // as this one should never be removed from the result.
-  if (IsPathSeparator(*src)) {
+  if (*src == '/') {
 #ifdef _WIN32
     // Windows network path starts with //
-    if (src + 2 <= end && IsPathSeparator(src[1])) {
+    if (src + 2 <= end && src[1] == '/') {
       src += 2;
       dst += 2;
     } else {
@@ -174,7 +189,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
     // to reference source files in build plans, and doing this here makes
     // the loop work below faster in general.
     while (src + 3 <= end && src[0] == '.' && src[1] == '.' &&
-           IsPathSeparator(src[2])) {
+           src[2] == '/') {
       src += 3;
       dst += 3;
     }
@@ -185,7 +200,6 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   int component_count = 0;
   char* dst0 = dst;
   for (; src < end; src = src_next) {
-#ifndef _WIN32
     // Use memchr() for faster lookups thanks to optimized C library
     // implementation. `hyperfine canon_perftest` shows a significant
     // difference (e,g, 484ms vs 437ms).
@@ -195,17 +209,6 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
       // This is the last component, will be handled out of the loop.
       break;
     }
-#else
-    // Need to check for both '/' and '\\' so do not use memchr().
-    // Cannot use strpbrk() because end[0] can be \0 or something else!
-    const char* next_sep = src;
-    while (next_sep != end && !IsPathSeparator(*next_sep))
-      ++next_sep;
-    if (next_sep == end) {
-      // This is the last component, will be handled out of the loop.
-      break;
-    }
-#endif
     // Position for next loop iteration.
     src_next = next_sep + 1;
     // Length of the component, excluding trailing directory.
@@ -223,7 +226,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
           if (component_count > 0) {
             // Move back to start of previous component.
             --component_count;
-            while (--dst > dst0 && !IsPathSeparator(dst[-1])) {
+            while (--dst > dst0 && dst[-1] != '/') {
               // nothing to do here, decrement happens before condition check.
             }
           } else {
@@ -258,7 +261,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
       if (component_len == 2 && src[1] == '.') {
         // Handle '..'. Back up if possible.
         if (component_count > 0) {
-          while (--dst > dst0 && !IsPathSeparator(dst[-1])) {
+          while (--dst > dst0 && dst[-1] != '/') {
             // nothing to do here, decrement happens before condition check.
           }
         } else {
@@ -279,7 +282,7 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
 
   // Remove trailing path separator if any, but keep the initial
   // path separator(s) if there was one (or two on Windows).
-  if (dst > dst_start && IsPathSeparator(dst[-1]))
+  if (dst > dst_start && dst[-1] == '/')
     dst--;
 
   if (dst == start) {
@@ -288,25 +291,6 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
   }
 
   *len = dst - start;  // dst points after the trailing char here.
-#ifdef _WIN32
-  uint64_t bits = 0;
-  uint64_t bits_mask = 1;
-
-  for (char* c = start; c < start + *len; ++c) {
-    switch (*c) {
-      case '\\':
-        bits |= bits_mask;
-        *c = '/';
-        NINJA_FALLTHROUGH;
-      case '/':
-        bits_mask <<= 1;
-    }
-  }
-
-  *slash_bits = bits;
-#else
-  *slash_bits = 0;
-#endif
 }
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
