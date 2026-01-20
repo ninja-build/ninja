@@ -74,6 +74,13 @@ size_t RealCommandRunner::CanRunMore() const {
       capacity = load_capacity;
   }
 
+  //this just pause the creation of new processes when we run out of ram
+  if (config_.desired_free_ram > 0) {
+    long memory_capacity = GetFreeMemory() / config_.desired_free_ram;
+    if (memory_capacity < capacity)
+      capacity = memory_capacity;
+  }
+
   if (capacity < 0)
     capacity = 0;
 
