@@ -393,7 +393,7 @@ struct EdgeEnv : public Env {
 
   EdgeEnv(const Edge* const edge, const EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
-  virtual string LookupVariable(const string& var);
+  virtual std::string LookupVariable(StringPiece var);
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.
@@ -406,7 +406,7 @@ struct EdgeEnv : public Env {
   bool recursive_;
 };
 
-string EdgeEnv::LookupVariable(const string& var) {
+std::string EdgeEnv::LookupVariable(StringPiece var) {
   if (var == "in" || var == "in_newline") {
     int explicit_deps_count =
         static_cast<int>(edge_->inputs_.size() - edge_->implicit_deps_ -
@@ -453,12 +453,16 @@ string EdgeEnv::LookupVariable(const string& var) {
   // at all.
   //
   if (recursive_) {
-    auto it = std::find(lookups_.begin(), lookups_.end(), var);
+    auto it = std::find_if(lookups_.begin(),
+                           lookups_.end(),
+                           [var](const std::string& lookup){
+      return var == lookup;
+    });
     if (it != lookups_.end()) {
       std::string cycle;
       for (; it != lookups_.end(); ++it)
         cycle.append(*it + " -> ");
-      cycle.append(var);
+      cycle.append(var.str_, var.len_);
       Fatal(("cycle in rule variables: " + cycle).c_str());
     }
   }
@@ -467,7 +471,7 @@ string EdgeEnv::LookupVariable(const string& var) {
   const EvalString* eval = edge_->rule_->GetBinding(var);
   bool record_varname = recursive_ && eval;
   if (record_varname)
-    lookups_.push_back(var);
+    lookups_.push_back(var.AsString());
 
   // In practice, variables defined on rules never use another rule variable.
   // For performance, only start checking for cycles after the first lookup.
@@ -508,12 +512,12 @@ std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   return command;
 }
 
-std::string Edge::GetBinding(const std::string& key) const {
+std::string Edge::GetBinding(StringPiece key) const {
   EdgeEnv env(this, EdgeEnv::kShellEscape);
   return env.LookupVariable(key);
 }
 
-bool Edge::GetBindingBool(const string& key) const {
+bool Edge::GetBindingBool(StringPiece key) const {
   return !GetBinding(key).empty();
 }
 

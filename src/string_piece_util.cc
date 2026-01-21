@@ -15,8 +15,10 @@
 #include "string_piece_util.h"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <vector>
+
 using namespace std;
 
 vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
@@ -75,4 +77,16 @@ bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
   }
 
   return true;
+}
+
+bool StringPieceLess::operator()(StringPiece lhs,
+                                 StringPiece rhs) const {
+
+  const std::size_t min_length = std::min(lhs.size(), rhs.size());
+  const int cmp = std::memcmp(lhs.str_, rhs.str_, min_length);
+  if (cmp == 0) {
+    return lhs.size() < rhs.size();
+  } else {
+    return cmp < 0;
+  }
 }
