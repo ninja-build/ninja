@@ -147,7 +147,7 @@ void StatusPrinter::StartTimer() {
 }
 
 void StatusPrinter::TimerCallback(boost::system::error_code err) {
-  // assert(!err);
+  assert(!err || err == boost::system::errc::operation_canceled);
   PrintStatus();
   StartTimer();
 }
@@ -270,8 +270,8 @@ void StatusPrinter::PrintStatus() {
     }
   }
 
-  sstream << progress[percentage] << " \x1b[36m" << running_edges_.size()
-          << "\x1b[0m|\x1b[34m" << finished_edges_ << "\x1b[0m/" << total_edges_
+  sstream << progress[percentage] << " \x1b[34m" << running_edges_.size()
+          << "\x1b[0m \x1b[36m" << finished_edges_ << "\x1b[0m " << total_edges_
           << " \x1b[" << (hash_number > 4 ? 1 : 0) << ";3"
           << (hash_number % 5 + 2) << "m" << description << "\x1b[0m"
           << "\033]9;4;1;" << (finished_edges_ * 100 / total_edges_) << "\007";
