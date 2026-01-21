@@ -666,7 +666,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     // Don't do anything.
   } else if (edge->rule().name() == "cp") {
     assert(!edge->inputs_.empty());
-    assert(edge->outputs_.size() == 1);
+    assert(edge->outputs_.size() >= 1);
     string content;
     string err;
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
@@ -4405,3 +4405,64 @@ TEST_F(BuildTest, ValidationWithCircularDependency) {
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dependency cycle: validate -> validate_in -> validate", err);
 }
+
+// Test case: Late dyndep merges two initially separate dependency graphs into a
+// single unified graph.
+// https://github.com/ninja-build/ninja/issues/2653
+TEST_F(BuildTest, LateDynDepPropagateDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cp\n"
+    "  command = cp $in $out\n"
+    "build b1: cp input_b\n"
+    "build b2: cp b1\n"
+    "build b3: cp b2\n"
+    "build b4: cp b3\n"
+    "build b5: cp b4\n"
+    "build a1: cp input_a\n"
+    "build a2: cp a1\n"
+    "build a3: cp a2 || dd\n"
+    "  dyndep = dd\n"
+    "build a4: cp a3\n"
+    "build a5: cp a4\n"));
+
+  fs_.Create("input_b", "");
+  fs_.Create("b1", "");
+  fs_.Create("b2", "");
+  fs_.Create("b3", "");
+  fs_.Create("b4", "");
+  fs_.Create("b5", "");
+
+  fs_.Create("input_a", "");
+  fs_.Create("a1", "");
+  fs_.Create("a2", "");
+  fs_.Create("a3", "");
+  fs_.Create("a4", "");
+  fs_.Create("a5", "");
+  fs_.Create("dd",
+             "ninja_dyndep_version = 1\n"
+             "build  a3 | input_b: dyndep |\n");
+
+  string err;
+
+  fs_.Tick();
+  fs_.Create("input_a", "");
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  EXPECT_TRUE(builder_.AddTarget("b5", &err));
+  EXPECT_EQ("", err);
+  err.clear();
+  EXPECT_TRUE(builder_.AddTarget("a5", &err));
+  EXPECT_EQ("", err);
+  err.clear();
+
+  EXPECT_TRUE(GetNode("a5")->dirty());
+  EXPECT_TRUE(GetNode("b5")->dirty());
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(10u, command_runner_.commands_ran_.size());
+}
+

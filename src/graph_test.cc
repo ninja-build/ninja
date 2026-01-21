@@ -1140,4 +1140,78 @@ TEST_F(GraphTest, EdgeQueuePriority) {
   EXPECT_TRUE(queue.empty());
 }
 
+// https://github.com/ninja-build/ninja/issues/2641
+// https://github.com/ninja-build/ninja/issues/2653
+TEST_F(GraphTest, LateDynDep) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule cp
+  command = cp $in $out
+rule touch
+  command = touch $out
+
+build other3: cp other2
+build other2: cp other
+build copy: touch other3 || orderOnly
+build orderOnly: cp stamp
+build stamp: cp in || dd
+  dyndep = dd
+)ninja"));
+
+  fs_.Create("orderOnly", "");
+  fs_.Create("other", "");
+  fs_.Create("other2", "");
+  fs_.Create("other3", "");
+  fs_.Create("copy", "");
+  fs_.Create("stamp", "");
+  fs_.Create("dd",
+             "ninja_dyndep_version = 1\n"
+             "build  stamp | other: dyndep\n");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("copy"), NULL, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("copy")->dirty());
+  EXPECT_TRUE(GetNode("orderOnly")->dirty());
+  EXPECT_TRUE(GetNode("stamp")->dirty());
+  EXPECT_TRUE(GetNode("other")->dirty());
+  EXPECT_TRUE(GetNode("other2")->dirty());
+  EXPECT_TRUE(GetNode("other3")->dirty());
+}
+
+// https://github.com/ninja-build/ninja/issues/2641
+TEST_F(GraphTest, LateDynDep2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule cp
+  command = cp $in $out
+rule touch
+  command = touch $out
+
+build copy: touch other || orderOnly
+build orderOnly: cp stamp
+build stamp: cp in || dd
+  dyndep = dd
+)ninja"));
+
+  fs_.Create("orderOnly", "");
+  fs_.Create("other", "");
+  fs_.Create("copy", "");
+  fs_.Create("stamp", "");
+  fs_.Create("dd",
+             "ninja_dyndep_version = 1\n"
+             "build  stamp | other: dyndep\n");
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("copy"), NULL, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("copy")->dirty());
+  EXPECT_TRUE(GetNode("orderOnly")->dirty());
+  EXPECT_TRUE(GetNode("stamp")->dirty());
+  EXPECT_TRUE(GetNode("other")->dirty());
+}
 
