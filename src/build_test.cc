@@ -3367,6 +3367,61 @@ TEST_F(BuildTest, DyndepMissingAndNoRule) {
   EXPECT_EQ("loading 'dd': No such file or directory", err);
 }
 
+TEST_F(BuildTest, DyndepMissingInput) {
+  // Check that the build system detects when a dyndep-provided input is missing
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      R"ninja(
+rule touch
+  command = touch $out $out.imp
+build out: touch || dd
+  dyndep = dd
+)ninja"));
+
+  fs_.Create("dd", R"ninja(
+ninja_dyndep_version = 1
+build out | out.imp: dyndep | tmp.imp missing.imp
+)ninja");
+
+  fs_.Create("tmp.imp", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  EXPECT_EQ("'missing.imp', needed by dyndep 'dd', missing and no known rule to make it", err);
+  EXPECT_TRUE(command_runner_.commands_ran_.empty());
+}
+
+TEST_F(BuildTest, DyndepMissingInputUsedInDepFile) {
+  // The missing input cannot be detected because the dyndep‑introduced node is
+  // also marked as coming from a depfile.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      R"ninja(
+rule touch
+  command = touch $out $out.imp
+build out2: touch out1 || dd
+  dyndep = dd
+build out1: touch
+  depfile = out2.d
+)ninja"));
+
+  fs_.Create("dd", R"ninja(
+ninja_dyndep_version = 1
+build out2 | out2.imp: dyndep | tmp.imp missing.imp
+)ninja");
+  fs_.Create("out2.d", "out1: missing.imp\n");
+  fs_.Create("tmp.imp", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1 out1.imp", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("touch out2 out2.imp", command_runner_.commands_ran_[1]);
+}
+
 TEST_F(BuildTest, DyndepReadyImplicitConnection) {
   // Verify that a dyndep file can be loaded immediately to discover
   // that one edge has an implicit output that is also an implicit

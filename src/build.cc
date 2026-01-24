@@ -825,6 +825,17 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   if (edge->is_phony())
     return true;
 
+  // Late validation: verify that dyndep‑only inputs are present.
+  for (const auto input : edge->inputs_) {
+    if (input->missing() && input->generated_by_dyndep_loader()) {
+      string referenced;
+      referenced = ", needed by dyndep '" + edge->GetUnescapedDyndep() + "',";
+      *err = "'" + input->path() + "'" + referenced +
+             " missing and no known rule to make it";
+      return false;
+    }
+  }
+
   int64_t start_time_millis = GetTimeMillis() - start_time_millis_;
   running_edges_.insert(make_pair(edge, start_time_millis));
 
@@ -943,6 +954,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
         }
       }
     }
+
+    // Refresh output file status to support later dyndep existence checks.
+    // https://github.com/ninja-build/ninja/issues/2573
+    for (auto o : edge->outputs_) {
+      o->MarkExists();
+    }
+
     if (node_cleaned) {
       record_mtime = edge->command_start_time_;
     }
