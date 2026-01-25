@@ -103,7 +103,32 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(StringPiece path, uint64_t slash_bits);
+  /// For use in unit tests only; the node must already exist.
+  /// Returns nullptr if no such node is found.
+  Node* GetNode(StringPiece path) const;
+
+  // Convenience helpers for creating or retrieving nodes with a specific
+  // loader.
+
+  /// Returns a node loaded by Manifest. Creates the node if it does not exist.
+  Node* FindOrCreateManifestNode(StringPiece path, uint64_t slash_bits);
+
+  /// Creates the node loaded by Depfile if it does not exist.
+  /// If the node already exists and its loader is Dyndep, it is updated to
+  /// Depfile. Nodes already loaded by Manifest or Depfile remain unchanged.
+  Node* FindOrCreateDepfileNode(StringPiece path, uint64_t slash_bits);
+
+  /// Creates the node loaded by Depfile if it does not exist.
+  /// If the node already exists, its loader remains unchanged.
+  Node* FindOrCreateDyndepNode(StringPiece path, uint64_t slash_bits);
+
+ private:
+  /// Creates the node with the given arguments if it does not already exist.
+  /// If the node exists, returns it unchanged.
+  Node* FindOrCreateNode(StringPiece path, uint64_t slash_bits,
+                         Node::Loader Loader);
+
+ public:
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const std::string& path);
 
