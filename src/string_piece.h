@@ -19,6 +19,8 @@
 
 #include <string.h>
 
+#include "util.h"
+
 /// StringPiece represents a slice of a string whose memory is managed
 /// externally.  It is useful for reducing the number of std::strings
 /// we need to allocate.
@@ -33,12 +35,14 @@ struct StringPiece {
 
   StringPiece(const char* str, size_t len) : str_(str), len_(len) {}
 
-  bool operator==(const StringPiece& other) const {
-    return len_ == other.len_ && memcmp(str_, other.str_, len_) == 0;
+  friend bool operator==(
+      const StringPiece& lhs, const StringPiece& rhs) {
+    return lhs.len_ == rhs.len_ && memcmp(lhs.str_, rhs.str_, lhs.len_) == 0;
   }
 
-  bool operator!=(const StringPiece& other) const {
-    return !(*this == other);
+  friend bool operator!=(
+      const StringPiece& lhs, const StringPiece& rhs) {
+    return !(lhs == rhs);
   }
 
   /// Convert the slice into a full-fledged std::string, copying the
@@ -65,6 +69,18 @@ struct StringPiece {
 
   size_t empty() const {
     return len_ == 0;
+  }
+
+  /// Return a the substring [pos, pos + length), where length is
+  /// the smaller of count and size() - pos.
+  /// \pre `pos <= size()`
+  StringPiece substr(size_t pos = 0, size_t count = -1) const {
+    if (pos > len_)
+      Fatal("pos=%zu cannot exceed len_=%zu in substr", pos, len_);
+
+    if (count > len_ - pos)
+      count = len_ - pos;
+    return StringPiece(str_ + pos, count);
   }
 
   const char* str_;
