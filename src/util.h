@@ -114,7 +114,6 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
-#define PATH_MAX _MAX_PATH
 #endif
 
 
