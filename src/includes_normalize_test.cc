@@ -24,11 +24,11 @@
 
 namespace {
 
-std::string GetCurDir() {
+std::string GetCurrentDirName() {
   char buf[_MAX_PATH];
   _getcwd(buf, sizeof(buf));
   std::vector<StringPiece> parts = SplitStringPiece(buf, '\\');
-  return parts[parts.size() - 1].AsString();
+  return parts.back().AsString();
 }
 
 std::string NormalizeAndCheckNoError(const std::string& input) {
@@ -59,7 +59,7 @@ TEST(IncludesNormalize, Simple) {
 
 TEST(IncludesNormalize, WithRelative) {
   std::string err;
-  std::string currentdir = GetCurDir();
+  std::string currentdir = GetCurrentDirName();
   EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
   EXPECT_EQ("a",
             NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
