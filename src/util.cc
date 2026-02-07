@@ -561,7 +561,30 @@ void Win32Fatal(const char* function, const char* hint) {
     Fatal("%s: %s", function, GetLastErrorString().c_str());
   }
 }
-#endif
+
+bool ConvertUTF8ToWin32Unicode(const StringPiece& input, std::wstring* output,
+                               std::string* err) {
+  output->clear();
+  if (input.empty())
+    return true;
+
+  int int_size = static_cast<int>(input.size());
+  if (static_cast<size_t>(int_size) != input.size()) {
+    *err = "Input string length > INT_MAX";
+    return false;
+  }
+  int wide_size =
+      MultiByteToWideChar(CP_UTF8, 0, input.begin(), int_size, nullptr, 0);
+  if (wide_size <= 0) {
+    *err = "MultiByteToWideChar(" + input.AsString() + "): " + GetLastErrorString();
+    return false;
+  }
+  output->resize(static_cast<size_t>(wide_size));
+  MultiByteToWideChar(CP_UTF8, 0, input.begin(), int_size,
+                      const_cast<wchar_t*>(output->data()), wide_size);
+  return true;
+}
+#endif  // _WIN32
 
 bool islatinalpha(int c) {
   // isalpha() is locale-dependent.
