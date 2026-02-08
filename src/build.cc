@@ -877,8 +877,7 @@ bool Builder::FinalizeEdgeAndReportStatus(Edge* edge, Plan::EdgeResult result,
                                           int64_t start_time_millis,
                                           int64_t end_time_millis,
                                           ExitStatus exit_code,
-                                          const string& output,
-                                          string* err) {
+                                          const string& output, string* err) {
   bool plan_ok = plan_.EdgeFinished(edge, result, err);
   status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
                              exit_code, output);
@@ -918,9 +917,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
 
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
-    return FinalizeEdgeAndReportStatus(
-        edge, Plan::kEdgeFailed, start_time_millis, end_time_millis,
-        result->status, result->output, err);
+    return FinalizeEdgeAndReportStatus(edge, Plan::kEdgeFailed,
+                                       start_time_millis, end_time_millis,
+                                       result->status, result->output, err);
   }
 
   // Restat the edge outputs
@@ -959,9 +958,9 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  if (!FinalizeEdgeAndReportStatus(
-          edge, Plan::kEdgeSucceeded, start_time_millis, end_time_millis,
-          result->status, result->output, err)) {
+  if (!FinalizeEdgeAndReportStatus(edge, Plan::kEdgeSucceeded,
+                                   start_time_millis, end_time_millis,
+                                   result->status, result->output, err)) {
     return false;
   }
 

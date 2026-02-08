@@ -207,7 +207,8 @@ void StatusPrinter::RecalculateProgressPrediction() {
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                      int64_t end_time_millis, ExitStatus exit_code,
+                                      int64_t end_time_millis,
+                                      ExitStatus exit_code,
                                       const string& output) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
@@ -233,8 +234,8 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   const bool is_tty = printer_.is_tty();
   const bool is_smart_terminal = printer_.is_smart_terminal();
   const bool is_final_edge = finished_edges_ == total_edges_;
-  const bool has_status_format = progress_status_format_ &&
-      progress_status_format_[0] != '\0';
+  const bool has_status_format =
+      progress_status_format_ && progress_status_format_[0] != '\0';
 
   // Regular edges are always reported on completion. Console edges are
   // reported on completion in non-TTY mode and in smart terminals. For dumb
@@ -256,9 +257,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
 
     string failed = "FAILED: [code=" + std::to_string(exit_code) + "] ";
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
+      printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine(failed + outputs + "\n");
+      printer_.PrintOnNewLine(failed + outputs + "\n");
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
@@ -487,8 +488,8 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
     }
   }
 
-  if (config_.verbosity == BuildConfig::QUIET
-      || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
+  if (config_.verbosity == BuildConfig::QUIET ||
+      config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
 
   RecalculateProgressPrediction();
@@ -499,8 +500,8 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, time_millis)
-      + to_print;
+  to_print =
+      FormatProgressStatus(progress_status_format_, time_millis) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);

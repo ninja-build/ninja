@@ -256,8 +256,7 @@ struct Builder {
                                    int64_t start_time_millis,
                                    int64_t end_time_millis,
                                    ExitStatus exit_code,
-                                   const std::string& output,
-                                   std::string* err);
+                                   const std::string& output, std::string* err);
 
   /// Map of running edge to time the edge started running.
   typedef std::map<const Edge*, int> RunningEdgeMap;
