@@ -756,7 +756,60 @@ out3<TAB>in3
             # pruned from the graph by an earlier restat.
             self.assertEqual(b.run('-v -d explain'), dedent('''\
                 ninja explain: .FORCE is dirty
+                [1/1] [ -e input ] || touch input
+                '''))
+
+    def test_restat_prunes_progress_total(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule create_if_non_exist
+              command = [ -e $out ] || touch $out
+              restat = true
+            rule write
+              command = cp $in $out
+            build input : create_if_non_exist .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # First run builds the full chain.
+            self.assertEqual(b.run('-v'), dedent('''\
                 [1/3] [ -e input ] || touch input
+                [2/3] cp input mid
+                [3/3] cp mid output
+                '''))
+            # On the no-op run, restat pruning should update the denominator
+            # before status is printed.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/1] [ -e input ] || touch input
+                '''))
+
+    def test_generator_restat_prunes_progress_total(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule verify
+              command = [ -e $out ] || touch $out
+              restat = true
+              generator = true
+            rule write
+              command = cp $in $out
+            build input : verify .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # First run builds the full chain.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/3] [ -e input ] || touch input
+                [2/3] cp input mid
+                [3/3] cp mid output
+                '''))
+            # On the no-op run, generator+restat pruning should update the
+            # denominator before status is printed.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/1] [ -e input ] || touch input
                 '''))
 
     def test_issue_2586(self):

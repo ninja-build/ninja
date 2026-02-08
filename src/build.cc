@@ -873,6 +873,18 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
+bool Builder::FinalizeEdgeAndReportStatus(Edge* edge, Plan::EdgeResult result,
+                                          int64_t start_time_millis,
+                                          int64_t end_time_millis,
+                                          ExitStatus exit_code,
+                                          const string& output,
+                                          string* err) {
+  bool plan_ok = plan_.EdgeFinished(edge, result, err);
+  status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
+                             exit_code, output);
+  return plan_ok;
+}
+
 bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   METRIC_RECORD("FinishCommand");
 
@@ -904,12 +916,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   end_time_millis = GetTimeMillis() - start_time_millis_;
   running_edges_.erase(it);
 
-  status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
-                             result->status, result->output);
-
   // The rest of this function only applies to successful commands.
   if (!result->success()) {
-    return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
+    return FinalizeEdgeAndReportStatus(
+        edge, Plan::kEdgeFailed, start_time_millis, end_time_millis,
+        result->status, result->output, err);
   }
 
   // Restat the edge outputs
@@ -948,8 +959,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     }
   }
 
-  if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err))
+  if (!FinalizeEdgeAndReportStatus(
+          edge, Plan::kEdgeSucceeded, start_time_millis, end_time_millis,
+          result->status, result->output, err)) {
     return false;
+  }
 
   // Delete any left over response file.
   string rspfile = edge->GetUnescapedRspfile();

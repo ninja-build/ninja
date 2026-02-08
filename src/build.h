@@ -250,6 +250,15 @@ struct Builder {
                    const std::string& deps_prefix,
                    std::vector<Node*>* deps_nodes, std::string* err);
 
+  // Finalize edge state in the plan before reporting completion status so
+  // progress totals account for any restat/generator pruning.
+  bool FinalizeEdgeAndReportStatus(Edge* edge, Plan::EdgeResult result,
+                                   int64_t start_time_millis,
+                                   int64_t end_time_millis,
+                                   ExitStatus exit_code,
+                                   const std::string& output,
+                                   std::string* err);
+
   /// Map of running edge to time the edge started running.
   typedef std::map<const Edge*, int> RunningEdgeMap;
   RunningEdgeMap running_edges_;
