@@ -88,7 +88,9 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
   ++running_edges_;
   time_millis_ = start_time_millis;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
+  // Regular edges use smart-terminal updates. Console edges should still be
+  // printed at start on any TTY so command text appears before command output.
+  if ((edge->use_console() && printer_.is_tty()) || printer_.is_smart_terminal())
     PrintStatus(edge, start_time_millis);
 
   if (edge->use_console())
@@ -197,7 +199,10 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  // Regular edges are always reported on completion. Console edges are
+  // reported on completion in non-TTY mode and in smart terminals so [%f/%t]
+  // can advance to the final count (e.g. for "install" steps).
+  if (!edge->use_console() || !printer_.is_tty() || printer_.is_smart_terminal())
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -259,6 +264,26 @@ void StatusPrinter::BuildStarted() {
 void StatusPrinter::BuildFinished() {
   printer_.SetConsoleLocked(false);
   printer_.PrintOnNewLine("");
+
+  // A single ninja invocation can run multiple build phases (e.g. manifest
+  // checks followed by the user-requested targets). Reset all counters so
+  // status from one phase does not leak into the next.
+  started_edges_ = 0;
+  finished_edges_ = 0;
+  total_edges_ = 0;
+  running_edges_ = 0;
+
+  time_millis_ = 0;
+  cpu_time_millis_ = 0;
+  time_predicted_percentage_ = 0.0;
+
+  eta_predictable_edges_total_ = 0;
+  eta_predictable_cpu_time_total_millis_ = 0;
+  eta_predictable_edges_remaining_ = 0;
+  eta_predictable_cpu_time_remaining_millis_ = 0;
+  eta_unpredictable_edges_remaining_ = 0;
+
+  current_rate_.Reset();
 }
 
 string StatusPrinter::FormatProgressStatus(const char* progress_status_format,

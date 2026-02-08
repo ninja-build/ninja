@@ -2324,6 +2324,40 @@ TEST_F(BuildTest, StatusFormatReplacePlaceholder) {
             status_.FormatProgressStatus("[%%/s%s/t%t/r%r/u%u/f%f]", 0));
 }
 
+TEST_F(BuildTest, StatusCountersResetAfterFailedBuildPhase) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule fail\n"
+"  command = fail\n"
+"build out: fail\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  EXPECT_EQ("subcommand failed", err);
+
+  // BuildFinished() must clear phase counters even on failure.
+  EXPECT_EQ("[0/0]", status_.FormatProgressStatus("[%f/%t]", 0));
+}
+
+TEST_F(BuildTest, StatusCountersResetAfterInterruptedBuildPhase) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule interrupt\n"
+"  command = interrupt\n"
+"build out: interrupt\n"));
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_EQ(builder_.Build(&err), ExitInterrupted);
+  EXPECT_EQ("interrupted by user", err);
+
+  // BuildFinished() must clear phase counters even on interruption.
+  EXPECT_EQ("[0/0]", status_.FormatProgressStatus("[%f/%t]", 0));
+}
+
 TEST_F(BuildTest, FailedDepsParse) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build bad_deps.o: cat in1\n"

@@ -259,6 +259,69 @@ build zoo: touch bar
                 '\n',
             ])
 
+    def test_issue_1336(self) -> None:
+        # In non-smart terminals, console edges should report progress when
+        # finished (like non-console edges) so [%f/%t] reaches [N/N].
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = touch $out
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', pipe=True),
+'''[1/2] touch out
+[2/2] Installing files.
+''')
+
+    def test_issue_1336_smart_terminal(self) -> None:
+        # In smart terminals, console edges should also report completion so
+        # the final visible status reaches [N/N].
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+'''),
+'''[1/2] Installing files.\x1b[K
+install
+[2/2] Installing files.\x1b[K
+''')
+
+    def test_issue_2507(self) -> None:
+        # A single ninja invocation may run a manifest-check phase before the
+        # user-requested build. Status counters must not leak across phases.
+        self.assertEqual(run(
+'''rule verify
+  command = printf ""
+  description = Re-checking...
+  pool = console
+  restat = 1
+
+rule touch
+  command = touch $out
+  description = touch $out
+
+build build.ninja: verify
+build out: touch
+default out
+''', pipe=True),
+'''[1/1] Re-checking...
+[1/1] touch out
+''')
+
     def test_pr_1685(self) -> None:
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
         self.assertEqual(run('', flags='-t recompact'), '')
