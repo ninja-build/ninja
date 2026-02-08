@@ -260,8 +260,8 @@ build zoo: touch bar
             ])
 
     def test_issue_1336(self) -> None:
-        # In non-smart terminals, console edges should report progress when
-        # finished (like non-console edges) so [%f/%t] reaches [N/N].
+        # In non-TTY mode, console edges should report progress when finished
+        # (like non-console edges) so [%f/%t] reaches [N/N].
         self.assertEqual(run(
 '''rule touch
   command = touch $out
@@ -277,6 +277,102 @@ build install: install out
 ''', pipe=True),
 '''[1/2] touch out
 [2/2] Installing files.
+''')
+
+    def test_issue_1336_dumb_tty(self) -> None:
+        # In non-smart TTY mode, console edges should still end at [N/N].
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', env=env),
+'''[1/2] touch out
+[1/2] Installing files.
+install
+[2/2] Installing files.
+''')
+
+    def test_issue_1336_dumb_tty_failure(self) -> None:
+        # In non-smart TTY mode, a failing final console edge should also
+        # print a final [N/N] status before the error output.
+        py = sys.executable
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self._test_expected_error(
+            f'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = {py} -c 'import sys; print("install failed"); sys.exit(127)'
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', None,
+            f'''[1/2] touch out
+[1/2] Installing files.
+install failed
+[2/2] Installing files.
+FAILED: [code=127] install \n{py} -c 'import sys; print("install failed"); sys.exit(127)'
+ninja: build stopped: subcommand failed.
+''',
+            exit_code=127, env=env,
+        )
+
+    def test_issue_1336_dumb_tty_interrupt(self) -> None:
+        # Interrupted console edges in non-smart TTY mode should keep the
+        # interrupted-by-user behavior unchanged.
+        py = sys.executable
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self._test_expected_error(
+            f'''rule interrupt
+  command = {py} -c 'import sys; sys.exit(130)'
+  description = Interrupting...
+  pool = console
+
+build stop: interrupt
+''', None,
+            '''[0/1] Interrupting...
+ninja: build stopped: interrupted by user.
+''',
+            exit_code=130, env=env,
+        )
+
+    def test_issue_1336_dumb_tty_empty_status_format(self) -> None:
+        # When NINJA_STATUS is disabled, avoid extra completion-only status
+        # output in dumb TTY mode.
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        env['NINJA_STATUS'] = ''
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', env=env),
+'''touch out
+Installing files.
+install
 ''')
 
     def test_issue_1336_smart_terminal(self) -> None:

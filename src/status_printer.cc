@@ -37,6 +37,32 @@
 
 using namespace std;
 
+namespace {
+
+bool ShouldPrintEdgeStartedStatus(bool is_console_edge, bool is_tty,
+                                  bool is_smart_terminal) {
+  return (is_console_edge && is_tty) || is_smart_terminal;
+}
+
+bool ShouldPrintConsoleEdgeFinishedStatusInDumbTty(bool is_tty,
+                                                   bool is_smart_terminal,
+                                                   bool is_final_edge,
+                                                   bool has_status_format) {
+  return is_tty && !is_smart_terminal && is_final_edge && has_status_format;
+}
+
+bool ShouldPrintEdgeFinishedStatus(bool is_console_edge, bool is_tty,
+                                   bool is_smart_terminal, bool is_final_edge,
+                                   bool has_status_format) {
+  if (!is_console_edge || !is_tty || is_smart_terminal)
+    return true;
+
+  return ShouldPrintConsoleEdgeFinishedStatusInDumbTty(
+      is_tty, is_smart_terminal, is_final_edge, has_status_format);
+}
+
+}  // namespace
+
 Status* Status::factory(const BuildConfig& config) {
   return new StatusPrinter(config);
 }
@@ -88,12 +114,16 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
   ++running_edges_;
   time_millis_ = start_time_millis;
 
+  const bool is_console_edge = edge->use_console();
+  const bool is_tty = printer_.is_tty();
+  const bool is_smart_terminal = printer_.is_smart_terminal();
+
   // Regular edges use smart-terminal updates. Console edges should still be
   // printed at start on any TTY so command text appears before command output.
-  if ((edge->use_console() && printer_.is_tty()) || printer_.is_smart_terminal())
+  if (ShouldPrintEdgeStartedStatus(is_console_edge, is_tty, is_smart_terminal))
     PrintStatus(edge, start_time_millis);
 
-  if (edge->use_console())
+  if (is_console_edge)
     printer_.SetConsoleLocked(true);
 }
 
@@ -199,10 +229,20 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
+  const bool is_console_edge = edge->use_console();
+  const bool is_tty = printer_.is_tty();
+  const bool is_smart_terminal = printer_.is_smart_terminal();
+  const bool is_final_edge = finished_edges_ == total_edges_;
+  const bool has_status_format = progress_status_format_ &&
+      progress_status_format_[0] != '\0';
+
   // Regular edges are always reported on completion. Console edges are
-  // reported on completion in non-TTY mode and in smart terminals so [%f/%t]
-  // can advance to the final count (e.g. for "install" steps).
-  if (!edge->use_console() || !printer_.is_tty() || printer_.is_smart_terminal())
+  // reported on completion in non-TTY mode and in smart terminals. For dumb
+  // TTYs, print completion only for the final console edge so [%f/%t] can
+  // still reach [N/N] without printing duplicate progress for every console
+  // command.
+  if (ShouldPrintEdgeFinishedStatus(is_console_edge, is_tty, is_smart_terminal,
+                                    is_final_edge, has_status_format))
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
