@@ -57,7 +57,7 @@ struct DyndepLoader {
   bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
  private:
-  bool LoadDyndepFile(Node* file, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndepFile(const Node* file, DyndepFile* ddf, std::string* err) const;
 
   bool UpdateEdge(Edge* edge, Dyndeps const* dyndeps, std::string* err) const;
 

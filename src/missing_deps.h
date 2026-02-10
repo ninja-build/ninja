@@ -31,12 +31,12 @@ struct State;
 class MissingDependencyScannerDelegate {
  public:
   virtual ~MissingDependencyScannerDelegate();
-  virtual void OnMissingDep(Node* node, const std::string& path,
+  virtual void OnMissingDep(const Node* node, const std::string& path,
                             const Rule& generator) = 0;
 };
 
 class MissingDependencyPrinter : public MissingDependencyScannerDelegate {
-  void OnMissingDep(Node* node, const std::string& path, const Rule& generator);
+  void OnMissingDep(const Node* node, const std::string& path, const Rule& generator);
   void OnStats(int nodes_processed, int nodes_missing_deps,
                int missing_dep_path_count, int generated_nodes,
                int generator_rules);
@@ -47,27 +47,28 @@ struct MissingDependencyScanner {
   MissingDependencyScanner(MissingDependencyScannerDelegate* delegate,
                            DepsLog* deps_log, State* state,
                            DiskInterface* disk_interface);
-  void ProcessNode(Node* node);
-  void PrintStats();
-  bool HadMissingDeps() { return !nodes_missing_deps_.empty(); }
+  void ProcessNode(const Node* node);
+  void PrintStats() const;
+  bool HadMissingDeps() const { return !nodes_missing_deps_.empty(); }
 
-  void ProcessNodeDeps(Node* node, Node** dep_nodes, int dep_nodes_count);
+  void ProcessNodeDeps(const Node* node, Node* const* dep_nodes,
+                       int dep_nodes_count);
 
-  bool PathExistsBetween(Edge* from, Edge* to);
+  bool PathExistsBetween(const Edge* from, const Edge* to);
 
   MissingDependencyScannerDelegate* delegate_;
   DepsLog* deps_log_;
   State* state_;
   DiskInterface* disk_interface_;
-  std::set<Node*> seen_;
-  std::set<Node*> nodes_missing_deps_;
-  std::set<Node*> generated_nodes_;
+  std::set<const Node*> seen_;
+  std::set<const Node*> nodes_missing_deps_;
+  std::set<const Node*> generated_nodes_;
   std::set<const Rule*> generator_rules_;
   int missing_dep_path_count_;
 
  private:
-  using InnerAdjacencyMap = std::unordered_map<Edge*, bool>;
-  using AdjacencyMap = std::unordered_map<Edge*, InnerAdjacencyMap>;
+  using InnerAdjacencyMap = std::unordered_map<const Edge*, bool>;
+  using AdjacencyMap = std::unordered_map<const Edge*, InnerAdjacencyMap>;
   AdjacencyMap adjacency_map_;
 };
 

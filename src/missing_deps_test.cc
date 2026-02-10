@@ -23,7 +23,7 @@
 const char kTestDepsLogFilename[] = "MissingDepTest-tempdepslog";
 
 class MissingDependencyTestDelegate : public MissingDependencyScannerDelegate {
-  void OnMissingDep(Node* node, const std::string& path,
+  void OnMissingDep(const Node* node, const std::string& path,
                     const Rule& generator) {}
 };
 
