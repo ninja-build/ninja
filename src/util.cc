@@ -1066,11 +1066,11 @@ int platformAwareUnlink(const char* filename) {
 	#endif
 }
 
-int SetIdlePriority() {
+int SetLowPriority() {
 #ifdef _WIN32
   HANDLE hProcess = GetCurrentProcess();
-  return !SetPriorityClass(hProcess, IDLE_PRIORITY_CLASS) ? -1 : 0;
+  return !SetPriorityClass(hProcess, BELOW_NORMAL_PRIORITY_CLASS) ? -1 : 0;
 #else
-  return setpriority(PRIO_PROCESS, 0, 19);
+  return setpriority(PRIO_PROCESS, 0, 10);
 #endif
 }

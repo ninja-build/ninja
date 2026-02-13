@@ -147,8 +147,8 @@ inline To FunctionCast(From from) {
 
 int platformAwareUnlink(const char* filename);
 
-/// Set the process priority to idle.
+/// Set the process priority to lower than normal.
 /// @return 0 on success, -1 on error.
-int SetIdlePriority();
+int SetLowPriority();
 
 #endif  // NINJA_UTIL_H_

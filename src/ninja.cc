@@ -85,7 +85,7 @@ struct Options {
   bool phony_cycle_should_err;
 
   /// Set build to idle (low) priority
-  bool idle_priority;
+  bool low_priority;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -1704,13 +1704,13 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_IDLE_PRIO = 3 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_LOW_PRIO = 3 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
-    { "idle-priority", no_argument, NULL, OPT_IDLE_PRIO },
+    { "low-priority", no_argument, NULL, OPT_LOW_PRIO },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1726,8 +1726,8 @@ int ReadFlags(int* argc, char*** argv,
       case 'f':
         options->input_file = optarg;
         break;
-      case OPT_IDLE_PRIO:
-        options->idle_priority = true;
+      case OPT_LOW_PRIO:
+        options->low_priority = true;
         break;
       case 'j': {
         char* end;
@@ -1833,11 +1833,11 @@ NORETURN void real_main(int argc, char** argv) {
     }
   }
 
-  if (options.idle_priority) {
+  if (options.low_priority) {
     if (show_info)
-      status->Info("Set idle priority");
-    if (SetIdlePriority() < 0) {
-      Fatal("Failed to set idle priority");
+      status->Info("Set low priority");
+    if (SetLowPriority() < 0) {
+      Fatal("Failed to set priority");
     }
   }
 
