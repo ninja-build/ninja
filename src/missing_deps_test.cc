@@ -282,3 +282,34 @@ build out: dyn_touch || dyndep.dd
                 { { "a.o", "generated.h", "dyn_touch" },
                   { "a.o", "generated_ManifestInput.h", "dyn_touch" } }));
 }
+
+TEST_F(MissingDependencyScannerTestWithDepfile,
+       MissingDepPresentFixedByDyndepInput) {
+  // 'X' is provided as a dyndep input, and will fix the missingdep
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule catdep
+  depfile = a.d
+  dyndep = dyndep.dd
+  command = cat $in > $out && printf 'a.o: generated.h\n' > a.d
+build a.o: catdep a.c || dyndep.dd
+
+rule touch
+  command = touch $out
+build generated.h X: touch in
+
+rule dd
+  command = touch dyndep.dd && printf 'ninja_dyndep_version = 1\nbuild a.o: dyndep | X\n' > $out
+build dyndep.dd: dd
+)ninja"));
+
+  fs_.Create("a.d", "a.o: generated.h\n");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build a.o: dyndep | X\n");
+  fs_.Create("a.c", "");
+  fs_.Create("in", "");
+
+  ProcessAllNodes();
+  EXPECT_FALSE(scanner()->HadMissingDeps());
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+}

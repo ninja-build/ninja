@@ -30,33 +30,39 @@ class PathExistsBetween {
  public:
   using AdjacencyMap = MissingDependencyScanner::AdjacencyMap;
   using InnerAdjacencyMap = MissingDependencyScanner::InnerAdjacencyMap;
-  static bool get(AdjacencyMap& adjacency_map, const Edge* from,
+  static bool get(AdjacencyMap& adjacency_map,
+                  const DyndepFileSorted* DyndepOutFile, const Edge* from,
                   const Edge* to);
 
  private:
-  PathExistsBetween(AdjacencyMap& adjacency_map, const Edge* from,
+  PathExistsBetween(AdjacencyMap& adjacency_map,
+                    const DyndepFileSorted* DyndepOutFile, const Edge* from,
                     AdjacencyMap::iterator it);
 
   bool process(const Edge* to);
 
   AdjacencyMap& adjacency_map_;
+  const DyndepFileSorted* DyndepOutFile_;
   const Edge* const from_;
   const AdjacencyMap::iterator it_;
 };
 
 PathExistsBetween::PathExistsBetween(AdjacencyMap& adjacency_map,
+                                     const DyndepFileSorted* DyndepOutFile,
                                      const Edge* from,
                                      AdjacencyMap::iterator it)
-    : adjacency_map_(adjacency_map), from_(from), it_(it) {}
+    : adjacency_map_(adjacency_map), DyndepOutFile_(DyndepOutFile), from_(from),
+      it_(it) {}
 
-bool PathExistsBetween::get(AdjacencyMap& adjacency_map, const Edge* from,
-                            const Edge* to) {
+bool PathExistsBetween::get(AdjacencyMap& adjacency_map,
+                            const DyndepFileSorted* DyndepOutFile,
+                            const Edge* from, const Edge* to) {
   AdjacencyMap::iterator it = adjacency_map.find(from);
 
   if (it == adjacency_map.end())
     it = adjacency_map.emplace(from, InnerAdjacencyMap()).first;
 
-  PathExistsBetween pathExistsBetween(adjacency_map, from, it);
+  PathExistsBetween pathExistsBetween(adjacency_map, DyndepOutFile, from, it);
   return pathExistsBetween.process(to);
 }
 
@@ -73,6 +79,19 @@ bool PathExistsBetween::process(const Edge* to) {
       // path found
       it_->second.emplace(to, true);
       return true;
+    }
+  }
+
+  // check dyndep inputs of edge
+  auto it = DyndepOutFile_->findIn(to);
+  if (it) {
+    for (const Node* node : *it) {
+      const Edge* e = node->in_edge();
+      if (e && (e == from_ || process(e))) {
+        // path found
+        it_->second.emplace(to, true);
+        return true;
+      }
     }
   }
 
@@ -271,5 +290,5 @@ void MissingDependencyScanner::PrintStats() const {
 
 bool MissingDependencyScanner::PathExistsBetween(const Edge* from,
                                                  const Edge* to) {
-  return PathExistsBetween::get(adjacency_map_, from, to);
+  return PathExistsBetween::get(adjacency_map_, &DyndepFile_, from, to);
 }
