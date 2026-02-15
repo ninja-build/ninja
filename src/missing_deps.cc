@@ -26,6 +26,60 @@
 #include "util.h"
 
 namespace {
+class PathExistsBetween {
+ public:
+  using AdjacencyMap = MissingDependencyScanner::AdjacencyMap;
+  using InnerAdjacencyMap = MissingDependencyScanner::InnerAdjacencyMap;
+  static bool get(AdjacencyMap& adjacency_map, const Edge* from,
+                  const Edge* to);
+
+ private:
+  PathExistsBetween(AdjacencyMap& adjacency_map, const Edge* from,
+                    AdjacencyMap::iterator it);
+
+  bool process(const Edge* to);
+
+  AdjacencyMap& adjacency_map_;
+  const Edge* const from_;
+  const AdjacencyMap::iterator it_;
+};
+
+PathExistsBetween::PathExistsBetween(AdjacencyMap& adjacency_map,
+                                     const Edge* from,
+                                     AdjacencyMap::iterator it)
+    : adjacency_map_(adjacency_map), from_(from), it_(it) {}
+
+bool PathExistsBetween::get(AdjacencyMap& adjacency_map, const Edge* from,
+                            const Edge* to) {
+  AdjacencyMap::iterator it = adjacency_map.find(from);
+
+  if (it == adjacency_map.end())
+    it = adjacency_map.emplace(from, InnerAdjacencyMap()).first;
+
+  PathExistsBetween pathExistsBetween(adjacency_map, from, it);
+  return pathExistsBetween.process(to);
+}
+
+bool PathExistsBetween::process(const Edge* to) {
+  InnerAdjacencyMap::const_iterator inner_it = it_->second.find(to);
+  if (inner_it != it_->second.end()) {
+    return inner_it->second;
+  }
+
+  // check manifest inputs of edge
+  for (const Node* node : to->inputs_) {
+    const Edge* e = node->in_edge();
+    if (e && (e == from_ || process(e))) {
+      // path found
+      it_->second.emplace(to, true);
+      return true;
+    }
+  }
+
+  // path does not exist
+  it_->second.emplace(to, false);
+  return false;
+}
 
 /// ImplicitDepLoader variant that stores dep nodes into the given output
 /// without updating graph deps like the base loader does.
@@ -107,9 +161,8 @@ void MissingDependencyScanner::ProcessNode(const Node* node) {
   if (!seen_.insert(node).second)
     return;
 
-  for (std::vector<Node*>::const_iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    ProcessNode(*in);
+  for (Node* in : edge->inputs_) {
+    ProcessNode(in);
   }
 
   std::string deps_type = edge->GetBinding("deps");
@@ -152,23 +205,22 @@ void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
     }
   }
   std::vector<const Edge*> missing_deps;
-  for (std::set<const Edge*>::const_iterator de = deplog_edges.begin();
-       de != deplog_edges.end(); ++de) {
-    if (!PathExistsBetween(*de, edge)) {
-      missing_deps.push_back(*de);
+  for (const Edge* de : deplog_edges) {
+    if (!PathExistsBetween(de, edge)) {
+      missing_deps.push_back(de);
     }
   }
 
   if (!missing_deps.empty()) {
     std::set<std::string> missing_deps_rule_names;
-    for (std::vector<const Edge*>::const_iterator ne = missing_deps.begin();
-         ne != missing_deps.end(); ++ne) {
+    for (const Edge* ne : missing_deps) {
+      // check manifest generated outputs
       for (int i = 0; i < dep_nodes_count; ++i) {
-        if (dep_nodes[i]->in_edge() == *ne) {
+        if (dep_nodes[i]->in_edge() == ne) {
           generated_nodes_.insert(dep_nodes[i]);
-          generator_rules_.insert(&(*ne)->rule());
-          missing_deps_rule_names.insert((*ne)->rule().name());
-          delegate_->OnMissingDep(node, dep_nodes[i]->path(), (*ne)->rule());
+          generator_rules_.insert(&ne->rule());
+          missing_deps_rule_names.insert(ne->rule().name());
+          delegate_->OnMissingDep(node, dep_nodes[i]->path(), ne->rule());
         }
       }
     }
@@ -195,24 +247,7 @@ void MissingDependencyScanner::PrintStats() const {
   }
 }
 
-bool MissingDependencyScanner::PathExistsBetween(const Edge* from, const Edge* to) {
-  AdjacencyMap::iterator it = adjacency_map_.find(from);
-  if (it != adjacency_map_.end()) {
-    InnerAdjacencyMap::const_iterator inner_it = it->second.find(to);
-    if (inner_it != it->second.end()) {
-      return inner_it->second;
-    }
-  } else {
-    it = adjacency_map_.insert(std::make_pair(from, InnerAdjacencyMap())).first;
-  }
-  bool found = false;
-  for (size_t i = 0; i < to->inputs_.size(); ++i) {
-    Edge* e = to->inputs_[i]->in_edge();
-    if (e && (e == from || PathExistsBetween(from, e))) {
-      found = true;
-      break;
-    }
-  }
-  it->second.insert(std::make_pair(to, found));
-  return found;
+bool MissingDependencyScanner::PathExistsBetween(const Edge* from,
+                                                 const Edge* to) {
+  return PathExistsBetween::get(adjacency_map_, from, to);
 }

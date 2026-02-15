@@ -66,9 +66,10 @@ struct MissingDependencyScanner {
   std::set<const Rule*> generator_rules_;
   int missing_dep_path_count_;
 
- private:
   using InnerAdjacencyMap = std::unordered_map<const Edge*, bool>;
   using AdjacencyMap = std::unordered_map<const Edge*, InnerAdjacencyMap>;
+
+ private:
   AdjacencyMap adjacency_map_;
 };
 
