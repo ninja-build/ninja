@@ -83,6 +83,33 @@ TimeStamp StatSingleFile(const string& path, string* err) {
     *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
     return -1;
   }
+
+  if (attrs.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+    HANDLE hFile = CreateFileA(path.c_str(), 0, 0, 0, OPEN_EXISTING,
+                               FILE_FLAG_BACKUP_SEMANTICS, 0);
+    if (hFile == INVALID_HANDLE_VALUE) {
+      DWORD win_err = GetLastError();
+      if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
+        return 0;
+      *err = "CreateFileA(" + path + "): " + GetLastErrorString();
+      CloseHandle(hFile);
+      return -1;
+    }
+
+    CHAR pathBuf[MAX_PATH];
+    if (GetFinalPathNameByHandleA(hFile, pathBuf, MAX_PATH,
+                                  FILE_NAME_NORMALIZED) == 0) {
+      DWORD win_err = GetLastError();
+      if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
+        return 0;
+      *err = "GetFinalPathNameByHandleA(" + path + "): " + GetLastErrorString();
+      CloseHandle(hFile);
+      return -1;
+    }
+    CloseHandle(hFile);
+    return StatSingleFile(pathBuf, err);
+  }
+
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
 }
 
@@ -124,9 +151,18 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
+
     transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(lowername,
-                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
+
+    if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+      // File is a symlink, stat the linked file.
+      stamps->insert(make_pair(
+          lowername, StatSingleFile(dir + "\\" + ffd.cFileName, err)));
+    } else {
+      stamps->insert(
+          make_pair(lowername, TimeStampFromFileTime(ffd.ftLastWriteTime)));
+    }
+
   } while (FindNextFileA(find_handle, &ffd));
   FindClose(find_handle);
   return true;

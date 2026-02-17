@@ -131,7 +131,7 @@ private:
   ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
   TimeStamp mtime_ = -1;
 
-  enum ExistenceStatus {
+  enum ExistenceStatus : char {
     /// The file hasn't been examined.
     ExistenceStatusUnknown,
     /// The file doesn't exist. mtime_ will be the latest mtime of its dependencies.
@@ -157,6 +157,9 @@ private:
   /// can be loaded before the manifest.
   bool generated_by_dep_loader_ = true;
 
+  /// A dense integer id for the node, assigned and used by DepsLog.
+  int id_ = -1;
+
   /// The Edge that produces this Node, or NULL when there is no
   /// known edge to produce it.
   Edge* in_edge_ = nullptr;
@@ -166,14 +169,11 @@ private:
 
   /// All Edges that use this Node as a validation.
   std::vector<Edge*> validation_out_edges_;
-
-  /// A dense integer id for the node, assigned and used by DepsLog.
-  int id_ = -1;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
 struct Edge {
-  enum VisitMark {
+  enum VisitMark : char {
     VisitNone,
     VisitInStack,
     VisitDone
@@ -218,9 +218,13 @@ struct Edge {
   std::vector<Node*> validations_;
   Node* dyndep_ = nullptr;
   BindingEnv* env_ = nullptr;
-  VisitMark mark_ = VisitNone;
   size_t id_ = 0;
   int64_t critical_path_weight_ = -1;
+
+  /// A Jobserver slot instance. Invalid by default.
+  Jobserver::Slot job_slot_;
+
+  VisitMark mark_ = VisitNone;
   bool outputs_ready_ = false;
   bool deps_loaded_ = false;
   bool deps_missing_ = false;
@@ -263,9 +267,6 @@ struct Edge {
   bool is_phony() const;
   bool use_console() const;
   bool maybe_phonycycle_diagnostic() const;
-
-  /// A Jobserver slot instance. Invalid by default.
-  Jobserver::Slot job_slot_;
 
   // Historical info: how long did this edge take last time,
   // as per .ninja_log, if known? Defaults to -1 if unknown.

@@ -373,17 +373,8 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     entries_.erase(output);
 
   fclose(f);
-  if (platformAwareUnlink(path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
 
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  return true;
+  return ReplaceContent(path, temp_path, err);
 }
 
 bool BuildLog::Restat(const StringPiece path,
@@ -430,15 +421,6 @@ bool BuildLog::Restat(const StringPiece path,
   }
 
   fclose(f);
-  if (platformAwareUnlink(path.str_) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
 
-  if (rename(temp_path.c_str(), path.str_) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  return true;
+  return ReplaceContent(path.AsString(), temp_path, err);
 }

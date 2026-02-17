@@ -270,6 +270,8 @@ and a web browser will be opened. This can be changed as follows:
 ninja -t browse --port=8000 --no-browser mytarget
 ----
 +
+Use `--help` to see a full list of options.
++
 `graph`:: output a file in the syntax used by `graphviz`, an automatic
 graph layout tool.  Use it like:
 +
@@ -296,10 +298,11 @@ than the _depth_ mode.
 
 `commands`:: given a list of targets, print a list of commands which, if
 executed in order, may be used to rebuild those targets, assuming that all
-output files are out of date.
+output files are out of date. Use `-s` to only print the final command, not the chain.
 
 `inputs`:: given a list of targets, print a list of all inputs used to
-rebuild those targets.
+rebuild those targets. For compatibility reasons, inputs are shell-quoted by default.
+Use `--no-shell-escape` to disable quoting. See `ninja -t inputs --help` for all options.
 _Available since Ninja 1.11._
 
 `multi-inputs`:: print one or more sets of inputs required to build targets.
@@ -364,13 +367,13 @@ build file. _Available since Ninja 1.10._
 C family language compiler rule whose first input is the name of the
 source file, prints on standard output a compilation database in the
 http://clang.llvm.org/docs/JSONCompilationDatabase.html[JSON format] expected
-by the Clang tooling interface.
+by the Clang tooling interface. Use `-x` to expand `@rspfile` response file invocations.
 _Available since Ninja 1.2._
 
 `compdb-targets`:: like `compdb`, but takes a list of targets instead of rules,
 and expects at least one target. The resulting compilation database contains
 all commands required to build the indicated targets, and _only_ those
-commands.
+commands. Use `-x` to expand `@rspfile` response file invocations.
 
 `deps`:: show all dependencies stored in the `.ninja_deps` file. When given a
 target, show just the target's dependencies. _Available since Ninja 1.4._
@@ -916,6 +919,15 @@ paths, where a space would otherwise separate filenames.  See below.)
 
 `$:` :: a colon.  (This is only necessary in `build` lines, where a colon
 would otherwise terminate the list of outputs.)
+
+`$^` :: a newline _(available since Ninja 1.14)_.
+
+Inserts '\n' into the resulting string. This is useful to
+write build commands that require several shell lines as a single `command`
+value in the build plan.
+
+Requires `ninja_required_version` to be specified and greater or equal to 1.14
+in the build file.
 
 `$$`:: a literal `$`.
 

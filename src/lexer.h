@@ -90,6 +90,10 @@ struct Lexer {
   /// Construct an error message with context.
   bool Error(const std::string& message, std::string* err);
 
+  /// Parsed 'ninja_required_version' from the manifest.
+  int manifest_version_major = 0;
+  int manifest_version_minor = 0;
+
 private:
   /// Skip past whitespace (called after each read token/ident/etc.).
   void EatWhitespace();
@@ -101,6 +105,9 @@ private:
   StringPiece input_;
   const char* ofs_;
   const char* last_token_;
+
+  /// Holds true if ninja_required_version checked for $^ (newline) escape.
+  bool newline_version_checked_ = false;
 };
 
 #endif // NINJA_LEXER_H_

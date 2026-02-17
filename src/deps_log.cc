@@ -363,17 +363,7 @@ bool DepsLog::Recompact(const string& path, string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
-  if (platformAwareUnlink(path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
-    *err = strerror(errno);
-    return false;
-  }
-
-  return true;
+  return ReplaceContent(path, temp_path, err);
 }
 
 bool DepsLog::IsDepsEntryLiveFor(const Node* node) {

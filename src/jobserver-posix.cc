@@ -26,11 +26,12 @@
 
 namespace {
 
-// Return true if |fd| is a fifo or pipe descriptor.
-bool IsFifoDescriptor(int fd) {
+// Return true if |fd| is a fifo or character device.
+bool IsJobserverDescriptor(int fd) {
   struct stat info;
   int ret = ::fstat(fd, &info);
-  return (ret == 0) && ((info.st_mode & S_IFMT) == S_IFIFO);
+  return (ret == 0) && (((info.st_mode & S_IFMT) == S_IFIFO) ||
+                        ((info.st_mode & S_IFMT) == S_IFCHR));
 }
 
 // Implementation of Jobserver::Client for Posix systems
@@ -89,7 +90,7 @@ class PosixJobserverClient : public Jobserver::Client {
           std::string("Error opening fifo for reading: ") + strerror(errno);
       return false;
     }
-    if (!IsFifoDescriptor(read_fd_)) {
+    if (!IsJobserverDescriptor(read_fd_)) {
       *error = "Not a fifo path: " + fifo_path;
       // Let destructor close read_fd_.
       return false;
