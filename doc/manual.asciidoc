@@ -397,6 +397,9 @@ _Available since Ninja 1.11._
 
 `restat`:: updates all recorded file modification timestamps in the `.ninja_log`
 file. _Available since Ninja 1.10._
++
+The build manifest won't be parsed when running this tool. If you're using a
+`builddir` you must pass it via `--builddir=DIR`. _Available since Ninja 1.14._
 
 `rules`:: output the list of all rules. It can be used to know which rule name
 to pass to +ninja -t targets rule _name_+ or +ninja -t compdb+. Adding the `-d`

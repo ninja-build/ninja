@@ -90,7 +90,9 @@ build output.txt: touch
 
         # Run ninja -t restat
         result = subprocess.run(
-            [NINJA_PATH, "-t", "restat"], capture_output=True, text=True
+            [NINJA_PATH, "-t", "restat", "--builddir=build"],
+            capture_output=True,
+            text=True,
         )
         self.assertEqual(
             result.returncode, 0, f"ninja -t restat failed: {result.stderr}"
