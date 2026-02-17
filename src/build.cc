@@ -466,7 +466,8 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 namespace {
 
 // Heuristic for edge priority weighting.
-// Phony edges are free (0 cost), all other edges are weighted equally.
+// Phony edges are free (0 cost), all other edges are weighted by their 
+// previous elapsed time if available
 int64_t EdgeWeightHeuristic(Edge *edge) {
   int64_t prev_elapsed_time_millis =
     edge->prev_elapsed_time_millis < 0 ? 1 : edge->prev_elapsed_time_millis;
