@@ -105,6 +105,26 @@ class BuildDir:
             env={**default_env, **extra_env},
         )
 
+    def ninja_popen(
+        self,
+        ninja_args: T.List[str],
+        prefix_args: T.List[str] = [],
+        extra_env: T.Dict[str, str] = {},
+        capture_output: bool = True,
+    ) -> subprocess.Popen[str]:
+        """Run Ninja command and return the Popen object (i.e. without blocking)."""
+        cmd_args = prefix_args + [NINJA_PATH, "-C", self.path] + ninja_args
+        if _DEBUG:
+            cmd_str = " ".join(shlex.quote(c) for c in cmd_args)
+            print(f"CMD [{cmd_str}]", file=sys.stderr)
+        return subprocess.Popen(
+            cmd_args,
+            text=True,
+            stdout=subprocess.PIPE if capture_output else None,
+            stderr=subprocess.PIPE if capture_output else None,
+            env={**default_env, **extra_env},
+        )
+
 
 def span_output_file(span_n: int) -> str:
     return "out%02d" % span_n
@@ -130,6 +150,53 @@ rule span
     )
     return result
 
+def generate_double_build_plan(
+        wait_1_ms: int = 500,
+        wait_2_ms: int = 500,
+        offset: int = 0,
+    ) -> str:
+
+    """Generate a Ninja build plan where each client gets two tasks.
+
+    - `id` identifies the client for debugging purposes.
+    - `wait_1_ms` and `wait_2_ms` control task durations.
+    - `offset` allows multiple plans without conflicting filenames.
+    """
+    result = f"""
+rule short
+    command = {sys.executable} -S {_JOBSERVER_TEST_HELPER_SCRIPT} --duration-ms={wait_1_ms} $out
+
+rule long
+    command = {sys.executable} -S {_JOBSERVER_TEST_HELPER_SCRIPT} --duration-ms={wait_2_ms} $out
+"""
+
+    result += "build %s: long\n" % span_output_file(offset)
+    result += "build %s: short\n" % span_output_file(offset + 1)
+
+    result += "build all: phony %s\n" % " ".join(
+        [span_output_file(n + offset) for n in range(2)]
+    )
+
+    return result
+
+def get_span(build_dir: str, command_count: int) -> T.List[T.Tuple[int, int]]:
+    return get_spans([build_dir], [command_count])
+
+def get_spans(build_dirs: T.List[str], command_counts: T.List[int]) -> T.List[T.Tuple[int, int]]:
+    spans: T.List[T.Tuple[int, int]] = []
+    offset:int = 0
+    for b_path, command_count in zip(build_dirs, command_counts):
+        for n in range(command_count):
+            out_file = os.path.join(b_path, span_output_file(n + offset))
+            with open(out_file, "rb") as f:
+                content = f.read().decode("utf-8")
+            lines = content.splitlines()
+            assert len(lines) == 2, f"Unexpected output file content: [{content}]"
+            spans.append((int(lines[0]), int(lines[1])))
+
+        # Update the offset for the next build directory to ensure unique output file names.
+        offset += command_count
+    return spans
 
 def compute_max_overlapped_spans(build_dir: str, command_count: int) -> int:
     """Compute the maximum number of overlapped spanned tasks.
@@ -141,14 +208,7 @@ def compute_max_overlapped_spans(build_dir: str, command_count: int) -> int:
     if command_count < 2:
         return 0
 
-    spans: T.List[T.Tuple[int, int]] = []
-    for n in range(command_count):
-        with open(os.path.join(build_dir, span_output_file(n)), "rb") as f:
-            content = f.read().decode("utf-8")
-        lines = content.splitlines()
-        assert len(lines) == 2, f"Unexpected output file content: [{content}]"
-        spans.append((int(lines[0]), int(lines[1])))
-
+    spans: T.List[T.Tuple[int, int]] = get_span(build_dir, command_count)
     # Stupid but simple, for each span, count the number of other spans that overlap it.
     max_overlaps = 1
     for n in range(command_count):
@@ -163,7 +223,6 @@ def compute_max_overlapped_spans(build_dir: str, command_count: int) -> int:
             max_overlaps = cur_overlaps
 
     return max_overlaps
-
 
 class JobserverTest(unittest.TestCase):
 
@@ -289,6 +348,83 @@ class JobserverTest(unittest.TestCase):
 
             max_overlaps = compute_max_overlapped_spans(b.path, task_count)
             self.assertEqual(max_overlaps, 1)
+
+    @unittest.skipIf(_PLATFORM_IS_WINDOWS, "These test methods do not work on Windows")
+    def test_jobserver_client_with_posix_fifo_token_efficiency(self):
+        # Due to implicit slots, the max number of parallel tasks is task_count + num_clients - 1
+        task_count = 2
+        client_tasks = 2
+
+        try:
+            tmp_dir = tempfile.mkdtemp()
+            fifo_path = os.path.join(tmp_dir, "jobserver_fifo_test")
+
+            # Create FIFO for Jobserver - see notes about implicit slots above
+            os.mkfifo(fifo_path)  # type: ignore
+            read_fd = os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+            write_fd = os.open(fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+            os.write(write_fd, (task_count - 1) * b"x")
+            env = dict(os.environ)
+            env["MAKEFLAGS"] = f" -j{task_count} --jobserver-auth=fifo:" + fifo_path
+
+            # First build plan has 2 short tasks, second build plan has 2 long tasks
+            build_plan_1 = generate_double_build_plan(wait_1_ms=1000, wait_2_ms=1000, offset=0)
+            build_plan_2 = generate_double_build_plan(wait_1_ms=2000, wait_2_ms=2000, offset=client_tasks)
+
+            with BuildDir(build_plan_1) as b1, BuildDir(build_plan_2) as b2:
+                # Start all builds in parallel, with the same jobserver environment.
+                p1 = b1.ninja_popen(["all"], extra_env=env)
+                p2 = b2.ninja_popen(["all"], extra_env=env)
+
+                # Wait for all builds to finish and verify they all succeeded.
+                p1.communicate()
+                p2.communicate()
+                self.assertEqual(p1.returncode, 0, "Build 1 failed")
+                self.assertEqual(p2.returncode, 0, "Build 2 failed")
+
+                """
+                As noted above, with implicit slots, the max number of parallel tasks
+                is task_count + num_clients - 1, which in this case is 3.
+                The expected behavior is that 3 tasks run in parallel at the beginning as follows:
+
+                |---A---|           (Client 1, 2000ms)
+                |---B---|           (Client 1, 2000ms)
+                |-------C-------|   (Client 2, 4000ms)
+
+                Once first 2 of 3 tasks finishes (i.e. the short sleeps), the 4th task can start,
+                and this should start before the long task finishes.
+
+                |---A---|                    (Client 1, 2000ms)
+                |---B---|                    (Client 1, 2000ms)
+                |-------C-------|            (Client 2, 4000ms)
+                           |-------D-------| (Client 2, 4000ms)
+
+                Make sure D starts after A and B finishes, but before C finishes.
+                """
+
+                spans: T.List[T.Tuple[int, int, int]] = get_spans([b1.path, b2.path], [client_tasks, client_tasks])
+                spans.sort(key=lambda s: s[0]) # Sort by start time.
+
+                # First 3 tasks should run (almost) immediately
+                initial_tasks = spans[:task_count + client_tasks - 1]
+                last_task = spans[-1]
+                earliest_end = min(task[1] for task in initial_tasks)
+                latest_end = max(task[1] for task in initial_tasks)
+
+                # Assert last task starts after at least one initial task finishes,
+                # but before all initial tasks finish.
+                self.assertTrue(
+                    last_task[0] >= earliest_end and last_task[0] < latest_end
+                )
+
+        finally:
+            os.close(read_fd)
+            os.close(write_fd)
+            if os.path.exists(fifo_path):
+                os.remove(fifo_path)
+            if os.path.exists(tmp_dir):
+                os.rmdir(tmp_dir)
+
 
     def _test_MAKEFLAGS_value(
         self, ninja_args: T.List[str] = [], prefix_args: T.List[str] = []
