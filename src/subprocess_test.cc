@@ -93,8 +93,8 @@ TEST_F(SubprocessTest, InterruptParent) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 
@@ -117,8 +117,8 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 
@@ -141,8 +141,8 @@ TEST_F(SubprocessTest, InterruptParentWithSigHup) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 

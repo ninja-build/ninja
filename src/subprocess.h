@@ -102,9 +102,19 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
+  // The result of DoWork().
+  enum class WorkResult {
+    NoWork,
+    SubprocFinished,
+    JobserverTokenAvailable,
+    Interrupted
+  };
+
   Subprocess* Add(const std::string& command, bool use_console = false);
-  bool DoWork();
+  WorkResult DoWork();
+
   Subprocess* NextFinished();
+  bool HasFinished() const { return !finished_.empty(); }
   void Clear();
 
   std::vector<Subprocess*> running_;
@@ -127,14 +137,18 @@ struct SubprocessSet {
   /// Initialized to 0 before ppoll/pselect().
   /// Filled to 1 by SIGCHLD handler when a child process terminates.
   static volatile sig_atomic_t s_sigchld_received;
-  void CheckConsoleProcessTerminated();
+  void CheckConsoleProcessTerminated(WorkResult* work_result);
+
+  void SetJobserverFD(int fd) { jobserver_fd_ = fd; }
 
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;
   struct sigaction old_hup_act_;
   struct sigaction old_chld_act_;
   sigset_t old_mask_;
+
+  int jobserver_fd_ = -1;
 #endif
 };
 
-#endif // NINJA_SUBPROCESS_H_
+#endif  // NINJA_SUBPROCESS_H_

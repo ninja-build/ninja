@@ -280,13 +280,14 @@ SubprocessSet::SubprocessSet() {
 
 // Reaps console processes that have exited and moves them from the running set
 // to the finished set.
-void SubprocessSet::CheckConsoleProcessTerminated() {
+void SubprocessSet::CheckConsoleProcessTerminated(SubprocessSet::WorkResult* work_result) {
   if (!s_sigchld_received)
     return;
   for (auto i = running_.begin(); i != running_.end(); ) {
     if ((*i)->use_console_ && (*i)->TryFinish(WNOHANG)) {
       finished_.push(*i);
       i = running_.erase(i);
+      *work_result = WorkResult::SubprocFinished;
     } else {
       ++i;
     }
@@ -319,9 +320,10 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
 }
 
 #ifdef USE_PPOLL
-bool SubprocessSet::DoWork() {
+SubprocessSet::WorkResult SubprocessSet::DoWork() {
   vector<pollfd> fds;
   nfds_t nfds = 0;
+  WorkResult work_result = WorkResult::NoWork;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
@@ -332,6 +334,14 @@ bool SubprocessSet::DoWork() {
     fds.push_back(pfd);
     ++nfds;
   }
+
+  nfds_t jobserver_idx = nfds;
+  if (jobserver_fd_ >= 0) {
+    pollfd pfd = { jobserver_fd_, POLLIN | POLLPRI, 0 };
+    fds.push_back(pfd);
+    ++nfds;
+  }
+
   if (nfds == 0) {
     // Add a dummy entry to prevent using an empty pollfd vector.
     // ppoll() allows to do this by setting fd < 0.
@@ -346,13 +356,13 @@ bool SubprocessSet::DoWork() {
   // Note: This can remove console processes from the running set, but that is
   // not a problem for the pollfd set, as console processes are not part of the
   // pollfd set (they don't have a fd).
-  CheckConsoleProcessTerminated();
+  CheckConsoleProcessTerminated(&work_result);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: ppoll");
-      return false;
+      return work_result;
     }
-    return IsInterrupted();
+    return IsInterrupted() ? WorkResult::Interrupted : work_result;
   }
 
   // ppoll/pselect prioritizes file descriptor events over a signal delivery.
@@ -360,7 +370,7 @@ bool SubprocessSet::DoWork() {
   // possible.
   HandlePendingInterruption();
   if (IsInterrupted())
-    return true;
+    return WorkResult::Interrupted;
 
   // Iterate through both the pollfd set and the running set.
   // All valid fds in the running set are in the pollfd, in the same order.
@@ -378,20 +388,29 @@ bool SubprocessSet::DoWork() {
       if ((*i)->Done()) {
         finished_.push(*i);
         i = running_.erase(i);
+        work_result = WorkResult::SubprocFinished;
         continue;
       }
     }
     ++i;
   }
 
-  return IsInterrupted();
+  // Jobserver token is available. Make sure that we only react
+  // to jobserver tokens if no other work was done
+  const bool no_work = work_result == WorkResult::NoWork;
+  if (jobserver_fd_ >= 0 && fds[jobserver_idx].revents && no_work) {
+    work_result = WorkResult::JobserverTokenAvailable;
+  }
+
+  return IsInterrupted() ? WorkResult::Interrupted : work_result;
 }
 
 #else  // !defined(USE_PPOLL)
-bool SubprocessSet::DoWork() {
+SubprocessSet::WorkResult SubprocessSet::DoWork() {
   fd_set set;
   int nfds = 0;
   FD_ZERO(&set);
+  WorkResult work_result = WorkResult::NoWork;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i) {
@@ -403,16 +422,22 @@ bool SubprocessSet::DoWork() {
     }
   }
 
+  if (jobserver_fd_ >= 0) {
+    FD_SET(jobserver_fd_, &set);
+    if (nfds < jobserver_fd_+1)
+      nfds = jobserver_fd_+1;
+  }
+
   interrupted_ = 0;
   s_sigchld_received = 0;
   int ret = pselect(nfds, (nfds > 0 ? &set : nullptr), 0, 0, 0, &old_mask_);
-  CheckConsoleProcessTerminated();
+  CheckConsoleProcessTerminated(&work_result);
   if (ret == -1) {
     if (errno != EINTR) {
       perror("ninja: pselect");
-      return false;
+      return work_result;
     }
-    return IsInterrupted();
+    return IsInterrupted() ? WorkResult::Interrupted : work_result;
   }
 
   // ppoll/pselect prioritizes file descriptor events over a signal delivery.
@@ -420,7 +445,7 @@ bool SubprocessSet::DoWork() {
   // possible.
   HandlePendingInterruption();
   if (IsInterrupted())
-    return true;
+    return WorkResult::Interrupted;
 
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ) {
@@ -430,13 +455,21 @@ bool SubprocessSet::DoWork() {
       if ((*i)->Done()) {
         finished_.push(*i);
         i = running_.erase(i);
+        work_result = WorkResult::SubprocFinished;
         continue;
       }
     }
     ++i;
   }
 
-  return IsInterrupted();
+  // Jobserver token is available. Make sure that we only react
+  // to jobserver tokens if no other work was done
+  const bool no_work = work_result == WorkResult::NoWork;
+  if (jobserver_fd_ >= 0 && FD_ISSET(jobserver_fd_, &set) && no_work) {
+    work_result = WorkResult::JobserverTokenAvailable;
+  }
+
+  return IsInterrupted() ? WorkResult::Interrupted : work_result;
 }
 #endif  // !defined(USE_PPOLL)
 

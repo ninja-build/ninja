@@ -97,7 +97,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 bool RealCommandRunner::WaitForCommand(Result* result) {
   Subprocess* subproc;
   while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork();
+    bool interrupted = subprocs_.DoWork() == SubprocessSet::WorkResult::Interrupted;
     if (interrupted) {
       result->status = ExitInterrupted;
       return false;
