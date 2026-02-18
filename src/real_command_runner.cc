@@ -24,6 +24,7 @@ struct RealCommandRunner : public CommandRunner {
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   bool WaitForCommand(Result* result) override;
+  bool WaitForCommandOrJobserverToken(Result* result, bool watch_jobserver) override;
   std::vector<Edge*> GetActiveEdges() override;
   void Abort() override;
 
@@ -95,25 +96,53 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
 }
 
 bool RealCommandRunner::WaitForCommand(Result* result) {
-  Subprocess* subproc;
-  while ((subproc = subprocs_.NextFinished()) == NULL) {
-    bool interrupted = subprocs_.DoWork() == SubprocessSet::WorkResult::Interrupted;
-    if (interrupted) {
-      result->status = ExitInterrupted;
-      return false;
-    }
+  return WaitForCommandOrJobserverToken(result, false);
+}
+
+bool RealCommandRunner::WaitForCommandOrJobserverToken(Result* result, bool watch_jobserver) {
+#ifndef _WIN32
+  // Jobserver mode is enabled and runner is watching for tokens.
+  if (jobserver_ && watch_jobserver) {
+    subprocs_.SetJobserverFD(jobserver_->GetJobserverFD());
+  } else {
+    subprocs_.SetJobserverFD(-1);
+  }
+#endif
+
+  SubprocessSet::WorkResult status = SubprocessSet::WorkResult::NoWork;
+  if (subprocs_.HasFinished()) {
+    status = SubprocessSet::WorkResult::SubprocFinished;
   }
 
-  result->status = subproc->Finish();
-  result->output = subproc->GetOutput();
+  // Wait for DoWork() to report activity
+  while (status == SubprocessSet::WorkResult::NoWork) {
+    status = subprocs_.DoWork();
+  }
 
-  std::map<const Subprocess*, Edge*>::iterator e =
-      subproc_to_edge_.find(subproc);
-  result->edge = e->second;
-  subproc_to_edge_.erase(e);
+  // Address interrupts first, then subprocesses finishing, then finally
+  // jobserver token availability
+  if (status == SubprocessSet::WorkResult::Interrupted) {
+    result->status = ExitFailure;
+    return false;
+  } else if (status == SubprocessSet::WorkResult::SubprocFinished) {
+    Subprocess* subproc = subprocs_.NextFinished();
+    result->status = subproc->Finish();
+    result->output = subproc->GetOutput();
 
-  delete subproc;
-  return true;
+    std::map<const Subprocess*, Edge*>::iterator e =
+        subproc_to_edge_.find(subproc);
+    result->edge = e->second;
+    subproc_to_edge_.erase(e);
+
+    delete subproc;
+    return true;
+  } else if (status == SubprocessSet::WorkResult::JobserverTokenAvailable) {
+    result->edge = nullptr;
+    result->status = ExitSuccess;
+    return true;
+  }
+
+  return false;
 }
 
 CommandRunner* CommandRunner::factory(const BuildConfig& config,

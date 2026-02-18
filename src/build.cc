@@ -764,12 +764,25 @@ ExitStatus Builder::Build(string* err) {
     // See if we can reap any finished commands.
     if (pending_commands) {
       CommandRunner::Result result;
-      if (!command_runner_->WaitForCommand(&result) ||
+
+      // Tell command runner that if jobserver tokens become available while
+      // waiting, it should notify us - but only if we have more work to do.
+      const bool watch_jobserver = plan_.work_ready();
+      if (!command_runner_->WaitForCommandOrJobserverToken(&result, watch_jobserver) ||
           result.status == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
         return result.status;
+      }
+
+      if (result.jobserver_token_available()) {
+        // Note: currently we only react to jobserver tokens availability
+        // on non-Windows platforms.
+
+        // Jobserver token is available; start main loop over to try to
+        // acquire jobserver token.
+        continue;
       }
 
       --pending_commands;
