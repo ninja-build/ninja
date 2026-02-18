@@ -53,6 +53,9 @@ struct Plan {
   /// Returns true if there's more work to be done.
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
 
+  /// Returns true if there's more work ready to be done.
+  bool work_ready() const { return !ready_.empty(); }
+
   /// Dumps the current state of the plan.
   void Dump() const;
 
@@ -158,9 +161,21 @@ struct CommandRunner {
     ExitStatus status = ExitFailure;
     std::string output;
     bool success() const { return status == ExitSuccess; }
+
+    // While waiting for a token, a jobserver token becomes available.
+    // In that case, edge is nullptr since no command has finished.
+    bool jobserver_token_available() const { return success() && !edge; }
   };
   /// Wait for a command to complete, or return false if interrupted.
   virtual bool WaitForCommand(Result* result) = 0;
+
+  /// Wait for a command to complete or a jobserver token to become available, or
+  /// return false if interrupted. Default implementation waits for a command to complete.
+  /// Overridden by RealCommandRunner to also wait for jobserver tokens.
+  virtual bool WaitForCommandOrJobserverToken(Result* result, bool watch_jobserver) {
+    (void)watch_jobserver;
+    return WaitForCommand(result);
+  }
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
