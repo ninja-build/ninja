@@ -51,7 +51,7 @@ struct DryRunCommandRunner : public CommandRunner {
   // Overridden from CommandRunner:
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
-  bool WaitForCommand(Result* result) override;
+  BuildResult WaitForCommand() override;
 
  private:
   queue<Edge*> finished_;
@@ -66,14 +66,15 @@ bool DryRunCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool DryRunCommandRunner::WaitForCommand(Result* result) {
-   if (finished_.empty())
-     return false;
+BuildResult DryRunCommandRunner::WaitForCommand() {
+  if (finished_.empty())
+    return BuildResult::Finished{};
 
-   result->status = ExitSuccess;
-   result->edge = finished_.front();
-   finished_.pop();
-   return true;
+  auto status = ExitSuccess;
+  auto edge = finished_.front();
+  finished_.pop();
+
+  return BuildResult::CommandCompleted{ edge, status };
 }
 
 }  // namespace
@@ -763,46 +764,55 @@ ExitStatus Builder::Build(string* err) {
 
     // See if we can reap any finished commands.
     if (pending_commands) {
-      CommandRunner::Result result;
-
       // Tell command runner that if jobserver tokens become available while
       // waiting, it should notify us - but only if we have more work to do.
       const bool watch_jobserver = plan_.work_ready();
-      if (!command_runner_->WaitForCommandOrJobserverToken(&result, watch_jobserver) ||
-          result.status == ExitInterrupted) {
+      BuildResult result =
+          command_runner_->WaitForCommandOrJobserverToken(watch_jobserver);
+
+      if (result.finished()) {
+        // Shouldn't be possible, since we assumed that there
+        // are still pending commands
+        Fatal("internal error");
+      }
+
+      if (result.interrupted() || result.exit_status() == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
-        return result.status;
-      }
+        return result.exit_status();
+      } else if (result.command_completed()) {
+        // We know that the result is from a completed command
+        BuildResult::CommandCompleted& cc = result.GetCommandCompleted();
+        --pending_commands;
+        bool command_finished = FinishCommand(cc, err);
+        SetFailureCode(result.exit_status());
+        if (!command_finished) {
+          Cleanup();
+          status_->BuildFinished();
+          if (result.success()) {
+            // If the command pretend succeeded, the status wasn't set to a
+            // proper exit code, so we set it to ExitFailure.
+            cc.status = ExitFailure;
+            SetFailureCode(result.exit_status());
+          }
+          return result.exit_status();
+        }
 
-      if (result.jobserver_token_available()) {
+        if (!result.success()) {
+          if (failures_allowed)
+            failures_allowed--;
+        }
+      } else if (result.jobserver_token_available()) {
         // Note: currently we only react to jobserver tokens availability
         // on non-Windows platforms.
 
         // Jobserver token is available; start main loop over to try to
         // acquire jobserver token.
         continue;
-      }
-
-      --pending_commands;
-      bool command_finished = FinishCommand(&result, err);
-      SetFailureCode(result.status);
-      if (!command_finished) {
-        Cleanup();
-        status_->BuildFinished();
-        if (result.success()) {
-          // If the command pretend succeeded, the status wasn't set to a proper exit code,
-          // so we set it to ExitFailure.
-          result.status = ExitFailure;
-          SetFailureCode(result.status);
-        }
-        return result.status;
-      }
-
-      if (!result.success()) {
-        if (failures_allowed)
-          failures_allowed--;
+      } else {
+        // Should be unreachable
+        Fatal("internal bug: unexpected BuildResult state");
       }
 
       // We made some progress; start the main loop over.
@@ -881,10 +891,11 @@ bool Builder::StartEdge(Edge* edge, string* err) {
   return true;
 }
 
-bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
+bool Builder::FinishCommand(BuildResult::CommandCompleted& result,
+                            string* err) {
   METRIC_RECORD("FinishCommand");
 
-  Edge* edge = result->edge;
+  Edge* edge = result.edge;
 
   // First try to extract dependencies from the result, if any.
   // This must happen first as it filters the command output (we want
@@ -898,11 +909,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     string extract_err;
     if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
                      &extract_err) &&
-        result->success()) {
-      if (!result->output.empty())
-        result->output.append("\n");
-      result->output.append(extract_err);
-      result->status = ExitFailure;
+        result.success()) {
+      if (!result.output.empty())
+        result.output.append("\n");
+      result.output.append(extract_err);
+      result.status = ExitFailure;
     }
   }
 
@@ -913,10 +924,10 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   running_edges_.erase(it);
 
   status_->BuildEdgeFinished(edge, start_time_millis, end_time_millis,
-                             result->status, result->output);
+                             result.status, result.output);
 
   // The rest of this function only applies to successful commands.
-  if (!result->success()) {
+  if (!result.success()) {
     return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
   }
 
@@ -989,17 +1000,15 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   return true;
 }
 
-bool Builder::ExtractDeps(CommandRunner::Result* result,
-                          const string& deps_type,
-                          const string& deps_prefix,
-                          vector<Node*>* deps_nodes,
-                          string* err) {
+bool Builder::ExtractDeps(BuildResult::CommandCompleted& result,
+                          const string& deps_type, const string& deps_prefix,
+                          vector<Node*>* deps_nodes, string* err) {
   if (deps_type == "msvc") {
     CLParser parser;
     string output;
-    if (!parser.Parse(result->output, deps_prefix, &output, err))
+    if (!parser.Parse(result.output, deps_prefix, &output, err))
       return false;
-    result->output = output;
+    result.output = output;
     for (set<string>::iterator i = parser.includes_.begin();
          i != parser.includes_.end(); ++i) {
       // ~0 is assuming that with MSVC-parsed headers, it's ok to always make
@@ -1009,7 +1018,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
   } else if (deps_type == "gcc") {
-    string depfile = result->edge->GetUnescapedDepfile();
+    string depfile = result.edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = string("edge with deps=gcc but no depfile makes no sense");
       return false;

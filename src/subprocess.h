@@ -102,11 +102,16 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  // The result of DoWork().
+  // The result of DoWork(), in increasing priority order. When several events happen at the same time, the highest value will be reported:
+  // NoWork: If there is no work to do, or if ppoll()/pselect() was interrupted by a spurious signal or returned an error.
+  // JobserverTokenAvailable: Indicates that a new job slot token is available from the jobserver queue.
+  //   This can only be returned if SetJobserverFD() has been called with a valid file descriptor.
+  // SubprocFinished: Indicates that at least one subprocess completed since the last call.
+  // Interrupted: Indicates that a user interrupt (SIGINT, SIGHUP or SIGTERM) has been detected.
   enum class WorkResult {
     NoWork,
-    SubprocFinished,
     JobserverTokenAvailable,
+    SubprocFinished,
     Interrupted
   };
 
