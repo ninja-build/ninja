@@ -1114,19 +1114,24 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
 
   optind = 1;
   int opt;
-  while ((opt = getopt(argc, argv, const_cast<char*>("h"))) != -1) {
+  const option kLongOptions[] = { { "builddir", required_argument, nullptr,
+                                    'b' },
+                                  { "help", no_argument, nullptr, 'h' },
+                                  { nullptr, 0, nullptr, 0 } };
+  while ((opt = getopt_long(argc, argv, const_cast<char*>("h"), kLongOptions,
+                            nullptr)) != -1) {
     switch (opt) {
+    case 'b':
+      build_dir_ = optarg;
+      break;
     case 'h':
     default:
-      printf("usage: ninja -t restat [outputs]\n");
+      printf("usage: ninja -t restat [--builddir=DIR] [outputs]\n");
       return 1;
     }
   }
   argv += optind;
   argc -= optind;
-
-  if (!EnsureBuildDirExists())
-    return 1;
 
   string log_path = ".ninja_log";
   if (!build_dir_.empty())
