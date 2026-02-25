@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <charconv>
 #include <memory>
 #include <vector>
 
@@ -117,9 +118,12 @@ bool ManifestParser::ParsePool(string* err) {
 
     if (key == "depth") {
       string depth_string = value.Evaluate(env_);
-      depth = atoi(depth_string.c_str());
-      if (depth < 0)
+      const char* begin = depth_string.data();
+      const char* end = begin + depth_string.size();
+      auto result = std::from_chars(begin, end, depth);
+      if (result.ec != std::errc() || result.ptr != end || depth < 0) {
         return lexer_.Error("invalid pool depth", err);
+      }
     } else {
       return lexer_.Error("unexpected variable '" + key + "'", err);
     }

@@ -784,6 +784,17 @@ TEST_F(ParserTest, Errors) {
               "            ^ near here"
               , err);
   }
+  {
+    State local_state;
+    ManifestParser parser(&local_state, NULL);
+    string err;
+    EXPECT_FALSE(parser.ParseTest("pool foo\n"
+                                  "  depth = foo\n", &err));
+    EXPECT_EQ("input:2: invalid pool depth\n"
+              "  depth = foo\n"
+              "             ^ near here"
+              , err);
+  }
 
   {
     State local_state;
