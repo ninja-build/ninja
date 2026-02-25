@@ -56,10 +56,10 @@ TEST_F(CleanTest, CleanAll) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in2"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -88,10 +88,10 @@ TEST_F(CleanTest, CleanAllDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(std::nullopt, fs_.Stat("in1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("in2"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   EXPECT_EQ(0, cleaner.CleanAll());
@@ -119,10 +119,10 @@ TEST_F(CleanTest, CleanTarget) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("in2"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -151,10 +151,10 @@ TEST_F(CleanTest, CleanTargetDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(std::nullopt, fs_.Stat("in1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("in2"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanTarget("out1"));
@@ -184,10 +184,10 @@ TEST_F(CleanTest, CleanRule) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in2"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -218,10 +218,10 @@ TEST_F(CleanTest, CleanRuleDryRun) {
 
   // Check they are not removed.
   string err;
-  EXPECT_LT(0, fs_.Stat("in1", &err));
-  EXPECT_LT(0, fs_.Stat("out1", &err));
-  EXPECT_LT(0, fs_.Stat("in2", &err));
-  EXPECT_LT(0, fs_.Stat("out2", &err));
+  EXPECT_LT(std::nullopt, fs_.Stat("in1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out1"));
+  EXPECT_LT(std::nullopt, fs_.Stat("in2"));
+  EXPECT_LT(std::nullopt, fs_.Stat("out2"));
   fs_.files_removed_.clear();
 
   ASSERT_EQ(0, cleaner.CleanRule("cat_e"));
@@ -319,8 +319,8 @@ TEST_F(CleanTest, CleanDyndep) {
   EXPECT_EQ(2u, fs_.files_removed_.size());
 
   string err;
-  EXPECT_EQ(0, fs_.Stat("out", &err));
-  EXPECT_EQ(0, fs_.Stat("out.imp", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out.imp"));
 }
 
 TEST_F(CleanTest, CleanDyndepMissing) {
@@ -341,8 +341,8 @@ TEST_F(CleanTest, CleanDyndepMissing) {
   EXPECT_EQ(1u, fs_.files_removed_.size());
 
   string err;
-  EXPECT_EQ(0, fs_.Stat("out", &err));
-  EXPECT_EQ(1, fs_.Stat("out.imp", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out"));
+  EXPECT_EQ(1, fs_.Stat("out.imp"));
 }
 
 TEST_F(CleanTest, CleanRspFile) {
@@ -395,12 +395,12 @@ TEST_F(CleanTest, CleanRsp) {
 
   // Check they are removed.
   string err;
-  EXPECT_EQ(0, fs_.Stat("in1", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_EQ(0, fs_.Stat("in2", &err));
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
-  EXPECT_EQ(0, fs_.Stat("in2.rsp", &err));
-  EXPECT_EQ(0, fs_.Stat("out2.rsp", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in2"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out2"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in2.rsp"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out2.rsp"));
 }
 
 TEST_F(CleanTest, CleanFailure) {
@@ -426,7 +426,7 @@ TEST_F(CleanTest, CleanPhony) {
   Cleaner cleaner(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner.CleanAll());
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_LT(std::nullopt, fs_.Stat("phony"));
 
   fs_.Create("t1", "");
   fs_.Create("t2", "");
@@ -434,7 +434,7 @@ TEST_F(CleanTest, CleanPhony) {
   // Check that CleanTarget does not remove "phony".
   EXPECT_EQ(0, cleaner.CleanTarget("phony"));
   EXPECT_EQ(2, cleaner.cleaned_files_count());
-  EXPECT_LT(0, fs_.Stat("phony", &err));
+  EXPECT_LT(std::nullopt, fs_.Stat("phony"));
 }
 
 TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
@@ -460,10 +460,10 @@ TEST_F(CleanTest, CleanDepFileAndRspFileWithSpaces) {
   EXPECT_EQ(4u, fs_.files_removed_.size());
 
   string err;
-  EXPECT_EQ(0, fs_.Stat("out 1", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2", &err));
-  EXPECT_EQ(0, fs_.Stat("out 1.d", &err));
-  EXPECT_EQ(0, fs_.Stat("out 2.rsp", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out 1"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out 2"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out 1.d"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out 2.rsp"));
 }
 
 struct CleanDeadTest : public CleanTest, public BuildLogUser{
@@ -497,8 +497,8 @@ TEST_F(CleanDeadTest, CleanDead) {
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state.edges_[0], 15, 18);
-  log1.RecordCommand(state.edges_[1], 20, 25);
+  log1.RecordCommand(state.edges_[0], 15, 18, 12345);
+  log1.RecordCommand(state.edges_[1], 20, 25, 12345);
   log1.Close();
 
   BuildLog log2;
@@ -513,9 +513,9 @@ TEST_F(CleanDeadTest, CleanDead) {
   EXPECT_EQ(0, cleaner1.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner1.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_NE(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
 
   // Then use the manifest that does not build out1 anymore.
   Cleaner cleaner2(&state_, config_, &fs_);
@@ -523,18 +523,18 @@ TEST_F(CleanDeadTest, CleanDead) {
   EXPECT_EQ(1, cleaner2.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
   EXPECT_EQ("out1", *(fs_.files_removed_.begin()));
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
 
   // Nothing to do now.
   EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner2.cleaned_files_count());
   EXPECT_EQ(1u, fs_.files_removed_.size());
   EXPECT_EQ("out1", *(fs_.files_removed_.begin()));
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_EQ(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
   log2.Close();
 }
 
@@ -560,8 +560,8 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state.edges_[0], 15, 18);
-  log1.RecordCommand(state.edges_[1], 20, 25);
+  log1.RecordCommand(state.edges_[0], 15, 18, 12345);
+  log1.RecordCommand(state.edges_[1], 20, 25, 12345);
   log1.Close();
 
   BuildLog log2;
@@ -576,26 +576,26 @@ TEST_F(CleanDeadTest, CleanDeadPreservesInputs) {
   EXPECT_EQ(0, cleaner1.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner1.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_NE(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
 
   // Then use the manifest that does not build out1 anymore.
   Cleaner cleaner2(&state_, config_, &fs_);
   EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner2.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_NE(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
 
   // Nothing to do now.
   EXPECT_EQ(0, cleaner2.CleanDead(log2.entries()));
   EXPECT_EQ(0, cleaner2.cleaned_files_count());
   EXPECT_EQ(0u, fs_.files_removed_.size());
-  EXPECT_NE(0, fs_.Stat("in", &err));
-  EXPECT_NE(0, fs_.Stat("out1", &err));
-  EXPECT_NE(0, fs_.Stat("out2", &err));
+  EXPECT_NE(std::nullopt, fs_.Stat("in"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out1"));
+  EXPECT_NE(std::nullopt, fs_.Stat("out2"));
   log2.Close();
 }
 }  // anonymous namespace

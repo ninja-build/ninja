@@ -89,6 +89,7 @@ bool BuildLog::OpenForWrite(const std::string& path, const BuildLogUser& user,
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
+  assert(mtime > 0);
   std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
   for (std::vector<Node*>::iterator out = edge->outputs_.begin();
@@ -257,7 +258,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp mtime = 0;
+    std::optional<TimeStamp> mtime;
 
     start_time = atoi(start);
     start = end + 1;
@@ -274,6 +275,9 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
       continue;
     *end = 0;
     mtime = strtoll(start, NULL, 10);
+    if (mtime == 0) {
+      mtime = std::nullopt;
+    }
     start = end + 1;
 
     end = static_cast<char*>(memchr(start, kFieldSeparator, line_end - start));
@@ -333,7 +337,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
   return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.mtime,
+          entry.start_time, entry.end_time, entry.mtime.value_or(0),
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
@@ -405,12 +409,7 @@ bool BuildLog::Restat(const StringPiece path,
       }
     }
     if (!skip) {
-      const TimeStamp mtime = disk_interface.Stat(pair.second->output, err);
-      if (mtime == -1) {
-        fclose(f);
-        return false;
-      }
-      pair.second->mtime = mtime;
+      pair.second->mtime = disk_interface.Stat(pair.second->output).value();
     }
 
     if (!WriteEntry(f, *pair.second)) {

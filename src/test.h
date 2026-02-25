@@ -50,6 +50,7 @@ void VerifyGraph(const State& state);
 /// so it can be used by tests to verify disk access patterns.
 struct VirtualFileSystem : public DiskInterface {
   VirtualFileSystem() : now_(1) {}
+  ~VirtualFileSystem() override;
 
   /// "Create" a file with contents.
   void Create(const std::string& path, const std::string& contents);
@@ -61,7 +62,7 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  std::optional<TimeStamp> StatImpl(const std::string& path) const override;
   bool WriteFile(const std::string& path, const std::string& contents,
                  bool /*crlf_on_windows*/) override;
   bool MakeDir(const std::string& path) override;

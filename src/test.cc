@@ -33,6 +33,7 @@
 #include "graph.h"
 #include "manifest_parser.h"
 #include "util.h"
+#include "hash_cache.h"
 
 #ifdef _AIX
 extern "C" {
@@ -142,6 +143,8 @@ void VerifyGraph(const State& state) {
   EXPECT_EQ(node_edge_set, edge_set);
 }
 
+VirtualFileSystem::~VirtualFileSystem() = default;
+
 void VirtualFileSystem::Create(const string& path,
                                const string& contents) {
   files_[path].mtime = now_;
@@ -149,17 +152,16 @@ void VirtualFileSystem::Create(const string& path,
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const string& path, string* err) const {
+std::optional<TimeStamp> VirtualFileSystem::StatImpl(const string& path) const {
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
     if (!i->second.stat_error.empty()) {
-      *err = i->second.stat_error;
-      return -1;
+      throw std::runtime_error(i->second.stat_error);
     }
     assert(i->second.mtime > 0);
     return i->second.mtime;
   }
-  return 0;
+  return std::nullopt;
 }
 
 bool VirtualFileSystem::WriteFile(const string& path, const string& contents,

@@ -16,9 +16,13 @@
 #define NINJA_GRAPH_H_
 
 #include <algorithm>
+#include <cassert>
+#include <optional>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "dyndep.h"
@@ -43,40 +47,34 @@ struct Node {
   Node(const std::string& path, uint64_t slash_bits)
       : path_(path), slash_bits_(slash_bits) {}
 
-  /// Return false on error.
-  bool Stat(DiskInterface* disk_interface, std::string* err);
+  /// Throws std::runtime_error on error.
+  void Stat(DiskInterface* disk_interface);
 
   /// If the file doesn't exist, set the mtime_ from its dependencies
-  void UpdatePhonyMtime(TimeStamp mtime);
+  void UpdatePhonyMtime(const Node* most_recent_input);
 
-  /// Return false on error.
-  bool StatIfNecessary(DiskInterface* disk_interface, std::string* err) {
-    if (status_known())
-      return true;
-    return Stat(disk_interface, err);
+  /// Throws std::runtime_error on error.
+  void StatIfNecessary(DiskInterface* disk_interface) {
+    if (!status_known()) {
+      Stat(disk_interface);
+    }
   }
 
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
-    mtime_ = -1;
-    exists_ = ExistenceStatusUnknown;
+    status_ = Unknown{};
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
-  void MarkMissing() {
-    if (mtime_ == -1) {
-      mtime_ = 0;
-    }
-    exists_ = ExistenceStatusMissing;
-  }
+  void MarkMissing();
 
   bool exists() const {
-    return exists_ == ExistenceStatusExists;
+    return std::holds_alternative<Exists>(status_);
   }
 
   bool status_known() const {
-    return exists_ != ExistenceStatusUnknown;
+    return !std::holds_alternative<Unknown>(status_);
   }
 
   const std::string& path() const { return path_; }
@@ -88,7 +86,36 @@ struct Node {
                                          uint64_t slash_bits);
   uint64_t slash_bits() const { return slash_bits_; }
 
-  TimeStamp mtime() const { return mtime_; }
+  TimeStamp mtime() const {
+    if (auto* exists = std::get_if<Exists>(&status_)) {
+      return exists->mtime;
+    }
+    throw std::runtime_error(std::holds_alternative<Unknown>(status_)
+                                 ? "Node status unknown"
+                                 : "Node does not exist");
+  }
+
+  TimeStamp most_recent_input_mtime() const {
+    if (auto* missing = std::get_if<Missing>(&status_)) {
+      if (missing->latest_mtime_of_deps) {
+        return *missing->latest_mtime_of_deps;
+      }
+      throw std::runtime_error(
+          "Node missing and latest_mtime_of_deps not set");
+    }
+    assert(status_known());
+    throw std::runtime_error("Node exists, so most_recent_input_mtime not applicable");
+  }
+
+  bool NewerThan(TimeStamp other_mtime) const;
+  bool OlderThan(const Node* other) const;
+  std::string mtime_as_string() const {
+    assert(status_known());
+    if (auto* exists = std::get_if<Exists>(&status_)) {
+      return std::to_string(exists->mtime);
+    }
+    return "<missing>";
+  }
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
@@ -125,21 +152,12 @@ private:
   /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
   uint64_t slash_bits_ = 0;
 
-  /// Possible values of mtime_:
-  ///   -1: file hasn't been examined
-  ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime, or the latest mtime of its dependencies if it doesn't exist
-  TimeStamp mtime_ = -1;
-
-  enum ExistenceStatus : char {
-    /// The file hasn't been examined.
-    ExistenceStatusUnknown,
-    /// The file doesn't exist. mtime_ will be the latest mtime of its dependencies.
-    ExistenceStatusMissing,
-    /// The path is an actual file. mtime_ will be the file's mtime.
-    ExistenceStatusExists
+  struct Unknown {};
+  struct Missing {
+    std::optional<TimeStamp> latest_mtime_of_deps;
   };
-  ExistenceStatus exists_ = ExistenceStatusUnknown;
+  struct Exists { TimeStamp mtime; };
+  std::variant<Unknown, Missing, Exists> status_ = Unknown{};
 
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
