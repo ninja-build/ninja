@@ -287,12 +287,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
     vector<Node*>::iterator
         begin = (*oe)->inputs_.begin(),
         end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
-#if __cplusplus < 201703L
-#define MEM_FN mem_fun
-#else
-#define MEM_FN mem_fn  // mem_fun was removed in C++17.
-#endif
-    if (find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
+    if (find_if(begin, end, mem_fn(&Node::dirty)) == end) {
       // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator i = begin; i != end; ++i) {

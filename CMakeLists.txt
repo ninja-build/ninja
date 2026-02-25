@@ -191,8 +191,8 @@ else()
 	endif()
 endif()
 
-target_compile_features(libninja PUBLIC cxx_std_14)
-target_compile_features(libninja-re2c PUBLIC cxx_std_14)
+target_compile_features(libninja PUBLIC cxx_std_17)
+target_compile_features(libninja-re2c PUBLIC cxx_std_17)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
@@ -262,8 +262,8 @@ if(BUILD_TESTING)
     include(FetchContent)
     FetchContent_Declare(
       googletest
-      # GoogleTest v1.17.0 requires at least C++17 and cmake 3.16 which are above ninja project minimum requirements.
-      # GoogleTest v1.16.0 requires at least C++14 and cmake 3.13 which are within the ninja project minimum requirements.
+      # GoogleTest v1.17.0 requires at least cmake 3.16, v1.16.0 requires at least cmake 3.13 which
+	  # is within the ninja project minimum requirement.
       URL https://github.com/google/googletest/releases/download/v1.16.0/googletest-1.16.0.tar.gz
       URL_HASH SHA256=78c676fc63881529bf97bf9d45948d905a66833fbfa5318ea2cd7478cb98f399
     )
