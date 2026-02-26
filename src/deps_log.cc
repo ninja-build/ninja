@@ -302,7 +302,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
   return LOAD_SUCCESS;
 }
 
-DepsLog::Deps* DepsLog::GetDeps(Node* node) {
+DepsLog::Deps* DepsLog::GetDeps(const Node* node) const {
   // Abort if the node has no id (never referenced in the deps) or if
   // there's no deps recorded for the node.
   if (node->id() < 0 || node->id() >= (int)deps_.size())

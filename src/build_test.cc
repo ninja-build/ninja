@@ -672,6 +672,17 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content, false);
+  } else if (edge->rule().name() == "cp-deps") {
+    // like copy, additionally write to file d.d
+    assert(!edge->inputs_.empty());
+    assert(edge->outputs_.size() >= 1);
+    string content;
+    string err;
+    if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
+        DiskInterface::Okay) {
+      fs_->WriteFile(edge->outputs_[0]->path(), content, false);
+      fs_->Create("d.d", content);
+    }
   } else if (edge->rule().name() == "touch-implicit-dep-out") {
     string dep = edge->GetBinding("test_dependency");
     fs_->Tick();
@@ -1027,6 +1038,7 @@ TEST_F(BuildTest, DepFileMissing) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build fo$ o.o: cc foo.c\n"));
+  fs_.Create("fo o.o", "");
   fs_.Create("foo.c", "");
 
   EXPECT_TRUE(builder_.AddTarget("fo o.o", &err));
@@ -1044,6 +1056,7 @@ TEST_F(BuildTest, DepFileOK) {
   Edge* edge = state_.edges_.back();
 
   fs_.Create("foo.c", "");
+  fs_.Create("foo.o", "");
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -1077,6 +1090,7 @@ TEST_F(BuildTest, DepFileParseError) {
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build foo.o: cc foo.c\n"));
   fs_.Create("foo.c", "");
+  fs_.Create("foo.o", "");
   fs_.Create("foo.o.d", "randomtext\n");
   EXPECT_FALSE(builder_.AddTarget("foo.o", &err));
   EXPECT_EQ("foo.o.d: expected ':' in depfile", err);
@@ -1113,6 +1127,7 @@ TEST_F(BuildTest, OrderOnlyDeps) {
   Edge* edge = state_.edges_.back();
 
   fs_.Create("foo.c", "");
+  fs_.Create("foo.o", "");
   fs_.Create("otherfile", "");
   fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -1231,6 +1246,7 @@ TEST_F(BuildTest, DepFileCanonicalize) {
 "build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
 
   fs_.Create("x/y/z/foo.c", "");
+  fs_.Create("gen/stuff/things/foo.o", "");
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   // Note, different slashes from manifest.
   fs_.Create("gen/stuff\\things/foo.o.d",
@@ -4264,6 +4280,8 @@ TEST_F(BuildTest, ValidationDependsOnOutput) {
   EXPECT_EQ("cat in2 > validate", command_runner_.commands_ran_[0]);
 }
 
+// Note: The graph in this unittest contains an issue
+// in terms of "ninja -t missingdeps"
 TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
   const char* manifest =
       "build out: cat in |@ validate\n"
@@ -4313,6 +4331,42 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
 
   {
     fs_.Create("in2", "");
+    fs_.Create("in", "");
+
+    State state;
+    ASSERT_NO_FATAL_FAILURE(AddCatRule(&state));
+    ASSERT_NO_FATAL_FAILURE(AssertParse(&state, manifest));
+
+    DepsLog deps_log;
+    ASSERT_TRUE(deps_log.Load(deps_log_file_.path(), &state, &err));
+    ASSERT_TRUE(deps_log.OpenForWrite(deps_log_file_.path(), &err));
+    ASSERT_EQ("", err);
+
+    Builder builder(&state, config_, NULL, &deps_log, &fs_, &status_, 0);
+    SafeRelease protect(&builder);
+    builder.command_runner_.reset(&command_runner_);
+
+    EXPECT_TRUE(builder.AddTarget("out2", &err));
+    ASSERT_EQ("", err);
+
+    EXPECT_EQ(builder.Build(&err), ExitSuccess);
+    EXPECT_EQ("", err);
+
+    // The depslog is loaded as out2 is not dirty due to the manifest,
+    // it is dirty only based on the depslog
+    // The out and validate actions should have been run as well as out2.
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(3));
+    // out has to run first, as both out2 and validate depend on it.
+    EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
+
+    deps_log.Close();
+  }
+
+  fs_.Tick();
+  command_runner_.commands_ran_.clear();
+
+  {
+    fs_.Create("in2", "");
     fs_.Create("in3", "");
 
     State state;
@@ -4334,10 +4388,10 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ(builder.Build(&err), ExitSuccess);
     EXPECT_EQ("", err);
 
-    // The out and validate actions should have been run as well as out2.
-    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(3));
-    // out has to run first, as both out2 and validate depend on it.
-    EXPECT_EQ("cat in > out", command_runner_.commands_ran_[0]);
+    // The depslog is not loaded as out2 is dirty due to manifest input in3
+    // The validate will not run
+    ASSERT_EQ(command_runner_.commands_ran_.size(), size_t(1));
+    EXPECT_EQ("cat in3 > out2", command_runner_.commands_ran_[0]);
 
     deps_log.Close();
   }
@@ -4404,4 +4458,38 @@ TEST_F(BuildTest, ValidationWithCircularDependency) {
   string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dependency cycle: validate -> validate_in -> validate", err);
+}
+
+TEST_F(BuildTest, CycleWithOldDepfile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule cp\n"
+    "  command = cp $in $out\n"
+    "rule cp-deps\n"
+    "  command = cp $in $out\n"
+    "build b: cp-deps a\n"
+    "  depfile = d.d\n"
+    "build c: cp b\n"
+    "build d: cp c\n"
+    ));
+
+  fs_.Create("a", "b: X");    // depfile content to be generated in this run
+  fs_.Create("d.d", "b: d");  // depfile from last run, cycle "d -> c -> b -> d"
+  fs_.Create("X", "");
+
+  string err;
+  ASSERT_TRUE(builder_.AddTarget("d", &err)) << " Error: " << err;
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  err.clear();
+
+  ASSERT_EQ(3u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cp a b", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("cp b c", command_runner_.commands_ran_[1]);
+  EXPECT_EQ("cp c d", command_runner_.commands_ran_[2]);
+  std::string content;
+  fs_.ReadFile("d.d", &content, &err);
+  EXPECT_EQ("b: X", content);
+  EXPECT_EQ("", err);
 }
