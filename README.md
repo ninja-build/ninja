@@ -38,10 +38,10 @@ If you have a GoogleTest source directory, you can build the tests
 by passing its path with `--gtest-source-dir=PATH` option, or the
 `GTEST_SOURCE_DIR` environment variable, e.g.:
 
-```
+```sh
 ./configure.py --bootstrap --gtest-source-dir=/path/to/googletest
 ./ninja all     # build ninja_test and other auxiliary binaries
-./ninja_test`   # run the unit-test suite.
+./ninja_test    # run the unit-test suite.
 ```
 
 Use the CMake build below if you want to use a preinstalled binary
@@ -49,7 +49,8 @@ version of the library.
 
 ### CMake
 
-To build the ninja binary without building the unit tests, disable test building by setting `BUILD_TESTING` to `OFF`:
+To build the ninja binary without building the unit tests, disable test building
+by setting `BUILD_TESTING` to `OFF`:
 
 ```
 cmake -Bbuild-cmake -DBUILD_TESTING=OFF
@@ -59,10 +60,11 @@ cmake --build build-cmake
 The `ninja` binary will now be inside the `build-cmake` directory (you can
 choose any other name you like).
 
-To run the unit tests, omit the `-DBUILD_TESTING=OFF` option, and after building, run:
+To run the unit tests, omit the `-DBUILD_TESTING=OFF` option, and after
+building, run:
 
 ```
-./build-cmake/ninja_test
+build-cmake/ninja_test
 ```
 
 ## Generating documentation
@@ -78,9 +80,10 @@ ninja manual doc/manual.html
 
 Which will generate `doc/manual.html`.
 
-To generate the PDF version of the manual, you must have `dblatext` in your PATH then do:
+To generate the PDF version of the manual, you must have `dblatext` in your PATH
+then do:
 
-```
+```sh
 ./configure.py    # only if you didn't do it previously.
 ninja doc/manual.pdf
 ```
@@ -90,11 +93,11 @@ Which will generate `doc/manual.pdf`.
 ### Doxygen documentation
 
 If you have `doxygen` installed, you can build documentation extracted from C++
-declarations and comments to help you navigate the code. Note that Ninja is a standalone
-executable, not a library, so there is no public API, all details exposed here are
-internal.
+declarations and comments to help you navigate the code. Note that Ninja is a
+standalone executable, not a library, so there is no public API, all details
+exposed here are internal.
 
-```
+```sh
 ./configure.py   # if needed
 ninja doxygen
 ```
