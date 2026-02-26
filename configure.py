@@ -332,6 +332,7 @@ if platform.is_msvc():
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
               '/utf-8',
+              '/std:c++17',
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
