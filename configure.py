@@ -383,7 +383,7 @@ else:
             stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
         if proc.wait() == 0:
             cflags += ['-fdiagnostics-color']
-    except:
+    except Exception:
         pass
     if platform.is_mingw():
         cflags += ['-D_WIN32_WINNT=0x0601', '-D__USE_MINGW_ANSI_STDIO=1']

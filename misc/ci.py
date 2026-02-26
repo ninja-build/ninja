@@ -19,7 +19,7 @@ def error(path: str, msg: str) -> None:
 try:
 	import git
 	repo = git.Repo('.')
-except:
+except Exception:
 	repo = None
 
 for root, directory, filenames in os.walk('.'):
