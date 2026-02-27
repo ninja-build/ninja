@@ -83,6 +83,9 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+
+  /// Set build to idle (low) priority
+  bool low_priority;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -231,9 +234,10 @@ void Usage(const BuildConfig& config) {
 "if targets are unspecified, builds the 'default' target (see manual).\n"
 "\n"
 "options:\n"
-"  --version      print ninja version (\"%s\")\n"
-"  -v, --verbose  show all command lines while building\n"
-"  --quiet        don't show progress status, just command output\n"
+"  --version       print ninja version (\"%s\")\n"
+"  -v, --verbose   show all command lines while building\n"
+"  --quiet         don't show progress status, just command output\n"
+"  --idle-priority run jobs with idle (low) priority to keep system responsive\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -1705,12 +1709,13 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_LOW_PRIO = 3 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
+    { "low-priority", no_argument, NULL, OPT_LOW_PRIO },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1725,6 +1730,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case 'f':
         options->input_file = optarg;
+        break;
+      case OPT_LOW_PRIO:
+        options->low_priority = true;
         break;
       case 'j': {
         char* end;
@@ -1814,6 +1822,8 @@ NORETURN void real_main(int argc, char** argv) {
     exit(exit_code);
 
   Status* status = Status::factory(config);
+  bool show_info =
+      (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE);
 
   if (options.working_dir) {
     // The formatting of this string, complete with funny quotes, is
@@ -1821,10 +1831,18 @@ NORETURN void real_main(int argc, char** argv) {
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this string showing up.
-    if (!options.tool && config.verbosity != BuildConfig::NO_STATUS_UPDATE)
+    if (show_info)
       status->Info("Entering directory `%s'", options.working_dir);
     if (chdir(options.working_dir) < 0) {
       Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
+    }
+  }
+
+  if (options.low_priority) {
+    if (show_info)
+      status->Info("Set low priority");
+    if (SetLowPriority() < 0) {
+      Fatal("Failed to set priority");
     }
   }
 
