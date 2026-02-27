@@ -114,11 +114,9 @@ xxxxxxxxxxxxxxxxxxxxx";
 #endif
 
 TEST_F(DiskInterfaceTest, StatSymlink) {
-  string err;
-
   ASSERT_TRUE(Touch("file"));
-  auto fileTimeStamp = disk_.Stat("file", &err);
-  EXPECT_EQ("", err);
+  auto fileTimeStamp = disk_.Stat("file");
+  EXPECT_TRUE(fileTimeStamp.has_value());
 
 #ifdef _WIN32
   // Create a symlink to file
@@ -130,7 +128,7 @@ TEST_F(DiskInterfaceTest, StatSymlink) {
 
   // Assert that stating the symlink will resolve the timestamp for the
   // linked file.
-  auto symlinkTimeStamp = disk_.Stat("fileSymlink", &err);
+  auto symlinkTimeStamp = disk_.Stat("fileSymlink");
   ASSERT_EQ(fileTimeStamp, symlinkTimeStamp);
 }
 
