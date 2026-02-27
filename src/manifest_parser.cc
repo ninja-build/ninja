@@ -343,7 +343,8 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    if (!state_->AddOut(edge, path, slash_bits, err)) {
+    Node *node = state_->GetNode(std::move(path), slash_bits);
+    if (!state_->AddOut(edge, node, err)) {
       lexer_.Error(std::string(*err), err);
       return false;
     }
@@ -365,7 +366,8 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    state_->AddIn(edge, path, slash_bits);
+    Node *node = state_->GetNode(std::move(path), slash_bits);
+    state_->AddIn(edge, node);
   }
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
@@ -378,7 +380,8 @@ bool ManifestParser::ParseEdge(string* err) {
       return lexer_.Error("empty path", err);
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    state_->AddValidation(edge, path, slash_bits);
+    Node *node = state_->GetNode(std::move(path), slash_bits);
+    state_->AddValidation(edge, node);
   }
 
   if (options_.phony_cycle_action_ == kPhonyCycleActionWarn &&
