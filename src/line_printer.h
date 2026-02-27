@@ -25,6 +25,7 @@ struct LinePrinter {
 
   bool is_smart_terminal() const { return smart_terminal_; }
   void set_smart_terminal(bool smart) { smart_terminal_ = smart; }
+  bool is_tty() const { return output_is_tty_; }
 
   bool supports_color() const { return supports_color_; }
 
@@ -49,6 +50,9 @@ struct LinePrinter {
 
   /// Whether we can use ISO 6429 (ANSI) color sequences.
   bool supports_color_;
+
+  /// Whether stdout is attached to a TTY.
+  bool output_is_tty_;
 
   /// Whether the caret is at the beginning of a blank line.
   bool have_blank_line_;
