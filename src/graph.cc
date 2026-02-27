@@ -31,19 +31,45 @@
 
 using namespace std;
 
-bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  mtime_ = disk_interface->Stat(path_, err);
-  if (mtime_ == -1) {
-    return false;
+void Node::Stat(DiskInterface* disk_interface) {
+  if (auto mtime = disk_interface->Stat(path_)) {
+    status_ = Exists{*mtime};
+  } else {
+    status_ = Missing{};
   }
-  exists_ = (mtime_ != 0) ? ExistenceStatusExists : ExistenceStatusMissing;
-  return true;
 }
 
-void Node::UpdatePhonyMtime(TimeStamp mtime) {
-  if (!exists()) {
-    mtime_ = std::max(mtime_, mtime);
+void Node::UpdatePhonyMtime(const Node* most_recent_input) {
+  if (std::holds_alternative<Exists>(status_)) {
+    throw std::runtime_error("Node::UpdatePhonyMtime called on existing node");
+  } else if (auto* missing = std::get_if<Missing>(&status_)) {
+    if (auto& current = missing->latest_mtime_of_deps) {
+      if (most_recent_input->mtime() > *current) {
+        current = most_recent_input->mtime();
+      }
+    } else if (auto* most_recent_input_missing =
+                   std::get_if<Missing>(&most_recent_input->status_)) {
+      if (most_recent_input_missing->latest_mtime_of_deps &&
+          (!current ||
+           *most_recent_input_missing->latest_mtime_of_deps > *current)) {
+        current = most_recent_input_missing->latest_mtime_of_deps;
+      }
+    } else {
+      missing->latest_mtime_of_deps = most_recent_input->mtime();
+    }
+  } else {
+    throw std::runtime_error("Node::UpdatePhonyMtime called on unknown status");
   }
+}
+
+void Node::MarkMissing() {
+  if (!std::holds_alternative<Unknown>(status_)) {
+    throw std::runtime_error(
+        std::holds_alternative<Missing>(status_)
+            ? "Node::MarkMissing called on already missing node"
+            : "Node::MarkMissing called on existing node");
+  }
+  status_ = Missing{ 0 };
 }
 
 bool DependencyScan::RecomputeDirty(Node* initial_node,
@@ -88,8 +114,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     if (node->status_known())
       return true;
     // This node has no in-edge; it is dirty if it is missing.
-    if (!node->StatIfNecessary(disk_interface_, err))
-      return false;
+    node->StatIfNecessary(disk_interface_);
     if (!node->exists())
       explanations_.Record(node, "%s has no in-edge and is missing",
                            node->path().c_str());
@@ -144,8 +169,12 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     if (err) {
       *err = "";
     }
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
+    try {
+      (*o)->StatIfNecessary(disk_interface_);
+    } catch (const std::runtime_error& e) {
+      *err = e.what();
       return false;
+    }
   }
 
   if (!edge->deps_loaded_) {
@@ -189,7 +218,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
         explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
         dirty = true;
       } else {
-        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
+        if (!most_recent_input || most_recent_input->OlderThan(*i)) {
           most_recent_input = *i;
         }
       }
@@ -295,7 +324,7 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
     // Update the mtime with the newest input. Dependents can thus call mtime()
     // on the fake node and get the latest mtime of the dependencies
     if (most_recent_input) {
-      output->UpdatePhonyMtime(most_recent_input->mtime());
+      output->UpdatePhonyMtime(most_recent_input);
     }
 
     // Phony edges are clean, nothing to do
@@ -324,13 +353,14 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   }
 
   // Dirty if the output is older than the input.
-  if (!used_restat && most_recent_input && output->mtime() < most_recent_input->mtime()) {
+  if (!used_restat && most_recent_input && output->OlderThan(most_recent_input)) {
     explanations_.Record(output,
                          "output %s older than most recent input %s "
-                         "(%" PRId64 " vs %" PRId64 ")",
+                         "(%s vs %s)",
                          output->path().c_str(),
-                         most_recent_input->path().c_str(), output->mtime(),
-                         most_recent_input->mtime());
+                         most_recent_input->path().c_str(),
+                         output->mtime_as_string().c_str(),
+                         most_recent_input->mtime_as_string().c_str());
     return true;
   }
 
@@ -346,7 +376,8 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
                              output->path().c_str());
         return true;
       }
-      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
+      if (most_recent_input &&
+          most_recent_input->NewerThan(entry->mtime.value())) {
         // May also be dirty due to the mtime in the log being older than the
         // mtime of the most recent input.  This can occur even when the mtime
         // on disk is newer if a previous run wrote to the output file but
@@ -517,6 +548,12 @@ std::string Edge::GetBinding(const std::string& key) const {
 }
 
 bool Edge::GetBindingBool(const string& key) const {
+  // Change default for 'restat': if not specified, treat as enabled.
+  if (key == "restat") {
+    std::string v = GetBinding(key);
+    // Default to true when the binding is missing.
+    return v.empty() ? true : v != "0";
+  }
   return !GetBinding(key).empty();
 }
 
@@ -592,6 +629,26 @@ string Node::PathDecanonicalized(const string& path, uint64_t slash_bits) {
   }
 #endif
   return result;
+}
+
+bool Node::NewerThan(const TimeStamp other_mtime) const {
+  if (auto* missing = std::get_if<Missing>(&status_)) {
+    return missing->latest_mtime_of_deps > other_mtime;
+  }
+  return mtime() > other_mtime;
+}
+
+bool Node::OlderThan(const Node* other) const {
+  if (auto* missing = std::get_if<Missing>(&status_)) {
+    if (auto* other_missing = std::get_if<Missing>(&other->status_)) {
+      return missing->latest_mtime_of_deps < other_missing->latest_mtime_of_deps;
+    }
+    return missing->latest_mtime_of_deps < other->mtime();
+  }
+  if (auto* other_missing = std::get_if<Missing>(&other->status_)) {
+    return mtime() < other_missing->latest_mtime_of_deps;
+  }
+  return mtime() < other->mtime();
 }
 
 void Node::Dump(const char* prefix) const {
@@ -737,7 +794,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   }
 
   // Deps are invalid if the output is newer than the deps.
-  if (output->mtime() > deps->mtime) {
+  if (output->NewerThan(deps->mtime)) {
     explanations_.Record(output,
                          "stored deps info out of date for '%s' (%" PRId64
                          " vs %" PRId64 ")",

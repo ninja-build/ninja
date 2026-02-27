@@ -291,7 +291,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
       // Recompute most_recent_input.
       Node* most_recent_input = NULL;
       for (vector<Node*>::iterator i = begin; i != end; ++i) {
-        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime())
+        if (!most_recent_input || most_recent_input->OlderThan(*i))
           most_recent_input = *i;
       }
 
@@ -636,10 +636,7 @@ void Builder::Cleanup() {
         // need to rebuild an output because of a modified header file
         // mentioned in a depfile, and the command touches its depfile
         // but is interrupted before it touches its output file.)
-        string err;
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), &err);
-        if (new_mtime == -1)  // Log and ignore Stat() errors.
-          status_->Error("%s", err.c_str());
+        TimeStamp new_mtime = disk_interface_->Stat((*o)->path()).value();
         if (!depfile.empty() || (*o)->mtime() != new_mtime)
           disk_interface_->RemoveFile((*o)->path());
       }
@@ -648,8 +645,7 @@ void Builder::Cleanup() {
     }
   }
 
-  string err;
-  if (disk_interface_->Stat(lock_file_path_, &err) > 0)
+  if (disk_interface_->PathExists(lock_file_path_))
     disk_interface_->RemoveFile(lock_file_path_);
 }
 
@@ -836,9 +832,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       return false;
     if (build_start == -1) {
       disk_interface_->WriteFile(lock_file_path_, "", false);
-      build_start = disk_interface_->Stat(lock_file_path_, err);
-      if (build_start == -1)
-        build_start = 0;
+      build_start = disk_interface_->Stat(lock_file_path_).value();
     }
   }
 
@@ -923,12 +917,12 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     if (record_mtime == 0 || restat || generator) {
       for (vector<Node*>::iterator o = edge->outputs_.begin();
            o != edge->outputs_.end(); ++o) {
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
-        if (new_mtime == -1)
-          return false;
-        if (new_mtime > record_mtime)
-          record_mtime = new_mtime;
-        if ((*o)->mtime() == new_mtime && restat) {
+        std::optional<TimeStamp> new_mtime = disk_interface_->Stat((*o)->path());
+        if (new_mtime && *new_mtime > record_mtime) {
+          record_mtime = *new_mtime;
+        }
+        assert((*o)->status_known());
+        if (!new_mtime || ((*o)->exists() && (*o)->mtime() == *new_mtime && restat)) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
@@ -951,7 +945,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   if (!rspfile.empty() && !g_keep_rsp)
     disk_interface_->RemoveFile(rspfile);
 
-  if (scan_.build_log()) {
+  if (scan_.build_log() && !config_.dry_run) {
     if (!scan_.build_log()->RecordCommand(
             edge, static_cast<int>(start_time_millis),
             static_cast<int>(end_time_millis), record_mtime)) {
@@ -964,9 +958,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for (std::vector<Node*>::const_iterator o = edge->outputs_.begin();
          o != edge->outputs_.end(); ++o) {
-      TimeStamp deps_mtime = disk_interface_->Stat((*o)->path(), err);
-      if (deps_mtime == -1)
-        return false;
+      TimeStamp deps_mtime = disk_interface_->Stat((*o)->path()).value();
       if (!scan_.deps_log()->RecordDeps(*o, deps_mtime, deps_nodes)) {
         *err = std::string("Error writing to deps log: ") + strerror(errno);
         return false;

@@ -51,18 +51,18 @@ struct DiskInterfaceTest : public testing::Test {
 
 TEST_F(DiskInterfaceTest, StatMissingFile) {
   string err;
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("nosuchfile"));
   EXPECT_EQ("", err);
 
   // On Windows, the errno for a file in a nonexistent directory
   // is different.
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("nosuchdir/nosuchfile"));
   EXPECT_EQ("", err);
 
   // On POSIX systems, the errno is different if a component of the
   // path prefix is not a directory.
   ASSERT_TRUE(Touch("notadir"));
-  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("notadir/nosuchfile"));
   EXPECT_EQ("", err);
 }
 
@@ -73,7 +73,7 @@ TEST_F(DiskInterfaceTest, StatMissingFileWithCache) {
   // On Windows, the errno for FindFirstFileExA, which is used when the stat
   // cache is enabled, is different when the directory name is not a directory.
   ASSERT_TRUE(Touch("notadir"));
-  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("notadir/nosuchfile"));
   EXPECT_EQ("", err);
 }
 
@@ -81,19 +81,17 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
   string err;
 #ifdef _WIN32
   string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
-  EXPECT_NE("", err);
+  EXPECT_THROW(disk_.Stat(bad_path), std::runtime_error);
 #else
   string too_long_name(512, 'x');
-  EXPECT_EQ(-1, disk_.Stat(too_long_name, &err));
-  EXPECT_NE("", err);
+  EXPECT_THROW(disk_.Stat(too_long_name), std::runtime_error);
 #endif
 }
 
 TEST_F(DiskInterfaceTest, StatExistingFile) {
   string err;
   ASSERT_TRUE(Touch("file"));
-  EXPECT_GT(disk_.Stat("file", &err), 1);
+  EXPECT_GT(disk_.Stat("file"), 1);
   EXPECT_EQ("", err);
 }
 
@@ -110,17 +108,15 @@ xxxxxxxxxxxxxxxxxxxxx";
   const string prefixed = "\\\\?\\" + filename;
   ASSERT_TRUE(Touch(prefixed.c_str()));
   EXPECT_GT(disk_.Stat(disk_.AreLongPathsEnabled() ?
-    filename : prefixed, &err), 1);
+    filename : prefixed), 1);
   EXPECT_EQ("", err);
 }
 #endif
 
 TEST_F(DiskInterfaceTest, StatSymlink) {
-  string err;
-
   ASSERT_TRUE(Touch("file"));
-  auto fileTimeStamp = disk_.Stat("file", &err);
-  EXPECT_EQ("", err);
+  auto fileTimeStamp = disk_.Stat("file");
+  EXPECT_TRUE(fileTimeStamp.has_value());
 
 #ifdef _WIN32
   // Create a symlink to file
@@ -132,7 +128,7 @@ TEST_F(DiskInterfaceTest, StatSymlink) {
 
   // Assert that stating the symlink will resolve the timestamp for the
   // linked file.
-  auto symlinkTimeStamp = disk_.Stat("fileSymlink", &err);
+  auto symlinkTimeStamp = disk_.Stat("fileSymlink");
   ASSERT_EQ(fileTimeStamp, symlinkTimeStamp);
 }
 
@@ -140,21 +136,21 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
   string err;
   ASSERT_TRUE(disk_.MakeDir("subdir"));
   ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
-  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_GT(disk_.Stat(".."), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat("."), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir"), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir"), 1);
   EXPECT_EQ("", err);
 
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/.", &err));
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/subsubdir/..", &err));
-  EXPECT_EQ(disk_.Stat("subdir/subsubdir", &err),
-            disk_.Stat("subdir/subsubdir/.", &err));
+  EXPECT_EQ(disk_.Stat("subdir"),
+            disk_.Stat("subdir/."));
+  EXPECT_EQ(disk_.Stat("subdir"),
+            disk_.Stat("subdir/subsubdir/.."));
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir"),
+            disk_.Stat("subdir/subsubdir/."));
 }
 
 #ifdef _WIN32
@@ -170,51 +166,51 @@ TEST_F(DiskInterfaceTest, StatCache) {
   ASSERT_TRUE(Touch("subdir\\SUBFILE3"));
 
   disk_.AllowStatCache(false);
-  TimeStamp parent_stat_uncached = disk_.Stat("..", &err);
+  TimeStamp parent_stat_uncached = disk_.Stat("..");
   disk_.AllowStatCache(true);
 
-  EXPECT_GT(disk_.Stat("FIle1", &err), 1);
+  EXPECT_GT(disk_.Stat("FIle1"), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("file1", &err), 1);
-  EXPECT_EQ("", err);
-
-  EXPECT_GT(disk_.Stat("subdir/subfile2", &err), 1);
-  EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", &err), 1);
+  EXPECT_GT(disk_.Stat("file1"), 1);
   EXPECT_EQ("", err);
 
-  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subfile2"), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1"), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
+
+  EXPECT_GT(disk_.Stat(".."), 1);
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat("."), 1);
+  EXPECT_EQ("", err);
+  EXPECT_GT(disk_.Stat("subdir"), 1);
+  EXPECT_EQ("", err);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir"), 1);
   EXPECT_EQ("", err);
 
 #ifndef _MSC_VER // TODO: Investigate why. Also see https://github.com/ninja-build/ninja/pull/1423
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/.", &err));
+  EXPECT_EQ(disk_.Stat("subdir"),
+            disk_.Stat("subdir/."));
   EXPECT_EQ("", err);
-  EXPECT_EQ(disk_.Stat("subdir", &err),
-            disk_.Stat("subdir/subsubdir/..", &err));
+  EXPECT_EQ(disk_.Stat("subdir"),
+            disk_.Stat("subdir/subsubdir/.."));
 #endif
   EXPECT_EQ("", err);
-  EXPECT_EQ(disk_.Stat("..", &err), parent_stat_uncached);
+  EXPECT_EQ(disk_.Stat(".."), parent_stat_uncached);
   EXPECT_EQ("", err);
-  EXPECT_EQ(disk_.Stat("subdir/subsubdir", &err),
-            disk_.Stat("subdir/subsubdir/.", &err));
+  EXPECT_EQ(disk_.Stat("subdir/subsubdir"),
+            disk_.Stat("subdir/subsubdir/."));
   EXPECT_EQ("", err);
 
   // Test error cases.
   string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_THROW(disk_.Stat(bad_path), std::runtime_error);
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_THROW(disk_.Stat(bad_path), std::runtime_error);
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("nosuchfile"));
   EXPECT_EQ("", err);
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(std::nullopt, disk_.Stat("nosuchdir/nosuchfile"));
   EXPECT_EQ("", err);
 }
 #endif
@@ -283,7 +279,7 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, NULL, NULL, this, NULL, NULL) {}
 
   // DiskInterface implementation.
-  TimeStamp Stat(const string& path, string* err) const override;
+  std::optional<TimeStamp> StatImpl(const string& path) const override;
   bool WriteFile(const string& path, const string& contents,
                  bool /*crlf_on_windows*/) override {
     assert(false);
@@ -307,11 +303,12 @@ struct StatTest : public StateTestWithBuiltinRules,
   mutable vector<string> stats_;
 };
 
-TimeStamp StatTest::Stat(const string& path, string* err) const {
+std::optional<TimeStamp> StatTest::StatImpl(const string& path) const {
   stats_.push_back(path);
   map<string, TimeStamp>::const_iterator i = mtimes_.find(path);
   if (i == mtimes_.end())
-    return 0;  // File not found.
+    return std::nullopt;  // File not found.
+  assert(i->second > 0);
   return i->second;
 }
 
@@ -321,7 +318,7 @@ TEST_F(StatTest, Simple) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  out->Stat(this);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL, NULL);
@@ -337,7 +334,7 @@ TEST_F(StatTest, TwoStep) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  out->Stat(this);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL, NULL);
@@ -357,7 +354,7 @@ TEST_F(StatTest, Tree) {
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  out->Stat(this);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL, NULL);
@@ -373,12 +370,12 @@ TEST_F(StatTest, Middle) {
 "build mid: cat in\n"));
 
   mtimes_["in"] = 1;
-  mtimes_["mid"] = 0;  // missing
+  // "mid" missing
   mtimes_["out"] = 1;
 
   Node* out = GetNode("out");
   string err;
-  EXPECT_TRUE(out->Stat(this, &err));
+  out->Stat(this);
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL, NULL);

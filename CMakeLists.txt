@@ -139,6 +139,7 @@ add_library(libninja OBJECT
 	src/eval_env.cc
 	src/graph.cc
 	src/graphviz.cc
+	src/hash_cache.cc
 	src/jobserver.cc
 	src/json.cc
 	src/line_printer.cc

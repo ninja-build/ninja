@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "hash_cache.h"
 
 #ifdef _WIN32
 #include "getopt.h"
@@ -88,9 +89,10 @@ struct Options {
 /// The Ninja main() loads up a series of data structures; various tools need
 /// to poke into these, so store them as fields on an object.
 struct NinjaMain : public BuildLogUser {
-  NinjaMain(const char* ninja_command, const BuildConfig& config) :
-      ninja_command_(ninja_command), config_(config),
-      start_time_millis_(GetTimeMillis()) {}
+  NinjaMain(const char* ninja_command, const BuildConfig& config)
+      : ninja_command_(ninja_command), config_(config),
+        start_time_millis_(GetTimeMillis()) {
+  }
 
   /// Command line used to run Ninja.
   const char* ninja_command_;
@@ -188,11 +190,12 @@ struct NinjaMain : public BuildLogUser {
     // which seems good enough for this corner case.)
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
-    string err;
-    TimeStamp mtime = disk_interface_.Stat(s.AsString(), &err);
-    if (mtime == -1)
-      Error("%s", err.c_str());  // Log and ignore Stat() errors.
-    return mtime == 0;
+    try {
+      return !disk_interface_.Stat(s.AsString());
+    } catch (std::exception& e) {
+      Error("%s", e.what());  // Log and ignore Stat() errors.
+      return false;
+    }
   }
 
   int64_t start_time_millis_;
@@ -577,13 +580,15 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
       continue;
     }
 
-    string err;
-    TimeStamp mtime = disk_interface.Stat((*it)->path(), &err);
-    if (mtime == -1)
-      Error("%s", err.c_str());  // Log and ignore Stat() errors;
-    printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
-           (*it)->path().c_str(), deps->node_count, deps->mtime,
-           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+    TimeStamp mtime = -1;
+    try {
+      mtime = disk_interface.Stat((*it)->path()).value_or(0);
+    } catch (std::exception& e) {
+      Error("%s", e.what());  // Log and ignore Stat() errors.
+    }
+    printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n", (*it)->path().c_str(),
+           deps->node_count, deps->mtime,
+           (!mtime || mtime > deps->mtime ? "STALE" : "VALID"));
     for (int i = 0; i < deps->node_count; ++i)
       printf("    %s\n", deps->nodes[i]->path().c_str());
     printf("\n");
@@ -1605,6 +1610,8 @@ std::unique_ptr<Jobserver::Client> NinjaMain::SetupJobserverClient(
 }
 
 ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
+  disk_interface_.hash_cache_ = std::make_unique<HashCache>();
+
   std::string err;
   std::vector<Node*> targets;
   if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
@@ -1640,8 +1647,10 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 
   // Make sure restat rules do not see stale timestamps.
   disk_interface_.AllowStatCache(false);
+  // disk_interface_.hash_cache_.reset();  // Keep hash cache for restat!
 
   if (builder.AlreadyUpToDate()) {
+    disk_interface_.hash_cache_.reset();  // Save cache
     if (config_.verbosity != BuildConfig::NO_STATUS_UPDATE) {
       status->Info("no work to do.");
     }
@@ -1655,6 +1664,9 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
       return ExitInterrupted;
     }
   }
+
+  // Save hash cache after build completes
+  disk_interface_.hash_cache_.reset();
 
   return exit_status;
 }
@@ -1910,3 +1922,5 @@ int main(int argc, char** argv) {
   real_main(argc, argv);
 #endif
 }
+
+

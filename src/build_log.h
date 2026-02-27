@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "hash_map.h"
@@ -51,7 +52,7 @@ struct BuildLog {
   bool OpenForWrite(const std::string& path, const BuildLogUser& user,
                     std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp mtime = 0);
+                     TimeStamp mtime);
   void Close();
 
   /// Load the on-disk log.
@@ -62,7 +63,7 @@ struct BuildLog {
     uint64_t command_hash = 0;
     int start_time = 0;
     int end_time = 0;
-    TimeStamp mtime = 0;
+    std::optional<TimeStamp> mtime;
 
     static uint64_t HashCommand(StringPiece command);
 
