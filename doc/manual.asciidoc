@@ -223,7 +223,8 @@ otherwise ignore it.
 Environment variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-Ninja supports two environment variables to control its behavior:
+Ninja supports three environment variables to control its behavior:
+
 `NINJA_STATUS`, the progress status printed before the rule being run.
 
 Several placeholders are available:
@@ -251,6 +252,12 @@ could be `"[%u/%r/%f] "`.
 If `MAKEFLAGS` is defined in the environment, if may alter how
 Ninja dispatches parallel build commands. See the GNU Jobserver support
 section for details.
+
+`NINJA_STATUS_REFRESH_MILLIS`, the refresh timeout in milliseconds
+for status updates in interactive terminals. The default value is 1000,
+to allow time-sensitive formatters like `%w` to be updated during
+long build runs (e.g. when one or more build commands run for a long
+time).
 
 Extra tools
 ~~~~~~~~~~~
