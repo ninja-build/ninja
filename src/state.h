@@ -105,7 +105,7 @@ struct State {
 
   Node* GetNode(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
-  Node* SpellcheckNode(const std::string& path);
+  Node* SpellcheckNode(const std::string& path) const;
 
   /// Add input / output / validation nodes to a given edge. This also
   /// ensures that the generated_by_dep_loader() flag for all these nodes

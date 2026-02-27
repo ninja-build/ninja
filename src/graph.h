@@ -246,11 +246,11 @@ struct Edge {
   // #2 and #3 when we need to access the various subsets.
   int implicit_deps_ = 0;
   int order_only_deps_ = 0;
-  bool is_implicit(size_t index) {
+  bool is_implicit(size_t index) const {
     return index >= inputs_.size() - order_only_deps_ - implicit_deps_ &&
         !is_order_only(index);
   }
-  bool is_order_only(size_t index) {
+  bool is_order_only(size_t index) const {
     return index >= inputs_.size() - order_only_deps_;
   }
 
@@ -279,7 +279,7 @@ struct EdgeCmp {
   }
 };
 
-typedef std::set<Edge*, EdgeCmp> EdgeSet;
+typedef std::set<const Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.

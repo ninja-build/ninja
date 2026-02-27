@@ -108,13 +108,13 @@ Node* State::LookupNode(StringPiece path) const {
   return NULL;
 }
 
-Node* State::SpellcheckNode(const string& path) {
+Node* State::SpellcheckNode(const string& path) const {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
   int min_distance = kMaxValidEditDistance + 1;
   Node* result = NULL;
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
+  for (Paths::const_iterator i = paths_.begin(); i != paths_.end(); ++i) {
     int distance = EditDistance(
         i->first, path, kAllowReplacements, kMaxValidEditDistance);
     if (distance < min_distance && i->second) {
