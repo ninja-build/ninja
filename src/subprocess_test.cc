@@ -93,8 +93,8 @@ TEST_F(SubprocessTest, InterruptParent) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 
@@ -117,8 +117,8 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 
@@ -141,8 +141,8 @@ TEST_F(SubprocessTest, InterruptParentWithSigHup) {
   ASSERT_NE((Subprocess *) 0, subproc);
 
   while (!subproc->Done()) {
-    bool interrupted = subprocs_.DoWork();
-    if (interrupted)
+    SubprocessSet::WorkResult status = subprocs_.DoWork();
+    if (status == SubprocessSet::WorkResult::Interrupted)
       return;
   }
 
@@ -264,3 +264,33 @@ TEST_F(SubprocessTest, ReadStdin) {
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
 #endif  // _WIN32
+
+#ifndef _WIN32
+TEST_F(SubprocessTest, JobserverTokenAvailable) {
+  // Setup a mock jobserver fd by using a pipe.
+  // Give the read end of the pipe to SubprocessSet.
+  int mock_jobserver_fd[2];
+  ASSERT_EQ(pipe(mock_jobserver_fd), 0);
+  subprocs_.SetJobserverFD(mock_jobserver_fd[0]);
+
+  // Trigger mock jobserver token availability by
+  // writing a byte to the write end of the pipe.
+  uint8_t token = 0;
+  ssize_t ret = ret = ::write(mock_jobserver_fd[1], &token, 1);
+  ASSERT_EQ(1, ret);
+  close(mock_jobserver_fd[1]);
+
+  // Assert we detected the jobserver token availability.
+  Subprocess* subproc = subprocs_.Add("sleep 1");
+  SubprocessSet::WorkResult result = subprocs_.DoWork();
+  ASSERT_EQ(SubprocessSet::WorkResult::JobserverTokenAvailable, result);
+
+  // Finish the subprocess to avoid leaks.
+  while (!subproc->Done()) {
+    subprocs_.DoWork();
+  }
+
+  ASSERT_EQ(ExitSuccess, subproc->Finish());
+  ASSERT_EQ(1u, subprocs_.finished_.size());
+}
+#endif

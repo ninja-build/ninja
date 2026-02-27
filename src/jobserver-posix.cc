@@ -105,6 +105,9 @@ class PosixJobserverClient : public Jobserver::Client {
     return true;
   }
 
+  // Accessor for jobserver read file descriptor.
+  int GetJobserverFD() const override { return read_fd_; }
+
  private:
   // Set to true if the implicit slot has not been acquired yet.
   bool has_implicit_slot_ = true;
