@@ -56,8 +56,8 @@ struct DiskInterface: public FileReader {
     return Stat(path).has_value();
   }
 
-  /// stat() a file, returning the mtime. Throws std::runtime_error if missing
-  /// or other error.
+  /// stat() a file, returning the mtime. Returns std::nullopt if missing and
+  /// throws std::runtime_error on error.
   std::optional<TimeStamp> Stat(const std::string& path) const;
   virtual std::optional<TimeStamp> StatImpl(const std::string& path) const = 0;
 
