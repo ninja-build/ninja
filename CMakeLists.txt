@@ -140,6 +140,7 @@ add_library(libninja OBJECT
 	src/graph.cc
 	src/graphviz.cc
 	src/jobserver.cc
+	src/jobserver_pool.cc
 	src/json.cc
 	src/line_printer.cc
 	src/manifest_parser.cc
@@ -285,6 +286,7 @@ if(BUILD_TESTING)
     src/explanations_test.cc
     src/graph_test.cc
     src/jobserver_test.cc
+    src/jobserver_pool_test.cc
     src/json_test.cc
     src/lexer_test.cc
     src/manifest_parser_test.cc
