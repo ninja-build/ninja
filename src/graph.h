@@ -37,6 +37,12 @@ struct Node;
 struct Pool;
 struct State;
 
+enum class DirtyState {
+  SPARE = 0,
+  DIRTY = 1,
+  CLEAN = 2,
+};
+
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node {
@@ -60,7 +66,7 @@ struct Node {
   void ResetState() {
     mtime_ = -1;
     exists_ = ExistenceStatusUnknown;
-    dirty_ = false;
+    dirty_ = DirtyState::SPARE;
   }
 
   /// Mark the Node as already-stat()ed and missing.
@@ -90,9 +96,18 @@ struct Node {
 
   TimeStamp mtime() const { return mtime_; }
 
-  bool dirty() const { return dirty_; }
-  void set_dirty(bool dirty) { dirty_ = dirty; }
-  void MarkDirty() { dirty_ = true; }
+  bool dirty() const { return dirty_ == DirtyState::DIRTY; }
+  void set_dirty(bool dirty) {
+    if (dirty) {
+      dirty_ = DirtyState::DIRTY;
+    } else if (dirty_ == DirtyState::DIRTY) {
+      dirty_ = DirtyState::CLEAN;
+    }
+  }
+  void MarkDirty() { dirty_ = DirtyState::DIRTY; }
+
+  bool clean() const { return dirty_ == DirtyState::CLEAN; }
+  void MarkClean() { dirty_ = DirtyState::CLEAN; }
 
   bool dyndep_pending() const { return dyndep_pending_; }
   void set_dyndep_pending(bool pending) { dyndep_pending_ = pending; }
@@ -144,7 +159,7 @@ private:
   /// Dirty is true when the underlying file is out-of-date.
   /// But note that Edge::outputs_ready_ is also used in judging which
   /// edges to build.
-  bool dirty_ = false;
+  DirtyState dirty_ = DirtyState::SPARE;
 
   /// Store whether dyndep information is expected from this node but
   /// has not yet been loaded.
@@ -375,6 +390,9 @@ struct DependencyScan {
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes, std::string* err);
+  bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
+                          std::vector<Node*>* validation_nodes,
+                          bool& dyndepLoaded, std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
