@@ -22,28 +22,26 @@
 #include "test.h"
 #include "util.h"
 
-using namespace std;
-
 namespace {
 
-string GetCurDir() {
+std::string GetCurrentDirName() {
   char buf[_MAX_PATH];
   _getcwd(buf, sizeof(buf));
-  vector<StringPiece> parts = SplitStringPiece(buf, '\\');
-  return parts[parts.size() - 1].AsString();
+  std::vector<StringPiece> parts = SplitStringPiece(buf, '\\');
+  return parts.back().AsString();
 }
 
-string NormalizeAndCheckNoError(const string& input) {
-  string result, err;
+std::string NormalizeAndCheckNoError(const std::string& input) {
+  std::string result, err;
   IncludesNormalize normalizer(".");
   EXPECT_TRUE(normalizer.Normalize(input, &result, &err));
   EXPECT_EQ("", err);
   return result;
 }
 
-string NormalizeRelativeAndCheckNoError(const string& input,
-                                        const string& relative_to) {
-  string result, err;
+std::string NormalizeRelativeAndCheckNoError(const std::string& input,
+                                             const std::string& relative_to) {
+  std::string result, err;
   IncludesNormalize normalizer(relative_to);
   EXPECT_TRUE(normalizer.Normalize(input, &result, &err));
   EXPECT_EQ("", err);
@@ -60,15 +58,15 @@ TEST(IncludesNormalize, Simple) {
 }
 
 TEST(IncludesNormalize, WithRelative) {
-  string err;
-  string currentdir = GetCurDir();
+  std::string err;
+  std::string currentdir = GetCurrentDirName();
   EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
   EXPECT_EQ("a",
             NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
   EXPECT_EQ("", err);
-  EXPECT_EQ(string("../") + currentdir + string("/a"),
+  EXPECT_EQ(std::string("../") + currentdir + std::string("/a"),
             NormalizeRelativeAndCheckNoError("a", "../b"));
-  EXPECT_EQ(string("../") + currentdir + string("/a/b"),
+  EXPECT_EQ(std::string("../") + currentdir + std::string("/a/b"),
             NormalizeRelativeAndCheckNoError("a/b", "../c"));
   EXPECT_EQ("../../a", NormalizeRelativeAndCheckNoError("a", "b/c"));
   EXPECT_EQ(".", NormalizeRelativeAndCheckNoError("a", "a"));
@@ -100,18 +98,20 @@ TEST(IncludesNormalize, DifferentDrive) {
 }
 
 TEST(IncludesNormalize, LongInvalidPath) {
+  // A long an invalid path that is larger than _MAX_PATH will still be
+  // canonicalized without crashing.
   const char kLongInputString[] =
       "C:\\Program Files (x86)\\Microsoft Visual Studio "
       "12.0\\VC\\INCLUDEwarning #31001: The dll for reading and writing the "
       "pdb (for example, mspdb110.dll) could not be found on your path. This "
       "is usually a configuration error. Compilation will continue using /Z7 "
       "instead of /Zi, but expect a similar error when you link your program.";
-  // Too long, won't be canonicalized. Ensure doesn't crash.
-  string result, err;
+  ASSERT_GT(sizeof(kLongInputString) - 1u, _MAX_PATH);
+  std::string result, err;
   IncludesNormalize normalizer(".");
-  EXPECT_FALSE(
-      normalizer.Normalize(kLongInputString, &result, &err));
-  EXPECT_EQ("path too long", err);
+  EXPECT_TRUE(normalizer.Normalize(kLongInputString, &result, &err));
+  EXPECT_FALSE(result.empty());
+  EXPECT_TRUE(err.empty()) << err;
 
 
   // Construct max size path having cwd prefix.
@@ -138,7 +138,7 @@ TEST(IncludesNormalize, LongInvalidPath) {
   // This is a relatively safe cast as we can expect that _MAX_PATH will never be negative
   EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(_MAX_PATH));
 
-  string forward_slashes(kExactlyMaxPath);
+  std::string forward_slashes(kExactlyMaxPath);
   replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
   // Make sure a path that's exactly _MAX_PATH long is canonicalized.
   EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
@@ -146,25 +146,45 @@ TEST(IncludesNormalize, LongInvalidPath) {
 }
 
 TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {
-  string result, err;
+  std::string result, err;
   IncludesNormalize normalizer(".");
   // A short path should work
   EXPECT_TRUE(normalizer.Normalize("a", &result, &err));
   EXPECT_EQ("", err);
 
+  constexpr const int MAX_PATH_LONG = 32767;
+
   // Construct max size path having cwd prefix.
   // kExactlyMaxPath = "aaaa\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
-  for (int i = 0; i < _MAX_PATH; ++i) {
-    if (i < _MAX_PATH - 1 && i % 10 == 4)
+  char kExactlyMaxPath[MAX_PATH_LONG + 1];
+  for (int i = 0; i < MAX_PATH_LONG; ++i) {
+    if (i < MAX_PATH_LONG - 1 && i % 10 == 4)
       kExactlyMaxPath[i] = '\\';
     else
       kExactlyMaxPath[i] = 'a';
   }
-  kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(_MAX_PATH));
+  kExactlyMaxPath[MAX_PATH_LONG] = '\0';
+  EXPECT_EQ(strlen(kExactlyMaxPath), static_cast<size_t>(MAX_PATH_LONG));
 
-  // Make sure a path that's exactly _MAX_PATH long fails with a proper error.
+  // Make sure a path that's exactly MAX_PATH_LONG long fails with a proper error.
   EXPECT_FALSE(normalizer.Normalize(kExactlyMaxPath, &result, &err));
-  EXPECT_TRUE(err.find("GetFullPathName") != string::npos);
+  EXPECT_TRUE(err.find("GetFullPathName") != std::string::npos);
+
+  err = "";
+  // Make sure a path that's exactly _MAX_PATH long fails does not fail.
+  // Construct max size path having cwd prefix.
+  // exactly_max_path = "aaaa\\aaaa...aaaa\0";
+  std::string exactly_max_path;
+  for (int i = 0; i < _MAX_PATH; ++i) {
+    if (i < _MAX_PATH - 1 && i % 10 == 4)
+      exactly_max_path.push_back('\\');
+    else
+      exactly_max_path.push_back('a');
+  }
+  EXPECT_EQ(exactly_max_path.size(), static_cast<size_t>(_MAX_PATH));
+  EXPECT_TRUE(normalizer.Normalize(exactly_max_path, &result, &err)) << err;
+
+  // Make sue a path of _MAX_PATH + 1 characters also works.
+  std::string more_than_max_path = exactly_max_path + "\\a";
+  EXPECT_TRUE(normalizer.Normalize(more_than_max_path, &result, &err)) << err;
 }
