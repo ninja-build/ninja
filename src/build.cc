@@ -636,8 +636,12 @@ void Builder::Cleanup() {
         // need to rebuild an output because of a modified header file
         // mentioned in a depfile, and the command touches its depfile
         // but is interrupted before it touches its output file.)
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path()).value();
-        if (!depfile.empty() || (*o)->mtime() != new_mtime)
+        std::optional<TimeStamp> new_mtime =
+            disk_interface_->Stat((*o)->path());
+        if (!new_mtime) {
+          continue;
+        }
+        if (!depfile.empty() || !(*o)->exists() || (*o)->mtime() != *new_mtime)
           disk_interface_->RemoveFile((*o)->path());
       }
       if (!depfile.empty())
