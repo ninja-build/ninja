@@ -21,9 +21,9 @@
 
 #include "disk_interface.h"
 
-HashCache::HashCache() {
+HashCache::HashCache(std::string path) : path_(std::move(path)) {
   // Read .ninja_hashes from disk if it exists
-  std::ifstream in(".ninja_hashes");
+  std::ifstream in(path_);
   if (!in) {
     return;  // File doesn't exist yet, start with empty cache
   }
@@ -47,7 +47,7 @@ HashCache::HashCache() {
 
 HashCache::~HashCache() {
   // Save .ninja_hashes to disk
-  std::ofstream out(".ninja_hashes");
+  std::ofstream out(path_);
   if (!out) {
     return;  // If we can't write, just exit
   }

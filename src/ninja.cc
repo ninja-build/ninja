@@ -1610,7 +1610,11 @@ std::unique_ptr<Jobserver::Client> NinjaMain::SetupJobserverClient(
 }
 
 ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
-  disk_interface_.hash_cache_ = std::make_unique<HashCache>();
+  std::string hash_path = ".ninja_hashes";
+  if (!build_dir_.empty()) {
+    hash_path = build_dir_ + "/" + hash_path;
+  }
+  disk_interface_.hash_cache_ = std::make_unique<HashCache>(hash_path);
 
   std::string err;
   std::vector<Node*> targets;

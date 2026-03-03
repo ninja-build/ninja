@@ -29,7 +29,7 @@ struct DiskInterface;
 class HashCache {
  public:
   /// Reads .ninja_hashes from disk
-  HashCache();
+  explicit HashCache(std::string path);
 
   /// Saves .ninja_hashes to disk
   ~HashCache();
@@ -43,5 +43,6 @@ class HashCache {
     uint64_t hash;
     TimeStamp mtime;
   };
+  std::string path_;
   std::unordered_map<std::string, FileInfo> files_;
 };
