@@ -15,6 +15,7 @@
 #include "disk_interface.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 #include <errno.h>
 #include <stdio.h>
@@ -31,6 +32,7 @@
 #include <unistd.h>
 #endif
 
+#include "hash_cache.h"
 #include "metrics.h"
 #include "util.h"
 
@@ -173,24 +175,30 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
 
 // DiskInterface ---------------------------------------------------------------
 
+DiskInterface::DiskInterface() = default;
+DiskInterface::~DiskInterface() = default;
+
 bool DiskInterface::MakeDirs(const string& path) {
   string dir = DirName(path);
   if (dir.empty())
     return true;  // Reached root; assume it's there.
   string err;
-  TimeStamp mtime = Stat(dir, &err);
-  if (mtime < 0) {
-    Error("%s", err.c_str());
-    return false;
-  }
-  if (mtime > 0)
+  if (PathExists(path)) {
     return true;  // Exists already; we're done.
+  }
 
   // Directory doesn't exist.  Try creating its parent first.
   bool success = MakeDirs(dir);
   if (!success)
     return false;
   return MakeDir(dir);
+}
+
+std::optional<TimeStamp> DiskInterface::Stat(const string& path) const {
+  if (hash_cache_) {
+    return hash_cache_->Stat(*this, path);
+  }
+  return StatImpl(path);
 }
 
 // RealDiskInterface -----------------------------------------------------------
@@ -212,7 +220,9 @@ RealDiskInterface::RealDiskInterface()
 {}
 #endif
 
-TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
+RealDiskInterface::~RealDiskInterface() = default;
+
+std::optional<TimeStamp> RealDiskInterface::StatImpl(const string& path) const {
   METRIC_RECORD("node stat");
 #ifdef _WIN32
   // MSDN: "Naming Files, Paths, and Namespaces"
@@ -222,8 +232,7 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
     ostringstream err_stream;
     err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
                << " characters";
-    *err = err_stream.str();
-    return -1;
+    throw std::runtime_error(err_stream.str());
   }
   if (!use_cache_)
     return StatSingleFile(path, err);
@@ -259,15 +268,9 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   if (stat(path.c_str(), &st) < 0) {
 #endif
     if (errno == ENOENT || errno == ENOTDIR)
-      return 0;
-    *err = "stat(" + path + "): " + strerror(errno);
-    return -1;
+      return std::nullopt;
+    throw std::runtime_error("stat(" + path + "): " + strerror(errno));
   }
-  // Some users (Flatpak) set mtime to 0, this should be harmless
-  // and avoids conflicting with our return value of 0 meaning
-  // that it doesn't exist.
-  if (st.st_mtime == 0)
-    return 1;
 #if defined(_AIX)
   return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
 #elif defined(__APPLE__)

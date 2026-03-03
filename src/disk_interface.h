@@ -16,9 +16,13 @@
 #define NINJA_DISK_INTERFACE_H_
 
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 
 #include "timestamp.h"
+
+class HashCache;
 
 /// Interface for reading files from disk.  See DiskInterface for details.
 /// This base offers the minimum interface needed just to read files.
@@ -43,9 +47,19 @@ struct FileReader {
 /// Abstract so it can be mocked out for tests.  The real implementation
 /// is RealDiskInterface.
 struct DiskInterface: public FileReader {
-  /// stat() a file, returning the mtime, or 0 if missing and -1 on
-  /// other errors.
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const = 0;
+  DiskInterface();
+  DiskInterface(DiskInterface&&) = delete;
+  DiskInterface& operator=(DiskInterface&&) = delete;
+  virtual ~DiskInterface();
+
+  bool PathExists(const std::string& path) const {
+    return Stat(path).has_value();
+  }
+
+  /// stat() a file, returning the mtime. Returns std::nullopt if missing and
+  /// throws std::runtime_error on error.
+  std::optional<TimeStamp> Stat(const std::string& path) const;
+  virtual std::optional<TimeStamp> StatImpl(const std::string& path) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(const std::string& path) = 0;
@@ -67,13 +81,15 @@ struct DiskInterface: public FileReader {
   /// Create all the parent directories for path; like mkdir -p
   /// `basename path`.
   bool MakeDirs(const std::string& path);
+
+  std::unique_ptr<HashCache> hash_cache_;
 };
 
 /// Implementation of DiskInterface that actually hits the disk.
 struct RealDiskInterface : public DiskInterface {
   RealDiskInterface();
-  virtual ~RealDiskInterface() {}
-  TimeStamp Stat(const std::string& path, std::string* err) const override;
+  virtual ~RealDiskInterface();
+  std::optional<TimeStamp> StatImpl(const std::string& path) const override;
   bool MakeDir(const std::string& path) override;
   bool WriteFile(const std::string& path, const std::string& contents,
                  bool crlf_on_windows) override;

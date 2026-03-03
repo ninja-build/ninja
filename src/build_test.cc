@@ -1392,7 +1392,7 @@ void TestPhonyUseCase(BuildTest* t, int i) {
 
     // Second build, expect testN edge to be rebuilt
     // and phonyN node's mtime to be updated.
-    EXPECT_FALSE(builder_.AlreadyUpToDate());
+    ASSERT_FALSE(builder_.AlreadyUpToDate());
     EXPECT_EQ(builder_.Build(&err), ExitSuccess);
     ASSERT_EQ("", err);
     ASSERT_EQ(1u, command_runner_.commands_ran_.size());
@@ -1404,9 +1404,9 @@ void TestPhonyUseCase(BuildTest* t, int i) {
     EXPECT_FALSE(phonyNode->exists());
     EXPECT_FALSE(phonyNode->dirty());
 
-    EXPECT_GT(phonyNode->mtime(), startTime);
-    EXPECT_EQ(phonyNode->mtime(), inputTime);
-    ASSERT_TRUE(testNode->Stat(&fs_, &err));
+    EXPECT_GT(phonyNode->most_recent_input_mtime(), startTime);
+    EXPECT_EQ(phonyNode->most_recent_input_mtime(), inputTime);
+    testNode->Stat(&fs_);
     EXPECT_TRUE(testNode->exists());
     EXPECT_GT(testNode->mtime(), startTime);
   } else {
@@ -1693,6 +1693,7 @@ TEST_F(BuildWithLogTest, RebuildAfterFailure) {
 
   // Run again, should rerun even though the output file is up to date on disk
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_EQ("", err);
   EXPECT_FALSE(builder_.AlreadyUpToDate());
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ(1u, command_runner_.commands_ran_.size());
@@ -2224,7 +2225,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_EQ(builder_.Build(&err), ExitInterrupted);
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_GT(fs_.Stat("out1", &err), 0);
+  EXPECT_TRUE(fs_.Stat("out1"));
   err = "";
 
   // A touched output of an interrupted command should be deleted.
@@ -2233,7 +2234,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_EQ(builder_.Build(&err), ExitInterrupted);
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("out2"));
 }
 
 TEST_F(BuildTest, StatFailureAbortsBuild) {
@@ -2606,7 +2607,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     EXPECT_EQ("", err);
 
     // The deps file should have been removed.
-    EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+    EXPECT_EQ(std::nullopt, fs_.Stat("in1.d"));
     // Recreate it for the next step.
     fs_.Create("in1.d", "out: in2");
     deps_log.Close();
@@ -2684,7 +2685,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
   fs_.Create("out", "");
 
   // The deps file should have been removed, so no need to timestamp it.
-  EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+  EXPECT_EQ(std::nullopt, fs_.Stat("in1.d"));
 
   {
     State state;
@@ -2746,6 +2747,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceCondition) {
   string err;
   const char* manifest =
       "rule long-cc\n"
+      "  restat = 0\n"
       "  command = long-cc\n"
       "build out: long-cc in1\n"
       "  test_dependency = in1\n";
@@ -2824,6 +2826,7 @@ TEST_F(BuildWithDepsLogTest, TestInputMtimeRaceConditionWithDepFile) {
   const char* manifest =
       "rule long-cc\n"
       "  command = long-cc\n"
+      "  restat = 0\n"
       "build out: long-cc\n"
       "  deps = gcc\n"
       "  depfile = out.d\n"
@@ -3799,6 +3802,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdge) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out $out.imp\n"
+"  restat = 0\n"
 "rule cp\n"
 "  command = cp $in $out\n"
 "build dd: cp dd-in\n"
@@ -3831,6 +3835,7 @@ TEST_F(BuildTest, DyndepBuildDiscoverNowWantEdgeAndDependent) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out $out.imp\n"
+"  restat = 0\n"
 "rule cp\n"
 "  command = cp $in $out\n"
 "build dd: cp dd-in\n"
@@ -3994,6 +3999,7 @@ TEST_F(BuildTest, DyndepTwoLevelDirect) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out $out.imp\n"
+"  restat = 0\n"
 "rule cp\n"
 "  command = cp $in $out\n"
 "build dd1: cp dd1-in\n"
@@ -4042,6 +4048,7 @@ TEST_F(BuildTest, DyndepTwoLevelIndirect) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule touch\n"
 "  command = touch $out $out.imp\n"
+"  restat = 0\n"
 "rule cp\n"
 "  command = cp $in $out\n"
 "build dd1: cp dd1-in\n"
@@ -4303,7 +4310,7 @@ TEST_F(BuildWithDepsLogTest, ValidationThroughDepfile) {
     EXPECT_EQ("cat in3 > out2", command_runner_.commands_ran_[0]);
 
     // The deps file should have been removed.
-    EXPECT_EQ(0, fs_.Stat("out2.d", &err));
+    EXPECT_EQ(std::nullopt, fs_.Stat("out2.d"));
 
     deps_log.Close();
   }

@@ -652,7 +652,7 @@ TEST_F(GraphTest, DyndepLoadTrivial) {
   EXPECT_EQ("dd", edge->inputs_[1]->path());
   EXPECT_EQ(0, edge->implicit_deps_);
   EXPECT_EQ(1, edge->order_only_deps_);
-  EXPECT_FALSE(edge->GetBindingBool("restat"));
+  EXPECT_TRUE(edge->GetBindingBool("restat"));
 }
 
 TEST_F(GraphTest, DyndepLoadImplicit) {
@@ -683,7 +683,7 @@ TEST_F(GraphTest, DyndepLoadImplicit) {
   EXPECT_EQ("dd", edge->inputs_[2]->path());
   EXPECT_EQ(1, edge->implicit_deps_);
   EXPECT_EQ(1, edge->order_only_deps_);
-  EXPECT_FALSE(edge->GetBindingBool("restat"));
+  EXPECT_TRUE(edge->GetBindingBool("restat"));
 }
 
 TEST_F(GraphTest, DyndepLoadMissingFile) {
@@ -818,7 +818,7 @@ TEST_F(GraphTest, DyndepLoadMultiple) {
   EXPECT_EQ("dd", edge1->inputs_[2]->path());
   EXPECT_EQ(1, edge1->implicit_deps_);
   EXPECT_EQ(1, edge1->order_only_deps_);
-  EXPECT_FALSE(edge1->GetBindingBool("restat"));
+  EXPECT_TRUE(edge1->GetBindingBool("restat"));
   EXPECT_EQ(edge1, GetNode("out1imp")->in_edge());
   Node* in1imp = GetNode("in1imp");
   ASSERT_EQ(size_t(1), in1imp->out_edges().size());
@@ -1070,8 +1070,8 @@ TEST_F(GraphTest, PhonyDepsMtimes) {
   EXPECT_TRUE(!out1->dirty());
 
   // Get the mtime of out1
-  ASSERT_TRUE(in1->Stat(&fs_, &err));
-  ASSERT_TRUE(out1->Stat(&fs_, &err));
+  in1->Stat(&fs_);
+  out1->Stat(&fs_);
   TimeStamp out1Mtime1 = out1->mtime();
   TimeStamp in1Mtime1 = in1->mtime();
 
@@ -1080,7 +1080,7 @@ TEST_F(GraphTest, PhonyDepsMtimes) {
   fs_.Tick();
   fs_.Create("in1", "");
 
-  ASSERT_TRUE(in1->Stat(&fs_, &err));
+  in1->Stat(&fs_);
   EXPECT_GT(in1->mtime(), in1Mtime1);
 
   EXPECT_TRUE(scan_.RecomputeDirty(out1, NULL, &err));
@@ -1139,5 +1139,3 @@ TEST_F(GraphTest, EdgeQueuePriority) {
   }
   EXPECT_TRUE(queue.empty());
 }
-
-

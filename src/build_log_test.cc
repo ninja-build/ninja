@@ -51,8 +51,8 @@ TEST_F(BuildLogTest, WriteRead) {
   std::string err;
   EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
   ASSERT_EQ("", err);
-  log1.RecordCommand(state_.edges_[0], 15, 18);
-  log1.RecordCommand(state_.edges_[1], 20, 25);
+  log1.RecordCommand(state_.edges_[0], 15, 18, 12345);
+  log1.RecordCommand(state_.edges_[1], 20, 25, 12345);
   log1.Close();
 
   BuildLog log2;
@@ -129,8 +129,8 @@ TEST_F(BuildLogTest, Truncate) {
     std::string err;
     EXPECT_TRUE(log1.OpenForWrite(kTestFilename, *this, &err));
     ASSERT_EQ("", err);
-    log1.RecordCommand(state_.edges_[0], 15, 18);
-    log1.RecordCommand(state_.edges_[1], 20, 25);
+    log1.RecordCommand(state_.edges_[0], 15, 18, 12345);
+    log1.RecordCommand(state_.edges_[1], 20, 25, 12345);
     log1.Close();
   }
 #ifdef __USE_LARGEFILE64
@@ -149,8 +149,8 @@ TEST_F(BuildLogTest, Truncate) {
     std::string err;
     EXPECT_TRUE(log2.OpenForWrite(kTestFilename, *this, &err));
     ASSERT_EQ("", err);
-    log2.RecordCommand(state_.edges_[0], 15, 18);
-    log2.RecordCommand(state_.edges_[1], 20, 25);
+    log2.RecordCommand(state_.edges_[0], 15, 18, 12345);
+    log2.RecordCommand(state_.edges_[1], 20, 25, 12345);
     log2.Close();
 
     ASSERT_TRUE(Truncate(kTestFilename, size, &err));
@@ -227,7 +227,7 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
 }
 
 struct TestDiskInterface : public DiskInterface {
-  TimeStamp Stat(const std::string& path, std::string* err) const override {
+  std::optional<TimeStamp> StatImpl(const std::string& path) const override {
     return 4;
   }
   bool WriteFile(const std::string& path, const std::string& contents,
@@ -310,7 +310,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 "build out out.d: cat\n");
 
   BuildLog log;
-  log.RecordCommand(state_.edges_[0], 21, 22);
+  log.RecordCommand(state_.edges_[0], 21, 22, 12345);
 
   ASSERT_EQ(2u, log.entries().size());
   BuildLog::LogEntry* e1 = log.LookupByOutput("out");
@@ -341,8 +341,8 @@ TEST_F(BuildLogRecompactTest, Recompact) {
   // Record the same edge several times, to trigger recompaction
   // the next time the log is opened.
   for (int i = 0; i < 200; ++i)
-    log1.RecordCommand(state_.edges_[0], 15, 18 + i);
-  log1.RecordCommand(state_.edges_[1], 21, 22);
+    log1.RecordCommand(state_.edges_[0], 15, 18 + i, 12345);
+  log1.RecordCommand(state_.edges_[1], 21, 22, 12345);
   log1.Close();
 
   // Load...
