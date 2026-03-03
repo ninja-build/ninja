@@ -259,6 +259,165 @@ build zoo: touch bar
                 '\n',
             ])
 
+    def test_issue_1336(self) -> None:
+        # In non-TTY mode, console edges should report progress when finished
+        # (like non-console edges) so [%f/%t] reaches [N/N].
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = touch $out
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', pipe=True),
+'''[1/2] touch out
+[2/2] Installing files.
+''')
+
+    def test_issue_1336_dumb_tty(self) -> None:
+        # In non-smart TTY mode, console edges should still end at [N/N].
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', env=env),
+'''[1/2] touch out
+[1/2] Installing files.
+install
+[2/2] Installing files.
+''')
+
+    def test_issue_1336_dumb_tty_failure(self) -> None:
+        # In non-smart TTY mode, a failing final console edge should also
+        # print a final [N/N] status before the error output.
+        py = sys.executable
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self._test_expected_error(
+            f'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = {py} -c 'import sys; print("install failed"); sys.exit(127)'
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', None,
+            f'''[1/2] touch out
+[1/2] Installing files.
+install failed
+[2/2] Installing files.
+FAILED: [code=127] install \n{py} -c 'import sys; print("install failed"); sys.exit(127)'
+ninja: build stopped: subcommand failed.
+''',
+            exit_code=127, env=env,
+        )
+
+    def test_issue_1336_dumb_tty_interrupt(self) -> None:
+        # Interrupted console edges in non-smart TTY mode should keep the
+        # interrupted-by-user behavior unchanged.
+        py = sys.executable
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        self._test_expected_error(
+            f'''rule interrupt
+  command = {py} -c 'import sys; sys.exit(130)'
+  description = Interrupting...
+  pool = console
+
+build stop: interrupt
+''', None,
+            '''[0/1] Interrupting...
+ninja: build stopped: interrupted by user.
+''',
+            exit_code=130, env=env,
+        )
+
+    def test_issue_1336_dumb_tty_empty_status_format(self) -> None:
+        # When NINJA_STATUS is disabled, avoid extra completion-only status
+        # output in dumb TTY mode.
+        env = default_env.copy()
+        env['TERM'] = 'dumb'
+        env['NINJA_STATUS'] = ''
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+''', env=env),
+'''touch out
+Installing files.
+install
+''')
+
+    def test_issue_1336_smart_terminal(self) -> None:
+        # In smart terminals, console edges should also report completion so
+        # the final visible status reaches [N/N].
+        self.assertEqual(run(
+'''rule touch
+  command = touch $out
+  description = touch $out
+
+rule install
+  command = printf "install\\n"
+  description = Installing files.
+  pool = console
+
+build out: touch
+build install: install out
+'''),
+'''[1/2] Installing files.\x1b[K
+install
+[2/2] Installing files.\x1b[K
+''')
+
+    def test_issue_2507(self) -> None:
+        # A single ninja invocation may run a manifest-check phase before the
+        # user-requested build. Status counters must not leak across phases.
+        self.assertEqual(run(
+'''rule verify
+  command = printf ""
+  description = Re-checking...
+  pool = console
+  restat = 1
+
+rule touch
+  command = touch $out
+  description = touch $out
+
+build build.ninja: verify
+build out: touch
+default out
+''', pipe=True),
+'''[1/1] Re-checking...
+[1/1] touch out
+''')
+
     def test_pr_1685(self) -> None:
         # Running those tools without .ninja_deps and .ninja_log shouldn't fail.
         self.assertEqual(run('', flags='-t recompact'), '')
@@ -597,7 +756,60 @@ out3<TAB>in3
             # pruned from the graph by an earlier restat.
             self.assertEqual(b.run('-v -d explain'), dedent('''\
                 ninja explain: .FORCE is dirty
+                [1/1] [ -e input ] || touch input
+                '''))
+
+    def test_restat_prunes_progress_total(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule create_if_non_exist
+              command = [ -e $out ] || touch $out
+              restat = true
+            rule write
+              command = cp $in $out
+            build input : create_if_non_exist .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # First run builds the full chain.
+            self.assertEqual(b.run('-v'), dedent('''\
                 [1/3] [ -e input ] || touch input
+                [2/3] cp input mid
+                [3/3] cp mid output
+                '''))
+            # On the no-op run, restat pruning should update the denominator
+            # before status is printed.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/1] [ -e input ] || touch input
+                '''))
+
+    def test_generator_restat_prunes_progress_total(self):
+        b = BuildDir('''\
+            build .FORCE: phony
+            rule verify
+              command = [ -e $out ] || touch $out
+              restat = true
+              generator = true
+            rule write
+              command = cp $in $out
+            build input : verify .FORCE
+            build mid : write input
+            build output : write mid
+            default output
+            ''')
+        with b:
+            # First run builds the full chain.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/3] [ -e input ] || touch input
+                [2/3] cp input mid
+                [3/3] cp mid output
+                '''))
+            # On the no-op run, generator+restat pruning should update the
+            # denominator before status is printed.
+            self.assertEqual(b.run('-v'), dedent('''\
+                [1/1] [ -e input ] || touch input
                 '''))
 
     def test_issue_2586(self):

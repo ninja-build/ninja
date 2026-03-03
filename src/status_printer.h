@@ -107,6 +107,12 @@ struct StatusPrinter : Status {
 
     double rate() { return rate_; }
 
+    void Reset() {
+      rate_ = -1;
+      last_update_ = -1;
+      times_ = std::queue<double>();
+    }
+
     void UpdateRate(int update_hint, int64_t time_millis) {
       if (update_hint == last_update_)
         return;
