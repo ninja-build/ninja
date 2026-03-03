@@ -1140,4 +1140,19 @@ TEST_F(GraphTest, EdgeQueuePriority) {
   EXPECT_TRUE(queue.empty());
 }
 
+TEST_F(GraphTest, PhonyOutputWithValidation) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build valid: phony\n"
+                                      "build out: phony |@ valid\n"));
+  fs_.Create("valid", "");
 
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  // Phony output with validation should not be dirty even if output is missing.
+  EXPECT_FALSE(GetNode("out")->dirty());
+  ASSERT_EQ(1u, validation_nodes.size());
+  EXPECT_EQ("valid", validation_nodes[0]->path());
+}
