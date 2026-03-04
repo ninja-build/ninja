@@ -14,30 +14,60 @@
 
 #include "includes_normalize.h"
 
-#include "string_piece.h"
-#include "string_piece_util.h"
-#include "util.h"
+#include <string.h>
+
+#include <windows.h>
 
 #include <algorithm>
 #include <iterator>
 #include <sstream>
 
-#include <windows.h>
-
-using namespace std;
+#include "string_piece.h"
+#include "string_piece_util.h"
+#include "util.h"
 
 namespace {
 
+constexpr const std::size_t MAX_PATH_LONG = 32767;
+
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
-                             size_t buffer_length, string *err) {
-  DWORD result_size = GetFullPathNameA(file_name.AsString().c_str(),
-                                       buffer_length, buffer, NULL);
-  if (result_size == 0) {
-    *err = "GetFullPathNameA(" + file_name.AsString() + "): " +
-        GetLastErrorString();
+                             size_t buffer_length, std::string* err) {
+  // IMPORTANT: Using GetFullPathNameA() with a long paths will fail with
+  // "The filename or extension is too long" even if long path supported is
+  // enabled. GetFullPathNameW() must be used for this function to work!
+  buffer[0] = '\0';
+  // Convert to wide filename first.
+  std::wstring wide_filename;
+  if (!ConvertUTF8ToWin32Unicode(file_name, &wide_filename, err))
     return false;
-  } else if (result_size > buffer_length) {
-    *err = "path too long";
+
+  // Call GetFullPathNameW()
+  DWORD wide_full_size = GetFullPathNameW(wide_filename.c_str(), 0, NULL, NULL);
+  if (wide_full_size == 0) {
+    *err = "GetFullPathNameW(" +
+           std::string(wide_filename.begin(), wide_filename.end()) +
+           "): " + GetLastErrorString();
+    return false;
+  }
+
+  // NOTE: wide_full_size includes the null-terminating character.
+  std::wstring wide_path;
+  wide_path.resize(static_cast<size_t>(wide_full_size - 1));
+  DWORD wide_full_size2 =
+      GetFullPathNameW(wide_filename.c_str(), wide_full_size,
+                       const_cast<wchar_t*>(wide_path.data()), NULL);
+  if (wide_full_size2 == 0) {
+    *err = "GetFullPathNameW(" + file_name.AsString() + "): " + GetLastErrorString();
+    return false;
+  }
+
+  // Convert wide_path to Unicode.
+  int utf8_size =
+      WideCharToMultiByte(CP_UTF8, 0, wide_path.c_str(), wide_path.size() + 1,
+                          buffer, buffer_length, NULL, NULL);
+  if (utf8_size <= 0 || utf8_size >= buffer_length) {
+    *err = "WideCharToMultiByte(" + std::string(wide_path.begin(), wide_path.end()) +
+           "): " + GetLastErrorString();
     return false;
   }
   return true;
@@ -71,13 +101,13 @@ bool SameDriveFast(StringPiece a, StringPiece b) {
 }
 
 // Return true if paths a and b are on the same Windows drive.
-bool SameDrive(StringPiece a, StringPiece b, string* err)  {
+bool SameDrive(StringPiece a, StringPiece b, std::string* err) {
   if (SameDriveFast(a, b)) {
     return true;
   }
 
-  char a_absolute[_MAX_PATH];
-  char b_absolute[_MAX_PATH];
+  char a_absolute[MAX_PATH_LONG];
+  char b_absolute[MAX_PATH_LONG];
   if (!InternalGetFullPathName(a, a_absolute, sizeof(a_absolute), err)) {
     return false;
   }
@@ -126,8 +156,8 @@ bool IsFullPathName(StringPiece s) {
 
 }  // anonymous namespace
 
-IncludesNormalize::IncludesNormalize(const string& relative_to) {
-  string err;
+IncludesNormalize::IncludesNormalize(const std::string& relative_to) {
+  std::string err;
   relative_to_ = AbsPath(relative_to, &err);
   if (!err.empty()) {
     Fatal("Initializing IncludesNormalize(): %s", err.c_str());
@@ -135,9 +165,9 @@ IncludesNormalize::IncludesNormalize(const string& relative_to) {
   split_relative_to_ = SplitStringPiece(relative_to_, '/');
 }
 
-string IncludesNormalize::AbsPath(StringPiece s, string* err) {
+std::string IncludesNormalize::AbsPath(StringPiece s, std::string* err) {
   if (IsFullPathName(s)) {
-    string result = s.AsString();
+    std::string result = s.AsString();
     for (size_t i = 0; i < result.size(); ++i) {
       if (result[i] == '\\') {
         result[i] = '/';
@@ -146,7 +176,7 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
     return result;
   }
 
-  char result[_MAX_PATH];
+  char result[MAX_PATH_LONG];
   if (!InternalGetFullPathName(s, result, sizeof(result), err)) {
     return "";
   }
@@ -156,21 +186,23 @@ string IncludesNormalize::AbsPath(StringPiece s, string* err) {
   return result;
 }
 
-string IncludesNormalize::Relativize(
-    StringPiece path, const vector<StringPiece>& start_list, string* err) {
-  string abs_path = AbsPath(path, err);
+std::string IncludesNormalize::Relativize(
+    StringPiece path, const std::vector<StringPiece>& start_list,
+    std::string* err) {
+  std::string abs_path = AbsPath(path, err);
   if (!err->empty())
     return "";
-  vector<StringPiece> path_list = SplitStringPiece(abs_path, '/');
+  std::vector<StringPiece> path_list = SplitStringPiece(abs_path, '/');
   int i;
-  for (i = 0; i < static_cast<int>(min(start_list.size(), path_list.size()));
+  for (i = 0;
+       i < static_cast<int>(std::min(start_list.size(), path_list.size()));
        ++i) {
     if (!EqualsCaseInsensitiveASCII(start_list[i], path_list[i])) {
       break;
     }
   }
 
-  vector<StringPiece> rel_list;
+  std::vector<StringPiece> rel_list;
   rel_list.reserve(start_list.size() - i + path_list.size() - i);
   for (int j = 0; j < static_cast<int>(start_list.size() - i); ++j)
     rel_list.push_back("..");
@@ -181,11 +213,11 @@ string IncludesNormalize::Relativize(
   return JoinStringPiece(rel_list, '/');
 }
 
-bool IncludesNormalize::Normalize(const string& input,
-                                  string* result, string* err) const {
-  char copy[_MAX_PATH + 1];
+bool IncludesNormalize::Normalize(const std::string& input, std::string* result,
+                                  std::string* err) const {
+  char copy[MAX_PATH_LONG + 1];
   size_t len = input.size();
-  if (len > _MAX_PATH) {
+  if (len > MAX_PATH_LONG) {
     *err = "path too long";
     return false;
   }
@@ -193,7 +225,7 @@ bool IncludesNormalize::Normalize(const string& input,
   uint64_t slash_bits;
   CanonicalizePath(copy, &len, &slash_bits);
   StringPiece partially_fixed(copy, len);
-  string abs_input = AbsPath(partially_fixed, err);
+  std::string abs_input = AbsPath(partially_fixed, err);
   if (!err->empty())
     return false;
 
