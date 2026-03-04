@@ -1011,6 +1011,18 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
   return command;
 }
 
+/// Returns true if this edge's outputs are only used as validation
+/// dependencies by other edges, not as regular build inputs.
+bool IsValidationOnlyEdge(const Edge* edge) {
+  for (const Node* output : edge->outputs_) {
+    if (output->validation_out_edges().empty() ||
+        !output->out_edges().empty()) {
+      return false;
+    }
+  }
+  return !edge->outputs_.empty();
+}
+
 void PrintCompdbObjectsForEdge(std::string const& directory, const Edge* const edge,
                                const EvaluateCommandMode eval_mode) {
   const auto& command = EvaluateCommandWithRspfile(edge, eval_mode);
@@ -1070,7 +1082,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   std::string directory = GetWorkingDirectory();
   putchar('[');
   for (const Edge* edge : state_.edges_) {
-    if (edge->inputs_.empty())
+    if (edge->inputs_.empty() || IsValidationOnlyEdge(edge))
       continue;
     if (argc == 0) {
       if (!first) {
@@ -1228,7 +1240,7 @@ void PrintCompdb(std::string const& directory, std::vector<Edge*> const& edges,
 
   bool first = true;
   for (const Edge* edge : edges) {
-    if (edge->is_phony() || edge->inputs_.empty())
+    if (edge->is_phony() || edge->inputs_.empty() || IsValidationOnlyEdge(edge))
       continue;
     if (!first)
       putchar(',');
