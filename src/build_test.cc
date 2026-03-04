@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include "build_log.h"
+#include "build_result.h"
 #include "deps_log.h"
 #include "exit_status.h"
 #include "graph.h"
@@ -524,7 +525,7 @@ struct FakeCommandRunner : public CommandRunner {
   // CommandRunner impl
   virtual size_t CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  virtual BuildResult WaitForCommand();
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
@@ -732,9 +733,9 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool FakeCommandRunner::WaitForCommand(Result* result) {
+BuildResult FakeCommandRunner::WaitForCommand() {
   if (active_edges_.empty())
-    return false;
+    return BuildResult::Finished{};
 
   // All active edges were already completed immediately when started,
   // so we can pick any edge here.  Pick the last edge.  Tests can
@@ -742,36 +743,36 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   vector<Edge*>::iterator edge_iter = active_edges_.end() - 1;
 
   Edge* edge = *edge_iter;
-  result->edge = edge;
+  ExitStatus status;
+  std::string output;
 
   if (edge->rule().name() == "interrupt" ||
       edge->rule().name() == "touch-interrupt") {
-    result->status = ExitInterrupted;
-    return true;
+    return BuildResult::Interrupted{};
   }
 
   if (edge->rule().name() == "console") {
     if (edge->use_console())
-      result->status = ExitSuccess;
+      status = ExitSuccess;
     else
-      result->status = ExitFailure;
+      status = ExitFailure;
     active_edges_.erase(edge_iter);
-    return true;
+    return BuildResult::CommandCompleted{edge, status};
   }
 
   if (edge->rule().name() == "cp_multi_msvc") {
     const std::string prefix = edge->GetBinding("msvc_deps_prefix");
     for (std::vector<Node*>::iterator in = edge->inputs_.begin();
          in != edge->inputs_.end(); ++in) {
-      result->output += prefix + (*in)->path() + '\n';
+      output += prefix + (*in)->path() + '\n';
     }
   }
 
   if (edge->rule().name() == "fail" ||
       (edge->rule().name() == "touch-fail-tick2" && fs_->now_ == 2))
-    result->status = ExitFailure;
+    status = ExitFailure;
   else
-    result->status = ExitSuccess;
+    status = ExitSuccess;
 
   // This rule simulates an external process modifying files while the build command runs.
   // See TestInputMtimeRaceCondition and TestInputMtimeRaceConditionWithDepFile.
@@ -802,7 +803,7 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   }
 
   active_edges_.erase(edge_iter);
-  return true;
+  return BuildResult::CommandCompleted{edge, status, output};
 }
 
 vector<Edge*> FakeCommandRunner::GetActiveEdges() {
