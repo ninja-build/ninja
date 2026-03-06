@@ -18,8 +18,8 @@
 
 using namespace std;
 
-string BindingEnv::LookupVariable(const string& var) {
-  map<string, string>::iterator i = bindings_.find(var);
+std::string BindingEnv::LookupVariable(StringPiece var) {
+  const auto i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
   if (parent_)
@@ -27,8 +27,8 @@ string BindingEnv::LookupVariable(const string& var) {
   return "";
 }
 
-void BindingEnv::AddBinding(const string& key, const string& val) {
-  bindings_[key] = val;
+void BindingEnv::AddBinding(const std::string& key, StringPiece val) {
+  bindings_[key].assign(val.begin(), val.end());
 }
 
 void BindingEnv::AddRule(std::unique_ptr<const Rule> rule) {
@@ -36,14 +36,14 @@ void BindingEnv::AddRule(std::unique_ptr<const Rule> rule) {
   rules_[rule->name()] = std::move(rule);
 }
 
-const Rule* BindingEnv::LookupRuleCurrentScope(const string& rule_name) {
+const Rule* BindingEnv::LookupRuleCurrentScope(StringPiece rule_name) {
   auto i = rules_.find(rule_name);
   if (i == rules_.end())
     return NULL;
   return i->second.get();
 }
 
-const Rule* BindingEnv::LookupRule(const string& rule_name) {
+const Rule* BindingEnv::LookupRule(StringPiece rule_name) {
   auto i = rules_.find(rule_name);
   if (i != rules_.end())
     return i->second.get();
@@ -56,7 +56,7 @@ void Rule::AddBinding(const string& key, const EvalString& val) {
   bindings_[key] = val;
 }
 
-const EvalString* Rule::GetBinding(const string& key) const {
+const EvalString* Rule::GetBinding(StringPiece key) const {
   Bindings::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())
     return NULL;
@@ -74,7 +74,7 @@ bool Rule::IsPhony() const {
 }
 
 // static
-bool Rule::IsReservedBinding(const string& var) {
+bool Rule::IsReservedBinding(StringPiece var) {
   return var == "command" ||
       var == "depfile" ||
       var == "dyndep" ||
@@ -88,14 +88,14 @@ bool Rule::IsReservedBinding(const string& var) {
       var == "msvc_deps_prefix";
 }
 
-const map<string, std::unique_ptr<const Rule>>& BindingEnv::GetRules() const {
+const map<string, std::unique_ptr<const Rule>, StringPieceLess>& BindingEnv::GetRules() const {
   return rules_;
 }
 
-string BindingEnv::LookupWithFallback(const string& var,
-                                      const EvalString* eval,
-                                      Env* env) {
-  map<string, string>::iterator i = bindings_.find(var);
+std::string BindingEnv::LookupWithFallback(StringPiece var,
+                                           const EvalString* eval,
+                                           Env* env) {
+  const auto i = bindings_.find(var);
   if (i != bindings_.end())
     return i->second;
 
