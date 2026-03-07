@@ -148,9 +148,13 @@ void MissingDependencyPrinter::OnMissingDep(const Node* node, const std::string&
 
 MissingDependencyScanner::MissingDependencyScanner(
     MissingDependencyScannerDelegate* delegate, DepsLog* deps_log, State* state,
-    DiskInterface* disk_interface)
+    DiskInterface* disk_interface, const std::vector<Node*>& nodes)
     : delegate_(delegate), deps_log_(deps_log), state_(state),
-      disk_interface_(disk_interface), missing_dep_path_count_(0) {}
+      disk_interface_(disk_interface), missing_dep_path_count_(0),
+      DyndepFile_(Load(state_, disk_interface_, deps_log_, nodes)) {
+  for (const Node* node : nodes)
+    ProcessNode(node);
+}
 
 void MissingDependencyScanner::ProcessNode(const Node* node) {
   if (!node)

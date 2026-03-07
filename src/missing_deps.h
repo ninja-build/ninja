@@ -21,6 +21,8 @@
 
 #include <unordered_map>
 
+#include "dyndep_file_sorted.h"
+
 struct DepsLog;
 struct DiskInterface;
 struct Edge;
@@ -46,7 +48,8 @@ struct MissingDependencyScanner {
  public:
   MissingDependencyScanner(MissingDependencyScannerDelegate* delegate,
                            DepsLog* deps_log, State* state,
-                           DiskInterface* disk_interface);
+                           DiskInterface* disk_interface,
+                           const std::vector<Node*>& nodes);
   void ProcessNode(const Node* node);
   void PrintStats() const;
   bool HadMissingDeps() const { return !nodes_missing_deps_.empty(); }
@@ -71,6 +74,7 @@ struct MissingDependencyScanner {
 
  private:
   AdjacencyMap adjacency_map_;
+  const DyndepFileSorted DyndepFile_;
 };
 
 #endif  // NINJA_MISSING_DEPS_H_
