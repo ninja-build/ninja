@@ -206,6 +206,12 @@ void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
     Edge* deplog_edge = deplog_node->in_edge();
     if (deplog_edge) {
       deplog_edges.insert(deplog_edge);
+    } else {
+      // check if the node is produced by a dyndep output
+      const auto it = DyndepFile_.findOut(deplog_node);
+      if (it) {
+        deplog_edges.insert(it);
+      }
     }
   }
   std::vector<const Edge*> missing_deps;
@@ -225,6 +231,18 @@ void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
           generator_rules_.insert(&ne->rule());
           missing_deps_rule_names.insert(ne->rule().name());
           delegate_->OnMissingDep(node, dep_nodes[i]->path(), ne->rule());
+        }
+      }
+
+      // check dyndep generated outputs
+      auto it = DyndepFile_.findOut(ne);
+      if (it) {
+        const auto& outputs = *it;
+        generated_nodes_.insert(outputs.begin(), outputs.end());
+        generator_rules_.insert(&ne->rule());
+        missing_deps_rule_names.insert(ne->rule().name());
+        for (const Node* out : outputs) {
+          delegate_->OnMissingDep(node, out->path(), ne->rule());
         }
       }
     }
