@@ -38,17 +38,40 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
                           depfile_parser_options, explanations),
         dep_nodes_output_(dep_nodes_output) {}
 
- protected:
-  virtual bool ProcessDepfileDeps(Edge* edge,
-                                  std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+  bool LoadDeps(const Edge* edge, std::string* err);
+  bool LoadDepFile(const Edge* edge, const std::string& path, std::string* err);
+
+ private:
+  bool ProcessDepfileDeps(std::vector<StringPiece>* depfile_ins,
+                          std::string* err);
 
  private:
   std::vector<Node*>* dep_nodes_output_;
 };
 
+bool NodeStoringImplicitDepLoader::LoadDepFile(const Edge* edge,
+                                               const std::string& path,
+                                               std::string* err) {
+  std::string content;
+  std::optional<DepfileParser> depfileParser =
+      LoadDepFileParser(edge, path, content, err);
+  if (!depfileParser)
+    return false;
+  return ProcessDepfileDeps(&(*depfileParser).ins_, err);
+}
+
+bool NodeStoringImplicitDepLoader::LoadDeps(const Edge* edge,
+                                            std::string* err) {
+  std::string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty())
+    return LoadDepFile(edge, depfile, err);
+
+  // No deps to load.
+  return true;
+}
+
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    std::vector<StringPiece>* depfile_ins, std::string* err) {
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;
@@ -78,13 +101,13 @@ MissingDependencyScanner::MissingDependencyScanner(
 void MissingDependencyScanner::ProcessNode(const Node* node) {
   if (!node)
     return;
-  Edge* edge = node->in_edge();
+  const Edge* edge = node->in_edge();
   if (!edge)
     return;
   if (!seen_.insert(node).second)
     return;
 
-  for (std::vector<Node*>::iterator in = edge->inputs_.begin();
+  for (std::vector<Node*>::const_iterator in = edge->inputs_.begin();
        in != edge->inputs_.end(); ++in) {
     ProcessNode(*in);
   }
