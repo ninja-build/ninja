@@ -37,6 +37,32 @@
 
 using namespace std;
 
+namespace {
+
+bool ShouldPrintEdgeStartedStatus(bool is_console_edge, bool is_tty,
+                                  bool is_smart_terminal) {
+  return (is_console_edge && is_tty) || is_smart_terminal;
+}
+
+bool ShouldPrintConsoleEdgeFinishedStatusInDumbTty(bool is_tty,
+                                                   bool is_smart_terminal,
+                                                   bool is_final_edge,
+                                                   bool has_status_format) {
+  return is_tty && !is_smart_terminal && is_final_edge && has_status_format;
+}
+
+bool ShouldPrintEdgeFinishedStatus(bool is_console_edge, bool is_tty,
+                                   bool is_smart_terminal, bool is_final_edge,
+                                   bool has_status_format) {
+  if (!is_console_edge || !is_tty || is_smart_terminal)
+    return true;
+
+  return ShouldPrintConsoleEdgeFinishedStatusInDumbTty(
+      is_tty, is_smart_terminal, is_final_edge, has_status_format);
+}
+
+}  // namespace
+
 Status* Status::factory(const BuildConfig& config) {
   return new StatusPrinter(config);
 }
@@ -88,10 +114,16 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
   ++running_edges_;
   time_millis_ = start_time_millis;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
+  const bool is_console_edge = edge->use_console();
+  const bool is_tty = printer_.is_tty();
+  const bool is_smart_terminal = printer_.is_smart_terminal();
+
+  // Regular edges use smart-terminal updates. Console edges should still be
+  // printed at start on any TTY so command text appears before command output.
+  if (ShouldPrintEdgeStartedStatus(is_console_edge, is_tty, is_smart_terminal))
     PrintStatus(edge, start_time_millis);
 
-  if (edge->use_console())
+  if (is_console_edge)
     printer_.SetConsoleLocked(true);
 }
 
@@ -175,7 +207,8 @@ void StatusPrinter::RecalculateProgressPrediction() {
 }
 
 void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
-                                      int64_t end_time_millis, ExitStatus exit_code,
+                                      int64_t end_time_millis,
+                                      ExitStatus exit_code,
                                       const string& output) {
   time_millis_ = end_time_millis;
   ++finished_edges_;
@@ -197,7 +230,20 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  const bool is_console_edge = edge->use_console();
+  const bool is_tty = printer_.is_tty();
+  const bool is_smart_terminal = printer_.is_smart_terminal();
+  const bool is_final_edge = finished_edges_ == total_edges_;
+  const bool has_status_format =
+      progress_status_format_ && progress_status_format_[0] != '\0';
+
+  // Regular edges are always reported on completion. Console edges are
+  // reported on completion in non-TTY mode and in smart terminals. For dumb
+  // TTYs, print completion only for the final console edge so [%f/%t] can
+  // still reach [N/N] without printing duplicate progress for every console
+  // command.
+  if (ShouldPrintEdgeFinishedStatus(is_console_edge, is_tty, is_smart_terminal,
+                                    is_final_edge, has_status_format))
     PrintStatus(edge, end_time_millis);
 
   --running_edges_;
@@ -211,9 +257,9 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
 
     string failed = "FAILED: [code=" + std::to_string(exit_code) + "] ";
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
+      printer_.PrintOnNewLine("\x1B[31m" + failed + "\x1B[0m" + outputs + "\n");
     } else {
-        printer_.PrintOnNewLine(failed + outputs + "\n");
+      printer_.PrintOnNewLine(failed + outputs + "\n");
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
@@ -259,6 +305,26 @@ void StatusPrinter::BuildStarted() {
 void StatusPrinter::BuildFinished() {
   printer_.SetConsoleLocked(false);
   printer_.PrintOnNewLine("");
+
+  // A single ninja invocation can run multiple build phases (e.g. manifest
+  // checks followed by the user-requested targets). Reset all counters so
+  // status from one phase does not leak into the next.
+  started_edges_ = 0;
+  finished_edges_ = 0;
+  total_edges_ = 0;
+  running_edges_ = 0;
+
+  time_millis_ = 0;
+  cpu_time_millis_ = 0;
+  time_predicted_percentage_ = 0.0;
+
+  eta_predictable_edges_total_ = 0;
+  eta_predictable_cpu_time_total_millis_ = 0;
+  eta_predictable_edges_remaining_ = 0;
+  eta_predictable_cpu_time_remaining_millis_ = 0;
+  eta_unpredictable_edges_remaining_ = 0;
+
+  current_rate_.Reset();
 }
 
 string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
@@ -422,8 +488,8 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
     }
   }
 
-  if (config_.verbosity == BuildConfig::QUIET
-      || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
+  if (config_.verbosity == BuildConfig::QUIET ||
+      config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
     return;
 
   RecalculateProgressPrediction();
@@ -434,8 +500,8 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, time_millis)
-      + to_print;
+  to_print =
+      FormatProgressStatus(progress_status_format_, time_millis) + to_print;
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
