@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "build_result.h"
 #include "depfile_parser.h"
 #include "exit_status.h"
 #include "graph.h"
@@ -52,6 +53,9 @@ struct Plan {
 
   /// Returns true if there's more work to be done.
   bool more_to_do() const { return wanted_edges_ > 0 && command_edges_ > 0; }
+
+  /// Returns true if there's more work ready to be done.
+  bool work_ready() const { return !ready_.empty(); }
 
   /// Dumps the current state of the plan.
   void Dump() const;
@@ -98,7 +102,7 @@ struct Plan {
     kWantToFinish
   };
 
-private:
+ private:
   void ComputeCriticalPath();
   bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
   void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
@@ -152,15 +156,16 @@ struct CommandRunner {
   virtual size_t CanRunMore() const = 0;
   virtual bool StartCommand(Edge* edge) = 0;
 
-  /// The result of waiting for a command.
-  struct Result {
-    Edge* edge = nullptr;
-    ExitStatus status = ExitFailure;
-    std::string output;
-    bool success() const { return status == ExitSuccess; }
-  };
   /// Wait for a command to complete, or return false if interrupted.
-  virtual bool WaitForCommand(Result* result) = 0;
+  virtual BuildResult WaitForCommand() = 0;
+
+  /// Wait for a command to complete or a jobserver token to become available, or
+  /// return false if interrupted. Default implementation waits for a command to complete.
+  /// Overridden by RealCommandRunner to also wait for jobserver tokens.
+  virtual BuildResult WaitForCommandOrJobserverToken(bool watch_jobserver) {
+    (void)watch_jobserver;
+    return WaitForCommand();
+  }
 
   virtual std::vector<Edge*> GetActiveEdges() { return std::vector<Edge*>(); }
   virtual void Abort() {}
@@ -224,7 +229,7 @@ struct Builder {
 
   /// Update status ninja logs following a command termination.
   /// @return false if the build can not proceed further due to a fatal error.
-  bool FinishCommand(CommandRunner::Result* result, std::string* err);
+  bool FinishCommand(BuildResult::CommandCompleted& result, std::string* err);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -245,9 +250,13 @@ struct Builder {
   /// (doesn't need to be an enum value of ExitStatus)
   ExitStatus GetExitCode() const { return exit_code_; }
 
- private:
-  bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
-                   const std::string& deps_prefix,
+private:
+  /// Parses the CommandCompleted result to extract dependencies.
+  /// May modify result.output to extract dependency messages out of it
+  /// (such as MSVC /showIncludes).
+  /// @return true if successful, false otherwise.
+  bool ExtractDeps(BuildResult::CommandCompleted& result,
+                   const std::string& deps_type, const std::string& deps_prefix,
                    std::vector<Node*>* deps_nodes, std::string* err);
 
   /// Map of running edge to time the edge started running.
