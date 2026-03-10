@@ -48,7 +48,12 @@ struct ManifestParser : public Parser {
     return Parse("input", input, err);
   }
 
-private:
+  /// Retrieve the expanded value of a top-level variable from the
+  /// manifest. Returns an empty string if the variable is not defined.
+  /// Must be called only after a successful Load() call.
+  std::string LookupVariable(const std::string& varname);
+
+ private:
   /// Parse a file, given its contents as a string.
   bool Parse(const std::string& filename, const std::string& input,
              std::string* err);
