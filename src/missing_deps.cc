@@ -179,20 +179,35 @@ void MissingDependencyScanner::ProcessNode(const Node* node) {
   if (!node)
     return;
   const Edge* edge = node->in_edge();
-  if (!edge)
-    return;
+
+  // check dyndep for an 'in_edge'
+  if (!edge) {
+    auto it = DyndepFile_.findOut(node);
+    if (!it)
+      return;  // Nodes without an incoming edge.
+    edge = it;
+  }
+
   if (!seen_.insert(node).second)
     return;
 
+  // Recurse into manifest inputs
   for (Node* in : edge->inputs_) {
     ProcessNode(in);
   }
+
+  // Recurse into dyndep inputs
+  auto dd_in = DyndepFile_.findIn(edge);
+  if (dd_in)
+    for (const Node* in : *dd_in) {
+      ProcessNode(in);
+    }
 
   std::string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty()) {
     DepsLog::Deps* deps = deps_log_->GetDeps(node);
     if (deps)
-      ProcessNodeDeps(node, deps->nodes, deps->node_count);
+      ProcessNodeDeps(node, edge, deps->nodes, deps->node_count);
   } else {
     DepfileParserOptions parser_opts;
     std::vector<Node*> depfile_deps;
@@ -202,15 +217,15 @@ void MissingDependencyScanner::ProcessNode(const Node* node) {
     std::string err;
     dep_loader.LoadDeps(edge, &err);
     if (!depfile_deps.empty())
-      ProcessNodeDeps(node, &depfile_deps[0],
+      ProcessNodeDeps(node, edge, &depfile_deps[0],
                       static_cast<int>(depfile_deps.size()));
   }
 }
 
 void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
+                                               const Edge* in_edge,
                                                Node* const* dep_nodes,
                                                int dep_nodes_count) {
-  Edge* edge = node->in_edge();
   std::set<const Edge*> deplog_edges;
   for (int i = 0; i < dep_nodes_count; ++i) {
     const Node* deplog_node = dep_nodes[i];
@@ -235,7 +250,7 @@ void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
   }
   std::vector<const Edge*> missing_deps;
   for (const Edge* de : deplog_edges) {
-    if (!PathExistsBetween(de, edge)) {
+    if (!PathExistsBetween(de, in_edge)) {
       missing_deps.push_back(de);
     }
   }

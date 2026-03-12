@@ -54,8 +54,8 @@ struct MissingDependencyScanner {
   void PrintStats() const;
   bool HadMissingDeps() const { return !nodes_missing_deps_.empty(); }
 
-  void ProcessNodeDeps(const Node* node, Node* const* dep_nodes,
-                       int dep_nodes_count);
+  void ProcessNodeDeps(const Node* node, const Edge* in_edge,
+                       Node* const* dep_nodes, int dep_nodes_count);
 
   bool PathExistsBetween(const Edge* from, const Edge* to);
 

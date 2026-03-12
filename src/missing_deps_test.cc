@@ -198,6 +198,11 @@ struct MissingDependencyScannerTestWithDepfile
         &delegate_, &deps_log_, &state_, &fs_, nodes);
   }
 
+  void ProcessNodes(const std::vector<Node*>& nodes) {
+    scanner_ = std::make_unique<MissingDependencyScanner>(
+        &delegate_, &deps_log_, &state_, &fs_, nodes);
+  }
+
   MissingDependencyScanner* scanner() { return scanner_.get(); }
 
   VirtualFileSystem fs_;
@@ -312,4 +317,47 @@ build dyndep.dd: dd
   ProcessAllNodes();
   EXPECT_FALSE(scanner()->HadMissingDeps());
   EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+}
+
+TEST_F(MissingDependencyScannerTestWithDepfile, MissingDepPresentTracedByDyndepOutput) {
+  // Verify that a missing dependency is detected even when the node is only
+  // reachable through dynamic generated dependencies.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && printf 'ninja_dyndep_version = 1\nbuild out | ddOut: dyndep | a.o\nbuild out2: dyndep | ddOut\n' > $out
+
+rule dyn_touch
+  command = touch out ddOut
+  dyndep = dyndep.dd
+
+rule cp
+  command = cat $in > $out
+  dyndep = dyndep.dd
+
+build dyndep.dd: dd
+build out: dyn_touch || dyndep.dd
+build out2: cp || dyndep.dd
+
+rule catdep
+  depfile = a.d
+  command = cat $in > $out && echo 'a.o: generated.h\n' > a.d
+build a.o: catdep a.c
+
+rule touch
+  command = touch $out
+build generated.h: touch in
+)ninja"));
+
+  fs_.Create("a.d", "a.o: generated.h\n");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | ddOut: dyndep | a.o\n"
+             "build out2: dyndep | ddOut\n\n");
+
+  ProcessNodes({state_.GetNode("out2", 0)});
+  EXPECT_TRUE(scanner()->HadMissingDeps());
+  EXPECT_EQ(1u, scanner()->nodes_missing_deps_.size());
+  EXPECT_EQ(1u, scanner()->missing_dep_path_count_);
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type(
+                                 { { "a.o", "generated.h", "touch" } }));
 }
