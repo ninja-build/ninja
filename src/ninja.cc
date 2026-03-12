@@ -604,7 +604,7 @@ int NinjaMain::ToolMissingDeps(const Options* options, int argc, char** argv) {
   MissingDependencyScanner scanner(&printer, &deps_log_, &state_,
                                    &disk_interface, nodes);
   scanner.PrintStats();
-  if (scanner.HadMissingDeps())
+  if (scanner.HadMissingDeps() || scanner.HadMissingDyndeps())
     return 3;
   return 0;
 }

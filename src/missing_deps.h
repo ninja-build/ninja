@@ -44,20 +44,39 @@ class MissingDependencyPrinter : public MissingDependencyScannerDelegate {
                int generator_rules);
 };
 
+struct MissingDyndep {
+  MissingDyndep(const Edge* producing, const Edge* requesting)
+      : producing_(producing), requesting_(requesting) {}
+
+  bool operator<(const MissingDyndep& other) const {
+    return std::tie(producing_, requesting_) <
+           std::tie(other.producing_, other.requesting_);
+  }
+
+  const Edge* producing_;
+  const Edge* requesting_;
+};
+
 struct MissingDependencyScanner {
  public:
+  using MissingDyndepType = std::set<std::array<std::string, 3>>;
+
   MissingDependencyScanner(MissingDependencyScannerDelegate* delegate,
                            DepsLog* deps_log, State* state,
                            DiskInterface* disk_interface,
                            const std::vector<Node*>& nodes);
   void ProcessNode(const Node* node);
   void PrintStats() const;
+  void PrintDDStats() const;
   bool HadMissingDeps() const { return !nodes_missing_deps_.empty(); }
+  bool HadMissingDyndeps() const { return !missing_dyndep_.empty(); }
+  MissingDyndepType MissingDynDepDebug() const;
 
   void ProcessNodeDeps(const Node* node, const Edge* in_edge,
                        Node* const* dep_nodes, int dep_nodes_count);
 
   bool PathExistsBetween(const Edge* from, const Edge* to);
+  bool PathExistsBetweenDyndep(const Edge* from, const Edge* to);
 
   MissingDependencyScannerDelegate* delegate_;
   DepsLog* deps_log_;
@@ -75,6 +94,7 @@ struct MissingDependencyScanner {
  private:
   AdjacencyMap adjacency_map_;
   const DyndepFileSorted DyndepFile_;
+  std::set<MissingDyndep> missing_dyndep_;
 };
 
 #endif  // NINJA_MISSING_DEPS_H_

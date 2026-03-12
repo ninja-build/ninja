@@ -15,6 +15,7 @@
 #include <array>
 #include <set>
 #include <memory>
+#include <string_view>
 
 #include "deps_log.h"
 #include "graph.h"
@@ -360,4 +361,195 @@ build generated.h: touch in
   EXPECT_EQ(1u, scanner()->missing_dep_path_count_);
   EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type(
                                  { { "a.o", "generated.h", "touch" } }));
+}
+
+/// Test class for Missingdyndep
+struct MissingDependencyScannerDyndep
+    : public MissingDependencyScannerTestWithDepfile {};
+
+TEST_F(MissingDependencyScannerDyndep, MissingDynDepPresent) {
+  /** example of obscure behaviour due to missingdyndeps:
+   *
+   *  $ touch generated.h && ninja
+   *  $ rm out && ninja b.out
+   *  >>ninja: no work to do.<<
+   */
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && echo 'ninja_dyndep_version = 1\nbuild out | generated.h: dyndep\n' > dyndep.dd
+
+rule dyn_touch
+  command = touch generated.h out
+  dyndep = dyndep.dd
+
+rule request
+  command = cat $in > $out
+
+build dyndep.dd: dd
+build out: dyn_touch || dyndep.dd
+build b.out: request generated.h
+)ninja"));
+
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | generated.h: dyndep\n");
+
+  ProcessAllNodes();
+
+  EXPECT_FALSE(scanner()->HadMissingDeps());
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+
+  EXPECT_TRUE(scanner()->HadMissingDyndeps());
+
+  // check the detected edges for missingdyndep
+  EXPECT_EQ(scanner()->MissingDynDepDebug(),
+            MissingDependencyCheckDelegate::type(
+                { { "dyn_touch", "request", "dyndep.dd" } }));
+}
+
+TEST_F(MissingDependencyScannerDyndep, MissingDynDepPresentFixed) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && echo 'ninja_dyndep_version = 1\nbuild out | generated.h: dyndep\n' > dyndep.dd
+
+rule dyn_touch
+  command = touch generated.h out
+  dyndep = dyndep.dd
+
+rule request
+  command = cat $in > $out
+
+build dyndep.dd: dd
+
+build out: dyn_touch || dyndep.dd
+# the dependency b.out-out will fix the missingdyndep
+build b.out: request generated.h || out
+)ninja"));
+
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | generated.h: dyndep\n");
+
+  ProcessAllNodes();
+
+  EXPECT_FALSE(scanner()->HadMissingDeps());
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+
+  EXPECT_FALSE(scanner()->HadMissingDyndeps());
+}
+
+TEST_F(MissingDependencyScannerDyndep, MissingDynDepPresentFixed2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && echo 'ninja_dyndep_version = 1\nbuild out | generated.h: dyndep\n' > dyndep.dd
+
+rule dyn_touch
+  command = touch generated.h out
+  dyndep = dyndep.dd
+
+rule request
+  command = cat $in > $out
+
+build dyndep.dd: dd
+
+build out: dyn_touch || dyndep.dd
+# the dependency b.out-dyndep.dd will fix the missingdyndep
+build b.out: request generated.h || dyndep.dd
+)ninja"));
+
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | generated.h: dyndep\n");
+
+  ProcessAllNodes();
+
+  EXPECT_FALSE(scanner()->HadMissingDeps());
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+
+  EXPECT_FALSE(scanner()->HadMissingDyndeps());
+}
+
+TEST_F(MissingDependencyScannerDyndep, MissingDynDepPresentFixedWithDyndepInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && echo 'ninja_dyndep_version = 1\nbuild out | generated.h: dyndep\n' > dyndep.dd
+rule dd2
+  command = touch dyndep2.dd && echo 'ninja_dyndep_version = 1\nbuild b.out: dyndep | out\n' > dyndep2.dd
+
+rule dyn_touch
+  command = touch generated.h out
+  dyndep = dyndep.dd
+
+rule request
+  command = cat $in > $out
+  dyndep = dyndep2.dd
+
+build dyndep.dd: dd
+# fix missingdyndep
+build dyndep2.dd: dd2
+
+build out: dyn_touch || dyndep.dd
+build b.out: request generated.h || dyndep2.dd
+)ninja"));
+
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | generated.h: dyndep\n");
+  fs_.Create("dyndep2.dd",
+             "ninja_dyndep_version = 1\n"
+             "build b.out: dyndep | out\n");
+
+  ProcessAllNodes();
+
+  EXPECT_FALSE(scanner()->HadMissingDeps());
+  EXPECT_EQ(delegate_.data_, MissingDependencyCheckDelegate::type());
+
+  EXPECT_FALSE(scanner()->HadMissingDyndeps());
+}
+
+TEST_F(MissingDependencyScannerDyndep, MissingDynDepPrintWarningNoDyndepLoad) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = touch dyndep.dd && echo 'ninja_dyndep_version = 1\nbuild out | generated.h: dyndep\n' > dyndep.dd
+rule dd2
+  command = touch dyndep2.dd && echo 'ninja_dyndep_version = 1\nbuild b2.out | generated2.h: dyndep\n' > dyndep2.dd
+
+rule dyn_touch
+  command = touch $otherout $out
+  dyndep = $myDD
+
+rule request
+  command = cat $in > $out
+
+build dyndep.dd: dd
+build dyndep2.dd: dd2
+
+build out: dyn_touch || dyndep.dd
+  myDD = dyndep.dd
+  otherout = generated.h
+
+build b.out: request generated.h || out
+
+build b2.out: dyn_touch b.out || dyndep2.dd
+  myDD = dyndep2.dd
+  otherout = generated2.h
+)ninja"));
+
+  using strings = std::vector<std::string>;
+
+  // all Dyndep files are missing
+
+  auto warnings = [&](std::string path) {
+    return GetWarnings(&state_, &fs_, &deps_log_, { GetNode(path) });
+  };
+
+  EXPECT_EQ(strings({ "loading 'dyndep2.dd': No such file or directory",
+                      "loading 'dyndep.dd': No such file or directory" }),
+            warnings("b2.out"));
+
+  // not all dyndepfiles are reachable
+  EXPECT_EQ(strings({ "loading 'dyndep.dd': No such file or directory" }),
+            warnings("b.out"));
+
+  EXPECT_EQ(strings(), warnings("in"));
 }
