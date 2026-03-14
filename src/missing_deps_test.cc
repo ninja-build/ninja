@@ -52,9 +52,8 @@ struct MissingDependencyScannerTest : public testing::Test {
     std::string err;
     std::vector<Node*> nodes = state_.RootNodes(&err);
     EXPECT_EQ("", err);
-    for (std::vector<Node*>::iterator it = nodes.begin(); it != nodes.end();
-         ++it) {
-      scanner().ProcessNode(*it);
+    for (Node* it : nodes) {
+      scanner().ProcessNode(it);
     }
   }
 
