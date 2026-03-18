@@ -1032,6 +1032,9 @@ keys.
 `out`:: the space-separated list of files provided as outputs to the build line
   referencing this `rule`, shell-quoted if it appears in commands.
 
+`pool`:: _(Available since Ninja 1.1.)_ used to allocate one or more rules or edges a
+  finite number of concurrent jobs. See the <<ref_pool,pools>> section for details.
+
 `restat`:: if present, causes Ninja to re-stat the command's outputs
   after execution of the command.  Each output whose modification time
   the command did not change will be treated as though it had never
