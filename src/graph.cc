@@ -364,6 +364,21 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
             entry->mtime, most_recent_input->mtime());
         return true;
       }
+      if (!generator && entry->output_mtime != 0 &&
+          output->mtime() != entry->output_mtime) {
+        // The output file's mtime differs from the mtime recorded after the
+        // last successful build.  This means the output was modified
+        // externally (e.g. by a user or another tool) and must be rebuilt.
+        // Generator outputs are excluded because they are expected to be
+        // user-edited.  Entries with output_mtime == 0 are from old build
+        // logs that didn't record per-output mtimes.
+        explanations_.Record(
+            output,
+            "output %s was externally modified "
+            "(%" PRId64 " vs %" PRId64 ")",
+            output->path().c_str(), output->mtime(), entry->output_mtime);
+        return true;
+      }
     }
     if (!entry && !generator) {
       explanations_.Record(output, "command line not found in log for %s",

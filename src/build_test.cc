@@ -1825,7 +1825,6 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 
   fs_.Tick();
   fs_.Create("in", "");
-  fs_.Create("out2", "");
 
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so
