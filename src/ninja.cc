@@ -602,12 +602,9 @@ int NinjaMain::ToolMissingDeps(const Options* options, int argc, char** argv) {
   RealDiskInterface disk_interface;
   MissingDependencyPrinter printer;
   MissingDependencyScanner scanner(&printer, &deps_log_, &state_,
-                                   &disk_interface);
-  for (vector<Node*>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
-    scanner.ProcessNode(*it);
-  }
+                                   &disk_interface, nodes);
   scanner.PrintStats();
-  if (scanner.HadMissingDeps())
+  if (scanner.HadMissingDeps() || scanner.HadMissingDyndeps())
     return 3;
   return 0;
 }

@@ -647,9 +647,18 @@ struct matches {
 
 bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                                     string* err) {
+  std::string content;
+  auto depFileParser = LoadDepFileParser(edge, path, content, err);
+  if (!depFileParser)
+    return false;
+  return ProcessDepfileDeps(edge, &(*depFileParser).ins_, err);
+}
+
+std::optional<DepfileParser> ImplicitDepLoader::LoadDepFileParser(
+    const Edge* edge, const string& path, std::string& content,
+    string* err) const {
   METRIC_RECORD("depfile load");
   // Read depfile content.  Treat a missing depfile as empty.
-  string content;
   switch (disk_interface_->ReadFile(path, &content, err)) {
   case DiskInterface::Okay:
     break;
@@ -658,13 +667,13 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     break;
   case DiskInterface::OtherError:
     *err = "loading '" + path + "': " + *err;
-    return false;
+    return std::nullopt;
   }
   // On a missing depfile: return false and empty *err.
   Node* first_output = edge->outputs_[0];
   if (content.empty()) {
     explanations_.Record(first_output, "depfile '%s' is missing", path.c_str());
-    return false;
+    return std::nullopt;
   }
 
   DepfileParser depfile(depfile_parser_options_
@@ -673,12 +682,12 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
   string depfile_err;
   if (!depfile.Parse(&content, &depfile_err)) {
     *err = path + ": " + depfile_err;
-    return false;
+    return std::nullopt;
   }
 
   if (depfile.outs_.empty()) {
     *err = path + ": no outputs declared";
-    return false;
+    return std::nullopt;
   }
 
   uint64_t unused;
@@ -694,7 +703,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
                          "expected depfile '%s' to mention '%s', got '%s'",
                          path.c_str(), first_output->path().c_str(),
                          primary_out->AsString().c_str());
-    return false;
+    return std::nullopt;
   }
 
   // Ensure that all mentioned outputs are outputs of the edge.
@@ -703,11 +712,11 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     matches m(o);
     if (std::find_if(edge->outputs_.begin(), edge->outputs_.end(), m) == edge->outputs_.end()) {
       *err = path + ": depfile mentions '" + o->AsString() + "' as an output, but no such output was declared";
-      return false;
+      return std::nullopt;
     }
   }
 
-  return ProcessDepfileDeps(edge, &depfile.ins_, err);
+  return depfile;
 }
 
 bool ImplicitDepLoader::ProcessDepfileDeps(

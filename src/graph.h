@@ -16,11 +16,13 @@
 #define NINJA_GRAPH_H_
 
 #include <algorithm>
+#include <optional>
 #include <queue>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "depfile_parser.h"
 #include "dyndep.h"
 #include "eval_env.h"
 #include "explanations.h"
@@ -279,7 +281,7 @@ struct EdgeCmp {
   }
 };
 
-typedef std::set<Edge*, EdgeCmp> EdgeSet;
+typedef std::set<const Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
@@ -304,13 +306,21 @@ struct ImplicitDepLoader {
  protected:
   /// Process loaded implicit dependencies for \a edge and update the graph
   /// @return false on error (without filling \a err if info is just missing)
-  virtual bool ProcessDepfileDeps(Edge* edge,
-                                  std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+  bool ProcessDepfileDeps(Edge* edge, std::vector<StringPiece>* depfile_ins,
+                          std::string* err);
 
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
+
+  /// Loads and parses the depfile for the given edge.
+  /// Returns a DepfileParser on success, or std::nullopt if the depfile is
+  /// missing, invalid, or does not match.
+  /// *err is only set for real errors (not for missing depfiles).
+  std::optional<DepfileParser> LoadDepFileParser(const Edge* edge,
+                                                 const std::string& path,
+                                                 std::string& content,
+                                                 std::string* err) const;
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
@@ -324,7 +334,7 @@ struct ImplicitDepLoader {
   DiskInterface* disk_interface_;
   DepsLog* deps_log_;
   DepfileParserOptions const* depfile_parser_options_;
-  OptionalExplanations explanations_;
+  mutable OptionalExplanations explanations_;
 };
 
 
