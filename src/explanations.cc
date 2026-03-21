@@ -85,6 +85,15 @@ void Explanations::LookupAndAppend(const void* item,
   }
 }
 
+void Explanations::ExplainDyndepLoad(const Node* node) {
+  if (status_) {
+    // Start a new line so that the explanation
+    // does not append to the status line.
+    status_->NewLine();
+  }
+  Explain("loading dyndep file '%s'", node->path().c_str());
+}
+
 OptionalExplanations::OptionalExplanations(Explanations* explanations)
     : explanations_(explanations) {}
 
@@ -108,5 +117,11 @@ void OptionalExplanations::LookupAndAppend(const void* item,
                                            std::vector<std::string>* out) {
   if (explanations_) {
     explanations_->LookupAndAppend(item, out);
+  }
+}
+
+void OptionalExplanations::ExplainDyndepLoad(const Node* node) {
+  if (explanations_) {
+    explanations_->ExplainDyndepLoad(node);
   }
 }

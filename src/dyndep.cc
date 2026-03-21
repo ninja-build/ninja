@@ -38,7 +38,7 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   node->set_dyndep_pending(false);
 
   // Load the dyndep information from the file.
-  explanations_.Record(node, "loading dyndep file '%s'", node->path().c_str());
+  explanations_.ExplainDyndepLoad(node);
 
   if (!LoadDyndepFile(node, ddf, err))
     return false;

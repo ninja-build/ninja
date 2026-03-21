@@ -611,16 +611,17 @@ out3<TAB>in3
               dyndep = dd
             default out
             ''')
-        # FIXME(#2758): "loading dyndep file 'dd'" not printed
         # FIXME(#2759): "output out doesn't exist" is printed twice
         output1 = dedent('''\
             ninja explain: output dd doesn't exist
             [1/2] printf 'ninja_dyndep_version = 1\\nbuild out | out.imp: dyndep\\n' > dd
+            ninja explain: loading dyndep file 'dd'
             ninja explain: output out doesn't exist
             ninja explain: output out doesn't exist
             [2/2] touch out out.imp
             ''')
         output2 = dedent('''\
+            ninja explain: loading dyndep file 'dd'
             ninja: no work to do.
             ''')
         with BuildDir(plan) as b:
