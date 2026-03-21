@@ -123,6 +123,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
 
   if (!edge->deps_loaded_) {
     // This is our first encounter with this edge.
+    edge->deps_loaded_ = true;
+
     // If there is a pending dyndep file, visit it now:
     // * If the dyndep file is ready then load it now to get any
     //   additional inputs and outputs for this and other edges.
@@ -144,21 +146,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
           return false;
       }
     }
-  }
 
-  // Load output mtimes so we can compare them to the most recent input below.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (err) {
-      *err = "";
-    }
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
-      return false;
-  }
-
-  if (!edge->deps_loaded_) {
-    // This is our first encounter with this edge.  Load discovered deps.
-    edge->deps_loaded_ = true;
+    // Load discovered deps.
     if (!dep_loader_.LoadDeps(edge, err)) {
       if (!err->empty())
         return false;
@@ -174,6 +163,16 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   for (Node* i : edge->inputs_) {
     if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
       return false;
+  }
+
+  // Load output mtimes so we can compare them to the most recent input below.
+  for (Node* o : edge->outputs_) {
+    if (err) {
+      *err = "";
+    }
+    if (!o->StatIfNecessary(disk_interface_, err)) {
+      return false;
+    }
   }
 
   // We're dirty if any of the inputs is dirty.

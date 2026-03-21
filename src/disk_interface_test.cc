@@ -343,10 +343,10 @@ TEST_F(StatTest, TwoStep) {
   scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_EQ(3u, stats_.size());
   ASSERT_EQ("out", stats_[0]);
+  ASSERT_EQ("in",  stats_[1]);
+  ASSERT_EQ("mid", stats_[2]);
   ASSERT_TRUE(GetNode("out")->dirty());
-  ASSERT_EQ("mid",  stats_[1]);
   ASSERT_TRUE(GetNode("mid")->dirty());
-  ASSERT_EQ("in",  stats_[2]);
 }
 
 TEST_F(StatTest, Tree) {
@@ -362,9 +362,10 @@ TEST_F(StatTest, Tree) {
   ASSERT_EQ(1u, stats_.size());
   scan_.RecomputeDirty(out, NULL, NULL);
   ASSERT_EQ(1u + 6u, stats_.size());
-  ASSERT_EQ("mid1", stats_[1]);
+  ASSERT_EQ("in11", stats_[1]);
+  ASSERT_EQ("in12", stats_[2]);
+  ASSERT_EQ("mid1", stats_[3]);
   ASSERT_TRUE(GetNode("mid1")->dirty());
-  ASSERT_EQ("in11", stats_[2]);
 }
 
 TEST_F(StatTest, Middle) {
