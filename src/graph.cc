@@ -105,6 +105,14 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   if (!VerifyDAG(node, stack, err))
     return false;
 
+  // Store any validation nodes from the edge for adding to the initial
+  // nodes.  Don't recurse into them, that would trigger the dependency
+  // cycle detector if the validation node depends on this node.
+  // RecomputeDirty will add the validation nodes to the initial nodes
+  // and recurse into them.
+  validation_nodes->insert(validation_nodes->end(),
+      edge->validations_.begin(), edge->validations_.end());
+
   // Mark the edge temporarily while in the call stack.
   edge->mark_ = Edge::VisitInStack;
   stack->push_back(node);
@@ -159,14 +167,6 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       dirty = edge->deps_missing_ = true;
     }
   }
-
-  // Store any validation nodes from the edge for adding to the initial
-  // nodes.  Don't recurse into them, that would trigger the dependency
-  // cycle detector if the validation node depends on this node.
-  // RecomputeDirty will add the validation nodes to the initial nodes
-  // and recurse into them.
-  validation_nodes->insert(validation_nodes->end(),
-      edge->validations_.begin(), edge->validations_.end());
 
   // Visit all inputs before checking if any of them is ready.
   // Newly encountered edges may load dyndep files and gain
