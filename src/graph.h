@@ -338,7 +338,8 @@ struct DependencyScan {
       : build_log_(build_log), disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options,
                     explanations),
-        dyndep_loader_(state, disk_interface), explanations_(explanations) {}
+        dyndep_loader_(state, disk_interface, explanations),
+        explanations_(explanations) {}
 
   /// Update the |dirty_| state of the given nodes by transitively inspecting
   /// their input edges.

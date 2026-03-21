@@ -21,6 +21,7 @@
 #include <vector>
 
 struct Edge;
+struct Node;
 struct Status;
 
 /// A class used to record a list of explanation strings associated
@@ -43,6 +44,9 @@ struct Explanations {
   /// to |*out|, if any.
   void LookupAndAppend(const void* item, std::vector<std::string>* out);
 
+  /// Print explanation for loading a dyndep file.
+  void ExplainDyndepLoad(const Node* node);
+
  private:
   std::unordered_map<const void*, std::vector<std::string>> map_;
   Status* status_;
@@ -58,6 +62,8 @@ struct OptionalExplanations {
   void RecordArgs(const void* item, const char* fmt, va_list args);
 
   void LookupAndAppend(const void* item, std::vector<std::string>* out);
+
+  void ExplainDyndepLoad(const Node* node);
 
   Explanations* ptr() const { return explanations_; }
 
