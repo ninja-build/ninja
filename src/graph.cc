@@ -168,14 +168,18 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   validation_nodes->insert(validation_nodes->end(),
       edge->validations_.begin(), edge->validations_.end());
 
-  // Visit all inputs; we're dirty if any of the inputs are dirty.
+  // Visit all inputs before checking if any of them is ready.
+  // Newly encountered edges may load dyndep files and gain
+  // outputs that correspond to some of our inputs.
+  for (Node* i : edge->inputs_) {
+    if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
+      return false;
+  }
+
+  // We're dirty if any of the inputs is dirty.
   Node* most_recent_input = NULL;
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    // Visit this input.
-    if (!RecomputeNodeDirty(*i, stack, validation_nodes, err))
-      return false;
-
     // If an input is not ready, neither are our outputs.
     if (Edge* in_edge = (*i)->in_edge()) {
       if (!in_edge->outputs_ready_)
