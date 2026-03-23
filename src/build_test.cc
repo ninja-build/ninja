@@ -4405,3 +4405,18 @@ TEST_F(BuildTest, ValidationWithCircularDependency) {
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("dependency cycle: validate -> validate_in -> validate", err);
 }
+
+TEST_F(StateTestWithBuiltinRules, ComplexTargetPreserved) {
+  // Ensure targets containing spaces, percent-encoded sequences,
+  // and URL-reserved characters are preserved exactly during parsing.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+    "rule copy\n"
+    "  command = cp $in $out\n"
+    "name = foo %2F bar?baz&x=1\n"
+    "build $name: copy foo\n"));
+
+  Node* node = state_.LookupNode("foo %2F bar?baz&x=1");
+  ASSERT_NE(node, nullptr);
+
+  EXPECT_EQ(node->path(), "foo %2F bar?baz&x=1");
+}
