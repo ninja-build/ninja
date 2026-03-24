@@ -760,7 +760,7 @@ yy81:
       if (!newline_version_checked_)
       {
         if ((manifest_version_major < kMinNewlineEscapeVersionMajor) ||
-            (manifest_version_major = kMinNewlineEscapeVersionMajor &&
+            (manifest_version_major == kMinNewlineEscapeVersionMajor &&
              manifest_version_minor < kMinNewlineEscapeVersionMinor))
         {
           return Error("using $^ escape requires specifying 'ninja_required_version' with version greater or equal 1.14", err);
