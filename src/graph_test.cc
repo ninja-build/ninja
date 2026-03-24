@@ -895,6 +895,72 @@ TEST_F(GraphTest, DyndepImplicitInputNewer) {
   EXPECT_TRUE(GetNode("out")->dirty());
 }
 
+TEST_F(GraphTest, DyndepOutputIsDependentInput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build tmp: r in || dd\n"
+"  dyndep = dd\n"
+"build out: r | tmp.imp || tmp\n"
+));
+  fs_.Create("tmp", "");
+  fs_.Create("tmp.imp", "");
+  fs_.Create("out", "");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build tmp | tmp.imp: dyndep\n"
+);
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("in")->dirty());
+  EXPECT_FALSE(GetNode("dd")->dirty());
+
+  EXPECT_TRUE(GetNode("tmp")->dirty());
+  EXPECT_TRUE(GetNode("tmp.imp")->dirty());
+
+  // "out" is dirty due to implicit dependency on dyndep-specified output
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+TEST_F(GraphTest, DyndepOutputIsDependentInputFromDepfile) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule r\n"
+"  command = unused\n"
+"build tmp: r in || dd\n"
+"  dyndep = dd\n"
+"build out: r || tmp\n"
+"  depfile = out.d\n"
+));
+  fs_.Create("tmp", "");
+  fs_.Create("tmp.imp", "");
+  fs_.Create("out", "");
+  fs_.Create("out.d", "out: tmp.imp\n");
+  fs_.Create("dd",
+"ninja_dyndep_version = 1\n"
+"build tmp | tmp.imp: dyndep\n"
+);
+  fs_.Tick();
+  fs_.Create("in", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("in")->dirty());
+  EXPECT_FALSE(GetNode("dd")->dirty());
+
+  EXPECT_TRUE(GetNode("tmp")->dirty());
+  EXPECT_TRUE(GetNode("tmp.imp")->dirty());
+
+  // "out" is dirty due to depfile dependency on dyndep-specified output
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
 TEST_F(GraphTest, DyndepFileReady) {
   AssertParse(&state_,
 "rule r\n"
