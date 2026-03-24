@@ -216,6 +216,7 @@ if(NINJA_BUILD_BINARY)
 
 	option(NINJA_CLANG_TIDY "Run clang-tidy on source files" OFF)
 	if(NINJA_CLANG_TIDY)
+		set_target_properties(libninja-re2c PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
 		set_target_properties(libninja PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
 		set_target_properties(ninja    PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
 	endif()

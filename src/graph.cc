@@ -321,9 +321,11 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   // output file's actual mtime and simply check the recorded mtime from
   // the log against the most recent input's mtime (see below)
   bool used_restat = false;
-  if (edge->GetBindingBool("restat") && build_log() &&
-      (entry = build_log()->LookupByOutput(output->path()))) {
-    used_restat = true;
+  if (edge->GetBindingBool("restat") && build_log()) {
+    entry = build_log()->LookupByOutput(output->path());
+    if (entry) {
+      used_restat = true;
+    }
   }
 
   // Dirty if the output is older than the input.
@@ -339,7 +341,10 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
 
   if (build_log()) {
     bool generator = edge->GetBindingBool("generator");
-    if (entry || (entry = build_log()->LookupByOutput(output->path()))) {
+    if (!entry) {
+      entry = build_log()->LookupByOutput(output->path());
+    }
+    if (entry) {
       if (!generator &&
           BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
         // May also be dirty due to the command changing since the last build.
