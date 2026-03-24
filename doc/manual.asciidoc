@@ -1259,6 +1259,16 @@ implicit inputs and/or outputs.  Ninja will update the build graph
 accordingly and the build will proceed as if the information was known
 originally.
 
+A dyndep file may only affect dependent portions of the build graph,
+i.e., the set of build statements that specify the file as a `dyndep`
+binding, or build statements known by the _original_ build manifest
+to depend directly or indirectly on at least one member of that set.
+In particular, dynamically discovered outputs of a build statement
+may not correspond to inputs of build statements that were originally
+independent of the dyndep file.  In other words, a dyndep file may
+not change the build graph in a way that causes up-to-date build
+statements to become out-of-date.
+
 Dyndep file reference
 ~~~~~~~~~~~~~~~~~~~~~
 
