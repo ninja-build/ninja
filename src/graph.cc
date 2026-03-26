@@ -748,6 +748,11 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
     return false;
   }
 
+  // Load the output's mtime if we haven't already.
+  if (!output->StatIfNecessary(disk_interface_, err)) {
+    return false;
+  }
+
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
     explanations_.Record(output,
