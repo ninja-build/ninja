@@ -37,9 +37,9 @@ if sys.version_info >= (3, 2):
 else:
     from cgi import escape
 try:
-    from urllib.request import unquote  # type: ignore # Module "urllib.request" has no attribute "unquote"
+    from urllib.parse import quote, unquote
 except ImportError:
-    from urllib2 import unquote
+    from urllib import quote, unquote
 from collections import namedtuple
 from typing import Tuple, Any
 
@@ -144,7 +144,7 @@ def generate_html(node: Node) -> str:
                 if type:
                     extra = ' (%s)' % html_escape(type)
                 document.append('<tt><a href="?%s">%s</a>%s</tt><br>' %
-                                (html_escape(input), html_escape(input), extra))
+                                (quote(input), html_escape(input), extra))
             document.append('</div>')
 
     if node.outputs:
@@ -152,7 +152,7 @@ def generate_html(node: Node) -> str:
         document.append('<div class=filelist>')
         for output in sorted(node.outputs):
             document.append('<tt><a href="?%s">%s</a></tt><br>' %
-                            (html_escape(output), html_escape(output)))
+                            (quote(output), html_escape(output)))
         document.append('</div>')
 
     return '\n'.join(document)
