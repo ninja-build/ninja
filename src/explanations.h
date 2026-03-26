@@ -15,7 +15,6 @@
 #pragma once
 
 #include <stdarg.h>
-#include <stdio.h>
 
 #include <string>
 #include <unordered_map>
@@ -27,30 +26,14 @@
 struct Explanations {
  public:
   /// Record an explanation for |item| if this instance is enabled.
-  void Record(const void* item, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    RecordArgs(item, fmt, args);
-    va_end(args);
-  }
+  void Record(const void* item, const char* fmt, ...);
 
   /// Same as Record(), but uses a va_list to pass formatting arguments.
-  void RecordArgs(const void* item, const char* fmt, va_list args) {
-    char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    map_[item].emplace_back(buffer);
-  }
+  void RecordArgs(const void* item, const char* fmt, va_list args);
 
   /// Lookup the explanations recorded for |item|, and append them
   /// to |*out|, if any.
-  void LookupAndAppend(const void* item, std::vector<std::string>* out) {
-    auto it = map_.find(item);
-    if (it == map_.end())
-      return;
-
-    for (const auto& explanation : it->second)
-      out->push_back(explanation);
-  }
+  void LookupAndAppend(const void* item, std::vector<std::string>* out);
 
  private:
   std::unordered_map<const void*, std::vector<std::string>> map_;
@@ -59,27 +42,13 @@ struct Explanations {
 /// Convenience wrapper for an Explanations pointer, which can be null
 /// if no explanations need to be recorded.
 struct OptionalExplanations {
-  OptionalExplanations(Explanations* explanations)
-      : explanations_(explanations) {}
+  OptionalExplanations(Explanations* explanations);
 
-  void Record(const void* item, const char* fmt, ...) {
-    if (explanations_) {
-      va_list args;
-      va_start(args, fmt);
-      explanations_->RecordArgs(item, fmt, args);
-      va_end(args);
-    }
-  }
+  void Record(const void* item, const char* fmt, ...);
 
-  void RecordArgs(const void* item, const char* fmt, va_list args) {
-    if (explanations_)
-      explanations_->RecordArgs(item, fmt, args);
-  }
+  void RecordArgs(const void* item, const char* fmt, va_list args);
 
-  void LookupAndAppend(const void* item, std::vector<std::string>* out) {
-    if (explanations_)
-      explanations_->LookupAndAppend(item, out);
-  }
+  void LookupAndAppend(const void* item, std::vector<std::string>* out);
 
   Explanations* ptr() const { return explanations_; }
 
