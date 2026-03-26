@@ -40,6 +40,9 @@ struct Status {
   /// (which is the default).
   virtual void SetExplanations(Explanations*) = 0;
 
+  /// Start a new line so that new output does not append to the status line.
+  virtual void NewLine() = 0;
+
   virtual void Info(const char* msg, ...) = 0;
   virtual void Warning(const char* msg, ...) = 0;
   virtual void Error(const char* msg, ...) = 0;

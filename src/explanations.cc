@@ -21,6 +21,26 @@
 #include <unordered_map>
 #include <vector>
 
+#include "graph.h"
+#include "status_printer.h"
+
+namespace {
+void Explain(const char* msg, va_list ap) {
+  fputs("ninja explain: ", stderr);
+  vfprintf(stderr, msg, ap);
+  fputs("\n", stderr);
+}
+
+void Explain(const char* msg, ...) {
+  va_list ap;
+  va_start(ap, msg);
+  Explain(msg, ap);
+  va_end(ap);
+}
+}  // anonymous namespace
+
+Explanations::Explanations(Status* status) : status_(status) {}
+
 void Explanations::Record(const void* item, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -32,6 +52,24 @@ void Explanations::RecordArgs(const void* item, const char* fmt, va_list args) {
   char buffer[1024];
   vsnprintf(buffer, sizeof(buffer), fmt, args);
   map_[item].emplace_back(buffer);
+}
+
+void Explanations::ExplainEdge(const Edge* edge) {
+  // Collect all explanations for the current edge's outputs.
+  std::vector<std::string> explanations;
+  for (Node* output : edge->outputs_) {
+    this->LookupAndAppend(output, &explanations);
+  }
+  if (!explanations.empty()) {
+    if (status_) {
+      // Start a new line so that the first explanation
+      // does not append to the status line.
+      status_->NewLine();
+    }
+    for (const auto& exp : explanations) {
+      Explain("%s", exp.c_str());
+    }
+  }
 }
 
 void Explanations::LookupAndAppend(const void* item,
