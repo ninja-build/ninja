@@ -20,16 +20,24 @@
 #include <unordered_map>
 #include <vector>
 
+struct Edge;
+struct Status;
+
 /// A class used to record a list of explanation strings associated
 /// with a given 'item' pointer. This is used to implement the
 /// `-d explain` feature.
 struct Explanations {
  public:
+  Explanations(Status* status = nullptr);
+
   /// Record an explanation for |item| if this instance is enabled.
   void Record(const void* item, const char* fmt, ...);
 
   /// Same as Record(), but uses a va_list to pass formatting arguments.
   void RecordArgs(const void* item, const char* fmt, va_list args);
+
+  /// Print recorded explanations for an edge.
+  void ExplainEdge(const Edge* edge);
 
   /// Lookup the explanations recorded for |item|, and append them
   /// to |*out|, if any.
@@ -37,6 +45,7 @@ struct Explanations {
 
  private:
   std::unordered_map<const void*, std::vector<std::string>> map_;
+  Status* status_;
 };
 
 /// Convenience wrapper for an Explanations pointer, which can be null
