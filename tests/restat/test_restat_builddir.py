@@ -66,9 +66,9 @@ build output.txt: touch
             output_entry, "", "output.txt not found in build/.ninja_log"
         )
 
-        # Parse the log entry: start_time\tend_time\tmtime\toutput\tcommand_hash
+        # Parse the log entry: start_time\tend_time\tmtime\toutput\tcommand_hash\toutput_mtime
         parts = output_entry.split("\t")
-        self.assertEqual(len(parts), 5, f"Unexpected log format: {output_entry}")
+        self.assertEqual(len(parts), 6, f"Unexpected log format: {output_entry}")
         original_mtime = int(parts[2])
 
         # Wait a bit to ensure different mtime
@@ -116,7 +116,7 @@ build output.txt: touch
         # Parse the updated log entry
         updated_parts = updated_entry.split("\t")
         self.assertEqual(
-            len(updated_parts), 5, f"Unexpected updated log format: {updated_entry}"
+            len(updated_parts), 6, f"Unexpected updated log format: {updated_entry}"
         )
         updated_mtime = int(updated_parts[2])
 

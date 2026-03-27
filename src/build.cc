@@ -907,35 +907,36 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
     return plan_.EdgeFinished(edge, Plan::kEdgeFailed, err);
   }
 
-  // Restat the edge outputs
+  // Restat the edge outputs.  Always stat output files so that we can
+  // record their actual mtime in the build log for detecting externally
+  // modified outputs on subsequent builds.
   TimeStamp record_mtime = 0;
+  vector<TimeStamp> output_mtimes;
   if (!config_.dry_run) {
     const bool restat = edge->GetBindingBool("restat");
     const bool generator = edge->GetBindingBool("generator");
     bool node_cleaned = false;
     record_mtime = edge->command_start_time_;
 
-    // restat and generator rules must restat the outputs after the build
-    // has finished. if record_mtime == 0, then there was an error while
-    // attempting to touch/stat the temp file when the edge started and
-    // we should fall back to recording the outputs' current mtime in the
-    // log.
-    if (record_mtime == 0 || restat || generator) {
-      for (vector<Node*>::iterator o = edge->outputs_.begin();
-           o != edge->outputs_.end(); ++o) {
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
-        if (new_mtime == -1)
-          return false;
+    for (vector<Node*>::iterator o = edge->outputs_.begin();
+         o != edge->outputs_.end(); ++o) {
+      TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
+      if (new_mtime == -1)
+        return false;
+      output_mtimes.push_back(new_mtime);
+      // For restat/generator rules or when command_start_time_ couldn't be
+      // obtained, use the actual output mtime for record_mtime.
+      if (record_mtime == 0 || restat || generator) {
         if (new_mtime > record_mtime)
           record_mtime = new_mtime;
-        if ((*o)->mtime() == new_mtime && restat) {
-          // The rule command did not change the output.  Propagate the clean
-          // state through the build graph.
-          // Note that this also applies to nonexistent outputs (mtime == 0).
-          if (!plan_.CleanNode(&scan_, *o, err))
-            return false;
-          node_cleaned = true;
-        }
+      }
+      if ((*o)->mtime() == new_mtime && restat) {
+        // The rule command did not change the output.  Propagate the clean
+        // state through the build graph.
+        // Note that this also applies to nonexistent outputs (mtime == 0).
+        if (!plan_.CleanNode(&scan_, *o, err))
+          return false;
+        node_cleaned = true;
       }
     }
     if (node_cleaned) {
@@ -954,7 +955,8 @@ bool Builder::FinishCommand(CommandRunner::Result* result, string* err) {
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(
             edge, static_cast<int>(start_time_millis),
-            static_cast<int>(end_time_millis), record_mtime)) {
+            static_cast<int>(end_time_millis), record_mtime,
+            output_mtimes)) {
       *err = string("Error writing to build log: ") + strerror(errno);
       return false;
     }
