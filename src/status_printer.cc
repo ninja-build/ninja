@@ -407,19 +407,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 
 void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (explanations_) {
-    // Collect all explanations for the current edge's outputs.
-    std::vector<std::string> explanations;
-    for (Node* output : edge->outputs_) {
-      explanations_->LookupAndAppend(output, &explanations);
-    }
-    if (!explanations.empty()) {
-      // Start a new line so that the first explanation does not append to the
-      // status line.
-      printer_.PrintOnNewLine("");
-      for (const auto& exp : explanations) {
-        fprintf(stderr, "ninja explain: %s\n", exp.c_str());
-      }
-    }
+    explanations_->ExplainEdge(edge);
   }
 
   if (config_.verbosity == BuildConfig::QUIET
@@ -439,6 +427,10 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
 
   printer_.Print(to_print,
                  force_full_command ? LinePrinter::FULL : LinePrinter::ELIDE);
+}
+
+void StatusPrinter::NewLine() {
+  printer_.PrintOnNewLine("");
 }
 
 void StatusPrinter::Warning(const char* msg, ...) {

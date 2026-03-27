@@ -600,6 +600,34 @@ out3<TAB>in3
                 [1/3] [ -e input ] || touch input
                 '''))
 
+    def test_explain_dyndep(self):
+        plan = dedent('''\
+            rule scan
+              command = printf 'ninja_dyndep_version = 1\\nbuild out | out.imp: dyndep\\n' > $out
+            rule touch
+              command = touch $out $out.imp
+            build dd: scan
+            build out: touch || dd
+              dyndep = dd
+            default out
+            ''')
+        # FIXME(#2759): "output out doesn't exist" is printed twice
+        output1 = dedent('''\
+            ninja explain: output dd doesn't exist
+            [1/2] printf 'ninja_dyndep_version = 1\\nbuild out | out.imp: dyndep\\n' > dd
+            ninja explain: loading dyndep file 'dd'
+            ninja explain: output out doesn't exist
+            ninja explain: output out doesn't exist
+            [2/2] touch out out.imp
+            ''')
+        output2 = dedent('''\
+            ninja explain: loading dyndep file 'dd'
+            ninja: no work to do.
+            ''')
+        with BuildDir(plan) as b:
+            self.assertEqual(b.run('-v -d explain'), output1)
+            self.assertEqual(b.run('-v -d explain'), output2)
+
     def test_issue_2586(self):
         """This shouldn't hang"""
         plan = '''rule echo
