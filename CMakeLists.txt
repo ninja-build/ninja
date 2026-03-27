@@ -285,6 +285,7 @@ if(BUILD_TESTING)
     src/elide_middle_test.cc
     src/explanations_test.cc
     src/graph_test.cc
+    src/graphviz_test.cc
     src/jobserver_test.cc
     src/json_test.cc
     src/lexer_test.cc
