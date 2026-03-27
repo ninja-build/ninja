@@ -102,9 +102,24 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
+  // The result of DoWork(), in increasing priority order. When several events happen at the same time, the highest value will be reported:
+  // NoWork: If there is no work to do, or if ppoll()/pselect() was interrupted by a spurious signal or returned an error.
+  // JobserverTokenAvailable: Indicates that a new job slot token is available from the jobserver queue.
+  //   This can only be returned if SetJobserverFD() has been called with a valid file descriptor.
+  // SubprocFinished: Indicates that at least one subprocess completed since the last call.
+  // Interrupted: Indicates that a user interrupt (SIGINT, SIGHUP or SIGTERM) has been detected.
+  enum class WorkResult {
+    NoWork,
+    JobserverTokenAvailable,
+    SubprocFinished,
+    Interrupted
+  };
+
   Subprocess* Add(const std::string& command, bool use_console = false);
-  bool DoWork();
+  WorkResult DoWork();
+
   Subprocess* NextFinished();
+  bool HasFinished() const { return !finished_.empty(); }
   void Clear();
 
   std::vector<Subprocess*> running_;
@@ -127,14 +142,18 @@ struct SubprocessSet {
   /// Initialized to 0 before ppoll/pselect().
   /// Filled to 1 by SIGCHLD handler when a child process terminates.
   static volatile sig_atomic_t s_sigchld_received;
-  void CheckConsoleProcessTerminated();
+  void CheckConsoleProcessTerminated(WorkResult* work_result);
+
+  void SetJobserverFD(int fd) { jobserver_fd_ = fd; }
 
   struct sigaction old_int_act_;
   struct sigaction old_term_act_;
   struct sigaction old_hup_act_;
   struct sigaction old_chld_act_;
   sigset_t old_mask_;
+
+  int jobserver_fd_ = -1;
 #endif
 };
 
-#endif // NINJA_SUBPROCESS_H_
+#endif  // NINJA_SUBPROCESS_H_
