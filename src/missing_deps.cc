@@ -14,9 +14,11 @@
 
 #include "missing_deps.h"
 
+#include <array>
 #include <string.h>
 
 #include <iostream>
+#include <sstream>
 
 #include "depfile_parser.h"
 #include "deps_log.h"
@@ -26,6 +28,130 @@
 #include "util.h"
 
 namespace {
+class PathExistsBetween {
+ public:
+  using AdjacencyMap = MissingDependencyScanner::AdjacencyMap;
+  using InnerAdjacencyMap = MissingDependencyScanner::InnerAdjacencyMap;
+  static bool get(AdjacencyMap& adjacency_map,
+                  const DyndepFileSorted* DyndepOutFile, const Edge* from,
+                  const Edge* to);
+
+ private:
+  PathExistsBetween(AdjacencyMap& adjacency_map,
+                    const DyndepFileSorted* DyndepOutFile, const Edge* from,
+                    AdjacencyMap::iterator it);
+
+  bool process(const Edge* to);
+
+  AdjacencyMap& adjacency_map_;
+  const DyndepFileSorted* DyndepOutFile_;
+  const Edge* const from_;
+  const AdjacencyMap::iterator it_;
+};
+
+PathExistsBetween::PathExistsBetween(AdjacencyMap& adjacency_map,
+                                     const DyndepFileSorted* DyndepOutFile,
+                                     const Edge* from,
+                                     AdjacencyMap::iterator it)
+    : adjacency_map_(adjacency_map), DyndepOutFile_(DyndepOutFile), from_(from),
+      it_(it) {}
+
+bool PathExistsBetween::get(AdjacencyMap& adjacency_map,
+                            const DyndepFileSorted* DyndepOutFile,
+                            const Edge* from, const Edge* to) {
+  AdjacencyMap::iterator it = adjacency_map.find(from);
+
+  if (it == adjacency_map.end())
+    it = adjacency_map.emplace(from, InnerAdjacencyMap()).first;
+
+  PathExistsBetween pathExistsBetween(adjacency_map, DyndepOutFile, from, it);
+  return pathExistsBetween.process(to);
+}
+
+bool PathExistsBetween::process(const Edge* to) {
+  InnerAdjacencyMap::const_iterator inner_it = it_->second.find(to);
+  if (inner_it != it_->second.end()) {
+    return inner_it->second;
+  }
+
+  // check manifest inputs of edge
+  for (const Node* node : to->inputs_) {
+    const Edge* e = node->in_edge();
+    if (e && (e == from_ || process(e))) {
+      // path found
+      it_->second.emplace(to, true);
+      return true;
+    }
+  }
+
+  // check dyndep inputs of edge
+  auto it = DyndepOutFile_->findIn(to);
+  if (it) {
+    for (const Node* node : *it) {
+      const Edge* e = node->in_edge();
+      if (e && (e == from_ || process(e))) {
+        // path found
+        it_->second.emplace(to, true);
+        return true;
+      }
+    }
+  }
+
+  // path does not exist
+  it_->second.emplace(to, false);
+  return false;
+}
+
+/// Checks if an path exists between a node and an edge, similar to
+/// PathExistsBetween.
+/// The adjacency file cannot be used, as a node is searched
+/// instead of an edge
+class PathExistsBetweenEdgeNode {
+ public:
+  static bool get(const DyndepFileSorted* DyndepOutFile, const Node* from,
+                  const Edge* to);
+
+ private:
+  PathExistsBetweenEdgeNode(const DyndepFileSorted* DyndepOutFile, const Node* from);
+
+  bool process(const Edge* to);
+
+  const DyndepFileSorted* DyndepOutFile_;
+  const Node* const from_;
+};
+
+PathExistsBetweenEdgeNode::PathExistsBetweenEdgeNode(const DyndepFileSorted* DyndepOutFile,
+                                     const Node* from)
+    : DyndepOutFile_(DyndepOutFile), from_(from) {}
+
+bool PathExistsBetweenEdgeNode::get(const DyndepFileSorted* DyndepOutFile,
+                            const Node* from, const Edge* to) {
+  return PathExistsBetweenEdgeNode(DyndepOutFile, from).process(to);
+}
+
+bool PathExistsBetweenEdgeNode::process(const Edge* to) {
+  // check manifest inputs of edge
+  for (const Node* node : to->inputs_) {
+    if (node == from_)
+      return true;  // path found initially
+    const Edge* e = node->in_edge();
+    if (e && process(e))
+      return true;  // path found
+  }
+
+  // check dyndep inputs of edge
+  auto it = DyndepOutFile_->findIn(to);
+  if (it) {
+    for (const Node* node : *it) {
+      if (node == from_)
+        return true;  // path found initially
+      const Edge* e = node->in_edge();
+      if (e && process(e))
+        return true;  // path found
+    }
+  }
+  return false;
+}
 
 /// ImplicitDepLoader variant that stores dep nodes into the given output
 /// without updating graph deps like the base loader does.
@@ -38,17 +164,40 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
                           depfile_parser_options, explanations),
         dep_nodes_output_(dep_nodes_output) {}
 
- protected:
-  virtual bool ProcessDepfileDeps(Edge* edge,
-                                  std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+  bool LoadDeps(const Edge* edge, std::string* err);
+  bool LoadDepFile(const Edge* edge, const std::string& path, std::string* err);
+
+ private:
+  bool ProcessDepfileDeps(std::vector<StringPiece>* depfile_ins,
+                          std::string* err);
 
  private:
   std::vector<Node*>* dep_nodes_output_;
 };
 
+bool NodeStoringImplicitDepLoader::LoadDepFile(const Edge* edge,
+                                               const std::string& path,
+                                               std::string* err) {
+  std::string content;
+  std::optional<DepfileParser> depfileParser =
+      LoadDepFileParser(edge, path, content, err);
+  if (!depfileParser)
+    return false;
+  return ProcessDepfileDeps(&(*depfileParser).ins_, err);
+}
+
+bool NodeStoringImplicitDepLoader::LoadDeps(const Edge* edge,
+                                            std::string* err) {
+  std::string depfile = edge->GetUnescapedDepfile();
+  if (!depfile.empty())
+    return LoadDepFile(edge, depfile, err);
+
+  // No deps to load.
+  return true;
+}
+
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    std::vector<StringPiece>* depfile_ins, std::string* err) {
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;
@@ -63,7 +212,7 @@ bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
 
 MissingDependencyScannerDelegate::~MissingDependencyScannerDelegate() {}
 
-void MissingDependencyPrinter::OnMissingDep(Node* node, const std::string& path,
+void MissingDependencyPrinter::OnMissingDep(const Node* node, const std::string& path,
                                             const Rule& generator) {
   std::cout << "Missing dep: " << node->path() << " uses " << path
             << " (generated by " << generator.name() << ")\n";
@@ -71,49 +220,94 @@ void MissingDependencyPrinter::OnMissingDep(Node* node, const std::string& path,
 
 MissingDependencyScanner::MissingDependencyScanner(
     MissingDependencyScannerDelegate* delegate, DepsLog* deps_log, State* state,
-    DiskInterface* disk_interface)
+    DiskInterface* disk_interface, const std::vector<Node*>& nodes)
     : delegate_(delegate), deps_log_(deps_log), state_(state),
-      disk_interface_(disk_interface), missing_dep_path_count_(0) {}
+      disk_interface_(disk_interface), missing_dep_path_count_(0),
+      DyndepFile_(Load(state_, disk_interface_, deps_log_, nodes)) {
+  for (const Node* node : nodes)
+    ProcessNode(node);
+}
 
-void MissingDependencyScanner::ProcessNode(Node* node) {
+void MissingDependencyScanner::ProcessNode(const Node* node) {
   if (!node)
     return;
-  Edge* edge = node->in_edge();
-  if (!edge)
-    return;
-  if (!seen_.insert(node).second)
-    return;
+  const Edge* edge = node->in_edge();
 
-  for (std::vector<Node*>::iterator in = edge->inputs_.begin();
-       in != edge->inputs_.end(); ++in) {
-    ProcessNode(*in);
+  // check dyndep for an 'in_edge'
+  if (!edge) {
+    auto it = DyndepFile_.findOut(node);
+    if (!it)
+      return;  // Nodes without an incoming edge.
+    edge = it;
   }
 
-  std::string deps_type = edge->GetBinding("deps");
-  if (!deps_type.empty()) {
-    DepsLog::Deps* deps = deps_log_->GetDeps(node);
-    if (deps)
-      ProcessNodeDeps(node, deps->nodes, deps->node_count);
-  } else {
-    DepfileParserOptions parser_opts;
-    std::vector<Node*> depfile_deps;
-    NodeStoringImplicitDepLoader dep_loader(state_, deps_log_, disk_interface_,
-                                            &parser_opts, nullptr,
-                                            &depfile_deps);
-    std::string err;
-    dep_loader.LoadDeps(edge, &err);
-    if (!depfile_deps.empty())
-      ProcessNodeDeps(node, &depfile_deps[0],
-                      static_cast<int>(depfile_deps.size()));
+  if (seen_.insert(node).second) {
+    // recurse into 'egdes' inputs only once
+
+    // Recurse into manifest inputs
+    for (Node* in : edge->inputs_) {
+      ProcessNode(in);
+    }
+
+    // Recurse into dyndep inputs
+    auto dd_in = DyndepFile_.findIn(edge);
+    if (dd_in)
+      for (const Node* in : *dd_in) {
+        ProcessNode(in);
+      }
+
+    // check the missingdeps
+    std::string deps_type = edge->GetBinding("deps");
+    if (!deps_type.empty()) {
+      DepsLog::Deps* deps = deps_log_->GetDeps(node);
+      if (deps)
+        ProcessNodeDeps(node, edge, deps->nodes, deps->node_count);
+    } else {
+      DepfileParserOptions parser_opts;
+      std::vector<Node*> depfile_deps;
+      NodeStoringImplicitDepLoader dep_loader(state_, deps_log_,
+                                              disk_interface_, &parser_opts,
+                                              nullptr, &depfile_deps);
+      std::string err;
+      dep_loader.LoadDeps(edge, &err);
+      if (!depfile_deps.empty())
+        ProcessNodeDeps(node, edge, &depfile_deps[0],
+                        static_cast<int>(depfile_deps.size()));
+    }
+  }
+  // check for missingdyndeps
+
+  // check manifest inputs for missingdyndeps
+  for (auto in : edge->inputs_) {
+    const Edge* dd_out = DyndepFile_.findOut(in);
+    // check if 'in' is an output via dyndep
+    if (dd_out) {
+      if (!PathExistsBetweenDyndep(dd_out, edge))
+        missing_dyndep_.emplace(edge, dd_out);
+    }
+  }
+
+  // check dyndep inputs for missingdyndeps
+  auto it = DyndepFile_.findIn(edge);
+  if (it) {
+    for (auto in : *it) {
+      const auto dd_out = DyndepFile_.findOut(in);
+      // check if 'in' is an output via dyndep
+      if (dd_out) {
+        if (!PathExistsBetweenDyndep(dd_out, edge))
+          missing_dyndep_.emplace(edge, dd_out);
+      }
+    }
   }
 }
 
-void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
+void MissingDependencyScanner::ProcessNodeDeps(const Node* node,
+                                               const Edge* in_edge,
+                                               Node* const* dep_nodes,
                                                int dep_nodes_count) {
-  Edge* edge = node->in_edge();
-  std::set<Edge*> deplog_edges;
+  std::set<const Edge*> deplog_edges;
   for (int i = 0; i < dep_nodes_count; ++i) {
-    Node* deplog_node = dep_nodes[i];
+    const Node* deplog_node = dep_nodes[i];
     // Special exception: A dep on build.ninja can be used to mean "always
     // rebuild this target when the build is reconfigured", but build.ninja is
     // often generated by a configuration tool like cmake or gn. The rest of
@@ -125,26 +319,43 @@ void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
     Edge* deplog_edge = deplog_node->in_edge();
     if (deplog_edge) {
       deplog_edges.insert(deplog_edge);
+    } else {
+      // check if the node is produced by a dyndep output
+      const auto it = DyndepFile_.findOut(deplog_node);
+      if (it) {
+        deplog_edges.insert(it);
+      }
     }
   }
-  std::vector<Edge*> missing_deps;
-  for (std::set<Edge*>::iterator de = deplog_edges.begin();
-       de != deplog_edges.end(); ++de) {
-    if (!PathExistsBetween(*de, edge)) {
-      missing_deps.push_back(*de);
+  std::vector<const Edge*> missing_deps;
+  for (const Edge* de : deplog_edges) {
+    if (!PathExistsBetween(de, in_edge)) {
+      missing_deps.push_back(de);
     }
   }
 
   if (!missing_deps.empty()) {
     std::set<std::string> missing_deps_rule_names;
-    for (std::vector<Edge*>::iterator ne = missing_deps.begin();
-         ne != missing_deps.end(); ++ne) {
+    for (const Edge* ne : missing_deps) {
+      // check manifest generated outputs
       for (int i = 0; i < dep_nodes_count; ++i) {
-        if (dep_nodes[i]->in_edge() == *ne) {
+        if (dep_nodes[i]->in_edge() == ne) {
           generated_nodes_.insert(dep_nodes[i]);
-          generator_rules_.insert(&(*ne)->rule());
-          missing_deps_rule_names.insert((*ne)->rule().name());
-          delegate_->OnMissingDep(node, dep_nodes[i]->path(), (*ne)->rule());
+          generator_rules_.insert(&ne->rule());
+          missing_deps_rule_names.insert(ne->rule().name());
+          delegate_->OnMissingDep(node, dep_nodes[i]->path(), ne->rule());
+        }
+      }
+
+      // check dyndep generated outputs
+      auto it = DyndepFile_.findOut(ne);
+      if (it) {
+        const auto& outputs = *it;
+        generated_nodes_.insert(outputs.begin(), outputs.end());
+        generator_rules_.insert(&ne->rule());
+        missing_deps_rule_names.insert(ne->rule().name());
+        for (const Node* out : outputs) {
+          delegate_->OnMissingDep(node, out->path(), ne->rule());
         }
       }
     }
@@ -153,16 +364,21 @@ void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
   }
 }
 
-void MissingDependencyScanner::PrintStats() {
+void MissingDependencyScanner::PrintStats() const {
   std::cout << "Processed " << seen_.size() << " nodes.\n";
-  if (HadMissingDeps()) {
-    std::cout << "Error: There are " << missing_dep_path_count_
-              << " missing dependency paths.\n";
-    std::cout << nodes_missing_deps_.size()
-              << " targets had depfile dependencies on "
-              << generated_nodes_.size() << " distinct generated inputs "
-              << "(from " << generator_rules_.size() << " rules) "
-              << " without a non-depfile dep path to the generator.\n";
+  if (HadMissingDeps() || HadMissingDyndeps()) {
+    if (HadMissingDeps()) {
+      std::cout << "Error: There are " << missing_dep_path_count_
+                << " missing dependency paths.\n";
+      std::cout << nodes_missing_deps_.size()
+                << " targets had depfile dependencies on "
+                << generated_nodes_.size() << " distinct generated inputs "
+                << "(from " << generator_rules_.size() << " rules) "
+                << " without a non-depfile dep path to the generator.\n";
+    } else {
+      std::cout << "No missing dep found\n";
+    }
+    PrintDDStats();
     std::cout << "There might be build flakiness if any of the targets listed "
                  "above are built alone, or not late enough, in a clean output "
                  "directory.\n";
@@ -171,24 +387,83 @@ void MissingDependencyScanner::PrintStats() {
   }
 }
 
-bool MissingDependencyScanner::PathExistsBetween(Edge* from, Edge* to) {
-  AdjacencyMap::iterator it = adjacency_map_.find(from);
-  if (it != adjacency_map_.end()) {
-    InnerAdjacencyMap::iterator inner_it = it->second.find(to);
-    if (inner_it != it->second.end()) {
-      return inner_it->second;
-    }
-  } else {
-    it = adjacency_map_.insert(std::make_pair(from, InnerAdjacencyMap())).first;
+void MissingDependencyScanner::PrintDDStats() const {
+  for (auto& miss : missing_dyndep_) {
+    auto inOutNodes = [&]() -> std::string {
+      // all inputs
+      std::set<const Node*> req(miss.producing_->inputs_.begin(),
+                                miss.producing_->inputs_.end());
+      auto it = DyndepFile_.findIn(miss.producing_);
+      if (it) {
+        req.insert(it->begin(), it->end());
+      }
+
+      // dyndep outputs
+      std::set<const Node*> gen;
+      auto it2 = DyndepFile_.findOut(miss.requesting_);
+      if (it2) {
+        gen.insert(it2->begin(), it2->end());
+      }
+
+      std::vector<const Node*> inout;
+      std::set_intersection(req.begin(), req.end(), gen.begin(), gen.end(),
+                            std::back_inserter(inout));
+
+      // printable string
+      assert(!inout.empty());
+      std::ostringstream print;
+      for (unsigned int i = 0; i < inout.size(); ++i) {
+        if (i != 0)
+          print << ",";
+        print << inout[i]->path();
+      }
+      return print.str();
+    };
+
+    auto OutNodes = [&]() -> std::string {
+      auto& outputs = miss.producing_->outputs_;
+      // printable string
+      assert(!outputs.empty());
+      std::ostringstream print;
+      for (unsigned int i = 0; i < outputs.size(); ++i) {
+        if (i != 0)
+          print << ",";
+        print << outputs[i]->path();
+      }
+      return print.str();
+    };
+
+    std::cout << "Missing Dyndep: '" << inOutNodes() << "' is an input to '"
+              << OutNodes() << "' and a dyndep-output of '"
+              << miss.requesting_->dyndep_->path() << "'\n";
   }
-  bool found = false;
-  for (size_t i = 0; i < to->inputs_.size(); ++i) {
-    Edge* e = to->inputs_[i]->in_edge();
-    if (e && (e == from || PathExistsBetween(from, e))) {
-      found = true;
-      break;
+}
+
+MissingDependencyScanner::MissingDyndepType
+MissingDependencyScanner::MissingDynDepDebug() const {
+    MissingDyndepType missingDyndep;
+    for (auto& miss : missing_dyndep_) {
+      assert(miss.requesting_->dyndep_);
+      missingDyndep.emplace(std::array<std::string, 3>{
+          miss.requesting_->rule().name(), miss.producing_->rule().name(),
+          miss.requesting_->dyndep_->path() });
     }
-  }
-  it->second.insert(std::make_pair(to, found));
-  return found;
+    return missingDyndep;
+}
+
+bool MissingDependencyScanner::PathExistsBetween(const Edge* from,
+                                                 const Edge* to) {
+  return PathExistsBetween::get(adjacency_map_, &DyndepFile_, from, to);
+}
+
+bool MissingDependencyScanner::PathExistsBetweenDyndep(const Edge* from,
+                                                       const Edge* to) {
+  assert(from->dyndep_);
+  // if dyndep file is generated by an edge, search for the edge, otherwise
+  // search for the dyndep node directly
+  if (from->dyndep_->in_edge()) {
+    return PathExistsBetween::get(adjacency_map_, &DyndepFile_,
+                                  from->dyndep_->in_edge(), to);
+  } else
+    return PathExistsBetweenEdgeNode::get(&DyndepFile_, from->dyndep_, to);
 }
