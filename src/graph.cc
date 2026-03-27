@@ -105,6 +105,14 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   if (!VerifyDAG(node, stack, err))
     return false;
 
+  // Store any validation nodes from the edge for adding to the initial
+  // nodes.  Don't recurse into them, that would trigger the dependency
+  // cycle detector if the validation node depends on this node.
+  // RecomputeDirty will add the validation nodes to the initial nodes
+  // and recurse into them.
+  validation_nodes->insert(validation_nodes->end(),
+      edge->validations_.begin(), edge->validations_.end());
+
   // Mark the edge temporarily while in the call stack.
   edge->mark_ = Edge::VisitInStack;
   stack->push_back(node);
@@ -115,6 +123,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
 
   if (!edge->deps_loaded_) {
     // This is our first encounter with this edge.
+    edge->deps_loaded_ = true;
+
     // If there is a pending dyndep file, visit it now:
     // * If the dyndep file is ready then load it now to get any
     //   additional inputs and outputs for this and other edges.
@@ -136,21 +146,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
           return false;
       }
     }
-  }
 
-  // Load output mtimes so we can compare them to the most recent input below.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (err) {
-      *err = "";
-    }
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
-      return false;
-  }
-
-  if (!edge->deps_loaded_) {
-    // This is our first encounter with this edge.  Load discovered deps.
-    edge->deps_loaded_ = true;
+    // Load discovered deps.
     if (!dep_loader_.LoadDeps(edge, err)) {
       if (!err->empty())
         return false;
@@ -160,20 +157,22 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     }
   }
 
-  // Store any validation nodes from the edge for adding to the initial
-  // nodes.  Don't recurse into them, that would trigger the dependency
-  // cycle detector if the validation node depends on this node.
-  // RecomputeDirty will add the validation nodes to the initial nodes
-  // and recurse into them.
-  validation_nodes->insert(validation_nodes->end(),
-      edge->validations_.begin(), edge->validations_.end());
-
   // Visit all inputs before checking if any of them is ready.
   // Newly encountered edges may load dyndep files and gain
   // outputs that correspond to some of our inputs.
   for (Node* i : edge->inputs_) {
     if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
       return false;
+  }
+
+  // Load output mtimes so we can compare them to the most recent input below.
+  for (Node* o : edge->outputs_) {
+    if (err) {
+      *err = "";
+    }
+    if (!o->StatIfNecessary(disk_interface_, err)) {
+      return false;
+    }
   }
 
   // We're dirty if any of the inputs is dirty.
@@ -745,6 +744,11 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   if (!deps) {
     explanations_.Record(output, "deps for '%s' are missing",
                          output->path().c_str());
+    return false;
+  }
+
+  // Load the output's mtime if we haven't already.
+  if (!output->StatIfNecessary(disk_interface_, err)) {
     return false;
   }
 
