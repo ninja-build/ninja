@@ -121,41 +121,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
-  if (!edge->deps_loaded_) {
-    // This is our first encounter with this edge.
-    edge->deps_loaded_ = true;
-
-    // If there is a pending dyndep file, visit it now:
-    // * If the dyndep file is ready then load it now to get any
-    //   additional inputs and outputs for this and other edges.
-    //   Once the dyndep file is loaded it will no longer be pending
-    //   if any other edges encounter it, but they will already have
-    //   been updated.
-    // * If the dyndep file is not ready then since is known to be an
-    //   input to this edge, the edge will not be considered ready below.
-    //   Later during the build the dyndep file will become ready and be
-    //   loaded to update this edge before it can possibly be scheduled.
-    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
-      if (!RecomputeNodeDirty(edge->dyndep_, stack, validation_nodes, err))
-        return false;
-
-      if (!edge->dyndep_->in_edge() ||
-          edge->dyndep_->in_edge()->outputs_ready()) {
-        // The dyndep file is ready, so load it now.
-        if (!LoadDyndeps(edge->dyndep_, err))
-          return false;
-      }
-    }
-
-    // Load discovered deps.
-    if (!dep_loader_.LoadDeps(edge, err)) {
-      if (!err->empty())
-        return false;
-      // Failed to load dependency info: rebuild to regenerate it.
-      // LoadDeps() did explanations_->Record() already, no need to do it here.
-      dirty = edge->deps_missing_ = true;
-    }
-  }
+  if (!LoadDyndep(edge, stack, validation_nodes, &dirty, err))
+    return false;
 
   // Visit all inputs before checking if any of them is ready.
   // Newly encountered edges may load dyndep files and gain
@@ -226,6 +193,47 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   assert(stack->back() == node);
   stack->pop_back();
 
+  return true;
+}
+
+bool DependencyScan::LoadDyndep(Edge* edge, std::vector<Node*>* stack,
+                                          std::vector<Node*>* validation_nodes,
+                                          bool* dirty, std::string* err) {
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.
+    edge->deps_loaded_ = true;
+
+    // If there is a pending dyndep file, visit it now:
+    // * If the dyndep file is ready then load it now to get any
+    //   additional inputs and outputs for this and other edges.
+    //   Once the dyndep file is loaded it will no longer be pending
+    //   if any other edges encounter it, but they will already have
+    //   been updated.
+    // * If the dyndep file is not ready then since is known to be an
+    //   input to this edge, the edge will not be considered ready below.
+    //   Later during the build the dyndep file will become ready and be
+    //   loaded to update this edge before it can possibly be scheduled.
+    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+      if (!RecomputeNodeDirty(edge->dyndep_, stack, validation_nodes, err))
+        return false;
+
+      if (!edge->dyndep_->in_edge() ||
+          edge->dyndep_->in_edge()->outputs_ready()) {
+        // The dyndep file is ready, so load it now.
+        if (!LoadDyndeps(edge->dyndep_, err))
+          return false;
+      }
+    }
+
+    // Load discovered deps.
+    if (!dep_loader_.LoadDeps(edge, err)) {
+      if (!err->empty())
+        return false;
+      // Failed to load dependency info: rebuild to regenerate it.
+      // LoadDeps() did explanations_->Record() already, no need to do it here.
+      *dirty = edge->deps_missing_ = true;
+    }
+  }
   return true;
 }
 
