@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "dyndep.h"
+#include "dyndep_file_sorted.h"
 #include "eval_env.h"
 #include "explanations.h"
 #include "jobserver.h"
@@ -279,7 +280,7 @@ struct EdgeCmp {
   }
 };
 
-typedef std::set<Edge*, EdgeCmp> EdgeSet;
+typedef std::set<const Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
@@ -338,7 +339,9 @@ struct DependencyScan {
       : build_log_(build_log), disk_interface_(disk_interface),
         dep_loader_(state, deps_log, disk_interface, depfile_parser_options,
                     explanations),
-        dyndep_loader_(state, disk_interface), explanations_(explanations) {}
+        dyndep_loader_(state, disk_interface),
+        dyndep_(Load(state, disk_interface, deps_log)),
+        explanations_(explanations) {}
 
   /// Update the |dirty_| state of the given nodes by transitively inspecting
   /// their input edges.
@@ -375,7 +378,12 @@ struct DependencyScan {
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes, std::string* err);
+  bool LoadDyndep(Edge* edge, std::vector<Node*>* stack,
+                            std::vector<Node*>* validation_nodes, bool* dirty,
+                            std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
+  bool VerifyDAG(Node* node, Edge* edge, std::vector<Node*>* stack,
+                 std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.
@@ -388,6 +396,7 @@ struct DependencyScan {
   DiskInterface* disk_interface_;
   ImplicitDepLoader dep_loader_;
   DyndepLoader dyndep_loader_;
+  const DyndepFileSorted dyndep_;
   OptionalExplanations explanations_;
 };
 

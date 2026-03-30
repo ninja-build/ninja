@@ -82,7 +82,54 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
 bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                                         std::vector<Node*>* validation_nodes,
                                         string* err) {
+  bool DAG_done = false;
   Edge* edge = node->in_edge();
+  if (!edge) {
+    // check for an dyndep generated in-edge
+    Edge* in_edge = dyndep_.findOut(node);
+    if (in_edge) {
+      // the edge 'in_edge' is a potential in_edge, coming from dyndep output,
+      // not been loaded so far. This is only an in-edge, if the producing
+      // dyndep file is not dirty.
+
+      // If we already visited 'in_edge' then we are done.
+      if (in_edge->mark_ == Edge::VisitDone)
+        return true;
+
+      // If we encountered this edge earlier in the call stack we have a cycle.
+      DAG_done = true;
+      if (!VerifyDAG(node, in_edge, stack, err))
+        return false;
+
+      // Mark the edge temporarily while in the call stack.
+      const auto temp_mark = in_edge->mark_;
+      in_edge->mark_ = Edge::VisitInStack;
+      stack->push_back(node);
+
+      const auto iter_end = validation_nodes->end();
+      in_edge->deps_missing_ = false;
+
+      // load dependancies and dirtiness of 'in_edge'
+      bool dummy;
+      if (!LoadDyndep(in_edge, stack, validation_nodes, &dummy, err))
+        return false;
+
+      // reset stack and edge
+      in_edge->mark_ = temp_mark;
+      assert(stack->back() == node);
+      stack->pop_back();
+
+      // check if dyndep has been loaded, then dyndep is not dirty
+      if (!in_edge->dyndep_->dirty()) {
+        // dyndep loaded in_edge
+        edge = in_edge;
+      } else {
+        // delete nodes if dyndep is not loaded
+        validation_nodes->erase(iter_end, validation_nodes->end());
+      }
+    }
+  }
+
   if (!edge) {
     // If we already visited this leaf node then we are done.
     if (node->status_known())
@@ -102,7 +149,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     return true;
 
   // If we encountered this edge earlier in the call stack we have a cycle.
-  if (!VerifyDAG(node, stack, err))
+  if (!DAG_done && !VerifyDAG(node, stack, err))
     return false;
 
   // Store any validation nodes from the edge for adding to the initial
@@ -121,41 +168,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   edge->outputs_ready_ = true;
   edge->deps_missing_ = false;
 
-  if (!edge->deps_loaded_) {
-    // This is our first encounter with this edge.
-    edge->deps_loaded_ = true;
-
-    // If there is a pending dyndep file, visit it now:
-    // * If the dyndep file is ready then load it now to get any
-    //   additional inputs and outputs for this and other edges.
-    //   Once the dyndep file is loaded it will no longer be pending
-    //   if any other edges encounter it, but they will already have
-    //   been updated.
-    // * If the dyndep file is not ready then since is known to be an
-    //   input to this edge, the edge will not be considered ready below.
-    //   Later during the build the dyndep file will become ready and be
-    //   loaded to update this edge before it can possibly be scheduled.
-    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
-      if (!RecomputeNodeDirty(edge->dyndep_, stack, validation_nodes, err))
-        return false;
-
-      if (!edge->dyndep_->in_edge() ||
-          edge->dyndep_->in_edge()->outputs_ready()) {
-        // The dyndep file is ready, so load it now.
-        if (!LoadDyndeps(edge->dyndep_, err))
-          return false;
-      }
-    }
-
-    // Load discovered deps.
-    if (!dep_loader_.LoadDeps(edge, err)) {
-      if (!err->empty())
-        return false;
-      // Failed to load dependency info: rebuild to regenerate it.
-      // LoadDeps() did explanations_->Record() already, no need to do it here.
-      dirty = edge->deps_missing_ = true;
-    }
-  }
+  if (!LoadDyndep(edge, stack, validation_nodes, &dirty, err))
+    return false;
 
   // Visit all inputs before checking if any of them is ready.
   // Newly encountered edges may load dyndep files and gain
@@ -229,8 +243,49 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   return true;
 }
 
-bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
-  Edge* edge = node->in_edge();
+bool DependencyScan::LoadDyndep(Edge* edge, std::vector<Node*>* stack,
+                                          std::vector<Node*>* validation_nodes,
+                                          bool* dirty, std::string* err) {
+  if (!edge->deps_loaded_) {
+    // This is our first encounter with this edge.
+    edge->deps_loaded_ = true;
+
+    // If there is a pending dyndep file, visit it now:
+    // * If the dyndep file is ready then load it now to get any
+    //   additional inputs and outputs for this and other edges.
+    //   Once the dyndep file is loaded it will no longer be pending
+    //   if any other edges encounter it, but they will already have
+    //   been updated.
+    // * If the dyndep file is not ready then since is known to be an
+    //   input to this edge, the edge will not be considered ready below.
+    //   Later during the build the dyndep file will become ready and be
+    //   loaded to update this edge before it can possibly be scheduled.
+    if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
+      if (!RecomputeNodeDirty(edge->dyndep_, stack, validation_nodes, err))
+        return false;
+
+      if (!edge->dyndep_->in_edge() ||
+          edge->dyndep_->in_edge()->outputs_ready()) {
+        // The dyndep file is ready, so load it now.
+        if (!LoadDyndeps(edge->dyndep_, err))
+          return false;
+      }
+    }
+
+    // Load discovered deps.
+    if (!dep_loader_.LoadDeps(edge, err)) {
+      if (!err->empty())
+        return false;
+      // Failed to load dependency info: rebuild to regenerate it.
+      // LoadDeps() did explanations_->Record() already, no need to do it here.
+      *dirty = edge->deps_missing_ = true;
+    }
+  }
+  return true;
+}
+
+bool DependencyScan::VerifyDAG(Node* node, Edge* edge, std::vector<Node*>* stack,
+                 std::string* err){
   assert(edge != NULL);
 
   // If we have no temporary mark on the edge then we do not yet have a cycle.
@@ -266,6 +321,10 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
   }
 
   return false;
+}
+
+bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err){
+  return VerifyDAG(node, node->in_edge(), stack, err);
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,

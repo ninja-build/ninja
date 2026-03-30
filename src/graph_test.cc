@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "graph.h"
+#include <memory>
 
 #include "build.h"
 #include "command_collector.h"
@@ -1221,4 +1222,254 @@ TEST_F(GraphTest, PhonyOutputWithValidation) {
   EXPECT_FALSE(GetNode("out")->dirty());
   ASSERT_EQ(1u, validation_nodes.size());
   EXPECT_EQ("valid", validation_nodes[0]->path());
+}
+
+/// The current unittest does not reflect the correct creation order relative to
+/// parsing/creating files and constructing the DependencyScan. The real sequence is:
+///   1. Parse manifest and create files
+///   2. Construct the DependencyScan object
+/// This fixture class enforces that ordering.
+struct GraphTestDyndep : public StateTestWithBuiltinRules {
+  GraphTestDyndep() {}
+
+  void Create() {
+    scan_ = std::make_unique<DependencyScan>(&state_, nullptr, nullptr, &fs_,
+                                             nullptr, nullptr);
+  }
+
+  VirtualFileSystem fs_;
+  std::unique_ptr<DependencyScan> scan_;
+};
+
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch || dyndep.dd
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("g.h"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("g.h")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputs_2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule catdep
+  command = touch a.o
+
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch || dyndep.dd
+build a.o: catdep a.c g.h || dyndep.dd
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("a.o", "");
+  // fs_.Create("out", "");
+  fs_.Create("a.c", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("a.o"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("a.o")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+  EXPECT_TRUE(GetNode("g.h")->dirty());
+}
+
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputsDeps) {
+// note that this graph has a 'missingdeps'
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule touch_out
+  command = touch $out
+rule touch_out_and_g_h
+  command = touch $out g.h
+build a.o: touch_out a.c || dyndep.dd
+  depfile = a.o.d
+build out: touch_out_and_g_h || dyndep.dd
+  dyndep = dyndep.dd
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("a.o", "");
+  // fs_.Create("out", "");
+  fs_.Create("a.c", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+  fs_.Create("a.o.d", "a.o: g.h\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("a.o"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("a.o")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+  EXPECT_TRUE(GetNode("g.h")->dirty());
+}
+
+
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputsDyndepGenerated) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = cp $in $out
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch || dyndep.dd
+build dyndep.dd: dd dyndep.dd.in
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+  fs_.Create("dyndep.dd.in",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("g.h"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_TRUE(GetNode("g.h")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+// dyndep file is dirty, dyndep is not loaded
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputsDyndepGeneratedDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule dd
+  command = cp $in $out
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch || dyndep.dd
+build dyndep.dd: dd dyndep.dd.in
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+  fs_.Tick();
+  fs_.Create("dyndep.dd.in",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("g.h"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("g.h")->dirty());
+  EXPECT_FALSE(GetNode("out")->dirty());
+
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("out"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("g.h")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+
+  // revisit node 'g.h'
+  EXPECT_TRUE(scan_->RecomputeDirty(GetNode("g.h"), &validation_nodes, &err));
+  ASSERT_EQ("", err);
+
+  EXPECT_FALSE(GetNode("g.h")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputsCycle) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule catdep
+  command = touch a.o
+
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch a.o || dyndep.dd
+build a.o: catdep a.c g.h || dyndep.dd
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("a.o", "");
+  // fs_.Create("out", "");
+  fs_.Create("a.c", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_FALSE(scan_->RecomputeDirty(GetNode("a.o"), &validation_nodes, &err));
+  ASSERT_EQ("dependency cycle: a.o -> g.h -> a.o", err);
+}
+
+TEST_F(GraphTestDyndep, InEdgesFollowsDyndepOutputsCycle2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule catdep
+  command = touch a.o
+
+rule dyn_touch
+  command = touch g.h out
+  dyndep = dyndep.dd
+
+build out: dyn_touch || dyndep.dd
+build a.o: catdep a.c g.h || dyndep.dd
+)ninja"));
+
+  fs_.Create("g.h", "");
+  fs_.Create("a.o", "");
+  // fs_.Create("out", "");
+  fs_.Create("a.c", "");
+  fs_.Create("dyndep.dd",
+             "ninja_dyndep_version = 1\n"
+             "build out | g.h: dyndep | a.o\n");
+
+  Create();
+
+  string err;
+  std::vector<Node*> validation_nodes;
+  EXPECT_FALSE(scan_->RecomputeDirty(GetNode("a.o"), &validation_nodes, &err));
+  ASSERT_EQ("dependency cycle: a.o -> g.h -> a.o", err);
 }

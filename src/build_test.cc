@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <climits>
+#include <memory>
 #include <stdint.h>
 
 #include "build_log.h"
@@ -4419,4 +4420,148 @@ TEST_F(StateTestWithBuiltinRules, ComplexTargetPreserved) {
   ASSERT_NE(node, nullptr);
 
   EXPECT_EQ(node->path(), "foo %2F bar?baz&x=1");
+}
+
+/// The current unittest does not reflect the correct creation order relative to
+/// parsing/creating files and constructing the Builder. The real sequence is:
+///   1. Parse manifest and create files
+///   2. Construct the Builder object
+/// This fixture class enforces that ordering.
+struct BuildTestDyndep : public StateTestWithBuiltinRules, public BuildLogUser {
+  BuildTestDyndep()
+      : config_(MakeConfig()), command_runner_(&fs_), status_(config_) {}
+
+  ~BuildTestDyndep() {
+    if (builder_)
+      builder_->command_runner_.release();
+  }
+
+  /// Creates the Builder instance. This must be called only after parsing has
+  /// completed and after all files have been created.
+  SafeRelease Create() {
+    command_runner_.commands_ran_.clear();
+    state_.Reset();
+
+    builder_ = std::make_unique<Builder>(&state_, config_, nullptr, nullptr,
+                                         &fs_, &status_, 0);
+    builder_->command_runner_.reset(&command_runner_);
+    return SafeRelease(builder_.get());
+  }
+
+  bool IsPathDead(StringPiece s) const override { return false; }
+
+  BuildConfig MakeConfig() {
+    BuildConfig config;
+    config.verbosity = BuildConfig::QUIET;
+    return config;
+  }
+
+  BuildConfig config_;
+  FakeCommandRunner command_runner_;
+  VirtualFileSystem fs_;
+  StatusPrinter status_;
+  std::unique_ptr<Builder> builder_;
+};
+
+// Ensure that in-edges introduced by dyndep-generated output nodes are
+// correctly traversed
+// https://github.com/ninja-build/ninja/issues/2653
+// https://github.com/ninja-build/ninja/issues/2743
+TEST_F(BuildTestDyndep, InEdgesFollowsDyndepOutputs) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule mkdyn
+  command = printf 'ninja_dyndep_version = 1\nbuild  a3 | input_b: dyndep |\n' > dd
+
+rule cp
+  command = cp $in $out
+
+rule cc
+  command = cp $in $out && touch input_b
+
+build dd: mkdyn
+
+build b1: cp input_b
+build b2: cp b1
+build b3: cp b2
+build b4: cp b3
+build b5: cp b4
+
+build a1: cp input_a
+build a2: cp a1
+build a3: cc a2 || dd
+  dyndep = dd
+build a4: cp a3
+build a5: cp a4
+)ninja"));
+
+  fs_.Create("input_b", "");
+  fs_.Create("b1", "");
+  fs_.Create("b2", "");
+  fs_.Create("b3", "");
+  fs_.Create("b4", "");
+  fs_.Create("b5", "");
+
+  fs_.Create("input_a", "");
+  fs_.Create("a1", "");
+  fs_.Create("a2", "");
+  fs_.Create("a3", "");
+  fs_.Create("a4", "");
+  fs_.Create("a5", "");
+  fs_.Create("dd",
+             "ninja_dyndep_version = 1\n"
+             "build  a3 | input_b: dyndep |\n");
+
+  fs_.Tick();
+  fs_.Create("input_a", "");
+
+  {
+    SafeRelease protect = Create();
+
+    string err;
+    EXPECT_TRUE(builder_->AddTarget("b5", &err));
+    EXPECT_EQ("", err);
+    err.clear();
+    EXPECT_TRUE(builder_->AddTarget("a5", &err));
+    EXPECT_EQ("", err);
+    err.clear();
+
+    EXPECT_TRUE(GetNode("a5")->dirty());
+    // After loading dyndep, dirty propagation should mark the entire B chain
+    // dirty.
+    EXPECT_TRUE(GetNode("b5")->dirty());
+    EXPECT_TRUE(GetNode("b4")->dirty());
+    EXPECT_TRUE(GetNode("b3")->dirty());
+    EXPECT_TRUE(GetNode("b2")->dirty());
+    EXPECT_TRUE(GetNode("b1")->dirty());
+
+    EXPECT_EQ(builder_->Build(&err), ExitSuccess);
+    EXPECT_EQ("", err);
+
+    EXPECT_EQ(10u, command_runner_.commands_ran_.size());
+  }
+
+  {
+    // Now we only request b4.
+
+    fs_.Tick();
+    fs_.Create("input_a", "");
+
+    SafeRelease protect = Create();
+
+    std::string err;
+    EXPECT_TRUE(builder_->AddTarget("b4", &err));
+    EXPECT_EQ("", err);
+    err.clear();
+
+    EXPECT_FALSE(GetNode("b5")->dirty());
+    EXPECT_TRUE(GetNode("b4")->dirty());
+    EXPECT_TRUE(GetNode("b3")->dirty());
+    EXPECT_TRUE(GetNode("b2")->dirty());
+    EXPECT_TRUE(GetNode("b1")->dirty());
+
+    EXPECT_EQ(builder_->Build(&err), ExitSuccess);
+    EXPECT_EQ("", err);
+
+    EXPECT_EQ(7u, command_runner_.commands_ran_.size());
+  }
 }
