@@ -39,16 +39,17 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
         dep_nodes_output_(dep_nodes_output) {}
 
  protected:
-  virtual bool ProcessDepfileDeps(Edge* edge,
-                                  std::vector<StringPiece>* depfile_ins,
-                                  std::string* err);
+  bool ProcessDepfileDeps(EdgeInputsRange* input_range,
+                          std::vector<StringPiece>* depfile_ins,
+                          std::string* err) override;
 
  private:
   std::vector<Node*>* dep_nodes_output_;
 };
 
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    EdgeInputsRange* input_range, std::vector<StringPiece>* depfile_ins,
+    std::string* err) {
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;

@@ -297,6 +297,7 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
   bool LoadDeps(EdgeInputsRange* input_range, std::string* err);
+  bool LoadDepsTry(const Edge* edge, std::string* err) const;
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -313,10 +314,15 @@ struct ImplicitDepLoader {
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepFile(EdgeInputsRange* input_range, const std::string& path,
                    std::string* err);
+  /// Check if a depfile exists
+  /// @return No file found: false on error and \a err = ""
+  bool LoadDepFileTry(const Edge* edge, const std::string& path,
+                      std::string* err) const;
 
   /// Load implicit dependencies for \a input_range from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
   bool LoadDepsFromLog(EdgeInputsRange* input_range, std::string* err);
+  bool LoadDepsFromLogTry(const Edge* edge, std::string* err) const;
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
