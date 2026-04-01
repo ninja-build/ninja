@@ -300,6 +300,7 @@ struct ImplicitDepLoader {
   /// @return newly added `EdgeInputsRange` on success, describing the
   ///         dependencies that were added to the graph.
   std::optional<EdgeInputsRange> LoadDeps(Edge* edge, std::string* err);
+  bool LoadDepsTry(const Edge* edge, std::string* err) const;
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -318,9 +319,15 @@ struct ImplicitDepLoader {
                                              const std::string& path,
                                              std::string* err);
 
+  /// Check if a depfile exists
+  /// @return No file found: false on error and \a err = ""
+  bool LoadDepFileTry(const Edge* edge, const std::string& path,
+                      std::string* err) const;
+
   /// Load implicit dependencies for \a input_range from the DepsLog.
   /// @return false/empty on error (without filling \a err if info is just missing).
   std::optional<EdgeInputsRange> LoadDepsFromLog(Edge* edge, std::string* err);
+  bool LoadDepsFromLogTry(const Edge* edge, std::string* err) const;
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
