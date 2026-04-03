@@ -79,6 +79,59 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
   return true;
 }
 
+/// Recomputes the dirtiness state of the specified input range of the node's
+/// incoming edge. For each input in the given range, the function updates its
+/// dirtiness state and propagates any effects to the node.
+///
+/// Additionally, the node’s overall dirtiness is recalculated based on these
+/// inputs. The `most_recent_input` pointer is updated if a newer input (based
+/// on mtime) is found.
+///
+/// @param input_range  Defines the subset of inputs to process. The first
+///                     element is the offset from the beginning, the second
+///                     the offset from the end of the input list.
+/// @param most_recent_input  Will be updated to the newest non-dirty regular
+///                           input, if applicable.
+/// @param dirty        Set to true if any regular input is dirty or missing.
+/// @return true on success, false if an error occurred during recomputation.
+bool DependencyScan::RecomputeEdgesInputsDirty(
+    const Node* node, EdgeInputsRange input_range, Node*& most_recent_input,
+    bool& dirty, std::vector<Node*>* stack,
+    std::vector<Node*>* validation_nodes, std::string* err) {
+  const auto& edge = input_range.edge_;
+
+  // Visit all specified inputs before checking if any of them is ready.
+  // Newly encountered edges may load dyndep files and gain
+  // outputs that correspond to some of our inputs.
+  for (auto i : input_range) {
+    if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
+      return false;
+  }
+
+  for (auto i = input_range.begin(); i != input_range.end(); ++i) {
+    // If an input is not ready, neither are our outputs.
+    if (Edge* in_edge = (*i)->in_edge()) {
+      if (!in_edge->outputs_ready_)
+        edge->outputs_ready_ = false;
+    }
+
+    if (!edge->is_order_only(i - edge->inputs_.cbegin())) {
+      // If a regular input is dirty (or missing), we're dirty.
+      // Otherwise consider mtime.
+      if ((*i)->dirty()) {
+        explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
+        dirty = true;
+      } else {
+        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
+          most_recent_input = *i;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                                         std::vector<Node*>* validation_nodes,
                                         string* err) {
@@ -148,7 +201,8 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     }
 
     // Load discovered deps.
-    if (!dep_loader_.LoadDeps(edge, err)) {
+    EdgeInputsRange new_deps(edge);
+    if (!dep_loader_.LoadDeps(&new_deps, err)) {
       if (!err->empty())
         return false;
       // Failed to load dependency info: rebuild to regenerate it.
@@ -167,37 +221,10 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     }
   }
 
-  // Visit all inputs before checking if any of them is ready.
-  // Newly encountered edges may load dyndep files and gain
-  // outputs that correspond to some of our inputs.
-  for (Node* i : edge->inputs_) {
-    if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
-      return false;
-  }
-
-  // We're dirty if any of the inputs is dirty.
-  Node* most_recent_input = NULL;
-  for (vector<Node*>::iterator i = edge->inputs_.begin();
-       i != edge->inputs_.end(); ++i) {
-    // If an input is not ready, neither are our outputs.
-    if (Edge* in_edge = (*i)->in_edge()) {
-      if (!in_edge->outputs_ready_)
-        edge->outputs_ready_ = false;
-    }
-
-    if (!edge->is_order_only(i - edge->inputs_.begin())) {
-      // If a regular input is dirty (or missing), we're dirty.
-      // Otherwise consider mtime.
-      if ((*i)->dirty()) {
-        explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
-        dirty = true;
-      } else {
-        if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
-          most_recent_input = *i;
-        }
-      }
-    }
-  }
+  Node* most_recent_input = nullptr;
+  if (!RecomputeEdgesInputsDirty(node, EdgeInputsRange(node->in_edge()), most_recent_input, dirty,
+                                 stack, validation_nodes, err))
+    return false;
 
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
@@ -206,10 +233,9 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
       return false;
 
   // Finally, visit each output and update their dirty state if necessary.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (dirty)
-      (*o)->MarkDirty();
+  if (dirty) {
+    for (auto o : edge->outputs_)
+      o->MarkDirty();
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
@@ -269,7 +295,8 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                                           bool* outputs_dirty, string* err) {
+                                           bool* const outputs_dirty,
+                                           string* err) {
   string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
   for (vector<Node*>::iterator o = edge->outputs_.begin();
        o != edge->outputs_.end(); ++o) {
@@ -629,14 +656,15 @@ void Node::Dump(const char* prefix) const {
   }
 }
 
-bool ImplicitDepLoader::LoadDeps(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDeps(EdgeInputsRange* input_range, string* err) {
+  const auto& edge = input_range->edge_;
   string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty())
-    return LoadDepsFromLog(edge, err);
+    return LoadDepsFromLog(input_range, err);
 
   string depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
-    return LoadDepFile(edge, depfile, err);
+    return LoadDepFile(input_range, depfile, err);
 
   // No deps to load.
   return true;
@@ -653,8 +681,8 @@ struct matches {
   std::vector<StringPiece>::iterator i_;
 };
 
-bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
-                                    string* err) {
+bool ImplicitDepLoader::LoadDepFile(EdgeInputsRange* input_range,
+                                    const string& path, string* err) {
   METRIC_RECORD("depfile load");
   // Read depfile content.  Treat a missing depfile as empty.
   string content;
@@ -669,6 +697,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     return false;
   }
   // On a missing depfile: return false and empty *err.
+  const auto& edge = input_range->edge_;
   Node* first_output = edge->outputs_[0];
   if (content.empty()) {
     explanations_.Record(first_output, "depfile '%s' is missing", path.c_str());
@@ -715,14 +744,16 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const string& path,
     }
   }
 
-  return ProcessDepfileDeps(edge, &depfile.ins_, err);
+  return ProcessDepfileDeps(input_range, &depfile.ins_, err);
 }
 
 bool ImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    EdgeInputsRange* input_range, std::vector<StringPiece>* depfile_ins,
+    std::string* err) {
   // Preallocate space in edge->inputs_ to be filled in below.
   vector<Node*>::iterator implicit_dep =
-      PreallocateSpace(edge, static_cast<int>(depfile_ins->size()));
+      PreallocateSpace(input_range->edge_, static_cast<int>(depfile_ins->size()));
+  input_range->beg_ = implicit_dep;
 
   // Add all its in-edges.
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
@@ -731,14 +762,18 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
     CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;
-    node->AddOutEdge(edge);
+    node->AddOutEdge(input_range->edge_);
   }
+
+  input_range->end_ = implicit_dep;
 
   return true;
 }
 
-bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
+bool ImplicitDepLoader::LoadDepsFromLog(EdgeInputsRange* input_range,
+                                        string* err) {
   // NOTE: deps are only supported for single-target edges.
+  auto& edge = input_range->edge_;
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
   if (!deps) {
@@ -762,13 +797,18 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   }
 
   Node** nodes = deps->nodes;
-  size_t node_count = deps->node_count;
-  edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       nodes, nodes + node_count);
+  const size_t node_count = deps->node_count;
+  const auto implicit_dep = edge->inputs_.end() - edge->order_only_deps_;
+
   edge->implicit_deps_ += node_count;
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }
+
+  input_range->beg_ =
+      edge->inputs_.insert(implicit_dep, nodes, nodes + node_count);
+  input_range->end_ = input_range->beg_ + node_count;
+
   return true;
 }
 

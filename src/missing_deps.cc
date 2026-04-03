@@ -39,7 +39,7 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
         dep_nodes_output_(dep_nodes_output) {}
 
  protected:
-  virtual bool ProcessDepfileDeps(Edge* edge,
+  virtual bool ProcessDepfileDeps(EdgeInputsRange* input_range,
                                   std::vector<StringPiece>* depfile_ins,
                                   std::string* err);
 
@@ -48,7 +48,8 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
 };
 
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
+    EdgeInputsRange* input_range, std::vector<StringPiece>* depfile_ins,
+    std::string* err) {
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;
@@ -101,7 +102,8 @@ void MissingDependencyScanner::ProcessNode(Node* node) {
                                             &parser_opts, nullptr,
                                             &depfile_deps);
     std::string err;
-    dep_loader.LoadDeps(edge, &err);
+    EdgeInputsRange new_deps(edge);
+    dep_loader.LoadDeps(&new_deps, &err);
     if (!depfile_deps.empty())
       ProcessNodeDeps(node, &depfile_deps[0],
                       static_cast<int>(depfile_deps.size()));
