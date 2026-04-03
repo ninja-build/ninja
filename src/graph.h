@@ -16,6 +16,7 @@
 #define NINJA_GRAPH_H_
 
 #include <algorithm>
+#include <optional>
 #include <queue>
 #include <set>
 #include <string>
@@ -33,6 +34,7 @@ struct DepfileParserOptions;
 struct DiskInterface;
 struct DepsLog;
 struct Edge;
+struct EdgeInputsRange;
 struct Node;
 struct Pool;
 struct State;
@@ -293,9 +295,11 @@ struct ImplicitDepLoader {
         explanations_(explanations) {}
 
   /// Load implicit dependencies for \a edge.
-  /// @return false on error (without filling \a err if info is just missing
-  //                          or out of date).
-  bool LoadDeps(Edge* edge, std::string* err);
+  /// @return empty optional on error (without filling \a err if info is just
+  ///                                  missing or out of date).
+  /// @return newly added `EdgeInputsRange` on success, describing the
+  ///         dependencies that were added to the graph.
+  std::optional<EdgeInputsRange> LoadDeps(Edge* edge, std::string* err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -303,18 +307,20 @@ struct ImplicitDepLoader {
 
  protected:
   /// Process loaded implicit dependencies for \a edge and update the graph
-  /// @return false on error (without filling \a err if info is just missing)
-  virtual bool ProcessDepfileDeps(Edge* edge,
+  /// @return empty optional on error (without filling \a err if info is just missing)
+  virtual std::optional<EdgeInputsRange> ProcessDepfileDeps(Edge* edge,
                                   std::vector<StringPiece>* depfile_ins,
                                   std::string* err);
 
   /// Load implicit dependencies for \a edge from a depfile attribute.
-  /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
+  /// @return empty optional on error (without filling \a err if info is just missing).
+  std::optional<EdgeInputsRange> LoadDepFile(Edge* edge,
+                                             const std::string& path,
+                                             std::string* err);
 
-  /// Load implicit dependencies for \a edge from the DepsLog.
-  /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, std::string* err);
+  /// Load implicit dependencies for \a input_range from the DepsLog.
+  /// @return false/empty on error (without filling \a err if info is just missing).
+  std::optional<EdgeInputsRange> LoadDepsFromLog(Edge* edge, std::string* err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
@@ -324,9 +330,37 @@ struct ImplicitDepLoader {
   DiskInterface* disk_interface_;
   DepsLog* deps_log_;
   DepfileParserOptions const* depfile_parser_options_;
-  OptionalExplanations explanations_;
+  mutable OptionalExplanations explanations_;
 };
 
+/// A lightweight range of an Edge's input nodes.
+///
+/// A default-constructed `EdgeInputsRange` spans the entire
+/// `edge->inputs_` vector.
+struct EdgeInputsRange {
+  using const_iterator = std::vector<Node*>::const_iterator;
+
+  /// Create new instance covering all |edge| inputs.
+  EdgeInputsRange(Edge* edge)
+      : edge_(edge), beg_(edge->inputs_.begin()), end_(edge->inputs_.end()) {}
+
+  EdgeInputsRange(Edge* edge, const_iterator beg, const_iterator end)
+      : edge_(edge), beg_(beg), end_(end) {}
+
+  static EdgeInputsRange Empty(Edge* edge) {
+    return EdgeInputsRange(edge, edge->inputs_.begin(), edge->inputs_.begin());
+  }
+
+  const_iterator begin() const { return beg_; }
+  const_iterator end() const { return end_; }
+
+  /// The edge whose input range is being viewed.
+  Edge* const edge_;
+
+ private:
+  const_iterator beg_;
+  const_iterator end_;
+};
 
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
@@ -375,7 +409,13 @@ struct DependencyScan {
 
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
-                          std::vector<Node*>* validation_nodes, std::string* err);
+                          std::vector<Node*>* validation_nodes,
+                          std::string* err);
+  bool RecomputeEdgesInputsDirty(const Node* node, EdgeInputsRange input_range,
+                                 Node*& most_recent_input, bool& dirty,
+                                 std::vector<Node*>* stack,
+                                 std::vector<Node*>* validation_nodes,
+                                 std::string* err);
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
