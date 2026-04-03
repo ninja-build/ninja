@@ -324,8 +324,8 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
   return LOAD_SUCCESS;
 }
 
-BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
-  Entries::iterator i = entries_.find(path);
+BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) const{
+  Entries::const_iterator i = entries_.find(path);
   if (i != entries_.end())
     return i->second.get();
   return NULL;
