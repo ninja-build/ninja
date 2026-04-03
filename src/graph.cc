@@ -157,14 +157,6 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     }
   }
 
-  // Visit all inputs before checking if any of them is ready.
-  // Newly encountered edges may load dyndep files and gain
-  // outputs that correspond to some of our inputs.
-  for (Node* i : edge->inputs_) {
-    if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
-      return false;
-  }
-
   // Load output mtimes so we can compare them to the most recent input below.
   for (Node* o : edge->outputs_) {
     if (err) {
@@ -173,6 +165,14 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     if (!o->StatIfNecessary(disk_interface_, err)) {
       return false;
     }
+  }
+
+  // Visit all inputs before checking if any of them is ready.
+  // Newly encountered edges may load dyndep files and gain
+  // outputs that correspond to some of our inputs.
+  for (Node* i : edge->inputs_) {
+    if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
+      return false;
   }
 
   // We're dirty if any of the inputs is dirty.
