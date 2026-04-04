@@ -39,7 +39,7 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
         dep_nodes_output_(dep_nodes_output) {}
 
  protected:
-  virtual bool ProcessDepfileDeps(EdgeInputsRange* input_range,
+  virtual bool ProcessDepfileDeps(Edge* edge,
                                   std::vector<StringPiece>* depfile_ins,
                                   std::string* err);
 
@@ -48,8 +48,7 @@ struct NodeStoringImplicitDepLoader : public ImplicitDepLoader {
 };
 
 bool NodeStoringImplicitDepLoader::ProcessDepfileDeps(
-    EdgeInputsRange* input_range, std::vector<StringPiece>* depfile_ins,
-    std::string* err) {
+    Edge* edge, std::vector<StringPiece>* depfile_ins, std::string* err) {
   for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
        i != depfile_ins->end(); ++i) {
     uint64_t slash_bits;

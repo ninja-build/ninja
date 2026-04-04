@@ -31,6 +31,211 @@
 
 using namespace std;
 
+namespace {
+
+/// execute hash only once in lifetime of object and only on request
+struct LazyEdgeCommandHash {
+  LazyEdgeCommandHash(const Edge* edge) : edge_(edge) {}
+  std::uint64_t operator()() {
+    if (!valid_) {
+      valid_ = true;
+      return command_ = BuildLog::LogEntry::HashCommand(
+                 edge_->EvaluateCommand(/*incl_rsp_file=*/true));
+    }
+    return command_;
+  }
+
+ private:
+  const Edge* edge_;
+  std::uint64_t command_ = 0;
+  bool valid_ = false;
+};
+
+/// Performance‑optimized helper class for recomputing the dirty state of
+/// outputs.
+class RecomputeOutputsDirtyCache {
+
+  /// Cached wrapper around BuildLog::LookupByOutput.
+  ///
+  /// This class behaves like an pointer to BuildLog::LogEntry; the pointer may
+  /// be nullptr if no entry exists. The lookup result is cached after the first
+  /// call to avoid repeated BuildLog lookups.
+  class CachedLogEntry {
+   public:
+    CachedLogEntry(){};
+
+    /// check for nullptr
+    bool is_valid() const { return entry_; }
+    /// When calling this function repeatedly for the same object,
+    /// the `buildLog` and `output` pointers must remain unchanged.
+    /// Stable pointer identity is required for correct caching behavior.
+    bool LookupByOutput(const BuildLog* buildLog, const Node* output);
+    const BuildLog::LogEntry* operator->() const { return entry_; }
+
+   private:
+    bool evaluated_ = false;
+    BuildLog::LogEntry* entry_ = nullptr;
+
+#ifndef NDEBUG
+    const Node* checkOutput_ = nullptr;
+#endif
+  };
+
+ public:
+  RecomputeOutputsDirtyCache(BuildLog* build_log,
+                             OptionalExplanations& explanations, Edge* edge)
+      : buildLog_(build_log), explanations_(explanations), edge_(edge),
+        logEntry_(edge->outputs_.size()) {}
+
+  /// Determines whether at least one output of edge 'edge_' is considered dirty.
+  ///
+  /// Returns:
+  /// - `true`  if at least one output is dirty
+  /// - `false` if all outputs are clean
+  bool all(const Node* most_recent_input);
+
+ private:
+  /// Checks whether `output` of `edge_` is dirty.
+  /// Returns true if dirty.
+  bool RecomputeOutputDirty(const Node* output, const Node* most_recent_input,
+                            CachedLogEntry& entry);
+
+  /// Dirty check for phony edges.
+  /// Returns true if dirty.
+  bool Phony(Node* output, const Node* most_recent_input) const;
+
+  const BuildLog* const buildLog_;
+  OptionalExplanations& explanations_;
+  const Edge* const edge_;
+
+  const bool isRestat_ = edge_->GetBindingBool("restat");
+  bool generator_ = false;
+  bool generatorValid_ = false;
+  std::vector<CachedLogEntry> logEntry_;
+  LazyEdgeCommandHash commandHash_ = LazyEdgeCommandHash(edge_);
+};
+
+bool RecomputeOutputsDirtyCache::CachedLogEntry::LookupByOutput(
+    const BuildLog* buildLog, const Node* output) {
+  if (evaluated_) {
+    assert(output == checkOutput_);
+    return entry_;
+  }
+  evaluated_ = true;
+  assert((checkOutput_ = output, true));
+  return (entry_ = buildLog->LookupByOutput(output->path()));
+}
+
+bool RecomputeOutputsDirtyCache::all(const Node* most_recent_input) {
+  for (std::size_t i = 0; i != edge_->outputs_.size(); ++i) {
+    const bool outputDirty =
+        edge_->is_phony()
+            ? Phony(edge_->outputs_[i], most_recent_input)
+            : RecomputeOutputDirty(edge_->outputs_[i], most_recent_input,
+                                   logEntry_[i]);
+    if (outputDirty)
+      return true;
+  }
+  return false;
+}
+
+bool RecomputeOutputsDirtyCache::Phony(Node* output,
+                                       const Node* most_recent_input) const {
+  // Phony edges don't write any output.  Outputs are only dirty if
+  // there are no inputs or validations and we're missing the output.
+  // If a phony target has inputs or validations, or the output exists,
+  // they are used for dirty calculation instead of this fallback.
+  if (edge_->inputs_.empty() && edge_->validations_.empty() &&
+      !output->exists()) {
+    explanations_.Record(output,
+                         "output %s of phony edge with no inputs doesn't exist",
+                         output->path().c_str());
+    return true;
+  }
+
+  // Update the mtime with the newest input. Dependents can thus call mtime()
+  // on the fake node and get the latest mtime of the dependencies
+  if (most_recent_input) {
+    output->UpdatePhonyMtime(most_recent_input->mtime());
+  }
+
+  // Phony edges are clean, nothing to do
+  return false;
+}
+
+bool RecomputeOutputsDirtyCache::RecomputeOutputDirty(
+    const Node* output, const Node* most_recent_input, CachedLogEntry& entry) {
+  // Dirty if we're missing the output.
+  if (!output->exists()) {
+    explanations_.Record(output, "output %s doesn't exist",
+                         output->path().c_str());
+    return true;
+  }
+
+  // If this is a restat rule, we may have cleaned the output in a
+  // previous run and stored the command start time in the build log.
+  // We don't want to consider a restat rule's outputs as dirty unless
+  // an input changed since the last run, so we'll skip checking the
+  // output file's actual mtime and simply check the recorded mtime from
+  // the log against the most recent input's mtime (see below)
+  bool used_restat = false;
+  if (isRestat_ && buildLog_ && entry.LookupByOutput(buildLog_, output)) {
+    used_restat = true;
+  }
+
+  // Dirty if the output is older than the input.
+  if (!used_restat && most_recent_input &&
+      output->mtime() < most_recent_input->mtime()) {
+    explanations_.Record(output,
+                         "output %s older than most recent input %s "
+                         "(%" PRId64 " vs %" PRId64 ")",
+                         output->path().c_str(),
+                         most_recent_input->path().c_str(), output->mtime(),
+                         most_recent_input->mtime());
+    return true;
+  }
+
+  if (buildLog_) {
+    if (!generatorValid_) {
+      generator_ = edge_->GetBindingBool("generator");
+      generatorValid_ = true;
+    }
+    if (entry.LookupByOutput(buildLog_, output)) {
+      if (!generator_ && commandHash_() != entry->command_hash) {
+        // May also be dirty due to the command changing since the last build.
+        // But if this is a generator rule, the command changing does not make
+        // us dirty.
+        explanations_.Record(output, "command line changed for %s",
+                             output->path().c_str());
+        return true;
+      }
+      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
+        // May also be dirty due to the mtime in the log being older than the
+        // mtime of the most recent input.  This can occur even when the mtime
+        // on disk is newer if a previous run wrote to the output file but
+        // exited with an error or was interrupted. If this was a restat rule,
+        // then we only check the recorded mtime against the most recent input
+        // mtime and ignore the actual output's mtime above.
+        explanations_.Record(
+            output,
+            "recorded mtime of %s older than most recent input %s (%" PRId64
+            " vs %" PRId64 ")",
+            output->path().c_str(), most_recent_input->path().c_str(),
+            entry->mtime, most_recent_input->mtime());
+        return true;
+      }
+    }
+    if (!entry.is_valid() && !generator_) {
+      explanations_.Record(output, "command line not found in log for %s",
+                           output->path().c_str());
+      return true;
+    }
+  }
+
+  return false;
+}
+}  // namespace
+
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
   mtime_ = disk_interface->Stat(path_, err);
   if (mtime_ == -1) {
@@ -222,15 +427,17 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   }
 
   Node* most_recent_input = nullptr;
-  if (!RecomputeEdgesInputsDirty(node, EdgeInputsRange(node->in_edge()), most_recent_input, dirty,
-                                 stack, validation_nodes, err))
+  if (!RecomputeEdgesInputsDirty(node, EdgeInputsRange(node->in_edge()),
+                                 most_recent_input, dirty, stack,
+                                 validation_nodes, err))
     return false;
 
   // We may also be dirty due to output state: missing outputs, out of
   // date outputs, etc.  Visit all outputs and determine whether they're dirty.
+  RecomputeOutputsDirtyCache recomputeOutputsDirty(build_log(), explanations_,
+                                                edge);
   if (!dirty)
-    if (!RecomputeOutputsDirty(edge, most_recent_input, &dirty, err))
-      return false;
+    dirty = recomputeOutputsDirty.all(most_recent_input);
 
   // Finally, visit each output and update their dirty state if necessary.
   if (dirty) {
@@ -297,117 +504,9 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
                                            bool* const outputs_dirty,
                                            string* err) {
-  string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
-      *outputs_dirty = true;
-      return true;
-    }
-  }
+  *outputs_dirty = RecomputeOutputsDirtyCache(build_log(), explanations_, edge)
+                       .all(most_recent_input);
   return true;
-}
-
-bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
-                                          const Node* most_recent_input,
-                                          const string& command,
-                                          Node* output) {
-  if (edge->is_phony()) {
-    // Phony edges don't write any output.  Outputs are only dirty if
-    // there are no inputs or validations and we're missing the output.
-    // If a phony target has inputs or validations, or the output exists,
-    // they are used for dirty calculation instead of this fallback.
-    if (edge->inputs_.empty() && edge->validations_.empty() &&
-        !output->exists()) {
-      explanations_.Record(
-          output, "output %s of phony edge with no inputs doesn't exist",
-          output->path().c_str());
-      return true;
-    }
-
-    // Update the mtime with the newest input. Dependents can thus call mtime()
-    // on the fake node and get the latest mtime of the dependencies
-    if (most_recent_input) {
-      output->UpdatePhonyMtime(most_recent_input->mtime());
-    }
-
-    // Phony edges are clean, nothing to do
-    return false;
-  }
-
-  // Dirty if we're missing the output.
-  if (!output->exists()) {
-    explanations_.Record(output, "output %s doesn't exist",
-                         output->path().c_str());
-    return true;
-  }
-
-  BuildLog::LogEntry* entry = 0;
-
-  // If this is a restat rule, we may have cleaned the output in a
-  // previous run and stored the command start time in the build log.
-  // We don't want to consider a restat rule's outputs as dirty unless
-  // an input changed since the last run, so we'll skip checking the
-  // output file's actual mtime and simply check the recorded mtime from
-  // the log against the most recent input's mtime (see below)
-  bool used_restat = false;
-  if (edge->GetBindingBool("restat") && build_log()) {
-    entry = build_log()->LookupByOutput(output->path());
-    if (entry) {
-      used_restat = true;
-    }
-  }
-
-  // Dirty if the output is older than the input.
-  if (!used_restat && most_recent_input && output->mtime() < most_recent_input->mtime()) {
-    explanations_.Record(output,
-                         "output %s older than most recent input %s "
-                         "(%" PRId64 " vs %" PRId64 ")",
-                         output->path().c_str(),
-                         most_recent_input->path().c_str(), output->mtime(),
-                         most_recent_input->mtime());
-    return true;
-  }
-
-  if (build_log()) {
-    bool generator = edge->GetBindingBool("generator");
-    if (!entry) {
-      entry = build_log()->LookupByOutput(output->path());
-    }
-    if (entry) {
-      if (!generator &&
-          BuildLog::LogEntry::HashCommand(command) != entry->command_hash) {
-        // May also be dirty due to the command changing since the last build.
-        // But if this is a generator rule, the command changing does not make us
-        // dirty.
-        explanations_.Record(output, "command line changed for %s",
-                             output->path().c_str());
-        return true;
-      }
-      if (most_recent_input && entry->mtime < most_recent_input->mtime()) {
-        // May also be dirty due to the mtime in the log being older than the
-        // mtime of the most recent input.  This can occur even when the mtime
-        // on disk is newer if a previous run wrote to the output file but
-        // exited with an error or was interrupted. If this was a restat rule,
-        // then we only check the recorded mtime against the most recent input
-        // mtime and ignore the actual output's mtime above.
-        explanations_.Record(
-            output,
-            "recorded mtime of %s older than most recent input %s (%" PRId64
-            " vs %" PRId64 ")",
-            output->path().c_str(), most_recent_input->path().c_str(),
-            entry->mtime, most_recent_input->mtime());
-        return true;
-      }
-    }
-    if (!entry && !generator) {
-      explanations_.Record(output, "command line not found in log for %s",
-                           output->path().c_str());
-      return true;
-    }
-  }
-
-  return false;
 }
 
 bool DependencyScan::LoadDyndeps(Node* node, string* err) const {
