@@ -71,6 +71,12 @@ struct LinePrinter {
 
   /// Print the given data to the console, or buffer it if it is locked.
   void PrintOrBuffer(const char *data, size_t size);
+
+  /// Check if environment variable NO_COLOR is set.
+  bool EnvHasNoColor();
+
+  /// Check if environment variable CLICOLOR_FORCE is set.
+  bool EnvHasCliColorForce();
 };
 
 #endif  // NINJA_LINE_PRINTER_H_

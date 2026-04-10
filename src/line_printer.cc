@@ -50,9 +50,8 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
-    char* no_color = getenv("NO_COLOR");
-    if (no_color != NULL && std::string(no_color) != "0") {
-      supports_color_ = false;
+    if (EnvHasNoColor()) {
+        supports_color_ = false;
     }
     DWORD mode;
     if (GetConsoleMode(console_, &mode)) {
@@ -63,6 +62,15 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   if (!supports_color_) {
+    if (EnvHasNoColor()) {
+        supports_color_ = false;
+    } else if (EnvHasCliColorForce()) {
+        supports_color_ = true;
+    }
+
+
+
+      /*
     char* no_color = getenv("NO_COLOR");
     if (no_color != NULL && std::string(no_color) != "0") {
       supports_color_ = false;
@@ -70,6 +78,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
       const char* clicolor_force = getenv("CLICOLOR_FORCE");
       supports_color_ = clicolor_force && std::string(clicolor_force) != "0";
     }
+    */
   }
 }
 
@@ -174,4 +183,20 @@ void LinePrinter::SetConsoleLocked(bool locked) {
     output_buffer_.clear();
     line_buffer_.clear();
   }
+}
+
+bool LinePrinter::EnvHasNoColor() {
+    char* no_color = getenv("NO_COLOR");
+    if (no_color != NULL) {
+        return true;
+    }
+    return false;
+}
+
+bool LinePrinter::EnvHasCliColorForce() {
+    char* clicolor_force = getenv("CLICOLOR_FORCE");
+    if (clicolor_force != NULL) {
+        return true;
+    }
+    return false;
 }
