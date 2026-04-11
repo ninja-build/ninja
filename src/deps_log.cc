@@ -203,7 +203,6 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       read_failed = true;
       break;
     }
-    offset += size + sizeof(size);
 
     if (is_deps) {
       if ((size % 4) != 0) {
@@ -268,6 +267,7 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       node->set_id(id);
       nodes_.push_back(node);
     }
+    offset += size + sizeof(size);
   }
 
   if (read_failed) {
