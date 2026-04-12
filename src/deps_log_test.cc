@@ -712,4 +712,78 @@ TEST_F(DepsLogTest, MalformedDepsLog) {
   }
 }
 
+// Verify that recovery correctly removes a structurally-valid but
+// semantically-invalid record (duplicate path entry).  Before the fix,
+// the truncation offset was advanced past the bad record before validation,
+// so recovery preserved it and the error recurred on every load.
+TEST_F(DepsLogTest, DuplicatePathRecovery) {
+  // Create a valid log with one target and two deps.
+  // This produces path records: out.o (id 0), foo.h (id 1), bar.h (id 2),
+  // plus one deps record.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h", 0));
+    deps.push_back(state.GetNode("bar.h", 0));
+    log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
+    log.Close();
+  }
+
+  // Read the valid file and append a duplicate path record for "foo.h"
+  // (which already has id 1).
+  {
+    RealDiskInterface disk;
+    string contents, err;
+    ASSERT_EQ(FileReader::Okay, disk.ReadFile(kTestFilename, &contents, &err));
+
+    // clang-format off
+    static const uint8_t kDuplicateRecord[] = {
+      // size = 5 (path) + 3 (padding) + 4 (checksum) = 12
+      0x0c, 0x00, 0x00, 0x00,
+      // "foo.h" + 3 bytes padding
+      'f', 'o', 'o', '.', 'h', 0x00, 0x00, 0x00,
+      // checksum = ~1 (the id foo.h already has)
+      0xfe, 0xff, 0xff, 0xff,
+    };
+    // clang-format on
+
+    contents.append(reinterpret_cast<const char*>(kDuplicateRecord),
+                    sizeof(kDuplicateRecord));
+    ASSERT_TRUE(disk.WriteFile(kTestFilename, contents, false));
+  }
+
+  // First load: should detect the duplicate and recover.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_EQ(LOAD_SUCCESS, log.Load(kTestFilename, &state, &err));
+    ASSERT_EQ("premature end of file; recovering", err);
+
+    // Records before the duplicate should survive.
+    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o", 0));
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(2, deps->node_count);
+  }
+
+  // Second load: the bad record should have been truncated away.
+  // Before the fix, this would produce the same error again.
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_EQ(LOAD_SUCCESS, log.Load(kTestFilename, &state, &err));
+    ASSERT_EQ("", err);
+
+    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o", 0));
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(2, deps->node_count);
+  }
+}
+
 }  // anonymous namespace
