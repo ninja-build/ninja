@@ -1825,7 +1825,6 @@ TEST_F(BuildWithLogTest, RestatMissingFile) {
 
   fs_.Tick();
   fs_.Create("in", "");
-  fs_.Create("out2", "");
 
   // Run a build, expect only the first command to run.
   // It doesn't touch its output (due to being the "true" command), so
@@ -1974,6 +1973,79 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   ASSERT_EQ("", err);
   EXPECT_EQ(size_t(1), command_runner_.commands_ran_.size());
   EXPECT_EQ(1, builder_.plan_.command_edge_count());
+}
+
+TEST_F(BuildWithLogTest, ExternallyModifiedOutputDetected) {
+  // Verify that an output modified outside of Ninja is detected and rebuilt.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cc\n"
+"  command = cc\n"
+"build out1: cc in\n"));
+
+  fs_.Create("in", "");
+
+  // Initial build to populate the build log with output_mtime.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  // Verify the build is up to date.
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  // Simulate an external modification of the output (e.g. user editing it).
+  fs_.Tick();
+  fs_.Create("out1", "modified");
+
+  // The output's mtime now differs from what was recorded -- should rebuild.
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(builder_.AlreadyUpToDate());
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+}
+
+TEST_F(BuildWithLogTest, ExternallyModifiedGeneratorOutputNotRebuilt) {
+  // Generator outputs are expected to be user-edited and should not be
+  // rebuilt when externally modified.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch\n"
+"  generator = 1\n"
+"build out1: touch in\n"));
+
+  fs_.Create("in", "");
+
+  // Initial build.
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  ASSERT_EQ("", err);
+  EXPECT_EQ(1u, command_runner_.commands_ran_.size());
+
+  command_runner_.commands_ran_.clear();
+  state_.Reset();
+
+  // Simulate an external modification of the generator output.
+  fs_.Tick();
+  fs_.Create("out1", "user edit");
+
+  // Should still be up to date -- generator outputs are excluded.
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
 TEST_F(BuildWithLogTest, GeneratedPlainDepfileMtime) {
