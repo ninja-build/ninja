@@ -329,10 +329,8 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 
         // Time spent (in seconds) on this edge specifically.
       case 'q':
-        if (time_millis_q != 0) {
-            std::snprintf(buf, sizeof(buf), "%.3f", (time_millis_q / 1e3));
-            out += buf;
-        }
+        std::snprintf(buf, sizeof(buf), "%.3f", (time_millis_q / 1e3));
+        out += buf;
         break;
 
 #define FORMAT_TIME_HMMSS(t)                                                \
