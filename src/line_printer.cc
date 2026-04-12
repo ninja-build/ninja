@@ -36,14 +36,20 @@ using namespace std;
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
-  smart_terminal_ = isatty(1) && term && string(term) != "dumb";
+  output_is_tty_ = isatty(1);
+  smart_terminal_ = output_is_tty_ && term && string(term) != "dumb";
 #else
+  output_is_tty_ = false;
+  bool has_console = false;
+  console_ = GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  has_console = GetConsoleScreenBufferInfo(console_, &csbi);
+  output_is_tty_ = has_console;
+
   if (term && string(term) == "dumb") {
     smart_terminal_ = false;
   } else {
-    console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    smart_terminal_ = GetConsoleScreenBufferInfo(console_, &csbi);
+    smart_terminal_ = has_console;
   }
 #endif
   supports_color_ = smart_terminal_;
