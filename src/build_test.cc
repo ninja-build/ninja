@@ -1044,6 +1044,7 @@ TEST_F(BuildTest, DepFileOK) {
   Edge* edge = state_.edges_.back();
 
   fs_.Create("foo.c", "");
+  state_.FindOrCreateDepfileNode("bar.h",0);  // create node 'bar.h'
   GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
   fs_.Create("foo.o.d", "foo.o: blah.h bar.h\n");
   EXPECT_TRUE(builder_.AddTarget("foo.o", &err));
@@ -1231,7 +1232,8 @@ TEST_F(BuildTest, DepFileCanonicalize) {
 "build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
 
   fs_.Create("x/y/z/foo.c", "");
-  GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
+  state_.FindOrCreateDyndepNode("bar.h",0); // create node 'bar.h'
+  GetNode("bar.h")->MarkDirty(); // Mark bar.h as missing.
   // Note, different slashes from manifest.
   fs_.Create("gen/stuff\\things/foo.o.d",
              "gen\\stuff\\things\\foo.o: blah.h bar.h\n");
@@ -1969,7 +1971,7 @@ TEST_F(BuildWithLogTest, RestatInputChangesDueToRule) {
   // mtime
   EXPECT_TRUE(builder_.AddTarget("out1", &err));
   ASSERT_EQ("", err);
-  EXPECT_TRUE(!state_.GetNode("out1", 0)->dirty());
+  EXPECT_TRUE(!state_.GetNode("out1")->dirty());
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   ASSERT_EQ("", err);
   EXPECT_EQ(size_t(1), command_runner_.commands_ran_.size());
@@ -3068,7 +3070,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.FindOrCreateDepfileNode("bar.h", 0)->MarkDirty(); // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -3214,7 +3216,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
     builder.command_runner_.reset(&command_runner_);
     SafeRelease protect(&builder);
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.FindOrCreateDyndepNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -3363,6 +3365,61 @@ TEST_F(BuildTest, DyndepMissingAndNoRule) {
   string err;
   EXPECT_FALSE(builder_.AddTarget("out", &err));
   EXPECT_EQ("loading 'dd': No such file or directory", err);
+}
+
+TEST_F(BuildTest, DyndepMissingInput) {
+  // Check that the build system detects when a dyndep-provided input is missing
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      R"ninja(
+rule touch
+  command = touch $out $out.imp
+build out: touch || dd
+  dyndep = dd
+)ninja"));
+
+  fs_.Create("dd", R"ninja(
+ninja_dyndep_version = 1
+build out | out.imp: dyndep | tmp.imp missing.imp
+)ninja");
+
+  fs_.Create("tmp.imp", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  EXPECT_EQ("'missing.imp', needed by dyndep 'dd', missing and no known rule to make it", err);
+  EXPECT_TRUE(command_runner_.commands_ran_.empty());
+}
+
+TEST_F(BuildTest, DyndepMissingInputUsedInDepFile) {
+  // The missing input cannot be detected because the dyndep‑introduced node is
+  // also marked as coming from a depfile.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      R"ninja(
+rule touch
+  command = touch $out $out.imp
+build out2: touch out1 || dd
+  dyndep = dd
+build out1: touch
+  depfile = out2.d
+)ninja"));
+
+  fs_.Create("dd", R"ninja(
+ninja_dyndep_version = 1
+build out2 | out2.imp: dyndep | tmp.imp missing.imp
+)ninja");
+  fs_.Create("out2.d", "out1: missing.imp\n");
+  fs_.Create("tmp.imp", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(2u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("touch out1 out1.imp", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("touch out2 out2.imp", command_runner_.commands_ran_[1]);
 }
 
 TEST_F(BuildTest, DyndepReadyImplicitConnection) {
