@@ -604,7 +604,7 @@ Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
                  Status* status, int64_t start_time_millis)
     : state_(state), config_(config), plan_(this), status_(status),
       start_time_millis_(start_time_millis), disk_interface_(disk_interface),
-      explanations_(g_explaining ? new Explanations() : nullptr),
+      explanations_(g_explaining ? new Explanations(status) : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options, explanations_.get()) {
   lock_file_path_ = ".ninja_lock";

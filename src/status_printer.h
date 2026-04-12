@@ -37,6 +37,7 @@ struct StatusPrinter : Status {
   void BuildStarted() override;
   void BuildFinished() override;
 
+  void NewLine() override;
   void Info(const char* msg, ...) override;
   void Warning(const char* msg, ...) override;
   void Error(const char* msg, ...) override;
