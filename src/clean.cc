@@ -151,7 +151,12 @@ void Cleaner::DoCleanTarget(Node* target) {
   if (Edge* e = target->in_edge()) {
     // Do not try to remove phony targets
     if (!e->is_phony()) {
-      Remove(target->path());
+      // Remove all outputs of this edge, not just the named target.
+      // A multi-output edge produces all its outputs from a single command,
+      // so they must be cleaned together.
+      for (Node* output : e->outputs_) {
+        Remove(output->path());
+      }
       RemoveEdgeFiles(e);
     }
     for (vector<Node*>::iterator n = e->inputs_.begin(); n != e->inputs_.end();
