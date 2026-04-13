@@ -187,24 +187,15 @@ void LinePrinter::SetConsoleLocked(bool locked) {
 
 bool LinePrinter::EnvHasNoColor() {
     char* no_color = getenv("NO_COLOR");
-    if (no_color != NULL) {
-        return true;
-    }
-    return false;
+    return no_color != NULL;
 }
 
 bool LinePrinter::EnvHasCliColorForce() {
     char* clicolor_force = getenv("CLICOLOR_FORCE");
-    if (clicolor_force != NULL) {
-        return true;
-    }
-    return false;
+    return clicolor_force != NULL;
 }
 
 bool LinePrinter::EnvHasForceColor() {
     char* force_color = getenv("FORCE_COLOR");
-    if (force_color != NULL) {
-        return true;
-    }
-    return false;
+    return force_color != NULL;
 }
