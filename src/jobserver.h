@@ -207,6 +207,12 @@ struct Jobserver {
     /// enforces serialization of all commands, instead of blocking.
     virtual void Release(Slot slot) {}
 
+#ifndef _WIN32
+    /// Return the file descriptor that can be used to monitor
+    /// jobserver token availability via ppoll/pselect().
+    virtual int GetJobserverFD() const { return -1; }
+#endif
+
     /// Create a new Client instance from a given configuration. On failure,
     /// this returns null after setting |*error|. Note that it is an error to
     /// call this function with |config.HasMode() == false|.

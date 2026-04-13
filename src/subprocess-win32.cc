@@ -251,10 +251,11 @@ Subprocess *SubprocessSet::Add(const string& command, bool use_console) {
   return subprocess;
 }
 
-bool SubprocessSet::DoWork() {
+SubprocessSet::WorkResult SubprocessSet::DoWork() {
   DWORD bytes_read;
   Subprocess* subproc;
   OVERLAPPED* overlapped;
+  WorkResult work_result = WorkResult::NoWork;
 
   if (!GetQueuedCompletionStatus(ioport_, &bytes_read, (PULONG_PTR)&subproc,
                                  &overlapped, INFINITE)) {
@@ -264,7 +265,7 @@ bool SubprocessSet::DoWork() {
 
   if (!subproc) // A NULL subproc indicates that we were interrupted and is
                 // delivered by NotifyInterrupted above.
-    return true;
+    return WorkResult::Interrupted;
 
   subproc->OnPipeReady();
 
@@ -274,10 +275,11 @@ bool SubprocessSet::DoWork() {
     if (running_.end() != end) {
       finished_.push(subproc);
       running_.resize(end - running_.begin());
+      work_result = WorkResult::SubprocFinished;
     }
   }
 
-  return false;
+  return work_result;
 }
 
 Subprocess* SubprocessSet::NextFinished() {
