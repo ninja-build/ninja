@@ -36,8 +36,31 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
   env_ = &state->bindings_;
 }
 
+struct ScopedActiveInclude {
+  std::set<std::string>* active_includes_;
+  std::string canon_;
+  ScopedActiveInclude(std::set<std::string>* active_includes, const std::string& canon)
+      : active_includes_(active_includes), canon_(canon) {
+    active_includes_->insert(canon_);
+  }
+  ~ScopedActiveInclude() {
+    active_includes_->erase(canon_);
+  }
+};
+
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
+  // The root parser lazily creates the set on first use; subparsers receive
+  // a pointer to the root's set via ParseFileInclude().
+  if (!active_includes_) {
+    owned_active_includes_.reset(new set<string>());
+    active_includes_ = owned_active_includes_.get();
+  }
+  string canon = filename;
+  uint64_t slash_bits;
+  CanonicalizePath(&canon, &slash_bits);
+  ScopedActiveInclude scoped_include(active_includes_, canon);
+
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -426,9 +449,16 @@ bool ManifestParser::ParseFileInclude(bool new_scope, string* err) {
     return false;
   string path = eval.Evaluate(env_);
 
+  string canon_path = path;
+  uint64_t unused_bits;
+  CanonicalizePath(&canon_path, &unused_bits);
+  if (active_includes_->count(canon_path))
+    return lexer_.Error("include cycle: '" + path + "'", err);
+
   if (subparser_ == nullptr) {
     subparser_.reset(new ManifestParser(state_, file_reader_, options_));
   }
+  subparser_->active_includes_ = active_includes_;
   if (new_scope) {
     subparser_->env_ = new BindingEnv(env_);
   } else {
