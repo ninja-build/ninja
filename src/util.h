@@ -102,6 +102,11 @@ int GetProcessorCount();
 /// on error.
 double GetLoadAverage();
 
+//Swapped memory is very likely caused by the compiler process running out of ram,
+//as such we consider swapped memory as used memory, therefore negative values are to be expected
+/// @return the Available memory on the machine. If no supported it will return LONG_MAX
+long GetFreeMemory();
+
 /// a wrapper for getcwd()
 std::string GetWorkingDirectory();
 
