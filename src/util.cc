@@ -36,6 +36,7 @@
 
 #ifndef _WIN32
 #include <unistd.h>
+#include <sys/resource.h>
 #include <sys/time.h>
 #endif
 
@@ -1063,4 +1064,13 @@ int platformAwareUnlink(const char* filename) {
 	#else
 		return unlink(filename);
 	#endif
+}
+
+int SetLowPriority() {
+#ifdef _WIN32
+  HANDLE hProcess = GetCurrentProcess();
+  return !SetPriorityClass(hProcess, BELOW_NORMAL_PRIORITY_CLASS) ? -1 : 0;
+#else
+  return setpriority(PRIO_PROCESS, 0, 10);
+#endif
 }
