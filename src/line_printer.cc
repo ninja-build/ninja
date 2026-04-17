@@ -30,6 +30,7 @@
 
 #include "elide_middle.h"
 #include "util.h"
+#include "ansi_color.h"
 
 using namespace std;
 
@@ -52,7 +53,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   if (supports_color_) {
     /*
     if (EnvHasNoColor()) {
-        supports_color_ = false;
+      supports_color_ = false;
     }
     */
     DWORD mode;
@@ -67,17 +68,17 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
     /*
     // NO_COLOR and CLICOLOR_FORCE: NO_COLOR "overrides" CLICOLOR_FORCE
     if (EnvHasNoColor()) {
-        supports_color_ = false;
+      supports_color_ = false;
     } else if (EnvHasCliColorForce()) {
-        supports_color_ = true;
+      supports_color_ = true;
     }
     // NO_COLOR and FORCE_COLOR: FORCE_COLOR "overrides" NO_COLOR
     if (EnvHasForceColor()) {
-        supports_color = true;
+      supports_color = true;
     }
     */
     if (EnvHasCliColorForce() || EnvHasForceColor()) {
-        supports_color_ = true;
+      supports_color_ = true;
     }
   }
 }
@@ -183,28 +184,4 @@ void LinePrinter::SetConsoleLocked(bool locked) {
     output_buffer_.clear();
     line_buffer_.clear();
   }
-}
-
-bool LinePrinter::EnvHasNoColor() {
-    char* no_color = getenv("NO_COLOR");
-    if (no_color != NULL) {
-        return true;
-    }
-    return false;
-}
-
-bool LinePrinter::EnvHasCliColorForce() {
-    char* clicolor_force = getenv("CLICOLOR_FORCE");
-    if (clicolor_force != NULL) {
-        return true;
-    }
-    return false;
-}
-
-bool LinePrinter::EnvHasForceColor() {
-    char* force_color = getenv("FORCE_COLOR");
-    if (force_color != NULL) {
-        return true;
-    }
-    return false;
 }
