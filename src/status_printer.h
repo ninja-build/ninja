@@ -49,7 +49,8 @@ struct StatusPrinter : Status {
   /// @param time_millis The time elapsed overall.
   /// @param time_millis_q The time elapsed for this edge.
   std::string FormatProgressStatus(const char* progress_status_format,
-                                   int64_t time_millis, int64_t time_millis_q) const;
+                                   int64_t time_millis,
+                                   int64_t time_millis_q) const;
 
   /// Set the |explanations_| pointer. Used to implement `-d explain`.
   void SetExplanations(Explanations* explanations) override {

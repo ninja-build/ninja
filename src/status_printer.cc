@@ -262,7 +262,8 @@ void StatusPrinter::BuildFinished() {
 }
 
 string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
-                                           int64_t time_millis, int64_t time_millis_q) const {
+                                           int64_t time_millis,
+                                           int64_t time_millis_q) const {
   string out;
   char buf[32];
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
