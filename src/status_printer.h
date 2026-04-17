@@ -46,9 +46,11 @@ struct StatusPrinter : Status {
   /// See the user manual for more information about the available
   /// placeholders.
   /// @param progress_status_format The format of the progress status.
-  /// @param status The status of the edge.
+  /// @param time_millis The time elapsed overall.
+  /// @param time_millis_q The time elapsed for this edge.
   std::string FormatProgressStatus(const char* progress_status_format,
-                                   int64_t time_millis) const;
+                                   int64_t time_millis,
+                                   int64_t time_millis_q) const;
 
   /// Set the |explanations_| pointer. Used to implement `-d explain`.
   void SetExplanations(Explanations* explanations) override {
@@ -56,7 +58,7 @@ struct StatusPrinter : Status {
   }
 
  private:
-  void PrintStatus(const Edge* edge, int64_t time_millis);
+  void PrintStatus(const Edge* edge, int64_t time_millis, int64_t time_millis_q);
 
   const BuildConfig& config_;
 
