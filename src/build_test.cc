@@ -652,6 +652,8 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "cc" ||
       edge->rule().name() == "cp_multi_msvc" ||
       edge->rule().name() == "cp_multi_gcc" ||
+      edge->rule().name() == "cp_multi_zero" ||
+      edge->rule().name() == "cp_multi_zero_del" ||
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
@@ -2537,6 +2539,79 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
   EXPECT_EQ("", err);
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("echo 'out2: in1 in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test nul-separated deps log with multiple outputs.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileZero) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_zero\n"
+"    command = printf 'in1\\0in2\\0' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = zero\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_zero in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+
+  std::string cont = "in1";
+  cont.push_back('\0');
+  cont.append("in2");
+  cont.push_back('\0');
+
+  fs_.Create("in.d", cont);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("printf 'in1\\0in2\\0' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
+
+  Node* out1_node = state_.LookupNode("out1");
+  DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
+  EXPECT_EQ(2, out1_deps->node_count);
+  EXPECT_EQ("in1", out1_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out1_deps->nodes[1]->path());
+
+  Node* out2_node = state_.LookupNode("out2");
+  DepsLog::Deps* out2_deps = log_.GetDeps(out2_node);
+  EXPECT_EQ(2, out2_deps->node_count);
+  EXPECT_EQ("in1", out2_deps->nodes[0]->path());
+  EXPECT_EQ("in2", out2_deps->nodes[1]->path());
+}
+
+/// Test nul-separated deps log with multiple outputs and no trailing nul.
+TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileZeroDel) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule cp_multi_zero_del\n"
+"    command = printf 'in1\\0in2' > in.d && for file in $out; do cp in1 $$file; done\n"
+"    deps = zero\n"
+"    depfile = in.d\n"
+"build out1 out2: cp_multi_zero_del in1 in2\n"));
+
+  std::string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  ASSERT_EQ("", err);
+
+  std::string cont = "in1";
+  cont.push_back('\0');
+  cont.append("in2");
+
+  fs_.Create("in.d", cont);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("printf 'in1\\0in2' > in.d && for file in out1 out2; do cp in1 $file; done", command_runner_.commands_ran_[0]);
 
   Node* out1_node = state_.LookupNode("out1");
   DepsLog::Deps* out1_deps = log_.GetDeps(out1_node);
