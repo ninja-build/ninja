@@ -19,38 +19,22 @@
 #include <windows.h>
 #endif
 
-#ifdef _WIN32
 TEST(AnsiColorTest, CliColorForce) {
-  const char* temp_value = std::getenv("CLICOLOR_FORCE");
-  std::string original_value = temp_value ? temp_value : "0";
-  SetEnvironmentVariable("CLICOLOR_FORCE", "1");
+  #ifdef _WIN32
+  char buf[32767];
+  DWORD len = GetEnvironmentVariableA("CLICOLOR_FORCE", buf, sizeof(buf));
+  std::string original_value;
+  if (len > 0) {
+    original_value = buf;
+  } else {
+    original_value = "0";
+  }
+  SetEnvironmentVariableA("CLICOLOR_FORCE", "1");
   ASSERT_EQ(true, EnvHasCliColorForce());
-  SetEnvironmentVariable("CLICOLOR_FORCE", "0");
+  SetEnvironmentVariableA("CLICOLOR_FORCE", "0");
   ASSERT_EQ(false, EnvHasCliColorForce());
-  SetEnvironmentVariable("CLICOLOR_FORCE", original_value);
-}
-
-TEST(AnsiColorTest, ForceColor) {
-  const char* temp_value = std::getenv("FORCE_COLOR");
-  std::string original_value = temp_value ? temp_value : "0";
-  SetEnvironmentVariable("FORCE_COLOR", "1");
-  ASSERT_EQ(true, EnvHasForceColor());
-  SetEnvironmentVariable("FORCE_COLOR", "0");
-  ASSERT_EQ(false, EnvHasForceColor());
-  SetEnvironmentVariable("FORCE_COLOR", original_value);
-}
-
-TEST(AnsiColorTest, NoColor) {
-  const char* temp_value = std::getenv("NO_COLOR");
-  std::string original_value = temp_value ? temp_value : "0";
-  SetEnvironmentVariable("NO_COLOR", "1");
-  ASSERT_EQ(true, EnvHasNoColor());
-  SetEnvironmentVariable("NO_COLOR", "0");
-  ASSERT_EQ(false, EnvHasNoColor());
-  SetEnvironmentVariable("NO_COLOR", original_value);
-}
-#else
-TEST(AnsiColorTest, CliColorForce) {
+  SetEnvironmentVariableA("CLICOLOR_FORCE", original_value.c_str());
+  #else
   const char* temp_value = std::getenv("CLICOLOR_FORCE");
   std::string original_value = temp_value ? temp_value : "0";
   setenv("CLICOLOR_FORCE", "1", 1);
@@ -58,9 +42,25 @@ TEST(AnsiColorTest, CliColorForce) {
   setenv("CLICOLOR_FORCE", "0", 1);
   ASSERT_EQ(false, EnvHasCliColorForce());
   setenv("CLICOLOR_FORCE", original_value.c_str(), 1);
+  #endif
 }
 
 TEST(AnsiColorTest, ForceColor) {
+  #ifdef _WIN32
+  char buf[32767];
+  DWORD len = GetEnvironmentVariableA("FORCE_COLOR", buf, sizeof(buf));
+  std::string original_value;
+  if (len > 0) {
+    original_value = buf;
+  } else {
+    original_value = "0";
+  }
+  SetEnvironmentVariableA("FORCE_COLOR", "1");
+  ASSERT_EQ(true, EnvHasForceColor());
+  SetEnvironmentVariableA("FORCE_COLOR", "0");
+  ASSERT_EQ(false, EnvHasForceColor());
+  SetEnvironmentVariableA("FORCE_COLOR", original_value.c_str());
+  #else
   const char* temp_value = std::getenv("FORCE_COLOR");
   std::string original_value = temp_value ? temp_value : "0";
   setenv("FORCE_COLOR", "1", 1);
@@ -68,9 +68,25 @@ TEST(AnsiColorTest, ForceColor) {
   setenv("FORCE_COLOR", "0", 1);
   ASSERT_EQ(false, EnvHasForceColor());
   setenv("FORCE_COLOR", original_value.c_str(), 1);
+  #endif
 }
 
 TEST(AnsiColorTest, NoColor) {
+  #ifdef _WIN32
+  char buf[32767];
+  DWORD len = GetEnvironmentVariableA("NO_COLOR", buf, sizeof(buf));
+  std::string original_value;
+  if (len > 0) {
+    original_value = buf;
+  } else {
+    original_value = "0";
+  }
+  SetEnvironmentVariableA("NO_COLOR", "1");
+  ASSERT_EQ(true, EnvHasNoColor());
+  SetEnvironmentVariableA("NO_COLOR", "0");
+  ASSERT_EQ(false, EnvHasNoColor());
+  SetEnvironmentVariableA("NO_COLOR", original_value.c_str());
+  #else
   const char* temp_value = std::getenv("NO_COLOR");
   std::string original_value = temp_value ? temp_value : "0";
   setenv("NO_COLOR", "1", 1);
@@ -78,5 +94,5 @@ TEST(AnsiColorTest, NoColor) {
   setenv("NO_COLOR", "0", 1);
   ASSERT_EQ(false, EnvHasNoColor());
   setenv("NO_COLOR", original_value.c_str(), 1);
+  #endif
 }
-#endif
