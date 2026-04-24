@@ -33,6 +33,8 @@ struct Env {
 /// A tokenized string that contains variable references.
 /// Can be evaluated relative to an Env.
 struct EvalString {
+  enum TokenType { RAW, SPECIAL };
+  typedef std::vector<std::pair<std::string, TokenType> > TokenList;
   /// @return The evaluated string with variable expanded using value found in
   ///         environment @a env.
   std::string Evaluate(Env* env) const;
@@ -42,6 +44,9 @@ struct EvalString {
 
   void Clear() { parsed_.clear(); single_token_.clear(); }
   bool empty() const { return parsed_.empty() && single_token_.empty(); }
+  bool IsSingle() const { return parsed_.empty(); }
+  std::string_view Single() const { return single_token_; }
+  const TokenList& SingleToken() const { return parsed_; }
 
   void AddText(StringPiece text);
   void AddSpecial(StringPiece text);
@@ -51,8 +56,6 @@ struct EvalString {
   std::string Serialize() const;
 
 private:
-  enum TokenType { RAW, SPECIAL };
-  typedef std::vector<std::pair<std::string, TokenType> > TokenList;
   TokenList parsed_;
 
   // If we hold only a single RAW token, then we keep it here instead of
@@ -64,6 +67,8 @@ private:
 
 /// An invocable build command and associated metadata (description, etc.).
 struct Rule {
+  typedef std::map<std::string, EvalString> Bindings;
+
   explicit Rule(const std::string& name) : name_(name) {}
 
   static std::unique_ptr<Rule> Phony();
@@ -71,6 +76,8 @@ struct Rule {
   bool IsPhony() const;
 
   const std::string& name() const { return name_; }
+
+  const Bindings& GetBindings() const { return bindings_; }
 
   void AddBinding(const std::string& key, const EvalString& val);
 
@@ -83,7 +90,6 @@ struct Rule {
   friend struct ManifestParser;
 
   std::string name_;
-  typedef std::map<std::string, EvalString> Bindings;
   Bindings bindings_;
   bool phony_ = false;
 };
@@ -101,6 +107,8 @@ struct BindingEnv : public Env {
   const Rule* LookupRule(const std::string& rule_name);
   const Rule* LookupRuleCurrentScope(const std::string& rule_name);
   const std::map<std::string, std::unique_ptr<const Rule>>& GetRules() const;
+  const std::map<std::string, std::string>& GetBindings() const;
+  const BindingEnv* GetParent() const;
 
   void AddBinding(const std::string& key, const std::string& val);
 

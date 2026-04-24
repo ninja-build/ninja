@@ -103,6 +103,7 @@ struct State {
 
   Edge* AddEdge(const Rule* rule);
 
+  Node* AddNode(StringPiece path, uint64_t slash_bits);
   Node* GetNode(StringPiece path, uint64_t slash_bits);
   Node* LookupNode(StringPiece path) const;
   Node* SpellcheckNode(const std::string& path);
@@ -114,6 +115,8 @@ struct State {
   bool AddOut(Edge* edge, StringPiece path, uint64_t slash_bits, std::string* err);
   void AddValidation(Edge* edge, StringPiece path, uint64_t slash_bits);
   bool AddDefault(StringPiece path, std::string* error);
+
+  bool AddOut(Edge* edge, Node* node);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
