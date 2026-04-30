@@ -30,7 +30,6 @@
 
 #include "elide_middle.h"
 #include "util.h"
-#include "ansi_color.h"
 
 using namespace std;
 
@@ -184,4 +183,19 @@ void LinePrinter::SetConsoleLocked(bool locked) {
     output_buffer_.clear();
     line_buffer_.clear();
   }
+}
+
+bool LinePrinter::EnvHasNoColor() {
+  char* no_color = std::getenv("NO_COLOR");
+  return no_color && std::string(no_color) != "0";
+}
+
+bool LinePrinter::EnvHasCliColorForce() {
+  char* clicolor_force = std::getenv("CLICOLOR_FORCE");
+  return clicolor_force && std::string(clicolor_force) != "0";
+}
+
+bool LinePrinter::EnvHasForceColor() {
+  char* force_color = std::getenv("FORCE_COLOR");
+  return force_color && std::string(force_color) != "0";
 }
