@@ -43,15 +43,6 @@ struct LinePrinter {
   /// console is locked will not be printed until it is unlocked.
   void SetConsoleLocked(bool locked);
 
-  /// Check if environment variable NO_COLOR is set.
-  bool EnvHasNoColor();
-
-  /// Check if environment variable CLICOLOR_FORCE is set.
-  bool EnvHasCliColorForce();
-
-  /// Check if environment variable FORCE_COLOR is set.
-  bool EnvHasForceColor();
-
  private:
   /// Whether we can do fancy terminal control codes.
   bool smart_terminal_;

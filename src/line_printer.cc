@@ -33,6 +33,23 @@
 
 using namespace std;
 
+namespace {
+bool EnvHasNoColor() {
+  char* no_color = std::getenv("NO_COLOR");
+  return no_color && std::string(no_color) != "0";
+}
+
+bool EnvHasCliColorForce() {
+  char* clicolor_force = std::getenv("CLICOLOR_FORCE");
+  return clicolor_force && std::string(clicolor_force) != "0";
+}
+
+bool EnvHasForceColor() {
+  char* force_color = std::getenv("FORCE_COLOR");
+  return force_color && std::string(force_color) != "0";
+}
+}  // anonymous namespace
+
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
@@ -50,11 +67,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
-    /*
     if (EnvHasNoColor()) {
       supports_color_ = false;
     }
-    */
     DWORD mode;
     if (GetConsoleMode(console_, &mode)) {
       if (!SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
@@ -64,7 +79,6 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   if (!supports_color_) {
-    /*
     // NO_COLOR and CLICOLOR_FORCE: NO_COLOR "overrides" CLICOLOR_FORCE
     if (EnvHasNoColor()) {
       supports_color_ = false;
@@ -73,10 +87,6 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
     }
     // NO_COLOR and FORCE_COLOR: FORCE_COLOR "overrides" NO_COLOR
     if (EnvHasForceColor()) {
-      supports_color = true;
-    }
-    */
-    if (EnvHasCliColorForce() || EnvHasForceColor()) {
       supports_color_ = true;
     }
   }
@@ -183,19 +193,4 @@ void LinePrinter::SetConsoleLocked(bool locked) {
     output_buffer_.clear();
     line_buffer_.clear();
   }
-}
-
-bool LinePrinter::EnvHasNoColor() {
-  char* no_color = std::getenv("NO_COLOR");
-  return no_color && std::string(no_color) != "0";
-}
-
-bool LinePrinter::EnvHasCliColorForce() {
-  char* clicolor_force = std::getenv("CLICOLOR_FORCE");
-  return clicolor_force && std::string(clicolor_force) != "0";
-}
-
-bool LinePrinter::EnvHasForceColor() {
-  char* force_color = std::getenv("FORCE_COLOR");
-  return force_color && std::string(force_color) != "0";
 }
