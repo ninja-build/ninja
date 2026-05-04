@@ -64,6 +64,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   supports_color_ = smart_terminal_;
+  if (EnvHasNoColor()) {
+    supports_color_ = false;
+  }
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
