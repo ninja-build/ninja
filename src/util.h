@@ -105,6 +105,13 @@ double GetLoadAverage();
 /// a wrapper for getcwd()
 std::string GetWorkingDirectory();
 
+/// @return the current process ID.
+int GetPid();
+
+/// @return true if a process with the given \a pid is currently running.
+/// Returns false for invalid (non-positive) pids.
+bool IsProcessRunning(int pid);
+
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
 
