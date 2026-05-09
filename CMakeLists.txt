@@ -130,6 +130,7 @@ add_library(libninja OBJECT
 	src/clean.cc
 	src/clparser.cc
 	src/dyndep.cc
+	src/dyndep_file_sorted.cc
 	src/dyndep_parser.cc
 	src/debug_flags.cc
 	src/deps_log.cc
