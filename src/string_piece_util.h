@@ -30,4 +30,16 @@ inline char ToLowerASCII(char c) {
 
 bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b);
 
+/// A comparator for StringPiece that can be used in
+/// `std::map<std::string, V, StringPieceLess>` that will allow using a
+/// StringPiece as a key.  Note that this compares elements of the
+/// strings as `unsigned char`, which means that implementations that
+/// have a signed `char` may give an unexpected (yet valid) ordering
+/// when iterating through a `std::map` containing negative `char`s.
+struct StringPieceLess {
+  using is_transparent = void;
+
+  bool operator()(StringPiece lhs, StringPiece rhs) const;
+};
+
 #endif  // NINJA_STRINGPIECE_UTIL_H_

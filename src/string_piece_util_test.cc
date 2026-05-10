@@ -129,3 +129,18 @@ TEST(StringPieceUtilTest, EqualsCaseInsensitiveASCII) {
   EXPECT_FALSE(EqualsCaseInsensitiveASCII("/", "\\"));
   EXPECT_FALSE(EqualsCaseInsensitiveASCII("1", "10"));
 }
+
+
+TEST(StringPieceUtilTest, StringPieceLess) {
+  const std::vector<StringPiece> strings = {
+    "", "A", "AbC", "a", "abc", "c", "ca",
+  };
+  const StringPieceLess less;
+
+  for (int l = 0; l < strings.size(); ++l) {
+    for (int r = 0; r < strings.size(); ++r) {
+      EXPECT_EQ(less(strings[l], strings[r]), l < r)
+          << strings[l].AsString() << " < " << strings[r].AsString();
+    }
+  }
+}
