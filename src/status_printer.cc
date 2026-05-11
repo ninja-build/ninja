@@ -89,7 +89,7 @@ void StatusPrinter::BuildEdgeStarted(const Edge* edge,
   time_millis_ = start_time_millis;
 
   if (edge->use_console() || printer_.is_smart_terminal())
-    PrintStatus(edge, start_time_millis);
+    PrintStatus(edge, start_time_millis, 0);
 
   if (edge->use_console())
     printer_.SetConsoleLocked(true);
@@ -198,7 +198,7 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
     return;
 
   if (!edge->use_console())
-    PrintStatus(edge, end_time_millis);
+    PrintStatus(edge, end_time_millis, (end_time_millis - start_time_millis));
 
   --running_edges_;
 
@@ -262,7 +262,8 @@ void StatusPrinter::BuildFinished() {
 }
 
 string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
-                                           int64_t time_millis) const {
+                                           int64_t time_millis,
+                                           int64_t time_millis_q) const {
   string out;
   char buf[32];
   for (const char* s = progress_status_format; *s != '\0'; ++s) {
@@ -326,6 +327,12 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
         out += buf;
         break;
       }
+
+        // Time spent (in seconds) on this edge specifically.
+      case 'q':
+        std::snprintf(buf, sizeof(buf), "%.3f", (time_millis_q / 1e3));
+        out += buf;
+        break;
 
 #define FORMAT_TIME_HMMSS(t)                                                \
   "%" PRId64 ":%02" PRId64 ":%02" PRId64 "", (t) / 3600, ((t) % 3600) / 60, \
@@ -405,7 +412,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
   return out;
 }
 
-void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
+void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis, int64_t time_millis_q) {
   if (explanations_) {
     explanations_->ExplainEdge(edge);
   }
@@ -422,7 +429,7 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (to_print.empty() || force_full_command)
     to_print = edge->GetBinding("command");
 
-  to_print = FormatProgressStatus(progress_status_format_, time_millis)
+  to_print = FormatProgressStatus(progress_status_format_, time_millis, time_millis_q)
       + to_print;
 
   printer_.Print(to_print,

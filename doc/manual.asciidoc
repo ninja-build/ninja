@@ -243,6 +243,7 @@ specified by `-j` or its default)
 `%W`:: Remaining time (ETA) in [h:]mm:ss format. _(Available since Ninja 1.12.)_
 `%P`:: The percentage (in ppp% format) of time elapsed out of predicted total runtime. _(Available since Ninja 1.12.)_
 `%%`:: A plain `%` character.
+`%q`:: Time spent on current edge in seconds.
 
 The default progress status is `"[%f/%t] "` (note the trailing space
 to separate from the build rule). Another example of possible progress status
