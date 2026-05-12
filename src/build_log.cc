@@ -88,11 +88,13 @@ bool BuildLog::OpenForWrite(const std::string& path, const BuildLogUser& user,
 }
 
 bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
-                             TimeStamp mtime) {
+                             TimeStamp mtime,
+                             const std::vector<TimeStamp>& output_mtimes) {
   std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
+  size_t output_index = 0;
   for (std::vector<Node*>::iterator out = edge->outputs_.begin();
-       out != edge->outputs_.end(); ++out) {
+       out != edge->outputs_.end(); ++out, ++output_index) {
     const std::string& path = (*out)->path();
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
@@ -107,6 +109,8 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
     log_entry->start_time = start_time;
     log_entry->end_time = end_time;
     log_entry->mtime = mtime;
+    log_entry->output_mtime =
+        output_index < output_mtimes.size() ? output_mtimes[output_index] : 0;
 
     if (!OpenForWriteIfNeeded()) {
       return false;
@@ -299,9 +303,19 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     entry->start_time = start_time;
     entry->end_time = end_time;
     entry->mtime = mtime;
-    char c = *end; *end = '\0';
-    entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
-    *end = c;
+
+    // Parse command_hash (5th field).  Use strtoul with an end pointer so
+    // we can detect a 6th field (output_mtime) after it.
+    char* hash_end = NULL;
+    entry->command_hash = (uint64_t)strtoull(start, &hash_end, 16);
+
+    // Parse optional output_mtime (6th field, added for detecting
+    // externally modified outputs).  Old log entries won't have this
+    // field; default to 0 (unknown).
+    entry->output_mtime = 0;
+    if (hash_end && hash_end < line_end && *hash_end == kFieldSeparator) {
+      entry->output_mtime = strtoll(hash_end + 1, NULL, 10);
+    }
   }
   fclose(file);
 
@@ -332,9 +346,10 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
-  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
+  return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\t%" PRId64 "\n",
           entry.start_time, entry.end_time, entry.mtime,
-          entry.output.c_str(), entry.command_hash) > 0;
+          entry.output.c_str(), entry.command_hash,
+          entry.output_mtime) > 0;
 }
 
 bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
@@ -411,6 +426,7 @@ bool BuildLog::Restat(const StringPiece path,
         return false;
       }
       pair.second->mtime = mtime;
+      pair.second->output_mtime = mtime;
     }
 
     if (!WriteEntry(f, *pair.second)) {
