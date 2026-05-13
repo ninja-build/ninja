@@ -387,10 +387,22 @@ ninja: build stopped: subcommand failed.
         self.assertEqual(output, 'do thing\n')
 
     def test_status_flag(self) -> None:
-        'Does --status accept a Ninja-style $-format?'
+        'Does --status accept a Ninja-style $-format with $description?'
         output = run(Output.BUILD_SIMPLE_ECHO,
-                     flags="--status '<${finished}/${total}> '")
+                     flags="--status '<${finished}/${total}> $description'")
         self.assertEqual(output, '<1/1> echo a\x1b[K\ndo thing\n')
+
+    def test_status_flag_without_description(self) -> None:
+        'Does --status omit the description when $description is not in the format?'
+        output = run(Output.BUILD_SIMPLE_ECHO,
+                     flags="--status '<${finished}/${total}>'")
+        self.assertEqual(output, '<1/1>\x1b[K\ndo thing\n')
+
+    def test_status_flag_description_placement(self) -> None:
+        'Does --status place the description wherever $description appears?'
+        output = run(Output.BUILD_SIMPLE_ECHO,
+                     flags="--status '[$description] (${finished}/${total})'")
+        self.assertEqual(output, '[echo a] (1/1)\x1b[K\ndo thing\n')
 
     def test_status_flag_unknown_variable(self) -> None:
         'Does --status fail clearly on an unknown variable?'
