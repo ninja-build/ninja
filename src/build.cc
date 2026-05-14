@@ -612,6 +612,27 @@ Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
   string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty())
     lock_file_path_ = build_dir + "/" + lock_file_path_;
+
+  // If a lock file from a previous (or concurrent) ninja invocation exists,
+  // see whether that process is still alive and warn the user.
+  std::string stat_err;
+  if (disk_interface_->Stat(lock_file_path_, &stat_err) > 0) {
+    std::string lock_contents;
+    std::string read_err;
+    if (disk_interface_->ReadFile(lock_file_path_, &lock_contents, &read_err) ==
+        FileReader::Okay) {
+      char* end = nullptr;
+      long pid = strtol(lock_contents.c_str(), &end, 10);
+      if (end != lock_contents.c_str() && pid > 0 &&
+          static_cast<int>(pid) != GetPid() &&
+          IsProcessRunning(static_cast<int>(pid))) {
+        Warning("another ninja process (pid %ld) seems to be running in this "
+                "build directory; if it is not, delete %s",
+                pid, lock_file_path_.c_str());
+      }
+    }
+  }
+
   status_->SetExplanations(explanations_.get());
 }
 
@@ -858,7 +879,9 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
     if (build_start == -1) {
-      disk_interface_->WriteFile(lock_file_path_, "", false);
+      char pid_str[32];
+      snprintf(pid_str, sizeof(pid_str), "%d", GetPid());
+      disk_interface_->WriteFile(lock_file_path_, pid_str, false);
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;

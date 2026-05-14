@@ -35,6 +35,7 @@
 #include <sys/types.h>
 
 #ifndef _WIN32
+#include <signal.h>
 #include <unistd.h>
 #include <sys/time.h>
 #endif
@@ -1002,6 +1003,37 @@ std::string GetWorkingDirectory() {
   }
   ret.resize(strlen(&ret[0]));
   return ret;
+}
+
+int GetPid() {
+#ifdef _WIN32
+  return static_cast<int>(GetCurrentProcessId());
+#else
+  return static_cast<int>(getpid());
+#endif
+}
+
+bool IsProcessRunning(int pid) {
+  if (pid <= 0) {
+    return false;
+  }
+#ifdef _WIN32
+  HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                              static_cast<DWORD>(pid));
+  if (!handle) {
+    return false;
+  }
+  DWORD exit_code = 0;
+  BOOL ok = GetExitCodeProcess(handle, &exit_code);
+  CloseHandle(handle);
+  return ok && exit_code == STILL_ACTIVE;
+#else
+  if (kill(static_cast<pid_t>(pid), 0) == 0) {
+    return true;
+  }
+  // EPERM means the process exists but we can't signal it.
+  return errno == EPERM;
+#endif
 }
 
 bool Truncate(const string& path, size_t size, string* err) {
