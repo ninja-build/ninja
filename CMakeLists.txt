@@ -5,6 +5,7 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
+option(BUILD_TESTING "Build ninja tests" ON)
 
 project(ninja CXX)
 
@@ -251,8 +252,8 @@ if(platform_supports_ninja_browse)
 	)
 endif()
 
-include(CTest)
 if(BUILD_TESTING)
+	enable_testing()
 
   # Can be removed if cmake min version is >=3.24
   if (POLICY CMP0135)
@@ -311,7 +312,7 @@ if(BUILD_TESTING)
   find_package(Threads REQUIRED)
   target_link_libraries(ninja_test PRIVATE libninja libninja-re2c GTest::gtest Threads::Threads)
 
-  foreach(perftest
+  foreach(perftest IN ITEMS
     build_log_perftest
     canon_perftest
     clparser_perftest
