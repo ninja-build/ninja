@@ -13,7 +13,6 @@ check_ipo_supported(RESULT lto_supported OUTPUT error)
 
 if(lto_supported)
 	message(STATUS "IPO / LTO enabled")
-	set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 else()
 	message(STATUS "IPO / LTO not supported: <${error}>")
