@@ -70,9 +70,6 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
-    if (EnvHasNoColor()) {
-      supports_color_ = false;
-    }
     DWORD mode;
     if (GetConsoleMode(console_, &mode)) {
       if (!SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
@@ -83,13 +80,8 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #endif
   if (!supports_color_) {
     // NO_COLOR and CLICOLOR_FORCE: NO_COLOR "overrides" CLICOLOR_FORCE
-    if (EnvHasNoColor()) {
-      supports_color_ = false;
-    } else if (EnvHasCliColorForce()) {
-      supports_color_ = true;
-    }
     // NO_COLOR and FORCE_COLOR: FORCE_COLOR "overrides" NO_COLOR
-    if (EnvHasForceColor()) {
+    if ((!EnvHasNoColor() && EnvHasCliColorForce()) || EnvHasForceColor()) {
       supports_color_ = true;
     }
   }
