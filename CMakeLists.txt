@@ -163,11 +163,6 @@ if(WIN32)
 		src/getopt.c
 		src/minidump-win32.cc
 	)
-	# Build getopt.c, which can be compiled as either C or C++, as C++
-	# so that build environments which lack a C compiler, but have a C++
-	# compiler may build ninja.
-	set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
-
 	# windows.h defines min() and max() which conflict with std::min()
 	# and std::max(), which both might be used in sources. Avoid compile
 	# errors by telling windows.h to not define those two.
@@ -179,16 +174,19 @@ else()
 	)
 	if(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_sources(libninja PRIVATE src/getopt.c)
-		# Build getopt.c, which can be compiled as either C or C++, as C++
-		# so that build environments which lack a C compiler, but have a C++
-		# compiler may build ninja.
-		set_source_files_properties(src/getopt.c PROPERTIES LANGUAGE CXX)
 	endif()
 
 	# Needed for perfstat_cpu_total
 	if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
 		target_link_libraries(libninja PUBLIC "-lperfstat")
 	endif()
+endif()
+get_property(_src_ninja TARGET libninja PROPERTY SOURCES)
+if("src/getopt.c" IN_LIST _src_ninja)
+	# Build getopt.c, which can be compiled as either C or C++, as C++
+	# so that build environments which lack a C compiler, but have a C++
+	# compiler may build ninja.
+	set_property(SOURCE src/getopt.c PROPERTY LANGUAGE CXX)
 endif()
 
 target_compile_features(libninja PUBLIC cxx_std_17)
@@ -216,9 +214,7 @@ if(NINJA_BUILD_BINARY)
 
 	option(NINJA_CLANG_TIDY "Run clang-tidy on source files" OFF)
 	if(NINJA_CLANG_TIDY)
-		set_target_properties(libninja-re2c PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
-		set_target_properties(libninja PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
-		set_target_properties(ninja    PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
+		set_target_properties(libninja-re2c libninja ninja PROPERTIES CXX_CLANG_TIDY "clang-tidy;--use-color")
 	endif()
 endif()
 
