@@ -31,7 +31,8 @@ namespace {
 bool InternalGetFullPathName(const StringPiece& file_name, char* buffer,
                              size_t buffer_length, string *err) {
   DWORD result_size = GetFullPathNameA(file_name.AsString().c_str(),
-                                       buffer_length, buffer, NULL);
+                                       static_cast<DWORD>(buffer_length),
+                                       buffer, NULL);
   if (result_size == 0) {
     *err = "GetFullPathNameA(" + file_name.AsString() + "): " +
         GetLastErrorString();

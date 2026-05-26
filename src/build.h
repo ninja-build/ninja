@@ -263,7 +263,7 @@ private:
                    std::vector<Node*>* deps_nodes, std::string* err);
 
   /// Map of running edge to time the edge started running.
-  typedef std::map<const Edge*, int> RunningEdgeMap;
+  typedef std::map<const Edge*, int64_t> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Time the build started.

@@ -1226,7 +1226,7 @@ TEST_F(BuildTest, RebuildOrderOnlyDeps) {
 #ifdef _WIN32
 TEST_F(BuildTest, DepFileCanonicalize) {
   string err;
-  int orig_edges = state_.edges_.size();
+  int orig_edges = static_cast<int>(state_.edges_.size());
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "rule cc\n  command = cc $in\n  depfile = $out.d\n"
 "build gen/stuff\\things/foo.o: cc x\\y/z\\foo.c\n"));
