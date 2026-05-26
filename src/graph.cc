@@ -1008,7 +1008,7 @@ std::optional<EdgeInputsRange> ImplicitDepLoader::LoadDepsFromLog(Edge* edge,
   const size_t node_count = deps->node_count;
   const auto implicit_dep = edge->inputs_.end() - edge->order_only_deps_;
 
-  edge->implicit_deps_ += node_count;
+  edge->implicit_deps_ += static_cast<int>(node_count);
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }
