@@ -223,9 +223,8 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   edge->outputs_ready_ = true;
 
   // Check off any nodes we were waiting for with this edge.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!NodeFinished(*o, err))
+  for (auto o : edge->outputs_) {
+    if (!NodeFinished(o, err))
       return false;
   }
   return true;
@@ -241,9 +240,8 @@ bool Plan::NodeFinished(Node* node, string* err) {
   }
 
   // See if we we want any edges from this node.
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+  for (auto oe : node->out_edges()) {
+    map<Edge*, Want>::iterator want_e = want_.find(oe);
     if (want_e == want_.end())
       continue;
 
