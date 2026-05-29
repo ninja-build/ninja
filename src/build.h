@@ -239,8 +239,8 @@ struct Builder {
     scan_.set_build_log(log);
   }
 
-  /// Load the dyndep information provided by the given node.
-  bool LoadDyndeps(Node* node, std::string* err);
+  /// Load the dyndep information provided by the given nodes.
+  bool LoadDyndeps(const std::vector<Node*>& nodes, std::string* err);
 
   State* state_;
   const BuildConfig& config_;

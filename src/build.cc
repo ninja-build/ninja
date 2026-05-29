@@ -222,28 +222,22 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   want_.erase(e);
   edge->outputs_ready_ = true;
 
+  // If this edge provides dyndep info, load it now.
+  if (builder_ && !builder_->LoadDyndeps(edge->outputs_, err))
+    return false;
+
   // Check off any nodes we were waiting for with this edge.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!NodeFinished(*o, err))
+  for (auto o : edge->outputs_) {
+    if (!NodeFinished(o, err))
       return false;
   }
   return true;
 }
 
 bool Plan::NodeFinished(Node* node, string* err) {
-  // If this node provides dyndep info, load it now.
-  if (node->dyndep_pending()) {
-    assert(builder_ && "dyndep requires Plan to have a Builder");
-    // Load the now-clean dyndep file.  This will also update the
-    // build plan and schedule any new work that is ready.
-    return builder_->LoadDyndeps(node, err);
-  }
-
   // See if we we want any edges from this node.
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+  for (auto oe : node->out_edges()) {
+    map<Edge*, Want>::iterator want_e = want_.find(oe);
     if (want_e == want_.end())
       continue;
 
@@ -1064,16 +1058,27 @@ bool Builder::ExtractDeps(BuildResult::CommandCompleted& result,
   return true;
 }
 
-bool Builder::LoadDyndeps(Node* node, string* err) {
-  // Load the dyndep information provided by this node.
-  DyndepFile ddf;
-  if (!scan_.LoadDyndeps(node, &ddf, err))
-    return false;
+bool Builder::LoadDyndeps(const std::vector<Node*>& nodes, std::string* err) {
+  using dyndepPair = std::pair<const Node*, const DyndepFile>;
+  std::vector<dyndepPair> dyndeps;
 
-  // Update the build plan to account for dyndep modifications to the graph.
-  if (!plan_.DyndepsLoaded(&scan_, node, ddf, err))
-    return false;
+  // first update scan_ for all loaded dyndep files
+  for (Node* node : nodes) {
+    if (!node->dyndep_pending())
+      continue;
 
+    DyndepFile ddf;
+    if (!scan_.LoadDyndeps(node, &ddf, err))
+      return false;
+
+    dyndeps.emplace_back(node, std::move(ddf));
+  }
+
+  // update the plan
+  for (const auto& dyndep : dyndeps) {
+    if (!plan_.DyndepsLoaded(&scan_, dyndep.first, dyndep.second, err))
+      return false;
+  }
   return true;
 }
 

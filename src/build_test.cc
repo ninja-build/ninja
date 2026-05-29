@@ -4421,3 +4421,87 @@ TEST_F(StateTestWithBuiltinRules, ComplexTargetPreserved) {
 
   EXPECT_EQ(node->path(), "foo %2F bar?baz&x=1");
 }
+
+// These tests primarily exercise Plan, but dyndep loading requires filesystem
+// interactions managed by Builder. Therefore BuildTest is used instead of
+// PlanTest.
+// https://github.com/ninja-build/ninja/issues/2782
+TEST_F(BuildTest, DyndepOneEdgeTwoDyndepfilesRaceCondition) {
+  // Verify that loading multiple dyndep files does not introduce a race
+  // condition.
+
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule make_dyndep
+  command = printf "ninja_dyndep_version = 1\nbuild a.pcm: dyndep | b.pcm\n" > a.dd; printf "ninja_dyndep_version = 1\nbuild b.pcm: dyndep | c.pcm\n" > b.dd
+build a.dd b.dd: make_dyndep
+
+rule touch
+  command = touch $out
+build a.pcm: touch a | a.dd
+  dyndep = a.dd
+
+rule touch_slow
+  command = touch $out
+build c.pcm: touch_slow c
+
+rule check_exists
+  command = [ -f c.pcm ] && touch $out
+build b.pcm: check_exists b | b.dd
+  dyndep = b.dd
+)ninja"));
+
+  fs_.Create("a", "");
+  fs_.Create("b", "");
+  fs_.Create("c", "");
+  fs_.Create("a.dd",
+             "ninja_dyndep_version = 1\n"
+             "build a.pcm: dyndep | b.pcm\n");
+  fs_.Create("b.dd",
+             "ninja_dyndep_version = 1\n"
+             "build b.pcm: dyndep | c.pcm\n");
+
+  state_.GetNode("a.dd", 0)->MarkDirty();
+  state_.GetNode("b.dd", 0)->MarkDirty();
+  state_.GetNode("a.pcm", 0)->MarkDirty();
+  state_.GetNode("b.pcm", 0)->MarkDirty();
+  state_.GetNode("c.pcm", 0)->MarkDirty();
+
+  auto& plan_ = builder_.plan_;
+
+  // Simulate `ninja` adding all default targets in their original order.
+  string err;
+  EXPECT_TRUE(plan_.AddTarget(GetNode("a.pcm"), &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(plan_.AddTarget(GetNode("c.pcm"), &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(plan_.AddTarget(GetNode("b.pcm"), &err));
+  ASSERT_EQ("", err);
+
+  plan_.PrepareQueue();
+  EXPECT_TRUE(plan_.more_to_do());
+  EXPECT_TRUE(plan_.work_ready());
+
+  // Start running the first two processes.
+  Edge* edge1 = plan_.FindWork();
+  ASSERT_TRUE(edge1);
+  EXPECT_EQ(edge1->rule().name(), "make_dyndep");
+  EXPECT_TRUE(plan_.work_ready());
+
+  Edge* edge2 = plan_.FindWork();
+  ASSERT_TRUE(edge2);
+  EXPECT_EQ(edge2->rule().name(), "touch_slow");
+  EXPECT_FALSE(plan_.work_ready());
+
+  // 'make_dyndep' finishes first and loads the dyndep files, but additional
+  // work is still blocked because 'touch_slow' is still building 'c.pcm'.
+  plan_.EdgeFinished(edge1, Plan::kEdgeSucceeded, &err);
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(plan_.work_ready());
+
+  // 'touch_slow' finishes second; the dependent edge can now start.
+  plan_.EdgeFinished(edge2, Plan::kEdgeSucceeded, &err);
+  ASSERT_EQ("", err);
+
+  // The next edge should now be ready to run.
+  EXPECT_TRUE(plan_.work_ready());
+}
