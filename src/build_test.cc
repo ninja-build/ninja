@@ -2105,7 +2105,7 @@ TEST_F(BuildTest, RspFileSuccess)
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
 
   // The RSP files and temp file to acquire output mtimes were created
-  ASSERT_EQ(files_created + 3, fs_.files_created_.size());
+  ASSERT_EQ(files_created + 2, fs_.files_created_.size());
   ASSERT_EQ(1u, fs_.files_created_.count("out 2.rsp"));
   ASSERT_EQ(1u, fs_.files_created_.count("out 3.rsp"));
   ASSERT_EQ(1u, fs_.files_created_.count(".ninja_lock"));
@@ -2143,7 +2143,7 @@ TEST_F(BuildTest, RspFileFailure) {
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
 
   // The RSP file and temp file to acquire output mtimes were created
-  ASSERT_EQ(files_created + 2, fs_.files_created_.size());
+  ASSERT_EQ(files_created + 1, fs_.files_created_.size());
   ASSERT_EQ(1u, fs_.files_created_.count("out.rsp"));
   ASSERT_EQ(1u, fs_.files_created_.count(".ninja_lock"));
 
@@ -3463,7 +3463,7 @@ TEST_F(BuildTest, DyndepBuild) {
   ASSERT_EQ(2u, fs_.files_read_.size());
   EXPECT_EQ("dd-in", fs_.files_read_[0]);
   EXPECT_EQ("dd", fs_.files_read_[1]);
-  ASSERT_EQ(3u + files_created, fs_.files_created_.size());
+  ASSERT_EQ(2u + files_created, fs_.files_created_.size());
   EXPECT_EQ(1u, fs_.files_created_.count("dd"));
   EXPECT_EQ(1u, fs_.files_created_.count("out"));
   EXPECT_EQ(1u, fs_.files_created_.count(".ninja_lock"));
