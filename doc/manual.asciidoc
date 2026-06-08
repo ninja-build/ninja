@@ -1088,9 +1088,9 @@ build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 [[ref_rule_command]]
 Interpretation of the `command` variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Fundamentally, command lines behave differently on Unixes and Windows.
+Fundamentally, command lines behave differently on Unix and Windows.
 
-On Unixes, commands are arrays of arguments.  The Ninja `command`
+On Unix systems, commands are arrays of arguments.  The Ninja `command`
 variable is passed directly to `sh -c`, which is then responsible for
 interpreting that string into an argv array.  Therefore, the quoting
 rules are those of the shell, and you can use all the normal shell
