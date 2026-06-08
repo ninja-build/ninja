@@ -921,7 +921,7 @@ the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
 Lexical syntax
 ~~~~~~~~~~~~~~
 
-Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
+Ninja is mostly encoding-agnostic, as long as the bytes Ninja cares
 about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
 ISO-8859-1 input files ought to work.
 
