@@ -206,7 +206,7 @@ This feature is automatically enabled under the following conditions:
 
 - The `MAKEFLAGS` environment variable is defined and describes a valid
   jobserver mode using `--jobserver-auth=SEMAPHORE_NAME` on Windows, or
-  `--jobserver-auth=fifo:PATH` on Posix.
+  `--jobserver-auth=fifo:PATH` on POSIX.
 
 In this case, Ninja will use the jobserver pool of job slots to control
 parallelism, instead of its default parallel implementation.
@@ -214,7 +214,7 @@ parallelism, instead of its default parallel implementation.
 Note that load-average limitations (i.e. when using `-l<count>`)
 are still being enforced in this mode.
 
-IMPORTANT: On Posix, only the FIFO-based version of the protocol, which is
+IMPORTANT: On POSIX, only the FIFO-based version of the protocol, which is
 implemented by GNU Make 4.4 and higher, is supported. Ninja will detect
 when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
 `--jobserver-auth=<read>,<write>`) and will print a warning, but will
@@ -343,7 +343,7 @@ The output will be a series of lines with the following elements:
 The default `<delimiter>` is a single TAB character.
 The delimiter can be modified to any string using the `--delimiter` argument.
 +
-The default `<terminator>` is a line terminator (i.e. `\n` on Posix and `\r\n` on Windows).
+The default `<terminator>` is a line terminator (i.e. `\n` on POSIX and `\r\n` on Windows).
 The terminator can be changed to `\0` by using the `--print0` argument.
 +
 ----
